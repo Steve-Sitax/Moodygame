@@ -21,6 +21,8 @@ public partial class Velocipedes:Node
     private readonly HashSet<string> residentUse=new();
     public void ResidentUse(string id,bool on,Vector3? at=null){if(on)residentUse.Add(id);else residentUse.Remove(id);if(Machines.TryGetValue(id,out var m)&&m!=Ridden){if(at is Vector3 p)m.Info=m.Info with{X=p.X,Z=p.Y,Yaw=p.Z};Park(m);}}
     public Machine? Ridden {get;private set;}
+    // Midpoints of the authored wooden grips, in the steering node's game coordinates.
+    internal Vector3? PlayerGrip(int side) => Ridden?.Steer?.ToGlobal(new Vector3(side == 0 ? .36f : -.36f, .626f, -.11f));
     public VeloJef? Ownership {get;private set;}
     public bool Busy {get;private set;}
     public float Speed {get;private set;}

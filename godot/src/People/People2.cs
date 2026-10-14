@@ -59,9 +59,9 @@ public static class People2
         get { Load(); if (model != null) foreach (var k in Bodies.Keys) yield return "p2:" + k; }
     }
     public static IEnumerable<string> ClipNames { get { Load(); return Clips.Keys; } }
-    internal static bool Has(string kind)
+    internal static bool Has(string kind, bool explicitPlayer = false)
     {
-        if (!Enabled) return false;
+        if (!Enabled && !explicitPlayer) return false;
         Load();
         string body = Body(kind);
         if (model == null || !Bodies.ContainsKey(body)) return false;
@@ -214,9 +214,9 @@ public static class People2
                 }
         }
     }
-    internal static Human? Make(string kind)
+    internal static Human? Make(string kind, bool explicitPlayer = false)
     {
-        if (!Has(kind)) return null;
+        if (!Has(kind, explicitPlayer)) return null;
         ulong begin = Time.GetTicksUsec();
         string body = Body(kind);
         if (!Bodies.ContainsKey(body)) return null;

@@ -109,7 +109,7 @@ public static partial class CharacterSheet
         // the right: the names, then a row for each part of the look
         var right = new VBoxContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill, MouseFilter = Control.MouseFilterEnum.Ignore };
         right.AddThemeConstantOverride("separation", 0);
-        var rightScroll = new ScrollContainer { HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled, FollowFocus = true, SizeFlagsHorizontal = Control.SizeFlags.ExpandFill, SizeFlagsVertical = Control.SizeFlags.ExpandFill };
+        var rightScroll = new ScrollContainer { Name = "character_controls", HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled, FollowFocus = true, SizeFlagsHorizontal = Control.SizeFlags.ExpandFill, SizeFlagsVertical = Control.SizeFlags.ExpandFill };
         Sheet.ThinBar(rightScroll.GetVScrollBar());
         var rightPad = new MarginContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill, MouseFilter = Control.MouseFilterEnum.Ignore };
         rightPad.AddThemeConstantOverride("margin_right", Kit.Px(12));
@@ -276,9 +276,15 @@ public static partial class CharacterSheet
         }, _ => Rows()) { NoOutput = true, TrackWidth = 200, Name = "age" };
         rows.AddChild(Row("Age", bands, age, ageVal));
         rows.AddChild(Row("Build", SegOf("build", Character.Builds, p.Build, (q, v) => q.Build = v)));
+        rows.AddChild(Row("Face type", Sel("faceType", Character.FaceTypes.Where(id => id == "shrunken_old" || (id is "round_flemish_woman" or "lean_widow" or "young_woman" or "southern_woman") == w).Select(id => new Choice(id, Cap(id.Replace('_', ' ')))), p.FaceType == "" ? w ? "young_woman" : "flemish_docker" : p.FaceType,
+            (q, v) => { q.FaceType = v; q.Sliders.Clear(); })));
         rows.AddChild(Row("Skin", Swatches("skin", Character.Skin, p.Skin, (q, v) => q.Skin = v)));
         rows.AddChild(Row("Hair", With(Sel("hairStyle", Character.OptionsFor(Character.HairStyles, p.Sex), p.Hair.Style, (q, v) => q.Hair.Style = v), Swatches("hair", Character.HairColours, p.Hair.Colour, (q, v) => q.Hair.Colour = v))));
-        if (!w) rows.AddChild(Row("Face", Sel("face", Character.OptionsFor(Character.Faces, p.Sex), p.Face, (q, v) => q.Face = v)));
+        if (!w)
+        {
+            rows.AddChild(Row("Beard", Sel("beard", Character.Beards.Select(id => new Choice(id, Cap(id))), p.Beard == "" ? p.Face == "beard" ? "full" : p.Face == "whiskers" ? "sideburns" : "none" : p.Beard, (q, v) => { q.Beard = v; q.Face = v == "none" ? "clean" : v == "sideburns" || v == "chops" ? "whiskers" : "beard"; })));
+            rows.AddChild(Row("Moustache", Sel("moustache", Character.Moustaches.Select(id => new Choice(id, Cap(id))), p.Moustache == "" ? p.Face is "walrus" or "beard" ? "walrus" : p.Face == "moustache" ? "chevron" : "none" : p.Moustache, (q, v) => { q.Moustache = v; if (q.Beard is "" or "none") q.Face = v == "none" ? "clean" : v == "walrus" ? "walrus" : "moustache"; })));
+        }
         var head = new List<Control> { Sel("head", Character.OptionsFor(Character.Heads, p.Sex), cl.Head.Kind, (q, v) => q.Clothes.Head.Kind = v) };
         if (cl.Head.Kind != "none") head.AddRange(Swatches("head", Character.Cloth, cl.Head.Colour, (q, v) => q.Clothes.Head.Colour = v));
         rows.AddChild(Row(w ? "Head" : "Hat or cap", head.ToArray()));
@@ -296,6 +302,15 @@ public static partial class CharacterSheet
         }
         else rows.AddChild(Row("Apron", Kit.Text($"Not under a {(cl.Coat.Kind == "smock" ? "smock" : "long coat")}.", Fonts.PrintItalic, 14, Kit.InkSoft)));
         rows.AddChild(Row("Feet", With(SegOf("feet", Character.Feet, cl.Feet.Kind, (q, v) => q.Clothes.Feet.Kind = v), Swatches("feet", Character.SwatchesFor("feet", cl.Feet.Kind), cl.Feet.Colour, (q, v) => q.Clothes.Feet.Colour = v))));
+        foreach (var shape in Character.Shapes)
+        {
+            var slider = new InkSlider(shape.Min, shape.Max, .01, People.People2Faces.PlayerSlider(p, shape), v => v.ToString("0.00"), v =>
+            {
+                draft.Sliders[shape.Id] = (float)Math.Round(v, 2);
+                ShowLook();
+            }, null) { TrackWidth = 200, Name = "shape_" + shape.Id };
+            rows.AddChild(Row(shape.Label, slider));
+        }
         ShowLook();
     }
 
@@ -372,6 +387,7 @@ public static partial class CharacterSheet
                 return;
             }
             var got = Character.FromJson(pj);
+            Player.Arms.I?.Apply(got);
             var fix = r.TryGetProperty("fixed", out var fx) && fx.ValueKind == JsonValueKind.Array ? fx.EnumerateArray().Select(x => x.GetString()).ToList() : new List<string?>();
             if (fix.Contains("first") || fix.Contains("last"))
             {

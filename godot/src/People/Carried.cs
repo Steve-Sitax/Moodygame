@@ -176,8 +176,20 @@ public static class Carried
             plain.AlbedoColor = new Color(1, 0.69f, 0.376f).SrgbToLinear();
             plain.AlbedoTexture = grad;
             haloMat = BakedWorld.PsxMaterial(plain, Kind(true, true), 0, 1.2, 0, 0.45f);
-            glass = new CylinderMesh { TopRadius = 0.06f, BottomRadius = 0.05f, Height = 0.16f, RadialSegments = 4, Rings = 1, Material = lit };
-            cap = new CylinderMesh { TopRadius = 0, BottomRadius = 0.075f, Height = 0.07f, RadialSegments = 4, Rings = 1, Material = iron };
+            glass = new BoxMesh { Size = new Vector3(.10f, .14f, .10f), Material = lit };
+            // One iron mesh shared by every lantern, with round cage rods, rolled lips and a real bail.
+            var frame = new SurfaceTool(); frame.Begin(Mesh.PrimitiveType.Triangles);
+            void Part(Mesh mesh, Vector3 at, Basis? turn = null) => frame.AppendFrom(mesh, 0, new Transform3D(turn ?? Basis.Identity, at));
+            foreach (float y in new[] { -.17f, -.015f })
+            {
+                Part(new CylinderMesh { TopRadius = .058f, BottomRadius = .058f, Height = .006f, RadialSegments = 32 }, new Vector3(0, y, 0));
+                Part(new TorusMesh { InnerRadius = .055f, OuterRadius = .059f, Rings = 32, RingSegments = 8 }, new Vector3(0, y, 0));
+            }
+            foreach (float x in new[] { -.052f, .052f }) foreach (float z in new[] { -.052f, .052f })
+                Part(new CylinderMesh { TopRadius = .0025f, BottomRadius = .0025f, Height = .155f, RadialSegments = 8 }, new Vector3(x, -.092f, z));
+            Part(new CylinderMesh { TopRadius = .012f, BottomRadius = .08f, Height = .04f, RadialSegments = 4 }, new Vector3(0, .008f, 0), new Basis(Vector3.Up, MathF.PI / 4));
+            Part(new TorusMesh { InnerRadius = .034f, OuterRadius = .039f, Rings = 32, RingSegments = 8 }, new Vector3(0, .068f, 0), new Basis(Vector3.Right, MathF.PI / 2));
+            cap = frame.Commit(); cap.SurfaceSetMaterial(0, iron);
             halo = new QuadMesh { Size = new Vector2(0.45f, 0.45f), Material = haloMat };
         }
     }
@@ -188,7 +200,7 @@ public static class Carried
         Prepare();
         var g = new Node3D { Name = "lantern" };
         g.AddChild(new MeshInstance3D { Mesh = glass, Position = new Vector3(0, -0.08f, 0), CastShadow = GeometryInstance3D.ShadowCastingSetting.Off });
-        g.AddChild(new MeshInstance3D { Mesh = cap, Position = new Vector3(0, 0.035f, 0), CastShadow = GeometryInstance3D.ShadowCastingSetting.Off });
+        g.AddChild(new MeshInstance3D { Mesh = cap, CastShadow = GeometryInstance3D.ShadowCastingSetting.Off });
         g.AddChild(new MeshInstance3D { Mesh = halo, Name = "halo", Position = new Vector3(0, -0.08f, 0), CastShadow = GeometryInstance3D.ShadowCastingSetting.Off });
         return g;
     }
@@ -233,6 +245,7 @@ public sealed class LanternPool
         public float Seed;
         /// <summary>How strong against a carried lantern (lanternLights.ts power: the Steen's fixed lanterns 2.2).</summary>
         public float Power = 1;
+        public bool Player;
         internal float Level;
         internal int Slot = -1;
     }
@@ -345,9 +358,11 @@ public sealed class LanternPool
             if (s == null)
             {
                 lights[i].LightEnergy = 0;
+                lights[i].ShadowEnabled = false;
                 continue;
             }
             lights[i].Position = s.Pos;
+            lights[i].ShadowEnabled = s.Player && Menu.Prefs.Bool("shadows");
             lights[i].LightEnergy = Power * s.Power / MathF.PI * dark * s.Level * Flicker((float)t, s.Seed);
             if (lights[i].LightEnergy > 0) lit++;
         }

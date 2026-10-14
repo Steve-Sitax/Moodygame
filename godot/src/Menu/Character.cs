@@ -729,7 +729,7 @@ public static class Character
             Push("apron.kind");
         }
         var faceType = Str(Get(r, "faceType"));
-        if (faceType != null && FaceTypes.Contains(faceType)) p.FaceType = faceType;
+        if (faceType != null && FaceTypes.Contains(faceType) && (faceType == "shrunken_old" || (faceType is "round_flemish_woman" or "lean_widow" or "young_woman" or "southern_woman") == (sex == "woman"))) p.FaceType = faceType;
         string? beard = Str(Get(r, "beard")), moustache = Str(Get(r, "moustache"));
         if (sex == "man" && Beards.Contains(beard)) p.Beard = beard!;
         if (sex == "man" && Moustaches.Contains(moustache)) p.Moustache = moustache!;
@@ -739,7 +739,8 @@ public static class Character
                 if (sliders.TryGetProperty(shape.Id, out var value) && value.ValueKind == JsonValueKind.Number && value.TryGetSingle(out float v) && float.IsFinite(v))
                 {
                     float kept = MathF.Round(Math.Clamp(v, shape.Min, shape.Max), 2);
-                    if (kept != 0) p.Sliders[shape.Id] = kept;
+                    // Zero is an explicit override of a preset's nonzero mean.
+                    p.Sliders[shape.Id] = kept == 0 ? 0 : kept;
                     if (kept != v) Push("sliders." + shape.Id);
                 }
         return (p, fixedFields);

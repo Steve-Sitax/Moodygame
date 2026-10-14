@@ -26,14 +26,14 @@ internal sealed class People2Eyes
     }
     internal void Seed(uint seed) { rng = seed | 1; nextBlink = 1 + Random() * 4; nextLook = Random(); expression = Random()*20; }
     private float Random() { rng ^= rng << 13; rng ^= rng >> 17; rng ^= rng << 5; return (rng & 0xffffff) / 16777216f; }
-    internal void Update(float dt, bool speaking)
+    internal void Update(float dt, bool speaking, bool localPlayer = false)
     {
         if (near == null || !GodotObject.IsInstanceValid(near) || !root.IsInsideTree()) return;
         if (near.Mesh != lastMesh)
         {
             lastMesh = near.Mesh; blink = near.FindBlendShapeByName("blink"); brow = near.FindBlendShapeByName("brow_raise"); smile = near.FindBlendShapeByName("smile");
         }
-        float distance = root.GlobalPosition.DistanceSquaredTo(Main.I.Cam.GlobalPosition);
+        float distance = localPlayer ? 0 : root.GlobalPosition.DistanceSquaredTo(Main.I.Cam.GlobalPosition);
         if (distance >= 225)
         {
             Set(blink, 0); Set(brow, 0); Set(smile, 0); blinkTime = -1; gaze = Vector2.Zero;
@@ -58,9 +58,9 @@ internal sealed class People2Eyes
         {
             nextLook = 0.25f + Random() * 1.5f;
             Vector3 target = Main.I.Cam.GlobalPosition;
-            bool hasTarget = distance < 36;
+            bool hasTarget = !localPlayer && distance < 36;
             float best = 36;
-            foreach (var speaker in People2Moves.Talkers)
+            if (!localPlayer) foreach (var speaker in People2Moves.Talkers)
             {
                 if (!speaker.Alive || !speaker.Speaking) continue;
                 float d = speaker.Position.DistanceSquaredTo(root.GlobalPosition);

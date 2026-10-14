@@ -217,6 +217,7 @@ public static class People2Faces
         public Template Source = null!;
         public Vector3[] V = null!, N = null!;
         public Vector2[] UV = null!;
+        public Vector2[]? PlayerRegions;
         public Color[] C = null!;
         public int[]? Bones, Index;
         public float[]? Tan, Weights;
@@ -228,6 +229,7 @@ public static class People2Faces
         var a = new Godot.Collections.Array(); a.Resize((int)Mesh.ArrayType.Max);
         a[(int)Mesh.ArrayType.Vertex] = p.V; a[(int)Mesh.ArrayType.Normal] = p.N;
         a[(int)Mesh.ArrayType.TexUV] = p.UV; a[(int)Mesh.ArrayType.Color] = p.C;
+        if (p.PlayerRegions != null) a[(int)Mesh.ArrayType.TexUV2] = p.PlayerRegions;
         if (p.Tan != null) a[(int)Mesh.ArrayType.Tangent] = p.Tan;
         if (p.Bones is { Length: > 0 }) a[(int)Mesh.ArrayType.Bones] = p.Bones;
         if (p.Weights is { Length: > 0 }) a[(int)Mesh.ArrayType.Weights] = p.Weights;
@@ -592,6 +594,77 @@ public static class People2Faces
     }
 
     // ---------------------------------------------------------------- spawn
+
+    internal static float PlayerSlider(Menu.Profile profile, Menu.Character.Shape shape)
+    {
+        if (profile.Sliders.TryGetValue(shape.Id, out float explicitValue)) return explicitValue;
+        if (shape.Id == "weight") return profile.Build == "slight" ? -.35f : profile.Build == "stout" ? .4f : 0;
+        Data();
+        if (!Types.GetProperty("types").TryGetProperty(profile.FaceType, out var preset)) preset = Types.GetProperty("types").GetProperty(profile.Sex == "woman" ? "young_woman" : "flemish_docker");
+        foreach (string group in new[] { "sliders", "body" })
+            if (preset.GetProperty(group).TryGetProperty(shape.Id, out var value)) return Math.Clamp(value[0].GetSingle(), shape.Min, shape.Max);
+        return 0;
+    }
+
+    /// <summary>One local player's explicit recipe. Never enters the resident identity queue or network cache.</summary>
+    internal static void Player(Node3D root, Menu.Profile profile, bool arms)
+    {
+        Data();
+        string kind = root.GetMeta("people2_mesh_kind").AsString();
+        string body = root.GetMeta("people2_body").AsString();
+        bool woman = profile.Sex == "woman";
+        string type = profile.FaceType;
+        var types = Types.GetProperty("types");
+        if (!types.TryGetProperty(type, out var preset)) preset = types.GetProperty(woman ? "young_woman" : "flemish_docker");
+        var values = new Dictionary<string, float>(StringComparer.Ordinal);
+        foreach (string group in new[] { "sliders", "body" })
+            foreach (var s in preset.GetProperty(group).EnumerateObject()) values[s.Name] = s.Value[0].GetSingle();
+        foreach (var shape in Menu.Character.Shapes)
+            values[shape.Id] = profile.Sliders.TryGetValue(shape.Id, out var v) ? v : Math.Clamp(values.GetValueOrDefault(shape.Id), shape.Min, shape.Max);
+        values["face_age"] = Math.Clamp((profile.Age - 40) / 35f, -.6f, 1);
+        string cell = woman ? profile.Age >= 58 ? "of_grey" : profile.Skin switch { "olive" => "f_olive_black", "brown" => "f_dark_black", "weathered" or "rosy" => "f_weather_ruddy", _ => "f_fair_brown" }
+            : profile.Age >= 58 ? "om_grey" : profile.Skin switch { "olive" => "m_olive_black", "brown" => "m_dark_black", "weathered" or "rosy" => "m_weather_brown", _ => "m_young_fair" };
+        string hair = profile.Hair.Style switch { "short" => "crop", "long" => "long", "balding" => "bald", _ => profile.Hair.Style };
+        string? beard = profile.Beard == "none" ? null : profile.Beard != "" ? profile.Beard : profile.Face switch { "beard" => "full", "whiskers" => "sideburns", _ => null };
+        string? moustache = profile.Moustache == "none" ? null : profile.Moustache != "" ? profile.Moustache : profile.Face switch { "moustache" => "chevron", "walrus" or "beard" => "walrus", _ => null };
+        var job = new Job { Kind = kind, Body = body, Face = new Face(type, values, cell, hair, beard, moustache, 0), Weights = KeyWeights(values) };
+        var p = Compute(job, 0);
+        // Rest-space palette regions must not move between hat/shirt/lower colours when a limb is posed.
+        p.PlayerRegions = p.V.Select(v => new Vector2(v.Y, v.X)).ToArray();
+        if (arms)
+        {
+            var template = p.Source;
+            int inf = p.Weights!.Length / p.V.Length;
+            var skeleton = root.GetNode<Skeleton3D>("Skeleton3D");
+            float cut = skeleton.GetBoneGlobalRest(skeleton.FindBone("armUpL")).Origin.Y - .07f;
+            bool ArmVertex(int v)
+            {
+                float weight = 0;
+                for (int k = 0; k < inf; k++)
+                {
+                    int b = p.Bones![v * inf + k];
+                    string name = b < template.BindNames.Length ? template.BindNames[b] : "";
+                    if (name.StartsWith("arm") || name.StartsWith("hand") || name.StartsWith("thumb") || name.StartsWith("index") || name.StartsWith("middle") || name.StartsWith("ring")) weight += p.Weights[v * inf + k];
+                }
+                return weight > .4f && p.V[v].Y < cut;
+            }
+            var index = new List<int>();
+            for (int i = 0; i < p.Index!.Length; i += 3)
+                if (ArmVertex(p.Index[i]) && ArmVertex(p.Index[i + 1]) && ArmVertex(p.Index[i + 2]))
+                { index.Add(p.Index[i]); index.Add(p.Index[i + 1]); index.Add(p.Index[i + 2]); }
+            p.Index = index.ToArray(); p.Expressions = null; p.ExpressionNormals = null;
+            root.SetMeta("arm_triangles", index.Count / 3);
+        }
+        foreach (var n in BakedWorld.All(root).OfType<MeshInstance3D>().ToArray())
+        {
+            string name = n.Name.ToString();
+            if (name == kind + "_lod0")
+            { n.Mesh = Upload(p); n.Visible = true; n.VisibilityRangeBegin = n.VisibilityRangeEnd = 0; }
+            else n.Visible = false;
+        }
+        People2Material.Face(root, cell);
+        root.SetMeta("player_recipe", Menu.Character.ToJson(profile));
+    }
 
     internal static void Next(Human human)
     {

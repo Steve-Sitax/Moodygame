@@ -30,6 +30,18 @@ instance uniform int face_layer = 0;
 instance uniform vec3 skin_tone_shift = vec3(0.0);
 instance uniform vec3 body_tone = vec3(1.0); // the body's skin takes the tone of the person's face picture
 instance uniform float underwear_wear = 0.0;
+// Optional local player's palette. Alpha zero leaves every townsperson and animal unchanged.
+instance uniform vec4 player_skin : source_color = vec4(0.0);
+instance uniform vec4 player_hair : source_color = vec4(0.0);
+instance uniform vec4 player_shirt : source_color = vec4(0.0);
+instance uniform vec4 player_coat : source_color = vec4(0.0);
+instance uniform vec4 player_lower : source_color = vec4(0.0);
+instance uniform vec4 player_feet : source_color = vec4(0.0);
+instance uniform vec4 player_vest : source_color = vec4(0.0);
+instance uniform vec4 player_apron : source_color = vec4(0.0);
+instance uniform vec4 player_head : source_color = vec4(0.0);
+instance uniform float viewmodel_depth_pull = 0.0;
+varying vec3 authored_position;
 varying vec3 world;
 varying float fog_depth;
 varying float sun_lit;
@@ -96,6 +108,7 @@ vec3 palette_point(sampler2D image, float bone, vec3 pose, vec4 point) {
     return vec3(dot(r0, point), dot(r1, point), dot(r2, point));
 }
 void vertex() {
+    authored_position = vec3(UV2.y, UV2.x, 0.0);
     if (vertex_animation) {
         vec3 pose = skin_pose.x >= 0.0 ? skin_pose : INSTANCE_CUSTOM.rgb;
         vec2 bone = floor(UV2);
@@ -107,6 +120,10 @@ void vertex() {
         NORMAL = normalize(palette_point(pose_normals, bone.x, pose, direction) * weight.x + palette_point(pose_normals, bone.y, pose, direction) * weight.y);
     }
     vec4 view = MODELVIEW_MATRIX * vec4(VERTEX, 1.0);
+    // Reverse-Z: keep the camera rig in front of close geometry while retaining its own depth order.
+    // It still contracts physically at walls; this also covers thin overhangs between the collision probes.
+    POSITION = PROJECTION_MATRIX * view;
+    POSITION.z = mix(POSITION.z, POSITION.w, viewmodel_depth_pull * 0.99);
     world = (INV_VIEW_MATRIX * view).xyz;
     fog_depth = -view.z;
 }
@@ -131,6 +148,20 @@ void fragment() {
     }
     eye = COLOR.r;
     bool hair = face && eye < 0.5 && c.a < 0.99;
+    vec4 palette = vec4(0.0);
+    if (eye < 0.5) {
+        if (hair) palette = player_hair;
+        else if (face || zone > 4.5) palette = player_skin;
+        else if (authored_position.y > 1.48) palette = player_head;
+        else if (authored_position.y < 0.15) palette = player_feet;
+        else if (authored_position.y < 0.82) palette = player_lower;
+        else if (zone > 2.5 && zone < 3.5) palette = player_apron;
+        else if (zone > 1.5 && zone < 2.5) palette = player_shirt;
+        else if (abs(authored_position.x) < 0.15) palette = player_vest;
+        else palette = player_coat;
+    }
+    float pigment = clamp(dot(c.rgb, vec3(0.2126, 0.7152, 0.0722)) / (face || zone > 4.5 ? 0.46 : hair ? 0.18 : 0.30), 0.25, 1.8);
+    c.rgb = mix(c.rgb, palette.rgb * pigment, palette.a);
     float dry = face ? (hair ? 0.48 : 0.76) : zone < 0.5 ? 0.42 : zone < 1.5 ? 0.94 : zone < 2.5 ? 0.87 : zone < 3.5 ? 0.91 : zone < 4.5 ? 0.62 : 0.76;
     // Wool/linen/canvas absorb more water than skin, leather or metal fittings (zone zero).
     float wet = layered_pictures ? clamp(psx_wet, 0.0, 1.0) : 0.0;

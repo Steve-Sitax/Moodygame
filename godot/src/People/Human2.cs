@@ -62,6 +62,18 @@ internal sealed class Human2
     private readonly People2Things things;
     private readonly People2Vehicle vehicle;
     internal bool OwnVehicle => vehicle.Present;
+    private bool externalWorkThings;
+    internal void PlayerArms()
+    {
+        externalWorkThings = true; // the game's actual goods, cart and oars belong to their existing controllers
+        layers.LocalPlayer = true;
+        // Local grip overlays write these joints after sampling; restore their authored pose each update.
+        for (int b = 0; b < cachePose.Length; b++)
+        {
+            string name = sk.GetBoneName(b).ToString();
+            if (name == "head" || name.StartsWith("thumb") || name.StartsWith("index") || name.StartsWith("middle") || name.StartsWith("ring")) cachePose[b] = false;
+        }
+    }
     internal bool CanSit => !Humans.OwnClips.ContainsKey(kind);
     internal void UseExternalVehicle(bool external) => vehicle.UseExternal(external);
     private string? load;          // what is carried: "sack", "crate", "fishbox", "keg" (Crowd.PuppetLoad)
@@ -629,7 +641,7 @@ internal sealed class Human2
         var at = root.GlobalPosition;
         if (hadAt) roll += new Vector2(at.X - lastAt.X, at.Z - lastAt.Z).Length() / Math.Max(0.01f, root.GlobalBasis.Y.Length());
         lastAt = at; hadAt = true;
-        if (clip.Things.Length > 0 || load != null)
+        if (!externalWorkThings && (clip.Things.Length > 0 || load != null))
         {
             if (root.GlobalPosition.DistanceSquaredTo(Main.I.Cam.GlobalPosition) < 3600) things.Show(clip, time, bodyRatio, load, roll);
             else things.HideAll();

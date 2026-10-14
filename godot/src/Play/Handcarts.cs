@@ -30,6 +30,8 @@ public partial class Handcarts : Node, CartPhysics.IWorld
     }
     public readonly Dictionary<string,Drawn> Drawings=new();
     public string? Held { get; private set; }
+    internal Vector3? PlayerGrip(int side) => Held != null && Drawings.TryGetValue(Held, out var cart)
+        ? cart.Bed.ToGlobal(new Vector3(side == 0 ? -.57f : .57f, .18f, 2.15f)) : null;
     public bool Busy { get; private set; }
     public CartView View { get; private set; }=new();
     public event Action<string,CartReply>? Answered;
