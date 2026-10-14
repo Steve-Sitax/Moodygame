@@ -1,0 +1,21 @@
+[gd_resource type="Resource" script_class="AuthorCatalog" format=3]
+
+[ext_resource type="Script" path="res://src/Authoring/AuthorAsset.cs" id="1_tvy7e"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-prison_chapel-source-9757-0.tres" id="2_05bsv"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-prison_chapel-source-9762-1.tres" id="3_clixy"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-prison_chapel-source-9762-2.tres" id="4_i70i3"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-prison_chapel-source-9762-3.tres" id="5_edtjg"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-prison_chapel-source-9766-4.tres" id="6_w2anq"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-prison_chapel-source-9766-5.tres" id="7_x5tbs"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-prison_chapel-source-9766-6.tres" id="8_fbj8l"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-prison_chapel-source-9766-7.tres" id="9_aslt8"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-prison_chapel-source-9766-8.tres" id="10_2btog"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-prison_chapel-source-9766-9.tres" id="11_hr8wa"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-prison_chapel-source-9766-10.tres" id="12_m1hhx"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-prison_chapel-source-9766-11.tres" id="13_tpchx"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-prison_chapel-source-9766-12.tres" id="14_pt14t"]
+[ext_resource type="Script" path="res://src/Authoring/AuthorCatalog.cs" id="15_3rmc4"]
+
+[resource]
+script = ExtResource("15_3rmc4")
+Assets = Array[ExtResource("1_tvy7e")]([ExtResource("2_05bsv"), ExtResource("3_clixy"), ExtResource("4_i70i3"), ExtResource("5_edtjg"), ExtResource("6_w2anq"), ExtResource("7_x5tbs"), ExtResource("8_fbj8l"), ExtResource("9_aslt8"), ExtResource("10_2btog"), ExtResource("11_hr8wa"), ExtResource("12_m1hhx"), ExtResource("13_tpchx"), ExtResource("14_pt14t")])

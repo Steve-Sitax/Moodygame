@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="AuthorAsset" format=3]
+
+[ext_resource type="PackedScene" path="res://assets/props/furniture-lamp.tscn" id="1_uficj"]
+[ext_resource type="Script" path="res://src/Authoring/AuthorAsset.cs" id="2_6cwjf"]
+
+[resource]
+script = ExtResource("2_6cwjf")
+Id = "furniture-lamp"
+Title = "Lamp"
+Category = "Furniture"
+Scene = ExtResource("1_uficj")
+Footprint = Vector3(0.24, 0.5, 0.24)
+FurnitureKind = "lamp"
+UsePoint = Vector3(0, 0.5, 0.12)
+StandPoint = Vector3(0, 0, -0.72)

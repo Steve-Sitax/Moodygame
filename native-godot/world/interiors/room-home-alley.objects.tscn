@@ -1,0 +1,33 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://src/Authoring/AuthoredObject.cs" id="1_f8nln"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-home-alley-fixed-0.tres" id="2_1o4t3"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-home-alley-fixed-1.tres" id="3_admkh"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-home-alley-fixed-2.tres" id="4_ng1fl"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-home-alley-source-11525-3.tres" id="5_rjc0i"]
+
+[node name="Objects" type="Node3D" unique_id=311098762]
+
+[node name="object_fixed-0" type="Node3D" parent="." unique_id=1179085219]
+transform = Transform3D(1, 0, -2.3841858e-07, 0, 1, 0, 2.3841858e-07, 0, 1, -214.54, 0.18, 299.74)
+script = ExtResource("1_f8nln")
+ObjectId = "room-home-alley-fixed-0"
+Asset = ExtResource("2_1o4t3")
+
+[node name="object_fixed-1" type="Node3D" parent="." unique_id=368003450]
+transform = Transform3D(1.9470718e-07, 0, 1, 0, 1, 0, -1, 0, 1.9470718e-07, -215.29, 0.18, 302.24)
+script = ExtResource("1_f8nln")
+ObjectId = "room-home-alley-fixed-1"
+Asset = ExtResource("3_admkh")
+
+[node name="object_fixed-2" type="Node3D" parent="." unique_id=1872682731]
+transform = Transform3D(1, 0, -2.3841858e-07, 0, 1, 0, 2.3841858e-07, 0, 1, -211.29, 0.18, 299.49)
+script = ExtResource("1_f8nln")
+ObjectId = "room-home-alley-fixed-2"
+Asset = ExtResource("4_ng1fl")
+
+[node name="object_source-11525-3" type="Node3D" parent="." unique_id=1337417229]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -213.29, 0.18, 304.24)
+script = ExtResource("1_f8nln")
+ObjectId = "room-home-alley-source-11525-3"
+Asset = ExtResource("5_rjc0i")

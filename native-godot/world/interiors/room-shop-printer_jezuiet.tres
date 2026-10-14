@@ -1,0 +1,25 @@
+[gd_resource type="Resource" script_class="AuthorDistrict" format=3]
+
+[ext_resource type="Resource" path="res://world/interiors/room-shop-printer_jezuiet.catalog.tres" id="1_ei8hg"]
+[ext_resource type="PackedScene" path="res://world/interiors/room-shop-printer_jezuiet.structure.tscn" id="2_poogl"]
+[ext_resource type="PackedScene" path="res://world/interiors/room-shop-printer_jezuiet.objects.tscn" id="3_ei8hg"]
+[ext_resource type="Script" path="res://src/Authoring/AuthorDistrict.cs" id="4_qqra5"]
+
+[resource]
+script = ExtResource("4_qqra5")
+Id = "room-shop-printer_jezuiet"
+Title = "shop:printer_jezuiet"
+Scene = ExtResource("3_ei8hg")
+EditorScenePath = "res://world/interiors/room-shop-printer_jezuiet.tscn"
+Catalog = ExtResource("1_ei8hg")
+Bounds = Rect2(-212.21225, 41.89357, 200, 200)
+WalkSpawn = Vector3(-112.21225, 0.2, 141.89357)
+FlySpawn = Vector3(-112.21225, 1.78, 141.89357)
+FlyYaw = -2.8784664
+FlyPitch = -0.12
+RoomId = "shop:printer_jezuiet"
+RoomFrame = Transform3D(-0.96558154, 0, -0.2601005, 0, 1, 0, 0.2601005, 0, -0.96558154, -111.91578, 0.18, 148.27097)
+RoomBounds = Rect2(-3.9174933, 0.2, 5.089991, 12.070001)
+EntryPoints = PackedVector3Array(-111.91578, 0.18, 148.27097)
+ReplacedMeshes = PackedInt32Array(10897, 10899, 10900, 10901, 10902, 10903, 10904, 10905, 10906, 10907, 10908, 10909, 10910, 10911, 10912, 10919, 10953)
+RetainedStructure = ExtResource("2_poogl")

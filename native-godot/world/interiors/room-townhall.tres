@@ -1,0 +1,25 @@
+[gd_resource type="Resource" script_class="AuthorDistrict" format=3]
+
+[ext_resource type="Resource" path="res://world/interiors/room-townhall.catalog.tres" id="1_nf2a7"]
+[ext_resource type="PackedScene" path="res://world/interiors/room-townhall.structure.tscn" id="2_hr74f"]
+[ext_resource type="PackedScene" path="res://world/interiors/room-townhall.objects.tscn" id="3_nf2a7"]
+[ext_resource type="Script" path="res://src/Authoring/AuthorDistrict.cs" id="4_rrsyd"]
+
+[resource]
+script = ExtResource("4_rrsyd")
+Id = "room-townhall"
+Title = "townhall"
+Scene = ExtResource("3_nf2a7")
+EditorScenePath = "res://world/interiors/room-townhall.tscn"
+Catalog = ExtResource("1_nf2a7")
+Bounds = Rect2(-357, -52.115, 200, 200)
+WalkSpawn = Vector3(-257, 0.19999991, 47.885)
+FlySpawn = Vector3(-257, 1.78, 47.885)
+FlyPitch = -0.12
+RoomId = "townhall"
+RoomFrame = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.17999992, 0)
+RoomBounds = Rect2(-291.18, 34.23, 68.359985, 27.309998)
+RoomHeight = 36.12
+EntryPoints = PackedVector3Array(-257, 0.17999992, 60.69)
+ReplacedMeshes = PackedInt32Array(8989, 8990, 8996, 8997, 8998, 8999, 9000, 9001, 9004, 9006, 9007, 9008, 9009, 9010, 9011, 9012, 9013, 9014, 9015, 9016, 9017, 9018, 9019, 9023, 9024, 9025, 9030, 9031, 9032, 9036, 9037, 9038, 9042, 9043, 9044, 9048, 9050, 9051, 9053, 9055, 9056, 9057, 9058, 9059, 9060, 9068, 9069, 9070)
+RetainedStructure = ExtResource("2_hr74f")

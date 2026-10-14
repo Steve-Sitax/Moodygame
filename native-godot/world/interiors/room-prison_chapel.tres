@@ -1,0 +1,25 @@
+[gd_resource type="Resource" script_class="AuthorDistrict" format=3]
+
+[ext_resource type="Resource" path="res://world/interiors/room-prison_chapel.catalog.tres" id="1_81suf"]
+[ext_resource type="PackedScene" path="res://world/interiors/room-prison_chapel.structure.tscn" id="2_2po0b"]
+[ext_resource type="PackedScene" path="res://world/interiors/room-prison_chapel.objects.tscn" id="3_81suf"]
+[ext_resource type="Script" path="res://src/Authoring/AuthorDistrict.cs" id="4_jcxgi"]
+
+[resource]
+script = ExtResource("4_jcxgi")
+Id = "room-prison_chapel"
+Title = "prison_chapel"
+Scene = ExtResource("3_81suf")
+EditorScenePath = "res://world/interiors/room-prison_chapel.tscn"
+Catalog = ExtResource("1_81suf")
+Bounds = Rect2(-448.48138, 110.0874, 200, 200)
+WalkSpawn = Vector3(-348.48138, 0.17, 210.0874)
+FlySpawn = Vector3(-348.48138, 1.75, 210.0874)
+FlyPitch = -0.12
+RoomId = "prison_chapel"
+RoomFrame = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.15, 0)
+RoomBounds = Rect2(-355.52475, 199.5, 14.0867, 21.174805)
+RoomHeight = 11.831535
+EntryPoints = PackedVector3Array(-345.85864, 0.15, 213.52762, -353.90762, 0.15, 216.73994)
+ReplacedMeshes = PackedInt32Array(9757, 9759, 9760, 9762, 9763, 9764, 9765, 9766)
+RetainedStructure = ExtResource("2_2po0b")

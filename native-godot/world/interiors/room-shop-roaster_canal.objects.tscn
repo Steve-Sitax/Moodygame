@@ -1,0 +1,152 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://src/Authoring/AuthoredObject.cs" id="1_4rfib"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-roaster_canal-counter.tres" id="2_850vk"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-roaster_canal-source-10831-1.tres" id="3_t4g46"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-roaster_canal-source-10831-2.tres" id="4_i1hj5"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-roaster_canal-source-10831-3.tres" id="5_ioymy"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-roaster_canal-source-10831-4.tres" id="6_248af"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-roaster_canal-source-10831-5.tres" id="7_37ckl"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-roaster_canal-source-10831-6.tres" id="8_oj7g6"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-roaster_canal-source-10837-7.tres" id="9_13ota"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-roaster_canal-source-10838-8.tres" id="10_3u4gf"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-roaster_canal-source-10838-9.tres" id="11_8uqi3"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-roaster_canal-source-10839-10.tres" id="12_84qnn"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-roaster_canal-source-10841-11.tres" id="13_i62ka"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-roaster_canal-source-10842-12.tres" id="14_y74an"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-roaster_canal-source-10842-13.tres" id="15_utydc"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-roaster_canal-source-10842-14.tres" id="16_4w3ns"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-roaster_canal-source-10842-15.tres" id="17_jlt70"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-roaster_canal-source-10844-16.tres" id="18_k485v"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-roaster_canal-source-10844-17.tres" id="19_m03jl"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-roaster_canal-source-10844-18.tres" id="20_jawil"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-roaster_canal-source-10892-19.tres" id="21_5e2id"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-roaster_canal-source-10892-20.tres" id="22_3p6ft"]
+
+[node name="Objects" type="Node3D" unique_id=186489589]
+
+[node name="object_counter" type="Node3D" parent="." unique_id=1433304069]
+transform = Transform3D(-0.9877633, 0, -0.15596063, 0, 1, 0, 0.15596063, 0, -0.9877633, -29.58448, 0.18, 101.95026)
+script = ExtResource("1_4rfib")
+ObjectId = "room-shop-roaster_canal-counter"
+Asset = ExtResource("2_850vk")
+
+[node name="object_source-10831-1" type="Node3D" parent="." unique_id=174926091]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -28.595348, 0.18, 101.16141)
+script = ExtResource("1_4rfib")
+ObjectId = "room-shop-roaster_canal-source-10831-1"
+Asset = ExtResource("3_t4g46")
+
+[node name="object_source-10831-2" type="Node3D" parent="." unique_id=1557092838]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -29.191147, 0.18, 104.790855)
+script = ExtResource("1_4rfib")
+ObjectId = "room-shop-roaster_canal-source-10831-2"
+Asset = ExtResource("4_i1hj5")
+
+[node name="object_source-10831-3" type="Node3D" parent="." unique_id=573058943]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -35.01812, 0.18, 105.71101)
+script = ExtResource("1_4rfib")
+ObjectId = "room-shop-roaster_canal-source-10831-3"
+Asset = ExtResource("5_ioymy")
+
+[node name="object_source-10831-4" type="Node3D" parent="." unique_id=2135165656]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -33.032707, 0.18, 99.05968)
+script = ExtResource("1_4rfib")
+ObjectId = "room-shop-roaster_canal-source-10831-4"
+Asset = ExtResource("6_248af")
+
+[node name="object_source-10831-5" type="Node3D" parent="." unique_id=797002400]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -33.035057, 0.18, 99.04291)
+script = ExtResource("1_4rfib")
+ObjectId = "room-shop-roaster_canal-source-10831-5"
+Asset = ExtResource("7_37ckl")
+
+[node name="object_source-10831-6" type="Node3D" parent="." unique_id=1285900779]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -37.034676, 0.18, 100.545044)
+script = ExtResource("1_4rfib")
+ObjectId = "room-shop-roaster_canal-source-10831-6"
+Asset = ExtResource("8_oj7g6")
+
+[node name="object_source-10837-7" type="Node3D" parent="." unique_id=1748837638]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -30.942348, 0.18, 100.59551)
+script = ExtResource("1_4rfib")
+ObjectId = "room-shop-roaster_canal-source-10837-7"
+Asset = ExtResource("9_13ota")
+
+[node name="object_source-10838-8" type="Node3D" parent="." unique_id=1652551402]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -29.310463, 0.18, 102.59544)
+script = ExtResource("1_4rfib")
+ObjectId = "room-shop-roaster_canal-source-10838-8"
+Asset = ExtResource("10_3u4gf")
+
+[node name="object_source-10838-9" type="Node3D" parent="." unique_id=1707615064]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -33.242855, 0.18, 101.574265)
+script = ExtResource("1_4rfib")
+ObjectId = "room-shop-roaster_canal-source-10838-9"
+Asset = ExtResource("11_8uqi3")
+
+[node name="object_source-10839-10" type="Node3D" parent="." unique_id=2033034508]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -36.141094, 0.18, 102.93487)
+script = ExtResource("1_4rfib")
+ObjectId = "room-shop-roaster_canal-source-10839-10"
+Asset = ExtResource("12_84qnn")
+
+[node name="object_source-10841-11" type="Node3D" parent="." unique_id=372664886]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -36.08653, 0.18, 100.395294)
+script = ExtResource("1_4rfib")
+ObjectId = "room-shop-roaster_canal-source-10841-11"
+Asset = ExtResource("13_i62ka")
+
+[node name="object_source-10842-12" type="Node3D" parent="." unique_id=958055913]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -36.086487, 0.18, 100.39531)
+script = ExtResource("1_4rfib")
+ObjectId = "room-shop-roaster_canal-source-10842-12"
+Asset = ExtResource("14_y74an")
+
+[node name="object_source-10842-13" type="Node3D" parent="." unique_id=1235293922]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -36.531002, 0.18, 100.4655)
+script = ExtResource("1_4rfib")
+ObjectId = "room-shop-roaster_canal-source-10842-13"
+Asset = ExtResource("15_utydc")
+
+[node name="object_source-10842-14" type="Node3D" parent="." unique_id=1907649290]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -29.31046, 0.18, 102.59542)
+script = ExtResource("1_4rfib")
+ObjectId = "room-shop-roaster_canal-source-10842-14"
+Asset = ExtResource("16_4w3ns")
+
+[node name="object_source-10842-15" type="Node3D" parent="." unique_id=1192330823]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -33.242847, 0.18, 101.574234)
+script = ExtResource("1_4rfib")
+ObjectId = "room-shop-roaster_canal-source-10842-15"
+Asset = ExtResource("17_jlt70")
+
+[node name="object_source-10844-16" type="Node3D" parent="." unique_id=1345158482]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -36.047672, 0.18, 104.95127)
+script = ExtResource("1_4rfib")
+ObjectId = "room-shop-roaster_canal-source-10844-16"
+Asset = ExtResource("18_k485v")
+
+[node name="object_source-10844-17" type="Node3D" parent="." unique_id=1788325470]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -36.133266, 0.18, 104.35144)
+script = ExtResource("1_4rfib")
+ObjectId = "room-shop-roaster_canal-source-10844-17"
+Asset = ExtResource("19_m03jl")
+
+[node name="object_source-10844-18" type="Node3D" parent="." unique_id=1004425125]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -36.235588, 0.18, 103.75346)
+script = ExtResource("1_4rfib")
+ObjectId = "room-shop-roaster_canal-source-10844-18"
+Asset = ExtResource("20_jawil")
+
+[node name="object_source-10892-19" type="Node3D" parent="." unique_id=1268612803]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -29.066593, 0.18, 105.26201)
+script = ExtResource("1_4rfib")
+ObjectId = "room-shop-roaster_canal-source-10892-19"
+Asset = ExtResource("21_5e2id")
+
+[node name="object_source-10892-20" type="Node3D" parent="." unique_id=1414020196]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -34.8944, 0.18, 106.182175)
+script = ExtResource("1_4rfib")
+ObjectId = "room-shop-roaster_canal-source-10892-20"
+Asset = ExtResource("22_3p6ft")

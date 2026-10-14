@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="AuthorAsset" format=3]
+
+[ext_resource type="PackedScene" path="res://assets/furniture/armoire.tscn" id="1_1iomi"]
+[ext_resource type="Script" path="res://src/Authoring/AuthorAsset.cs" id="2_58wy5"]
+
+[resource]
+script = ExtResource("2_58wy5")
+Id = "armoire"
+Title = "Two-door cupboard"
+Category = "Furniture: storage"
+Scene = ExtResource("1_1iomi")
+Footprint = Vector3(1.46, 2.005, 0.63)
+FootprintOffset = Vector3(0, 0, 0.025)
+FurnitureKind = "cupboard"
+UsePoint = Vector3(0, 0, 0.85)
+StandPoint = Vector3(0, 0, 0.7)

@@ -67,6 +67,7 @@ foreach($file in Get-ChildItem -LiteralPath $Project -File -Recurse) {
 }
 Add-NativeRuntimeSourceIdentity $Project $contentFiles
 $fingerprint = Get-NativeContentFingerprint $contentFiles
-[IO.File]::WriteAllText((Join-Path $Project 'world/network-content.json'),([ordered]@{fingerprint=$fingerprint} | ConvertTo-Json),$utf8)
+$networkIdentity=([ordered]@{fingerprint=$fingerprint} | ConvertTo-Json).Replace("`r`n","`n")+"`n"
+[IO.File]::WriteAllText((Join-Path $Project 'world/network-content.json'),$networkIdentity,$utf8)
 $receipt = [ordered]@{version=$version;files=$rows.Count;bytes=($rows.bytes | Measure-Object -Sum).Sum;contentFiles=$contentFiles.Count;fingerprint=$fingerprint}
 $receipt | ConvertTo-Json

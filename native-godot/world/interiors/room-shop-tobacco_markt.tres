@@ -1,0 +1,25 @@
+[gd_resource type="Resource" script_class="AuthorDistrict" format=3]
+
+[ext_resource type="Resource" path="res://world/interiors/room-shop-tobacco_markt.catalog.tres" id="1_wyo2k"]
+[ext_resource type="PackedScene" path="res://world/interiors/room-shop-tobacco_markt.structure.tscn" id="2_bldh3"]
+[ext_resource type="PackedScene" path="res://world/interiors/room-shop-tobacco_markt.objects.tscn" id="3_wyo2k"]
+[ext_resource type="Script" path="res://src/Authoring/AuthorDistrict.cs" id="4_ju5xp"]
+
+[resource]
+script = ExtResource("4_ju5xp")
+Id = "room-shop-tobacco_markt"
+Title = "shop:tobacco_markt"
+Scene = ExtResource("3_wyo2k")
+EditorScenePath = "res://world/interiors/room-shop-tobacco_markt.tscn"
+Catalog = ExtResource("1_wyo2k")
+Bounds = Rect2(-316.225, -31.614998, 200, 200)
+WalkSpawn = Vector3(-216.225, 0.2, 68.385)
+FlySpawn = Vector3(-216.225, 1.78, 68.385)
+FlyYaw = 1.5707964
+FlyPitch = -0.12
+RoomId = "shop:tobacco_markt"
+RoomFrame = Transform3D(-4.371139e-08, 0, 1, 0, 1, 0, -1, 0, -4.371139e-08, -222, 0.18, 67.0575)
+RoomBounds = Rect2(-3.7825, 0.2, 4.91, 11.150001)
+EntryPoints = PackedVector3Array(-222, 0.18, 67.0575)
+ReplacedMeshes = PackedInt32Array(10250, 10252, 10253, 10254, 10255, 10256, 10258, 10259, 10260, 10261, 10262, 10263, 10264, 10265, 10266, 10267, 10268, 10269, 10270, 10271, 10278, 10312)
+RetainedStructure = ExtResource("2_bldh3")

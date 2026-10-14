@@ -1,0 +1,27 @@
+[gd_resource type="Resource" script_class="AuthorCatalog" format=3]
+
+[ext_resource type="Script" path="res://src/Authoring/AuthorAsset.cs" id="1_saymg"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-colonial_steen-counter.tres" id="2_477fe"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-colonial_steen-source-10557-1.tres" id="3_t2fff"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-colonial_steen-source-10557-2.tres" id="4_ddes3"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-colonial_steen-source-10557-3.tres" id="5_j8ge5"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-colonial_steen-source-10557-4.tres" id="6_lwoiy"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-colonial_steen-source-10557-5.tres" id="7_i1u5e"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-colonial_steen-source-10560-6.tres" id="8_alo4f"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-colonial_steen-source-10563-7.tres" id="9_2pxve"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-colonial_steen-source-10563-8.tres" id="10_pko7u"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-colonial_steen-source-10570-9.tres" id="11_3gsfj"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-colonial_steen-source-10570-10.tres" id="12_padtk"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-colonial_steen-source-10571-11.tres" id="13_w3wno"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-colonial_steen-source-10571-12.tres" id="14_rd1i5"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-colonial_steen-source-10571-13.tres" id="15_gnxu5"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-colonial_steen-source-10571-14.tres" id="16_57qtt"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-colonial_steen-source-10571-15.tres" id="17_o2di3"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-colonial_steen-source-10571-16.tres" id="18_yrl0m"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-colonial_steen-source-10571-17.tres" id="19_43qt7"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-colonial_steen-source-10626-18.tres" id="20_qhsbq"]
+[ext_resource type="Script" path="res://src/Authoring/AuthorCatalog.cs" id="21_g7qfh"]
+
+[resource]
+script = ExtResource("21_g7qfh")
+Assets = Array[ExtResource("1_saymg")]([ExtResource("2_477fe"), ExtResource("3_t2fff"), ExtResource("4_ddes3"), ExtResource("5_j8ge5"), ExtResource("6_lwoiy"), ExtResource("7_i1u5e"), ExtResource("8_alo4f"), ExtResource("9_2pxve"), ExtResource("10_pko7u"), ExtResource("11_3gsfj"), ExtResource("12_padtk"), ExtResource("13_w3wno"), ExtResource("14_rd1i5"), ExtResource("15_gnxu5"), ExtResource("16_57qtt"), ExtResource("17_o2di3"), ExtResource("18_yrl0m"), ExtResource("19_43qt7"), ExtResource("20_qhsbq")])

@@ -1,0 +1,145 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://src/Authoring/AuthoredObject.cs" id="1_cqafh"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-cobbler_east-counter.tres" id="2_42l6y"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-cobbler_east-source-11277-1.tres" id="3_unbya"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-cobbler_east-source-11277-2.tres" id="4_646a7"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-cobbler_east-source-11277-3.tres" id="5_5ushj"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-cobbler_east-source-11277-4.tres" id="6_rcnsj"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-cobbler_east-source-11277-5.tres" id="7_6h88y"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-cobbler_east-source-11277-6.tres" id="8_rx5hm"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-cobbler_east-source-11280-7.tres" id="9_hcmqw"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-cobbler_east-source-11281-8.tres" id="10_edrfp"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-cobbler_east-source-11281-9.tres" id="11_06xo8"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-cobbler_east-source-11281-10.tres" id="12_bi13b"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-cobbler_east-source-11282-11.tres" id="13_pdcp7"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-cobbler_east-source-11283-12.tres" id="14_hdnp4"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-cobbler_east-source-11283-13.tres" id="15_nj75p"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-cobbler_east-source-11283-14.tres" id="16_fshcf"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-cobbler_east-source-11283-15.tres" id="17_f8lyv"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-cobbler_east-source-11283-16.tres" id="18_rc4bv"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-cobbler_east-source-11286-17.tres" id="19_hxpck"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-cobbler_east-source-11286-18.tres" id="20_auucn"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-cobbler_east-source-11329-19.tres" id="21_skppj"]
+
+[node name="Objects" type="Node3D" unique_id=1903891250]
+
+[node name="object_counter" type="Node3D" parent="." unique_id=1784012950]
+transform = Transform3D(-0.7808142, 0, 0.62476337, 0, 1, 0, -0.62476337, 0, -0.7808142, 12.04516, 0.18, 213.22586)
+script = ExtResource("1_cqafh")
+ObjectId = "room-shop-cobbler_east-counter"
+Asset = ExtResource("2_42l6y")
+
+[node name="object_source-11277-1" type="Node3D" parent="." unique_id=978537482]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 13.158671, 0.18, 213.42519)
+script = ExtResource("1_cqafh")
+ObjectId = "room-shop-cobbler_east-source-11277-1"
+Asset = ExtResource("3_unbya")
+
+[node name="object_source-11277-2" type="Node3D" parent="." unique_id=2017661482]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 9.526326, 0.18, 210.5958)
+script = ExtResource("1_cqafh")
+ObjectId = "room-shop-cobbler_east-source-11277-2"
+Asset = ExtResource("4_646a7")
+
+[node name="object_source-11277-3" type="Node3D" parent="." unique_id=2139054564]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 10.131851, 0.18, 215.37701)
+script = ExtResource("1_cqafh")
+ObjectId = "room-shop-cobbler_east-source-11277-3"
+Asset = ExtResource("5_5ushj")
+
+[node name="object_source-11277-4" type="Node3D" parent="." unique_id=1673172891]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 12.784197, 0.18, 209.46927)
+script = ExtResource("1_cqafh")
+ObjectId = "room-shop-cobbler_east-source-11277-4"
+Asset = ExtResource("6_rcnsj")
+
+[node name="object_source-11277-5" type="Node3D" parent="." unique_id=1299223996]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 12.793561, 0.18, 209.45755)
+script = ExtResource("1_cqafh")
+ObjectId = "room-shop-cobbler_east-source-11277-5"
+Asset = ExtResource("7_6h88y")
+
+[node name="object_source-11277-6" type="Node3D" parent="." unique_id=2136809910]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 9.913803, 0.18, 208.25479)
+script = ExtResource("1_cqafh")
+ObjectId = "room-shop-cobbler_east-source-11277-6"
+Asset = ExtResource("8_rx5hm")
+
+[node name="object_source-11280-7" type="Node3D" parent="." unique_id=147497170]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 8.940727, 0.18, 210.12717)
+script = ExtResource("1_cqafh")
+ObjectId = "room-shop-cobbler_east-source-11280-7"
+Asset = ExtResource("9_hcmqw")
+
+[node name="object_source-11281-8" type="Node3D" parent="." unique_id=746948019]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 10.561972, 0.18, 208.26102)
+script = ExtResource("1_cqafh")
+ObjectId = "room-shop-cobbler_east-source-11281-8"
+Asset = ExtResource("10_edrfp")
+
+[node name="object_source-11281-9" type="Node3D" parent="." unique_id=1322273227]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 11.75305, 0.18, 213.86307)
+script = ExtResource("1_cqafh")
+ObjectId = "room-shop-cobbler_east-source-11281-9"
+Asset = ExtResource("11_06xo8")
+
+[node name="object_source-11281-10" type="Node3D" parent="." unique_id=333139536]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 10.783177, 0.18, 211.0097)
+script = ExtResource("1_cqafh")
+ObjectId = "room-shop-cobbler_east-source-11281-10"
+Asset = ExtResource("12_bi13b")
+
+[node name="object_source-11282-11" type="Node3D" parent="." unique_id=340573868]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 9.362497, 0.18, 208.92776)
+script = ExtResource("1_cqafh")
+ObjectId = "room-shop-cobbler_east-source-11282-11"
+Asset = ExtResource("13_pdcp7")
+
+[node name="object_source-11283-12" type="Node3D" parent="." unique_id=1023711366]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 8.073885, 0.18, 210.9704)
+script = ExtResource("1_cqafh")
+ObjectId = "room-shop-cobbler_east-source-11283-12"
+Asset = ExtResource("14_hdnp4")
+
+[node name="object_source-11283-13" type="Node3D" parent="." unique_id=25242339]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 8.167599, 0.18, 210.85327)
+script = ExtResource("1_cqafh")
+ObjectId = "room-shop-cobbler_east-source-11283-13"
+Asset = ExtResource("15_nj75p")
+
+[node name="object_source-11283-14" type="Node3D" parent="." unique_id=747543841]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 8.2613125, 0.18, 210.73615)
+script = ExtResource("1_cqafh")
+ObjectId = "room-shop-cobbler_east-source-11283-14"
+Asset = ExtResource("16_fshcf")
+
+[node name="object_source-11283-15" type="Node3D" parent="." unique_id=2142474346]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 8.355024, 0.18, 210.61903)
+script = ExtResource("1_cqafh")
+ObjectId = "room-shop-cobbler_east-source-11283-15"
+Asset = ExtResource("17_f8lyv")
+
+[node name="object_source-11283-16" type="Node3D" parent="." unique_id=1152275311]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 8.448744, 0.18, 210.5019)
+script = ExtResource("1_cqafh")
+ObjectId = "room-shop-cobbler_east-source-11283-16"
+Asset = ExtResource("18_rc4bv")
+
+[node name="object_source-11286-17" type="Node3D" parent="." unique_id=2065207987]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 11.753073, 0.18, 213.86307)
+script = ExtResource("1_cqafh")
+ObjectId = "room-shop-cobbler_east-source-11286-17"
+Asset = ExtResource("19_hxpck")
+
+[node name="object_source-11286-18" type="Node3D" parent="." unique_id=1649271660]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 10.783148, 0.18, 211.0097)
+script = ExtResource("1_cqafh")
+ObjectId = "room-shop-cobbler_east-source-11286-18"
+Asset = ExtResource("20_auucn")
+
+[node name="object_source-11329-19" type="Node3D" parent="." unique_id=1292084058]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 9.8338375, 0.18, 215.74945)
+script = ExtResource("1_cqafh")
+ObjectId = "room-shop-cobbler_east-source-11329-19"
+Asset = ExtResource("21_skppj")

@@ -1,0 +1,24 @@
+[gd_resource type="Resource" script_class="AuthorDistrict" format=3]
+
+[ext_resource type="Resource" path="res://world/interiors/room-tavern-ankere.catalog.tres" id="1_a8or8"]
+[ext_resource type="PackedScene" path="res://world/interiors/room-tavern-ankere.structure.tscn" id="2_kcnod"]
+[ext_resource type="PackedScene" path="res://world/interiors/room-tavern-ankere.objects.tscn" id="3_a8or8"]
+[ext_resource type="Script" path="res://src/Authoring/AuthorDistrict.cs" id="4_6yysf"]
+
+[resource]
+script = ExtResource("4_6yysf")
+Id = "room-tavern-ankere"
+Title = "tavern:ankere"
+Scene = ExtResource("3_a8or8")
+EditorScenePath = "res://world/interiors/room-tavern-ankere.tscn"
+Catalog = ExtResource("1_a8or8")
+Bounds = Rect2(-156.55, -48.25, 200, 200)
+WalkSpawn = Vector3(-56.55, 0.2, 51.75)
+FlySpawn = Vector3(-56.55, 1.78, 51.75)
+FlyPitch = -0.12
+RoomId = "tavern:ankere"
+RoomFrame = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -54.825, 0.18, 46)
+RoomBounds = Rect2(-4.975, 0.2, 6.5, 11.1)
+EntryPoints = PackedVector3Array(-54.825, 0.18, 46)
+ReplacedMeshes = PackedInt32Array(11662, 11665, 11666, 11667, 11668, 11669, 11670, 11671, 11672, 11673, 11674, 11675, 11676, 11677, 11678, 11679, 11681, 11682)
+RetainedStructure = ExtResource("2_kcnod")

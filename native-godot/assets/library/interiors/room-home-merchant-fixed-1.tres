@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="AuthorAsset" format=3]
+
+[ext_resource type="PackedScene" path="res://assets/props/furniture/room-home-merchant-fixed-1.tscn" id="1_qv7si"]
+[ext_resource type="Script" path="res://src/Authoring/AuthorAsset.cs" id="2_u7gob"]
+
+[resource]
+PlacementAnchor = Vector3(-0.062503815, 0, -0.12998712)
+GeometryClearance = true
+script = ExtResource("2_u7gob")
+Id = "room-home-merchant-fixed-1"
+Title = "alcove · home:merchant · fixed-1"
+Category = "Room originals"
+Scene = ExtResource("1_qv7si")
+Footprint = Vector3(2.2150002, 2.67, 0.41999936)
+FootprintOffset = Vector3(-0.062503815, -2.3841858e-08, -0.12998712)
+FurnitureKind = "alcove"
+UsePoint = Vector3(0, 0.50000024, 0)
+StandPoint = Vector3(0.09355545, 0, -0.592659)

@@ -1,0 +1,28 @@
+[gd_resource type="Resource" script_class="AuthorCatalog" format=3]
+
+[ext_resource type="Script" path="res://src/Authoring/AuthorAsset.cs" id="1_6toql"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-cobbler_east-counter.tres" id="2_hdd0s"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-cobbler_east-source-11277-1.tres" id="3_6ks46"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-cobbler_east-source-11277-2.tres" id="4_ghwd1"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-cobbler_east-source-11277-3.tres" id="5_hhgbh"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-cobbler_east-source-11277-4.tres" id="6_eobpr"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-cobbler_east-source-11277-5.tres" id="7_fs37t"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-cobbler_east-source-11277-6.tres" id="8_3nst5"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-cobbler_east-source-11280-7.tres" id="9_kutie"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-cobbler_east-source-11281-8.tres" id="10_2bttp"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-cobbler_east-source-11281-9.tres" id="11_053up"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-cobbler_east-source-11281-10.tres" id="12_85jcl"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-cobbler_east-source-11282-11.tres" id="13_7dqu7"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-cobbler_east-source-11283-12.tres" id="14_cj7qa"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-cobbler_east-source-11283-13.tres" id="15_m7xry"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-cobbler_east-source-11283-14.tres" id="16_qd0js"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-cobbler_east-source-11283-15.tres" id="17_uiv16"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-cobbler_east-source-11283-16.tres" id="18_irhrh"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-cobbler_east-source-11286-17.tres" id="19_46xfe"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-cobbler_east-source-11286-18.tres" id="20_1cmc1"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-cobbler_east-source-11329-19.tres" id="21_b6uag"]
+[ext_resource type="Script" path="res://src/Authoring/AuthorCatalog.cs" id="22_2jiah"]
+
+[resource]
+script = ExtResource("22_2jiah")
+Assets = Array[ExtResource("1_6toql")]([ExtResource("2_hdd0s"), ExtResource("3_6ks46"), ExtResource("4_ghwd1"), ExtResource("5_hhgbh"), ExtResource("6_eobpr"), ExtResource("7_fs37t"), ExtResource("8_3nst5"), ExtResource("9_kutie"), ExtResource("10_2bttp"), ExtResource("11_053up"), ExtResource("12_85jcl"), ExtResource("13_7dqu7"), ExtResource("14_cj7qa"), ExtResource("15_m7xry"), ExtResource("16_qd0js"), ExtResource("17_uiv16"), ExtResource("18_irhrh"), ExtResource("19_46xfe"), ExtResource("20_1cmc1"), ExtResource("21_b6uag")])

@@ -1,0 +1,453 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://src/Authoring/AuthoredObject.cs" id="1_fclby"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-tavern-vliet-seat-0.tres" id="2_bnqi1"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-tavern-vliet-seat-1.tres" id="3_egeoo"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-tavern-vliet-seat-2.tres" id="4_lb2gw"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-tavern-vliet-seat-3.tres" id="5_j2dg2"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-tavern-vliet-seat-4.tres" id="6_n2pe5"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-tavern-vliet-seat-5.tres" id="7_mliiu"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-tavern-vliet-seat-6.tres" id="8_8nuav"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-tavern-vliet-seat-7.tres" id="9_n5vfb"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-tavern-vliet-seat-8.tres" id="10_vadd7"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-tavern-vliet-seat-9.tres" id="11_kg8wy"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-tavern-vliet-seat-10.tres" id="12_n6aji"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-tavern-vliet-seat-11.tres" id="13_5tlq0"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-tavern-vliet-seat-12.tres" id="14_oy4my"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-tavern-vliet-seat-13.tres" id="15_ib8mk"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-tavern-vliet-seat-14.tres" id="16_n3dwc"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-tavern-vliet-seat-15.tres" id="17_0y6gh"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-tavern-vliet-seat-16.tres" id="18_qviu1"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-tavern-vliet-seat-17.tres" id="19_jp2hp"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-tavern-vliet-seat-18.tres" id="20_whvyv"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-tavern-vliet-seat-19.tres" id="21_u8wch"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-tavern-vliet-seat-20.tres" id="22_2j7uk"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-tavern-vliet-table-0.tres" id="23_jqlcn"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-tavern-vliet-table-1.tres" id="24_qsaeb"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-tavern-vliet-table-2.tres" id="25_4igwu"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-tavern-vliet-table-3.tres" id="26_smbt4"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-tavern-vliet-table-4.tres" id="27_but38"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-tavern-vliet-table-5.tres" id="28_7bgai"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-tavern-vliet-table-6.tres" id="29_isyr2"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-tavern-vliet-table-7.tres" id="30_77cdx"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-tavern-vliet-table-8.tres" id="31_6jnkv"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-tavern-vliet-counter.tres" id="32_2sq7g"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-tavern-vliet-source-11799-31.tres" id="33_8fgm0"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-tavern-vliet-source-11799-32.tres" id="34_c0dss"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-tavern-vliet-source-11799-33.tres" id="35_gd3q6"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-tavern-vliet-source-11799-34.tres" id="36_wi23p"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-tavern-vliet-source-11799-35.tres" id="37_ne1n2"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-tavern-vliet-source-11799-36.tres" id="38_7ykvv"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-tavern-vliet-source-11799-37.tres" id="39_p2in2"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-tavern-vliet-source-11799-38.tres" id="40_q55c1"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-tavern-vliet-source-11799-39.tres" id="41_65rhq"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-tavern-vliet-source-11799-40.tres" id="42_umwuu"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-tavern-vliet-source-11799-41.tres" id="43_atyus"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-tavern-vliet-source-11799-42.tres" id="44_b71ef"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-tavern-vliet-source-11799-43.tres" id="45_l5c1u"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-tavern-vliet-source-11799-44.tres" id="46_jva1x"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-tavern-vliet-source-11799-45.tres" id="47_6q82i"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-tavern-vliet-source-11799-46.tres" id="48_pr8ic"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-tavern-vliet-source-11805-47.tres" id="49_3tx0o"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-tavern-vliet-source-11805-48.tres" id="50_7ocd8"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-tavern-vliet-source-11805-49.tres" id="51_8a0au"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-tavern-vliet-source-11805-50.tres" id="52_4rru0"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-tavern-vliet-source-11805-51.tres" id="53_0r6oq"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-tavern-vliet-source-11805-52.tres" id="54_8pe5s"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-tavern-vliet-source-11805-53.tres" id="55_1uykl"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-tavern-vliet-source-11805-54.tres" id="56_ek7xm"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-tavern-vliet-source-11805-55.tres" id="57_e64ft"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-tavern-vliet-source-11809-56.tres" id="58_4d011"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-tavern-vliet-source-11811-57.tres" id="59_h33ua"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-tavern-vliet-source-11811-58.tres" id="60_b1a17"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-tavern-vliet-source-11811-59.tres" id="61_rudmy"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-tavern-vliet-source-11813-60.tres" id="62_r7tx2"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-tavern-vliet-source-11817-61.tres" id="63_0fi3l"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-tavern-vliet-source-11818-62.tres" id="64_6ter7"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-tavern-vliet-source-11830-63.tres" id="65_6dkfn"]
+
+[node name="Objects" type="Node3D" unique_id=573829457]
+
+[node name="object_seat-0" type="Node3D" parent="." unique_id=444335801]
+transform = Transform3D(-4.371139e-08, 0, 1, 0, 1, 0, -1, 0, -4.371139e-08, -109.54, 0.18, 51.4)
+script = ExtResource("1_fclby")
+ObjectId = "room-tavern-vliet-seat-0"
+Asset = ExtResource("2_bnqi1")
+
+[node name="object_seat-1" type="Node3D" parent="." unique_id=553919244]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -108.92, 0.18, 50.8)
+script = ExtResource("1_fclby")
+ObjectId = "room-tavern-vliet-seat-1"
+Asset = ExtResource("3_egeoo")
+
+[node name="object_seat-2" type="Node3D" parent="." unique_id=687717672]
+transform = Transform3D(-4.371139e-08, 0, 1, 0, 1, 0, -1, 0, -4.371139e-08, -109.54, 0.18, 52.95)
+script = ExtResource("1_fclby")
+ObjectId = "room-tavern-vliet-seat-2"
+Asset = ExtResource("4_lb2gw")
+
+[node name="object_seat-3" type="Node3D" parent="." unique_id=362518014]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -108.92, 0.18, 52.35)
+script = ExtResource("1_fclby")
+ObjectId = "room-tavern-vliet-seat-3"
+Asset = ExtResource("5_j2dg2")
+
+[node name="object_seat-4" type="Node3D" parent="." unique_id=487618188]
+transform = Transform3D(-4.371139e-08, 0, 1, 0, 1, 0, -1, 0, -4.371139e-08, -109.54, 0.18, 54.5)
+script = ExtResource("1_fclby")
+ObjectId = "room-tavern-vliet-seat-4"
+Asset = ExtResource("6_n2pe5")
+
+[node name="object_seat-5" type="Node3D" parent="." unique_id=133778852]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -108.92, 0.18, 53.9)
+script = ExtResource("1_fclby")
+ObjectId = "room-tavern-vliet-seat-5"
+Asset = ExtResource("7_mliiu")
+
+[node name="object_seat-6" type="Node3D" parent="." unique_id=803563620]
+transform = Transform3D(-4.371139e-08, 0, 1, 0, 1, 0, -1, 0, -4.371139e-08, -109.54, 0.18, 56.05)
+script = ExtResource("1_fclby")
+ObjectId = "room-tavern-vliet-seat-6"
+Asset = ExtResource("8_8nuav")
+
+[node name="object_seat-7" type="Node3D" parent="." unique_id=30379627]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -108.92, 0.18, 55.45)
+script = ExtResource("1_fclby")
+ObjectId = "room-tavern-vliet-seat-7"
+Asset = ExtResource("9_n5vfb")
+
+[node name="object_seat-8" type="Node3D" parent="." unique_id=2009568018]
+transform = Transform3D(-4.371139e-08, 0, 1, 0, 1, 0, -1, 0, -4.371139e-08, -109.54, 0.18, 57.6)
+script = ExtResource("1_fclby")
+ObjectId = "room-tavern-vliet-seat-8"
+Asset = ExtResource("10_vadd7")
+
+[node name="object_seat-9" type="Node3D" parent="." unique_id=975953051]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -108.92, 0.18, 57)
+script = ExtResource("1_fclby")
+ObjectId = "room-tavern-vliet-seat-9"
+Asset = ExtResource("11_kg8wy")
+
+[node name="object_seat-10" type="Node3D" parent="." unique_id=1476278195]
+transform = Transform3D(-4.371139e-08, 0, 1, 0, 1, 0, -1, 0, -4.371139e-08, -109.54, 0.18, 59.15)
+script = ExtResource("1_fclby")
+ObjectId = "room-tavern-vliet-seat-10"
+Asset = ExtResource("12_n6aji")
+
+[node name="object_seat-11" type="Node3D" parent="." unique_id=5348094]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -108.92, 0.18, 58.55)
+script = ExtResource("1_fclby")
+ObjectId = "room-tavern-vliet-seat-11"
+Asset = ExtResource("13_5tlq0")
+
+[node name="object_seat-12" type="Node3D" parent="." unique_id=676106226]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -111.795, 0.18, 52.8)
+script = ExtResource("1_fclby")
+ObjectId = "room-tavern-vliet-seat-12"
+Asset = ExtResource("14_oy4my")
+
+[node name="object_seat-13" type="Node3D" parent="." unique_id=1502343235]
+transform = Transform3D(-1, 0, -8.742278e-08, 0, 1, 0, 8.742278e-08, 0, -1, -111.795, 0.18, 54)
+script = ExtResource("1_fclby")
+ObjectId = "room-tavern-vliet-seat-13"
+Asset = ExtResource("15_ib8mk")
+
+[node name="object_seat-14" type="Node3D" parent="." unique_id=2105739378]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -111.795, 0.18, 55.2)
+script = ExtResource("1_fclby")
+ObjectId = "room-tavern-vliet-seat-14"
+Asset = ExtResource("16_n3dwc")
+
+[node name="object_seat-15" type="Node3D" parent="." unique_id=2070410259]
+transform = Transform3D(-1, 0, -8.742278e-08, 0, 1, 0, 8.742278e-08, 0, -1, -111.795, 0.18, 56.4)
+script = ExtResource("1_fclby")
+ObjectId = "room-tavern-vliet-seat-15"
+Asset = ExtResource("17_0y6gh")
+
+[node name="object_seat-16" type="Node3D" parent="." unique_id=847157565]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -111.795, 0.18, 57.6)
+script = ExtResource("1_fclby")
+ObjectId = "room-tavern-vliet-seat-16"
+Asset = ExtResource("18_qviu1")
+
+[node name="object_seat-17" type="Node3D" parent="." unique_id=1703605002]
+transform = Transform3D(-1, 0, -8.742278e-08, 0, 1, 0, 8.742278e-08, 0, -1, -111.795, 0.18, 58.8)
+script = ExtResource("1_fclby")
+ObjectId = "room-tavern-vliet-seat-17"
+Asset = ExtResource("19_jp2hp")
+
+[node name="object_seat-18" type="Node3D" parent="." unique_id=538888400]
+transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -114.52, 0.18, 52.9)
+script = ExtResource("1_fclby")
+ObjectId = "room-tavern-vliet-seat-18"
+Asset = ExtResource("20_whvyv")
+
+[node name="object_seat-19" type="Node3D" parent="." unique_id=1175325645]
+transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -114.52, 0.18, 54.2)
+script = ExtResource("1_fclby")
+ObjectId = "room-tavern-vliet-seat-19"
+Asset = ExtResource("21_u8wch")
+
+[node name="object_seat-20" type="Node3D" parent="." unique_id=757340884]
+transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -114.52, 0.18, 55.5)
+script = ExtResource("1_fclby")
+ObjectId = "room-tavern-vliet-seat-20"
+Asset = ExtResource("22_2j7uk")
+
+[node name="object_table-0" type="Node3D" parent="." unique_id=1950011856]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -109.229996, 0.18, 51.1)
+script = ExtResource("1_fclby")
+ObjectId = "room-tavern-vliet-table-0"
+Asset = ExtResource("23_jqlcn")
+
+[node name="object_table-1" type="Node3D" parent="." unique_id=342456276]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -109.229996, 0.18, 52.65)
+script = ExtResource("1_fclby")
+ObjectId = "room-tavern-vliet-table-1"
+Asset = ExtResource("24_qsaeb")
+
+[node name="object_table-2" type="Node3D" parent="." unique_id=1934705796]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -109.229996, 0.18, 54.2)
+script = ExtResource("1_fclby")
+ObjectId = "room-tavern-vliet-table-2"
+Asset = ExtResource("25_4igwu")
+
+[node name="object_table-3" type="Node3D" parent="." unique_id=2002346626]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -109.229996, 0.18, 55.75)
+script = ExtResource("1_fclby")
+ObjectId = "room-tavern-vliet-table-3"
+Asset = ExtResource("26_smbt4")
+
+[node name="object_table-4" type="Node3D" parent="." unique_id=206966217]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -109.229996, 0.18, 57.3)
+script = ExtResource("1_fclby")
+ObjectId = "room-tavern-vliet-table-4"
+Asset = ExtResource("27_but38")
+
+[node name="object_table-5" type="Node3D" parent="." unique_id=338713437]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -109.229996, 0.18, 58.85)
+script = ExtResource("1_fclby")
+ObjectId = "room-tavern-vliet-table-5"
+Asset = ExtResource("28_7bgai")
+
+[node name="object_table-6" type="Node3D" parent="." unique_id=337299888]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -111.795, 0.18, 53.4)
+script = ExtResource("1_fclby")
+ObjectId = "room-tavern-vliet-table-6"
+Asset = ExtResource("29_isyr2")
+
+[node name="object_table-7" type="Node3D" parent="." unique_id=864230230]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -111.795, 0.18, 55.8)
+script = ExtResource("1_fclby")
+ObjectId = "room-tavern-vliet-table-7"
+Asset = ExtResource("30_77cdx")
+
+[node name="object_table-8" type="Node3D" parent="." unique_id=451728100]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -111.795, 0.18, 58.2)
+script = ExtResource("1_fclby")
+ObjectId = "room-tavern-vliet-table-8"
+Asset = ExtResource("31_6jnkv")
+
+[node name="object_counter" type="Node3D" parent="." unique_id=1915035096]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -115.145, 0.18, 54.2)
+script = ExtResource("1_fclby")
+ObjectId = "room-tavern-vliet-counter"
+Asset = ExtResource("32_2sq7g")
+
+[node name="object_source-11799-31" type="Node3D" parent="." unique_id=1805512415]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -112.195, 0.18, 55.815002)
+script = ExtResource("1_fclby")
+ObjectId = "room-tavern-vliet-source-11799-31"
+Asset = ExtResource("33_8fgm0")
+
+[node name="object_source-11799-32" type="Node3D" parent="." unique_id=724985647]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -116.16504, 0.18, 54.199944)
+script = ExtResource("1_fclby")
+ObjectId = "room-tavern-vliet-source-11799-32"
+Asset = ExtResource("34_c0dss")
+
+[node name="object_source-11799-33" type="Node3D" parent="." unique_id=972751311]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -116.16504, 0.18, 54.199944)
+script = ExtResource("1_fclby")
+ObjectId = "room-tavern-vliet-source-11799-33"
+Asset = ExtResource("35_gd3q6")
+
+[node name="object_source-11799-34" type="Node3D" parent="." unique_id=1676585658]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -108.63007, 0.18, 51.109917)
+script = ExtResource("1_fclby")
+ObjectId = "room-tavern-vliet-source-11799-34"
+Asset = ExtResource("36_wi23p")
+
+[node name="object_source-11799-35" type="Node3D" parent="." unique_id=1014556684]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -108.63007, 0.18, 51.689964)
+script = ExtResource("1_fclby")
+ObjectId = "room-tavern-vliet-source-11799-35"
+Asset = ExtResource("37_ne1n2")
+
+[node name="object_source-11799-36" type="Node3D" parent="." unique_id=813066198]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -108.63007, 0.18, 52.659855)
+script = ExtResource("1_fclby")
+ObjectId = "room-tavern-vliet-source-11799-36"
+Asset = ExtResource("38_7ykvv")
+
+[node name="object_source-11799-37" type="Node3D" parent="." unique_id=1953453921]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -108.63007, 0.18, 53.239906)
+script = ExtResource("1_fclby")
+ObjectId = "room-tavern-vliet-source-11799-37"
+Asset = ExtResource("39_p2in2")
+
+[node name="object_source-11799-38" type="Node3D" parent="." unique_id=1570625636]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -108.63007, 0.18, 54.20997)
+script = ExtResource("1_fclby")
+ObjectId = "room-tavern-vliet-source-11799-38"
+Asset = ExtResource("40_q55c1")
+
+[node name="object_source-11799-39" type="Node3D" parent="." unique_id=1796702989]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -108.63007, 0.18, 54.789845)
+script = ExtResource("1_fclby")
+ObjectId = "room-tavern-vliet-source-11799-39"
+Asset = ExtResource("41_65rhq")
+
+[node name="object_source-11799-40" type="Node3D" parent="." unique_id=907033550]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -108.63007, 0.18, 55.759907)
+script = ExtResource("1_fclby")
+ObjectId = "room-tavern-vliet-source-11799-40"
+Asset = ExtResource("42_umwuu")
+
+[node name="object_source-11799-41" type="Node3D" parent="." unique_id=1955084126]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -108.63007, 0.18, 56.33996)
+script = ExtResource("1_fclby")
+ObjectId = "room-tavern-vliet-source-11799-41"
+Asset = ExtResource("43_atyus")
+
+[node name="object_source-11799-42" type="Node3D" parent="." unique_id=1831088756]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -108.63007, 0.18, 57.30985)
+script = ExtResource("1_fclby")
+ObjectId = "room-tavern-vliet-source-11799-42"
+Asset = ExtResource("44_b71ef")
+
+[node name="object_source-11799-43" type="Node3D" parent="." unique_id=393299126]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -108.63007, 0.18, 57.8899)
+script = ExtResource("1_fclby")
+ObjectId = "room-tavern-vliet-source-11799-43"
+Asset = ExtResource("45_l5c1u")
+
+[node name="object_source-11799-44" type="Node3D" parent="." unique_id=1865048883]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -108.63007, 0.18, 58.859962)
+script = ExtResource("1_fclby")
+ObjectId = "room-tavern-vliet-source-11799-44"
+Asset = ExtResource("46_jva1x")
+
+[node name="object_source-11799-45" type="Node3D" parent="." unique_id=1779529721]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -108.63007, 0.18, 59.439926)
+script = ExtResource("1_fclby")
+ObjectId = "room-tavern-vliet-source-11799-45"
+Asset = ExtResource("47_6q82i")
+
+[node name="object_source-11799-46" type="Node3D" parent="." unique_id=1213322081]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -116.28009, 0.18, 56.599907)
+script = ExtResource("1_fclby")
+ObjectId = "room-tavern-vliet-source-11799-46"
+Asset = ExtResource("48_pr8ic")
+
+[node name="object_source-11805-47" type="Node3D" parent="." unique_id=1587689831]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -115.17003, 0.18, 52.799934)
+script = ExtResource("1_fclby")
+ObjectId = "room-tavern-vliet-source-11805-47"
+Asset = ExtResource("49_3tx0o")
+
+[node name="object_source-11805-48" type="Node3D" parent="." unique_id=1454627119]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -115.17003, 0.18, 53.14995)
+script = ExtResource("1_fclby")
+ObjectId = "room-tavern-vliet-source-11805-48"
+Asset = ExtResource("50_7ocd8")
+
+[node name="object_source-11805-49" type="Node3D" parent="." unique_id=1855519583]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -115.17003, 0.18, 53.49996)
+script = ExtResource("1_fclby")
+ObjectId = "room-tavern-vliet-source-11805-49"
+Asset = ExtResource("51_8a0au")
+
+[node name="object_source-11805-50" type="Node3D" parent="." unique_id=614857721]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -108.130005, 0.18, 50.699974)
+script = ExtResource("1_fclby")
+ObjectId = "room-tavern-vliet-source-11805-50"
+Asset = ExtResource("52_4rru0")
+
+[node name="object_source-11805-51" type="Node3D" parent="." unique_id=1057120533]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -108.130005, 0.18, 50.94995)
+script = ExtResource("1_fclby")
+ObjectId = "room-tavern-vliet-source-11805-51"
+Asset = ExtResource("53_0r6oq")
+
+[node name="object_source-11805-52" type="Node3D" parent="." unique_id=1172515690]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -108.130005, 0.18, 51.19993)
+script = ExtResource("1_fclby")
+ObjectId = "room-tavern-vliet-source-11805-52"
+Asset = ExtResource("54_8pe5s")
+
+[node name="object_source-11805-53" type="Node3D" parent="." unique_id=768537644]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -108.130005, 0.18, 51.44996)
+script = ExtResource("1_fclby")
+ObjectId = "room-tavern-vliet-source-11805-53"
+Asset = ExtResource("55_1uykl")
+
+[node name="object_source-11805-54" type="Node3D" parent="." unique_id=1533131164]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -112.39505, 0.18, 53.568977)
+script = ExtResource("1_fclby")
+ObjectId = "room-tavern-vliet-source-11805-54"
+Asset = ExtResource("56_ek7xm")
+
+[node name="object_source-11805-55" type="Node3D" parent="." unique_id=2119456101]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -112.39505, 0.18, 58.060993)
+script = ExtResource("1_fclby")
+ObjectId = "room-tavern-vliet-source-11805-55"
+Asset = ExtResource("57_e64ft")
+
+[node name="object_source-11809-56" type="Node3D" parent="." unique_id=1585685744]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -108.11005, 0.18, 55.6)
+script = ExtResource("1_fclby")
+ObjectId = "room-tavern-vliet-source-11809-56"
+Asset = ExtResource("58_4d011")
+
+[node name="object_source-11811-57" type="Node3D" parent="." unique_id=665488040]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -111.845, 0.18, 60.029976)
+script = ExtResource("1_fclby")
+ObjectId = "room-tavern-vliet-source-11811-57"
+Asset = ExtResource("59_h33ua")
+
+[node name="object_source-11811-58" type="Node3D" parent="." unique_id=273838129]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -112.395035, 0.18, 53.56894)
+script = ExtResource("1_fclby")
+ObjectId = "room-tavern-vliet-source-11811-58"
+Asset = ExtResource("60_b1a17")
+
+[node name="object_source-11811-59" type="Node3D" parent="." unique_id=880800909]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -112.395035, 0.18, 58.06092)
+script = ExtResource("1_fclby")
+ObjectId = "room-tavern-vliet-source-11811-59"
+Asset = ExtResource("61_rudmy")
+
+[node name="object_source-11813-60" type="Node3D" parent="." unique_id=448019419]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -115.82, 0.18, 56.65)
+script = ExtResource("1_fclby")
+ObjectId = "room-tavern-vliet-source-11813-60"
+Asset = ExtResource("62_r7tx2")
+
+[node name="object_source-11817-61" type="Node3D" parent="." unique_id=1225526559]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -108.102, 0.18, 52.199997)
+script = ExtResource("1_fclby")
+ObjectId = "room-tavern-vliet-source-11817-61"
+Asset = ExtResource("63_0fi3l")
+
+[node name="object_source-11818-62" type="Node3D" parent="." unique_id=326729801]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -108.102, 0.18, 53.9)
+script = ExtResource("1_fclby")
+ObjectId = "room-tavern-vliet-source-11818-62"
+Asset = ExtResource("64_6ter7")
+
+[node name="object_source-11830-63" type="Node3D" parent="." unique_id=59011523]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -112.194984, 0.18, 50.05513)
+script = ExtResource("1_fclby")
+ObjectId = "room-tavern-vliet-source-11830-63"
+Asset = ExtResource("65_6dkfn")

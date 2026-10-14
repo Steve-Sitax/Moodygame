@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="AuthorAsset" format=3]
+
+[ext_resource type="PackedScene" path="res://assets/props/furniture/room-tavern-zwarte_kat-table-2.tscn" id="1_yj334"]
+[ext_resource type="Script" path="res://src/Authoring/AuthorAsset.cs" id="2_7cip8"]
+
+[resource]
+PlacementAnchor = Vector3(-2.1457672e-05, -1.4901161e-08, -6.699562e-05)
+GeometryClearance = true
+script = ExtResource("2_7cip8")
+Id = "room-tavern-zwarte_kat-table-2"
+Title = "table · tavern:zwarte_kat · table-2"
+Category = "Room originals"
+Scene = ExtResource("1_yj334")
+Footprint = Vector3(0.80001974, 1.0150001, 1.600039)
+FootprintOffset = Vector3(-2.1457672e-05, -1.4901161e-08, -6.699562e-05)
+FurnitureKind = "table"
+UsePoint = Vector3(0, 0.5, 0)
+StandPoint = Vector3(-0.109313965, 0, 0.5899658)

@@ -1,0 +1,166 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://src/Authoring/AuthoredObject.cs" id="1_s2kv5"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-chandler_werf-counter.tres" id="2_47jug"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-chandler_werf-source-10189-1.tres" id="3_e4g5e"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-chandler_werf-source-10189-2.tres" id="4_mda5c"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-chandler_werf-source-10189-3.tres" id="5_q5h1a"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-chandler_werf-source-10189-4.tres" id="6_o6b43"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-chandler_werf-source-10196-5.tres" id="7_4nodx"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-chandler_werf-source-10197-6.tres" id="8_ure8w"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-chandler_werf-source-10197-7.tres" id="9_rl5wi"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-chandler_werf-source-10197-8.tres" id="10_a6h2i"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-chandler_werf-source-10197-9.tres" id="11_ee4xl"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-chandler_werf-source-10197-10.tres" id="12_83iue"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-chandler_werf-source-10199-11.tres" id="13_1xq0o"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-chandler_werf-source-10199-12.tres" id="14_46ymq"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-chandler_werf-source-10199-13.tres" id="15_cuoaw"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-chandler_werf-source-10199-14.tres" id="16_npx3n"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-chandler_werf-source-10199-15.tres" id="17_1otvw"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-chandler_werf-source-10199-16.tres" id="18_4iide"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-chandler_werf-source-10199-17.tres" id="19_jl567"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-chandler_werf-source-10199-18.tres" id="20_lo5li"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-chandler_werf-source-10202-19.tres" id="21_gfl7h"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-chandler_werf-source-10202-20.tres" id="22_4yjce"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-chandler_werf-source-10204-21.tres" id="23_bl5xt"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-chandler_werf-source-10245-22.tres" id="24_7vbmh"]
+
+[node name="Objects" type="Node3D" unique_id=273973225]
+
+[node name="object_counter" type="Node3D" parent="." unique_id=1983407612]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -284.13998, 0.18, 17.35)
+script = ExtResource("1_s2kv5")
+ObjectId = "room-shop-chandler_werf-counter"
+Asset = ExtResource("2_47jug")
+
+[node name="object_source-10189-1" type="Node3D" parent="." unique_id=83984033]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -285.00998, 0.18, 17.97489)
+script = ExtResource("1_s2kv5")
+ObjectId = "room-shop-chandler_werf-source-10189-1"
+Asset = ExtResource("3_e4g5e")
+
+[node name="object_source-10189-2" type="Node3D" parent="." unique_id=1861057851]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -283.9225, 0.18, 14.475)
+script = ExtResource("1_s2kv5")
+ObjectId = "room-shop-chandler_werf-source-10189-2"
+Asset = ExtResource("4_mda5c")
+
+[node name="object_source-10189-3" type="Node3D" parent="." unique_id=2116903029]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -282.23505, 0.18, 20.729969)
+script = ExtResource("1_s2kv5")
+ObjectId = "room-shop-chandler_werf-source-10189-3"
+Asset = ExtResource("5_q5h1a")
+
+[node name="object_source-10189-4" type="Node3D" parent="." unique_id=1423399133]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -282.23505, 0.18, 20.75997)
+script = ExtResource("1_s2kv5")
+ObjectId = "room-shop-chandler_werf-source-10189-4"
+Asset = ExtResource("6_o6b43")
+
+[node name="object_source-10196-5" type="Node3D" parent="." unique_id=732431560]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -279.51, 0.18, 15.5)
+script = ExtResource("1_s2kv5")
+ObjectId = "room-shop-chandler_werf-source-10196-5"
+Asset = ExtResource("7_4nodx")
+
+[node name="object_source-10197-6" type="Node3D" parent="." unique_id=69724688]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -279.46, 0.18, 16.399986)
+script = ExtResource("1_s2kv5")
+ObjectId = "room-shop-chandler_werf-source-10197-6"
+Asset = ExtResource("8_ure8w")
+
+[node name="object_source-10197-7" type="Node3D" parent="." unique_id=829355111]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -279.46, 0.18, 17.199963)
+script = ExtResource("1_s2kv5")
+ObjectId = "room-shop-chandler_werf-source-10197-7"
+Asset = ExtResource("9_rl5wi")
+
+[node name="object_source-10197-8" type="Node3D" parent="." unique_id=1002924258]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -279.46, 0.18, 17.99997)
+script = ExtResource("1_s2kv5")
+ObjectId = "room-shop-chandler_werf-source-10197-8"
+Asset = ExtResource("10_a6h2i")
+
+[node name="object_source-10197-9" type="Node3D" parent="." unique_id=685481053]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -279.46, 0.18, 18.799976)
+script = ExtResource("1_s2kv5")
+ObjectId = "room-shop-chandler_werf-source-10197-9"
+Asset = ExtResource("11_ee4xl")
+
+[node name="object_source-10197-10" type="Node3D" parent="." unique_id=294886511]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -279.40866, 0.18, 19.8)
+script = ExtResource("1_s2kv5")
+ObjectId = "room-shop-chandler_werf-source-10197-10"
+Asset = ExtResource("12_83iue")
+
+[node name="object_source-10199-11" type="Node3D" parent="." unique_id=1165011972]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -281.635, 0.18, 15.399946)
+script = ExtResource("1_s2kv5")
+ObjectId = "room-shop-chandler_werf-source-10199-11"
+Asset = ExtResource("13_1xq0o")
+
+[node name="object_source-10199-12" type="Node3D" parent="." unique_id=849926792]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -281.635, 0.18, 16.299946)
+script = ExtResource("1_s2kv5")
+ObjectId = "room-shop-chandler_werf-source-10199-12"
+Asset = ExtResource("14_46ymq")
+
+[node name="object_source-10199-13" type="Node3D" parent="." unique_id=559791226]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -281.635, 0.18, 17.199944)
+script = ExtResource("1_s2kv5")
+ObjectId = "room-shop-chandler_werf-source-10199-13"
+Asset = ExtResource("15_cuoaw")
+
+[node name="object_source-10199-14" type="Node3D" parent="." unique_id=136541608]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -281.635, 0.18, 18.099941)
+script = ExtResource("1_s2kv5")
+ObjectId = "room-shop-chandler_werf-source-10199-14"
+Asset = ExtResource("16_npx3n")
+
+[node name="object_source-10199-15" type="Node3D" parent="." unique_id=1043214209]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -281.635, 0.18, 18.999943)
+script = ExtResource("1_s2kv5")
+ObjectId = "room-shop-chandler_werf-source-10199-15"
+Asset = ExtResource("17_1otvw")
+
+[node name="object_source-10199-16" type="Node3D" parent="." unique_id=315470619]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -281.635, 0.18, 19.899982)
+script = ExtResource("1_s2kv5")
+ObjectId = "room-shop-chandler_werf-source-10199-16"
+Asset = ExtResource("18_4iide")
+
+[node name="object_source-10199-17" type="Node3D" parent="." unique_id=361851210]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -284.31, 0.18, 16.669977)
+script = ExtResource("1_s2kv5")
+ObjectId = "room-shop-chandler_werf-source-10199-17"
+Asset = ExtResource("19_jl567")
+
+[node name="object_source-10199-18" type="Node3D" parent="." unique_id=1941734742]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -281.635, 0.18, 18.29195)
+script = ExtResource("1_s2kv5")
+ObjectId = "room-shop-chandler_werf-source-10199-18"
+Asset = ExtResource("20_lo5li")
+
+[node name="object_source-10202-19" type="Node3D" parent="." unique_id=881656133]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -284.31, 0.18, 16.66998)
+script = ExtResource("1_s2kv5")
+ObjectId = "room-shop-chandler_werf-source-10202-19"
+Asset = ExtResource("21_gfl7h")
+
+[node name="object_source-10202-20" type="Node3D" parent="." unique_id=580755271]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -281.635, 0.18, 18.291952)
+script = ExtResource("1_s2kv5")
+ObjectId = "room-shop-chandler_werf-source-10202-20"
+Asset = ExtResource("22_4yjce")
+
+[node name="object_source-10204-21" type="Node3D" parent="." unique_id=726110189]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -279.09198, 0.18, 15.5)
+script = ExtResource("1_s2kv5")
+ObjectId = "room-shop-chandler_werf-source-10204-21"
+Asset = ExtResource("23_bl5xt")
+
+[node name="object_source-10245-22" type="Node3D" parent="." unique_id=887022739]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -283.9225, 0.18, 13.998)
+script = ExtResource("1_s2kv5")
+ObjectId = "room-shop-chandler_werf-source-10245-22"
+Asset = ExtResource("24_7vbmh")

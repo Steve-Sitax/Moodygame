@@ -1,0 +1,25 @@
+[gd_resource type="Resource" script_class="AuthorDistrict" format=3]
+
+[ext_resource type="Resource" path="res://world/interiors/room-carolus.catalog.tres" id="1_h0vbs"]
+[ext_resource type="PackedScene" path="res://world/interiors/room-carolus.structure.tscn" id="2_702jp"]
+[ext_resource type="PackedScene" path="res://world/interiors/room-carolus.objects.tscn" id="3_h0vbs"]
+[ext_resource type="Script" path="res://src/Authoring/AuthorDistrict.cs" id="4_l0gvf"]
+
+[resource]
+script = ExtResource("4_l0gvf")
+Id = "room-carolus"
+Title = "carolus"
+Scene = ExtResource("3_h0vbs")
+EditorScenePath = "res://world/interiors/room-carolus.tscn"
+Catalog = ExtResource("1_h0vbs")
+Bounds = Rect2(-216.15, 86, 200, 200)
+WalkSpawn = Vector3(-116.149994, -0.43749997, 186)
+FlySpawn = Vector3(-116.149994, 1.1425, 186)
+FlyPitch = -0.12
+RoomId = "carolus"
+RoomFrame = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.45749998, 0)
+RoomBounds = Rect2(-137.45999, 168.5, 42.619995, 35)
+RoomHeight = 43.30612
+EntryPoints = PackedVector3Array(-116, -0.45749998, 169.25)
+ReplacedMeshes = PackedInt32Array(9384, 9389, 9391, 9392, 9395, 9396, 9397, 9398, 9399, 9400, 9401, 9402, 9403, 9404, 9405, 9406, 9407, 9408, 9409, 9411, 9412, 9413, 9414, 9415, 9419, 9420, 9425, 9426, 9430, 9431, 9432, 9433, 9434, 9439, 9440, 9441, 9442, 9443, 9444, 9445, 9447, 9452, 9453, 9454, 9455, 9456, 9457, 9459, 9464, 9465, 9466, 9467)
+RetainedStructure = ExtResource("2_702jp")

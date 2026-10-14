@@ -1,0 +1,21 @@
+[gd_resource type="Resource" script_class="AuthorAsset" format=3]
+
+[ext_resource type="PackedScene" path="res://assets/props/furniture/room-tavern-ankere-seat-10.tscn" id="1_u2aft"]
+[ext_resource type="Script" path="res://src/Authoring/AuthorAsset.cs" id="2_6vfit"]
+
+[resource]
+PlacementAnchor = Vector3(-1.5258789e-05, 0, 3.838539e-05)
+GeometryClearance = true
+script = ExtResource("2_6vfit")
+Id = "room-tavern-ankere-seat-10"
+Title = "bench · tavern:ankere · seat-10"
+Category = "Room originals"
+Scene = ExtResource("1_u2aft")
+Footprint = Vector3(1.7000275, 0.4799927, 0.29998016)
+FootprintOffset = Vector3(-1.5258789e-05, -1.4901161e-08, 3.838539e-05)
+FurnitureKind = "bench"
+SeatPoints = PackedVector3Array(-0.42000198, 0, 0, 0.41999817, 0, 0)
+SeatHeight = 0.47
+Table = 2
+UsePoint = Vector3(0, 0.5, 0)
+StandPoint = Vector3(0.5999985, 0, 0)

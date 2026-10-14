@@ -1,0 +1,19 @@
+[gd_resource type="Resource" script_class="AuthorAsset" format=3]
+
+[ext_resource type="PackedScene" path="res://assets/props/furniture/room-shop-tobacco_markt-source-10250-4.tscn" id="1_1xajd"]
+[ext_resource type="Script" path="res://src/Authoring/AuthorAsset.cs" id="2_nx6kq"]
+
+[resource]
+PlacementAnchor = Vector3(2.1457672e-06, 0, 1.1920929e-07)
+GeometryClearance = true
+script = ExtResource("2_nx6kq")
+Id = "room-shop-tobacco_markt-source-10250-4"
+Title = "fitting · shop:tobacco_markt · source-10250-4"
+Category = "Room originals"
+Scene = ExtResource("1_1xajd")
+Footprint = Vector3(0.09993601, 2.1499841, 1.0099456)
+FootprintOffset = Vector3(2.1457672e-06, -5.9604645e-08, 1.1920929e-07)
+FurnitureKind = "fitting"
+SeatYaw = 1.5707964
+UsePoint = Vector3(0, 0.5, 0)
+StandPoint = Vector3(0, 0, 0.5999985)

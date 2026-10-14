@@ -1,0 +1,103 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://src/Authoring/AuthoredObject.cs" id="1_s4un7"]
+[ext_resource type="Resource" path="res://recovered/rijnkaai-20261012/props/town-node-5920.tres" id="2_uctxi"]
+[ext_resource type="Resource" path="res://recovered/rijnkaai-20261012/props/town-node-5925.tres" id="3_p05vk"]
+[ext_resource type="Resource" path="res://recovered/rijnkaai-20261012/props/town-node-5960.tres" id="4_jb2vs"]
+[ext_resource type="Resource" path="res://recovered/rijnkaai-20261012/props/town-node-5965.tres" id="5_udgqc"]
+[ext_resource type="Resource" path="res://recovered/rijnkaai-20261012/props/town-node-5970.tres" id="6_6wxdu"]
+[ext_resource type="Resource" path="res://recovered/rijnkaai-20261012/props/town-node-5975.tres" id="7_bf78a"]
+[ext_resource type="Resource" path="res://recovered/rijnkaai-20261012/props/town-node-1530.tres" id="8_em6xj"]
+[ext_resource type="Resource" path="res://recovered/rijnkaai-20261012/props/town-node-1576.tres" id="9_oc6h0"]
+[ext_resource type="Resource" path="res://recovered/rijnkaai-20261012/props/town-node-1579.tres" id="10_2rfxc"]
+[ext_resource type="Resource" path="res://recovered/rijnkaai-20261012/props/town-node-1582.tres" id="11_p5hnh"]
+[ext_resource type="Resource" path="res://recovered/rijnkaai-20261012/props/town-node-1585.tres" id="12_pfi2w"]
+[ext_resource type="Resource" path="res://recovered/rijnkaai-20261012/props/town-node-1588.tres" id="13_y6wej"]
+[ext_resource type="Resource" path="res://recovered/rijnkaai-20261012/props/town-node-1591.tres" id="14_snrra"]
+[ext_resource type="Resource" path="res://recovered/rijnkaai-20261012/props/town-node-1594.tres" id="15_jugru"]
+
+[node name="Objects" type="Node3D" unique_id=1255111156]
+
+[node name="object_town-node-5920" type="Node3D" parent="." unique_id=531035714]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -12, 0, 43.4)
+script = ExtResource("1_s4un7")
+ObjectId = "town-node-5920"
+Asset = ExtResource("2_uctxi")
+
+[node name="object_town-node-5925" type="Node3D" parent="." unique_id=1681502900]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 36, 0, 43.4)
+script = ExtResource("1_s4un7")
+ObjectId = "town-node-5925"
+Asset = ExtResource("3_p05vk")
+
+[node name="object_town-node-5960" type="Node3D" parent="." unique_id=959459110]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -10, 0, 20.4)
+script = ExtResource("1_s4un7")
+ObjectId = "town-node-5960"
+Asset = ExtResource("4_jb2vs")
+
+[node name="object_town-node-5965" type="Node3D" parent="." unique_id=1411542639]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4, 0, 2.2)
+script = ExtResource("1_s4un7")
+ObjectId = "town-node-5965"
+Asset = ExtResource("5_udgqc")
+
+[node name="object_town-node-5970" type="Node3D" parent="." unique_id=703856086]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 24, 0, 2.2)
+script = ExtResource("1_s4un7")
+ObjectId = "town-node-5970"
+Asset = ExtResource("6_6wxdu")
+
+[node name="object_town-node-5975" type="Node3D" parent="." unique_id=733989640]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 44, 0, 19.8)
+script = ExtResource("1_s4un7")
+ObjectId = "town-node-5975"
+Asset = ExtResource("7_bf78a")
+
+[node name="object_town-node-1530" type="Node3D" parent="." unique_id=1985479766]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 8.35, 0, -5.6)
+script = ExtResource("1_s4un7")
+ObjectId = "town-node-1530"
+Asset = ExtResource("8_em6xj")
+
+[node name="object_town-node-1576" type="Node3D" parent="." unique_id=505483596]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -9, 0, 0.9)
+script = ExtResource("1_s4un7")
+ObjectId = "town-node-1576"
+Asset = ExtResource("9_oc6h0")
+
+[node name="object_town-node-1579" type="Node3D" parent="." unique_id=646570215]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0.9)
+script = ExtResource("1_s4un7")
+ObjectId = "town-node-1579"
+Asset = ExtResource("10_2rfxc")
+
+[node name="object_town-node-1582" type="Node3D" parent="." unique_id=1925930931]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 18, 0, 0.9)
+script = ExtResource("1_s4un7")
+ObjectId = "town-node-1582"
+Asset = ExtResource("11_p5hnh")
+
+[node name="object_town-node-1585" type="Node3D" parent="." unique_id=655504048]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 27, 0, 0.9)
+script = ExtResource("1_s4un7")
+ObjectId = "town-node-1585"
+Asset = ExtResource("12_pfi2w")
+
+[node name="object_town-node-1588" type="Node3D" parent="." unique_id=294485986]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 36, 0, 0.9)
+script = ExtResource("1_s4un7")
+ObjectId = "town-node-1588"
+Asset = ExtResource("13_y6wej")
+
+[node name="object_town-node-1591" type="Node3D" parent="." unique_id=2063146523]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 45, 0, 0.9)
+script = ExtResource("1_s4un7")
+ObjectId = "town-node-1591"
+Asset = ExtResource("14_snrra")
+
+[node name="object_town-node-1594" type="Node3D" parent="." unique_id=625625528]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 54, 0, 0.9)
+script = ExtResource("1_s4un7")
+ObjectId = "town-node-1594"
+Asset = ExtResource("15_jugru")

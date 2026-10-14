@@ -1,0 +1,25 @@
+[gd_resource type="Resource" script_class="AuthorDistrict" format=3]
+
+[ext_resource type="Resource" path="res://world/interiors/room-steen.catalog.tres" id="1_dgtfk"]
+[ext_resource type="PackedScene" path="res://world/interiors/room-steen.structure.tscn" id="2_t73ps"]
+[ext_resource type="PackedScene" path="res://world/interiors/room-steen.objects.tscn" id="3_dgtfk"]
+[ext_resource type="Script" path="res://src/Authoring/AuthorDistrict.cs" id="4_dqtt8"]
+
+[resource]
+script = ExtResource("4_dqtt8")
+Id = "room-steen"
+Title = "steen"
+Scene = ExtResource("3_dgtfk")
+EditorScenePath = "res://world/interiors/room-steen.tscn"
+Catalog = ExtResource("1_dgtfk")
+Bounds = Rect2(-277.7, -127.1, 200, 200)
+WalkSpawn = Vector3(-177.7, -0.29999992, -27.1)
+FlySpawn = Vector3(-177.7, 1.2800001, -27.1)
+FlyPitch = -0.12
+RoomId = "steen"
+RoomFrame = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.31999993, 0)
+RoomBounds = Rect2(-186.2, -31.25, 17, 8.299999)
+RoomHeight = 8.0199995
+EntryPoints = PackedVector3Array(-183.5, -0.31999993, -23.25)
+ReplacedMeshes = PackedInt32Array(9349, 9351, 9352, 9355, 9356, 9357, 9359, 9360, 9361, 9366, 9367, 9368)
+RetainedStructure = ExtResource("2_t73ps")

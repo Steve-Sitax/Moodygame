@@ -1,0 +1,19 @@
+[gd_resource type="Resource" script_class="AuthorAsset" format=3]
+
+[ext_resource type="PackedScene" path="res://assets/props/furniture/room-shop-printer_jezuiet-source-10897-5.tscn" id="1_m6tah"]
+[ext_resource type="Script" path="res://src/Authoring/AuthorAsset.cs" id="2_5i84w"]
+
+[resource]
+PlacementAnchor = Vector3(3.0398369e-06, 0, -3.33786e-06)
+GeometryClearance = true
+script = ExtResource("2_5i84w")
+Id = "room-shop-printer_jezuiet-source-10897-5"
+Title = "clock · shop:printer_jezuiet · source-10897-5"
+Category = "Room originals"
+Scene = ExtResource("1_m6tah")
+Footprint = Vector3(0.3772713, 0.3799863, 0.13741684)
+FootprintOffset = Vector3(3.0398369e-06, 2.2599957, -3.33786e-06)
+FurnitureKind = "clock"
+SeatYaw = -2.8784664
+UsePoint = Vector3(0, 0.5, 0)
+StandPoint = Vector3(0, 0, 0.6000061)

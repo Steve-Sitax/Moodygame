@@ -1,0 +1,25 @@
+[gd_resource type="Resource" script_class="AuthorDistrict" format=3]
+
+[ext_resource type="Resource" path="res://world/interiors/room-shop-bakery_steen.catalog.tres" id="1_73fbw"]
+[ext_resource type="PackedScene" path="res://world/interiors/room-shop-bakery_steen.structure.tscn" id="2_bxwep"]
+[ext_resource type="PackedScene" path="res://world/interiors/room-shop-bakery_steen.objects.tscn" id="3_73fbw"]
+[ext_resource type="Script" path="res://src/Authoring/AuthorDistrict.cs" id="4_et5b6"]
+
+[resource]
+script = ExtResource("4_et5b6")
+Id = "room-shop-bakery_steen"
+Title = "shop:bakery_steen"
+Scene = ExtResource("3_73fbw")
+EditorScenePath = "res://world/interiors/room-shop-bakery_steen.tscn"
+Catalog = ExtResource("1_73fbw")
+Bounds = Rect2(-294.825, -56.455, 200, 200)
+WalkSpawn = Vector3(-194.825, 0.2, 43.545)
+FlySpawn = Vector3(-194.825, 1.78, 43.545)
+FlyYaw = 1.5707964
+FlyPitch = -0.12
+RoomId = "shop:bakery_steen"
+RoomFrame = Transform3D(-4.371139e-08, 0, 1, 0, 1, 0, -1, 0, -4.371139e-08, -200, 0.18, 41.7725)
+RoomBounds = Rect2(-5.1175, 0.2, 6.6899996, 9.95)
+EntryPoints = PackedVector3Array(-200, 0.18, 41.7725)
+ReplacedMeshes = PackedInt32Array(10051, 10053, 10054, 10055, 10056, 10057, 10058, 10059, 10060, 10061, 10062, 10063, 10064, 10065, 10066, 10067, 10068, 10069, 10070, 10071, 10072, 10073, 10074, 10075, 10083, 10117)
+RetainedStructure = ExtResource("2_bxwep")

@@ -1,4 +1,5 @@
 using Godot;
+using System.Text.Json;
 
 namespace Scheldemist.Native.Authoring;
 
@@ -8,6 +9,7 @@ namespace Scheldemist.Native.Authoring;
 public partial class AuthoredObject : Node3D
 {
     [Export] public string ObjectId { get; set; } = "";
+    [Export] public string SeedPlacement {get;set;}="";
     private AuthorAsset? asset;
     [Export] public AuthorAsset? Asset
     {
@@ -16,7 +18,11 @@ public partial class AuthoredObject : Node3D
     }
     private Node3D? visual;
 
-    public override void _Ready() => Build();
+    public override void _Ready()
+    {
+        if(SeedPlacement!="")Pose(JsonSerializer.Deserialize<Placement>(SeedPlacement)!);
+        Build();
+    }
 
     private void Build()
     {
@@ -27,7 +33,7 @@ public partial class AuthoredObject : Node3D
         AddChild(model);
     }
 
-    public Placement Record() => new()
+    public Placement Record() => !IsInsideTree()&&SeedPlacement!=""?JsonSerializer.Deserialize<Placement>(SeedPlacement)!:new()
     {
         Id = ObjectId, Asset = asset!.Id,
         Position = LayoutDocument.Floats(Position), Rotation = LayoutDocument.Floats(Rotation), Scale = LayoutDocument.Floats(Scale)

@@ -78,6 +78,15 @@ public partial class HomeFurniture : Node
         foreach (var h in doc.RootElement.GetProperty("homes").EnumerateArray()) classes[h.GetProperty("id").GetString()!] = h.GetProperty("definition").Clone();
         lampGlass=(ShaderMaterial)Goods.I.Plain(0xffd490).Duplicate();lampGlass.Shader=Psx.ShaderOf(Psx.KindOf(lampGlass.Shader)!.Value with {Unlit=true});
         foreach (var f in doc.RootElement.GetProperty("furniture").EnumerateObject()) { var d = f.Value; defs[f.Name] = new(d.GetProperty("layer").GetString()!, d.GetProperty("carry").GetString()!, d.GetProperty("w").GetInt32(), d.GetProperty("d").GetInt32()); templates[f.Name] = Make(f.Name); }
+                if(Main.I.World.NativeFurniture is {} authored)
+            foreach(var pair in HomeLife.I.Frames)
+            {
+                if(Main.I.World.NativeFurnitureRooms?.Contains("home:"+pair.Key)!=true)continue;
+                var frame=pair.Value;var basis=Basis.FromEuler(new(0,frame.Yaw,0))*new Basis(Vector3.Right*frame.Mirror,Vector3.Up,Vector3.Back);
+                var transform=new Transform3D(basis,frame.World(0,0));var definition=System.Text.Json.Nodes.JsonNode.Parse(classes[pair.Key].GetRawText())!.AsObject();
+                definition["fixed"]=InteriorFurniture.FixedCells(authored.Where(p=>p.Room=="home:"+pair.Key),transform,new(-frame.W/2,0,frame.W,frame.D));
+                classes[pair.Key]=JsonDocument.Parse(definition.ToJsonString()).RootElement.Clone();
+            }
         good = Goods.I.Plain(0x71924e); bad = Goods.I.Plain(0xa14d42);
         for (int i=0;i<lampSpill.Length;i++) lampSpill[i]=Lights.I.AddMoving("home furniture lamp "+i, new Color(1,.68f,.32f), .6f);
         Interact.I.AddProvider(Keys);
@@ -116,7 +125,7 @@ public partial class HomeFurniture : Node
         {
             if (item.State != "placed" || item.Id == moving?.Id || item.Home == null || !HomeLife.I.Frames.TryGetValue(item.Home, out var f)) continue;
             if (!shown.TryGetValue(item.Id, out var model)) { model = (Node3D)templates[item.Kind].Duplicate(); Main.I.View.AddChild(model); shown[item.Id] = model;
-                if(item.Kind=="clock") Scheldemist.Movers.Clocks.I.AddDial(model,new(0,1.74f,.164f),Vector3.Back,.105f,Goods.I.Plain(0x26221e),"home furniture clock",item.Home);
+                if(item.Kind=="clock" && !model.HasMeta("native_furniture_scene")) Scheldemist.Movers.Clocks.I.AddDial(model,new(0,1.74f,.164f),Vector3.Back,.105f,Goods.I.Plain(0x26221e),"home furniture clock",item.Home);
             }
             Pose(model, f, item.Kind, item.Gx!.Value, item.Gz!.Value, item.Rot); model.Visible = true;
             if (defs[item.Kind].Layer == "floor")
@@ -194,8 +203,8 @@ public partial class HomeFurniture : Node
             pz = turn is 1 or 3 ? (z + d.W / 2f) * 0.5f : turn == 0 ? f.D - 0.02f : 0.02f; yaw = (turn + 2) % 4 * MathF.PI / 2;
         }
         else { int w = d.Layer == "ceiling" ? 1 : turn % 2 == 0 ? d.W : d.D, depth = d.Layer == "ceiling" ? 1 : turn % 2 == 0 ? d.D : d.W; px = -f.W / 2 + (x + w / 2f) * 0.5f; pz = (z + depth / 2f) * 0.5f; yaw = turn * MathF.PI / 2; }
-        if(kind=="lamp"){float top=classes[f.Id].GetProperty("H").GetSingle(),y=LampHeight(f.Id)-.12f;var chain=n.GetChild<Node3D>(0);chain.Position=new(0,(top+y+.1f)/2,0);chain.Scale=new(1,(top-y-.1f)/.45f,1);n.GetChild<Node3D>(1).Position=new(0,y,0);n.GetChild<Node3D>(2).Position=new(0,y+.12f,0);}
-        n.Position = f.World(px, pz); n.Rotation = new(0, f.Yaw + yaw * f.Mirror, 0); n.Scale = new(f.Mirror, 1, 1);
+        if(kind=="lamp" && !n.HasMeta("native_furniture_scene")){float top=classes[f.Id].GetProperty("H").GetSingle(),y=LampHeight(f.Id)-.12f;var chain=n.GetChild<Node3D>(0);chain.Position=new(0,(top+y+.1f)/2,0);chain.Scale=new(1,(top-y-.1f)/.45f,1);n.GetChild<Node3D>(1).Position=new(0,y,0);n.GetChild<Node3D>(2).Position=new(0,y+.12f,0);}
+        n.Position = f.World(px, pz,kind=="lamp" && n.HasMeta("native_furniture_scene")?LampHeight(f.Id)-.12f:0); n.Rotation = new(0, f.Yaw + yaw * f.Mirror, 0); n.Scale = new(f.Mirror, 1, 1);
     }
     public string? CheckPlacement(HomeLife.HomeFrame f, HomeItem item, int x, int z, int turn) => Check(f,item,x,z,turn);
     private string? Check(HomeLife.HomeFrame f, HomeItem item, int x, int z, int turn)
@@ -243,6 +252,7 @@ public partial class HomeFurniture : Node
     private void Mark(int nx, int x, int z, int w, int d, byte flag) { for (int Z = z; Z < z + d; Z++) for (int X = x; X < x + w; X++) occupied[Z * nx + X] |= flag; }
     private Node3D Make(string kind)
     {
+        if(Main.I.World.CreateNativeFurniture(kind) is {} native)return native;
         var root = new Node3D { Name = "furniture_" + kind };
         void Box(float w, float h, float d, float x, float y, float z, int color) => root.AddChild(new MeshInstance3D { Mesh = new BoxMesh { Size = new(w,h,d), Material = Goods.I.Plain((uint)color) }, Position = new(x,y,z) });
         void Cyl(float top, float bottom, float h, float x, float y, float z, int color, int sides = 8) => root.AddChild(new MeshInstance3D { Mesh = new CylinderMesh { TopRadius = top, BottomRadius = bottom, Height = h, RadialSegments = sides, Material = Goods.I.Plain((uint)color) }, Position = new(x,y,z) });
@@ -264,5 +274,3 @@ public partial class HomeFurniture : Node
     }
     public override void _ExitTree() { dead = true;cartGeneration++;if(Scheldemist.Menu.MainMenu.I is {} menu)menu.WorldReplaced-=CartReset; held?.QueueFree(); ghost?.QueueFree(); foreach (var n in shown.Values) n.QueueFree(); foreach (var b in solids.Values) b.QueueFree(); foreach (var t in templates.Values) t.Free(); }
 }
-
-

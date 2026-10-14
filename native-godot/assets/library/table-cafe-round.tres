@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="AuthorAsset" format=3]
+
+[ext_resource type="PackedScene" path="res://assets/furniture/table-cafe-round.tscn" id="1_87eo5"]
+[ext_resource type="Script" path="res://src/Authoring/AuthorAsset.cs" id="2_jdiqq"]
+
+[resource]
+script = ExtResource("2_jdiqq")
+Id = "table-cafe-round"
+Title = "Round marble-top cafe table"
+Category = "Furniture: tables"
+Scene = ExtResource("1_87eo5")
+Footprint = Vector3(0.62, 0.7465, 0.62)
+FootprintOffset = Vector3(0, -0.0115, 0)
+FurnitureKind = "table"
+UsePoint = Vector3(-0.4763, 0, -0.275)
+StandPoint = Vector3(0, 0, 0.7)

@@ -80,6 +80,18 @@ has a separate layout directory from the pilot; saving one does not replace the 
 
 ## Asset intake
 
+The workshop's **Enter a room…** list opens the actual tavern, home, shop or hall in its town shell. Its object list
+contains that room's furniture and fittings. The shared **Furniture** library supplies seats, tables, counters,
+storage, beds, stoves, clocks, the existing keg model and lamps. Use the same Move, Copy, Delete, R and numeric
+controls as on the quay. Full clearance must fit within the room, below its ceiling, on a supported floor; walls,
+occupied space and newly blocked routes to reachable seats, beds and counters refuse placement.
+
+Switching rooms preserves each room's unsaved document and undo history. Save writes all changed rooms to
+`layouts/room-<id>/layout.json`, atomically with backups; the game reads them without writing. `--author-root`
+isolates these working copies. **Save into game map** promotes all opened rooms to committed `.objects.tscn` seeds; review and commit them, then run `prepare-native-package.ps1`. Player builds read the committed seeds and exclude the owner workshop/UI. Native room furniture supplies sitting, sleep and serving anchors after a restart.
+Host layouts take precedence during a guest visit, including removals, without touching the guest's local files.
+See [conversion, kit intake and proof notes](../docs/furniture-editor.md).
+
 Each asset in `assets/library/` has a stable id, a display name, a reusable PackedScene, and a conservative clearance
 box. Model improvements belong inside the referenced scene in `assets/props/`; keep that scene's collision and
 behavior. Existing placements then receive the new appearance without changing their ids or positions. A lamp's

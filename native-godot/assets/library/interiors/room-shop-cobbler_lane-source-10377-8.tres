@@ -1,0 +1,19 @@
+[gd_resource type="Resource" script_class="AuthorAsset" format=3]
+
+[ext_resource type="PackedScene" path="res://assets/props/furniture/room-shop-cobbler_lane-source-10377-8.tscn" id="1_mgqvw"]
+[ext_resource type="Script" path="res://src/Authoring/AuthorAsset.cs" id="2_ujngf"]
+
+[resource]
+PlacementAnchor = Vector3(1.7881393e-07, 0, -1.66893e-06)
+GeometryClearance = true
+script = ExtResource("2_ujngf")
+Id = "room-shop-cobbler_lane-source-10377-8"
+Title = "stove · shop:cobbler_lane · source-10377-8"
+Category = "Room originals"
+Scene = ExtResource("1_mgqvw")
+Footprint = Vector3(0.6767682, 3.1, 0.676805)
+FootprintOffset = Vector3(1.7881393e-07, 0, -1.66893e-06)
+FurnitureKind = "stove"
+SeatYaw = 0.09633925
+UsePoint = Vector3(0, 0.5, 0)
+StandPoint = Vector3(0, 0, 0.5999985)

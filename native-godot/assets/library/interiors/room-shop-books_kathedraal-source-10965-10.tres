@@ -1,0 +1,19 @@
+[gd_resource type="Resource" script_class="AuthorAsset" format=3]
+
+[ext_resource type="PackedScene" path="res://assets/props/furniture/room-shop-books_kathedraal-source-10965-10.tscn" id="1_cmd6c"]
+[ext_resource type="Script" path="res://src/Authoring/AuthorAsset.cs" id="2_hgxfv"]
+
+[resource]
+PlacementAnchor = Vector3(4.053116e-06, 0, -8.46386e-06)
+GeometryClearance = true
+script = ExtResource("2_hgxfv")
+Id = "room-shop-books_kathedraal-source-10965-10"
+Title = "fitting · shop:books_kathedraal · source-10965-10"
+Category = "Room originals"
+Scene = ExtResource("1_cmd6c")
+Footprint = Vector3(0.3407836, 0.04999745, 0.26849723)
+FootprintOffset = Vector3(4.053116e-06, 0.925, -8.46386e-06)
+FurnitureKind = "fitting"
+SeatYaw = 1.5707964
+UsePoint = Vector3(0, 0.5, 0)
+StandPoint = Vector3(0, 0, 0.6000061)

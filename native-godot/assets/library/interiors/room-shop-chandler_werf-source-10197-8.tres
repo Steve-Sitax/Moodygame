@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="AuthorAsset" format=3]
+
+[ext_resource type="PackedScene" path="res://assets/props/furniture/room-shop-chandler_werf-source-10197-8.tscn" id="1_wijbd"]
+[ext_resource type="Script" path="res://src/Authoring/AuthorAsset.cs" id="2_sbmeu"]
+
+[resource]
+PlacementAnchor = Vector3(6.0796738e-06, -1.4901161e-08, 9.536743e-07)
+GeometryClearance = true
+script = ExtResource("2_sbmeu")
+Id = "room-shop-chandler_werf-source-10197-8"
+Title = "cask · shop:chandler_werf · source-10197-8"
+Category = "Room originals"
+Scene = ExtResource("1_wijbd")
+Footprint = Vector3(0.6276972, 0.8, 0.6600313)
+FootprintOffset = Vector3(6.0796738e-06, -1.4901161e-08, 9.536743e-07)
+FurnitureKind = "cask"
+UsePoint = Vector3(0, 0.5, 0)
+StandPoint = Vector3(0, 0, 0.6000004)

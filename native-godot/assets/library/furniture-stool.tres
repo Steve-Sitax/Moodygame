@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="AuthorAsset" format=3]
+
+[ext_resource type="PackedScene" path="res://assets/props/furniture-stool.tscn" id="1_67e1n"]
+[ext_resource type="Script" path="res://src/Authoring/AuthorAsset.cs" id="2_5j0ug"]
+
+[resource]
+script = ExtResource("2_5j0ug")
+Id = "furniture-stool"
+Title = "Stool"
+Category = "Furniture"
+Scene = ExtResource("1_67e1n")
+Footprint = Vector3(0.4, 0.69, 0.4)
+FurnitureKind = "stool"
+SeatPoints = PackedVector3Array(0, 0, 0)
+SeatHeight = 0.68
+UsePoint = Vector3(0, 0.5, 0.2)
+StandPoint = Vector3(0, 0, -0.8)

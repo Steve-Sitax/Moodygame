@@ -1,0 +1,19 @@
+[gd_resource type="Resource" script_class="AuthorAsset" format=3]
+
+[ext_resource type="PackedScene" path="res://assets/props/furniture/room-tavern-linde-source-12022-36.tscn" id="1_ff86o"]
+[ext_resource type="Script" path="res://src/Authoring/AuthorAsset.cs" id="2_sfq4q"]
+
+[resource]
+PlacementAnchor = Vector3(-0.010999441, 0, -0.67496014)
+GeometryClearance = true
+script = ExtResource("2_sfq4q")
+Id = "room-tavern-linde-source-12022-36"
+Title = "shelf · tavern:linde · source-12022-36"
+Category = "Room originals"
+Scene = ExtResource("1_ff86o")
+Footprint = Vector3(6.2079864, 0.75501084, 9.480082)
+FootprintOffset = Vector3(-0.010999441, 1.1199892, -0.67496014)
+FurnitureKind = "shelf"
+SeatYaw = 3.1415925
+UsePoint = Vector3(0, 0.5, 0)
+StandPoint = Vector3(0, 0, 0.6000061)

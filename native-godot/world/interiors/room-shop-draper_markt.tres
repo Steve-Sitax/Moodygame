@@ -1,0 +1,25 @@
+[gd_resource type="Resource" script_class="AuthorDistrict" format=3]
+
+[ext_resource type="Resource" path="res://world/interiors/room-shop-draper_markt.catalog.tres" id="1_wyurn"]
+[ext_resource type="PackedScene" path="res://world/interiors/room-shop-draper_markt.structure.tscn" id="2_p0w4m"]
+[ext_resource type="PackedScene" path="res://world/interiors/room-shop-draper_markt.objects.tscn" id="3_wyurn"]
+[ext_resource type="Script" path="res://src/Authoring/AuthorDistrict.cs" id="4_friah"]
+
+[resource]
+script = ExtResource("4_friah")
+Id = "room-shop-draper_markt"
+Title = "shop:draper_markt"
+Scene = ExtResource("3_wyurn")
+EditorScenePath = "res://world/interiors/room-shop-draper_markt.tscn"
+Catalog = ExtResource("1_wyurn")
+Bounds = Rect2(-318.32, 18.279999, 200, 200)
+WalkSpawn = Vector3(-218.32, 0.2, 118.28)
+FlySpawn = Vector3(-218.32, 1.78, 118.28)
+FlyYaw = 3.1415925
+FlyPitch = -0.12
+RoomId = "shop:draper_markt"
+RoomFrame = Transform3D(-1, 0, 8.742278e-08, 0, 1, 0, -8.742278e-08, 0, -1, -220.16, 0.18, 124)
+RoomBounds = Rect2(-5.32, 0.2, 6.96, 11.04)
+EntryPoints = PackedVector3Array(-220.16, 0.18, 124)
+ReplacedMeshes = PackedInt32Array(10430, 10432, 10433, 10434, 10435, 10436, 10437, 10438, 10439, 10440, 10441, 10442, 10443, 10444, 10445, 10446, 10447, 10454, 10488)
+RetainedStructure = ExtResource("2_p0w4m")

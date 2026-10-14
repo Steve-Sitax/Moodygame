@@ -1,0 +1,28 @@
+[gd_resource type="Resource" script_class="AuthorCatalog" format=3]
+
+[ext_resource type="Script" path="res://src/Authoring/AuthorAsset.cs" id="1_mhaqp"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-cobbler_lane-counter.tres" id="2_oa75j"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-cobbler_lane-source-10373-1.tres" id="3_g58rq"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-cobbler_lane-source-10373-2.tres" id="4_wpsm6"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-cobbler_lane-source-10373-3.tres" id="5_7d22n"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-cobbler_lane-source-10373-4.tres" id="6_24mi8"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-cobbler_lane-source-10373-5.tres" id="7_cw0tk"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-cobbler_lane-source-10373-6.tres" id="8_adg1l"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-cobbler_lane-source-10376-7.tres" id="9_4d3gh"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-cobbler_lane-source-10377-8.tres" id="10_u4bbu"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-cobbler_lane-source-10377-9.tres" id="11_ouyyf"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-cobbler_lane-source-10377-10.tres" id="12_6xuqa"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-cobbler_lane-source-10378-11.tres" id="13_67q4e"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-cobbler_lane-source-10379-12.tres" id="14_ha2gm"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-cobbler_lane-source-10379-13.tres" id="15_8u13j"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-cobbler_lane-source-10379-14.tres" id="16_bajmc"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-cobbler_lane-source-10379-15.tres" id="17_82xfu"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-cobbler_lane-source-10379-16.tres" id="18_hjys1"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-cobbler_lane-source-10382-17.tres" id="19_kp22r"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-cobbler_lane-source-10382-18.tres" id="20_6qgo8"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-cobbler_lane-source-10425-19.tres" id="21_s6g1v"]
+[ext_resource type="Script" path="res://src/Authoring/AuthorCatalog.cs" id="22_kk3mg"]
+
+[resource]
+script = ExtResource("22_kk3mg")
+Assets = Array[ExtResource("1_mhaqp")]([ExtResource("2_oa75j"), ExtResource("3_g58rq"), ExtResource("4_wpsm6"), ExtResource("5_7d22n"), ExtResource("6_24mi8"), ExtResource("7_cw0tk"), ExtResource("8_adg1l"), ExtResource("9_4d3gh"), ExtResource("10_u4bbu"), ExtResource("11_ouyyf"), ExtResource("12_6xuqa"), ExtResource("13_67q4e"), ExtResource("14_ha2gm"), ExtResource("15_8u13j"), ExtResource("16_bajmc"), ExtResource("17_82xfu"), ExtResource("18_hjys1"), ExtResource("19_kp22r"), ExtResource("20_6qgo8"), ExtResource("21_s6g1v")])

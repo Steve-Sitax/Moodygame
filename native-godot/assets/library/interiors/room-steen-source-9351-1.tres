@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="AuthorAsset" format=3]
+
+[ext_resource type="PackedScene" path="res://assets/props/furniture/room-steen-source-9351-1.tscn" id="1_ygqrs"]
+[ext_resource type="Script" path="res://src/Authoring/AuthorAsset.cs" id="2_ogfw1"]
+
+[resource]
+PlacementAnchor = Vector3(-0.39991236, 7.0799475, 7.1525574e-07)
+GeometryClearance = true
+script = ExtResource("2_ogfw1")
+Id = "room-steen-source-9351-1"
+Title = "table · steen · source-9351-1"
+Category = "Room originals"
+Scene = ExtResource("1_ygqrs")
+Footprint = Vector3(14.700181, 0.32005215, 6.4)
+FootprintOffset = Vector3(-0.39991236, 7.0799475, 7.1525574e-07)
+FurnitureKind = "table"
+UsePoint = Vector3(0, 0.5, 0)
+StandPoint = Vector3(0, 0, 0.6000004)

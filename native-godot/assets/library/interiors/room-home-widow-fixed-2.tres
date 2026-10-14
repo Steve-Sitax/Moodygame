@@ -1,0 +1,20 @@
+[gd_resource type="Resource" script_class="AuthorAsset" format=3]
+
+[ext_resource type="PackedScene" path="res://assets/props/furniture/room-home-widow-fixed-2.tscn" id="1_c7gex"]
+[ext_resource type="Script" path="res://src/Authoring/AuthorAsset.cs" id="2_7pfv0"]
+
+[resource]
+PlacementAnchor = Vector3(8.106232e-06, 0, 2.1398067e-05)
+GeometryClearance = true
+script = ExtResource("2_7pfv0")
+Id = "room-home-widow-fixed-2"
+Title = "chair · home:widow · fixed-2"
+Category = "Room originals"
+Scene = ExtResource("1_c7gex")
+Footprint = Vector3(0.4200201, 0.9499949, 0.40001476)
+FootprintOffset = Vector3(8.106232e-06, -5.9604646e-09, 2.1398067e-05)
+FurnitureKind = "chair"
+SeatPoints = PackedVector3Array(0, 0, 0)
+SeatYaw = 9.424778
+UsePoint = Vector3(0, 0.5, 0)
+StandPoint = Vector3(0.57601166, 0, 0.16795349)

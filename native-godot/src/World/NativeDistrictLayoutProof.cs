@@ -21,7 +21,7 @@ public partial class NativeDistrictLayoutProof : Node
 
     public override void _Ready()
     {
-        string proof = WorkshopSession.Arg("layout-proof");
+        string proof = Scheldemist.Native.Game.NativeArguments.Arg("layout-proof");
         if (proof == "") { GD.PrintErr("Supply an isolated --layout-proof directory."); GetTree().Quit(1); return; }
         try
         {

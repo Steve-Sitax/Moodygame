@@ -1,0 +1,19 @@
+[gd_resource type="Resource" script_class="AuthorAsset" format=3]
+
+[ext_resource type="PackedScene" path="res://assets/props/furniture/room-tavern-linde-source-12022-54.tscn" id="1_7kdqp"]
+[ext_resource type="Script" path="res://src/Authoring/AuthorAsset.cs" id="2_swrwc"]
+
+[resource]
+PlacementAnchor = Vector3(-5.4836273e-06, 0, -8.106232e-06)
+GeometryClearance = true
+script = ExtResource("2_swrwc")
+Id = "room-tavern-linde-source-12022-54"
+Title = "clock · tavern:linde · source-12022-54"
+Category = "Room originals"
+Scene = ExtResource("1_7kdqp")
+Footprint = Vector3(0.040054798, 0.39999604, 0.3999834)
+FootprintOffset = Vector3(-5.4836273e-06, 2.5499566, -8.106232e-06)
+FurnitureKind = "clock"
+SeatYaw = 3.1415925
+UsePoint = Vector3(0, 0.5, 0)
+StandPoint = Vector3(0, 0, 0.6000061)

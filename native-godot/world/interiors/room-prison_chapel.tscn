@@ -1,0 +1,10 @@
+[gd_scene load_steps=5 format=3]
+[ext_resource type="Script" path="res://src/World/NativeDistrictScene.cs" id="1"]
+[ext_resource type="PackedScene" path="res://world/districts/outer-park-prison.tscn" id="2"]
+[ext_resource type="PackedScene" path="res://world/interiors/room-prison_chapel.structure.tscn" id="3"]
+[ext_resource type="PackedScene" path="res://world/interiors/room-prison_chapel.objects.tscn" id="4"]
+[node name="Interior" type="Node3D"]
+script = ExtResource("1")
+[node name="Scenery" parent="." instance=ExtResource("2")]
+[node name="RetainedStructure" parent="." instance=ExtResource("3")]
+[node name="Objects" parent="." instance=ExtResource("4")]

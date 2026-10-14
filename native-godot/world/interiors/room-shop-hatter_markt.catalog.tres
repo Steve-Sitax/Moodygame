@@ -1,0 +1,22 @@
+[gd_resource type="Resource" script_class="AuthorCatalog" format=3]
+
+[ext_resource type="Script" path="res://src/Authoring/AuthorAsset.cs" id="1_kya8d"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-hatter_markt-counter.tres" id="2_rosjk"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-hatter_markt-source-10768-1.tres" id="3_07qwx"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-hatter_markt-source-10768-2.tres" id="4_ke5x8"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-hatter_markt-source-10768-3.tres" id="5_hg147"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-hatter_markt-source-10768-4.tres" id="6_lxemq"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-hatter_markt-source-10768-5.tres" id="7_kyxhv"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-hatter_markt-source-10768-6.tres" id="8_tf061"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-hatter_markt-source-10776-7.tres" id="9_rutu3"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-hatter_markt-source-10781-8.tres" id="10_n661s"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-hatter_markt-source-10781-9.tres" id="11_47uue"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-hatter_markt-source-10781-10.tres" id="12_k4vou"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-hatter_markt-source-10783-11.tres" id="13_vbbph"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-hatter_markt-source-10783-12.tres" id="14_a3145"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-hatter_markt-source-10826-13.tres" id="15_nhvpu"]
+[ext_resource type="Script" path="res://src/Authoring/AuthorCatalog.cs" id="16_tmclx"]
+
+[resource]
+script = ExtResource("16_tmclx")
+Assets = Array[ExtResource("1_kya8d")]([ExtResource("2_rosjk"), ExtResource("3_07qwx"), ExtResource("4_ke5x8"), ExtResource("5_hg147"), ExtResource("6_lxemq"), ExtResource("7_kyxhv"), ExtResource("8_tf061"), ExtResource("9_rutu3"), ExtResource("10_n661s"), ExtResource("11_47uue"), ExtResource("12_k4vou"), ExtResource("13_vbbph"), ExtResource("14_a3145"), ExtResource("15_nhvpu")])

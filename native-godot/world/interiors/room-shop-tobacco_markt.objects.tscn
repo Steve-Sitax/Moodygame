@@ -1,0 +1,215 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://src/Authoring/AuthoredObject.cs" id="1_sxoio"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-tobacco_markt-counter.tres" id="2_owm6k"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-tobacco_markt-source-10250-1.tres" id="3_xpvom"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-tobacco_markt-source-10250-2.tres" id="4_lox6m"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-tobacco_markt-source-10250-3.tres" id="5_lqwjb"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-tobacco_markt-source-10250-4.tres" id="6_jj86p"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-tobacco_markt-source-10250-5.tres" id="7_3utox"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-tobacco_markt-source-10250-6.tres" id="8_pih86"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-tobacco_markt-source-10256-7.tres" id="9_qyudg"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-tobacco_markt-source-10259-8.tres" id="10_6ljy5"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-tobacco_markt-source-10259-9.tres" id="11_7bbcb"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-tobacco_markt-source-10263-10.tres" id="12_djvl1"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-tobacco_markt-source-10263-11.tres" id="13_bw2fc"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-tobacco_markt-source-10263-12.tres" id="14_ebjjd"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-tobacco_markt-source-10263-13.tres" id="15_b26wx"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-tobacco_markt-source-10263-14.tres" id="16_wj7up"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-tobacco_markt-source-10263-15.tres" id="17_dihxn"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-tobacco_markt-source-10263-16.tres" id="18_c4tbt"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-tobacco_markt-source-10263-17.tres" id="19_elx05"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-tobacco_markt-source-10263-18.tres" id="20_kwam3"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-tobacco_markt-source-10264-19.tres" id="21_tqy67"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-tobacco_markt-source-10264-20.tres" id="22_y5ajc"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-tobacco_markt-source-10264-21.tres" id="23_m4cse"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-tobacco_markt-source-10264-22.tres" id="24_vft7m"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-tobacco_markt-source-10264-23.tres" id="25_kogbt"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-tobacco_markt-source-10264-24.tres" id="26_ln6s1"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-tobacco_markt-source-10265-25.tres" id="27_pkrkk"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-tobacco_markt-source-10268-26.tres" id="28_o2wsn"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-tobacco_markt-source-10268-27.tres" id="29_tsem3"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-tobacco_markt-source-10268-28.tres" id="30_8vyqh"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-tobacco_markt-source-10312-29.tres" id="31_ij42g"]
+
+[node name="Objects" type="Node3D" unique_id=2053869014]
+
+[node name="object_counter" type="Node3D" parent="." unique_id=779203695]
+transform = Transform3D(-4.371139e-08, 0, 1, 0, 1, 0, -1, 0, -4.371139e-08, -218.65, 0.18, 69.57)
+script = ExtResource("1_sxoio")
+ObjectId = "room-shop-tobacco_markt-counter"
+Asset = ExtResource("2_owm6k")
+
+[node name="object_source-10250-1" type="Node3D" parent="." unique_id=1323056884]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -218.02515, 0.18, 70.44003)
+script = ExtResource("1_sxoio")
+ObjectId = "room-shop-tobacco_markt-source-10250-1"
+Asset = ExtResource("3_xpvom")
+
+[node name="object_source-10250-2" type="Node3D" parent="." unique_id=1110453523]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -218.83008, 0.18, 65.955025)
+script = ExtResource("1_sxoio")
+ObjectId = "room-shop-tobacco_markt-source-10250-2"
+Asset = ExtResource("4_lox6m")
+
+[node name="object_source-10250-3" type="Node3D" parent="." unique_id=513116143]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -221.525, 0.18, 69.71253)
+script = ExtResource("1_sxoio")
+ObjectId = "room-shop-tobacco_markt-source-10250-3"
+Asset = ExtResource("5_lqwjb")
+
+[node name="object_source-10250-4" type="Node3D" parent="." unique_id=1621909748]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -215.27005, 0.18, 68.38504)
+script = ExtResource("1_sxoio")
+ObjectId = "room-shop-tobacco_markt-source-10250-4"
+Asset = ExtResource("6_jj86p")
+
+[node name="object_source-10250-5" type="Node3D" parent="." unique_id=448946273]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -215.24007, 0.18, 68.38504)
+script = ExtResource("1_sxoio")
+ObjectId = "room-shop-tobacco_markt-source-10250-5"
+Asset = ExtResource("7_3utox")
+
+[node name="object_source-10250-6" type="Node3D" parent="." unique_id=1699659313]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -216.10013, 0.18, 65.97001)
+script = ExtResource("1_sxoio")
+ObjectId = "room-shop-tobacco_markt-source-10250-6"
+Asset = ExtResource("8_pih86")
+
+[node name="object_source-10256-7" type="Node3D" parent="." unique_id=1679308191]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -216.55006, 0.18, 66.180016)
+script = ExtResource("1_sxoio")
+ObjectId = "room-shop-tobacco_markt-source-10256-7"
+Asset = ExtResource("9_qyudg")
+
+[node name="object_source-10259-8" type="Node3D" parent="." unique_id=538539228]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -219.33002, 0.18, 69.74001)
+script = ExtResource("1_sxoio")
+ObjectId = "room-shop-tobacco_markt-source-10259-8"
+Asset = ExtResource("10_6ljy5")
+
+[node name="object_source-10259-9" type="Node3D" parent="." unique_id=1736598256]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -217.70802, 0.18, 67.785)
+script = ExtResource("1_sxoio")
+ObjectId = "room-shop-tobacco_markt-source-10259-9"
+Asset = ExtResource("11_7bbcb")
+
+[node name="object_source-10263-10" type="Node3D" parent="." unique_id=1510565913]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -219.228, 0.18, 66.01)
+script = ExtResource("1_sxoio")
+ObjectId = "room-shop-tobacco_markt-source-10263-10"
+Asset = ExtResource("12_djvl1")
+
+[node name="object_source-10263-11" type="Node3D" parent="." unique_id=823048812]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -219.128, 0.18, 66.01)
+script = ExtResource("1_sxoio")
+ObjectId = "room-shop-tobacco_markt-source-10263-11"
+Asset = ExtResource("13_bw2fc")
+
+[node name="object_source-10263-12" type="Node3D" parent="." unique_id=1422012425]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -219.02802, 0.18, 66.01)
+script = ExtResource("1_sxoio")
+ObjectId = "room-shop-tobacco_markt-source-10263-12"
+Asset = ExtResource("14_ebjjd")
+
+[node name="object_source-10263-13" type="Node3D" parent="." unique_id=1687535483]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -218.92801, 0.18, 66.01)
+script = ExtResource("1_sxoio")
+ObjectId = "room-shop-tobacco_markt-source-10263-13"
+Asset = ExtResource("15_b26wx")
+
+[node name="object_source-10263-14" type="Node3D" parent="." unique_id=962772360]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -218.828, 0.18, 66.01)
+script = ExtResource("1_sxoio")
+ObjectId = "room-shop-tobacco_markt-source-10263-14"
+Asset = ExtResource("16_wj7up")
+
+[node name="object_source-10263-15" type="Node3D" parent="." unique_id=1941123318]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -218.728, 0.18, 66.01)
+script = ExtResource("1_sxoio")
+ObjectId = "room-shop-tobacco_markt-source-10263-15"
+Asset = ExtResource("17_dihxn")
+
+[node name="object_source-10263-16" type="Node3D" parent="." unique_id=194833337]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -218.62802, 0.18, 66.01)
+script = ExtResource("1_sxoio")
+ObjectId = "room-shop-tobacco_markt-source-10263-16"
+Asset = ExtResource("18_c4tbt")
+
+[node name="object_source-10263-17" type="Node3D" parent="." unique_id=1796903928]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -218.52802, 0.18, 66.01)
+script = ExtResource("1_sxoio")
+ObjectId = "room-shop-tobacco_markt-source-10263-17"
+Asset = ExtResource("19_elx05")
+
+[node name="object_source-10263-18" type="Node3D" parent="." unique_id=693230228]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -218.42801, 0.18, 66.01)
+script = ExtResource("1_sxoio")
+ObjectId = "room-shop-tobacco_markt-source-10263-18"
+Asset = ExtResource("20_kwam3")
+
+[node name="object_source-10264-19" type="Node3D" parent="." unique_id=1218758103]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -220.70958, 0.18, 66.43001)
+script = ExtResource("1_sxoio")
+ObjectId = "room-shop-tobacco_markt-source-10264-19"
+Asset = ExtResource("21_tqy67")
+
+[node name="object_source-10264-20" type="Node3D" parent="." unique_id=49158180]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -219.80957, 0.18, 66.43001)
+script = ExtResource("1_sxoio")
+ObjectId = "room-shop-tobacco_markt-source-10264-20"
+Asset = ExtResource("22_y5ajc")
+
+[node name="object_source-10264-21" type="Node3D" parent="." unique_id=843689962]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -218.9096, 0.18, 66.43001)
+script = ExtResource("1_sxoio")
+ObjectId = "room-shop-tobacco_markt-source-10264-21"
+Asset = ExtResource("23_m4cse")
+
+[node name="object_source-10264-22" type="Node3D" parent="." unique_id=403457047]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -218.00955, 0.18, 66.43001)
+script = ExtResource("1_sxoio")
+ObjectId = "room-shop-tobacco_markt-source-10264-22"
+Asset = ExtResource("24_vft7m")
+
+[node name="object_source-10264-23" type="Node3D" parent="." unique_id=1078360728]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -217.10959, 0.18, 66.43001)
+script = ExtResource("1_sxoio")
+ObjectId = "room-shop-tobacco_markt-source-10264-23"
+Asset = ExtResource("25_kogbt")
+
+[node name="object_source-10264-24" type="Node3D" parent="." unique_id=1953651082]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -216.20956, 0.18, 66.43001)
+script = ExtResource("1_sxoio")
+ObjectId = "room-shop-tobacco_markt-source-10264-24"
+Asset = ExtResource("26_ln6s1")
+
+[node name="object_source-10265-25" type="Node3D" parent="." unique_id=352765156]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -216.54999, 0.18, 66.18)
+script = ExtResource("1_sxoio")
+ObjectId = "room-shop-tobacco_markt-source-10265-25"
+Asset = ExtResource("27_pkrkk")
+
+[node name="object_source-10268-26" type="Node3D" parent="." unique_id=932435685]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -215.70001, 0.18, 66.48003)
+script = ExtResource("1_sxoio")
+ObjectId = "room-shop-tobacco_markt-source-10268-26"
+Asset = ExtResource("28_o2wsn")
+
+[node name="object_source-10268-27" type="Node3D" parent="." unique_id=7108307]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -219.33002, 0.18, 69.740005)
+script = ExtResource("1_sxoio")
+ObjectId = "room-shop-tobacco_markt-source-10268-27"
+Asset = ExtResource("29_tsem3")
+
+[node name="object_source-10268-28" type="Node3D" parent="." unique_id=398634720]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -217.70801, 0.18, 67.785034)
+script = ExtResource("1_sxoio")
+ObjectId = "room-shop-tobacco_markt-source-10268-28"
+Asset = ExtResource("30_8vyqh")
+
+[node name="object_source-10312-29" type="Node3D" parent="." unique_id=1858043126]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -222.002, 0.18, 69.7125)
+script = ExtResource("1_sxoio")
+ObjectId = "room-shop-tobacco_markt-source-10312-29"
+Asset = ExtResource("31_ij42g")

@@ -1,0 +1,25 @@
+[gd_resource type="Resource" script_class="AuthorDistrict" format=3]
+
+[ext_resource type="Resource" path="res://world/interiors/room-tavern-linde.catalog.tres" id="1_3cy5y"]
+[ext_resource type="PackedScene" path="res://world/interiors/room-tavern-linde.structure.tscn" id="2_uspqc"]
+[ext_resource type="PackedScene" path="res://world/interiors/room-tavern-linde.objects.tscn" id="3_3cy5y"]
+[ext_resource type="Script" path="res://src/Authoring/AuthorDistrict.cs" id="4_yy3xo"]
+
+[resource]
+script = ExtResource("4_yy3xo")
+Id = "room-tavern-linde"
+Title = "tavern:linde"
+Scene = ExtResource("3_3cy5y")
+EditorScenePath = "res://world/interiors/room-tavern-linde.tscn"
+Catalog = ExtResource("1_3cy5y")
+Bounds = Rect2(-279.135, 98.735, 200, 200)
+WalkSpawn = Vector3(-179.135, 0.2, 198.735)
+FlySpawn = Vector3(-179.135, 1.78, 198.735)
+FlyYaw = 3.1415925
+FlyPitch = -0.12
+RoomId = "tavern:linde"
+RoomFrame = Transform3D(-1, 0, 8.742278e-08, 0, 1, 0, -8.742278e-08, 0, -1, -180.7975, 0.18, 205)
+RoomBounds = Rect2(-4.7875, 0.2, 6.25, 12.13)
+EntryPoints = PackedVector3Array(-180.7975, 0.18, 205)
+ReplacedMeshes = PackedInt32Array(12022, 12024, 12026, 12027, 12028, 12029, 12030, 12031, 12032, 12034, 12036, 12037, 12038, 12039, 12040, 12041, 12042, 12043, 12044, 12051)
+RetainedStructure = ExtResource("2_uspqc")

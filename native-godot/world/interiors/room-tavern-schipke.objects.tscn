@@ -1,0 +1,194 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://src/Authoring/AuthoredObject.cs" id="1_1e7j6"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-tavern-schipke-seat-0.tres" id="2_7186v"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-tavern-schipke-seat-2.tres" id="3_ajsyv"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-tavern-schipke-seat-4.tres" id="4_s4uwp"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-tavern-schipke-seat-6.tres" id="5_fjoy1"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-tavern-schipke-seat-8.tres" id="6_pwh0e"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-tavern-schipke-seat-10.tres" id="7_b3hh0"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-tavern-schipke-seat-12.tres" id="8_ywlms"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-tavern-schipke-seat-13.tres" id="9_fs4x7"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-tavern-schipke-seat-14.tres" id="10_l6yr7"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-tavern-schipke-table-0.tres" id="11_ncrhf"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-tavern-schipke-table-1.tres" id="12_wcm38"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-tavern-schipke-table-2.tres" id="13_e24xs"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-tavern-schipke-counter.tres" id="14_18q1k"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-tavern-schipke-source-11728-13.tres" id="15_ag7w1"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-tavern-schipke-source-11728-14.tres" id="16_ycjqw"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-tavern-schipke-source-11728-15.tres" id="17_xsjal"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-tavern-schipke-source-11728-16.tres" id="18_ygke1"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-tavern-schipke-source-11728-17.tres" id="19_h0kh4"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-tavern-schipke-source-11735-18.tres" id="20_g68f4"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-tavern-schipke-source-11743-19.tres" id="21_4m5kj"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-tavern-schipke-source-11743-20.tres" id="22_7pqtc"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-tavern-schipke-source-11747-21.tres" id="23_42nfp"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-tavern-schipke-source-11748-22.tres" id="24_ermnu"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-tavern-schipke-source-11750-23.tres" id="25_d3iou"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-tavern-schipke-source-11750-24.tres" id="26_6c16u"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-tavern-schipke-source-11750-25.tres" id="27_ahxxq"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-tavern-schipke-source-11752-26.tres" id="28_b1itx"]
+
+[node name="Objects" type="Node3D" unique_id=1482059625]
+
+[node name="object_seat-0" type="Node3D" parent="." unique_id=407377761]
+transform = Transform3D(-4.371139e-08, 0, 1, 0, 1, 0, -1, 0, -4.371139e-08, -242.37001, 0.18, 15.65)
+script = ExtResource("1_1e7j6")
+ObjectId = "room-tavern-schipke-seat-0"
+Asset = ExtResource("2_7186v")
+
+[node name="object_seat-2" type="Node3D" parent="." unique_id=147688301]
+transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -240.93001, 0.18, 15.65)
+script = ExtResource("1_1e7j6")
+ObjectId = "room-tavern-schipke-seat-2"
+Asset = ExtResource("3_ajsyv")
+
+[node name="object_seat-4" type="Node3D" parent="." unique_id=203958967]
+transform = Transform3D(-4.371139e-08, 0, 1, 0, 1, 0, -1, 0, -4.371139e-08, -242.37001, 0.18, 18.65)
+script = ExtResource("1_1e7j6")
+ObjectId = "room-tavern-schipke-seat-4"
+Asset = ExtResource("4_s4uwp")
+
+[node name="object_seat-6" type="Node3D" parent="." unique_id=629105776]
+transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -240.93001, 0.18, 18.65)
+script = ExtResource("1_1e7j6")
+ObjectId = "room-tavern-schipke-seat-6"
+Asset = ExtResource("5_fjoy1")
+
+[node name="object_seat-8" type="Node3D" parent="." unique_id=1501911869]
+transform = Transform3D(-4.371139e-08, 0, 1, 0, 1, 0, -1, 0, -4.371139e-08, -242.37001, 0.18, 21.65)
+script = ExtResource("1_1e7j6")
+ObjectId = "room-tavern-schipke-seat-8"
+Asset = ExtResource("6_pwh0e")
+
+[node name="object_seat-10" type="Node3D" parent="." unique_id=1424384161]
+transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -240.93001, 0.18, 21.65)
+script = ExtResource("1_1e7j6")
+ObjectId = "room-tavern-schipke-seat-10"
+Asset = ExtResource("7_b3hh0")
+
+[node name="object_seat-12" type="Node3D" parent="." unique_id=1791092033]
+transform = Transform3D(-4.371139e-08, 0, 1, 0, 1, 0, -1, 0, -4.371139e-08, -238.6, 0.18, 16.9)
+script = ExtResource("1_1e7j6")
+ObjectId = "room-tavern-schipke-seat-12"
+Asset = ExtResource("8_ywlms")
+
+[node name="object_seat-13" type="Node3D" parent="." unique_id=1783785494]
+transform = Transform3D(-4.371139e-08, 0, 1, 0, 1, 0, -1, 0, -4.371139e-08, -238.6, 0.18, 18.2)
+script = ExtResource("1_1e7j6")
+ObjectId = "room-tavern-schipke-seat-13"
+Asset = ExtResource("9_fs4x7")
+
+[node name="object_seat-14" type="Node3D" parent="." unique_id=508896751]
+transform = Transform3D(-4.371139e-08, 0, 1, 0, 1, 0, -1, 0, -4.371139e-08, -238.6, 0.18, 19.5)
+script = ExtResource("1_1e7j6")
+ObjectId = "room-tavern-schipke-seat-14"
+Asset = ExtResource("10_l6yr7")
+
+[node name="object_table-0" type="Node3D" parent="." unique_id=1960132203]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -241.65001, 0.18, 15.65)
+script = ExtResource("1_1e7j6")
+ObjectId = "room-tavern-schipke-table-0"
+Asset = ExtResource("11_ncrhf")
+
+[node name="object_table-1" type="Node3D" parent="." unique_id=1145460142]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -241.65001, 0.18, 18.65)
+script = ExtResource("1_1e7j6")
+ObjectId = "room-tavern-schipke-table-1"
+Asset = ExtResource("12_wcm38")
+
+[node name="object_table-2" type="Node3D" parent="." unique_id=1981879572]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -241.65001, 0.18, 21.65)
+script = ExtResource("1_1e7j6")
+ObjectId = "room-tavern-schipke-table-2"
+Asset = ExtResource("13_e24xs")
+
+[node name="object_counter" type="Node3D" parent="." unique_id=1232549737]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -237.975, 0.18, 18.2)
+script = ExtResource("1_1e7j6")
+ObjectId = "room-tavern-schipke-counter"
+Asset = ExtResource("14_18q1k")
+
+[node name="object_source-11728-13" type="Node3D" parent="." unique_id=342063326]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -236.95508, 0.18, 18.19988)
+script = ExtResource("1_1e7j6")
+ObjectId = "room-tavern-schipke-source-11728-13"
+Asset = ExtResource("15_ag7w1")
+
+[node name="object_source-11728-14" type="Node3D" parent="." unique_id=1402437907]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -236.95508, 0.18, 18.19988)
+script = ExtResource("1_1e7j6")
+ObjectId = "room-tavern-schipke-source-11728-14"
+Asset = ExtResource("16_ycjqw")
+
+[node name="object_source-11728-15" type="Node3D" parent="." unique_id=2080001192]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -237.45003, 0.18, 24.849907)
+script = ExtResource("1_1e7j6")
+ObjectId = "room-tavern-schipke-source-11728-15"
+Asset = ExtResource("17_xsjal")
+
+[node name="object_source-11728-16" type="Node3D" parent="." unique_id=1474391273]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -240.50003, 0.18, 25.0125)
+script = ExtResource("1_1e7j6")
+ObjectId = "room-tavern-schipke-source-11728-16"
+Asset = ExtResource("18_ygke1")
+
+[node name="object_source-11728-17" type="Node3D" parent="." unique_id=238729432]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -242.76001, 0.18, 16.79986)
+script = ExtResource("1_1e7j6")
+ObjectId = "room-tavern-schipke-source-11728-17"
+Asset = ExtResource("19_h0kh4")
+
+[node name="object_source-11735-18" type="Node3D" parent="." unique_id=328389939]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -236.82, 0.18, 18.2)
+script = ExtResource("1_1e7j6")
+ObjectId = "room-tavern-schipke-source-11735-18"
+Asset = ExtResource("20_g68f4")
+
+[node name="object_source-11743-19" type="Node3D" parent="." unique_id=23315022]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -239.65002, 0.18, 17.67994)
+script = ExtResource("1_1e7j6")
+ObjectId = "room-tavern-schipke-source-11743-19"
+Asset = ExtResource("21_4m5kj")
+
+[node name="object_source-11743-20" type="Node3D" parent="." unique_id=2119083110]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -239.65002, 0.18, 22.087917)
+script = ExtResource("1_1e7j6")
+ObjectId = "room-tavern-schipke-source-11743-20"
+Asset = ExtResource("22_7pqtc")
+
+[node name="object_source-11747-21" type="Node3D" parent="." unique_id=1261871959]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -242.86801, 0.18, 18.599998)
+script = ExtResource("1_1e7j6")
+ObjectId = "room-tavern-schipke-source-11747-21"
+Asset = ExtResource("23_42nfp")
+
+[node name="object_source-11748-22" type="Node3D" parent="." unique_id=1443300684]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -242.82, 0.18, 20)
+script = ExtResource("1_1e7j6")
+ObjectId = "room-tavern-schipke-source-11748-22"
+Asset = ExtResource("24_ermnu")
+
+[node name="object_source-11750-23" type="Node3D" parent="." unique_id=1561592093]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -242.82004, 0.18, 14.999965)
+script = ExtResource("1_1e7j6")
+ObjectId = "room-tavern-schipke-source-11750-23"
+Asset = ExtResource("25_d3iou")
+
+[node name="object_source-11750-24" type="Node3D" parent="." unique_id=452324693]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -242.82004, 0.18, 23.599966)
+script = ExtResource("1_1e7j6")
+ObjectId = "room-tavern-schipke-source-11750-24"
+Asset = ExtResource("26_6c16u")
+
+[node name="object_source-11750-25" type="Node3D" parent="." unique_id=275828687]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -238.50003, 0.18, 23.399952)
+script = ExtResource("1_1e7j6")
+ObjectId = "room-tavern-schipke-source-11750-25"
+Asset = ExtResource("27_ahxxq")
+
+[node name="object_source-11752-26" type="Node3D" parent="." unique_id=906416253]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -242.86801, 0.18, 24.8)
+script = ExtResource("1_1e7j6")
+ObjectId = "room-tavern-schipke-source-11752-26"
+Asset = ExtResource("28_b1itx")

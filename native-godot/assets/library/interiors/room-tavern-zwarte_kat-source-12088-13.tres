@@ -1,0 +1,19 @@
+[gd_resource type="Resource" script_class="AuthorAsset" format=3]
+
+[ext_resource type="PackedScene" path="res://assets/props/furniture/room-tavern-zwarte_kat-source-12088-13.tscn" id="1_w8r6j"]
+[ext_resource type="Script" path="res://src/Authoring/AuthorAsset.cs" id="2_04bnb"]
+
+[resource]
+PlacementAnchor = Vector3(-9.536743e-07, 0, 7.5101852e-06)
+GeometryClearance = true
+script = ExtResource("2_04bnb")
+Id = "room-tavern-zwarte_kat-source-12088-13"
+Title = "shelf · tavern:zwarte_kat · source-12088-13"
+Category = "Room originals"
+Scene = ExtResource("1_w8r6j")
+Footprint = Vector3(1.0138378, 0.33004117, 3.985821)
+FootprintOffset = Vector3(-9.536743e-07, 1.2199588, 7.5101852e-06)
+FurnitureKind = "shelf"
+SeatYaw = 0.18321387
+UsePoint = Vector3(0, 0.5, 0)
+StandPoint = Vector3(0, 0, 0.6000061)

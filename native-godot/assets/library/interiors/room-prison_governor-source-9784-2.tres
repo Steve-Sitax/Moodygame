@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="AuthorAsset" format=3]
+
+[ext_resource type="PackedScene" path="res://assets/props/furniture/room-prison_governor-source-9784-2.tscn" id="1_pj1ux"]
+[ext_resource type="Script" path="res://src/Authoring/AuthorAsset.cs" id="2_dqdv8"]
+
+[resource]
+PlacementAnchor = Vector3(-1.0550022e-05, 0, -3.8146973e-06)
+GeometryClearance = true
+script = ExtResource("2_dqdv8")
+Id = "room-prison_governor-source-9784-2"
+Title = "fitting · prison_governor · source-9784-2"
+Category = "Room originals"
+Scene = ExtResource("1_pj1ux")
+Footprint = Vector3(1.5002449, 1.4201574, 1.0831337)
+FootprintOffset = Vector3(-1.0550022e-05, 11.459843, -3.8146973e-06)
+FurnitureKind = "fitting"
+UsePoint = Vector3(0, 0.5, 0)
+StandPoint = Vector3(0, 0, 0.6000061)

@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="AuthorAsset" format=3]
+
+[ext_resource type="PackedScene" path="res://assets/furniture/chair-tavern.tscn" id="1_64h3q"]
+[ext_resource type="Script" path="res://src/Authoring/AuthorAsset.cs" id="2_t2brl"]
+
+[resource]
+script = ExtResource("2_t2brl")
+Id = "chair-tavern"
+Title = "Tavern chair"
+Category = "Furniture: seating"
+Scene = ExtResource("1_64h3q")
+Footprint = Vector3(0.445, 0.9195, 0.4944)
+FootprintOffset = Vector3(0, 0, -0.0357)
+FurnitureKind = "chair"
+SeatPoints = PackedVector3Array(0, 0, 0.01)
+SeatHeight = 0.458
+UsePoint = Vector3(0, 0.5, 0)
+StandPoint = Vector3(0, 0, 0.7)

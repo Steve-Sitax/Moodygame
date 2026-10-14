@@ -1,0 +1,25 @@
+[gd_resource type="Resource" script_class="AuthorDistrict" format=3]
+
+[ext_resource type="Resource" path="res://world/interiors/room-shop-apothecary_markt.catalog.tres" id="1_8pelg"]
+[ext_resource type="PackedScene" path="res://world/interiors/room-shop-apothecary_markt.structure.tscn" id="2_pei7d"]
+[ext_resource type="PackedScene" path="res://world/interiors/room-shop-apothecary_markt.objects.tscn" id="3_8pelg"]
+[ext_resource type="Script" path="res://src/Authoring/AuthorDistrict.cs" id="4_b7hnd"]
+
+[resource]
+script = ExtResource("4_b7hnd")
+Id = "room-shop-apothecary_markt"
+Title = "shop:apothecary_markt"
+Scene = ExtResource("3_8pelg")
+EditorScenePath = "res://world/interiors/room-shop-apothecary_markt.tscn"
+Catalog = ExtResource("1_8pelg")
+Bounds = Rect2(-311.32, 19.074997, 200, 200)
+WalkSpawn = Vector3(-211.31999, 0.2, 119.075)
+FlySpawn = Vector3(-211.31999, 1.78, 119.075)
+FlyYaw = 3.1415925
+FlyPitch = -0.12
+RoomId = "shop:apothecary_markt"
+RoomFrame = Transform3D(-1, 0, 8.742278e-08, 0, 1, 0, -8.742278e-08, 0, -1, -212.98, 0.18, 124)
+RoomBounds = Rect2(-4.78, 0.2, 6.2400002, 9.45)
+EntryPoints = PackedVector3Array(-212.98, 0.18, 124)
+ReplacedMeshes = PackedInt32Array(10631, 10633, 10634, 10635, 10636, 10637, 10638, 10639, 10640, 10641, 10642, 10643, 10644, 10645, 10646, 10647, 10648, 10650, 10651, 10652, 10653, 10654, 10655, 10656, 10657, 10663, 10697)
+RetainedStructure = ExtResource("2_pei7d")

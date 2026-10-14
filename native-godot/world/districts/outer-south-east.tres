@@ -1,17 +1,18 @@
-[gd_resource type="Resource" script_class="AuthorDistrict" load_steps=4 format=3]
+[gd_resource type="Resource" script_class="AuthorDistrict" format=3]
 
-[ext_resource type="Script" path="res://src/Authoring/AuthorDistrict.cs" id="script"]
-[ext_resource type="PackedScene" path="res://world/districts/outer-south-east.tscn" id="scene"]
+[ext_resource type="PackedScene" path="res://world/districts/outer-south-east.objects.tscn" id="2_rpvpv"]
 [ext_resource type="Resource" path="res://recovered/rijnkaai-recovered/catalog.tres" id="catalog"]
+[ext_resource type="Script" path="res://src/Authoring/AuthorDistrict.cs" id="script"]
 
 [resource]
 script = ExtResource("script")
 Id = "outer-south-east"
 Title = "Southern and eastern streets"
-Scene = ExtResource("scene")
+Scene = ExtResource("2_rpvpv")
+EditorScenePath = "res://world/districts/outer-south-east.tscn"
 Catalog = ExtResource("catalog")
-Bounds = Rect2(-245.0,165.0,495.0,200.0)
-WalkSpawn = Vector3(-213.0,0.2,234.0)
-FlySpawn = Vector3(-205.0,12.0,226.0)
-FlyYaw = 3.141592653589793
-FlyPitch = -0.20943951023931956
+Bounds = Rect2(-245, 165, 495, 200)
+WalkSpawn = Vector3(-213, 0.2, 234)
+FlySpawn = Vector3(-205, 12, 226)
+FlyYaw = 3.1415927
+FlyPitch = -0.20943952

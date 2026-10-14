@@ -1,0 +1,25 @@
+[gd_resource type="Resource" script_class="AuthorDistrict" format=3]
+
+[ext_resource type="Resource" path="res://world/interiors/room-tavern-engel.catalog.tres" id="1_d6d3r"]
+[ext_resource type="PackedScene" path="res://world/interiors/room-tavern-engel.structure.tscn" id="2_j56wb"]
+[ext_resource type="PackedScene" path="res://world/interiors/room-tavern-engel.objects.tscn" id="3_d6d3r"]
+[ext_resource type="Script" path="res://src/Authoring/AuthorDistrict.cs" id="4_77hfi"]
+
+[resource]
+script = ExtResource("4_77hfi")
+Id = "room-tavern-engel"
+Title = "tavern:engel"
+Scene = ExtResource("3_d6d3r")
+EditorScenePath = "res://world/interiors/room-tavern-engel.tscn"
+Catalog = ExtResource("1_d6d3r")
+Bounds = Rect2(-315.345, -25.915, 200, 200)
+WalkSpawn = Vector3(-215.345, 0.2, 74.085)
+FlySpawn = Vector3(-215.345, 1.78, 74.085)
+FlyYaw = 1.5707964
+FlyPitch = -0.12
+RoomId = "tavern:engel"
+RoomFrame = Transform3D(-4.371139e-08, 0, 1, 0, 1, 0, -1, 0, -4.371139e-08, -222, 0.18, 72.5675)
+RoomBounds = Rect2(-4.3525, 0.2, 5.67, 12.91)
+EntryPoints = PackedVector3Array(-222, 0.18, 72.5675)
+ReplacedMeshes = PackedInt32Array(11885, 11886, 11888, 11889, 11890, 11891, 11892, 11893, 11894, 11896, 11898, 11899, 11900, 11901, 11902, 11904, 11905, 11906)
+RetainedStructure = ExtResource("2_j56wb")

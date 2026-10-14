@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="AuthorAsset" format=3]
+
+[ext_resource type="PackedScene" path="res://assets/props/furniture/room-shop-chandler_werf-source-10199-11.tscn" id="1_0xb3d"]
+[ext_resource type="Script" path="res://src/Authoring/AuthorAsset.cs" id="2_qf78p"]
+
+[resource]
+PlacementAnchor = Vector3(2.0742416e-05, 0, 4.7683716e-07)
+GeometryClearance = true
+script = ExtResource("2_qf78p")
+Id = "room-shop-chandler_werf-source-10199-11"
+Title = "fitting · shop:chandler_werf · source-10199-11"
+Category = "Room originals"
+Scene = ExtResource("1_0xb3d")
+Footprint = Vector3(0.18000746, 0.26001, 0.17994833)
+FootprintOffset = Vector3(2.0742416e-05, 2.3199701, 4.7683716e-07)
+FurnitureKind = "fitting"
+UsePoint = Vector3(0, 0.5, 0)
+StandPoint = Vector3(0, 0, 0.6000004)

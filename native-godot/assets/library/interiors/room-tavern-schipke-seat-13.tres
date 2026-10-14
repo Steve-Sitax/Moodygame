@@ -1,0 +1,21 @@
+[gd_resource type="Resource" script_class="AuthorAsset" format=3]
+
+[ext_resource type="PackedScene" path="res://assets/props/furniture/room-tavern-schipke-seat-13.tscn" id="1_cq77m"]
+[ext_resource type="Script" path="res://src/Authoring/AuthorAsset.cs" id="2_oqnpb"]
+
+[resource]
+PlacementAnchor = Vector3(6.4373016e-05, 0, -4.3213367e-05)
+GeometryClearance = true
+script = ExtResource("2_oqnpb")
+Id = "room-tavern-schipke-seat-13"
+Title = "stool · tavern:schipke · seat-13"
+Category = "Room originals"
+Scene = ExtResource("1_cq77m")
+Footprint = Vector3(0.36000347, 0.684997, 0.35997128)
+FootprintOffset = Vector3(6.4373016e-05, -1.4901161e-08, -4.3213367e-05)
+FurnitureKind = "stool"
+SeatPoints = PackedVector3Array(0, 0, 0)
+SeatHeight = 0.68
+Table = 9
+UsePoint = Vector3(0, 0.5, 0)
+StandPoint = Vector3(-0.6000004, 0, 0)

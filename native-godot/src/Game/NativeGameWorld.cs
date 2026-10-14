@@ -61,7 +61,7 @@ public partial class NativeGameWorld : BakedWorld
     public override Error Load(string unused)
     {
         Facts = JsonDocument.Parse(File.ReadAllText(ProjectSettings.GlobalizePath(Visuals + "/facts.json")));
-        string id = WorkshopSession.Arg("district", "rijnkaai-recovered");
+        string id = Scheldemist.Native.Game.NativeArguments.Arg("district", "rijnkaai-recovered");
         if (!LayoutDocument.ValidId(id)) throw new InvalidDataException("Invalid district id.");
         var report = JsonNode.Parse(File.ReadAllText(ProjectSettings.GlobalizePath("res://recovered/" + id + "/recovery-report.json")))!;
         var intake = JsonNode.Parse(File.ReadAllText(ProjectSettings.GlobalizePath(Visuals + "/intake.json")))!;
@@ -69,7 +69,7 @@ public partial class NativeGameWorld : BakedWorld
             throw new InvalidDataException("Game materials belong to a different snapshot. Recover their native visual resources before testing this district.");
         district = ResourceLoader.Load<AuthorDistrict>("res://recovered/" + id + "/district.tres");
         districtScene = district.Scene!.Instantiate<Node3D>();
-        string folder = WorkshopSession.Arg("author-dir", ProjectSettings.GlobalizePath("user://layouts/" + district.Id));
+        string folder = Scheldemist.Native.Game.NativeArguments.Arg("author-dir", ProjectSettings.GlobalizePath("user://layouts/" + district.Id));
         string file = Path.Combine(folder, "layout.json");
         if (!Scheldemist.Main.I.Flag("scene-seed") && File.Exists(file))
         {

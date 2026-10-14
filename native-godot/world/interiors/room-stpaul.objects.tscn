@@ -1,0 +1,2280 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://src/Authoring/AuthoredObject.cs" id="1_3gw33"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9814-0.tres" id="2_gqxgq"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9814-1.tres" id="3_dudwe"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9814-2.tres" id="4_x3krw"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9814-3.tres" id="5_s4eds"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9814-4.tres" id="6_nqe6s"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9814-5.tres" id="7_4qo2w"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9814-6.tres" id="8_uvfic"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9814-7.tres" id="9_p3lul"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9817-8.tres" id="10_36tnl"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9819-9.tres" id="11_rqe83"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9819-10.tres" id="12_5oe87"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9819-11.tres" id="13_8ot8y"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9819-12.tres" id="14_yuh3e"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9819-13.tres" id="15_v6i18"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9819-14.tres" id="16_vr3fd"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9819-15.tres" id="17_2pgfy"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9819-16.tres" id="18_smq0t"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9819-17.tres" id="19_jfp7j"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9819-18.tres" id="20_d4ss2"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9819-19.tres" id="21_afegm"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9819-20.tres" id="22_05vej"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9819-21.tres" id="23_o8d7h"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9819-22.tres" id="24_vtby2"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9819-23.tres" id="25_gc5c4"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9819-24.tres" id="26_aak2e"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9819-25.tres" id="27_3u5v2"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9819-26.tres" id="28_hkrwa"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9819-27.tres" id="29_6qjmy"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9819-28.tres" id="30_s3oae"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9819-29.tres" id="31_q6xto"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9819-30.tres" id="32_j8wnr"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9819-31.tres" id="33_p2etj"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9819-32.tres" id="34_03ep3"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9819-33.tres" id="35_rps4c"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9819-34.tres" id="36_kbc57"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9819-35.tres" id="37_4ib13"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9819-36.tres" id="38_mrdvs"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9819-37.tres" id="39_32uds"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9819-38.tres" id="40_5tqxd"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9819-39.tres" id="41_uvnt2"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9819-40.tres" id="42_rvxja"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9819-41.tres" id="43_w4n03"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9819-42.tres" id="44_ah667"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9819-43.tres" id="45_jebb6"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9819-44.tres" id="46_r2eyu"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9819-45.tres" id="47_rua6s"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9819-46.tres" id="48_8yirx"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9819-47.tres" id="49_ndyor"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9819-48.tres" id="50_ymnwv"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9819-49.tres" id="51_1bslr"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9819-50.tres" id="52_qqfor"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9819-51.tres" id="53_u5vv1"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9819-52.tres" id="54_7g7c1"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9819-53.tres" id="55_pa38e"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9819-54.tres" id="56_wxqxo"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9819-55.tres" id="57_n1dia"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9819-56.tres" id="58_ara0k"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9819-57.tres" id="59_enljh"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9819-58.tres" id="60_5r2bx"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9819-59.tres" id="61_bltnq"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9819-60.tres" id="62_a0r57"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9819-61.tres" id="63_xl15n"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9819-62.tres" id="64_l0rjh"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9819-63.tres" id="65_olomc"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9819-64.tres" id="66_18rig"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9819-65.tres" id="67_1ka0a"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9819-66.tres" id="68_hxx5f"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9819-67.tres" id="69_stryn"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9819-68.tres" id="70_f7mgs"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9819-69.tres" id="71_6a4lk"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9819-70.tres" id="72_ymyf3"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9819-71.tres" id="73_qw6rb"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9819-72.tres" id="74_bsc1s"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9819-73.tres" id="75_1xc44"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9819-74.tres" id="76_pdvqb"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9819-75.tres" id="77_r671s"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9819-76.tres" id="78_c4ah2"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9819-77.tres" id="79_xh0b6"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9819-78.tres" id="80_6n5p5"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9819-79.tres" id="81_32mal"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9819-80.tres" id="82_ngecc"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9819-81.tres" id="83_23g4g"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9819-82.tres" id="84_7bcg6"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9819-83.tres" id="85_h4wb7"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9819-84.tres" id="86_wja6b"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9819-85.tres" id="87_xxjek"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9819-86.tres" id="88_wt73u"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9819-87.tres" id="89_hlfrk"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9819-88.tres" id="90_gumvo"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9819-89.tres" id="91_elwd0"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9819-90.tres" id="92_tuor6"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9819-91.tres" id="93_442r3"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9819-92.tres" id="94_gd5k0"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9819-93.tres" id="95_r7sc4"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9819-94.tres" id="96_vbdty"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9819-95.tres" id="97_s5ysi"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9819-96.tres" id="98_2w0i1"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9819-97.tres" id="99_8sd5n"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9819-98.tres" id="100_wxls1"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9819-99.tres" id="101_sykwt"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9819-100.tres" id="102_k6xqw"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9819-101.tres" id="103_pa5j8"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9819-102.tres" id="104_rb0h2"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9819-103.tres" id="105_la2x7"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9819-104.tres" id="106_uv6cd"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9819-105.tres" id="107_upck8"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9819-106.tres" id="108_6wjca"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9819-107.tres" id="109_2ml04"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9819-108.tres" id="110_nq65q"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9819-109.tres" id="111_icgc8"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9819-110.tres" id="112_2fd6n"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9819-111.tres" id="113_x76da"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9819-112.tres" id="114_ml2b0"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9819-113.tres" id="115_nbnsc"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9819-114.tres" id="116_fn37p"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9819-115.tres" id="117_hwxpt"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9819-116.tres" id="118_ffgvy"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9819-117.tres" id="119_n7ch4"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9819-118.tres" id="120_f37ri"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9819-119.tres" id="121_008q7"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9819-120.tres" id="122_88sxi"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9819-121.tres" id="123_7qtvf"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9819-122.tres" id="124_0i668"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9819-123.tres" id="125_c2dpf"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9819-124.tres" id="126_nkwy5"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9819-125.tres" id="127_0ykd1"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9819-126.tres" id="128_tyv34"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9819-127.tres" id="129_e58tt"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9819-128.tres" id="130_v2g25"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9819-129.tres" id="131_y8cci"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9819-130.tres" id="132_16smn"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9819-131.tres" id="133_3pp7f"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9819-132.tres" id="134_uqatr"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9819-133.tres" id="135_1vmxh"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9819-134.tres" id="136_gcxhl"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9819-135.tres" id="137_e3il6"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9819-136.tres" id="138_ypmlp"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9819-137.tres" id="139_0p3ln"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9819-138.tres" id="140_hvnsk"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9819-139.tres" id="141_h62nw"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9819-140.tres" id="142_nahxc"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9819-141.tres" id="143_kpjhj"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9819-142.tres" id="144_ixhsv"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9819-143.tres" id="145_lxqng"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9819-144.tres" id="146_sgsax"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9819-145.tres" id="147_qsj1e"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9819-146.tres" id="148_dhdec"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9819-147.tres" id="149_0sspo"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9819-148.tres" id="150_jt15l"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9819-149.tres" id="151_p6rgw"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9819-150.tres" id="152_0tp4n"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9819-151.tres" id="153_lexro"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9819-152.tres" id="154_uwydc"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9819-153.tres" id="155_knkdg"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9819-154.tres" id="156_f0bh0"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9819-155.tres" id="157_nvkx8"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9819-156.tres" id="158_r028b"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9819-157.tres" id="159_knr1l"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9819-158.tres" id="160_s2sf7"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9819-159.tres" id="161_8ugrk"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9819-160.tres" id="162_sqrch"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9819-161.tres" id="163_dvrug"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9819-162.tres" id="164_v1i4k"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9819-163.tres" id="165_172vk"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9819-164.tres" id="166_b571m"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9819-165.tres" id="167_4sh82"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9819-166.tres" id="168_qs52i"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9819-167.tres" id="169_0nyjy"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9819-168.tres" id="170_uvwy6"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9819-169.tres" id="171_o8kdl"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9819-170.tres" id="172_bl500"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9819-171.tres" id="173_l22u1"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9819-172.tres" id="174_ptlmm"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9819-173.tres" id="175_75lj2"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9819-174.tres" id="176_a5r3u"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9819-175.tres" id="177_2j263"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9819-176.tres" id="178_p86t3"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9819-177.tres" id="179_12yiw"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9819-178.tres" id="180_q75ar"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9819-179.tres" id="181_vv5we"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9819-180.tres" id="182_q5tj7"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9819-181.tres" id="183_1dk71"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9819-182.tres" id="184_iqa46"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9819-183.tres" id="185_ambur"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9819-184.tres" id="186_qy6iq"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9819-185.tres" id="187_qxx1x"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9819-186.tres" id="188_snroq"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9819-187.tres" id="189_odhhx"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9819-188.tres" id="190_abgwp"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9819-189.tres" id="191_xill0"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9819-190.tres" id="192_ivm6o"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9819-191.tres" id="193_7tlyn"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9819-192.tres" id="194_sljye"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9819-193.tres" id="195_odldn"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9819-194.tres" id="196_offd0"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9819-195.tres" id="197_3tmpm"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9819-196.tres" id="198_l3ybr"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9819-197.tres" id="199_ov0t2"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9819-198.tres" id="200_nq1lo"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9819-199.tres" id="201_4c78v"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9819-200.tres" id="202_ku6ce"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9819-201.tres" id="203_pvwpx"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9822-202.tres" id="204_wkicq"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9822-203.tres" id="205_1tjsw"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9822-204.tres" id="206_yrfsd"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9822-205.tres" id="207_bbjhu"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9822-206.tres" id="208_xakk1"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9822-207.tres" id="209_dqud3"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9822-208.tres" id="210_4jdfi"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9822-209.tres" id="211_l7qhp"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9822-210.tres" id="212_e42pf"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9822-211.tres" id="213_725x2"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9822-212.tres" id="214_7movd"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9822-213.tres" id="215_soe80"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9822-214.tres" id="216_64puo"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9822-215.tres" id="217_8docf"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9822-216.tres" id="218_wa3ql"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9822-217.tres" id="219_e4jrl"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9822-218.tres" id="220_hd0es"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9824-219.tres" id="221_ygxrm"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9824-220.tres" id="222_xpy4x"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9824-221.tres" id="223_tnaru"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9824-222.tres" id="224_3v7mb"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9824-223.tres" id="225_ex35u"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9824-224.tres" id="226_x4j5t"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9824-225.tres" id="227_p6fgm"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9824-226.tres" id="228_ry2kf"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9824-227.tres" id="229_h14ef"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9824-228.tres" id="230_2sl0m"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9824-229.tres" id="231_w6fvp"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9824-230.tres" id="232_nnvae"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9824-231.tres" id="233_3o4va"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9825-232.tres" id="234_6mqhd"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9825-233.tres" id="235_w2s8k"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9825-234.tres" id="236_fftu2"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9825-235.tres" id="237_vohre"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9825-236.tres" id="238_y3fal"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9825-237.tres" id="239_hxcla"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9825-238.tres" id="240_q60v6"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9825-239.tres" id="241_63l27"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9825-240.tres" id="242_elp71"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9825-241.tres" id="243_enry8"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9825-242.tres" id="244_qn16d"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9825-243.tres" id="245_nh38m"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9825-244.tres" id="246_xy3y2"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9825-245.tres" id="247_x3khf"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9825-246.tres" id="248_g647a"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9825-247.tres" id="249_uya7y"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9825-248.tres" id="250_vtl2t"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9825-249.tres" id="251_b0f2x"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9825-250.tres" id="252_un1el"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9830-251.tres" id="253_hbsgd"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9830-252.tres" id="254_shapy"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9830-253.tres" id="255_wqpwv"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9830-254.tres" id="256_ynp2c"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9830-255.tres" id="257_vtsja"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9830-256.tres" id="258_qf55r"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9830-257.tres" id="259_tl8je"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9830-258.tres" id="260_8vgb7"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9830-259.tres" id="261_am380"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9830-260.tres" id="262_5qxo0"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9830-261.tres" id="263_q7brk"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9830-262.tres" id="264_6hisw"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9831-263.tres" id="265_4so7p"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9831-264.tres" id="266_8flwf"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9835-265.tres" id="267_my6v0"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9835-266.tres" id="268_0pmhp"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9835-267.tres" id="269_fgr62"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9836-268.tres" id="270_8k47u"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9836-269.tres" id="271_ue0qm"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9836-270.tres" id="272_j713x"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9837-271.tres" id="273_xa2sj"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9838-272.tres" id="274_n2g5c"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9838-273.tres" id="275_pyr4g"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9838-274.tres" id="276_vi6bc"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9839-275.tres" id="277_fgp7l"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9839-276.tres" id="278_n72rs"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9839-277.tres" id="279_v3dol"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9847-278.tres" id="280_qgsea"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9847-279.tres" id="281_3h314"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9847-280.tres" id="282_u18o2"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9847-281.tres" id="283_ewnw6"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9847-282.tres" id="284_xe3yy"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9847-283.tres" id="285_uvi54"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9847-284.tres" id="286_58shm"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9848-285.tres" id="287_4lev8"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9848-286.tres" id="288_w0dfg"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9848-287.tres" id="289_hmc46"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9848-288.tres" id="290_xk0ev"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9848-289.tres" id="291_rlxuh"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9848-290.tres" id="292_wwhqe"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9848-291.tres" id="293_wwhid"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9848-292.tres" id="294_netxj"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9848-293.tres" id="295_so1um"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9848-294.tres" id="296_cytw7"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9848-295.tres" id="297_7gjh8"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9848-296.tres" id="298_lupls"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9857-297.tres" id="299_56ug0"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9857-298.tres" id="300_we25t"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9857-299.tres" id="301_offwt"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9857-300.tres" id="302_hy7jq"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9857-301.tres" id="303_v5fxt"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9857-302.tres" id="304_lmom3"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9857-303.tres" id="305_bopps"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9857-304.tres" id="306_ntpy4"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9857-305.tres" id="307_p4kr8"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9857-306.tres" id="308_s6v52"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9857-307.tres" id="309_f04ns"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9858-308.tres" id="310_a7na5"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9858-309.tres" id="311_vjbsl"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9858-310.tres" id="312_llcgw"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9858-311.tres" id="313_1te82"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9858-312.tres" id="314_6lcko"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9858-313.tres" id="315_yu25r"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9858-314.tres" id="316_7fv1u"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9858-315.tres" id="317_26ek4"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9858-316.tres" id="318_1gbi6"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9858-317.tres" id="319_uf2k4"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9858-318.tres" id="320_gc0e7"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9858-319.tres" id="321_fm043"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9858-320.tres" id="322_4sadh"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9865-321.tres" id="323_48up6"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9866-322.tres" id="324_f02es"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9866-323.tres" id="325_n2ua0"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-stpaul-source-9866-324.tres" id="326_xv840"]
+
+[node name="Objects" type="Node3D" unique_id=810149728]
+
+[node name="object_source-9814-0" type="Node3D" parent="." unique_id=195183515]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 132.66, 0, 248.26)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9814-0"
+Asset = ExtResource("2_gqxgq")
+
+[node name="object_source-9814-1" type="Node3D" parent="." unique_id=233431196]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 123.8, 0, 248.26)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9814-1"
+Asset = ExtResource("3_dudwe")
+
+[node name="object_source-9814-2" type="Node3D" parent="." unique_id=1019961009]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 109.08, 0, 248.26)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9814-2"
+Asset = ExtResource("4_x3krw")
+
+[node name="object_source-9814-3" type="Node3D" parent="." unique_id=2003626720]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 102.740005, 0, 265.64)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9814-3"
+Asset = ExtResource("5_s4eds")
+
+[node name="object_source-9814-4" type="Node3D" parent="." unique_id=928605774]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 68.07001, 0, 266.64398)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9814-4"
+Asset = ExtResource("6_nqe6s")
+
+[node name="object_source-9814-5" type="Node3D" parent="." unique_id=598663527]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 125.65048, 0, 265.69974)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9814-5"
+Asset = ExtResource("7_4qo2w")
+
+[node name="object_source-9814-6" type="Node3D" parent="." unique_id=822314962]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 126.63284, 0, 266)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9814-6"
+Asset = ExtResource("8_uvfic")
+
+[node name="object_source-9814-7" type="Node3D" parent="." unique_id=705398808]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 113.89, 0, 265.31717)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9814-7"
+Asset = ExtResource("9_p3lul")
+
+[node name="object_source-9817-8" type="Node3D" parent="." unique_id=1091239642]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 68.99216, 0, 265.99973)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9817-8"
+Asset = ExtResource("10_36tnl")
+
+[node name="object_source-9819-9" type="Node3D" parent="." unique_id=1514613404]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 138.1204, 0, 249.68977)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9819-9"
+Asset = ExtResource("11_rqe83")
+
+[node name="object_source-9819-10" type="Node3D" parent="." unique_id=56461273]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 136.52032, 0, 249.68977)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9819-10"
+Asset = ExtResource("12_5oe87")
+
+[node name="object_source-9819-11" type="Node3D" parent="." unique_id=255513771]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 134.92073, 0, 249.68977)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9819-11"
+Asset = ExtResource("13_8ot8y")
+
+[node name="object_source-9819-12" type="Node3D" parent="." unique_id=965170262]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 133.32014, 0, 249.68977)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9819-12"
+Asset = ExtResource("14_yuh3e")
+
+[node name="object_source-9819-13" type="Node3D" parent="." unique_id=845788699]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 131.72057, 0, 249.68977)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9819-13"
+Asset = ExtResource("15_v6i18")
+
+[node name="object_source-9819-14" type="Node3D" parent="." unique_id=1219151809]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 130.12048, 0, 249.68977)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9819-14"
+Asset = ExtResource("16_vr3fd")
+
+[node name="object_source-9819-15" type="Node3D" parent="." unique_id=494210270]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 128.52039, 0, 249.68977)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9819-15"
+Asset = ExtResource("17_2pgfy")
+
+[node name="object_source-9819-16" type="Node3D" parent="." unique_id=715947830]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 126.92081, 0, 249.68977)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9819-16"
+Asset = ExtResource("18_smq0t")
+
+[node name="object_source-9819-17" type="Node3D" parent="." unique_id=1677620985]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 125.32022, 0, 249.68977)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9819-17"
+Asset = ExtResource("19_jfp7j")
+
+[node name="object_source-9819-18" type="Node3D" parent="." unique_id=633859279]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 123.72064, 0, 249.68977)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9819-18"
+Asset = ExtResource("20_d4ss2")
+
+[node name="object_source-9819-19" type="Node3D" parent="." unique_id=607906115]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 122.12055, 0, 249.68977)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9819-19"
+Asset = ExtResource("21_afegm")
+
+[node name="object_source-9819-20" type="Node3D" parent="." unique_id=1054144937]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 120.52046, 0, 249.68977)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9819-20"
+Asset = ExtResource("22_05vej")
+
+[node name="object_source-9819-21" type="Node3D" parent="." unique_id=83864468]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 118.92088, 0, 249.68977)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9819-21"
+Asset = ExtResource("23_o8d7h")
+
+[node name="object_source-9819-22" type="Node3D" parent="." unique_id=2064719642]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 117.3203, 0, 249.68977)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9819-22"
+Asset = ExtResource("24_vtby2")
+
+[node name="object_source-9819-23" type="Node3D" parent="." unique_id=438376492]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 115.72071, 0, 249.68977)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9819-23"
+Asset = ExtResource("25_gc5c4")
+
+[node name="object_source-9819-24" type="Node3D" parent="." unique_id=119945825]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 114.12013, 0, 249.68977)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9819-24"
+Asset = ExtResource("26_aak2e")
+
+[node name="object_source-9819-25" type="Node3D" parent="." unique_id=305637326]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 112.52054, 0, 249.68977)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9819-25"
+Asset = ExtResource("27_3u5v2")
+
+[node name="object_source-9819-26" type="Node3D" parent="." unique_id=614469053]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 110.920456, 0, 249.68977)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9819-26"
+Asset = ExtResource("28_hkrwa")
+
+[node name="object_source-9819-27" type="Node3D" parent="." unique_id=17136584]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 109.32037, 0, 249.68977)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9819-27"
+Asset = ExtResource("29_6qjmy")
+
+[node name="object_source-9819-28" type="Node3D" parent="." unique_id=1304667591]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 107.72078, 0, 249.68977)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9819-28"
+Asset = ExtResource("30_s3oae")
+
+[node name="object_source-9819-29" type="Node3D" parent="." unique_id=855621627]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 106.12019, 0, 249.68977)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9819-29"
+Asset = ExtResource("31_q6xto")
+
+[node name="object_source-9819-30" type="Node3D" parent="." unique_id=5596379]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 104.520615, 0, 249.68977)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9819-30"
+Asset = ExtResource("32_j8wnr")
+
+[node name="object_source-9819-31" type="Node3D" parent="." unique_id=2095433047]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 102.92053, 0, 249.68977)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9819-31"
+Asset = ExtResource("33_p2etj")
+
+[node name="object_source-9819-32" type="Node3D" parent="." unique_id=1302517520]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 101.32044, 0, 249.68977)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9819-32"
+Asset = ExtResource("34_03ep3")
+
+[node name="object_source-9819-33" type="Node3D" parent="." unique_id=1627196175]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 130.71017, 0, 261.84982)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9819-33"
+Asset = ExtResource("35_rps4c")
+
+[node name="object_source-9819-34" type="Node3D" parent="." unique_id=129256527]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 130.71017, 0, 262.36993)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9819-34"
+Asset = ExtResource("36_kbc57")
+
+[node name="object_source-9819-35" type="Node3D" parent="." unique_id=840670475]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 130.71017, 0, 262.8897)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9819-35"
+Asset = ExtResource("37_4ib13")
+
+[node name="object_source-9819-36" type="Node3D" parent="." unique_id=1184828142]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 130.71017, 0, 263.4098)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9819-36"
+Asset = ExtResource("38_mrdvs")
+
+[node name="object_source-9819-37" type="Node3D" parent="." unique_id=401099897]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 130.71017, 0, 263.92987)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9819-37"
+Asset = ExtResource("39_32uds")
+
+[node name="object_source-9819-38" type="Node3D" parent="." unique_id=1765865458]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 130.71017, 0, 264.44995)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9819-38"
+Asset = ExtResource("40_5tqxd")
+
+[node name="object_source-9819-39" type="Node3D" parent="." unique_id=1968060157]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 130.71017, 0, 264.9698)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9819-39"
+Asset = ExtResource("41_uvnt2")
+
+[node name="object_source-9819-40" type="Node3D" parent="." unique_id=1979797793]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 129.76031, 0, 261.84982)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9819-40"
+Asset = ExtResource("42_rvxja")
+
+[node name="object_source-9819-41" type="Node3D" parent="." unique_id=223776327]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 129.76031, 0, 262.36993)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9819-41"
+Asset = ExtResource("43_w4n03")
+
+[node name="object_source-9819-42" type="Node3D" parent="." unique_id=626478522]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 129.76031, 0, 262.8897)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9819-42"
+Asset = ExtResource("44_ah667")
+
+[node name="object_source-9819-43" type="Node3D" parent="." unique_id=652799937]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 129.76031, 0, 263.4098)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9819-43"
+Asset = ExtResource("45_jebb6")
+
+[node name="object_source-9819-44" type="Node3D" parent="." unique_id=1434849875]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 129.76031, 0, 263.92987)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9819-44"
+Asset = ExtResource("46_r2eyu")
+
+[node name="object_source-9819-45" type="Node3D" parent="." unique_id=1303922364]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 129.76031, 0, 264.44995)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9819-45"
+Asset = ExtResource("47_rua6s")
+
+[node name="object_source-9819-46" type="Node3D" parent="." unique_id=2119899914]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 129.76031, 0, 264.9698)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9819-46"
+Asset = ExtResource("48_8yirx")
+
+[node name="object_source-9819-47" type="Node3D" parent="." unique_id=1807378796]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 128.81046, 0, 261.84982)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9819-47"
+Asset = ExtResource("49_ndyor")
+
+[node name="object_source-9819-48" type="Node3D" parent="." unique_id=1328888992]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 128.81046, 0, 262.36993)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9819-48"
+Asset = ExtResource("50_ymnwv")
+
+[node name="object_source-9819-49" type="Node3D" parent="." unique_id=1185222174]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 128.81046, 0, 262.8897)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9819-49"
+Asset = ExtResource("51_1bslr")
+
+[node name="object_source-9819-50" type="Node3D" parent="." unique_id=250194712]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 128.81046, 0, 263.4098)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9819-50"
+Asset = ExtResource("52_qqfor")
+
+[node name="object_source-9819-51" type="Node3D" parent="." unique_id=632452186]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 128.81046, 0, 263.92987)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9819-51"
+Asset = ExtResource("53_u5vv1")
+
+[node name="object_source-9819-52" type="Node3D" parent="." unique_id=1988921746]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 128.81046, 0, 264.44995)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9819-52"
+Asset = ExtResource("54_7g7c1")
+
+[node name="object_source-9819-53" type="Node3D" parent="." unique_id=1594792523]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 128.81046, 0, 264.9698)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9819-53"
+Asset = ExtResource("55_pa38e")
+
+[node name="object_source-9819-54" type="Node3D" parent="." unique_id=296427547]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 127.86037, 0, 261.84982)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9819-54"
+Asset = ExtResource("56_wxqxo")
+
+[node name="object_source-9819-55" type="Node3D" parent="." unique_id=10379288]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 127.86037, 0, 262.36993)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9819-55"
+Asset = ExtResource("57_n1dia")
+
+[node name="object_source-9819-56" type="Node3D" parent="." unique_id=1168544509]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 127.86037, 0, 262.8897)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9819-56"
+Asset = ExtResource("58_ara0k")
+
+[node name="object_source-9819-57" type="Node3D" parent="." unique_id=1210276346]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 127.86037, 0, 263.4098)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9819-57"
+Asset = ExtResource("59_enljh")
+
+[node name="object_source-9819-58" type="Node3D" parent="." unique_id=26218362]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 127.86037, 0, 263.92987)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9819-58"
+Asset = ExtResource("60_5r2bx")
+
+[node name="object_source-9819-59" type="Node3D" parent="." unique_id=985655625]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 127.86037, 0, 264.44995)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9819-59"
+Asset = ExtResource("61_bltnq")
+
+[node name="object_source-9819-60" type="Node3D" parent="." unique_id=2100763272]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 127.86037, 0, 264.9698)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9819-60"
+Asset = ExtResource("62_a0r57")
+
+[node name="object_source-9819-61" type="Node3D" parent="." unique_id=365806048]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 126.9105, 0, 261.84982)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9819-61"
+Asset = ExtResource("63_xl15n")
+
+[node name="object_source-9819-62" type="Node3D" parent="." unique_id=1467061108]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 126.9105, 0, 262.36993)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9819-62"
+Asset = ExtResource("64_l0rjh")
+
+[node name="object_source-9819-63" type="Node3D" parent="." unique_id=909867905]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 126.9105, 0, 262.8897)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9819-63"
+Asset = ExtResource("65_olomc")
+
+[node name="object_source-9819-64" type="Node3D" parent="." unique_id=1997057367]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 126.9105, 0, 263.4098)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9819-64"
+Asset = ExtResource("66_18rig")
+
+[node name="object_source-9819-65" type="Node3D" parent="." unique_id=1239263461]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 126.9105, 0, 263.92987)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9819-65"
+Asset = ExtResource("67_1ka0a")
+
+[node name="object_source-9819-66" type="Node3D" parent="." unique_id=98611811]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 126.9105, 0, 264.44995)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9819-66"
+Asset = ExtResource("68_hxx5f")
+
+[node name="object_source-9819-67" type="Node3D" parent="." unique_id=1364608998]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 126.9105, 0, 264.9698)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9819-67"
+Asset = ExtResource("69_stryn")
+
+[node name="object_source-9819-68" type="Node3D" parent="." unique_id=1021451833]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 125.96042, 0, 261.84982)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9819-68"
+Asset = ExtResource("70_f7mgs")
+
+[node name="object_source-9819-69" type="Node3D" parent="." unique_id=2109558318]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 125.96042, 0, 262.36993)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9819-69"
+Asset = ExtResource("71_6a4lk")
+
+[node name="object_source-9819-70" type="Node3D" parent="." unique_id=1192051698]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 125.96042, 0, 262.8897)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9819-70"
+Asset = ExtResource("72_ymyf3")
+
+[node name="object_source-9819-71" type="Node3D" parent="." unique_id=689838833]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 125.96042, 0, 263.4098)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9819-71"
+Asset = ExtResource("73_qw6rb")
+
+[node name="object_source-9819-72" type="Node3D" parent="." unique_id=235990505]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 125.96042, 0, 263.92987)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9819-72"
+Asset = ExtResource("74_bsc1s")
+
+[node name="object_source-9819-73" type="Node3D" parent="." unique_id=1339977950]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 125.96042, 0, 264.44995)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9819-73"
+Asset = ExtResource("75_1xc44")
+
+[node name="object_source-9819-74" type="Node3D" parent="." unique_id=1534939574]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 125.96042, 0, 264.9698)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9819-74"
+Asset = ExtResource("76_pdvqb")
+
+[node name="object_source-9819-75" type="Node3D" parent="." unique_id=429276332]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 125.01055, 0, 261.84982)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9819-75"
+Asset = ExtResource("77_r671s")
+
+[node name="object_source-9819-76" type="Node3D" parent="." unique_id=1010879011]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 125.01055, 0, 262.36993)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9819-76"
+Asset = ExtResource("78_c4ah2")
+
+[node name="object_source-9819-77" type="Node3D" parent="." unique_id=661342166]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 125.01055, 0, 262.8897)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9819-77"
+Asset = ExtResource("79_xh0b6")
+
+[node name="object_source-9819-78" type="Node3D" parent="." unique_id=1867839350]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 125.01055, 0, 263.4098)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9819-78"
+Asset = ExtResource("80_6n5p5")
+
+[node name="object_source-9819-79" type="Node3D" parent="." unique_id=1388481517]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 125.01055, 0, 263.92987)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9819-79"
+Asset = ExtResource("81_32mal")
+
+[node name="object_source-9819-80" type="Node3D" parent="." unique_id=282221393]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 125.01055, 0, 264.44995)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9819-80"
+Asset = ExtResource("82_ngecc")
+
+[node name="object_source-9819-81" type="Node3D" parent="." unique_id=456358286]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 125.01055, 0, 264.9698)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9819-81"
+Asset = ExtResource("83_23g4g")
+
+[node name="object_source-9819-82" type="Node3D" parent="." unique_id=869456245]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 124.06047, 0, 261.84982)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9819-82"
+Asset = ExtResource("84_7bcg6")
+
+[node name="object_source-9819-83" type="Node3D" parent="." unique_id=1214573817]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 124.06047, 0, 262.36993)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9819-83"
+Asset = ExtResource("85_h4wb7")
+
+[node name="object_source-9819-84" type="Node3D" parent="." unique_id=1030868343]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 124.06047, 0, 262.8897)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9819-84"
+Asset = ExtResource("86_wja6b")
+
+[node name="object_source-9819-85" type="Node3D" parent="." unique_id=727889426]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 124.06047, 0, 263.4098)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9819-85"
+Asset = ExtResource("87_xxjek")
+
+[node name="object_source-9819-86" type="Node3D" parent="." unique_id=1155588037]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 124.06047, 0, 263.92987)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9819-86"
+Asset = ExtResource("88_wt73u")
+
+[node name="object_source-9819-87" type="Node3D" parent="." unique_id=816341113]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 124.06047, 0, 264.44995)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9819-87"
+Asset = ExtResource("89_hlfrk")
+
+[node name="object_source-9819-88" type="Node3D" parent="." unique_id=1641926970]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 124.06047, 0, 264.9698)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9819-88"
+Asset = ExtResource("90_gumvo")
+
+[node name="object_source-9819-89" type="Node3D" parent="." unique_id=527033726]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 123.11061, 0, 261.84982)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9819-89"
+Asset = ExtResource("91_elwd0")
+
+[node name="object_source-9819-90" type="Node3D" parent="." unique_id=923500103]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 123.11061, 0, 262.36993)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9819-90"
+Asset = ExtResource("92_tuor6")
+
+[node name="object_source-9819-91" type="Node3D" parent="." unique_id=1402032608]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 123.11061, 0, 262.8897)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9819-91"
+Asset = ExtResource("93_442r3")
+
+[node name="object_source-9819-92" type="Node3D" parent="." unique_id=427438528]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 123.11061, 0, 263.4098)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9819-92"
+Asset = ExtResource("94_gd5k0")
+
+[node name="object_source-9819-93" type="Node3D" parent="." unique_id=1605975355]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 123.11061, 0, 263.92987)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9819-93"
+Asset = ExtResource("95_r7sc4")
+
+[node name="object_source-9819-94" type="Node3D" parent="." unique_id=1260543127]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 123.11061, 0, 264.44995)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9819-94"
+Asset = ExtResource("96_vbdty")
+
+[node name="object_source-9819-95" type="Node3D" parent="." unique_id=1601972106]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 123.11061, 0, 264.9698)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9819-95"
+Asset = ExtResource("97_s5ysi")
+
+[node name="object_source-9819-96" type="Node3D" parent="." unique_id=1175982912]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 122.16052, 0, 261.84982)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9819-96"
+Asset = ExtResource("98_2w0i1")
+
+[node name="object_source-9819-97" type="Node3D" parent="." unique_id=66542217]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 122.16052, 0, 262.36993)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9819-97"
+Asset = ExtResource("99_8sd5n")
+
+[node name="object_source-9819-98" type="Node3D" parent="." unique_id=74494298]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 122.16052, 0, 262.8897)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9819-98"
+Asset = ExtResource("100_wxls1")
+
+[node name="object_source-9819-99" type="Node3D" parent="." unique_id=290979785]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 122.16052, 0, 263.4098)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9819-99"
+Asset = ExtResource("101_sykwt")
+
+[node name="object_source-9819-100" type="Node3D" parent="." unique_id=624136304]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 122.16052, 0, 263.92987)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9819-100"
+Asset = ExtResource("102_k6xqw")
+
+[node name="object_source-9819-101" type="Node3D" parent="." unique_id=639933912]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 122.16052, 0, 264.44995)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9819-101"
+Asset = ExtResource("103_pa5j8")
+
+[node name="object_source-9819-102" type="Node3D" parent="." unique_id=153172326]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 122.16052, 0, 264.9698)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9819-102"
+Asset = ExtResource("104_rb0h2")
+
+[node name="object_source-9819-103" type="Node3D" parent="." unique_id=763360351]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 121.21066, 0, 261.84982)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9819-103"
+Asset = ExtResource("105_la2x7")
+
+[node name="object_source-9819-104" type="Node3D" parent="." unique_id=1095810827]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 121.21066, 0, 262.36993)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9819-104"
+Asset = ExtResource("106_uv6cd")
+
+[node name="object_source-9819-105" type="Node3D" parent="." unique_id=883131888]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 121.21066, 0, 262.8897)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9819-105"
+Asset = ExtResource("107_upck8")
+
+[node name="object_source-9819-106" type="Node3D" parent="." unique_id=1974811363]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 121.21066, 0, 263.4098)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9819-106"
+Asset = ExtResource("108_6wjca")
+
+[node name="object_source-9819-107" type="Node3D" parent="." unique_id=418434309]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 121.21066, 0, 263.92987)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9819-107"
+Asset = ExtResource("109_2ml04")
+
+[node name="object_source-9819-108" type="Node3D" parent="." unique_id=786351532]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 121.21066, 0, 264.44995)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9819-108"
+Asset = ExtResource("110_nq65q")
+
+[node name="object_source-9819-109" type="Node3D" parent="." unique_id=41883794]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 121.21066, 0, 264.9698)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9819-109"
+Asset = ExtResource("111_icgc8")
+
+[node name="object_source-9819-110" type="Node3D" parent="." unique_id=127338199]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 120.260574, 0, 261.84982)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9819-110"
+Asset = ExtResource("112_2fd6n")
+
+[node name="object_source-9819-111" type="Node3D" parent="." unique_id=1775555609]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 120.260574, 0, 262.36993)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9819-111"
+Asset = ExtResource("113_x76da")
+
+[node name="object_source-9819-112" type="Node3D" parent="." unique_id=574316563]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 120.260574, 0, 262.8897)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9819-112"
+Asset = ExtResource("114_ml2b0")
+
+[node name="object_source-9819-113" type="Node3D" parent="." unique_id=391894731]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 120.260574, 0, 263.4098)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9819-113"
+Asset = ExtResource("115_nbnsc")
+
+[node name="object_source-9819-114" type="Node3D" parent="." unique_id=861268950]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 120.260574, 0, 263.92987)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9819-114"
+Asset = ExtResource("116_fn37p")
+
+[node name="object_source-9819-115" type="Node3D" parent="." unique_id=1174866653]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 120.260574, 0, 264.44995)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9819-115"
+Asset = ExtResource("117_hwxpt")
+
+[node name="object_source-9819-116" type="Node3D" parent="." unique_id=530314967]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 120.260574, 0, 264.9698)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9819-116"
+Asset = ExtResource("118_ffgvy")
+
+[node name="object_source-9819-117" type="Node3D" parent="." unique_id=1910877554]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 119.31021, 0, 261.84982)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9819-117"
+Asset = ExtResource("119_n7ch4")
+
+[node name="object_source-9819-118" type="Node3D" parent="." unique_id=1375909435]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 119.31021, 0, 262.36993)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9819-118"
+Asset = ExtResource("120_f37ri")
+
+[node name="object_source-9819-119" type="Node3D" parent="." unique_id=10242838]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 119.31021, 0, 262.8897)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9819-119"
+Asset = ExtResource("121_008q7")
+
+[node name="object_source-9819-120" type="Node3D" parent="." unique_id=1366615039]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 119.31021, 0, 263.4098)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9819-120"
+Asset = ExtResource("122_88sxi")
+
+[node name="object_source-9819-121" type="Node3D" parent="." unique_id=2042449177]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 119.31021, 0, 263.92987)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9819-121"
+Asset = ExtResource("123_7qtvf")
+
+[node name="object_source-9819-122" type="Node3D" parent="." unique_id=986209029]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 119.31021, 0, 264.44995)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9819-122"
+Asset = ExtResource("124_0i668")
+
+[node name="object_source-9819-123" type="Node3D" parent="." unique_id=949084741]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 119.31021, 0, 264.9698)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9819-123"
+Asset = ExtResource("125_c2dpf")
+
+[node name="object_source-9819-124" type="Node3D" parent="." unique_id=1747538637]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 113.3101, 0, 261.84982)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9819-124"
+Asset = ExtResource("126_nkwy5")
+
+[node name="object_source-9819-125" type="Node3D" parent="." unique_id=1206670613]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 113.3101, 0, 262.36993)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9819-125"
+Asset = ExtResource("127_0ykd1")
+
+[node name="object_source-9819-126" type="Node3D" parent="." unique_id=1643016250]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 113.3101, 0, 262.8897)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9819-126"
+Asset = ExtResource("128_tyv34")
+
+[node name="object_source-9819-127" type="Node3D" parent="." unique_id=1057503308]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 113.3101, 0, 263.4098)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9819-127"
+Asset = ExtResource("129_e58tt")
+
+[node name="object_source-9819-128" type="Node3D" parent="." unique_id=855317556]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 113.3101, 0, 263.92987)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9819-128"
+Asset = ExtResource("130_v2g25")
+
+[node name="object_source-9819-129" type="Node3D" parent="." unique_id=686698088]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 113.3101, 0, 264.44995)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9819-129"
+Asset = ExtResource("131_y8cci")
+
+[node name="object_source-9819-130" type="Node3D" parent="." unique_id=219545746]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 113.3101, 0, 264.9698)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9819-130"
+Asset = ExtResource("132_16smn")
+
+[node name="object_source-9819-131" type="Node3D" parent="." unique_id=1927191989]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 112.36023, 0, 261.84982)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9819-131"
+Asset = ExtResource("133_3pp7f")
+
+[node name="object_source-9819-132" type="Node3D" parent="." unique_id=1727813543]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 112.36023, 0, 262.36993)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9819-132"
+Asset = ExtResource("134_uqatr")
+
+[node name="object_source-9819-133" type="Node3D" parent="." unique_id=1608513430]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 112.36023, 0, 262.8897)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9819-133"
+Asset = ExtResource("135_1vmxh")
+
+[node name="object_source-9819-134" type="Node3D" parent="." unique_id=796109045]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 112.36023, 0, 263.4098)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9819-134"
+Asset = ExtResource("136_gcxhl")
+
+[node name="object_source-9819-135" type="Node3D" parent="." unique_id=1093085512]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 112.36023, 0, 263.92987)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9819-135"
+Asset = ExtResource("137_e3il6")
+
+[node name="object_source-9819-136" type="Node3D" parent="." unique_id=596275893]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 112.36023, 0, 264.44995)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9819-136"
+Asset = ExtResource("138_ypmlp")
+
+[node name="object_source-9819-137" type="Node3D" parent="." unique_id=2097899163]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 112.36023, 0, 264.9698)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9819-137"
+Asset = ExtResource("139_0p3ln")
+
+[node name="object_source-9819-138" type="Node3D" parent="." unique_id=914132861]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 111.41016, 0, 261.84982)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9819-138"
+Asset = ExtResource("140_hvnsk")
+
+[node name="object_source-9819-139" type="Node3D" parent="." unique_id=1741197128]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 111.41016, 0, 262.36993)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9819-139"
+Asset = ExtResource("141_h62nw")
+
+[node name="object_source-9819-140" type="Node3D" parent="." unique_id=1831666602]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 111.41016, 0, 262.8897)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9819-140"
+Asset = ExtResource("142_nahxc")
+
+[node name="object_source-9819-141" type="Node3D" parent="." unique_id=1630762283]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 111.41016, 0, 263.4098)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9819-141"
+Asset = ExtResource("143_kpjhj")
+
+[node name="object_source-9819-142" type="Node3D" parent="." unique_id=2029144932]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 111.41016, 0, 263.92987)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9819-142"
+Asset = ExtResource("144_ixhsv")
+
+[node name="object_source-9819-143" type="Node3D" parent="." unique_id=868121188]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 111.41016, 0, 264.44995)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9819-143"
+Asset = ExtResource("145_lxqng")
+
+[node name="object_source-9819-144" type="Node3D" parent="." unique_id=1266479258]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 111.41016, 0, 264.9698)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9819-144"
+Asset = ExtResource("146_sgsax")
+
+[node name="object_source-9819-145" type="Node3D" parent="." unique_id=80536670]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 110.46028, 0, 261.84982)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9819-145"
+Asset = ExtResource("147_qsj1e")
+
+[node name="object_source-9819-146" type="Node3D" parent="." unique_id=2139656500]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 110.46028, 0, 262.36993)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9819-146"
+Asset = ExtResource("148_dhdec")
+
+[node name="object_source-9819-147" type="Node3D" parent="." unique_id=1717816125]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 110.46028, 0, 262.8897)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9819-147"
+Asset = ExtResource("149_0sspo")
+
+[node name="object_source-9819-148" type="Node3D" parent="." unique_id=940512179]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 110.46028, 0, 263.4098)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9819-148"
+Asset = ExtResource("150_jt15l")
+
+[node name="object_source-9819-149" type="Node3D" parent="." unique_id=1285936927]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 110.46028, 0, 263.92987)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9819-149"
+Asset = ExtResource("151_p6rgw")
+
+[node name="object_source-9819-150" type="Node3D" parent="." unique_id=1389463767]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 110.46028, 0, 264.44995)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9819-150"
+Asset = ExtResource("152_0tp4n")
+
+[node name="object_source-9819-151" type="Node3D" parent="." unique_id=1620459506]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 110.46028, 0, 264.9698)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9819-151"
+Asset = ExtResource("153_lexro")
+
+[node name="object_source-9819-152" type="Node3D" parent="." unique_id=709001604]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 109.51021, 0, 261.84982)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9819-152"
+Asset = ExtResource("154_uwydc")
+
+[node name="object_source-9819-153" type="Node3D" parent="." unique_id=984518325]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 109.51021, 0, 262.36993)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9819-153"
+Asset = ExtResource("155_knkdg")
+
+[node name="object_source-9819-154" type="Node3D" parent="." unique_id=77374924]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 109.51021, 0, 262.8897)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9819-154"
+Asset = ExtResource("156_f0bh0")
+
+[node name="object_source-9819-155" type="Node3D" parent="." unique_id=675021094]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 109.51021, 0, 263.4098)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9819-155"
+Asset = ExtResource("157_nvkx8")
+
+[node name="object_source-9819-156" type="Node3D" parent="." unique_id=1654890222]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 109.51021, 0, 263.92987)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9819-156"
+Asset = ExtResource("158_r028b")
+
+[node name="object_source-9819-157" type="Node3D" parent="." unique_id=2018839856]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 109.51021, 0, 264.44995)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9819-157"
+Asset = ExtResource("159_knr1l")
+
+[node name="object_source-9819-158" type="Node3D" parent="." unique_id=1718476674]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 109.51021, 0, 264.9698)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9819-158"
+Asset = ExtResource("160_s2sf7")
+
+[node name="object_source-9819-159" type="Node3D" parent="." unique_id=903980882]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 108.56033, 0, 261.84982)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9819-159"
+Asset = ExtResource("161_8ugrk")
+
+[node name="object_source-9819-160" type="Node3D" parent="." unique_id=835689139]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 108.56033, 0, 262.36993)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9819-160"
+Asset = ExtResource("162_sqrch")
+
+[node name="object_source-9819-161" type="Node3D" parent="." unique_id=168411739]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 108.56033, 0, 262.8897)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9819-161"
+Asset = ExtResource("163_dvrug")
+
+[node name="object_source-9819-162" type="Node3D" parent="." unique_id=1384547911]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 108.56033, 0, 263.4098)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9819-162"
+Asset = ExtResource("164_v1i4k")
+
+[node name="object_source-9819-163" type="Node3D" parent="." unique_id=879226962]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 108.56033, 0, 263.92987)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9819-163"
+Asset = ExtResource("165_172vk")
+
+[node name="object_source-9819-164" type="Node3D" parent="." unique_id=209656885]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 108.56033, 0, 264.44995)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9819-164"
+Asset = ExtResource("166_b571m")
+
+[node name="object_source-9819-165" type="Node3D" parent="." unique_id=1827687570]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 108.56033, 0, 264.9698)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9819-165"
+Asset = ExtResource("167_4sh82")
+
+[node name="object_source-9819-166" type="Node3D" parent="." unique_id=65393391]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 107.61026, 0, 261.84982)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9819-166"
+Asset = ExtResource("168_qs52i")
+
+[node name="object_source-9819-167" type="Node3D" parent="." unique_id=1560520614]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 107.61026, 0, 262.36993)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9819-167"
+Asset = ExtResource("169_0nyjy")
+
+[node name="object_source-9819-168" type="Node3D" parent="." unique_id=1640724588]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 107.61026, 0, 262.8897)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9819-168"
+Asset = ExtResource("170_uvwy6")
+
+[node name="object_source-9819-169" type="Node3D" parent="." unique_id=1256086609]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 107.61026, 0, 263.4098)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9819-169"
+Asset = ExtResource("171_o8kdl")
+
+[node name="object_source-9819-170" type="Node3D" parent="." unique_id=1387253526]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 107.61026, 0, 263.92987)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9819-170"
+Asset = ExtResource("172_bl500")
+
+[node name="object_source-9819-171" type="Node3D" parent="." unique_id=1410425290]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 107.61026, 0, 264.44995)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9819-171"
+Asset = ExtResource("173_l22u1")
+
+[node name="object_source-9819-172" type="Node3D" parent="." unique_id=1220937782]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 107.61026, 0, 264.9698)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9819-172"
+Asset = ExtResource("174_ptlmm")
+
+[node name="object_source-9819-173" type="Node3D" parent="." unique_id=1814558746]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 106.66039, 0, 261.84982)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9819-173"
+Asset = ExtResource("175_75lj2")
+
+[node name="object_source-9819-174" type="Node3D" parent="." unique_id=1233141504]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 106.66039, 0, 262.36993)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9819-174"
+Asset = ExtResource("176_a5r3u")
+
+[node name="object_source-9819-175" type="Node3D" parent="." unique_id=1673147375]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 106.66039, 0, 262.8897)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9819-175"
+Asset = ExtResource("177_2j263")
+
+[node name="object_source-9819-176" type="Node3D" parent="." unique_id=1474975984]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 106.66039, 0, 263.4098)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9819-176"
+Asset = ExtResource("178_p86t3")
+
+[node name="object_source-9819-177" type="Node3D" parent="." unique_id=506625985]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 106.66039, 0, 263.92987)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9819-177"
+Asset = ExtResource("179_12yiw")
+
+[node name="object_source-9819-178" type="Node3D" parent="." unique_id=339523983]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 106.66039, 0, 264.44995)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9819-178"
+Asset = ExtResource("180_q75ar")
+
+[node name="object_source-9819-179" type="Node3D" parent="." unique_id=539280108]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 106.66039, 0, 264.9698)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9819-179"
+Asset = ExtResource("181_vv5we")
+
+[node name="object_source-9819-180" type="Node3D" parent="." unique_id=591416331]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 105.71031, 0, 261.84982)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9819-180"
+Asset = ExtResource("182_q5tj7")
+
+[node name="object_source-9819-181" type="Node3D" parent="." unique_id=1458123027]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 105.71031, 0, 262.36993)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9819-181"
+Asset = ExtResource("183_1dk71")
+
+[node name="object_source-9819-182" type="Node3D" parent="." unique_id=368439999]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 105.71031, 0, 262.8897)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9819-182"
+Asset = ExtResource("184_iqa46")
+
+[node name="object_source-9819-183" type="Node3D" parent="." unique_id=124210376]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 105.71031, 0, 263.4098)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9819-183"
+Asset = ExtResource("185_ambur")
+
+[node name="object_source-9819-184" type="Node3D" parent="." unique_id=1179229120]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 105.71031, 0, 263.92987)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9819-184"
+Asset = ExtResource("186_qy6iq")
+
+[node name="object_source-9819-185" type="Node3D" parent="." unique_id=1967111028]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 105.71031, 0, 264.44995)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9819-185"
+Asset = ExtResource("187_qxx1x")
+
+[node name="object_source-9819-186" type="Node3D" parent="." unique_id=1612564899]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 105.71031, 0, 264.9698)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9819-186"
+Asset = ExtResource("188_snroq")
+
+[node name="object_source-9819-187" type="Node3D" parent="." unique_id=1031577788]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 104.760445, 0, 261.84982)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9819-187"
+Asset = ExtResource("189_odhhx")
+
+[node name="object_source-9819-188" type="Node3D" parent="." unique_id=598438220]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 104.760445, 0, 262.36993)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9819-188"
+Asset = ExtResource("190_abgwp")
+
+[node name="object_source-9819-189" type="Node3D" parent="." unique_id=1406915511]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 104.760445, 0, 262.8897)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9819-189"
+Asset = ExtResource("191_xill0")
+
+[node name="object_source-9819-190" type="Node3D" parent="." unique_id=154777000]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 104.760445, 0, 263.4098)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9819-190"
+Asset = ExtResource("192_ivm6o")
+
+[node name="object_source-9819-191" type="Node3D" parent="." unique_id=1715865156]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 104.760445, 0, 263.92987)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9819-191"
+Asset = ExtResource("193_7tlyn")
+
+[node name="object_source-9819-192" type="Node3D" parent="." unique_id=705552594]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 104.760445, 0, 264.44995)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9819-192"
+Asset = ExtResource("194_sljye")
+
+[node name="object_source-9819-193" type="Node3D" parent="." unique_id=1648309912]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 104.760445, 0, 264.9698)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9819-193"
+Asset = ExtResource("195_odldn")
+
+[node name="object_source-9819-194" type="Node3D" parent="." unique_id=790531792]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 103.81036, 0, 261.84982)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9819-194"
+Asset = ExtResource("196_offd0")
+
+[node name="object_source-9819-195" type="Node3D" parent="." unique_id=918835151]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 103.81036, 0, 262.36993)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9819-195"
+Asset = ExtResource("197_3tmpm")
+
+[node name="object_source-9819-196" type="Node3D" parent="." unique_id=1739724144]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 103.81036, 0, 262.8897)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9819-196"
+Asset = ExtResource("198_l3ybr")
+
+[node name="object_source-9819-197" type="Node3D" parent="." unique_id=620949914]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 103.81036, 0, 263.4098)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9819-197"
+Asset = ExtResource("199_ov0t2")
+
+[node name="object_source-9819-198" type="Node3D" parent="." unique_id=1025712859]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 103.81036, 0, 263.92987)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9819-198"
+Asset = ExtResource("200_nq1lo")
+
+[node name="object_source-9819-199" type="Node3D" parent="." unique_id=2090217981]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 103.81036, 0, 264.44995)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9819-199"
+Asset = ExtResource("201_4c78v")
+
+[node name="object_source-9819-200" type="Node3D" parent="." unique_id=381392091]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 103.81036, 0, 264.9698)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9819-200"
+Asset = ExtResource("202_ku6ce")
+
+[node name="object_source-9819-201" type="Node3D" parent="." unique_id=1194020054]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 79.90541, 0, 270.11737)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9819-201"
+Asset = ExtResource("203_pvwpx")
+
+[node name="object_source-9822-202" type="Node3D" parent="." unique_id=264724462]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 136.59077, 0, 248.25992)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9822-202"
+Asset = ExtResource("204_wkicq")
+
+[node name="object_source-9822-203" type="Node3D" parent="." unique_id=1538267259]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 135.59053, 0, 248.25992)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9822-203"
+Asset = ExtResource("205_1tjsw")
+
+[node name="object_source-9822-204" type="Node3D" parent="." unique_id=976756086]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 128.73058, 0, 248.25992)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9822-204"
+Asset = ExtResource("206_yrfsd")
+
+[node name="object_source-9822-205" type="Node3D" parent="." unique_id=295789840]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 127.730865, 0, 248.25992)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9822-205"
+Asset = ExtResource("207_bbjhu")
+
+[node name="object_source-9822-206" type="Node3D" parent="." unique_id=670563240]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 120.87039, 0, 248.25992)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9822-206"
+Asset = ExtResource("208_xakk1")
+
+[node name="object_source-9822-207" type="Node3D" parent="." unique_id=264883322]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 119.87067, 0, 248.25992)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9822-207"
+Asset = ExtResource("209_dqud3")
+
+[node name="object_source-9822-208" type="Node3D" parent="." unique_id=311273101]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 113.01019, 0, 248.25992)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9822-208"
+Asset = ExtResource("210_4jdfi")
+
+[node name="object_source-9822-209" type="Node3D" parent="." unique_id=1234672773]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 112.01047, 0, 248.25992)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9822-209"
+Asset = ExtResource("211_l7qhp")
+
+[node name="object_source-9822-210" type="Node3D" parent="." unique_id=846042182]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 105.15053, 0, 248.25992)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9822-210"
+Asset = ExtResource("212_e42pf")
+
+[node name="object_source-9822-211" type="Node3D" parent="." unique_id=2053105282]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 104.15028, 0, 248.25992)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9822-211"
+Asset = ExtResource("213_725x2")
+
+[node name="object_source-9822-212" type="Node3D" parent="." unique_id=516241142]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 135.6405, 0, 255.8847)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9822-212"
+Asset = ExtResource("214_7movd")
+
+[node name="object_source-9822-213" type="Node3D" parent="." unique_id=128204332]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 128.23016, 0, 255.8847)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9822-213"
+Asset = ExtResource("215_soe80")
+
+[node name="object_source-9822-214" type="Node3D" parent="." unique_id=1662009206]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 120.37056, 0, 255.8847)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9822-214"
+Asset = ExtResource("216_64puo")
+
+[node name="object_source-9822-215" type="Node3D" parent="." unique_id=289461094]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 112.510956, 0, 255.8847)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9822-215"
+Asset = ExtResource("217_8docf")
+
+[node name="object_source-9822-216" type="Node3D" parent="." unique_id=986191627]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 104.650314, 0, 255.8847)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9822-216"
+Asset = ExtResource("218_wa3ql")
+
+[node name="object_source-9822-217" type="Node3D" parent="." unique_id=955491993]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 135.6405, 0, 276.11475)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9822-217"
+Asset = ExtResource("219_e4jrl")
+
+[node name="object_source-9822-218" type="Node3D" parent="." unique_id=1137026353]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 128.23016, 0, 276.11475)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9822-218"
+Asset = ExtResource("220_hd0es")
+
+[node name="object_source-9824-219" type="Node3D" parent="." unique_id=1201238834]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 118.74072, 0, 261.64978)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9824-219"
+Asset = ExtResource("221_ygxrm")
+
+[node name="object_source-9824-220" type="Node3D" parent="." unique_id=1501279529]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 118.61078, 0, 261.64978)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9824-220"
+Asset = ExtResource("222_xpy4x")
+
+[node name="object_source-9824-221" type="Node3D" parent="." unique_id=1352079012]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 118.480835, 0, 261.64978)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9824-221"
+Asset = ExtResource("223_tnaru")
+
+[node name="object_source-9824-222" type="Node3D" parent="." unique_id=424165673]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 118.35089, 0, 261.64978)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9824-222"
+Asset = ExtResource("224_3v7mb")
+
+[node name="object_source-9824-223" type="Node3D" parent="." unique_id=889611488]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 118.22095, 0, 261.64978)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9824-223"
+Asset = ExtResource("225_ex35u")
+
+[node name="object_source-9824-224" type="Node3D" parent="." unique_id=1689986385]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 118.091, 0, 261.64978)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9824-224"
+Asset = ExtResource("226_x4j5t")
+
+[node name="object_source-9824-225" type="Node3D" parent="." unique_id=299838281]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 117.960045, 0, 261.64978)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9824-225"
+Asset = ExtResource("227_p6fgm")
+
+[node name="object_source-9824-226" type="Node3D" parent="." unique_id=1808755997]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 117.8301, 0, 261.64978)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9824-226"
+Asset = ExtResource("228_ry2kf")
+
+[node name="object_source-9824-227" type="Node3D" parent="." unique_id=269063834]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 117.70016, 0, 261.64978)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9824-227"
+Asset = ExtResource("229_h14ef")
+
+[node name="object_source-9824-228" type="Node3D" parent="." unique_id=338731903]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 117.57021, 0, 261.64978)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9824-228"
+Asset = ExtResource("230_2sl0m")
+
+[node name="object_source-9824-229" type="Node3D" parent="." unique_id=77118324]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 117.44027, 0, 261.64978)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9824-229"
+Asset = ExtResource("231_w6fvp")
+
+[node name="object_source-9824-230" type="Node3D" parent="." unique_id=586601631]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 130.83054, 0, 279.72977)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9824-230"
+Asset = ExtResource("232_nnvae")
+
+[node name="object_source-9824-231" type="Node3D" parent="." unique_id=1398096817]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 136.62062, 0, 255.9999)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9824-231"
+Asset = ExtResource("233_3o4va")
+
+[node name="object_source-9825-232" type="Node3D" parent="." unique_id=347010293]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 67.92022, 0, 265.99973)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9825-232"
+Asset = ExtResource("234_6mqhd")
+
+[node name="object_source-9825-233" type="Node3D" parent="." unique_id=1430354932]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 68.12044, 0, 262.89954)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9825-233"
+Asset = ExtResource("235_w2s8k")
+
+[node name="object_source-9825-234" type="Node3D" parent="." unique_id=652492612]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 68.12044, 0, 269.0999)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9825-234"
+Asset = ExtResource("236_fftu2")
+
+[node name="object_source-9825-235" type="Node3D" parent="." unique_id=1603852411]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 68.12027, 0, 265.99973)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9825-235"
+Asset = ExtResource("237_vohre")
+
+[node name="object_source-9825-236" type="Node3D" parent="." unique_id=109557028]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 94.97096, 0, 248.15984)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9825-236"
+Asset = ExtResource("238_y3fal")
+
+[node name="object_source-9825-237" type="Node3D" parent="." unique_id=67017516]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 94.97096, 0, 283.8396)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9825-237"
+Asset = ExtResource("239_hxcla")
+
+[node name="object_source-9825-238" type="Node3D" parent="." unique_id=1938644780]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 137.82034, 0, 251.69972)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9825-238"
+Asset = ExtResource("240_q60v6")
+
+[node name="object_source-9825-239" type="Node3D" parent="." unique_id=1291121975]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 135.32738, 0, 251.69972)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9825-239"
+Asset = ExtResource("241_63l27")
+
+[node name="object_source-9825-240" type="Node3D" parent="." unique_id=1978775378]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 130.34201, 0, 251.69972)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9825-240"
+Asset = ExtResource("242_elp71")
+
+[node name="object_source-9825-241" type="Node3D" parent="." unique_id=1936252838]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 127.84906, 0, 251.69972)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9825-241"
+Asset = ExtResource("243_enry8")
+
+[node name="object_source-9825-242" type="Node3D" parent="." unique_id=1995233570]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 125.3561, 0, 251.69972)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9825-242"
+Asset = ExtResource("244_qn16d")
+
+[node name="object_source-9825-243" type="Node3D" parent="." unique_id=1046631889]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 122.863144, 0, 251.69972)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9825-243"
+Asset = ExtResource("245_nh38m")
+
+[node name="object_source-9825-244" type="Node3D" parent="." unique_id=156575007]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 120.37074, 0, 251.69972)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9825-244"
+Asset = ExtResource("246_xy3y2")
+
+[node name="object_source-9825-245" type="Node3D" parent="." unique_id=216956278]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 117.87778, 0, 251.69972)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9825-245"
+Asset = ExtResource("247_x3khf")
+
+[node name="object_source-9825-246" type="Node3D" parent="." unique_id=1232326515]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 115.38483, 0, 251.69972)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9825-246"
+Asset = ExtResource("248_g647a")
+
+[node name="object_source-9825-247" type="Node3D" parent="." unique_id=134286973]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 112.89188, 0, 251.69972)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9825-247"
+Asset = ExtResource("249_uya7y")
+
+[node name="object_source-9825-248" type="Node3D" parent="." unique_id=171696297]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 110.398926, 0, 251.69972)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9825-248"
+Asset = ExtResource("250_vtl2t")
+
+[node name="object_source-9825-249" type="Node3D" parent="." unique_id=1105768344]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 105.41355, 0, 251.69972)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9825-249"
+Asset = ExtResource("251_b0f2x")
+
+[node name="object_source-9825-250" type="Node3D" parent="." unique_id=1345213359]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 102.92059, 0, 251.69972)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9825-250"
+Asset = ExtResource("252_un1el")
+
+[node name="object_source-9830-251" type="Node3D" parent="." unique_id=779868337]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 68.020355, 0, 263.55386)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9830-251"
+Asset = ExtResource("253_hbsgd")
+
+[node name="object_source-9830-252" type="Node3D" parent="." unique_id=1887274227]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 68.02013, 0, 268.4456)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9830-252"
+Asset = ExtResource("254_shapy")
+
+[node name="object_source-9830-253" type="Node3D" parent="." unique_id=1522097348]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 68.020355, 0, 268.4456)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9830-253"
+Asset = ExtResource("255_wqpwv")
+
+[node name="object_source-9830-254" type="Node3D" parent="." unique_id=339237424]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 68.17424, 0, 262.4996)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9830-254"
+Asset = ExtResource("256_ynp2c")
+
+[node name="object_source-9830-255" type="Node3D" parent="." unique_id=712266113]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 68.720184, 0, 261.39972)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9830-255"
+Asset = ExtResource("257_vtsja")
+
+[node name="object_source-9830-256" type="Node3D" parent="." unique_id=896616927]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 68.17424, 0, 269.49985)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9830-256"
+Asset = ExtResource("258_qf55r")
+
+[node name="object_source-9830-257" type="Node3D" parent="." unique_id=1937671912]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 68.720184, 0, 270.59973)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9830-257"
+Asset = ExtResource("259_tl8je")
+
+[node name="object_source-9830-258" type="Node3D" parent="." unique_id=326849426]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 68.720184, 0, 270.59973)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9830-258"
+Asset = ExtResource("260_8vgb7")
+
+[node name="object_source-9830-259" type="Node3D" parent="." unique_id=1389282696]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 97.36411, 0, 248.25989)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9830-259"
+Asset = ExtResource("261_am380")
+
+[node name="object_source-9830-260" type="Node3D" parent="." unique_id=332577825]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 92.57623, 0, 248.25989)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9830-260"
+Asset = ExtResource("262_5qxo0")
+
+[node name="object_source-9830-261" type="Node3D" parent="." unique_id=2008821364]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 92.57623, 0, 283.7398)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9830-261"
+Asset = ExtResource("263_q7brk")
+
+[node name="object_source-9830-262" type="Node3D" parent="." unique_id=1557626610]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 92.57623, 0, 283.73956)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9830-262"
+Asset = ExtResource("264_6hisw")
+
+[node name="object_source-9831-263" type="Node3D" parent="." unique_id=549293144]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 88.820244, 0, 265.2998)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9831-263"
+Asset = ExtResource("265_4so7p")
+
+[node name="object_source-9831-264" type="Node3D" parent="." unique_id=1488707247]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 88.820244, 0, 266.69965)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9831-264"
+Asset = ExtResource("266_8flwf")
+
+[node name="object_source-9835-265" type="Node3D" parent="." unique_id=72715066]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 137.82007, 0, 251.755)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9835-265"
+Asset = ExtResource("267_my6v0")
+
+[node name="object_source-9835-266" type="Node3D" parent="." unique_id=655521291]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 125.35592, 0, 251.755)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9835-266"
+Asset = ExtResource("268_0pmhp")
+
+[node name="object_source-9835-267" type="Node3D" parent="." unique_id=1100863776]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 112.891556, 0, 251.755)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9835-267"
+Asset = ExtResource("269_fgr62")
+
+[node name="object_source-9836-268" type="Node3D" parent="." unique_id=123224418]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 135.32722, 0, 251.755)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9836-268"
+Asset = ExtResource("270_8k47u")
+
+[node name="object_source-9836-269" type="Node3D" parent="." unique_id=1855678931]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 122.86306, 0, 251.755)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9836-269"
+Asset = ExtResource("271_ue0qm")
+
+[node name="object_source-9836-270" type="Node3D" parent="." unique_id=1887955777]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 110.3987, 0, 251.755)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9836-270"
+Asset = ExtResource("272_j713x")
+
+[node name="object_source-9837-271" type="Node3D" parent="." unique_id=2055454093]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 120.3702, 0, 251.755)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9837-271"
+Asset = ExtResource("273_xa2sj")
+
+[node name="object_source-9838-272" type="Node3D" parent="." unique_id=869849773]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 130.34152, 0, 251.755)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9838-272"
+Asset = ExtResource("274_n2g5c")
+
+[node name="object_source-9838-273" type="Node3D" parent="." unique_id=1081525225]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 117.87735, 0, 251.755)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9838-273"
+Asset = ExtResource("275_pyr4g")
+
+[node name="object_source-9838-274" type="Node3D" parent="." unique_id=530065484]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 105.41299, 0, 251.755)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9838-274"
+Asset = ExtResource("276_vi6bc")
+
+[node name="object_source-9839-275" type="Node3D" parent="." unique_id=1239518231]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 127.848656, 0, 251.755)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9839-275"
+Asset = ExtResource("277_fgp7l")
+
+[node name="object_source-9839-276" type="Node3D" parent="." unique_id=40565561]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 115.38449, 0, 251.755)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9839-276"
+Asset = ExtResource("278_n72rs")
+
+[node name="object_source-9839-277" type="Node3D" parent="." unique_id=1306126583]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 102.92013, 0, 251.755)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9839-277"
+Asset = ExtResource("279_v3dol")
+
+[node name="object_source-9847-278" type="Node3D" parent="." unique_id=2102237658]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 67.48507, 0, 252.11)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9847-278"
+Asset = ExtResource("280_qgsea")
+
+[node name="object_source-9847-279" type="Node3D" parent="." unique_id=1018619173]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 71.22009, 0, 252.11)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9847-279"
+Asset = ExtResource("281_3h314")
+
+[node name="object_source-9847-280" type="Node3D" parent="." unique_id=1558957859]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 74.42021, 0, 252.11)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9847-280"
+Asset = ExtResource("282_u18o2")
+
+[node name="object_source-9847-281" type="Node3D" parent="." unique_id=1460572661]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 77.620186, 0, 252.11)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9847-281"
+Asset = ExtResource("283_ewnw6")
+
+[node name="object_source-9847-282" type="Node3D" parent="." unique_id=666438612]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 80.820145, 0, 252.11)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9847-282"
+Asset = ExtResource("284_xe3yy")
+
+[node name="object_source-9847-283" type="Node3D" parent="." unique_id=690335235]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 84.02011, 0, 252.11)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9847-283"
+Asset = ExtResource("285_uvi54")
+
+[node name="object_source-9847-284" type="Node3D" parent="." unique_id=538381690]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 87.46009, 0, 252.11)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9847-284"
+Asset = ExtResource("286_58shm")
+
+[node name="object_source-9848-285" type="Node3D" parent="." unique_id=1422149532]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 69.08512, 0, 249.58495)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9848-285"
+Asset = ExtResource("287_4lev8")
+
+[node name="object_source-9848-286" type="Node3D" parent="." unique_id=377347782]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 69.08512, 0, 248.93498)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9848-286"
+Asset = ExtResource("288_w0dfg")
+
+[node name="object_source-9848-287" type="Node3D" parent="." unique_id=171933650]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 69.08512, 0, 250.23495)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9848-287"
+Asset = ExtResource("289_hmc46")
+
+[node name="object_source-9848-288" type="Node3D" parent="." unique_id=284068484]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 72.090294, 0, 251.78996)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9848-288"
+Asset = ExtResource("290_xk0ev")
+
+[node name="object_source-9848-289" type="Node3D" parent="." unique_id=948973405]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 76.02019, 0, 251.86996)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9848-289"
+Asset = ExtResource("291_rlxuh")
+
+[node name="object_source-9848-290" type="Node3D" parent="." unique_id=1241478865]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 76.02018, 0, 249.58496)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9848-290"
+Asset = ExtResource("292_wwhqe")
+
+[node name="object_source-9848-291" type="Node3D" parent="." unique_id=2118618314]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 82.42027, 0, 249.58495)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9848-291"
+Asset = ExtResource("293_wwhid")
+
+[node name="object_source-9848-292" type="Node3D" parent="." unique_id=513808738]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 82.42027, 0, 248.93498)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9848-292"
+Asset = ExtResource("294_netxj")
+
+[node name="object_source-9848-293" type="Node3D" parent="." unique_id=719788122]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 82.42027, 0, 250.23495)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9848-293"
+Asset = ExtResource("295_so1um")
+
+[node name="object_source-9848-294" type="Node3D" parent="." unique_id=309150725]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 84.890114, 0, 251.78996)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9848-294"
+Asset = ExtResource("296_cytw7")
+
+[node name="object_source-9848-295" type="Node3D" parent="." unique_id=451524631]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 87.46011, 0, 251.86996)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9848-295"
+Asset = ExtResource("297_7gjh8")
+
+[node name="object_source-9848-296" type="Node3D" parent="." unique_id=847276797]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 87.46028, 0, 249.58496)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9848-296"
+Asset = ExtResource("298_lupls")
+
+[node name="object_source-9857-297" type="Node3D" parent="." unique_id=987483620]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 69.08513, 0, 279.97998)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9857-297"
+Asset = ExtResource("299_56ug0")
+
+[node name="object_source-9857-298" type="Node3D" parent="." unique_id=1791705102]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 76.020035, 0, 279.97998)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9857-298"
+Asset = ExtResource("300_we25t")
+
+[node name="object_source-9857-299" type="Node3D" parent="." unique_id=296367285]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 82.420204, 0, 279.97998)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9857-299"
+Asset = ExtResource("301_offwt")
+
+[node name="object_source-9857-300" type="Node3D" parent="." unique_id=1253600640]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 87.460075, 0, 279.97998)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9857-300"
+Asset = ExtResource("302_hy7jq")
+
+[node name="object_source-9857-301" type="Node3D" parent="." unique_id=87835675]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 67.48507, 0, 279.97998)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9857-301"
+Asset = ExtResource("303_v5fxt")
+
+[node name="object_source-9857-302" type="Node3D" parent="." unique_id=456652929]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 71.22009, 0, 279.97998)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9857-302"
+Asset = ExtResource("304_lmom3")
+
+[node name="object_source-9857-303" type="Node3D" parent="." unique_id=1256047578]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 74.42021, 0, 279.97998)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9857-303"
+Asset = ExtResource("305_bopps")
+
+[node name="object_source-9857-304" type="Node3D" parent="." unique_id=1104908815]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 77.620186, 0, 279.97998)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9857-304"
+Asset = ExtResource("306_ntpy4")
+
+[node name="object_source-9857-305" type="Node3D" parent="." unique_id=1463000762]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 80.820145, 0, 279.97998)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9857-305"
+Asset = ExtResource("307_p4kr8")
+
+[node name="object_source-9857-306" type="Node3D" parent="." unique_id=578938639]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 84.02011, 0, 279.97998)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9857-306"
+Asset = ExtResource("308_s6v52")
+
+[node name="object_source-9857-307" type="Node3D" parent="." unique_id=2030682772]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 87.46009, 0, 279.97998)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9857-307"
+Asset = ExtResource("309_f04ns")
+
+[node name="object_source-9858-308" type="Node3D" parent="." unique_id=331637374]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 69.08512, 0, 282.45996)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9858-308"
+Asset = ExtResource("310_a7na5")
+
+[node name="object_source-9858-309" type="Node3D" parent="." unique_id=1876965696]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 69.08512, 0, 283.11)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9858-309"
+Asset = ExtResource("311_vjbsl")
+
+[node name="object_source-9858-310" type="Node3D" parent="." unique_id=1566933939]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 69.08512, 0, 281.80997)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9858-310"
+Asset = ExtResource("312_llcgw")
+
+[node name="object_source-9858-311" type="Node3D" parent="." unique_id=1729489955]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 72.090294, 0, 280.3)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9858-311"
+Asset = ExtResource("313_1te82")
+
+[node name="object_source-9858-312" type="Node3D" parent="." unique_id=893462814]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 76.02019, 0, 280.21997)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9858-312"
+Asset = ExtResource("314_6lcko")
+
+[node name="object_source-9858-313" type="Node3D" parent="." unique_id=205228857]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 76.02018, 0, 282.45993)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9858-313"
+Asset = ExtResource("315_yu25r")
+
+[node name="object_source-9858-314" type="Node3D" parent="." unique_id=1591007830]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 82.42027, 0, 282.45996)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9858-314"
+Asset = ExtResource("316_7fv1u")
+
+[node name="object_source-9858-315" type="Node3D" parent="." unique_id=1683813772]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 82.42027, 0, 283.11)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9858-315"
+Asset = ExtResource("317_26ek4")
+
+[node name="object_source-9858-316" type="Node3D" parent="." unique_id=1273483905]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 82.42027, 0, 281.80997)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9858-316"
+Asset = ExtResource("318_1gbi6")
+
+[node name="object_source-9858-317" type="Node3D" parent="." unique_id=613366480]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 84.890114, 0, 280.3)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9858-317"
+Asset = ExtResource("319_uf2k4")
+
+[node name="object_source-9858-318" type="Node3D" parent="." unique_id=1438867895]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 87.46011, 0, 280.21997)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9858-318"
+Asset = ExtResource("320_gc0e7")
+
+[node name="object_source-9858-319" type="Node3D" parent="." unique_id=1615858049]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 87.46028, 0, 282.45993)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9858-319"
+Asset = ExtResource("321_fm043")
+
+[node name="object_source-9858-320" type="Node3D" parent="." unique_id=413155952]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 77.325005, 0, 282.45502)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9858-320"
+Asset = ExtResource("322_4sadh")
+
+[node name="object_source-9865-321" type="Node3D" parent="." unique_id=216087461]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 85.22006, 0, 275.49994)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9865-321"
+Asset = ExtResource("323_48up6")
+
+[node name="object_source-9866-322" type="Node3D" parent="." unique_id=1857884288]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 85.29203, 0, 275.49994)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9866-322"
+Asset = ExtResource("324_f02es")
+
+[node name="object_source-9866-323" type="Node3D" parent="." unique_id=153661625]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 84.1264, 0, 275.49994)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9866-323"
+Asset = ExtResource("325_n2ua0")
+
+[node name="object_source-9866-324" type="Node3D" parent="." unique_id=1541572447]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 83.10547, 0, 275.49994)
+script = ExtResource("1_3gw33")
+ObjectId = "room-stpaul-source-9866-324"
+Asset = ExtResource("326_xv840")

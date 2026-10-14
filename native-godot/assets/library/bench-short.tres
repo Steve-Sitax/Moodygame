@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="AuthorAsset" format=3]
+
+[ext_resource type="PackedScene" path="res://assets/furniture/bench-short.tscn" id="1_xada4"]
+[ext_resource type="Script" path="res://src/Authoring/AuthorAsset.cs" id="2_8kg4p"]
+
+[resource]
+script = ExtResource("2_8kg4p")
+Id = "bench-short"
+Title = "Short bench"
+Category = "Furniture: seating"
+Scene = ExtResource("1_xada4")
+Footprint = Vector3(1.1, 0.4561, 0.3)
+FurnitureKind = "bench"
+SeatPoints = PackedVector3Array(-0.275, 0, 0, -0.275, 0, 0, 0.275, 0, 0, 0.275, 0, 0)
+SeatHeight = 0.455
+UsePoint = Vector3(0, 0.5, 0)
+StandPoint = Vector3(0, 0, 0.7)

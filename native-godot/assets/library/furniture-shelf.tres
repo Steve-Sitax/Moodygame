@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="AuthorAsset" format=3]
+
+[ext_resource type="PackedScene" path="res://assets/props/furniture-shelf.tscn" id="1_mae2l"]
+[ext_resource type="Script" path="res://src/Authoring/AuthorAsset.cs" id="2_dom7u"]
+
+[resource]
+script = ExtResource("2_dom7u")
+Id = "furniture-shelf"
+Title = "Shelf"
+Category = "Furniture"
+Scene = ExtResource("1_mae2l")
+Footprint = Vector3(1.4, 1.8, 0.35)
+FurnitureKind = "shelf"
+UsePoint = Vector3(0, 0.5, 0.175)
+StandPoint = Vector3(0, 0, -0.77500004)

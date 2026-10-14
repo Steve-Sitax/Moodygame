@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="AuthorAsset" format=3]
+
+[ext_resource type="PackedScene" path="res://assets/furniture/bed-iron.tscn" id="1_6j4m1"]
+[ext_resource type="Script" path="res://src/Authoring/AuthorAsset.cs" id="2_b0f6c"]
+
+[resource]
+script = ExtResource("2_b0f6c")
+Id = "bed-iron"
+Title = "Iron bed"
+Category = "Furniture: beds"
+Scene = ExtResource("1_6j4m1")
+Footprint = Vector3(2.0197, 1.092, 1.1242)
+FootprintOffset = Vector3(0.0129, 0, -0.0002)
+FurnitureKind = "bed"
+UsePoint = Vector3(0.05, 0.5, 0)
+StandPoint = Vector3(0, 0, 0.7)

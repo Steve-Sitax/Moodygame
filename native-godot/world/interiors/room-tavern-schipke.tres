@@ -1,0 +1,24 @@
+[gd_resource type="Resource" script_class="AuthorDistrict" format=3]
+
+[ext_resource type="Resource" path="res://world/interiors/room-tavern-schipke.catalog.tres" id="1_tdju4"]
+[ext_resource type="PackedScene" path="res://world/interiors/room-tavern-schipke.structure.tscn" id="2_6qyv7"]
+[ext_resource type="PackedScene" path="res://world/interiors/room-tavern-schipke.objects.tscn" id="3_tdju4"]
+[ext_resource type="Script" path="res://src/Authoring/AuthorDistrict.cs" id="4_jnw3w"]
+
+[resource]
+script = ExtResource("4_jnw3w")
+Id = "room-tavern-schipke"
+Title = "tavern:schipke"
+Scene = ExtResource("3_tdju4")
+EditorScenePath = "res://world/interiors/room-tavern-schipke.tscn"
+Catalog = ExtResource("1_tdju4")
+Bounds = Rect2(-339.85, -80, 200, 200)
+WalkSpawn = Vector3(-239.85, 0.2, 20)
+FlySpawn = Vector3(-239.85, 1.78, 20)
+FlyPitch = -0.12
+RoomId = "tavern:schipke"
+RoomFrame = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -238.225, 0.18, 14)
+RoomBounds = Rect2(-4.675, 0.2, 6.1000004, 11.6)
+EntryPoints = PackedVector3Array(-238.225, 0.18, 14)
+ReplacedMeshes = PackedInt32Array(11728, 11731, 11732, 11733, 11734, 11735, 11736, 11737, 11738, 11739, 11740, 11741, 11742, 11743, 11744, 11745, 11746, 11747, 11748, 11749, 11750, 11752, 11753)
+RetainedStructure = ExtResource("2_6qyv7")

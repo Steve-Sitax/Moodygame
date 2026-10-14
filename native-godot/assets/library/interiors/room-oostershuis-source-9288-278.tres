@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="AuthorAsset" format=3]
+
+[ext_resource type="PackedScene" path="res://assets/props/furniture/room-oostershuis-source-9288-278.tscn" id="1_efkrb"]
+[ext_resource type="Script" path="res://src/Authoring/AuthorAsset.cs" id="2_g4ed7"]
+
+[resource]
+PlacementAnchor = Vector3(-9.536743e-07, 0, 1.335144e-05)
+GeometryClearance = true
+script = ExtResource("2_g4ed7")
+Id = "room-oostershuis-source-9288-278"
+Title = "fitting · oostershuis · source-9288-278"
+Category = "Room originals"
+Scene = ExtResource("1_efkrb")
+Footprint = Vector3(0.21987724, 0.24984646, 8.799999)
+FootprintOffset = Vector3(-9.536743e-07, 7.9499264, 1.335144e-05)
+FurnitureKind = "fitting"
+UsePoint = Vector3(0, 0.5, 0)
+StandPoint = Vector3(0, 0, 0.6000061)

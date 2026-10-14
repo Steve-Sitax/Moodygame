@@ -1,0 +1,25 @@
+[gd_resource type="Resource" script_class="AuthorDistrict" format=3]
+
+[ext_resource type="Resource" path="res://world/interiors/room-stpaul.catalog.tres" id="1_j6e3b"]
+[ext_resource type="PackedScene" path="res://world/interiors/room-stpaul.structure.tscn" id="2_m5itg"]
+[ext_resource type="PackedScene" path="res://world/interiors/room-stpaul.objects.tscn" id="3_j6e3b"]
+[ext_resource type="Script" path="res://src/Authoring/AuthorDistrict.cs" id="4_i2kdw"]
+
+[resource]
+script = ExtResource("4_i2kdw")
+Id = "room-stpaul"
+Title = "stpaul"
+Scene = ExtResource("3_j6e3b")
+EditorScenePath = "res://world/interiors/room-stpaul.tscn"
+Catalog = ExtResource("1_j6e3b")
+Bounds = Rect2(2.725006, 166, 200, 200)
+WalkSpawn = Vector3(102.725006, -3.26035, 266)
+FlySpawn = Vector3(102.725006, -1.68035, 266)
+FlyPitch = -0.12
+RoomId = "stpaul"
+RoomFrame = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -3.28035, 0)
+RoomBounds = Rect2(65.43001, 246.59, 74.59, 38.820007)
+RoomHeight = 39.32035
+EntryPoints = PackedVector3Array(140.02, -3.28035, 266)
+ReplacedMeshes = PackedInt32Array(9814, 9817, 9819, 9822, 9823, 9824, 9825, 9826, 9829, 9830, 9831, 9832, 9833, 9834, 9835, 9836, 9837, 9838, 9839, 9840, 9842, 9843, 9847, 9848, 9849, 9850, 9851, 9853, 9857, 9858, 9859, 9860, 9861, 9863, 9865, 9866, 9867, 9868, 9869, 9870)
+RetainedStructure = ExtResource("2_m5itg")

@@ -46,6 +46,11 @@ public sealed class Indoors
     private const int PerHouse = 10, MostFigures = 28;
 
     public readonly List<House> Houses = new();
+    public (Vector3 At,string Motion)? FigureAt(string room,string id)
+    {
+        var house=Houses.FirstOrDefault(h=>h.Id==room);
+        return house!=null && house.Figures.TryGetValue(id,out var figure)?(figure.Group.GlobalPosition,figure.Human.Motion??""):null;
+    }
     private readonly Dictionary<string, House> byPlace = new();
     private readonly Townspeople town;
     private readonly Random rng = new();
@@ -132,6 +137,18 @@ public sealed class Indoors
             }
         }
         var spots = new List<Pt>();
+        if(Main.I.World.NativeFurniture?.FirstOrDefault(p=>p.Room==h.Id&&p.Kind=="counter") is {} counter)
+            spots.Add(new Pt(counter.KeeperAt.X,counter.KeeperAt.Z));
+        // Seats are explicit room destinations. The recovered street walk grid can have
+        // no standing cells behind a counter, but that must not suppress seated patrons.
+        if(Main.I.World.NativeFurniture is {} furniture)
+            foreach(var item in furniture.Where(p=>p.Room==h.Id))
+                foreach(var seat in item.Seats)
+                {
+                    var at=item.Node.ToGlobal(seat);
+                    if(spots.Count<PerHouse&&!spots.Any(p=>Whereabouts.Hypot(p.X-at.X,p.Z-at.Z)<.3))
+                        spots.Add(new Pt(at.X,at.Z));
+                }
         foreach (var c in cells.OrderByDescending(c => Whereabouts.Hypot(c.X - h.Door.X, c.Z - h.Door.Z)))
         {
             if (spots.Count >= PerHouse) break;

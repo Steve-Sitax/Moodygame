@@ -41,6 +41,18 @@ public partial class NativeTownGame : Scheldemist.Main
         var navigation = World.NativeWalk!;
         bool freshWorld = !File.Exists(Paths.Database) || new FileInfo(Paths.Database).Length == 0;
         var host = new NativeServiceHost(new NativeServiceOptions(Paths.Database, Path.Combine(Paths.NativeDataRoot!, "services"), Paths.SaveSlots));
+        var furniture=((NativeTown)World).NativeFurniture!.Select(p=>(p.Room,p.Kind)).ToArray();
+        host.Homes.AuthoredBedAvailable=id=>furniture.Any(p=>p.Room=="home:"+id&&p.Kind=="bed");
+        host.Homes.AuthoredFireAvailable=id=>furniture.Any(p=>p.Room=="home:"+id&&p.Kind=="stove");
+        foreach(var room in ((NativeTown)World).Layouts.Districts.Where(d=>d.District.RoomId.StartsWith("home:")))
+        {
+            string id=room.District.RoomId[5..];
+            if(host.Context.Rules["homeClasses"]?[id] is JsonObject definition)
+            {
+                definition["fixed"]=InteriorFurniture.FixedCells(((NativeTown)World).NativeFurniture!.Where(p=>p.Room==room.District.RoomId),room.District.RoomFrame,room.District.RoomBounds);
+                definition["fire"]=furniture.Any(p=>p.Room==room.District.RoomId&&p.Kind=="stove");
+            }
+        }
         try
         {
             var town = new Services.NativeTown(host); host.AddModule(town);
@@ -222,6 +234,9 @@ public partial class NativeTownGame : Scheldemist.Main
             Scheldemist.Models.ModelLibrary.NativeScene = name =>
                 ResourceLoader.Load<PackedScene>("res://assets/game-models/" + name + ".scn").Instantiate<Node3D>();
             base._Ready(); initialized = true;
+#if DEBUG
+            if(Arg("furniture-game-proof") is {Length:>0} furnitureProof) _ = Interiors.FurnitureGameProof.Run(this,Paths.Absolute(furnitureProof));
+#endif
             if (DedicatedServer) _ = StartDedicated();
             if (Arg("native-smoke") is { Length: > 0 } proof) _ = NativeGameplayProof.Run(this, Paths.Absolute(proof));
             if (Arg("native-package-smoke") is { Length: > 0 } packageProof) _ = NativePackageProof.Run(this, Paths.Absolute(packageProof));

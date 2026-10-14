@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="AuthorAsset" format=3]
+
+[ext_resource type="PackedScene" path="res://assets/props/furniture/room-tavern-ankere-source-11677-19.tscn" id="1_ngjgk"]
+[ext_resource type="Script" path="res://src/Authoring/AuthorAsset.cs" id="2_ji5ut"]
+
+[resource]
+PlacementAnchor = Vector3(1.3113022e-06, 0, -9.536743e-07)
+GeometryClearance = true
+script = ExtResource("2_ji5ut")
+Id = "room-tavern-ankere-source-11677-19"
+Title = "fitting · tavern:ankere · source-11677-19"
+Category = "Room originals"
+Scene = ExtResource("1_ngjgk")
+Footprint = Vector3(0.18000817, 0.78000283, 0.1799345)
+FootprintOffset = Vector3(1.3113022e-06, 2.119997, -9.536743e-07)
+FurnitureKind = "fitting"
+UsePoint = Vector3(0, 0.5, 0)
+StandPoint = Vector3(0, 0, 0.5999985)

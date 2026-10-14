@@ -1,0 +1,243 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://src/Authoring/AuthoredObject.cs" id="1_d2r6v"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-butcher_vlees-counter.tres" id="2_efyfb"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-butcher_vlees-source-10493-1.tres" id="3_yjfq4"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-butcher_vlees-source-10493-2.tres" id="4_u5afj"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-butcher_vlees-source-10493-3.tres" id="5_6aoey"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-butcher_vlees-source-10493-4.tres" id="6_27ik8"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-butcher_vlees-source-10496-5.tres" id="7_b2cgm"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-butcher_vlees-source-10496-6.tres" id="8_kura0"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-butcher_vlees-source-10497-7.tres" id="9_ucwhe"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-butcher_vlees-source-10497-8.tres" id="10_l0bgs"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-butcher_vlees-source-10497-9.tres" id="11_bkhap"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-butcher_vlees-source-10497-10.tres" id="12_rnu8w"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-butcher_vlees-source-10497-11.tres" id="13_afd5t"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-butcher_vlees-source-10497-12.tres" id="14_biufj"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-butcher_vlees-source-10497-13.tres" id="15_p6wwy"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-butcher_vlees-source-10497-14.tres" id="16_tul3v"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-butcher_vlees-source-10497-15.tres" id="17_56hnt"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-butcher_vlees-source-10497-16.tres" id="18_kqy7n"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-butcher_vlees-source-10497-17.tres" id="19_revkk"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-butcher_vlees-source-10497-18.tres" id="20_5x3ia"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-butcher_vlees-source-10497-19.tres" id="21_svkh3"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-butcher_vlees-source-10498-20.tres" id="22_0dk00"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-butcher_vlees-source-10498-21.tres" id="23_rqee6"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-butcher_vlees-source-10498-22.tres" id="24_qnr03"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-butcher_vlees-source-10498-23.tres" id="25_rtfku"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-butcher_vlees-source-10498-24.tres" id="26_ll0sn"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-butcher_vlees-source-10498-25.tres" id="27_epbrg"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-butcher_vlees-source-10499-26.tres" id="28_1mrdb"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-butcher_vlees-source-10499-27.tres" id="29_at43k"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-butcher_vlees-source-10501-28.tres" id="30_y6q1l"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-butcher_vlees-source-10504-29.tres" id="31_vdan1"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-butcher_vlees-source-10504-30.tres" id="32_el2oe"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-butcher_vlees-source-10505-31.tres" id="33_dygx8"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-butcher_vlees-source-10508-32.tres" id="34_ldj25"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-butcher_vlees-source-10552-33.tres" id="35_2g3ms"]
+
+[node name="Objects" type="Node3D" unique_id=242603040]
+
+[node name="object_counter" type="Node3D" parent="." unique_id=175680604]
+transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -95.35, 0.18, 66.42)
+script = ExtResource("1_d2r6v")
+ObjectId = "room-shop-butcher_vlees-counter"
+Asset = ExtResource("2_efyfb")
+
+[node name="object_source-10493-1" type="Node3D" parent="." unique_id=1334080453]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -92.475, 0.18, 66.30497)
+script = ExtResource("1_d2r6v")
+ObjectId = "room-shop-butcher_vlees-source-10493-1"
+Asset = ExtResource("3_yjfq4")
+
+[node name="object_source-10493-2" type="Node3D" parent="." unique_id=1681532735]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -98.729935, 0.18, 67.65996)
+script = ExtResource("1_d2r6v")
+ObjectId = "room-shop-butcher_vlees-source-10493-2"
+Asset = ExtResource("4_u5afj")
+
+[node name="object_source-10493-3" type="Node3D" parent="." unique_id=780903070]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -98.75992, 0.18, 67.65996)
+script = ExtResource("1_d2r6v")
+ObjectId = "room-shop-butcher_vlees-source-10493-3"
+Asset = ExtResource("5_6aoey")
+
+[node name="object_source-10493-4" type="Node3D" parent="." unique_id=2122091038]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -97.89996, 0.18, 70.129944)
+script = ExtResource("1_d2r6v")
+ObjectId = "room-shop-butcher_vlees-source-10493-4"
+Asset = ExtResource("6_27ik8")
+
+[node name="object_source-10496-5" type="Node3D" parent="." unique_id=1047845195]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -93.66997, 0.18, 65.54997)
+script = ExtResource("1_d2r6v")
+ObjectId = "room-shop-butcher_vlees-source-10496-5"
+Asset = ExtResource("7_b2cgm")
+
+[node name="object_source-10496-6" type="Node3D" parent="." unique_id=641324536]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -94.49999, 0.18, 69.849976)
+script = ExtResource("1_d2r6v")
+ObjectId = "room-shop-butcher_vlees-source-10496-6"
+Asset = ExtResource("8_kura0")
+
+[node name="object_source-10497-7" type="Node3D" parent="." unique_id=675978128]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -95.349976, 0.18, 65.5)
+script = ExtResource("1_d2r6v")
+ObjectId = "room-shop-butcher_vlees-source-10497-7"
+Asset = ExtResource("9_ucwhe")
+
+[node name="object_source-10497-8" type="Node3D" parent="." unique_id=568387465]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -93.90236, 0.18, 65.49999)
+script = ExtResource("1_d2r6v")
+ObjectId = "room-shop-butcher_vlees-source-10497-8"
+Asset = ExtResource("10_l0bgs")
+
+[node name="object_source-10497-9" type="Node3D" parent="." unique_id=741051546]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -94.31999, 0.18, 65.490036)
+script = ExtResource("1_d2r6v")
+ObjectId = "room-shop-butcher_vlees-source-10497-9"
+Asset = ExtResource("11_bkhap")
+
+[node name="object_source-10497-10" type="Node3D" parent="." unique_id=2007181539]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -94.742355, 0.18, 65.49999)
+script = ExtResource("1_d2r6v")
+ObjectId = "room-shop-butcher_vlees-source-10497-10"
+Asset = ExtResource("12_rnu8w")
+
+[node name="object_source-10497-11" type="Node3D" parent="." unique_id=1041192058]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -95.15997, 0.18, 65.490036)
+script = ExtResource("1_d2r6v")
+ObjectId = "room-shop-butcher_vlees-source-10497-11"
+Asset = ExtResource("13_afd5t")
+
+[node name="object_source-10497-12" type="Node3D" parent="." unique_id=2099523789]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -95.58197, 0.18, 65.499954)
+script = ExtResource("1_d2r6v")
+ObjectId = "room-shop-butcher_vlees-source-10497-12"
+Asset = ExtResource("14_biufj")
+
+[node name="object_source-10497-13" type="Node3D" parent="." unique_id=1051143187]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -96.00237, 0.18, 65.49999)
+script = ExtResource("1_d2r6v")
+ObjectId = "room-shop-butcher_vlees-source-10497-13"
+Asset = ExtResource("15_p6wwy")
+
+[node name="object_source-10497-14" type="Node3D" parent="." unique_id=1990458805]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -96.41997, 0.18, 65.490036)
+script = ExtResource("1_d2r6v")
+ObjectId = "room-shop-butcher_vlees-source-10497-14"
+Asset = ExtResource("16_tul3v")
+
+[node name="object_source-10497-15" type="Node3D" parent="." unique_id=483157848]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -96.84198, 0.18, 65.499954)
+script = ExtResource("1_d2r6v")
+ObjectId = "room-shop-butcher_vlees-source-10497-15"
+Asset = ExtResource("17_56hnt")
+
+[node name="object_source-10497-16" type="Node3D" parent="." unique_id=1461687663]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -94.499985, 0.18, 70.049995)
+script = ExtResource("1_d2r6v")
+ObjectId = "room-shop-butcher_vlees-source-10497-16"
+Asset = ExtResource("18_kqy7n")
+
+[node name="object_source-10497-17" type="Node3D" parent="." unique_id=2031497650]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -96.69998, 0.18, 66.249985)
+script = ExtResource("1_d2r6v")
+ObjectId = "room-shop-butcher_vlees-source-10497-17"
+Asset = ExtResource("19_revkk")
+
+[node name="object_source-10497-18" type="Node3D" parent="." unique_id=325446285]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -94.669975, 0.18, 66.24998)
+script = ExtResource("1_d2r6v")
+ObjectId = "room-shop-butcher_vlees-source-10497-18"
+Asset = ExtResource("20_5x3ia")
+
+[node name="object_source-10497-19" type="Node3D" parent="." unique_id=415392779]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -96.291985, 0.18, 68.25998)
+script = ExtResource("1_d2r6v")
+ObjectId = "room-shop-butcher_vlees-source-10497-19"
+Asset = ExtResource("21_svkh3")
+
+[node name="object_source-10498-20" type="Node3D" parent="." unique_id=272271637]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -93.78235, 0.18, 65.49999)
+script = ExtResource("1_d2r6v")
+ObjectId = "room-shop-butcher_vlees-source-10498-20"
+Asset = ExtResource("22_0dk00")
+
+[node name="object_source-10498-21" type="Node3D" parent="." unique_id=475322990]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -94.02237, 0.18, 65.49999)
+script = ExtResource("1_d2r6v")
+ObjectId = "room-shop-butcher_vlees-source-10498-21"
+Asset = ExtResource("23_rqee6")
+
+[node name="object_source-10498-22" type="Node3D" parent="." unique_id=723524391]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -94.622375, 0.18, 65.49999)
+script = ExtResource("1_d2r6v")
+ObjectId = "room-shop-butcher_vlees-source-10498-22"
+Asset = ExtResource("24_qnr03")
+
+[node name="object_source-10498-23" type="Node3D" parent="." unique_id=272671674]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -94.862366, 0.18, 65.49999)
+script = ExtResource("1_d2r6v")
+ObjectId = "room-shop-butcher_vlees-source-10498-23"
+Asset = ExtResource("25_rtfku")
+
+[node name="object_source-10498-24" type="Node3D" parent="." unique_id=196989381]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -95.88237, 0.18, 65.49999)
+script = ExtResource("1_d2r6v")
+ObjectId = "room-shop-butcher_vlees-source-10498-24"
+Asset = ExtResource("26_ll0sn")
+
+[node name="object_source-10498-25" type="Node3D" parent="." unique_id=394485297]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -96.122375, 0.18, 65.49999)
+script = ExtResource("1_d2r6v")
+ObjectId = "room-shop-butcher_vlees-source-10498-25"
+Asset = ExtResource("27_epbrg")
+
+[node name="object_source-10499-26" type="Node3D" parent="." unique_id=1878771825]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -95.57999, 0.18, 65.5)
+script = ExtResource("1_d2r6v")
+ObjectId = "room-shop-butcher_vlees-source-10499-26"
+Asset = ExtResource("28_1mrdb")
+
+[node name="object_source-10499-27" type="Node3D" parent="." unique_id=630522441]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -96.83998, 0.18, 65.5)
+script = ExtResource("1_d2r6v")
+ObjectId = "room-shop-butcher_vlees-source-10499-27"
+Asset = ExtResource("29_at43k")
+
+[node name="object_source-10501-28" type="Node3D" parent="." unique_id=1832170057]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -97.80965, 0.18, 69.47)
+script = ExtResource("1_d2r6v")
+ObjectId = "room-shop-butcher_vlees-source-10501-28"
+Asset = ExtResource("30_y6q1l")
+
+[node name="object_source-10504-29" type="Node3D" parent="." unique_id=2119591310]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -94.66998, 0.18, 66.249985)
+script = ExtResource("1_d2r6v")
+ObjectId = "room-shop-butcher_vlees-source-10504-29"
+Asset = ExtResource("31_vdan1")
+
+[node name="object_source-10504-30" type="Node3D" parent="." unique_id=1737373506]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -96.291954, 0.18, 68.25998)
+script = ExtResource("1_d2r6v")
+ObjectId = "room-shop-butcher_vlees-source-10504-30"
+Asset = ExtResource("32_el2oe")
+
+[node name="object_source-10505-31" type="Node3D" parent="." unique_id=1077294565]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -96.8, 0.18, 69.77)
+script = ExtResource("1_d2r6v")
+ObjectId = "room-shop-butcher_vlees-source-10505-31"
+Asset = ExtResource("33_dygx8")
+
+[node name="object_source-10508-32" type="Node3D" parent="." unique_id=1090613567]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -93.8, 0.18, 70.138)
+script = ExtResource("1_d2r6v")
+ObjectId = "room-shop-butcher_vlees-source-10508-32"
+Asset = ExtResource("34_ldj25")
+
+[node name="object_source-10552-33" type="Node3D" parent="." unique_id=1764046139]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -91.998, 0.18, 66.30499)
+script = ExtResource("1_d2r6v")
+ObjectId = "room-shop-butcher_vlees-source-10552-33"
+Asset = ExtResource("35_2g3ms")

@@ -1,0 +1,21 @@
+[gd_resource type="Resource" script_class="AuthorAsset" format=3]
+
+[ext_resource type="PackedScene" path="res://assets/props/furniture/room-tavern-bassin-seat-12.tscn" id="1_7argh"]
+[ext_resource type="Script" path="res://src/Authoring/AuthorAsset.cs" id="2_acbgj"]
+
+[resource]
+PlacementAnchor = Vector3(8.9645386e-05, 0, -4.3034554e-05)
+GeometryClearance = true
+script = ExtResource("2_acbgj")
+Id = "room-tavern-bassin-seat-12"
+Title = "stool · tavern:bassin · seat-12"
+Category = "Room originals"
+Scene = ExtResource("1_7argh")
+Footprint = Vector3(0.36010456, 0.6849775, 0.36000085)
+FootprintOffset = Vector3(8.9645386e-05, -1.4901161e-08, -4.3034554e-05)
+FurnitureKind = "stool"
+SeatPoints = PackedVector3Array(0, 0, 0)
+SeatHeight = 0.68
+Table = 9
+UsePoint = Vector3(0, 0.5, 0)
+StandPoint = Vector3(-0.6000061, 0, 0)

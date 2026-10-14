@@ -1,0 +1,19 @@
+[gd_resource type="Resource" script_class="AuthorAsset" format=3]
+
+[ext_resource type="PackedScene" path="res://assets/props/furniture/room-shop-colonial_steen-source-10557-5.tscn" id="1_0glfs"]
+[ext_resource type="Script" path="res://src/Authoring/AuthorAsset.cs" id="2_ys457"]
+
+[resource]
+PlacementAnchor = Vector3(4.7683716e-07, 0, -2.7418137e-06)
+GeometryClearance = true
+script = ExtResource("2_ys457")
+Id = "room-shop-colonial_steen-source-10557-5"
+Title = "clock · shop:colonial_steen · source-10557-5"
+Category = "Room originals"
+Scene = ExtResource("1_0glfs")
+Footprint = Vector3(0.04, 0.3799863, 0.37998462)
+FootprintOffset = Vector3(4.7683716e-07, 2.2599957, -2.7418137e-06)
+FurnitureKind = "clock"
+SeatYaw = 1.5707964
+UsePoint = Vector3(0, 0.5, 0)
+StandPoint = Vector3(0, 0, 0.5999985)

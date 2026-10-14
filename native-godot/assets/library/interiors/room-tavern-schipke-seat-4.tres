@@ -1,0 +1,21 @@
+[gd_resource type="Resource" script_class="AuthorAsset" format=3]
+
+[ext_resource type="PackedScene" path="res://assets/props/furniture/room-tavern-schipke-seat-4.tscn" id="1_1gb4u"]
+[ext_resource type="Script" path="res://src/Authoring/AuthorAsset.cs" id="2_eknnj"]
+
+[resource]
+PlacementAnchor = Vector3(5.7697296e-05, 0, -2.7537346e-05)
+GeometryClearance = true
+script = ExtResource("2_eknnj")
+Id = "room-tavern-schipke-seat-4"
+Title = "bench · tavern:schipke · seat-4"
+Category = "Room originals"
+Scene = ExtResource("1_1gb4u")
+Footprint = Vector3(1.6999102, 0.4799927, 0.2999375)
+FootprintOffset = Vector3(5.7697296e-05, -1.4901161e-08, -2.7537346e-05)
+FurnitureKind = "bench"
+SeatPoints = PackedVector3Array(0.42000008, 0, 0, -0.42000008, 0, 0)
+SeatHeight = 0.47
+Table = 1
+UsePoint = Vector3(0, 0.5, 0)
+StandPoint = Vector3(-0.6000004, 0, 0)

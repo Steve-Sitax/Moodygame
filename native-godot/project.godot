@@ -40,3 +40,4 @@ enabled=PackedStringArray("res://addons/native_game_globals/plugin.cfg")
 
 renderer/rendering_method="forward_plus"
 renderer/rendering_method.mobile="mobile"
+limits/global_shader_variables/buffer_size=262144

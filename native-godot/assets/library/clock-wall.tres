@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="AuthorAsset" format=3]
+
+[ext_resource type="PackedScene" path="res://assets/furniture/clock-wall.tscn" id="1_1pfrc"]
+[ext_resource type="Script" path="res://src/Authoring/AuthorAsset.cs" id="2_0pcvw"]
+
+[resource]
+script = ExtResource("2_0pcvw")
+Id = "clock-wall"
+Title = "Drop-dial wall clock"
+Category = "Furniture: clocks"
+Scene = ExtResource("1_1pfrc")
+Footprint = Vector3(0.384, 0.612, 0.118)
+FootprintOffset = Vector3(0, 1.53, 0.059)
+FurnitureKind = "clock"
+UsePoint = Vector3(0, 0, 0.55)
+StandPoint = Vector3(0, 0, 0.7)

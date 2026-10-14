@@ -1,0 +1,21 @@
+[gd_resource type="Resource" script_class="AuthorAsset" format=3]
+
+[ext_resource type="PackedScene" path="res://assets/props/furniture/room-townhall-source-9006-19.tscn" id="1_26mci"]
+[ext_resource type="Script" path="res://src/Authoring/AuthorAsset.cs" id="2_vjoeg"]
+
+[resource]
+PlacementAnchor = Vector3(-1.66893e-05, 7, 0)
+GeometryClearance = false
+script = ExtResource("2_vjoeg")
+Id = "room-townhall-source-9006-19"
+Title = "chair · townhall · source-9006-19"
+Category = "Room originals"
+Scene = ExtResource("1_26mci")
+Footprint = Vector3(0.5750456, 1.08888889, 0.45)
+FootprintOffset = Vector3(-1.66893e-05, 7, 0)
+FurnitureKind = "chair"
+SeatPoints = PackedVector3Array(-0.00012207031, 7, -4.5776367e-05)
+SeatHeight = 0.5
+SeatYaw = 2.3841858e-07
+UsePoint = Vector3(0, 0.5, 0)
+StandPoint = Vector3(0, 0, 0.5999985)

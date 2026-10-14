@@ -1,0 +1,19 @@
+[gd_resource type="Resource" script_class="AuthorAsset" format=3]
+
+[ext_resource type="PackedScene" path="res://assets/props/furniture/room-shop-hatter_markt-source-10768-3.tscn" id="1_l884s"]
+[ext_resource type="Script" path="res://src/Authoring/AuthorAsset.cs" id="2_0aved"]
+
+[resource]
+PlacementAnchor = Vector3(5.722046e-06, 0, -4.7683716e-07)
+GeometryClearance = true
+script = ExtResource("2_0aved")
+Id = "room-shop-hatter_markt-source-10768-3"
+Title = "fitting · shop:hatter_markt · source-10768-3"
+Category = "Room originals"
+Scene = ExtResource("1_l884s")
+Footprint = Vector3(0.69997215, 1.6400151, 0.04)
+FootprintOffset = Vector3(5.722046e-06, 0.4999588, -4.7683716e-07)
+FurnitureKind = "fitting"
+SeatYaw = 1.5707964
+UsePoint = Vector3(0, 0.5, 0)
+StandPoint = Vector3(0, 0, 0.5999985)

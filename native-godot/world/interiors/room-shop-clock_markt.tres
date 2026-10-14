@@ -1,0 +1,25 @@
+[gd_resource type="Resource" script_class="AuthorDistrict" format=3]
+
+[ext_resource type="Resource" path="res://world/interiors/room-shop-clock_markt.catalog.tres" id="1_f60ta"]
+[ext_resource type="PackedScene" path="res://world/interiors/room-shop-clock_markt.structure.tscn" id="2_1rbqh"]
+[ext_resource type="PackedScene" path="res://world/interiors/room-shop-clock_markt.objects.tscn" id="3_f60ta"]
+[ext_resource type="Script" path="res://src/Authoring/AuthorDistrict.cs" id="4_fx5xe"]
+
+[resource]
+script = ExtResource("4_fx5xe")
+Id = "room-shop-clock_markt"
+Title = "shop:clock_markt"
+Scene = ExtResource("3_f60ta")
+EditorScenePath = "res://world/interiors/room-shop-clock_markt.tscn"
+Catalog = ExtResource("1_f60ta")
+Bounds = Rect2(-295.5781, -7.4742355, 200, 200)
+WalkSpawn = Vector3(-195.5781, 0.2, 92.525764)
+FlySpawn = Vector3(-195.5781, 1.78, 92.525764)
+FlyYaw = 0.2837117
+FlyPitch = -0.12
+RoomId = "shop:clock_markt"
+RoomFrame = Transform3D(0.96002305, 0, 0.27992088, 0, 1, 0, -0.27992088, 0, 0.96002305, -195.2839, 0.18, 87.68489)
+RoomBounds = Rect2(-4.7124844, 0.2, 6.149979, 8.7300005)
+EntryPoints = PackedVector3Array(-195.2839, 0.18, 87.68489)
+ReplacedMeshes = PackedInt32Array(11018, 11020, 11021, 11022, 11023, 11025, 11026, 11027, 11028, 11029, 11030, 11031, 11032, 11033, 11035, 11041, 11042, 11043, 11044, 11045, 11046, 11047, 11048, 11049, 11050, 11051, 11052, 11053, 11054, 11055, 11056, 11057, 11058, 11059, 11060, 11061, 11062, 11063, 11064, 11065, 11066, 11067, 11068, 11069, 11070, 11071, 11072, 11073, 11074, 11075, 11076, 11077, 11078, 11079, 11080, 11081, 11082, 11083, 11084, 11085, 11086, 11087, 11088, 11089, 11090, 11091, 11092, 11093, 11094, 11095, 11096, 11097, 11098, 11099, 11133)
+RetainedStructure = ExtResource("2_1rbqh")

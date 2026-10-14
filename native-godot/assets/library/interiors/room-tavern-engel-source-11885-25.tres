@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="AuthorAsset" format=3]
+
+[ext_resource type="PackedScene" path="res://assets/props/furniture/room-tavern-engel-source-11885-25.tscn" id="1_ahy51"]
+[ext_resource type="Script" path="res://src/Authoring/AuthorAsset.cs" id="2_pokmd"]
+
+[resource]
+GeometryClearance = true
+script = ExtResource("2_pokmd")
+Id = "room-tavern-engel-source-11885-25"
+Title = "Architecture marker · tavern:engel · room-tavern-engel-source-11885-25"
+Category = "Room originals"
+Scene = ExtResource("1_ahy51")
+Footprint = Vector3(0.04, 0.04, 0.04)
+FurnitureKind = "architecture-marker"
+SeatYaw = 1.5707964
+UsePoint = Vector3(0, 0.5, 0)
+StandPoint = Vector3(0, 0, 0.5999985)

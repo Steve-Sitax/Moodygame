@@ -1,0 +1,19 @@
+[gd_resource type="Resource" script_class="AuthorAsset" format=3]
+
+[ext_resource type="PackedScene" path="res://assets/props/furniture/room-shop-bakery_steen-source-10051-6.tscn" id="1_xs5fc"]
+[ext_resource type="Script" path="res://src/Authoring/AuthorAsset.cs" id="2_myflr"]
+
+[resource]
+PlacementAnchor = Vector3(6.198883e-06, 0, 2.3841858e-06)
+GeometryClearance = true
+script = ExtResource("2_myflr")
+Id = "room-shop-bakery_steen-source-10051-6"
+Title = "clock · shop:bakery_steen · source-10051-6"
+Category = "Room originals"
+Scene = ExtResource("1_xs5fc")
+Footprint = Vector3(0.04, 0.3799863, 0.38005447)
+FootprintOffset = Vector3(6.198883e-06, 2.2599957, 2.3841858e-06)
+FurnitureKind = "clock"
+SeatYaw = 1.5707964
+UsePoint = Vector3(0, 0.5, 0)
+StandPoint = Vector3(0, 0, 0.5999985)

@@ -1,0 +1,96 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://src/Authoring/AuthoredObject.cs" id="1_sjpyw"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-draper_markt-counter.tres" id="2_ikcib"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-draper_markt-source-10430-1.tres" id="3_4woaw"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-draper_markt-source-10430-2.tres" id="4_owlvp"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-draper_markt-source-10430-3.tres" id="5_wt3r3"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-draper_markt-source-10430-4.tres" id="6_rec7w"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-draper_markt-source-10430-5.tres" id="7_m41sj"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-draper_markt-source-10430-6.tres" id="8_istbj"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-draper_markt-source-10430-7.tres" id="9_k4jjy"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-draper_markt-source-10441-8.tres" id="10_k2gew"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-draper_markt-source-10441-9.tres" id="11_u4yln"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-draper_markt-source-10444-10.tres" id="12_i68f4"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-draper_markt-source-10444-11.tres" id="13_24uo8"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-draper_markt-source-10488-12.tres" id="14_8fbk0"]
+
+[node name="Objects" type="Node3D" unique_id=38624607]
+
+[node name="object_counter" type="Node3D" parent="." unique_id=1754178781]
+transform = Transform3D(-1, 0, 1.509958e-07, 0, 1, 0, -1.509958e-07, 0, -1, -216.11, 0.18, 120.65)
+script = ExtResource("1_sjpyw")
+ObjectId = "room-shop-draper_markt-counter"
+Asset = ExtResource("2_ikcib")
+
+[node name="object_source-10430-1" type="Node3D" parent="." unique_id=1621589467]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -215.23997, 0.18, 120.02507)
+script = ExtResource("1_sjpyw")
+ObjectId = "room-shop-draper_markt-source-10430-1"
+Asset = ExtResource("3_4woaw")
+
+[node name="object_source-10430-2" type="Node3D" parent="." unique_id=22604970]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -221.57495, 0.18, 121.14011)
+script = ExtResource("1_sjpyw")
+ObjectId = "room-shop-draper_markt-source-10430-2"
+Asset = ExtResource("4_owlvp")
+
+[node name="object_source-10430-3" type="Node3D" parent="." unique_id=1190654148]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -221.36998, 0.18, 118.07282)
+script = ExtResource("1_sjpyw")
+ObjectId = "room-shop-draper_markt-source-10430-3"
+Asset = ExtResource("5_wt3r3")
+
+[node name="object_source-10430-4" type="Node3D" parent="." unique_id=1377369092]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -219.02, 0.18, 118.399994)
+script = ExtResource("1_sjpyw")
+ObjectId = "room-shop-draper_markt-source-10430-4"
+Asset = ExtResource("6_rec7w")
+
+[node name="object_source-10430-5" type="Node3D" parent="." unique_id=196008017]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -216.47998, 0.18, 123.525)
+script = ExtResource("1_sjpyw")
+ObjectId = "room-shop-draper_markt-source-10430-5"
+Asset = ExtResource("7_m41sj")
+
+[node name="object_source-10430-6" type="Node3D" parent="." unique_id=1642423823]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -218.31995, 0.18, 117.27008)
+script = ExtResource("1_sjpyw")
+ObjectId = "room-shop-draper_markt-source-10430-6"
+Asset = ExtResource("8_istbj")
+
+[node name="object_source-10430-7" type="Node3D" parent="." unique_id=427627397]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -218.31995, 0.18, 117.2401)
+script = ExtResource("1_sjpyw")
+ObjectId = "room-shop-draper_markt-source-10430-7"
+Asset = ExtResource("9_k4jjy")
+
+[node name="object_source-10441-8" type="Node3D" parent="." unique_id=617943564]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -215.94, 0.18, 121.33002)
+script = ExtResource("1_sjpyw")
+ObjectId = "room-shop-draper_markt-source-10441-8"
+Asset = ExtResource("10_k2gew")
+
+[node name="object_source-10441-9" type="Node3D" parent="." unique_id=1719206557]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -218.91998, 0.18, 119.708046)
+script = ExtResource("1_sjpyw")
+ObjectId = "room-shop-draper_markt-source-10441-9"
+Asset = ExtResource("11_u4yln")
+
+[node name="object_source-10444-10" type="Node3D" parent="." unique_id=863965407]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -215.94, 0.18, 121.33003)
+script = ExtResource("1_sjpyw")
+ObjectId = "room-shop-draper_markt-source-10444-10"
+Asset = ExtResource("12_i68f4")
+
+[node name="object_source-10444-11" type="Node3D" parent="." unique_id=1097526877]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -218.91995, 0.18, 119.708015)
+script = ExtResource("1_sjpyw")
+ObjectId = "room-shop-draper_markt-source-10444-11"
+Asset = ExtResource("13_24uo8")
+
+[node name="object_source-10488-12" type="Node3D" parent="." unique_id=1176101536]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -216.47995, 0.18, 124.002)
+script = ExtResource("1_sjpyw")
+ObjectId = "room-shop-draper_markt-source-10488-12"
+Asset = ExtResource("14_8fbk0")

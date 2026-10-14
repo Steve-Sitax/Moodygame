@@ -1,0 +1,25 @@
+[gd_resource type="Resource" script_class="AuthorDistrict" format=3]
+
+[ext_resource type="Resource" path="res://world/interiors/room-shop-hatter_markt.catalog.tres" id="1_nnbo2"]
+[ext_resource type="PackedScene" path="res://world/interiors/room-shop-hatter_markt.structure.tscn" id="2_ktowf"]
+[ext_resource type="PackedScene" path="res://world/interiors/room-shop-hatter_markt.objects.tscn" id="3_nnbo2"]
+[ext_resource type="Script" path="res://src/Authoring/AuthorDistrict.cs" id="4_qscb0"]
+
+[resource]
+script = ExtResource("4_qscb0")
+Id = "room-shop-hatter_markt"
+Title = "shop:hatter_markt"
+Scene = ExtResource("3_nnbo2")
+EditorScenePath = "res://world/interiors/room-shop-hatter_markt.tscn"
+Catalog = ExtResource("1_nnbo2")
+Bounds = Rect2(-399.065, -5.0550003, 200, 200)
+WalkSpawn = Vector3(-299.065, 0.2, 94.945)
+FlySpawn = Vector3(-299.065, 1.78, 94.945)
+FlyYaw = 1.5707964
+FlyPitch = -0.12
+RoomId = "shop:hatter_markt"
+RoomFrame = Transform3D(-4.371139e-08, 0, 1, 0, 1, 0, -1, 0, -4.371139e-08, -304, 0.18, 93.1125)
+RoomBounds = Rect2(-5.2975, 0.2, 6.9300003, 9.47)
+EntryPoints = PackedVector3Array(-304, 0.18, 93.1125)
+ReplacedMeshes = PackedInt32Array(10768, 10770, 10771, 10772, 10773, 10774, 10775, 10776, 10777, 10778, 10779, 10780, 10781, 10782, 10783, 10784, 10785, 10792, 10826)
+RetainedStructure = ExtResource("2_ktowf")

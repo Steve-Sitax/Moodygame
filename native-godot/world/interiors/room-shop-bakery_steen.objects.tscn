@@ -1,0 +1,131 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://src/Authoring/AuthoredObject.cs" id="1_gwdqq"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-bakery_steen-counter.tres" id="2_78n76"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-bakery_steen-source-10051-1.tres" id="3_mjlhv"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-bakery_steen-source-10051-2.tres" id="4_iqdsd"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-bakery_steen-source-10051-3.tres" id="5_e12ty"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-bakery_steen-source-10051-4.tres" id="6_q0h4a"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-bakery_steen-source-10051-5.tres" id="7_0kgm7"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-bakery_steen-source-10051-6.tres" id="8_0jcp3"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-bakery_steen-source-10051-7.tres" id="9_vtix2"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-bakery_steen-source-10058-8.tres" id="10_q3ck4"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-bakery_steen-source-10058-9.tres" id="11_80bsd"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-bakery_steen-source-10059-10.tres" id="12_7jykg"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-bakery_steen-source-10059-11.tres" id="13_7h0my"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-bakery_steen-source-10065-12.tres" id="14_am4wf"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-bakery_steen-source-10067-13.tres" id="15_76gwb"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-bakery_steen-source-10068-14.tres" id="16_7gc6n"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-bakery_steen-source-10068-15.tres" id="17_t0uwb"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-bakery_steen-source-10073-16.tres" id="18_1rnrw"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-bakery_steen-source-10117-17.tres" id="19_xlsio"]
+
+[node name="Objects" type="Node3D" unique_id=2084153290]
+
+[node name="object_counter" type="Node3D" parent="." unique_id=1353601972]
+transform = Transform3D(-4.371139e-08, 0, 1, 0, 1, 0, -1, 0, -4.371139e-08, -196.65, 0.18, 45.62)
+script = ExtResource("1_gwdqq")
+ObjectId = "room-shop-bakery_steen-counter"
+Asset = ExtResource("2_78n76")
+
+[node name="object_source-10051-1" type="Node3D" parent="." unique_id=1895186853]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -196.02504, 0.18, 46.490005)
+script = ExtResource("1_gwdqq")
+ObjectId = "room-shop-bakery_steen-source-10051-1"
+Asset = ExtResource("3_mjlhv")
+
+[node name="object_source-10051-2" type="Node3D" parent="." unique_id=795781245]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -196.7873, 0.18, 40.500023)
+script = ExtResource("1_gwdqq")
+ObjectId = "room-shop-bakery_steen-source-10051-2"
+Asset = ExtResource("4_iqdsd")
+
+[node name="object_source-10051-3" type="Node3D" parent="." unique_id=1354440565]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -195.7, 0.18, 41.15)
+script = ExtResource("1_gwdqq")
+ObjectId = "room-shop-bakery_steen-source-10051-3"
+Asset = ExtResource("5_e12ty")
+
+[node name="object_source-10051-4" type="Node3D" parent="." unique_id=775879499]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -199.525, 0.18, 45.317505)
+script = ExtResource("1_gwdqq")
+ObjectId = "room-shop-bakery_steen-source-10051-4"
+Asset = ExtResource("6_q0h4a")
+
+[node name="object_source-10051-5" type="Node3D" parent="." unique_id=359489941]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -193.27008, 0.18, 45.552048)
+script = ExtResource("1_gwdqq")
+ObjectId = "room-shop-bakery_steen-source-10051-5"
+Asset = ExtResource("7_0kgm7")
+
+[node name="object_source-10051-6" type="Node3D" parent="." unique_id=2020650104]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -193.24008, 0.18, 45.552048)
+script = ExtResource("1_gwdqq")
+ObjectId = "room-shop-bakery_steen-source-10051-6"
+Asset = ExtResource("8_0jcp3")
+
+[node name="object_source-10051-7" type="Node3D" parent="." unique_id=247177642]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -194.1001, 0.18, 40.240017)
+script = ExtResource("1_gwdqq")
+ObjectId = "room-shop-bakery_steen-source-10051-7"
+Asset = ExtResource("9_vtix2")
+
+[node name="object_source-10058-8" type="Node3D" parent="." unique_id=1062911155]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -197.33002, 0.18, 45.79003)
+script = ExtResource("1_gwdqq")
+ObjectId = "room-shop-bakery_steen-source-10058-8"
+Asset = ExtResource("10_q3ck4")
+
+[node name="object_source-10058-9" type="Node3D" parent="." unique_id=1912702412]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -195.70804, 0.18, 42.945023)
+script = ExtResource("1_gwdqq")
+ObjectId = "room-shop-bakery_steen-source-10058-9"
+Asset = ExtResource("11_80bsd")
+
+[node name="object_source-10059-10" type="Node3D" parent="." unique_id=817890145]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -196.789, 0.18, 40.500008)
+script = ExtResource("1_gwdqq")
+ObjectId = "room-shop-bakery_steen-source-10059-10"
+Asset = ExtResource("12_7jykg")
+
+[node name="object_source-10059-11" type="Node3D" parent="." unique_id=1859371768]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -196.7902, 0.18, 40.500008)
+script = ExtResource("1_gwdqq")
+ObjectId = "room-shop-bakery_steen-source-10059-11"
+Asset = ExtResource("13_7h0my")
+
+[node name="object_source-10065-12" type="Node3D" parent="." unique_id=108375921]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -193.97748, 0.18, 40.549202)
+script = ExtResource("1_gwdqq")
+ObjectId = "room-shop-bakery_steen-source-10065-12"
+Asset = ExtResource("14_am4wf")
+
+[node name="object_source-10067-13" type="Node3D" parent="." unique_id=1463124276]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -193.33499, 0.18, 43.545)
+script = ExtResource("1_gwdqq")
+ObjectId = "room-shop-bakery_steen-source-10067-13"
+Asset = ExtResource("15_76gwb")
+
+[node name="object_source-10068-14" type="Node3D" parent="." unique_id=432887317]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -197.33, 0.18, 45.79)
+script = ExtResource("1_gwdqq")
+ObjectId = "room-shop-bakery_steen-source-10068-14"
+Asset = ExtResource("16_7gc6n")
+
+[node name="object_source-10068-15" type="Node3D" parent="." unique_id=1303219821]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -195.70802, 0.18, 42.945015)
+script = ExtResource("1_gwdqq")
+ObjectId = "room-shop-bakery_steen-source-10068-15"
+Asset = ExtResource("17_t0uwb")
+
+[node name="object_source-10073-16" type="Node3D" parent="." unique_id=1786812106]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -196.65, 0.18, 46.857998)
+script = ExtResource("1_gwdqq")
+ObjectId = "room-shop-bakery_steen-source-10073-16"
+Asset = ExtResource("18_1rnrw")
+
+[node name="object_source-10117-17" type="Node3D" parent="." unique_id=2112527460]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -200.002, 0.18, 45.317535)
+script = ExtResource("1_gwdqq")
+ObjectId = "room-shop-bakery_steen-source-10117-17"
+Asset = ExtResource("19_xlsio")

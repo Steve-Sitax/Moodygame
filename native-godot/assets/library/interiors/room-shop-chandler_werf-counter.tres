@@ -1,0 +1,21 @@
+[gd_resource type="Resource" script_class="AuthorAsset" format=3]
+
+[ext_resource type="PackedScene" path="res://assets/props/furniture/room-shop-chandler_werf-counter.tscn" id="1_67yvx"]
+[ext_resource type="Script" path="res://src/Authoring/AuthorAsset.cs" id="2_3w882"]
+
+[resource]
+PlacementAnchor = Vector3(-0.5600219, -1.4901161e-08, -1.6570091e-05)
+GeometryClearance = true
+script = ExtResource("2_3w882")
+Id = "room-shop-chandler_werf-counter"
+Title = "counter · shop:chandler_werf · counter"
+Category = "Room originals"
+Scene = ExtResource("1_67yvx")
+Footprint = Vector3(1.4199591, 0.969997, 3.5199676)
+FootprintOffset = Vector3(-0.5600219, -1.4901161e-08, -1.6570091e-05)
+FurnitureKind = "counter"
+UsePoint = Vector3(0.6300049, 1.2, 0)
+StandPoint = Vector3(1.3299866, 0, 0)
+
+
+KeeperPoint = Vector3(-0.92000145, 0, -1.6570091e-05)

@@ -1,0 +1,40 @@
+[gd_scene format=3]
+
+[ext_resource type="ArrayMesh" path="res://assets/props/furniture/vleeshuis-structure-000.res" id="1_p6p65"]
+[ext_resource type="ArrayMesh" path="res://assets/props/furniture/vleeshuis-structure-001.res" id="2_du4l3"]
+[ext_resource type="ArrayMesh" path="res://assets/props/furniture/vleeshuis-structure-002.res" id="3_fwr6m"]
+[ext_resource type="ArrayMesh" path="res://assets/props/furniture/vleeshuis-structure-003.res" id="4_4oi11"]
+[ext_resource type="ArrayMesh" path="res://assets/props/furniture/vleeshuis-structure-004.res" id="5_eoeyg"]
+[ext_resource type="ArrayMesh" path="res://assets/props/furniture/vleeshuis-structure-005.res" id="6_3xiht"]
+[ext_resource type="ArrayMesh" path="res://assets/props/furniture/vleeshuis-structure-006.res" id="7_ls8kn"]
+[ext_resource type="ArrayMesh" path="res://assets/props/furniture/vleeshuis-structure-007.res" id="8_vk6gd"]
+[ext_resource type="ArrayMesh" path="res://assets/props/furniture/vleeshuis-structure-008.res" id="9_at57f"]
+
+[node name="RetainedStructure" type="Node3D" unique_id=734472594]
+
+[node name="Part" type="MeshInstance3D" parent="." unique_id=1651804002]
+mesh = ExtResource("1_p6p65")
+
+[node name="@MeshInstance3D@13197" type="MeshInstance3D" parent="." unique_id=722548081]
+mesh = ExtResource("2_du4l3")
+
+[node name="@MeshInstance3D@13198" type="MeshInstance3D" parent="." unique_id=1834143295]
+mesh = ExtResource("3_fwr6m")
+
+[node name="@MeshInstance3D@13199" type="MeshInstance3D" parent="." unique_id=2051100106]
+mesh = ExtResource("4_4oi11")
+
+[node name="@MeshInstance3D@13251" type="MeshInstance3D" parent="." unique_id=1493097156]
+mesh = ExtResource("5_eoeyg")
+
+[node name="Batch" type="MeshInstance3D" parent="." unique_id=1514934804]
+mesh = ExtResource("6_3xiht")
+
+[node name="@MeshInstance3D@14362" type="MeshInstance3D" parent="." unique_id=1232246923]
+mesh = ExtResource("7_ls8kn")
+
+[node name="@MeshInstance3D@14363" type="MeshInstance3D" parent="." unique_id=1623542658]
+mesh = ExtResource("8_vk6gd")
+
+[node name="@MeshInstance3D@14364" type="MeshInstance3D" parent="." unique_id=1211089623]
+mesh = ExtResource("9_at57f")

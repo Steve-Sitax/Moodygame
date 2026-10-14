@@ -1,0 +1,24 @@
+[gd_resource type="Resource" script_class="AuthorDistrict" format=3]
+
+[ext_resource type="Resource" path="res://world/interiors/room-tavern-vliet.catalog.tres" id="1_s420v"]
+[ext_resource type="PackedScene" path="res://world/interiors/room-tavern-vliet.structure.tscn" id="2_pti5m"]
+[ext_resource type="PackedScene" path="res://world/interiors/room-tavern-vliet.objects.tscn" id="3_s420v"]
+[ext_resource type="Script" path="res://src/Authoring/AuthorDistrict.cs" id="4_qd8n6"]
+
+[resource]
+script = ExtResource("4_qd8n6")
+Id = "room-tavern-vliet"
+Title = "tavern:vliet"
+Scene = ExtResource("3_s420v")
+EditorScenePath = "res://world/interiors/room-tavern-vliet.tscn"
+Catalog = ExtResource("1_s420v")
+Bounds = Rect2(-212.195, -44.185, 200, 200)
+WalkSpawn = Vector3(-112.195, 0.2, 55.815)
+FlySpawn = Vector3(-112.195, 1.78, 55.815)
+FlyPitch = -0.12
+RoomId = "tavern:vliet"
+RoomFrame = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -112.195, 0.18, 50)
+RoomBounds = Rect2(-4.125, 0.2, 8.25, 11.2300005)
+EntryPoints = PackedVector3Array(-112.195, 0.18, 50)
+ReplacedMeshes = PackedInt32Array(11799, 11801, 11803, 11804, 11805, 11806, 11807, 11808, 11809, 11811, 11813, 11814, 11815, 11816, 11817, 11818, 11819, 11820, 11821, 11828, 11830)
+RetainedStructure = ExtResource("2_pti5m")

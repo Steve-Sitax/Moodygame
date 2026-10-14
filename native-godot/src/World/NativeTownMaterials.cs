@@ -18,6 +18,15 @@ namespace Scheldemist.Native.World;
 /// </summary>
 public sealed class NativeTownMaterials
 {
+    public static NativeTownMaterials Furniture {get;}=new();
+    public void ApplyObject(Node root)
+    {
+        foreach(var mesh in BakedWorld.All(root).OfType<MeshInstance3D>())
+        {
+            if(mesh.Mesh!=null)Surfaces(mesh);
+            if(mesh.MaterialOverride is {} material&&Swap(material,mesh) is {} made)mesh.MaterialOverride=made;
+        }
+    }
     private const string Table = "res://game/rijnkaai/materials.json";
     private readonly Dictionary<ulong, Mesh> meshes = new();
     private readonly Dictionary<ulong, Material> swapped = new();
@@ -72,7 +81,7 @@ public sealed class NativeTownMaterials
     /// A plain editor material as one of the game's shared shader kinds. The lamp's glass and flame keep the names the
     /// game's own lamp glow looks for (World/Lights.cs FindGlass), so they colour with the air and fade in the fog.
     /// </summary>
-    private static ShaderMaterial FromStandard(BaseMaterial3D standard, MeshInstance3D mesh)
+    public static ShaderMaterial FromStandard(BaseMaterial3D standard, MeshInstance3D mesh)
     {
         string name = standard.ResourceName;
         if (name == "") name = mesh.Name.ToString() switch { "Head" => "glass", "Flame" => "flame", _ => "" };

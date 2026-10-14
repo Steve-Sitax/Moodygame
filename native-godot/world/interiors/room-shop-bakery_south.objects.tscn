@@ -1,0 +1,138 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://src/Authoring/AuthoredObject.cs" id="1_rxotm"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-bakery_south-counter.tres" id="2_fybbq"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-bakery_south-source-11138-1.tres" id="3_7df5v"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-bakery_south-source-11138-2.tres" id="4_i7wqh"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-bakery_south-source-11138-3.tres" id="5_yc0pi"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-bakery_south-source-11138-4.tres" id="6_w4y1n"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-bakery_south-source-11138-5.tres" id="7_xbu6n"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-bakery_south-source-11138-6.tres" id="8_gpkc8"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-bakery_south-source-11138-7.tres" id="9_ovga1"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-bakery_south-source-11145-8.tres" id="10_td4oy"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-bakery_south-source-11145-9.tres" id="11_h2ttt"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-bakery_south-source-11146-10.tres" id="12_tvq2x"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-bakery_south-source-11146-11.tres" id="13_oj0yx"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-bakery_south-source-11153-12.tres" id="14_btrvq"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-bakery_south-source-11153-13.tres" id="15_0bkgd"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-bakery_south-source-11155-14.tres" id="16_httl5"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-bakery_south-source-11156-15.tres" id="17_et7fn"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-bakery_south-source-11156-16.tres" id="18_hihvp"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-bakery_south-source-11161-17.tres" id="19_sx4hr"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-bakery_south-source-11205-18.tres" id="20_7sg2s"]
+
+[node name="Objects" type="Node3D" unique_id=122488319]
+
+[node name="object_counter" type="Node3D" parent="." unique_id=1916766546]
+transform = Transform3D(-0.09962947, 0, 0.9950246, 0, 1, 0, -0.9950246, 0, -0.09962947, -206.86313, 0.18, 239.60356)
+script = ExtResource("1_rxotm")
+ObjectId = "room-shop-bakery_south-counter"
+Asset = ExtResource("2_fybbq")
+
+[node name="object_source-11138-1" type="Node3D" parent="." unique_id=670263356]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -206.13176, 0.18, 240.63586)
+script = ExtResource("1_rxotm")
+ObjectId = "room-shop-bakery_south-source-11138-1"
+Asset = ExtResource("3_7df5v")
+
+[node name="object_source-11138-2" type="Node3D" parent="." unique_id=677906437]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -208.28877, 0.18, 234.90219)
+script = ExtResource("1_rxotm")
+ObjectId = "room-shop-bakery_south-source-11138-2"
+Asset = ExtResource("4_i7wqh")
+
+[node name="object_source-11138-3" type="Node3D" parent="." unique_id=1971341924]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -206.33331, 0.18, 235.35962)
+script = ExtResource("1_rxotm")
+ObjectId = "room-shop-bakery_south-source-11138-3"
+Asset = ExtResource("5_yc0pi")
+
+[node name="object_source-11138-4" type="Node3D" parent="." unique_id=231412034]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -209.74649, 0.18, 239.66362)
+script = ExtResource("1_rxotm")
+ObjectId = "room-shop-bakery_south-source-11138-4"
+Asset = ExtResource("6_w4y1n")
+
+[node name="object_source-11138-5" type="Node3D" parent="." unique_id=471213286]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -203.49255, 0.18, 239.25739)
+script = ExtResource("1_rxotm")
+ObjectId = "room-shop-bakery_south-source-11138-5"
+Asset = ExtResource("7_xbu6n")
+
+[node name="object_source-11138-6" type="Node3D" parent="." unique_id=2068359909]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -203.47101, 0.18, 239.25592)
+script = ExtResource("1_rxotm")
+ObjectId = "room-shop-bakery_south-source-11138-6"
+Asset = ExtResource("8_gpkc8")
+
+[node name="object_source-11138-7" type="Node3D" parent="." unique_id=1895102061]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -204.83199, 0.18, 234.29482)
+script = ExtResource("1_rxotm")
+ObjectId = "room-shop-bakery_south-source-11138-7"
+Asset = ExtResource("9_ovga1")
+
+[node name="object_source-11145-8" type="Node3D" parent="." unique_id=987031928]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -207.52283, 0.18, 239.84048)
+script = ExtResource("1_rxotm")
+ObjectId = "room-shop-bakery_south-source-11145-8"
+Asset = ExtResource("10_td4oy")
+
+[node name="object_source-11145-9" type="Node3D" parent="." unique_id=40223305]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -206.17743, 0.18, 236.99725)
+script = ExtResource("1_rxotm")
+ObjectId = "room-shop-bakery_south-source-11145-9"
+Asset = ExtResource("11_h2ttt")
+
+[node name="object_source-11146-10" type="Node3D" parent="." unique_id=1462729181]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -208.28864, 0.18, 234.90216)
+script = ExtResource("1_rxotm")
+ObjectId = "room-shop-bakery_south-source-11146-10"
+Asset = ExtResource("12_tvq2x")
+
+[node name="object_source-11146-11" type="Node3D" parent="." unique_id=82794948]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -208.28864, 0.18, 234.90216)
+script = ExtResource("1_rxotm")
+ObjectId = "room-shop-bakery_south-source-11146-11"
+Asset = ExtResource("13_oj0yx")
+
+[node name="object_source-11153-12" type="Node3D" parent="." unique_id=1101088489]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -204.40636, 0.18, 234.56604)
+script = ExtResource("1_rxotm")
+ObjectId = "room-shop-bakery_south-source-11153-12"
+Asset = ExtResource("14_btrvq")
+
+[node name="object_source-11153-13" type="Node3D" parent="." unique_id=1762120285]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -204.95392, 0.18, 234.61531)
+script = ExtResource("1_rxotm")
+ObjectId = "room-shop-bakery_south-source-11153-13"
+Asset = ExtResource("15_0bkgd")
+
+[node name="object_source-11155-14" type="Node3D" parent="." unique_id=632740849]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -203.74646, 0.18, 237.35684)
+script = ExtResource("1_rxotm")
+ObjectId = "room-shop-bakery_south-source-11155-14"
+Asset = ExtResource("16_httl5")
+
+[node name="object_source-11156-15" type="Node3D" parent="." unique_id=827275586]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -207.52281, 0.18, 239.84047)
+script = ExtResource("1_rxotm")
+ObjectId = "room-shop-bakery_south-source-11156-15"
+Asset = ExtResource("17_et7fn")
+
+[node name="object_source-11156-16" type="Node3D" parent="." unique_id=1531241480]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -206.1774, 0.18, 236.99725)
+script = ExtResource("1_rxotm")
+ObjectId = "room-shop-bakery_south-source-11156-16"
+Asset = ExtResource("18_hihvp")
+
+[node name="object_source-11161-17" type="Node3D" parent="." unique_id=2136306755]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -206.73978, 0.18, 240.83539)
+script = ExtResource("1_rxotm")
+ObjectId = "room-shop-bakery_south-source-11161-17"
+Asset = ExtResource("19_sx4hr")
+
+[node name="object_source-11205-18" type="Node3D" parent="." unique_id=155085975]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -210.22113, 0.18, 239.71114)
+script = ExtResource("1_rxotm")
+ObjectId = "room-shop-bakery_south-source-11205-18"
+Asset = ExtResource("20_7sg2s")

@@ -1,0 +1,37 @@
+[gd_scene format=4]
+
+[ext_resource type="Script" path="res://src/Interiors/FurnitureVisual.cs" id="1_6rhbh"]
+[ext_resource type="Material" path="res://world/town/resources/r007121.res" id="2_65g1j"]
+
+[sub_resource type="ArrayMesh" id="ArrayMesh_evng1"]
+_surfaces = [{
+"aabb": AABB(-0.011936516, 2.4999616, -0.011938095, 0.02387482, 0.6000383, 0.023889542),
+"attribute_data": PackedByteArray("AAAAAAAAgD8A/X8+AACAPwAAAAAAAAAAAAAAAAAAAAAA/X8+AACAPwD9fz4AAAAAAP1/PgAAgD8A//8+AACAPwD9fz4AAAAAAP1/PgAAAAAA//8+AACAPwD//z4AAAAAAP//PgAAgD/A/z8/AACAPwD//z4AAAAAAP//PgAAAADA/z8/AACAP8D/Pz8AAAAAwP8/PwAAgD8AAIA/AACAP8D/Pz8AAAAAwP8/PwAAAAAAAIA/AACAPwAAgD8AAAAAAACAPwD//z4A//8+AP//PgD//z4AAIA/AP//PgAAgD8A//8+AP//PgAAAAAA//8+AAAAAAD//z4A//8+AP//PgD//z4AAAAAAP//PgAAAAAA//8+AP//PgAAgD8A//8+AP//PgAAAAAA//8+AP//PgAAgD8A//8+AAAAAAD//z4A//8+AP//PgD//z4AAAAAAP//PgAAgD8A//8+AP//PgAAAAAA//8+AACAPwD//z4A//8+AP//PgD//z4AAIA/"),
+"format": 34359738391,
+"material": ExtResource("2_65g1j"),
+"primitive": 3,
+"uv_scale": Vector4(0, 0, 0, 0),
+"vertex_count": 48,
+"vertex_data": PackedByteArray("AHCXOmZmRkAA0EM84JhDPGZmRkAAYJa6AHCXOl//H0AA0EM8AHCXOl//H0AA0EM84JhDPGZmRkAAYJa64JhDPF//H0AAYJa64JhDPGZmRkAAYJa6ACqXumZmRkAAmEO84JhDPF//H0AAYJa64JhDPF//H0AAYJa6ACqXumZmRkAAmEO8ACqXul//H0AAmEO8ACqXumZmRkAAmEO8YJFDvGZmRkAAEJg6ACqXul//H0AAmEO8ACqXul//H0AAmEO8YJFDvGZmRkAAEJg6YJFDvF//H0AAEJg6YJFDvGZmRkAAEJg6AHCXOmZmRkAA0EM8YJFDvF//H0AAEJg6YJFDvF//H0AAEJg6AHCXOmZmRkAA0EM8AHCXOl//H0AA0EM8AHCXOmZmRkAA0EM8AACMNWZmRkAAAOA24JhDPGZmRkAAYJa64JhDPGZmRkAAYJa6AACMNWZmRkAAAOA2ACqXumZmRkAAmEO8ACqXumZmRkAAmEO8AACMNWZmRkAAAOA2YJFDvGZmRkAAEJg6YJFDvGZmRkAAEJg6AACMNWZmRkAAAOA2AHCXOmZmRkAA0EM84JhDPF//H0AAYJa6AACMNV//H0AAAOA2AHCXOl//H0AA0EM8ACqXul//H0AAmEO8AACMNV//H0AAAOA24JhDPF//H0AAYJa6YJFDvF//H0AAEJg6AACMNV//H0AAAOA2ACqXul//H0AAmEO8AHCXOl//H0AA0EM8AACMNV//H0AAAOA2YJFDvF//H0AAEJg6Rov+f9B0IYb+/7d0Lot0v0aL/n/QdCGGRov+f9B0IYb+/7d0Lot0v/7/t3Qui3S//v+3dC6LdL8AAEYL0XQhhv7/t3Qui3S//v+3dC6LdL8AAEYL0XQhhgAARgvRdCGGAABGC9F0IYZIC/9/L4t1vwAARgvRdCGGAABGC9F0IYZIC/9/L4t1v0gL/38vi3W/SAv/fy+Ldb9Gi/5/0HQhhkgL/38vi3W/SAv/fy+Ldb9Gi/5/0HQhhkaL/n/QdCGG/n/9/wEA/r/+f/3/AQD+v/5//f8BAP6//n/9/wEA/r/+f/3/AQD+v/5//f8BAP6//n/9/wEA/r/+f/3/AQD+v/5//f8BAP6//n/9/wEA/r/+f/3/AQD+v/5//f8BAP6/+n8BAAUA/7/6fwEABQD/v/p/AQAFAP+/+n8BAAUA/7/6fwEABQD/v/p/AQAFAP+/+n8BAAUA/7/6fwEABQD/v/p/AQAFAP+/+n8BAAUA/7/6fwEABQD/v/p/AQAFAP+/")
+}]
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_eyteb"]
+size = Vector3(0.04, 0.6000383, 0.04)
+
+[node name="fitting" type="Node3D" unique_id=1955787063]
+script = ExtResource("1_6rhbh")
+GeometryCollision = true
+Kind = "fitting"
+ModelSize = Vector3(0.04, 0.6000383, 0.04)
+ModelOffset = Vector3(8.940697e-07, 2.4999616, 6.67572e-06)
+
+[node name="Part" type="MeshInstance3D" parent="." unique_id=1283156353]
+mesh = SubResource("ArrayMesh_evng1")
+
+[node name="Solid" type="StaticBody3D" parent="." unique_id=738837159]
+collision_layer = 2
+collision_mask = 0
+
+[node name="Shape" type="CollisionShape3D" parent="Solid" unique_id=1121605526]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 8.940697e-07, 2.7999806, 6.67572e-06)
+shape = SubResource("BoxShape3D_eyteb")

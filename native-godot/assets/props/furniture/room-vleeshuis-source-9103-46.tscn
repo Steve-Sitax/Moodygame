@@ -1,0 +1,37 @@
+[gd_scene format=4]
+
+[ext_resource type="Script" path="res://src/Interiors/FurnitureVisual.cs" id="1_ytqdd"]
+[ext_resource type="Material" path="res://world/town/resources/r006302.res" id="2_e67qb"]
+
+[sub_resource type="ArrayMesh" id="ArrayMesh_560jr"]
+_surfaces = [{
+"aabb": AABB(-0.17927265, 0.6373825, 0, 0.35855007, 0.28523004, 1e-05),
+"attribute_data": PackedByteArray("/////wD//z4A//8+/////wAAgD8A//8+/////wD//z4AAAAA/////wD//z4AAAAA/////wAAgD8A//8+/////wAAgD8AAAAA"),
+"format": 34359738399,
+"material": ExtResource("2_e67qb"),
+"primitive": 3,
+"uv_scale": Vector4(0, 0, 0, 0),
+"vertex_count": 6,
+"vertex_data": PackedByteArray("gJQ3PgqJZT8AAAAAgCQjvlYwbD8AAAAAgCUjPoArIz8AAAAAgCUjPoArIz8AAAAAgCQjvlYwbD8AAAAAQJM3vszSKT8AAAAA/v8BAACAAID+/wEAAIAAgP7/AQAAgACA/v8BAACAAID+/wEAAIAAgP7/AQAAgACA")
+}]
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_fb23x"]
+size = Vector3(0.35855007, 0.28523004, 0.04)
+
+[node name="fitting" type="Node3D" unique_id=586227014]
+script = ExtResource("1_ytqdd")
+GeometryCollision = true
+Kind = "fitting"
+ModelSize = Vector3(0.35855007, 0.28523004, 0.04)
+ModelOffset = Vector3(2.3841858e-06, 0.6373825, 0)
+
+[node name="Part" type="MeshInstance3D" parent="." unique_id=1285256075]
+mesh = SubResource("ArrayMesh_560jr")
+
+[node name="Solid" type="StaticBody3D" parent="." unique_id=1394473357]
+collision_layer = 2
+collision_mask = 0
+
+[node name="Shape" type="CollisionShape3D" parent="Solid" unique_id=1470632143]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.3841858e-06, 0.7799975, 0)
+shape = SubResource("BoxShape3D_fb23x")

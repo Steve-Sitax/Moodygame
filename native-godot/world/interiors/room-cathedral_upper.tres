@@ -1,0 +1,24 @@
+[gd_resource type="Resource" script_class="AuthorDistrict" format=3]
+
+[ext_resource type="Resource" path="res://world/interiors/room-cathedral_upper.catalog.tres" id="1_0lger"]
+[ext_resource type="PackedScene" path="res://world/interiors/room-cathedral_upper.structure.tscn" id="2_41a84"]
+[ext_resource type="PackedScene" path="res://world/interiors/room-cathedral_upper.objects.tscn" id="3_0lger"]
+[ext_resource type="Script" path="res://src/Authoring/AuthorDistrict.cs" id="4_teyuy"]
+
+[resource]
+script = ExtResource("4_teyuy")
+Id = "room-cathedral_upper"
+Title = "cathedral_upper"
+Scene = ExtResource("3_0lger")
+EditorScenePath = "res://world/interiors/room-cathedral_upper.tscn"
+Catalog = ExtResource("1_0lger")
+Bounds = Rect2(-362, 100.880005, 200, 200)
+WalkSpawn = Vector3(-262, 17.27, 200.88)
+FlySpawn = Vector3(-262, 18.85, 200.88)
+FlyPitch = -0.12
+RoomId = "cathedral_upper"
+RoomFrame = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 17.25, 0)
+RoomBounds = Rect2(-279.9, 149.03, 35.799988, 103.7)
+RoomHeight = 75.9
+ReplacedMeshes = PackedInt32Array(8863, 8864, 8865, 8866, 8867, 8869, 8870, 8871, 8873, 8874, 8875, 8877, 8878, 8879, 8880, 8882, 8885)
+RetainedStructure = ExtResource("2_41a84")

@@ -1,0 +1,166 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://src/Authoring/AuthoredObject.cs" id="1_u0vai"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-tavern-ankere-seat-0.tres" id="2_ln0j1"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-tavern-ankere-seat-2.tres" id="3_f76mb"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-tavern-ankere-seat-4.tres" id="4_3clka"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-tavern-ankere-seat-6.tres" id="5_uwgpk"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-tavern-ankere-seat-8.tres" id="6_jx02j"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-tavern-ankere-seat-10.tres" id="7_phfei"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-tavern-ankere-seat-12.tres" id="8_wkwg2"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-tavern-ankere-seat-13.tres" id="9_w0ws0"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-tavern-ankere-seat-14.tres" id="10_bp5li"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-tavern-ankere-table-0.tres" id="11_r5vst"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-tavern-ankere-table-1.tres" id="12_snrnw"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-tavern-ankere-table-2.tres" id="13_xmjnm"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-tavern-ankere-counter.tres" id="14_hh1tg"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-tavern-ankere-source-11662-13.tres" id="15_1nqwe"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-tavern-ankere-source-11662-14.tres" id="16_e4jp5"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-tavern-ankere-source-11662-15.tres" id="17_1676d"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-tavern-ankere-source-11662-16.tres" id="18_653p7"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-tavern-ankere-source-11669-17.tres" id="19_1y8rn"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-tavern-ankere-source-11677-18.tres" id="20_jqxu7"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-tavern-ankere-source-11677-19.tres" id="21_817s1"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-tavern-ankere-source-11679-20.tres" id="22_i4x25"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-tavern-ankere-source-11679-21.tres" id="23_01l2f"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-tavern-ankere-source-11681-22.tres" id="24_n7gjf"]
+
+[node name="Objects" type="Node3D" unique_id=1888190156]
+
+[node name="object_seat-0" type="Node3D" parent="." unique_id=84014719]
+transform = Transform3D(-4.371139e-08, 0, 1, 0, 1, 0, -1, 0, -4.371139e-08, -59.27, 0.18, 47.65)
+script = ExtResource("1_u0vai")
+ObjectId = "room-tavern-ankere-seat-0"
+Asset = ExtResource("2_ln0j1")
+
+[node name="object_seat-2" type="Node3D" parent="." unique_id=1762356020]
+transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -57.83, 0.18, 47.65)
+script = ExtResource("1_u0vai")
+ObjectId = "room-tavern-ankere-seat-2"
+Asset = ExtResource("3_f76mb")
+
+[node name="object_seat-4" type="Node3D" parent="." unique_id=942154273]
+transform = Transform3D(-4.371139e-08, 0, 1, 0, 1, 0, -1, 0, -4.371139e-08, -59.27, 0.18, 50.65)
+script = ExtResource("1_u0vai")
+ObjectId = "room-tavern-ankere-seat-4"
+Asset = ExtResource("4_3clka")
+
+[node name="object_seat-6" type="Node3D" parent="." unique_id=1859244552]
+transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -57.83, 0.18, 50.65)
+script = ExtResource("1_u0vai")
+ObjectId = "room-tavern-ankere-seat-6"
+Asset = ExtResource("5_uwgpk")
+
+[node name="object_seat-8" type="Node3D" parent="." unique_id=902557128]
+transform = Transform3D(-4.371139e-08, 0, 1, 0, 1, 0, -1, 0, -4.371139e-08, -59.27, 0.18, 53.65)
+script = ExtResource("1_u0vai")
+ObjectId = "room-tavern-ankere-seat-8"
+Asset = ExtResource("6_jx02j")
+
+[node name="object_seat-10" type="Node3D" parent="." unique_id=1177767323]
+transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -57.83, 0.18, 53.65)
+script = ExtResource("1_u0vai")
+ObjectId = "room-tavern-ankere-seat-10"
+Asset = ExtResource("7_phfei")
+
+[node name="object_seat-12" type="Node3D" parent="." unique_id=1877930474]
+transform = Transform3D(-4.371139e-08, 0, 1, 0, 1, 0, -1, 0, -4.371139e-08, -55.100002, 0.18, 48.9)
+script = ExtResource("1_u0vai")
+ObjectId = "room-tavern-ankere-seat-12"
+Asset = ExtResource("8_wkwg2")
+
+[node name="object_seat-13" type="Node3D" parent="." unique_id=1099172447]
+transform = Transform3D(-4.371139e-08, 0, 1, 0, 1, 0, -1, 0, -4.371139e-08, -55.100002, 0.18, 50.2)
+script = ExtResource("1_u0vai")
+ObjectId = "room-tavern-ankere-seat-13"
+Asset = ExtResource("9_w0ws0")
+
+[node name="object_seat-14" type="Node3D" parent="." unique_id=487409600]
+transform = Transform3D(-4.371139e-08, 0, 1, 0, 1, 0, -1, 0, -4.371139e-08, -55.100002, 0.18, 51.5)
+script = ExtResource("1_u0vai")
+ObjectId = "room-tavern-ankere-seat-14"
+Asset = ExtResource("10_bp5li")
+
+[node name="object_table-0" type="Node3D" parent="." unique_id=151634228]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -58.55, 0.18, 47.65)
+script = ExtResource("1_u0vai")
+ObjectId = "room-tavern-ankere-table-0"
+Asset = ExtResource("11_r5vst")
+
+[node name="object_table-1" type="Node3D" parent="." unique_id=1914104772]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -58.55, 0.18, 50.65)
+script = ExtResource("1_u0vai")
+ObjectId = "room-tavern-ankere-table-1"
+Asset = ExtResource("12_snrnw")
+
+[node name="object_table-2" type="Node3D" parent="." unique_id=954325150]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -58.55, 0.18, 53.65)
+script = ExtResource("1_u0vai")
+ObjectId = "room-tavern-ankere-table-2"
+Asset = ExtResource("13_xmjnm")
+
+[node name="object_counter" type="Node3D" parent="." unique_id=525172158]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -54.475002, 0.18, 50.2)
+script = ExtResource("1_u0vai")
+ObjectId = "room-tavern-ankere-counter"
+Asset = ExtResource("14_hh1tg")
+
+[node name="object_source-11662-13" type="Node3D" parent="." unique_id=1516183923]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -53.455025, 0.18, 50.19989)
+script = ExtResource("1_u0vai")
+ObjectId = "room-tavern-ankere-source-11662-13"
+Asset = ExtResource("15_1nqwe")
+
+[node name="object_source-11662-14" type="Node3D" parent="." unique_id=1940565830]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -53.455025, 0.18, 50.19989)
+script = ExtResource("1_u0vai")
+ObjectId = "room-tavern-ankere-source-11662-14"
+Asset = ExtResource("16_e4jp5")
+
+[node name="object_source-11662-15" type="Node3D" parent="." unique_id=1856323564]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -53.95005, 0.18, 56.349915)
+script = ExtResource("1_u0vai")
+ObjectId = "room-tavern-ankere-source-11662-15"
+Asset = ExtResource("17_1676d")
+
+[node name="object_source-11662-16" type="Node3D" parent="." unique_id=1158779183]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -57.20005, 0.18, 56.5125)
+script = ExtResource("1_u0vai")
+ObjectId = "room-tavern-ankere-source-11662-16"
+Asset = ExtResource("18_653p7")
+
+[node name="object_source-11669-17" type="Node3D" parent="." unique_id=1180434834]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -53.32, 0.18, 50.2)
+script = ExtResource("1_u0vai")
+ObjectId = "room-tavern-ankere-source-11669-17"
+Asset = ExtResource("19_1y8rn")
+
+[node name="object_source-11677-18" type="Node3D" parent="." unique_id=2010881997]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -56.350006, 0.18, 49.52997)
+script = ExtResource("1_u0vai")
+ObjectId = "room-tavern-ankere-source-11677-18"
+Asset = ExtResource("20_jqxu7")
+
+[node name="object_source-11677-19" type="Node3D" parent="." unique_id=664258667]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -56.350006, 0.18, 53.747963)
+script = ExtResource("1_u0vai")
+ObjectId = "room-tavern-ankere-source-11677-19"
+Asset = ExtResource("21_817s1")
+
+[node name="object_source-11679-20" type="Node3D" parent="." unique_id=1638714833]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -59.72002, 0.18, 55.1)
+script = ExtResource("1_u0vai")
+ObjectId = "room-tavern-ankere-source-11679-20"
+Asset = ExtResource("22_i4x25")
+
+[node name="object_source-11679-21" type="Node3D" parent="." unique_id=967877390]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -55.000004, 0.18, 54.899998)
+script = ExtResource("1_u0vai")
+ObjectId = "room-tavern-ankere-source-11679-21"
+Asset = ExtResource("23_01l2f")
+
+[node name="object_source-11681-22" type="Node3D" parent="." unique_id=622433774]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -59.768, 0.18, 56.3)
+script = ExtResource("1_u0vai")
+ObjectId = "room-tavern-ankere-source-11681-22"
+Asset = ExtResource("24_n7gjf")

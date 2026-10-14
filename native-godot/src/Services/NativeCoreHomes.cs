@@ -12,6 +12,8 @@ public sealed class NativeCoreHomes : INativeServiceModule
     private readonly NativeServiceHost host;
     private NativeServiceContext C=>host.Context;
     public NativeCoreHomePlan Plan {get;}
+    public Func<string,bool>? AuthoredBedAvailable;
+    public Func<string,bool>? AuthoredFireAvailable;
     private static readonly Dictionary<string,string> OwnerNoun=new(){{"cellar","cellar room"},{"garret","garret"},{"widow","spare room"},{"alley","house in the alley"},{"merchant","upper floor"}};
     public NativeCoreHomes(NativeServiceHost host){this.host=host;Plan=new NativeCoreHomePlan(host.Context);}
     public JsonObject? Town()=>C.World("homes") as JsonObject;
@@ -59,11 +61,12 @@ public sealed class NativeCoreHomes : INativeServiceModule
     public JsonObject Bed(int who)
     {
         var lease=Lease(who)??throw new NativeServiceException("you rent no room",409);var home=NeedHome(S(lease,"home"));if(Locked(lease))throw new NativeServiceException($"The key does not turn: {Landlord(home)} has changed the lock. You owe him rent.",409);
+        if(AuthoredBedAvailable?.Invoke(S(home,"id"))==false)throw new NativeServiceException("There is no bed in this room.",409);
         var night=Plan.Night(S(home,"cls"),Placed(who,S(home,"id")));night["id"]=S(home,"id");night["label"]=S(home,"label");night["text"]=S(Plan.Class(S(home,"cls")),"night")+(night["restful"]!.GetValue<bool>()?" You sleep deep and wake rested.":"");night.Remove("restful");return new JsonObject{["home"]=home,["night"]=night};
     }
     public JsonObject Stove(int who)
     {
-        var lease=Lease(who)??throw new NativeServiceException("you rent no room",409);var home=NeedHome(S(lease,"home"));bool has=Plan.Class(S(home,"cls"))["fire"]?.GetValue<bool>()==true||Placed(who,S(home,"id")).Any(p=>p?["kind"]?.GetValue<string>()=="stove");if(!has)throw new NativeServiceException("there is no stove here",409);
+        var lease=Lease(who)??throw new NativeServiceException("you rent no room",409);var home=NeedHome(S(lease,"home"));bool has=(AuthoredFireAvailable?.Invoke(S(home,"id"))??(Plan.Class(S(home,"cls"))["fire"]?.GetValue<bool>()==true))||Placed(who,S(home,"id")).Any(p=>p?["kind"]?.GetValue<string>()=="stove");if(!has)throw new NativeServiceException("there is no stove here",409);
         int now=host.Clock.MinuteNow();if(now-(C.PlayerState(who,"home:stove")?.GetValue<int>()??-1000000000)<60)return new JsonObject{["text"]="The iron ticks. You are as warm as it will make you for now.",["warmed"]=false};
         C.Atomic(()=>{C.Execute("UPDATE player SET warmth=MIN(10,warmth+1) WHERE id=$p0",who);C.SetPlayerState(who,"home:stove",now);C.Log(who,"warmed",S(home,"id"),$"Jef warmed himself at his own stove in {S(home,"label")}.");});return new JsonObject{["text"]="You feed the fire a little and hold your hands to it. The cold goes out of your fingers.",["warmed"]=true};
     }
@@ -136,4 +139,3 @@ public sealed class NativeCoreHomes : INativeServiceModule
     private static int N(JsonObject obj,string key)=>NativeCoreClock.Number(obj,key);
     private static string S(JsonObject obj,string key)=>obj[key]?.GetValue<string>()??"";
 }
-

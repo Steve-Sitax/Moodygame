@@ -1,0 +1,26 @@
+[gd_resource type="Resource" script_class="AuthorCatalog" format=3]
+
+[ext_resource type="Script" path="res://src/Authoring/AuthorAsset.cs" id="1_5jqg3"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-grocer_south-counter.tres" id="2_30eic"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-grocer_south-source-11210-1.tres" id="3_i7qu5"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-grocer_south-source-11210-2.tres" id="4_28k4d"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-grocer_south-source-11210-3.tres" id="5_hln7k"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-grocer_south-source-11210-4.tres" id="6_asf0m"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-grocer_south-source-11210-5.tres" id="7_87g40"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-grocer_south-source-11217-6.tres" id="8_bc00y"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-grocer_south-source-11217-7.tres" id="9_on20i"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-grocer_south-source-11218-8.tres" id="10_6obgd"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-grocer_south-source-11225-9.tres" id="11_irarb"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-grocer_south-source-11225-10.tres" id="12_kw3mh"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-grocer_south-source-11225-11.tres" id="13_fpck3"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-grocer_south-source-11225-12.tres" id="14_p3dgp"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-grocer_south-source-11226-13.tres" id="15_ysabg"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-grocer_south-source-11226-14.tres" id="16_2gn2a"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-grocer_south-source-11232-15.tres" id="17_7ttur"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-grocer_south-source-11232-16.tres" id="18_d7074"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-grocer_south-source-11272-17.tres" id="19_5o33o"]
+[ext_resource type="Script" path="res://src/Authoring/AuthorCatalog.cs" id="20_7x3sf"]
+
+[resource]
+script = ExtResource("20_7x3sf")
+Assets = Array[ExtResource("1_5jqg3")]([ExtResource("2_30eic"), ExtResource("3_i7qu5"), ExtResource("4_28k4d"), ExtResource("5_hln7k"), ExtResource("6_asf0m"), ExtResource("7_87g40"), ExtResource("8_bc00y"), ExtResource("9_on20i"), ExtResource("10_6obgd"), ExtResource("11_irarb"), ExtResource("12_kw3mh"), ExtResource("13_fpck3"), ExtResource("14_p3dgp"), ExtResource("15_ysabg"), ExtResource("16_2gn2a"), ExtResource("17_7ttur"), ExtResource("18_d7074"), ExtResource("19_5o33o")])

@@ -1,0 +1,23 @@
+[gd_resource type="Resource" script_class="AuthorCatalog" format=3]
+
+[ext_resource type="Script" path="res://src/Authoring/AuthorAsset.cs" id="1_oyh3k"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-home-merchant-fixed-0.tres" id="2_tub4j"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-home-merchant-fixed-1.tres" id="3_vtq1o"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-home-merchant-fixed-2.tres" id="4_uktso"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-home-merchant-fixed-3.tres" id="5_uokfr"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-home-merchant-fixed-4.tres" id="6_k8fje"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-home-merchant-fixed-5.tres" id="7_1qv4j"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-home-merchant-fixed-6.tres" id="8_r141q"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-home-merchant-fixed-7.tres" id="9_gn238"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-home-merchant-fixed-8.tres" id="10_1urjn"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-home-merchant-source-11570-9.tres" id="11_vwloe"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-home-merchant-source-11570-10.tres" id="12_n3po4"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-home-merchant-source-11574-11.tres" id="13_smvc1"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-home-merchant-source-11574-12.tres" id="14_j0j5d"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-home-merchant-source-11617-13.tres" id="15_1n4aw"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-home-merchant-source-11618-14.tres" id="16_3conc"]
+[ext_resource type="Script" path="res://src/Authoring/AuthorCatalog.cs" id="17_ej77r"]
+
+[resource]
+script = ExtResource("17_ej77r")
+Assets = Array[ExtResource("1_oyh3k")]([ExtResource("2_tub4j"), ExtResource("3_vtq1o"), ExtResource("4_uktso"), ExtResource("5_uokfr"), ExtResource("6_k8fje"), ExtResource("7_1qv4j"), ExtResource("8_r141q"), ExtResource("9_gn238"), ExtResource("10_1urjn"), ExtResource("11_vwloe"), ExtResource("12_n3po4"), ExtResource("13_smvc1"), ExtResource("14_j0j5d"), ExtResource("15_1n4aw"), ExtResource("16_3conc")])

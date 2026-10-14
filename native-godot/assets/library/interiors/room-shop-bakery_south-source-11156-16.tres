@@ -1,0 +1,19 @@
+[gd_resource type="Resource" script_class="AuthorAsset" format=3]
+
+[ext_resource type="PackedScene" path="res://assets/props/furniture/room-shop-bakery_south-source-11156-16.tscn" id="1_f7enq"]
+[ext_resource type="Script" path="res://src/Authoring/AuthorAsset.cs" id="2_bh842"]
+
+[resource]
+PlacementAnchor = Vector3(1.1920929e-06, 0, 1.0788441e-05)
+GeometryClearance = true
+script = ExtResource("2_bh842")
+Id = "room-shop-bakery_south-source-11156-16"
+Title = "fitting · shop:bakery_south · source-11156-16"
+Category = "Room originals"
+Scene = ExtResource("1_f7enq")
+Footprint = Vector3(0.04, 0.60002375, 0.04)
+FootprintOffset = Vector3(1.1920929e-06, 2.4999762, 1.0788441e-05)
+FurnitureKind = "fitting"
+SeatYaw = 1.6705914
+UsePoint = Vector3(0, 0.5, 0)
+StandPoint = Vector3(0, 0, 0.6000061)

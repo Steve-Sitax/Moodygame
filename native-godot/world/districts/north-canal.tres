@@ -1,17 +1,16 @@
-[gd_resource type="Resource" script_class="AuthorDistrict" load_steps=4 format=3]
+[gd_resource type="Resource" script_class="AuthorDistrict" format=3]
 
-[ext_resource type="Script" path="res://src/Authoring/AuthorDistrict.cs" id="script"]
-[ext_resource type="PackedScene" path="res://world/districts/north-canal.tscn" id="scene"]
+[ext_resource type="PackedScene" path="res://world/districts/north-canal.objects.tscn" id="2_ynqla"]
 [ext_resource type="Resource" path="res://recovered/rijnkaai-recovered/catalog.tres" id="catalog"]
+[ext_resource type="Script" path="res://src/Authoring/AuthorDistrict.cs" id="script"]
 
 [resource]
 script = ExtResource("script")
 Id = "north-canal"
 Title = "Canal des Brasseurs and back lanes"
-Scene = ExtResource("scene")
+Scene = ExtResource("2_ynqla")
+EditorScenePath = "res://world/districts/north-canal.tscn"
 Catalog = ExtResource("catalog")
 Bounds = Rect2(-85, 30, 155, 150)
 WalkSpawn = Vector3(-60, 0.02, 71)
 FlySpawn = Vector3(-56, 9, 70)
-FlyYaw = 0
-FlyPitch = -0.35

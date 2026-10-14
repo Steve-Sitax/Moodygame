@@ -1,0 +1,103 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://src/Authoring/AuthoredObject.cs" id="1_nvw3d"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-hatter_markt-counter.tres" id="2_4vpd7"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-hatter_markt-source-10768-1.tres" id="3_cwwjr"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-hatter_markt-source-10768-2.tres" id="4_p05jc"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-hatter_markt-source-10768-3.tres" id="5_jijyk"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-hatter_markt-source-10768-4.tres" id="6_0465r"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-hatter_markt-source-10768-5.tres" id="7_nad4x"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-hatter_markt-source-10768-6.tres" id="8_n6fij"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-hatter_markt-source-10776-7.tres" id="9_pf5sp"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-hatter_markt-source-10781-8.tres" id="10_nsokl"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-hatter_markt-source-10781-9.tres" id="11_qdnma"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-hatter_markt-source-10781-10.tres" id="12_mmotj"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-hatter_markt-source-10783-11.tres" id="13_dlgm5"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-hatter_markt-source-10783-12.tres" id="14_v3cly"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-hatter_markt-source-10826-13.tres" id="15_8vrnt"]
+
+[node name="Objects" type="Node3D" unique_id=2143573104]
+
+[node name="object_counter" type="Node3D" parent="." unique_id=642768011]
+transform = Transform3D(-4.371139e-08, 0, 1, 0, 1, 0, -1, 0, -4.371139e-08, -300.65, 0.18, 97.14)
+script = ExtResource("1_nvw3d")
+ObjectId = "room-shop-hatter_markt-counter"
+Asset = ExtResource("2_4vpd7")
+
+[node name="object_source-10768-1" type="Node3D" parent="." unique_id=567709131]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -300.0251, 0.18, 98.24002)
+script = ExtResource("1_nvw3d")
+ObjectId = "room-shop-hatter_markt-source-10768-1"
+Asset = ExtResource("3_cwwjr")
+
+[node name="object_source-10768-2" type="Node3D" parent="." unique_id=835320694]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -300.16998, 0.18, 92.28003)
+script = ExtResource("1_nvw3d")
+ObjectId = "room-shop-hatter_markt-source-10768-2"
+Asset = ExtResource("4_p05jc")
+
+[node name="object_source-10768-3" type="Node3D" parent="." unique_id=2032891596]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -298.1501, 0.18, 91.52008)
+script = ExtResource("1_nvw3d")
+ObjectId = "room-shop-hatter_markt-source-10768-3"
+Asset = ExtResource("5_jijyk")
+
+[node name="object_source-10768-4" type="Node3D" parent="." unique_id=577714831]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -303.525, 0.18, 96.77751)
+script = ExtResource("1_nvw3d")
+ObjectId = "room-shop-hatter_markt-source-10768-4"
+Asset = ExtResource("6_0465r")
+
+[node name="object_source-10768-5" type="Node3D" parent="." unique_id=401340843]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -297.27005, 0.18, 94.94505)
+script = ExtResource("1_nvw3d")
+ObjectId = "room-shop-hatter_markt-source-10768-5"
+Asset = ExtResource("7_nad4x")
+
+[node name="object_source-10768-6" type="Node3D" parent="." unique_id=2087447221]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -297.24005, 0.18, 94.94505)
+script = ExtResource("1_nvw3d")
+ObjectId = "room-shop-hatter_markt-source-10768-6"
+Asset = ExtResource("8_n6fij")
+
+[node name="object_source-10776-7" type="Node3D" parent="." unique_id=281190965]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -302.33002, 0.18, 98.01001)
+script = ExtResource("1_nvw3d")
+ObjectId = "room-shop-hatter_markt-source-10776-7"
+Asset = ExtResource("9_pf5sp")
+
+[node name="object_source-10781-8" type="Node3D" parent="." unique_id=1490546074]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -297.7, 0.18, 92.030045)
+script = ExtResource("1_nvw3d")
+ObjectId = "room-shop-hatter_markt-source-10781-8"
+Asset = ExtResource("10_nsokl")
+
+[node name="object_source-10781-9" type="Node3D" parent="." unique_id=1829975774]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -301.33002, 0.18, 97.310036)
+script = ExtResource("1_nvw3d")
+ObjectId = "room-shop-hatter_markt-source-10781-9"
+Asset = ExtResource("11_qdnma")
+
+[node name="object_source-10781-10" type="Node3D" parent="." unique_id=1866508202]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -299.708, 0.18, 94.34505)
+script = ExtResource("1_nvw3d")
+ObjectId = "room-shop-hatter_markt-source-10781-10"
+Asset = ExtResource("12_mmotj")
+
+[node name="object_source-10783-11" type="Node3D" parent="." unique_id=1107984238]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -301.33002, 0.18, 97.31001)
+script = ExtResource("1_nvw3d")
+ObjectId = "room-shop-hatter_markt-source-10783-11"
+Asset = ExtResource("13_dlgm5")
+
+[node name="object_source-10783-12" type="Node3D" parent="." unique_id=476936589]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -299.70807, 0.18, 94.34502)
+script = ExtResource("1_nvw3d")
+ObjectId = "room-shop-hatter_markt-source-10783-12"
+Asset = ExtResource("14_v3cly")
+
+[node name="object_source-10826-13" type="Node3D" parent="." unique_id=2042725265]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -304.002, 0.18, 96.7775)
+script = ExtResource("1_nvw3d")
+ObjectId = "room-shop-hatter_markt-source-10826-13"
+Asset = ExtResource("15_8vrnt")

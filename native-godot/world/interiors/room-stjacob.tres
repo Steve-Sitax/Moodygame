@@ -1,0 +1,25 @@
+[gd_resource type="Resource" script_class="AuthorDistrict" format=3]
+
+[ext_resource type="Resource" path="res://world/interiors/room-stjacob.catalog.tres" id="1_v0b6j"]
+[ext_resource type="PackedScene" path="res://world/interiors/room-stjacob.structure.tscn" id="2_n7p65"]
+[ext_resource type="PackedScene" path="res://world/interiors/room-stjacob.objects.tscn" id="3_v0b6j"]
+[ext_resource type="Script" path="res://src/Authoring/AuthorDistrict.cs" id="4_vf3jc"]
+
+[resource]
+script = ExtResource("4_vf3jc")
+Id = "room-stjacob"
+Title = "stjacob"
+Scene = ExtResource("3_v0b6j")
+EditorScenePath = "res://world/interiors/room-stjacob.tscn"
+Catalog = ExtResource("1_v0b6j")
+Bounds = Rect2(-195.32, 204.54999, 200, 200)
+WalkSpawn = Vector3(-95.32, -2.24875, 304.55)
+FlySpawn = Vector3(-95.32, -0.6687499, 304.55)
+FlyPitch = -0.12
+RoomId = "stjacob"
+RoomFrame = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -2.26875, 0)
+RoomBounds = Rect2(-134.37, 277.13, 78.09999, 54.839996)
+RoomHeight = 39.64875
+EntryPoints = PackedVector3Array(-56.27, -2.26875, 305)
+ReplacedMeshes = PackedInt32Array(9899, 9902, 9904, 9905, 9906, 9909, 9910, 9911, 9912, 9913, 9914, 9917, 9918, 9919, 9920, 9921, 9922, 9924, 9925, 9926, 9927, 9933, 9934, 9935, 9937, 9938, 9939, 9940, 9945, 9946, 9947, 9948)
+RetainedStructure = ExtResource("2_n7p65")

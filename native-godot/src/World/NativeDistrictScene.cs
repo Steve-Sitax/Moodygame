@@ -14,6 +14,10 @@ public partial class NativeDistrictScene : Node3D
     public override void _Ready()
     {
         NativeGlobals.Ensure();
+#if DEBUG
+        if (GetParent() is WorkshopSession session && session.District.RoomId != "")
+            NativeDistrictLayouts.HideRecovered(this, session.District);
+#endif
         var shapes = new Dictionary<ulong, ConcavePolygonShape3D>();
         int count = Build(this, false, shapes);
         SetMeta("native_workshop_collision_count", count);
@@ -49,6 +53,13 @@ public partial class NativeDistrictScene : Node3D
     private static int Add(Node parent, Mesh mesh, Transform3D transform, string name, Dictionary<ulong, ConcavePolygonShape3D> shapes)
     {
         if (mesh.GetSurfaceCount() == 0) return 0;
+        bool solid=false;
+        for(int i=0;i<mesh.GetSurfaceCount();i++)
+        {
+            var material=mesh.SurfaceGetMaterial(i);
+            if(material==null || !(material.HasMeta("legacy_no_collision")&&material.GetMeta("legacy_no_collision").AsBool()) && !(material.HasMeta("legacy_hidden")&&material.GetMeta("legacy_hidden").AsBool())){solid=true;break;}
+        }
+        if(!solid)return 0;
         if (!shapes.TryGetValue(mesh.GetInstanceId(), out var shape))
         {
             var source = mesh.GetFaces(); var faces = new List<Vector3>(source.Length);

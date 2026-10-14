@@ -26,12 +26,12 @@ public partial class TownRecovery : Node
     {
         try
         {
-            if (WorkshopSession.Arg("promote") != "")
+            if (Scheldemist.Native.Game.NativeArguments.Arg("promote") != "")
             {
-                RecoveryRefresh.Promote(WorkshopSession.Arg("promote"), WorkshopSession.Arg("target-district"));
+                RecoveryRefresh.Promote(Scheldemist.Native.Game.NativeArguments.Arg("promote"), Scheldemist.Native.Game.NativeArguments.Arg("target-district"));
                 GetTree().Quit(); return;
             }
-            if (WorkshopSession.Arg("fixture") != "") RecoveryFixture.Write(WorkshopSession.Arg("fixture"), WorkshopSession.Arg("fixture-id"));
+            if (Scheldemist.Native.Game.NativeArguments.Arg("fixture") != "") RecoveryFixture.Write(Scheldemist.Native.Game.NativeArguments.Arg("fixture"), Scheldemist.Native.Game.NativeArguments.Arg("fixture-id"));
             Recover(); GetTree().Quit();
         }
         catch (Exception e) { GD.PrintErr(e); GetTree().Quit(1); }
@@ -171,8 +171,8 @@ public partial class TownRecovery : Node
     }
     private void Recover()
     {
-        string sourceFile = Path.GetFullPath(WorkshopSession.Arg("source"));
-        string planFile = ProjectSettings.GlobalizePath(WorkshopSession.Arg("plan", "res://recovery/rijnkaai.json"));
+        string sourceFile = Path.GetFullPath(Scheldemist.Native.Game.NativeArguments.Arg("source"));
+        string planFile = ProjectSettings.GlobalizePath(Scheldemist.Native.Game.NativeArguments.Arg("plan", "res://recovery/rijnkaai.json"));
         var plan = JsonNode.Parse(File.ReadAllText(planFile))!.AsObject();
         string id = plan["id"]!.GetValue<string>();
         if (!LayoutDocument.ValidId(id)) throw new InvalidDataException("Invalid district id.");

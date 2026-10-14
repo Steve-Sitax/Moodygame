@@ -33,7 +33,7 @@ public static class WorkshopProof
         try
         {
             await Frames(s);
-            Check(s.Assets.Count == 3, "complete Godot asset resources load without a browser or bake");
+            Check(s.Assets.ContainsKey("bench") && s.Assets.ContainsKey("crate") && s.Assets.ContainsKey("lamp"), "complete Godot asset resources load without a browser or bake");
             Check(s.Store.Writable, "isolated layout is writable");
             if (stage == "reload")
             {

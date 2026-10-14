@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="AuthorAsset" format=3]
+
+[ext_resource type="PackedScene" path="res://assets/props/furniture/room-home-garret-source-11406-2.tscn" id="1_rtt3j"]
+[ext_resource type="Script" path="res://src/Authoring/AuthorAsset.cs" id="2_hbtof"]
+
+[resource]
+PlacementAnchor = Vector3(0, 0, 0)
+GeometryClearance = true
+script = ExtResource("2_hbtof")
+Id = "room-home-garret-source-11406-2"
+Title = "fitting · home:garret · source-11406-2"
+Category = "Room originals"
+Scene = ExtResource("1_rtt3j")
+Footprint = Vector3(1, 1, 0.04)
+FootprintOffset = Vector3(0, -0.5, 0)
+FurnitureKind = "fitting"
+UsePoint = Vector3(0, 0.49999905, 0)
+StandPoint = Vector3(0, 0, 0.5999985)

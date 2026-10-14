@@ -1,0 +1,194 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://src/Authoring/AuthoredObject.cs" id="1_j1lyj"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-printer_jezuiet-counter.tres" id="2_pffgv"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-printer_jezuiet-source-10897-1.tres" id="3_uoalk"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-printer_jezuiet-source-10897-2.tres" id="4_tugmf"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-printer_jezuiet-source-10897-3.tres" id="5_g5oln"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-printer_jezuiet-source-10897-4.tres" id="6_5e1cm"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-printer_jezuiet-source-10897-5.tres" id="7_dt63j"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-printer_jezuiet-source-10903-6.tres" id="8_k6srg"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-printer_jezuiet-source-10903-7.tres" id="9_jghck"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-printer_jezuiet-source-10903-8.tres" id="10_n8018"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-printer_jezuiet-source-10903-9.tres" id="11_pjkvy"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-printer_jezuiet-source-10905-10.tres" id="12_2obmk"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-printer_jezuiet-source-10905-11.tres" id="13_7c2fu"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-printer_jezuiet-source-10907-12.tres" id="14_50t58"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-printer_jezuiet-source-10907-13.tres" id="15_hsoda"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-printer_jezuiet-source-10907-14.tres" id="16_7c57f"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-printer_jezuiet-source-10907-15.tres" id="17_gp05q"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-printer_jezuiet-source-10907-16.tres" id="18_y5rcs"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-printer_jezuiet-source-10907-17.tres" id="19_40d7y"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-printer_jezuiet-source-10907-18.tres" id="20_428ag"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-printer_jezuiet-source-10907-19.tres" id="21_muqxo"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-printer_jezuiet-source-10907-20.tres" id="22_k4uxr"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-printer_jezuiet-source-10907-21.tres" id="23_5tnna"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-printer_jezuiet-source-10907-22.tres" id="24_pivx4"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-printer_jezuiet-source-10909-23.tres" id="25_8bogd"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-printer_jezuiet-source-10910-24.tres" id="26_8nyx8"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-printer_jezuiet-source-10912-25.tres" id="27_6es5a"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-printer_jezuiet-source-10953-26.tres" id="28_8ifsm"]
+
+[node name="Objects" type="Node3D" unique_id=1198096391]
+
+[node name="object_counter" type="Node3D" parent="." unique_id=1996222316]
+transform = Transform3D(-0.96558154, 0, -0.2601005, 0, 1, 0, 0.2601005, 0, -0.96558154, -110.23074, 0.18, 144.34766)
+script = ExtResource("1_j1lyj")
+ObjectId = "room-shop-printer_jezuiet-counter"
+Asset = ExtResource("2_pffgv")
+
+[node name="object_source-10897-1" type="Node3D" parent="." unique_id=317460941]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -109.331116, 0.18, 143.45816)
+script = ExtResource("1_j1lyj")
+ObjectId = "room-shop-printer_jezuiet-source-10897-1"
+Asset = ExtResource("3_uoalk")
+
+[node name="object_source-10897-2" type="Node3D" parent="." unique_id=66510240]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -113.223206, 0.18, 143.0474)
+script = ExtResource("1_j1lyj")
+ObjectId = "room-shop-printer_jezuiet-source-10897-2"
+Asset = ExtResource("4_tugmf")
+
+[node name="object_source-10897-3" type="Node3D" parent="." unique_id=1215444902]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -109.38878, 0.18, 147.09834)
+script = ExtResource("1_j1lyj")
+ObjectId = "room-shop-printer_jezuiet-source-10897-3"
+Asset = ExtResource("5_g5oln")
+
+[node name="object_source-10897-4" type="Node3D" parent="." unique_id=1158918878]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -112.34483, 0.18, 141.40121)
+script = ExtResource("1_j1lyj")
+ObjectId = "room-shop-printer_jezuiet-source-10897-4"
+Asset = ExtResource("6_5e1cm")
+
+[node name="object_source-10897-5" type="Node3D" parent="." unique_id=222967191]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -112.34874, 0.18, 141.38673)
+script = ExtResource("1_j1lyj")
+ObjectId = "room-shop-printer_jezuiet-source-10897-5"
+Asset = ExtResource("7_dt63j")
+
+[node name="object_source-10903-6" type="Node3D" parent="." unique_id=1832863115]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -113.096375, 0.18, 147.24918)
+script = ExtResource("1_j1lyj")
+ObjectId = "room-shop-printer_jezuiet-source-10903-6"
+Asset = ExtResource("8_k6srg")
+
+[node name="object_source-10903-7" type="Node3D" parent="." unique_id=490252829]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -113.34346, 0.18, 146.33188)
+script = ExtResource("1_j1lyj")
+ObjectId = "room-shop-printer_jezuiet-source-10903-7"
+Asset = ExtResource("9_jghck")
+
+[node name="object_source-10903-8" type="Node3D" parent="." unique_id=2139201709]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -113.59056, 0.18, 145.41458)
+script = ExtResource("1_j1lyj")
+ObjectId = "room-shop-printer_jezuiet-source-10903-8"
+Asset = ExtResource("10_n8018")
+
+[node name="object_source-10903-9" type="Node3D" parent="." unique_id=880561525]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -113.83766, 0.18, 144.49728)
+script = ExtResource("1_j1lyj")
+ObjectId = "room-shop-printer_jezuiet-source-10903-9"
+Asset = ExtResource("11_pjkvy")
+
+[node name="object_source-10905-10" type="Node3D" parent="." unique_id=614137507]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -109.88972, 0.18, 144.96008)
+script = ExtResource("1_j1lyj")
+ObjectId = "room-shop-printer_jezuiet-source-10905-10"
+Asset = ExtResource("12_2obmk")
+
+[node name="object_source-10905-11" type="Node3D" parent="." unique_id=2112497555]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -112.286194, 0.18, 143.9258)
+script = ExtResource("1_j1lyj")
+ObjectId = "room-shop-printer_jezuiet-source-10905-11"
+Asset = ExtResource("13_7c2fu")
+
+[node name="object_source-10907-12" type="Node3D" parent="." unique_id=1126404993]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -111.43371, 0.18, 146.89835)
+script = ExtResource("1_j1lyj")
+ObjectId = "room-shop-printer_jezuiet-source-10907-12"
+Asset = ExtResource("14_50t58")
+
+[node name="object_source-10907-13" type="Node3D" parent="." unique_id=967193893]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -111.56375, 0.18, 146.41556)
+script = ExtResource("1_j1lyj")
+ObjectId = "room-shop-printer_jezuiet-source-10907-13"
+Asset = ExtResource("15_hsoda")
+
+[node name="object_source-10907-14" type="Node3D" parent="." unique_id=1980672410]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -111.6938, 0.18, 145.93277)
+script = ExtResource("1_j1lyj")
+ObjectId = "room-shop-printer_jezuiet-source-10907-14"
+Asset = ExtResource("16_7c57f")
+
+[node name="object_source-10907-15" type="Node3D" parent="." unique_id=115590215]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -111.82385, 0.18, 145.44998)
+script = ExtResource("1_j1lyj")
+ObjectId = "room-shop-printer_jezuiet-source-10907-15"
+Asset = ExtResource("17_gp05q")
+
+[node name="object_source-10907-16" type="Node3D" parent="." unique_id=1763373291]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -111.9539, 0.18, 144.9672)
+script = ExtResource("1_j1lyj")
+ObjectId = "room-shop-printer_jezuiet-source-10907-16"
+Asset = ExtResource("18_y5rcs")
+
+[node name="object_source-10907-17" type="Node3D" parent="." unique_id=788228225]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -112.083954, 0.18, 144.48444)
+script = ExtResource("1_j1lyj")
+ObjectId = "room-shop-printer_jezuiet-source-10907-17"
+Asset = ExtResource("19_40d7y")
+
+[node name="object_source-10907-18" type="Node3D" parent="." unique_id=144207438]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -112.26152, 0.18, 144.00165)
+script = ExtResource("1_j1lyj")
+ObjectId = "room-shop-printer_jezuiet-source-10907-18"
+Asset = ExtResource("20_428ag")
+
+[node name="object_source-10907-19" type="Node3D" parent="." unique_id=2027297362]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -112.34405, 0.18, 143.51886)
+script = ExtResource("1_j1lyj")
+ObjectId = "room-shop-printer_jezuiet-source-10907-19"
+Asset = ExtResource("21_muqxo")
+
+[node name="object_source-10907-20" type="Node3D" parent="." unique_id=685841644]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -112.4741, 0.18, 143.03607)
+script = ExtResource("1_j1lyj")
+ObjectId = "room-shop-printer_jezuiet-source-10907-20"
+Asset = ExtResource("22_k4uxr")
+
+[node name="object_source-10907-21" type="Node3D" parent="." unique_id=585249744]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -112.60415, 0.18, 142.55328)
+script = ExtResource("1_j1lyj")
+ObjectId = "room-shop-printer_jezuiet-source-10907-21"
+Asset = ExtResource("23_5tnna")
+
+[node name="object_source-10907-22" type="Node3D" parent="." unique_id=576047218]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -112.73421, 0.18, 142.07045)
+script = ExtResource("1_j1lyj")
+ObjectId = "room-shop-printer_jezuiet-source-10907-22"
+Asset = ExtResource("24_pivx4")
+
+[node name="object_source-10909-23" type="Node3D" parent="." unique_id=1162958757]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -109.4117, 0.18, 147.01337)
+script = ExtResource("1_j1lyj")
+ObjectId = "room-shop-printer_jezuiet-source-10909-23"
+Asset = ExtResource("25_8bogd")
+
+[node name="object_source-10910-24" type="Node3D" parent="." unique_id=433822926]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -109.88972, 0.18, 144.96005)
+script = ExtResource("1_j1lyj")
+ObjectId = "room-shop-printer_jezuiet-source-10910-24"
+Asset = ExtResource("26_8nyx8")
+
+[node name="object_source-10912-25" type="Node3D" parent="." unique_id=1069216846]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -113.40717, 0.18, 147.11923)
+script = ExtResource("1_j1lyj")
+ObjectId = "room-shop-printer_jezuiet-source-10912-25"
+Asset = ExtResource("27_6es5a")
+
+[node name="object_source-10953-26" type="Node3D" parent="." unique_id=1254005297]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -109.26474, 0.18, 147.55893)
+script = ExtResource("1_j1lyj")
+ObjectId = "room-shop-printer_jezuiet-source-10953-26"
+Asset = ExtResource("28_8ifsm")

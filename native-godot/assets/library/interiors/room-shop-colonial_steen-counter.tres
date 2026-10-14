@@ -1,0 +1,21 @@
+[gd_resource type="Resource" script_class="AuthorAsset" format=3]
+
+[ext_resource type="PackedScene" path="res://assets/props/furniture/room-shop-colonial_steen-counter.tscn" id="1_a2r8c"]
+[ext_resource type="Script" path="res://src/Authoring/AuthorAsset.cs" id="2_r0c2x"]
+
+[resource]
+PlacementAnchor = Vector3(-0.5600014, -1.4901161e-08, -2.2292137e-05)
+GeometryClearance = true
+script = ExtResource("2_r0c2x")
+Id = "room-shop-colonial_steen-counter"
+Title = "counter · shop:colonial_steen · counter"
+Category = "Room originals"
+Scene = ExtResource("1_a2r8c")
+Footprint = Vector3(1.4199944, 1.3174865, 3.5199678)
+FootprintOffset = Vector3(-0.5600014, -1.4901161e-08, -2.2292137e-05)
+FurnitureKind = "counter"
+UsePoint = Vector3(0.63000107, 1.2, 0)
+StandPoint = Vector3(1.3300018, 0, 0)
+
+
+KeeperPoint = Vector3(-0.9199986, 0, -2.2292137e-05)

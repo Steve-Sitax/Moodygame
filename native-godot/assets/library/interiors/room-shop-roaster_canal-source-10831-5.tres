@@ -1,0 +1,19 @@
+[gd_resource type="Resource" script_class="AuthorAsset" format=3]
+
+[ext_resource type="PackedScene" path="res://assets/props/furniture/room-shop-roaster_canal-source-10831-5.tscn" id="1_i766r"]
+[ext_resource type="Script" path="res://src/Authoring/AuthorAsset.cs" id="2_hw1k6"]
+
+[resource]
+PlacementAnchor = Vector3(1.6391277e-06, 0, 5.4836273e-06)
+GeometryClearance = true
+script = ExtResource("2_hw1k6")
+Id = "room-shop-roaster_canal-source-10831-5"
+Title = "clock · shop:roaster_canal · source-10831-5"
+Category = "Room originals"
+Scene = ExtResource("1_i766r")
+Footprint = Vector3(0.38168544, 0.3799863, 0.09871626)
+FootprintOffset = Vector3(1.6391277e-06, 2.2599957, 5.4836273e-06)
+FurnitureKind = "clock"
+SeatYaw = -2.9849927
+UsePoint = Vector3(0, 0.5, 0)
+StandPoint = Vector3(0, 0, 0.5999985)

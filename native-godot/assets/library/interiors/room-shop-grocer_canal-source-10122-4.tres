@@ -1,0 +1,19 @@
+[gd_resource type="Resource" script_class="AuthorAsset" format=3]
+
+[ext_resource type="PackedScene" path="res://assets/props/furniture/room-shop-grocer_canal-source-10122-4.tscn" id="1_ctipw"]
+[ext_resource type="Script" path="res://src/Authoring/AuthorAsset.cs" id="2_i230w"]
+
+[resource]
+PlacementAnchor = Vector3(0, 0, 3.9339066e-06)
+GeometryClearance = true
+script = ExtResource("2_i230w")
+Id = "room-shop-grocer_canal-source-10122-4"
+Title = "clock · shop:grocer_canal · source-10122-4"
+Category = "Room originals"
+Scene = ExtResource("1_ctipw")
+Footprint = Vector3(0.040044785, 0.3799863, 0.38004756)
+FootprintOffset = Vector3(0, 2.2599957, 3.9339066e-06)
+FurnitureKind = "clock"
+SeatYaw = 1.5707964
+UsePoint = Vector3(0, 0.5, 0)
+StandPoint = Vector3(0, 0, 0.5999985)

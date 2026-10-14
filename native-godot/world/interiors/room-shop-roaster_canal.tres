@@ -1,0 +1,25 @@
+[gd_resource type="Resource" script_class="AuthorDistrict" format=3]
+
+[ext_resource type="Resource" path="res://world/interiors/room-shop-roaster_canal.catalog.tres" id="1_n7unf"]
+[ext_resource type="PackedScene" path="res://world/interiors/room-shop-roaster_canal.structure.tscn" id="2_ecj3k"]
+[ext_resource type="PackedScene" path="res://world/interiors/room-shop-roaster_canal.objects.tscn" id="3_n7unf"]
+[ext_resource type="Script" path="res://src/Authoring/AuthorDistrict.cs" id="4_dgedl"]
+
+[resource]
+script = ExtResource("4_dgedl")
+Id = "room-shop-roaster_canal"
+Title = "shop:roaster_canal"
+Scene = ExtResource("3_n7unf")
+EditorScenePath = "res://world/interiors/room-shop-roaster_canal.tscn"
+Catalog = ExtResource("1_n7unf")
+Bounds = Rect2(-132.80899, 0.47509766, 200, 200)
+WalkSpawn = Vector3(-32.80899, 0.2, 100.4751)
+FlySpawn = Vector3(-32.80899, 1.78, 100.4751)
+FlyYaw = -2.9849927
+FlyPitch = -0.12
+RoomId = "shop:roaster_canal"
+RoomFrame = Transform3D(-0.9877633, 0, -0.15596063, 0, 1, 0, 0.15596063, 0, -0.9877633, -31.980839, 0.18, 105.72012)
+RoomBounds = Rect2(-4.224985, 0.2, 8.44997, 10.22)
+EntryPoints = PackedVector3Array(-31.980839, 0.18, 105.72012)
+ReplacedMeshes = PackedInt32Array(10831, 10833, 10834, 10835, 10836, 10837, 10838, 10839, 10840, 10841, 10842, 10843, 10844, 10845, 10846, 10847, 10848, 10849, 10850, 10858, 10892)
+RetainedStructure = ExtResource("2_ecj3k")

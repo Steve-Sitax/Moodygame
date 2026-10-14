@@ -1,0 +1,25 @@
+[gd_resource type="Resource" script_class="AuthorDistrict" format=3]
+
+[ext_resource type="Resource" path="res://world/interiors/room-prison.catalog.tres" id="1_1q4xs"]
+[ext_resource type="PackedScene" path="res://world/interiors/room-prison.structure.tscn" id="2_bqn8e"]
+[ext_resource type="PackedScene" path="res://world/interiors/room-prison.objects.tscn" id="3_1q4xs"]
+[ext_resource type="Script" path="res://src/Authoring/AuthorDistrict.cs" id="4_kywv2"]
+
+[resource]
+script = ExtResource("4_kywv2")
+Id = "room-prison"
+Title = "prison"
+Scene = ExtResource("3_1q4xs")
+EditorScenePath = "res://world/interiors/room-prison.tscn"
+Catalog = ExtResource("1_1q4xs")
+Bounds = Rect2(-443.0475, 99.88367, 200, 200)
+WalkSpawn = Vector3(-343.0475, -0.12183906, 199.88367)
+FlySpawn = Vector3(-343.0475, 1.458161, 199.88367)
+FlyPitch = -0.12
+RoomId = "prison"
+RoomFrame = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.14183906, 0)
+RoomBounds = Rect2(-356.43414, 171.26122, 26.773315, 57.24492)
+RoomHeight = 17.74185
+EntryPoints = PackedVector3Array(-355.09595, -0.14183906, 199.49702, -339.91632, -0.14183906, 186.9424, -340.68866, -0.14183906, 212.93092)
+ReplacedMeshes = PackedInt32Array(9496, 9497, 9499, 9500, 9501, 9502, 9504, 9505, 9506, 9507, 9508, 9509, 9510, 9511, 9513, 9514, 9515, 9518, 9519, 9520, 9521, 9523, 9524, 9525, 9526, 9527, 9531, 9532, 9533, 9535, 9536, 9537, 9539, 9540, 9541, 9542, 9543, 9544, 9545, 9546, 9547, 9551, 9552, 9553, 9555, 9556, 9557, 9559, 9560, 9561, 9562, 9563, 9564, 9565, 9566, 9567, 9568, 9569, 9570, 9581, 9599, 9617, 9635, 9653, 9671, 9689, 9707, 9725)
+RetainedStructure = ExtResource("2_bqn8e")

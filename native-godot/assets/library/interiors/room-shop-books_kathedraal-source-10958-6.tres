@@ -1,0 +1,19 @@
+[gd_resource type="Resource" script_class="AuthorAsset" format=3]
+
+[ext_resource type="PackedScene" path="res://assets/props/furniture/room-shop-books_kathedraal-source-10958-6.tscn" id="1_usggf"]
+[ext_resource type="Script" path="res://src/Authoring/AuthorAsset.cs" id="2_yfgor"]
+
+[resource]
+PlacementAnchor = Vector3(-2.6226044e-06, 0, -1.3232231e-05)
+GeometryClearance = true
+script = ExtResource("2_yfgor")
+Id = "room-shop-books_kathedraal-source-10958-6"
+Title = "clock · shop:books_kathedraal · source-10958-6"
+Category = "Room originals"
+Scene = ExtResource("1_usggf")
+Footprint = Vector3(0.04, 0.3799863, 0.380049)
+FootprintOffset = Vector3(-2.6226044e-06, 2.2599957, -1.3232231e-05)
+FurnitureKind = "clock"
+SeatYaw = 1.5707964
+UsePoint = Vector3(0, 0.5, 0)
+StandPoint = Vector3(0, 0, 0.6000061)

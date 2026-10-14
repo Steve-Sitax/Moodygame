@@ -1,0 +1,26 @@
+[gd_resource type="Resource" script_class="AuthorDistrict" format=3]
+
+[ext_resource type="Resource" path="res://world/interiors/room-home-merchant.catalog.tres" id="1_fdfhu"]
+[ext_resource type="PackedScene" path="res://world/interiors/room-home-merchant.structure.tscn" id="2_0vnmo"]
+[ext_resource type="PackedScene" path="res://world/interiors/room-home-merchant.objects.tscn" id="3_fdfhu"]
+[ext_resource type="Script" path="res://src/Authoring/AuthorDistrict.cs" id="4_m5j3v"]
+
+[resource]
+script = ExtResource("4_m5j3v")
+Id = "room-home-merchant"
+Title = "home:merchant"
+Scene = ExtResource("3_fdfhu")
+EditorScenePath = "res://world/interiors/room-home-merchant.tscn"
+Catalog = ExtResource("1_fdfhu")
+Bounds = Rect2(-137.77885, 16.961166, 200, 200)
+WalkSpawn = Vector3(-37.77885, 3.82, 116.96117)
+FlySpawn = Vector3(-37.77885, 5.4, 116.96117)
+FlyYaw = 0.15656859
+FlyPitch = -0.12
+RoomId = "home:merchant"
+RoomFrame = Transform3D(0.9877682, 0, 0.1559297, 0, 1, 0, -0.1559297, 0, 0.9877682, -38.24664, 3.8, 113.99786)
+RoomBounds = Rect2(-3, 0, 6, 6)
+RoomHeight = 3.1
+EntryPoints = PackedVector3Array(-36.840614, 3.8, 113.57343)
+ReplacedMeshes = PackedInt32Array(11570, 11573, 11574, 11575, 11576, 11577, 11578, 11579, 11580, 11581, 11582, 11584, 11585, 11586, 11587, 11588, 11589, 11590, 11591, 11592, 11593, 11594, 11595, 11596, 11597, 11598, 11599, 11600, 11601, 11602, 11603, 11611, 11614, 11617, 11618, 11619)
+RetainedStructure = ExtResource("2_0vnmo")

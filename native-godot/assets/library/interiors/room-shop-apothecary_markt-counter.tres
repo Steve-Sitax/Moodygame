@@ -1,0 +1,21 @@
+[gd_resource type="Resource" script_class="AuthorAsset" format=3]
+
+[ext_resource type="PackedScene" path="res://assets/props/furniture/room-shop-apothecary_markt-counter.tscn" id="1_scmji"]
+[ext_resource type="Script" path="res://src/Authoring/AuthorAsset.cs" id="2_xmojp"]
+
+[resource]
+PlacementAnchor = Vector3(-0.56000495, -1.4901161e-08, 2.026558e-06)
+GeometryClearance = true
+script = ExtResource("2_xmojp")
+Id = "room-shop-apothecary_markt-counter"
+Title = "counter · shop:apothecary_markt · counter"
+Category = "Room originals"
+Scene = ExtResource("1_scmji")
+Footprint = Vector3(1.4200006, 1.3174865, 3.52)
+FootprintOffset = Vector3(-0.56000495, -1.4901161e-08, 2.026558e-06)
+FurnitureKind = "counter"
+UsePoint = Vector3(0.6299896, 1.2, 0)
+StandPoint = Vector3(1.3299866, 0, 0)
+
+
+KeeperPoint = Vector3(-0.92000525, 0, 2.026558e-06)

@@ -1,0 +1,19 @@
+[gd_resource type="Resource" script_class="AuthorAsset" format=3]
+
+[ext_resource type="PackedScene" path="res://assets/props/furniture/room-home-cellar-source-11353-4.tscn" id="1_2t0cu"]
+[ext_resource type="Script" path="res://src/Authoring/AuthorAsset.cs" id="2_jhuvy"]
+
+[resource]
+PlacementAnchor = Vector3(-9.536743e-07, 0, 9.536743e-06)
+GeometryClearance = true
+script = ExtResource("2_jhuvy")
+Id = "room-home-cellar-source-11353-4"
+Title = "fitting · home:cellar · source-11353-4"
+Category = "Room originals"
+Scene = ExtResource("1_2t0cu")
+Footprint = Vector3(2.1242795, 5.0799484, 0.5722208)
+FootprintOffset = Vector3(-9.536743e-07, -0.099999905, 9.536743e-06)
+FurnitureKind = "fitting"
+SeatYaw = -2.8784664
+UsePoint = Vector3(0, 0.5, 0)
+StandPoint = Vector3(0, 0, 0.6000061)

@@ -1,0 +1,1459 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://src/Authoring/AuthoredObject.cs" id="1_2u2c4"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-townhall-source-8989-0.tres" id="2_m0ua6"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-townhall-source-8989-1.tres" id="3_nmp6f"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-townhall-source-8990-2.tres" id="4_wdjex"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-townhall-source-8990-3.tres" id="5_psu6k"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-townhall-source-8990-4.tres" id="6_e2n2i"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-townhall-source-8996-5.tres" id="7_s5gmi"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-townhall-source-8996-6.tres" id="8_6xlkl"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-townhall-source-8996-7.tres" id="9_nwab1"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-townhall-source-8996-8.tres" id="10_2e7rp"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-townhall-source-8996-9.tres" id="11_jt6wn"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-townhall-source-8997-10.tres" id="12_faign"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-townhall-source-8997-11.tres" id="13_qgvuk"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-townhall-source-8997-12.tres" id="14_85a7n"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-townhall-source-8997-13.tres" id="15_mqkbq"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-townhall-source-8997-14.tres" id="16_n1ni5"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-townhall-source-9004-15.tres" id="17_uuwiu"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-townhall-source-9006-16.tres" id="18_d3t22"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-townhall-source-9006-17.tres" id="19_48h1h"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-townhall-source-9006-18.tres" id="20_6xw6j"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-townhall-source-9006-19.tres" id="21_wft3e"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-townhall-source-9010-20.tres" id="22_383wu"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-townhall-source-9016-21.tres" id="23_jfqww"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-townhall-source-9017-22.tres" id="24_8we2o"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-townhall-source-9018-23.tres" id="25_dxbnj"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-townhall-source-9019-24.tres" id="26_rhcc5"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-townhall-source-9023-25.tres" id="27_0iy4t"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-townhall-source-9023-26.tres" id="28_u8jt2"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-townhall-source-9023-27.tres" id="29_k2v8g"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-townhall-source-9023-28.tres" id="30_cu7jp"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-townhall-source-9023-29.tres" id="31_ao5f2"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-townhall-source-9023-30.tres" id="32_xa37p"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-townhall-source-9023-31.tres" id="33_jsuu2"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-townhall-source-9023-32.tres" id="34_4aila"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-townhall-source-9023-33.tres" id="35_mtkwi"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-townhall-source-9023-34.tres" id="36_ygjck"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-townhall-source-9023-35.tres" id="37_l5jwr"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-townhall-source-9023-36.tres" id="38_c61ks"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-townhall-source-9023-37.tres" id="39_fitql"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-townhall-source-9023-38.tres" id="40_iccin"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-townhall-source-9023-39.tres" id="41_m2tnf"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-townhall-source-9023-40.tres" id="42_7kp3o"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-townhall-source-9024-41.tres" id="43_b357c"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-townhall-source-9024-42.tres" id="44_0eeqa"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-townhall-source-9024-43.tres" id="45_6h3qj"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-townhall-source-9024-44.tres" id="46_bo6wa"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-townhall-source-9024-45.tres" id="47_m232q"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-townhall-source-9024-46.tres" id="48_3g8gt"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-townhall-source-9024-47.tres" id="49_dib21"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-townhall-source-9024-48.tres" id="50_odg2y"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-townhall-source-9024-49.tres" id="51_rpvgr"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-townhall-source-9024-50.tres" id="52_hseku"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-townhall-source-9024-51.tres" id="53_k44hq"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-townhall-source-9024-52.tres" id="54_v5iu0"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-townhall-source-9024-53.tres" id="55_8ju7t"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-townhall-source-9024-54.tres" id="56_wgf54"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-townhall-source-9024-55.tres" id="57_cm5lb"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-townhall-source-9024-56.tres" id="58_la03y"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-townhall-source-9024-57.tres" id="59_ddorw"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-townhall-source-9024-58.tres" id="60_vddi4"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-townhall-source-9024-59.tres" id="61_86e8b"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-townhall-source-9024-60.tres" id="62_0bhh3"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-townhall-source-9024-61.tres" id="63_2dxkj"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-townhall-source-9024-62.tres" id="64_38ts3"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-townhall-source-9024-63.tres" id="65_5yb4s"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-townhall-source-9024-64.tres" id="66_ml4pi"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-townhall-source-9024-65.tres" id="67_703e8"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-townhall-source-9024-66.tres" id="68_7flao"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-townhall-source-9024-67.tres" id="69_sdmyx"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-townhall-source-9024-68.tres" id="70_qjp2q"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-townhall-source-9024-69.tres" id="71_vw5iv"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-townhall-source-9024-70.tres" id="72_coxli"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-townhall-source-9024-71.tres" id="73_1l5qo"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-townhall-source-9024-72.tres" id="74_8a5pd"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-townhall-source-9024-73.tres" id="75_2oliw"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-townhall-source-9024-74.tres" id="76_t1hry"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-townhall-source-9024-75.tres" id="77_vsp6n"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-townhall-source-9030-76.tres" id="78_g6rwj"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-townhall-source-9030-77.tres" id="79_7fmjp"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-townhall-source-9030-78.tres" id="80_01v6i"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-townhall-source-9030-79.tres" id="81_jdprt"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-townhall-source-9030-80.tres" id="82_hd7ou"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-townhall-source-9030-81.tres" id="83_glkwm"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-townhall-source-9030-82.tres" id="84_257dk"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-townhall-source-9030-83.tres" id="85_3i1c7"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-townhall-source-9030-84.tres" id="86_kw25k"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-townhall-source-9030-85.tres" id="87_f7va7"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-townhall-source-9030-86.tres" id="88_hlg4a"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-townhall-source-9030-87.tres" id="89_vwl8q"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-townhall-source-9030-88.tres" id="90_keoik"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-townhall-source-9030-89.tres" id="91_tsjla"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-townhall-source-9030-90.tres" id="92_2m7g8"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-townhall-source-9030-91.tres" id="93_wjv1d"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-townhall-source-9030-92.tres" id="94_dcaml"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-townhall-source-9030-93.tres" id="95_3ai13"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-townhall-source-9030-94.tres" id="96_mw38y"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-townhall-source-9030-95.tres" id="97_mhel8"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-townhall-source-9030-96.tres" id="98_80amc"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-townhall-source-9030-97.tres" id="99_f8r84"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-townhall-source-9031-98.tres" id="100_o4hy2"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-townhall-source-9031-99.tres" id="101_sbb7y"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-townhall-source-9031-100.tres" id="102_xabkf"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-townhall-source-9031-101.tres" id="103_jjoa3"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-townhall-source-9031-102.tres" id="104_tl7uj"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-townhall-source-9031-103.tres" id="105_63f8g"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-townhall-source-9031-104.tres" id="106_8ia0f"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-townhall-source-9031-105.tres" id="107_smyk0"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-townhall-source-9031-106.tres" id="108_nf7s2"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-townhall-source-9031-107.tres" id="109_puanj"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-townhall-source-9031-108.tres" id="110_bttq6"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-townhall-source-9031-109.tres" id="111_amya6"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-townhall-source-9031-110.tres" id="112_uyxh7"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-townhall-source-9031-111.tres" id="113_uwu6m"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-townhall-source-9031-112.tres" id="114_4d1p0"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-townhall-source-9031-113.tres" id="115_om0dt"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-townhall-source-9031-114.tres" id="116_3rrie"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-townhall-source-9031-115.tres" id="117_vxric"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-townhall-source-9031-116.tres" id="118_2c2ss"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-townhall-source-9031-117.tres" id="119_dxepc"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-townhall-source-9031-118.tres" id="120_ejqyv"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-townhall-source-9031-119.tres" id="121_3xjsk"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-townhall-source-9031-120.tres" id="122_x8xcr"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-townhall-source-9031-121.tres" id="123_50w12"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-townhall-source-9031-122.tres" id="124_jvkde"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-townhall-source-9031-123.tres" id="125_chqhc"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-townhall-source-9031-124.tres" id="126_jc3vf"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-townhall-source-9031-125.tres" id="127_o55qx"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-townhall-source-9031-126.tres" id="128_fqasb"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-townhall-source-9031-127.tres" id="129_405fk"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-townhall-source-9031-128.tres" id="130_iqfwy"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-townhall-source-9031-129.tres" id="131_ld3rv"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-townhall-source-9031-130.tres" id="132_yqsmk"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-townhall-source-9031-131.tres" id="133_t2u50"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-townhall-source-9031-132.tres" id="134_xeyfx"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-townhall-source-9031-133.tres" id="135_aboxy"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-townhall-source-9031-134.tres" id="136_jhm71"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-townhall-source-9031-135.tres" id="137_5cvwg"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-townhall-source-9031-136.tres" id="138_ssbge"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-townhall-source-9031-137.tres" id="139_3iubb"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-townhall-source-9031-138.tres" id="140_2x7nx"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-townhall-source-9031-139.tres" id="141_dkxv7"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-townhall-source-9031-140.tres" id="142_rlp3p"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-townhall-source-9031-141.tres" id="143_nnj1m"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-townhall-source-9031-142.tres" id="144_qdu4v"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-townhall-source-9031-143.tres" id="145_l6iyo"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-townhall-source-9036-144.tres" id="146_6r4j6"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-townhall-source-9036-145.tres" id="147_5qex1"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-townhall-source-9036-146.tres" id="148_sgo4u"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-townhall-source-9036-147.tres" id="149_quo2y"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-townhall-source-9036-148.tres" id="150_8ume1"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-townhall-source-9036-149.tres" id="151_b7vgt"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-townhall-source-9037-150.tres" id="152_6rwj8"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-townhall-source-9037-151.tres" id="153_sy2uw"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-townhall-source-9037-152.tres" id="154_agvbs"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-townhall-source-9037-153.tres" id="155_c4mp3"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-townhall-source-9037-154.tres" id="156_l0qno"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-townhall-source-9037-155.tres" id="157_ovmqs"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-townhall-source-9037-156.tres" id="158_qkauq"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-townhall-source-9037-157.tres" id="159_ofuxb"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-townhall-source-9037-158.tres" id="160_gbcsv"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-townhall-source-9037-159.tres" id="161_ayqu0"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-townhall-source-9037-160.tres" id="162_t30qr"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-townhall-source-9037-161.tres" id="163_2gaq5"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-townhall-source-9042-162.tres" id="164_cqr6i"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-townhall-source-9042-163.tres" id="165_02ne4"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-townhall-source-9042-164.tres" id="166_8yai3"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-townhall-source-9042-165.tres" id="167_wgjcv"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-townhall-source-9042-166.tres" id="168_ij7xx"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-townhall-source-9042-167.tres" id="169_l5wel"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-townhall-source-9043-168.tres" id="170_u6cuq"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-townhall-source-9043-169.tres" id="171_54wld"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-townhall-source-9043-170.tres" id="172_jke45"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-townhall-source-9043-171.tres" id="173_6w3ar"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-townhall-source-9043-172.tres" id="174_ifaf5"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-townhall-source-9043-173.tres" id="175_0mkvk"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-townhall-source-9043-174.tres" id="176_m7g68"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-townhall-source-9043-175.tres" id="177_bplak"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-townhall-source-9043-176.tres" id="178_dmyww"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-townhall-source-9043-177.tres" id="179_cbiog"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-townhall-source-9043-178.tres" id="180_mcr70"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-townhall-source-9043-179.tres" id="181_ekmu4"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-townhall-source-9048-180.tres" id="182_ve1b6"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-townhall-source-9048-181.tres" id="183_j81jd"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-townhall-source-9048-182.tres" id="184_ogl5o"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-townhall-source-9050-183.tres" id="185_1f7hk"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-townhall-source-9050-184.tres" id="186_2bvab"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-townhall-source-9050-185.tres" id="187_4wp77"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-townhall-source-9053-186.tres" id="188_08w6n"]
+[ext_resource type="Resource" path="res://assets/library/furniture-chair.tres" id="189_m0ua6"]
+
+[node name="Objects" type="Node3D" unique_id=82301538]
+
+[node name="object_room-townhall-source-8989-0" type="Node3D" parent="." unique_id=140963638]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -256.9995, 0, 48.650063)
+script = ExtResource("1_2u2c4")
+ObjectId = "room-townhall-source-8989-0"
+Asset = ExtResource("2_m0ua6")
+
+[node name="object_room-townhall-source-8989-1" type="Node3D" parent="." unique_id=933772189]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -256.9995, 0, 43.100037)
+script = ExtResource("1_2u2c4")
+ObjectId = "room-townhall-source-8989-1"
+Asset = ExtResource("3_nmp6f")
+
+[node name="object_room-townhall-source-8990-2" type="Node3D" parent="." unique_id=746135882]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -253.39964, 0, 59.550087)
+script = ExtResource("1_2u2c4")
+ObjectId = "room-townhall-source-8990-2"
+Asset = ExtResource("4_wdjex")
+
+[node name="object_room-townhall-source-8990-3" type="Node3D" parent="." unique_id=499887121]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -253.66974, 0, 55.49018)
+script = ExtResource("1_2u2c4")
+ObjectId = "room-townhall-source-8990-3"
+Asset = ExtResource("5_psu6k")
+
+[node name="object_room-townhall-source-8990-4" type="Node3D" parent="." unique_id=578412982]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -254.50473, 0, 55.825157)
+script = ExtResource("1_2u2c4")
+ObjectId = "room-townhall-source-8990-4"
+Asset = ExtResource("6_e2n2i")
+
+[node name="object_room-townhall-source-8996-5" type="Node3D" parent="." unique_id=1842519076]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -252.69981, 0, 57.690025)
+script = ExtResource("1_2u2c4")
+ObjectId = "room-townhall-source-8996-5"
+Asset = ExtResource("7_s5gmi")
+
+[node name="object_room-townhall-source-8996-6" type="Node3D" parent="." unique_id=1035723999]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -272.49966, 0, 49.69011)
+script = ExtResource("1_2u2c4")
+ObjectId = "room-townhall-source-8996-6"
+Asset = ExtResource("8_6xlkl")
+
+[node name="object_room-townhall-source-8996-7" type="Node3D" parent="." unique_id=1355480622]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -275.1998, 0, 56.69027)
+script = ExtResource("1_2u2c4")
+ObjectId = "room-townhall-source-8996-7"
+Asset = ExtResource("9_nwab1")
+
+[node name="object_room-townhall-source-8996-8" type="Node3D" parent="." unique_id=2041086134]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -275.1998, 0, 53.19005)
+script = ExtResource("1_2u2c4")
+ObjectId = "room-townhall-source-8996-8"
+Asset = ExtResource("10_2e7rp")
+
+[node name="object_room-townhall-source-8996-9" type="Node3D" parent="." unique_id=1442556702]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -271.49976, 0, 39.29001)
+script = ExtResource("1_2u2c4")
+ObjectId = "room-townhall-source-8996-9"
+Asset = ExtResource("11_jt6wn")
+
+[node name="object_room-townhall-source-8997-10" type="Node3D" parent="." unique_id=716137352]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -253.04999, 0, 57.690098)
+script = ExtResource("1_2u2c4")
+ObjectId = "room-townhall-source-8997-10"
+Asset = ExtResource("12_faign")
+
+[node name="object_room-townhall-source-8997-11" type="Node3D" parent="." unique_id=525667838]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -272.9547, 0, 49.690132)
+script = ExtResource("1_2u2c4")
+ObjectId = "room-townhall-source-8997-11"
+Asset = ExtResource("13_qgvuk")
+
+[node name="object_room-townhall-source-8997-12" type="Node3D" parent="." unique_id=1341025579]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -275.65485, 0, 56.69017)
+script = ExtResource("1_2u2c4")
+ObjectId = "room-townhall-source-8997-12"
+Asset = ExtResource("14_85a7n")
+
+[node name="object_room-townhall-source-8997-13" type="Node3D" parent="." unique_id=1608411146]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -275.65485, 0, 53.190155)
+script = ExtResource("1_2u2c4")
+ObjectId = "room-townhall-source-8997-13"
+Asset = ExtResource("15_mqkbq")
+
+[node name="object_room-townhall-source-8997-14" type="Node3D" parent="." unique_id=178870789]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -272.12982, 0, 39.29004)
+script = ExtResource("1_2u2c4")
+ObjectId = "room-townhall-source-8997-14"
+Asset = ExtResource("16_n1ni5")
+
+[node name="object_room-townhall-source-9004-15" type="Node3D" parent="." unique_id=1329134200]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -256.99994, 0, 45.090057)
+script = ExtResource("1_2u2c4")
+ObjectId = "room-townhall-source-9004-15"
+Asset = ExtResource("17_uuwiu")
+
+[node name="object_room-townhall-source-9006-16" type="Node3D" parent="." unique_id=1960240279]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -272.49988, 0, 50.44008)
+script = ExtResource("1_2u2c4")
+ObjectId = "room-townhall-source-9006-16"
+Asset = ExtResource("18_d3t22")
+
+[node name="object_room-townhall-source-9006-17" type="Node3D" parent="." unique_id=2130858846]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -275.1999, 0, 57.440216)
+script = ExtResource("1_2u2c4")
+ObjectId = "room-townhall-source-9006-17"
+Asset = ExtResource("19_48h1h")
+
+[node name="object_room-townhall-source-9006-18" type="Node3D" parent="." unique_id=47319303]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -275.1999, 0, 53.940147)
+script = ExtResource("1_2u2c4")
+ObjectId = "room-townhall-source-9006-18"
+Asset = ExtResource("20_6xw6j")
+
+[node name="object_room-townhall-source-9006-19" type="Node3D" parent="." unique_id=1033185246]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -271.49988, 0, 38.390045)
+script = ExtResource("1_2u2c4")
+ObjectId = "room-townhall-source-9006-19"
+Asset = ExtResource("21_wft3e")
+
+[node name="object_room-townhall-source-9010-20" type="Node3D" parent="." unique_id=379811309]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -278.28497, 0, 40.090034)
+script = ExtResource("1_2u2c4")
+ObjectId = "room-townhall-source-9010-20"
+Asset = ExtResource("22_383wu")
+
+[node name="object_room-townhall-source-9016-21" type="Node3D" parent="." unique_id=2042444884]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -245.2, 0, 44.559998)
+script = ExtResource("1_2u2c4")
+ObjectId = "room-townhall-source-9016-21"
+Asset = ExtResource("23_jfqww")
+
+[node name="object_room-townhall-source-9017-22" type="Node3D" parent="." unique_id=1325723755]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -240.2, 0, 44.559998)
+script = ExtResource("1_2u2c4")
+ObjectId = "room-townhall-source-9017-22"
+Asset = ExtResource("24_8we2o")
+
+[node name="object_room-townhall-source-9018-23" type="Node3D" parent="." unique_id=1657967947]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -235.70999, 0, 55.69)
+script = ExtResource("1_2u2c4")
+ObjectId = "room-townhall-source-9018-23"
+Asset = ExtResource("25_dxbnj")
+
+[node name="object_room-townhall-source-9019-24" type="Node3D" parent="." unique_id=605442076]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -235.70999, 0, 49.69)
+script = ExtResource("1_2u2c4")
+ObjectId = "room-townhall-source-9019-24"
+Asset = ExtResource("26_rhcc5")
+
+[node name="object_room-townhall-source-9023-25" type="Node3D" parent="." unique_id=148835193]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -281.68945, 0, 57.23)
+script = ExtResource("1_2u2c4")
+ObjectId = "room-townhall-source-9023-25"
+Asset = ExtResource("27_0iy4t")
+
+[node name="object_room-townhall-source-9023-26" type="Node3D" parent="." unique_id=127439674]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -287.4997, 0, 57.23)
+script = ExtResource("1_2u2c4")
+ObjectId = "room-townhall-source-9023-26"
+Asset = ExtResource("28_u8jt2")
+
+[node name="object_room-townhall-source-9023-27" type="Node3D" parent="." unique_id=684722634]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -287.4997, 0, 57.23)
+script = ExtResource("1_2u2c4")
+ObjectId = "room-townhall-source-9023-27"
+Asset = ExtResource("29_k2v8g")
+
+[node name="object_room-townhall-source-9023-28" type="Node3D" parent="." unique_id=1355571797]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -269.36978, 0, 57.23)
+script = ExtResource("1_2u2c4")
+ObjectId = "room-townhall-source-9023-28"
+Asset = ExtResource("30_cu7jp")
+
+[node name="object_room-townhall-source-9023-29" type="Node3D" parent="." unique_id=1436895964]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -275.47925, 0, 57.23)
+script = ExtResource("1_2u2c4")
+ObjectId = "room-townhall-source-9023-29"
+Asset = ExtResource("31_ao5f2")
+
+[node name="object_room-townhall-source-9023-30" type="Node3D" parent="." unique_id=765338723]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -281.63983, 0, 57.23)
+script = ExtResource("1_2u2c4")
+ObjectId = "room-townhall-source-9023-30"
+Asset = ExtResource("32_xa37p")
+
+[node name="object_room-townhall-source-9023-31" type="Node3D" parent="." unique_id=917208023]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -287.4997, 0, 57.23)
+script = ExtResource("1_2u2c4")
+ObjectId = "room-townhall-source-9023-31"
+Asset = ExtResource("33_jsuu2")
+
+[node name="object_room-townhall-source-9023-32" type="Node3D" parent="." unique_id=64009470]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -244.62921, 0, 57.23)
+script = ExtResource("1_2u2c4")
+ObjectId = "room-townhall-source-9023-32"
+Asset = ExtResource("34_4aila")
+
+[node name="object_room-townhall-source-9023-33" type="Node3D" parent="." unique_id=1956386030]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -238.51974, 0, 57.23)
+script = ExtResource("1_2u2c4")
+ObjectId = "room-townhall-source-9023-33"
+Asset = ExtResource("35_mtkwi")
+
+[node name="object_room-townhall-source-9023-34" type="Node3D" parent="." unique_id=2074874311]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -232.35916, 0, 57.23)
+script = ExtResource("1_2u2c4")
+ObjectId = "room-townhall-source-9023-34"
+Asset = ExtResource("36_ygjck")
+
+[node name="object_room-townhall-source-9023-35" type="Node3D" parent="." unique_id=183435993]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -226.49982, 0, 57.23)
+script = ExtResource("1_2u2c4")
+ObjectId = "room-townhall-source-9023-35"
+Asset = ExtResource("37_l5jwr")
+
+[node name="object_room-townhall-source-9023-36" type="Node3D" parent="." unique_id=485809540]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -226.49982, 0, 57.23)
+script = ExtResource("1_2u2c4")
+ObjectId = "room-townhall-source-9023-36"
+Asset = ExtResource("38_c61ks")
+
+[node name="object_room-townhall-source-9023-37" type="Node3D" parent="." unique_id=830318136]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -244.62921, 0, 57.23)
+script = ExtResource("1_2u2c4")
+ObjectId = "room-townhall-source-9023-37"
+Asset = ExtResource("39_fitql")
+
+[node name="object_room-townhall-source-9023-38" type="Node3D" parent="." unique_id=924677854]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -238.51974, 0, 57.23)
+script = ExtResource("1_2u2c4")
+ObjectId = "room-townhall-source-9023-38"
+Asset = ExtResource("40_iccin")
+
+[node name="object_room-townhall-source-9023-39" type="Node3D" parent="." unique_id=316321533]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -232.35916, 0, 57.23)
+script = ExtResource("1_2u2c4")
+ObjectId = "room-townhall-source-9023-39"
+Asset = ExtResource("41_m2tnf")
+
+[node name="object_room-townhall-source-9023-40" type="Node3D" parent="." unique_id=93801820]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -226.49982, 0, 57.23)
+script = ExtResource("1_2u2c4")
+ObjectId = "room-townhall-source-9023-40"
+Asset = ExtResource("42_7kp3o")
+
+[node name="object_room-townhall-source-9024-41" type="Node3D" parent="." unique_id=703547366]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -280.8344, 0, 58.09)
+script = ExtResource("1_2u2c4")
+ObjectId = "room-townhall-source-9024-41"
+Asset = ExtResource("43_b357c")
+
+[node name="object_room-townhall-source-9024-42" type="Node3D" parent="." unique_id=916352172]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -283.17825, 0, 58.09)
+script = ExtResource("1_2u2c4")
+ObjectId = "room-townhall-source-9024-42"
+Asset = ExtResource("44_0eeqa")
+
+[node name="object_room-townhall-source-9024-43" type="Node3D" parent="." unique_id=962883081]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -286.7343, 0, 58.09)
+script = ExtResource("1_2u2c4")
+ObjectId = "room-townhall-source-9024-43"
+Asset = ExtResource("45_6h3qj")
+
+[node name="object_room-townhall-source-9024-44" type="Node3D" parent="." unique_id=389105787]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -288.87918, 0, 58.09)
+script = ExtResource("1_2u2c4")
+ObjectId = "room-townhall-source-9024-44"
+Asset = ExtResource("46_bo6wa")
+
+[node name="object_room-townhall-source-9024-45" type="Node3D" parent="." unique_id=1523448878]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -282.76578, 0, 58.09)
+script = ExtResource("1_2u2c4")
+ObjectId = "room-townhall-source-9024-45"
+Asset = ExtResource("47_m232q")
+
+[node name="object_room-townhall-source-9024-46" type="Node3D" parent="." unique_id=61793160]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -286.7343, 0, 58.09)
+script = ExtResource("1_2u2c4")
+ObjectId = "room-townhall-source-9024-46"
+Asset = ExtResource("48_3g8gt")
+
+[node name="object_room-townhall-source-9024-47" type="Node3D" parent="." unique_id=2142215350]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -288.87918, 0, 58.09)
+script = ExtResource("1_2u2c4")
+ObjectId = "room-townhall-source-9024-47"
+Asset = ExtResource("49_dib21")
+
+[node name="object_room-townhall-source-9024-48" type="Node3D" parent="." unique_id=2115420579]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -268.51447, 0, 58.09)
+script = ExtResource("1_2u2c4")
+ObjectId = "room-townhall-source-9024-48"
+Asset = ExtResource("50_odg2y")
+
+[node name="object_room-townhall-source-9024-49" type="Node3D" parent="." unique_id=1660912921]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -270.85828, 0, 58.09)
+script = ExtResource("1_2u2c4")
+ObjectId = "room-townhall-source-9024-49"
+Asset = ExtResource("51_rpvgr")
+
+[node name="object_room-townhall-source-9024-50" type="Node3D" parent="." unique_id=1912550463]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -274.6065, 0, 58.09)
+script = ExtResource("1_2u2c4")
+ObjectId = "room-townhall-source-9024-50"
+Asset = ExtResource("52_hseku")
+
+[node name="object_room-townhall-source-9024-51" type="Node3D" parent="." unique_id=1296184250]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -276.9911, 0, 58.09)
+script = ExtResource("1_2u2c4")
+ObjectId = "room-townhall-source-9024-51"
+Asset = ExtResource("53_k44hq")
+
+[node name="object_room-townhall-source-9024-52" type="Node3D" parent="." unique_id=1913550917]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -280.76648, 0, 58.09)
+script = ExtResource("1_2u2c4")
+ObjectId = "room-townhall-source-9024-52"
+Asset = ExtResource("54_v5iu0")
+
+[node name="object_room-townhall-source-9024-53" type="Node3D" parent="." unique_id=1237958262]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -283.1511, 0, 58.09)
+script = ExtResource("1_2u2c4")
+ObjectId = "room-townhall-source-9024-53"
+Asset = ExtResource("55_8ju7t")
+
+[node name="object_room-townhall-source-9024-54" type="Node3D" parent="." unique_id=1669652181]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -286.7343, 0, 58.09)
+script = ExtResource("1_2u2c4")
+ObjectId = "room-townhall-source-9024-54"
+Asset = ExtResource("56_wgf54")
+
+[node name="object_room-townhall-source-9024-55" type="Node3D" parent="." unique_id=1178493253]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -288.87918, 0, 58.09)
+script = ExtResource("1_2u2c4")
+ObjectId = "room-townhall-source-9024-55"
+Asset = ExtResource("57_cm5lb")
+
+[node name="object_room-townhall-source-9024-56" type="Node3D" parent="." unique_id=757194726]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -243.77454, 0, 58.09)
+script = ExtResource("1_2u2c4")
+ObjectId = "room-townhall-source-9024-56"
+Asset = ExtResource("58_la03y")
+
+[node name="object_room-townhall-source-9024-57" type="Node3D" parent="." unique_id=2013545512]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -246.11838, 0, 58.09)
+script = ExtResource("1_2u2c4")
+ObjectId = "room-townhall-source-9024-57"
+Asset = ExtResource("59_ddorw")
+
+[node name="object_room-townhall-source-9024-58" type="Node3D" parent="." unique_id=148618882]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -237.64658, 0, 58.09)
+script = ExtResource("1_2u2c4")
+ObjectId = "room-townhall-source-9024-58"
+Asset = ExtResource("60_vddi4")
+
+[node name="object_room-townhall-source-9024-59" type="Node3D" parent="." unique_id=60243447]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -240.0307, 0, 58.09)
+script = ExtResource("1_2u2c4")
+ObjectId = "room-townhall-source-9024-59"
+Asset = ExtResource("61_86e8b")
+
+[node name="object_room-townhall-source-9024-60" type="Node3D" parent="." unique_id=370024950]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -231.4866, 0, 58.09)
+script = ExtResource("1_2u2c4")
+ObjectId = "room-townhall-source-9024-60"
+Asset = ExtResource("62_0bhh3")
+
+[node name="object_room-townhall-source-9024-61" type="Node3D" parent="." unique_id=637165767]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -233.87073, 0, 58.09)
+script = ExtResource("1_2u2c4")
+ObjectId = "room-townhall-source-9024-61"
+Asset = ExtResource("63_2dxkj")
+
+[node name="object_room-townhall-source-9024-62" type="Node3D" parent="." unique_id=502946928]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -225.73474, 0, 58.09)
+script = ExtResource("1_2u2c4")
+ObjectId = "room-townhall-source-9024-62"
+Asset = ExtResource("64_38ts3")
+
+[node name="object_room-townhall-source-9024-63" type="Node3D" parent="." unique_id=1173083778]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -227.87912, 0, 58.09)
+script = ExtResource("1_2u2c4")
+ObjectId = "room-townhall-source-9024-63"
+Asset = ExtResource("65_5yb4s")
+
+[node name="object_room-townhall-source-9024-64" type="Node3D" parent="." unique_id=994629125]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -231.45459, 0, 58.09)
+script = ExtResource("1_2u2c4")
+ObjectId = "room-townhall-source-9024-64"
+Asset = ExtResource("66_ml4pi")
+
+[node name="object_room-townhall-source-9024-65" type="Node3D" parent="." unique_id=1926552042]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -233.79843, 0, 58.09)
+script = ExtResource("1_2u2c4")
+ObjectId = "room-townhall-source-9024-65"
+Asset = ExtResource("67_703e8")
+
+[node name="object_room-townhall-source-9024-66" type="Node3D" parent="." unique_id=1238087783]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -225.73474, 0, 58.09)
+script = ExtResource("1_2u2c4")
+ObjectId = "room-townhall-source-9024-66"
+Asset = ExtResource("68_7flao")
+
+[node name="object_room-townhall-source-9024-67" type="Node3D" parent="." unique_id=2138352106]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -227.87912, 0, 58.09)
+script = ExtResource("1_2u2c4")
+ObjectId = "room-townhall-source-9024-67"
+Asset = ExtResource("69_sdmyx")
+
+[node name="object_room-townhall-source-9024-68" type="Node3D" parent="." unique_id=1677300777]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -243.77454, 0, 58.09)
+script = ExtResource("1_2u2c4")
+ObjectId = "room-townhall-source-9024-68"
+Asset = ExtResource("70_qjp2q")
+
+[node name="object_room-townhall-source-9024-69" type="Node3D" parent="." unique_id=1401479013]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -246.11838, 0, 58.09)
+script = ExtResource("1_2u2c4")
+ObjectId = "room-townhall-source-9024-69"
+Asset = ExtResource("71_vw5iv")
+
+[node name="object_room-townhall-source-9024-70" type="Node3D" parent="." unique_id=2013573074]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -237.64658, 0, 58.09)
+script = ExtResource("1_2u2c4")
+ObjectId = "room-townhall-source-9024-70"
+Asset = ExtResource("72_coxli")
+
+[node name="object_room-townhall-source-9024-71" type="Node3D" parent="." unique_id=190251144]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -240.0307, 0, 58.09)
+script = ExtResource("1_2u2c4")
+ObjectId = "room-townhall-source-9024-71"
+Asset = ExtResource("73_1l5qo")
+
+[node name="object_room-townhall-source-9024-72" type="Node3D" parent="." unique_id=1003410544]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -231.4866, 0, 58.09)
+script = ExtResource("1_2u2c4")
+ObjectId = "room-townhall-source-9024-72"
+Asset = ExtResource("74_8a5pd")
+
+[node name="object_room-townhall-source-9024-73" type="Node3D" parent="." unique_id=127352228]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -233.87073, 0, 58.09)
+script = ExtResource("1_2u2c4")
+ObjectId = "room-townhall-source-9024-73"
+Asset = ExtResource("75_2oliw")
+
+[node name="object_room-townhall-source-9024-74" type="Node3D" parent="." unique_id=432077533]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -225.73474, 0, 58.09)
+script = ExtResource("1_2u2c4")
+ObjectId = "room-townhall-source-9024-74"
+Asset = ExtResource("76_t1hry")
+
+[node name="object_room-townhall-source-9024-75" type="Node3D" parent="." unique_id=1448286249]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -227.87912, 0, 58.09)
+script = ExtResource("1_2u2c4")
+ObjectId = "room-townhall-source-9024-75"
+Asset = ExtResource("77_vsp6n")
+
+[node name="object_room-townhall-source-9030-76" type="Node3D" parent="." unique_id=691708674]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -269.36978, 0, 39.310043)
+script = ExtResource("1_2u2c4")
+ObjectId = "room-townhall-source-9030-76"
+Asset = ExtResource("78_g6rwj")
+
+[node name="object_room-townhall-source-9030-77" type="Node3D" parent="." unique_id=1322198928]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -275.47925, 0, 39.310043)
+script = ExtResource("1_2u2c4")
+ObjectId = "room-townhall-source-9030-77"
+Asset = ExtResource("79_7fmjp")
+
+[node name="object_room-townhall-source-9030-78" type="Node3D" parent="." unique_id=2124607524]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -281.63983, 0, 39.310043)
+script = ExtResource("1_2u2c4")
+ObjectId = "room-townhall-source-9030-78"
+Asset = ExtResource("80_01v6i")
+
+[node name="object_room-townhall-source-9030-79" type="Node3D" parent="." unique_id=2114966368]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -287.4997, 0, 39.310043)
+script = ExtResource("1_2u2c4")
+ObjectId = "room-townhall-source-9030-79"
+Asset = ExtResource("81_jdprt")
+
+[node name="object_room-townhall-source-9030-80" type="Node3D" parent="." unique_id=179615918]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -287.4997, 0, 39.310043)
+script = ExtResource("1_2u2c4")
+ObjectId = "room-townhall-source-9030-80"
+Asset = ExtResource("82_hd7ou")
+
+[node name="object_room-townhall-source-9030-81" type="Node3D" parent="." unique_id=294690832]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -269.36978, 0, 39.310043)
+script = ExtResource("1_2u2c4")
+ObjectId = "room-townhall-source-9030-81"
+Asset = ExtResource("83_glkwm")
+
+[node name="object_room-townhall-source-9030-82" type="Node3D" parent="." unique_id=1474586890]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -275.47925, 0, 39.310043)
+script = ExtResource("1_2u2c4")
+ObjectId = "room-townhall-source-9030-82"
+Asset = ExtResource("84_257dk")
+
+[node name="object_room-townhall-source-9030-83" type="Node3D" parent="." unique_id=1177480647]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -281.63983, 0, 39.310043)
+script = ExtResource("1_2u2c4")
+ObjectId = "room-townhall-source-9030-83"
+Asset = ExtResource("85_3i1c7")
+
+[node name="object_room-townhall-source-9030-84" type="Node3D" parent="." unique_id=2065826670]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -287.4997, 0, 39.310043)
+script = ExtResource("1_2u2c4")
+ObjectId = "room-townhall-source-9030-84"
+Asset = ExtResource("86_kw25k")
+
+[node name="object_room-townhall-source-9030-85" type="Node3D" parent="." unique_id=370499909]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -244.62921, 0, 39.310043)
+script = ExtResource("1_2u2c4")
+ObjectId = "room-townhall-source-9030-85"
+Asset = ExtResource("87_f7va7")
+
+[node name="object_room-townhall-source-9030-86" type="Node3D" parent="." unique_id=1855521855]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -238.51974, 0, 39.310043)
+script = ExtResource("1_2u2c4")
+ObjectId = "room-townhall-source-9030-86"
+Asset = ExtResource("88_hlg4a")
+
+[node name="object_room-townhall-source-9030-87" type="Node3D" parent="." unique_id=1610468955]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -232.35916, 0, 39.310043)
+script = ExtResource("1_2u2c4")
+ObjectId = "room-townhall-source-9030-87"
+Asset = ExtResource("89_vwl8q")
+
+[node name="object_room-townhall-source-9030-88" type="Node3D" parent="." unique_id=2097829150]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -226.49982, 0, 39.310043)
+script = ExtResource("1_2u2c4")
+ObjectId = "room-townhall-source-9030-88"
+Asset = ExtResource("90_keoik")
+
+[node name="object_room-townhall-source-9030-89" type="Node3D" parent="." unique_id=1096522146]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -244.62921, 0, 39.310043)
+script = ExtResource("1_2u2c4")
+ObjectId = "room-townhall-source-9030-89"
+Asset = ExtResource("91_tsjla")
+
+[node name="object_room-townhall-source-9030-90" type="Node3D" parent="." unique_id=2120472004]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -238.51974, 0, 39.310043)
+script = ExtResource("1_2u2c4")
+ObjectId = "room-townhall-source-9030-90"
+Asset = ExtResource("92_2m7g8")
+
+[node name="object_room-townhall-source-9030-91" type="Node3D" parent="." unique_id=1727524771]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -232.35916, 0, 39.310043)
+script = ExtResource("1_2u2c4")
+ObjectId = "room-townhall-source-9030-91"
+Asset = ExtResource("93_wjv1d")
+
+[node name="object_room-townhall-source-9030-92" type="Node3D" parent="." unique_id=1493503210]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -226.49982, 0, 39.310043)
+script = ExtResource("1_2u2c4")
+ObjectId = "room-townhall-source-9030-92"
+Asset = ExtResource("94_dcaml")
+
+[node name="object_room-townhall-source-9030-93" type="Node3D" parent="." unique_id=548855117]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -244.62921, 0, 39.310043)
+script = ExtResource("1_2u2c4")
+ObjectId = "room-townhall-source-9030-93"
+Asset = ExtResource("95_3ai13")
+
+[node name="object_room-townhall-source-9030-94" type="Node3D" parent="." unique_id=257856394]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -238.51974, 0, 39.310043)
+script = ExtResource("1_2u2c4")
+ObjectId = "room-townhall-source-9030-94"
+Asset = ExtResource("96_mw38y")
+
+[node name="object_room-townhall-source-9030-95" type="Node3D" parent="." unique_id=457728092]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -232.35916, 0, 39.310043)
+script = ExtResource("1_2u2c4")
+ObjectId = "room-townhall-source-9030-95"
+Asset = ExtResource("97_mhel8")
+
+[node name="object_room-townhall-source-9030-96" type="Node3D" parent="." unique_id=785181250]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -226.49982, 0, 39.310043)
+script = ExtResource("1_2u2c4")
+ObjectId = "room-townhall-source-9030-96"
+Asset = ExtResource("98_80amc")
+
+[node name="object_room-townhall-source-9030-97" type="Node3D" parent="." unique_id=985195971]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -256.99948, 0, 36.29005)
+script = ExtResource("1_2u2c4")
+ObjectId = "room-townhall-source-9030-97"
+Asset = ExtResource("99_f8r84")
+
+[node name="object_room-townhall-source-9031-98" type="Node3D" parent="." unique_id=140349308]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -268.51447, 0, 38.290012)
+script = ExtResource("1_2u2c4")
+ObjectId = "room-townhall-source-9031-98"
+Asset = ExtResource("100_o4hy2")
+
+[node name="object_room-townhall-source-9031-99" type="Node3D" parent="." unique_id=462503851]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -270.85828, 0, 38.290012)
+script = ExtResource("1_2u2c4")
+ObjectId = "room-townhall-source-9031-99"
+Asset = ExtResource("101_sbb7y")
+
+[node name="object_room-townhall-source-9031-100" type="Node3D" parent="." unique_id=1421794545]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -274.6065, 0, 38.290012)
+script = ExtResource("1_2u2c4")
+ObjectId = "room-townhall-source-9031-100"
+Asset = ExtResource("102_xabkf")
+
+[node name="object_room-townhall-source-9031-101" type="Node3D" parent="." unique_id=124216250]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -276.9911, 0, 38.290012)
+script = ExtResource("1_2u2c4")
+ObjectId = "room-townhall-source-9031-101"
+Asset = ExtResource("103_jjoa3")
+
+[node name="object_room-townhall-source-9031-102" type="Node3D" parent="." unique_id=1282600550]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -280.76648, 0, 38.290012)
+script = ExtResource("1_2u2c4")
+ObjectId = "room-townhall-source-9031-102"
+Asset = ExtResource("104_tl7uj")
+
+[node name="object_room-townhall-source-9031-103" type="Node3D" parent="." unique_id=2043669718]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -283.1511, 0, 38.290012)
+script = ExtResource("1_2u2c4")
+ObjectId = "room-townhall-source-9031-103"
+Asset = ExtResource("105_63f8g")
+
+[node name="object_room-townhall-source-9031-104" type="Node3D" parent="." unique_id=511845202]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -286.7343, 0, 38.290012)
+script = ExtResource("1_2u2c4")
+ObjectId = "room-townhall-source-9031-104"
+Asset = ExtResource("106_8ia0f")
+
+[node name="object_room-townhall-source-9031-105" type="Node3D" parent="." unique_id=534659385]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -288.87918, 0, 38.290012)
+script = ExtResource("1_2u2c4")
+ObjectId = "room-townhall-source-9031-105"
+Asset = ExtResource("107_smyk0")
+
+[node name="object_room-townhall-source-9031-106" type="Node3D" parent="." unique_id=1501926920]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -280.8344, 0, 38.290012)
+script = ExtResource("1_2u2c4")
+ObjectId = "room-townhall-source-9031-106"
+Asset = ExtResource("108_nf7s2")
+
+[node name="object_room-townhall-source-9031-107" type="Node3D" parent="." unique_id=28062992]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -283.17825, 0, 38.290012)
+script = ExtResource("1_2u2c4")
+ObjectId = "room-townhall-source-9031-107"
+Asset = ExtResource("109_puanj")
+
+[node name="object_room-townhall-source-9031-108" type="Node3D" parent="." unique_id=571710750]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -286.7343, 0, 38.290012)
+script = ExtResource("1_2u2c4")
+ObjectId = "room-townhall-source-9031-108"
+Asset = ExtResource("110_bttq6")
+
+[node name="object_room-townhall-source-9031-109" type="Node3D" parent="." unique_id=538607825]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -288.87918, 0, 38.290012)
+script = ExtResource("1_2u2c4")
+ObjectId = "room-townhall-source-9031-109"
+Asset = ExtResource("111_amya6")
+
+[node name="object_room-townhall-source-9031-110" type="Node3D" parent="." unique_id=871000909]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -268.51447, 0, 38.290012)
+script = ExtResource("1_2u2c4")
+ObjectId = "room-townhall-source-9031-110"
+Asset = ExtResource("112_uyxh7")
+
+[node name="object_room-townhall-source-9031-111" type="Node3D" parent="." unique_id=1681416039]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -270.85828, 0, 38.290012)
+script = ExtResource("1_2u2c4")
+ObjectId = "room-townhall-source-9031-111"
+Asset = ExtResource("113_uwu6m")
+
+[node name="object_room-townhall-source-9031-112" type="Node3D" parent="." unique_id=1894617703]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -274.6065, 0, 38.290012)
+script = ExtResource("1_2u2c4")
+ObjectId = "room-townhall-source-9031-112"
+Asset = ExtResource("114_4d1p0")
+
+[node name="object_room-townhall-source-9031-113" type="Node3D" parent="." unique_id=1692767028]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -276.9911, 0, 38.290012)
+script = ExtResource("1_2u2c4")
+ObjectId = "room-townhall-source-9031-113"
+Asset = ExtResource("115_om0dt")
+
+[node name="object_room-townhall-source-9031-114" type="Node3D" parent="." unique_id=669832996]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -280.76648, 0, 38.290012)
+script = ExtResource("1_2u2c4")
+ObjectId = "room-townhall-source-9031-114"
+Asset = ExtResource("116_3rrie")
+
+[node name="object_room-townhall-source-9031-115" type="Node3D" parent="." unique_id=773080112]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -283.1511, 0, 38.290012)
+script = ExtResource("1_2u2c4")
+ObjectId = "room-townhall-source-9031-115"
+Asset = ExtResource("117_vxric")
+
+[node name="object_room-townhall-source-9031-116" type="Node3D" parent="." unique_id=257489538]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -286.7343, 0, 38.290012)
+script = ExtResource("1_2u2c4")
+ObjectId = "room-townhall-source-9031-116"
+Asset = ExtResource("118_2c2ss")
+
+[node name="object_room-townhall-source-9031-117" type="Node3D" parent="." unique_id=1173233296]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -288.87918, 0, 38.290012)
+script = ExtResource("1_2u2c4")
+ObjectId = "room-townhall-source-9031-117"
+Asset = ExtResource("119_dxepc")
+
+[node name="object_room-townhall-source-9031-118" type="Node3D" parent="." unique_id=469445544]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -243.77454, 0, 38.290012)
+script = ExtResource("1_2u2c4")
+ObjectId = "room-townhall-source-9031-118"
+Asset = ExtResource("120_ejqyv")
+
+[node name="object_room-townhall-source-9031-119" type="Node3D" parent="." unique_id=47668086]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -246.11838, 0, 38.290012)
+script = ExtResource("1_2u2c4")
+ObjectId = "room-townhall-source-9031-119"
+Asset = ExtResource("121_3xjsk")
+
+[node name="object_room-townhall-source-9031-120" type="Node3D" parent="." unique_id=1371807190]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -237.64658, 0, 38.290012)
+script = ExtResource("1_2u2c4")
+ObjectId = "room-townhall-source-9031-120"
+Asset = ExtResource("122_x8xcr")
+
+[node name="object_room-townhall-source-9031-121" type="Node3D" parent="." unique_id=1002286794]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -240.0307, 0, 38.290012)
+script = ExtResource("1_2u2c4")
+ObjectId = "room-townhall-source-9031-121"
+Asset = ExtResource("123_50w12")
+
+[node name="object_room-townhall-source-9031-122" type="Node3D" parent="." unique_id=1403710777]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -231.4866, 0, 38.290012)
+script = ExtResource("1_2u2c4")
+ObjectId = "room-townhall-source-9031-122"
+Asset = ExtResource("124_jvkde")
+
+[node name="object_room-townhall-source-9031-123" type="Node3D" parent="." unique_id=2138104830]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -233.87073, 0, 38.290012)
+script = ExtResource("1_2u2c4")
+ObjectId = "room-townhall-source-9031-123"
+Asset = ExtResource("125_chqhc")
+
+[node name="object_room-townhall-source-9031-124" type="Node3D" parent="." unique_id=386903122]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -225.73474, 0, 38.290012)
+script = ExtResource("1_2u2c4")
+ObjectId = "room-townhall-source-9031-124"
+Asset = ExtResource("126_jc3vf")
+
+[node name="object_room-townhall-source-9031-125" type="Node3D" parent="." unique_id=514236348]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -227.87912, 0, 38.290012)
+script = ExtResource("1_2u2c4")
+ObjectId = "room-townhall-source-9031-125"
+Asset = ExtResource("127_o55qx")
+
+[node name="object_room-townhall-source-9031-126" type="Node3D" parent="." unique_id=1695962769]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -243.77454, 0, 38.290012)
+script = ExtResource("1_2u2c4")
+ObjectId = "room-townhall-source-9031-126"
+Asset = ExtResource("128_fqasb")
+
+[node name="object_room-townhall-source-9031-127" type="Node3D" parent="." unique_id=1338708010]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -246.11838, 0, 38.290012)
+script = ExtResource("1_2u2c4")
+ObjectId = "room-townhall-source-9031-127"
+Asset = ExtResource("129_405fk")
+
+[node name="object_room-townhall-source-9031-128" type="Node3D" parent="." unique_id=1067806961]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -237.64658, 0, 38.290012)
+script = ExtResource("1_2u2c4")
+ObjectId = "room-townhall-source-9031-128"
+Asset = ExtResource("130_iqfwy")
+
+[node name="object_room-townhall-source-9031-129" type="Node3D" parent="." unique_id=1436168670]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -240.0307, 0, 38.290012)
+script = ExtResource("1_2u2c4")
+ObjectId = "room-townhall-source-9031-129"
+Asset = ExtResource("131_ld3rv")
+
+[node name="object_room-townhall-source-9031-130" type="Node3D" parent="." unique_id=1023998291]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -231.4866, 0, 38.290012)
+script = ExtResource("1_2u2c4")
+ObjectId = "room-townhall-source-9031-130"
+Asset = ExtResource("132_yqsmk")
+
+[node name="object_room-townhall-source-9031-131" type="Node3D" parent="." unique_id=441658214]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -233.87073, 0, 38.290012)
+script = ExtResource("1_2u2c4")
+ObjectId = "room-townhall-source-9031-131"
+Asset = ExtResource("133_t2u50")
+
+[node name="object_room-townhall-source-9031-132" type="Node3D" parent="." unique_id=2138914883]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -225.73474, 0, 38.290012)
+script = ExtResource("1_2u2c4")
+ObjectId = "room-townhall-source-9031-132"
+Asset = ExtResource("134_xeyfx")
+
+[node name="object_room-townhall-source-9031-133" type="Node3D" parent="." unique_id=1182934615]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -227.87912, 0, 38.290012)
+script = ExtResource("1_2u2c4")
+ObjectId = "room-townhall-source-9031-133"
+Asset = ExtResource("135_aboxy")
+
+[node name="object_room-townhall-source-9031-134" type="Node3D" parent="." unique_id=1638387759]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -243.77454, 0, 38.290012)
+script = ExtResource("1_2u2c4")
+ObjectId = "room-townhall-source-9031-134"
+Asset = ExtResource("136_jhm71")
+
+[node name="object_room-townhall-source-9031-135" type="Node3D" parent="." unique_id=313897880]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -246.11838, 0, 38.290012)
+script = ExtResource("1_2u2c4")
+ObjectId = "room-townhall-source-9031-135"
+Asset = ExtResource("137_5cvwg")
+
+[node name="object_room-townhall-source-9031-136" type="Node3D" parent="." unique_id=1944423833]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -237.64658, 0, 38.290012)
+script = ExtResource("1_2u2c4")
+ObjectId = "room-townhall-source-9031-136"
+Asset = ExtResource("138_ssbge")
+
+[node name="object_room-townhall-source-9031-137" type="Node3D" parent="." unique_id=750396355]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -240.0307, 0, 38.290012)
+script = ExtResource("1_2u2c4")
+ObjectId = "room-townhall-source-9031-137"
+Asset = ExtResource("139_3iubb")
+
+[node name="object_room-townhall-source-9031-138" type="Node3D" parent="." unique_id=1150437078]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -231.4866, 0, 38.290012)
+script = ExtResource("1_2u2c4")
+ObjectId = "room-townhall-source-9031-138"
+Asset = ExtResource("140_2x7nx")
+
+[node name="object_room-townhall-source-9031-139" type="Node3D" parent="." unique_id=1083066780]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -233.87073, 0, 38.290012)
+script = ExtResource("1_2u2c4")
+ObjectId = "room-townhall-source-9031-139"
+Asset = ExtResource("141_dkxv7")
+
+[node name="object_room-townhall-source-9031-140" type="Node3D" parent="." unique_id=1164006781]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -225.73474, 0, 38.290012)
+script = ExtResource("1_2u2c4")
+ObjectId = "room-townhall-source-9031-140"
+Asset = ExtResource("142_rlp3p")
+
+[node name="object_room-townhall-source-9031-141" type="Node3D" parent="." unique_id=1082265614]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -227.87912, 0, 38.290012)
+script = ExtResource("1_2u2c4")
+ObjectId = "room-townhall-source-9031-141"
+Asset = ExtResource("143_nnj1m")
+
+[node name="object_room-townhall-source-9031-142" type="Node3D" parent="." unique_id=320314188]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -254.49994, 0, 35.810005)
+script = ExtResource("1_2u2c4")
+ObjectId = "room-townhall-source-9031-142"
+Asset = ExtResource("144_qdu4v")
+
+[node name="object_room-townhall-source-9031-143" type="Node3D" parent="." unique_id=829400647]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -260.49976, 0, 35.810005)
+script = ExtResource("1_2u2c4")
+ObjectId = "room-townhall-source-9031-143"
+Asset = ExtResource("145_l6iyo")
+
+[node name="object_room-townhall-source-9036-144" type="Node3D" parent="." unique_id=1500270312]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -287.5, 0, 51.41002)
+script = ExtResource("1_2u2c4")
+ObjectId = "room-townhall-source-9036-144"
+Asset = ExtResource("146_6r4j6")
+
+[node name="object_room-townhall-source-9036-145" type="Node3D" parent="." unique_id=1040442081]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -287.5, 0, 45.29007)
+script = ExtResource("1_2u2c4")
+ObjectId = "room-townhall-source-9036-145"
+Asset = ExtResource("147_5qex1")
+
+[node name="object_room-townhall-source-9036-146" type="Node3D" parent="." unique_id=994539223]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -287.5, 0, 51.41002)
+script = ExtResource("1_2u2c4")
+ObjectId = "room-townhall-source-9036-146"
+Asset = ExtResource("148_sgo4u")
+
+[node name="object_room-townhall-source-9036-147" type="Node3D" parent="." unique_id=2133690762]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -287.5, 0, 45.29007)
+script = ExtResource("1_2u2c4")
+ObjectId = "room-townhall-source-9036-147"
+Asset = ExtResource("149_quo2y")
+
+[node name="object_room-townhall-source-9036-148" type="Node3D" parent="." unique_id=1599948425]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -287.5, 0, 51.41002)
+script = ExtResource("1_2u2c4")
+ObjectId = "room-townhall-source-9036-148"
+Asset = ExtResource("150_8ume1")
+
+[node name="object_room-townhall-source-9036-149" type="Node3D" parent="." unique_id=1404000587]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -287.5, 0, 45.29007)
+script = ExtResource("1_2u2c4")
+ObjectId = "room-townhall-source-9036-149"
+Asset = ExtResource("151_b7vgt")
+
+[node name="object_room-townhall-source-9037-150" type="Node3D" parent="." unique_id=1471221975]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -288.38, 0, 52.275604)
+script = ExtResource("1_2u2c4")
+ObjectId = "room-townhall-source-9037-150"
+Asset = ExtResource("152_6rwj8")
+
+[node name="object_room-townhall-source-9037-151" type="Node3D" parent="." unique_id=852146804]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -288.38, 0, 49.907627)
+script = ExtResource("1_2u2c4")
+ObjectId = "room-townhall-source-9037-151"
+Asset = ExtResource("153_sy2uw")
+
+[node name="object_room-townhall-source-9037-152" type="Node3D" parent="." unique_id=338993533]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -288.38, 0, 46.15571)
+script = ExtResource("1_2u2c4")
+ObjectId = "room-townhall-source-9037-152"
+Asset = ExtResource("154_agvbs")
+
+[node name="object_room-townhall-source-9037-153" type="Node3D" parent="." unique_id=1348263529]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -288.38, 0, 43.787666)
+script = ExtResource("1_2u2c4")
+ObjectId = "room-townhall-source-9037-153"
+Asset = ExtResource("155_c4mp3")
+
+[node name="object_room-townhall-source-9037-154" type="Node3D" parent="." unique_id=1052613630]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -288.38, 0, 52.275604)
+script = ExtResource("1_2u2c4")
+ObjectId = "room-townhall-source-9037-154"
+Asset = ExtResource("156_l0qno")
+
+[node name="object_room-townhall-source-9037-155" type="Node3D" parent="." unique_id=771998440]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -288.38, 0, 49.907627)
+script = ExtResource("1_2u2c4")
+ObjectId = "room-townhall-source-9037-155"
+Asset = ExtResource("157_ovmqs")
+
+[node name="object_room-townhall-source-9037-156" type="Node3D" parent="." unique_id=765902327]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -288.38, 0, 46.15571)
+script = ExtResource("1_2u2c4")
+ObjectId = "room-townhall-source-9037-156"
+Asset = ExtResource("158_qkauq")
+
+[node name="object_room-townhall-source-9037-157" type="Node3D" parent="." unique_id=1280842203]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -288.38, 0, 43.787666)
+script = ExtResource("1_2u2c4")
+ObjectId = "room-townhall-source-9037-157"
+Asset = ExtResource("159_ofuxb")
+
+[node name="object_room-townhall-source-9037-158" type="Node3D" parent="." unique_id=909685054]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -288.38, 0, 52.275604)
+script = ExtResource("1_2u2c4")
+ObjectId = "room-townhall-source-9037-158"
+Asset = ExtResource("160_gbcsv")
+
+[node name="object_room-townhall-source-9037-159" type="Node3D" parent="." unique_id=1805475401]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -288.38, 0, 49.907627)
+script = ExtResource("1_2u2c4")
+ObjectId = "room-townhall-source-9037-159"
+Asset = ExtResource("161_ayqu0")
+
+[node name="object_room-townhall-source-9037-160" type="Node3D" parent="." unique_id=671357973]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -288.38, 0, 46.15571)
+script = ExtResource("1_2u2c4")
+ObjectId = "room-townhall-source-9037-160"
+Asset = ExtResource("162_t30qr")
+
+[node name="object_room-townhall-source-9037-161" type="Node3D" parent="." unique_id=1101287051]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -288.38, 0, 43.787666)
+script = ExtResource("1_2u2c4")
+ObjectId = "room-townhall-source-9037-161"
+Asset = ExtResource("163_2gaq5")
+
+[node name="object_room-townhall-source-9042-162" type="Node3D" parent="." unique_id=699091671]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -226.5, 0, 51.41002)
+script = ExtResource("1_2u2c4")
+ObjectId = "room-townhall-source-9042-162"
+Asset = ExtResource("164_cqr6i")
+
+[node name="object_room-townhall-source-9042-163" type="Node3D" parent="." unique_id=40955331]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -226.5, 0, 45.29007)
+script = ExtResource("1_2u2c4")
+ObjectId = "room-townhall-source-9042-163"
+Asset = ExtResource("165_02ne4")
+
+[node name="object_room-townhall-source-9042-164" type="Node3D" parent="." unique_id=1669705975]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -226.5, 0, 51.41002)
+script = ExtResource("1_2u2c4")
+ObjectId = "room-townhall-source-9042-164"
+Asset = ExtResource("166_8yai3")
+
+[node name="object_room-townhall-source-9042-165" type="Node3D" parent="." unique_id=1846293172]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -226.5, 0, 45.29007)
+script = ExtResource("1_2u2c4")
+ObjectId = "room-townhall-source-9042-165"
+Asset = ExtResource("167_wgjcv")
+
+[node name="object_room-townhall-source-9042-166" type="Node3D" parent="." unique_id=439123767]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -226.5, 0, 51.41002)
+script = ExtResource("1_2u2c4")
+ObjectId = "room-townhall-source-9042-166"
+Asset = ExtResource("168_ij7xx")
+
+[node name="object_room-townhall-source-9042-167" type="Node3D" parent="." unique_id=1537843523]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -226.5, 0, 45.29007)
+script = ExtResource("1_2u2c4")
+ObjectId = "room-townhall-source-9042-167"
+Asset = ExtResource("169_l5wel")
+
+[node name="object_room-townhall-source-9043-168" type="Node3D" parent="." unique_id=1589549382]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -225.62, 0, 52.275604)
+script = ExtResource("1_2u2c4")
+ObjectId = "room-townhall-source-9043-168"
+Asset = ExtResource("170_u6cuq")
+
+[node name="object_room-townhall-source-9043-169" type="Node3D" parent="." unique_id=1215336287]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -225.62, 0, 49.907627)
+script = ExtResource("1_2u2c4")
+ObjectId = "room-townhall-source-9043-169"
+Asset = ExtResource("171_54wld")
+
+[node name="object_room-townhall-source-9043-170" type="Node3D" parent="." unique_id=1380848697]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -225.62, 0, 46.15571)
+script = ExtResource("1_2u2c4")
+ObjectId = "room-townhall-source-9043-170"
+Asset = ExtResource("172_jke45")
+
+[node name="object_room-townhall-source-9043-171" type="Node3D" parent="." unique_id=2111938743]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -225.62, 0, 43.787666)
+script = ExtResource("1_2u2c4")
+ObjectId = "room-townhall-source-9043-171"
+Asset = ExtResource("173_6w3ar")
+
+[node name="object_room-townhall-source-9043-172" type="Node3D" parent="." unique_id=874424589]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -225.62, 0, 52.275604)
+script = ExtResource("1_2u2c4")
+ObjectId = "room-townhall-source-9043-172"
+Asset = ExtResource("174_ifaf5")
+
+[node name="object_room-townhall-source-9043-173" type="Node3D" parent="." unique_id=1399988]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -225.62, 0, 49.907627)
+script = ExtResource("1_2u2c4")
+ObjectId = "room-townhall-source-9043-173"
+Asset = ExtResource("175_0mkvk")
+
+[node name="object_room-townhall-source-9043-174" type="Node3D" parent="." unique_id=1522019778]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -225.62, 0, 46.15571)
+script = ExtResource("1_2u2c4")
+ObjectId = "room-townhall-source-9043-174"
+Asset = ExtResource("176_m7g68")
+
+[node name="object_room-townhall-source-9043-175" type="Node3D" parent="." unique_id=1798802287]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -225.62, 0, 43.787666)
+script = ExtResource("1_2u2c4")
+ObjectId = "room-townhall-source-9043-175"
+Asset = ExtResource("177_bplak")
+
+[node name="object_room-townhall-source-9043-176" type="Node3D" parent="." unique_id=416458548]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -225.62, 0, 52.275604)
+script = ExtResource("1_2u2c4")
+ObjectId = "room-townhall-source-9043-176"
+Asset = ExtResource("178_dmyww")
+
+[node name="object_room-townhall-source-9043-177" type="Node3D" parent="." unique_id=978773701]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -225.62, 0, 49.907627)
+script = ExtResource("1_2u2c4")
+ObjectId = "room-townhall-source-9043-177"
+Asset = ExtResource("179_cbiog")
+
+[node name="object_room-townhall-source-9043-178" type="Node3D" parent="." unique_id=1382336157]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -225.62, 0, 46.15571)
+script = ExtResource("1_2u2c4")
+ObjectId = "room-townhall-source-9043-178"
+Asset = ExtResource("180_mcr70")
+
+[node name="object_room-townhall-source-9043-179" type="Node3D" parent="." unique_id=183359036]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -225.62, 0, 43.787666)
+script = ExtResource("1_2u2c4")
+ObjectId = "room-townhall-source-9043-179"
+Asset = ExtResource("181_ekmu4")
+
+[node name="object_room-townhall-source-9048-180" type="Node3D" parent="." unique_id=1213630469]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -249.77988, 0, 56.090004)
+script = ExtResource("1_2u2c4")
+ObjectId = "room-townhall-source-9048-180"
+Asset = ExtResource("182_ve1b6")
+
+[node name="object_room-townhall-source-9048-181" type="Node3D" parent="." unique_id=690439613]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -257, 0, 56.64)
+script = ExtResource("1_2u2c4")
+ObjectId = "room-townhall-source-9048-181"
+Asset = ExtResource("183_j81jd")
+
+[node name="object_room-townhall-source-9048-182" type="Node3D" parent="." unique_id=2119300310]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -256.99988, 0, 60.040016)
+script = ExtResource("1_2u2c4")
+ObjectId = "room-townhall-source-9048-182"
+Asset = ExtResource("184_ogl5o")
+
+[node name="object_room-townhall-source-9050-183" type="Node3D" parent="." unique_id=1676584250]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -249.32477, 0, 58.090008)
+script = ExtResource("1_2u2c4")
+ObjectId = "room-townhall-source-9050-183"
+Asset = ExtResource("185_1f7hk")
+
+[node name="object_room-townhall-source-9050-184" type="Node3D" parent="." unique_id=456000030]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -256.39996, 0, 56.490005)
+script = ExtResource("1_2u2c4")
+ObjectId = "room-townhall-source-9050-184"
+Asset = ExtResource("186_2bvab")
+
+[node name="object_room-townhall-source-9050-185" type="Node3D" parent="." unique_id=744599271]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -256.39996, 0, 56.490005)
+script = ExtResource("1_2u2c4")
+ObjectId = "room-townhall-source-9050-185"
+Asset = ExtResource("187_4wp77")
+
+[node name="object_room-townhall-source-9053-186" type="Node3D" parent="." unique_id=938148487]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -257, 0, 48.35)
+script = ExtResource("1_2u2c4")
+ObjectId = "room-townhall-source-9053-186"
+Asset = ExtResource("188_08w6n")
+
+[node name="object_room-townhall-role-seat-0" type="Node3D" parent="." unique_id=1122966520]
+transform = Transform3D(1.9470718e-07, 0, -1, 0, 1, 0, 1, 0, 1.9470718e-07, -253.3, 0.3, 57.69)
+script = ExtResource("1_2u2c4")
+ObjectId = "room-townhall-role-seat-0"
+Asset = ExtResource("189_m0ua6")
+
+[node name="object_room-townhall-role-seat-1" type="Node3D" parent="." unique_id=525247649]
+transform = Transform3D(-1, 0, -1.509958e-07, 0, 1, 0, 1.509958e-07, 0, -1, -272.5, 0.3, 57.44)
+script = ExtResource("1_2u2c4")
+ObjectId = "room-townhall-role-seat-1"
+Asset = ExtResource("189_m0ua6")
+
+[node name="object_room-townhall-role-seat-2" type="Node3D" parent="." unique_id=1381968082]
+transform = Transform3D(-1, 0, -1.509958e-07, 0, 1, 0, 1.509958e-07, 0, -1, -272.5, 0.3, 53.94)
+script = ExtResource("1_2u2c4")
+ObjectId = "room-townhall-role-seat-2"
+Asset = ExtResource("189_m0ua6")
+
+[node name="object_room-townhall-role-seat-3" type="Node3D" parent="." unique_id=1967105159]
+transform = Transform3D(1, 0, 2.3841858e-07, 0, 1, 0, -2.3841858e-07, 0, 1, -266.3, 0.3, 44.54)
+script = ExtResource("1_2u2c4")
+ObjectId = "room-townhall-role-seat-3"
+Asset = ExtResource("189_m0ua6")
+
+[node name="object_room-townhall-role-seat-4" type="Node3D" parent="." unique_id=1259042195]
+transform = Transform3D(1, 0, 2.3841858e-07, 0, 1, 0, -2.3841858e-07, 0, 1, -267.4, 0.3, 44.54)
+script = ExtResource("1_2u2c4")
+ObjectId = "room-townhall-role-seat-4"
+Asset = ExtResource("189_m0ua6")
+
+[node name="object_room-townhall-role-seat-5" type="Node3D" parent="." unique_id=1629787259]
+transform = Transform3D(1, 0, 2.3841858e-07, 0, 1, 0, -2.3841858e-07, 0, 1, -268.5, 0.3, 44.54)
+script = ExtResource("1_2u2c4")
+ObjectId = "room-townhall-role-seat-5"
+Asset = ExtResource("189_m0ua6")
+
+[node name="object_room-townhall-role-seat-6" type="Node3D" parent="." unique_id=293340315]
+transform = Transform3D(1.9470718e-07, 0, -1, 0, 1, 0, 1, 0, 1.9470718e-07, -275.42, 7, 54.89)
+script = ExtResource("1_2u2c4")
+ObjectId = "room-townhall-role-seat-6"
+Asset = ExtResource("189_m0ua6")
+
+[node name="object_room-townhall-role-seat-7" type="Node3D" parent="." unique_id=1780030554]
+transform = Transform3D(1.9470718e-07, 0, -1, 0, 1, 0, 1, 0, 1.9470718e-07, -275.42, 7, 54.09)
+script = ExtResource("1_2u2c4")
+ObjectId = "room-townhall-role-seat-7"
+Asset = ExtResource("189_m0ua6")
+
+[node name="object_room-townhall-role-seat-8" type="Node3D" parent="." unique_id=1923886874]
+transform = Transform3D(1.9470718e-07, 0, -1, 0, 1, 0, 1, 0, 1.9470718e-07, -275.42, 7, 53.29)
+script = ExtResource("1_2u2c4")
+ObjectId = "room-townhall-role-seat-8"
+Asset = ExtResource("189_m0ua6")
+
+[node name="object_room-townhall-role-seat-9" type="Node3D" parent="." unique_id=1344783839]
+transform = Transform3D(1.9470718e-07, 0, -1, 0, 1, 0, 1, 0, 1.9470718e-07, -275.42, 7, 50.89)
+script = ExtResource("1_2u2c4")
+ObjectId = "room-townhall-role-seat-9"
+Asset = ExtResource("189_m0ua6")
+
+[node name="object_room-townhall-role-seat-10" type="Node3D" parent="." unique_id=607762633]
+transform = Transform3D(1.9470718e-07, 0, -1, 0, 1, 0, 1, 0, 1.9470718e-07, -275.42, 7, 50.09)
+script = ExtResource("1_2u2c4")
+ObjectId = "room-townhall-role-seat-10"
+Asset = ExtResource("189_m0ua6")
+
+[node name="object_room-townhall-role-seat-11" type="Node3D" parent="." unique_id=85435369]
+transform = Transform3D(1.9470718e-07, 0, -1, 0, 1, 0, 1, 0, 1.9470718e-07, -275.42, 7, 49.29)
+script = ExtResource("1_2u2c4")
+ObjectId = "room-townhall-role-seat-11"
+Asset = ExtResource("189_m0ua6")
+
+[node name="object_room-townhall-role-seat-12" type="Node3D" parent="." unique_id=69525928]
+transform = Transform3D(1.9470718e-07, 0, -1, 0, 1, 0, 1, 0, 1.9470718e-07, -274.12, 7, 54.89)
+script = ExtResource("1_2u2c4")
+ObjectId = "room-townhall-role-seat-12"
+Asset = ExtResource("189_m0ua6")
+
+[node name="object_room-townhall-role-seat-13" type="Node3D" parent="." unique_id=1166730363]
+transform = Transform3D(1.9470718e-07, 0, -1, 0, 1, 0, 1, 0, 1.9470718e-07, -274.12, 7, 54.09)
+script = ExtResource("1_2u2c4")
+ObjectId = "room-townhall-role-seat-13"
+Asset = ExtResource("189_m0ua6")
+
+[node name="object_room-townhall-role-seat-14" type="Node3D" parent="." unique_id=483060035]
+transform = Transform3D(1.9470718e-07, 0, -1, 0, 1, 0, 1, 0, 1.9470718e-07, -274.12, 7, 53.29)
+script = ExtResource("1_2u2c4")
+ObjectId = "room-townhall-role-seat-14"
+Asset = ExtResource("189_m0ua6")
+
+[node name="object_room-townhall-role-seat-15" type="Node3D" parent="." unique_id=1138983893]
+transform = Transform3D(1.9470718e-07, 0, -1, 0, 1, 0, 1, 0, 1.9470718e-07, -274.12, 7, 50.89)
+script = ExtResource("1_2u2c4")
+ObjectId = "room-townhall-role-seat-15"
+Asset = ExtResource("189_m0ua6")
+
+[node name="object_room-townhall-role-seat-16" type="Node3D" parent="." unique_id=1729878392]
+transform = Transform3D(1.9470718e-07, 0, -1, 0, 1, 0, 1, 0, 1.9470718e-07, -274.12, 7, 50.09)
+script = ExtResource("1_2u2c4")
+ObjectId = "room-townhall-role-seat-16"
+Asset = ExtResource("189_m0ua6")
+
+[node name="object_room-townhall-role-seat-17" type="Node3D" parent="." unique_id=427343688]
+transform = Transform3D(1.9470718e-07, 0, -1, 0, 1, 0, 1, 0, 1.9470718e-07, -274.12, 7, 49.29)
+script = ExtResource("1_2u2c4")
+ObjectId = "room-townhall-role-seat-17"
+Asset = ExtResource("189_m0ua6")
+
+[node name="object_room-townhall-role-seat-18" type="Node3D" parent="." unique_id=1426260895]
+transform = Transform3D(1.9470718e-07, 0, -1, 0, 1, 0, 1, 0, 1.9470718e-07, -272.82, 7, 54.89)
+script = ExtResource("1_2u2c4")
+ObjectId = "room-townhall-role-seat-18"
+Asset = ExtResource("189_m0ua6")
+
+[node name="object_room-townhall-role-seat-19" type="Node3D" parent="." unique_id=873627437]
+transform = Transform3D(1.9470718e-07, 0, -1, 0, 1, 0, 1, 0, 1.9470718e-07, -272.82, 7, 54.09)
+script = ExtResource("1_2u2c4")
+ObjectId = "room-townhall-role-seat-19"
+Asset = ExtResource("189_m0ua6")
+
+[node name="object_room-townhall-role-seat-20" type="Node3D" parent="." unique_id=774404330]
+transform = Transform3D(1.9470718e-07, 0, -1, 0, 1, 0, 1, 0, 1.9470718e-07, -272.82, 7, 53.29)
+script = ExtResource("1_2u2c4")
+ObjectId = "room-townhall-role-seat-20"
+Asset = ExtResource("189_m0ua6")
+
+[node name="object_room-townhall-role-seat-21" type="Node3D" parent="." unique_id=405443284]
+transform = Transform3D(1.9470718e-07, 0, -1, 0, 1, 0, 1, 0, 1.9470718e-07, -272.82, 7, 50.89)
+script = ExtResource("1_2u2c4")
+ObjectId = "room-townhall-role-seat-21"
+Asset = ExtResource("189_m0ua6")
+
+[node name="object_room-townhall-role-seat-22" type="Node3D" parent="." unique_id=1531385288]
+transform = Transform3D(1.9470718e-07, 0, -1, 0, 1, 0, 1, 0, 1.9470718e-07, -272.82, 7, 50.09)
+script = ExtResource("1_2u2c4")
+ObjectId = "room-townhall-role-seat-22"
+Asset = ExtResource("189_m0ua6")
+
+[node name="object_room-townhall-role-seat-23" type="Node3D" parent="." unique_id=598531346]
+transform = Transform3D(1.9470718e-07, 0, -1, 0, 1, 0, 1, 0, 1.9470718e-07, -272.82, 7, 49.29)
+script = ExtResource("1_2u2c4")
+ObjectId = "room-townhall-role-seat-23"
+Asset = ExtResource("189_m0ua6")

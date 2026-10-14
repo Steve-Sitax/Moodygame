@@ -1,0 +1,19 @@
+[gd_resource type="Resource" script_class="AuthorAsset" format=3]
+
+[ext_resource type="PackedScene" path="res://assets/props/furniture/room-shop-pawn_vis-source-10322-10.tscn" id="1_u7mhi"]
+[ext_resource type="Script" path="res://src/Authoring/AuthorAsset.cs" id="2_hprvd"]
+
+[resource]
+PlacementAnchor = Vector3(0, 0, 2.3841858e-07)
+GeometryClearance = true
+script = ExtResource("2_hprvd")
+Id = "room-shop-pawn_vis-source-10322-10"
+Title = "stove · shop:pawn_vis · source-10322-10"
+Category = "Room originals"
+Scene = ExtResource("1_u7mhi")
+Footprint = Vector3(0.6200552, 3.1, 0.6200414)
+FootprintOffset = Vector3(0, 0, 2.3841858e-07)
+FurnitureKind = "stove"
+SeatYaw = 1.5707964
+UsePoint = Vector3(0, 0.5, 0)
+StandPoint = Vector3(0, 0, 0.5999985)

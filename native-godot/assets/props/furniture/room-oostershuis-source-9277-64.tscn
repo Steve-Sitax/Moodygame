@@ -1,0 +1,10 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://src/Interiors/FurnitureVisual.cs" id="1_cksbf"]
+
+[node name="fitting" type="Node3D" unique_id=842196381]
+script = ExtResource("1_cksbf")
+GeometryCollision = true
+Kind = "architecture-marker"
+ModelSize = Vector3(0.22084045, 0.2500391, 8.799999)
+ModelOffset = Vector3(1.335144e-05, 7.9498835, -1.0967255e-05)

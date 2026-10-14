@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="AuthorAsset" format=3]
+
+[ext_resource type="PackedScene" path="res://assets/furniture/stool-low.tscn" id="1_h7luw"]
+[ext_resource type="Script" path="res://src/Authoring/AuthorAsset.cs" id="2_qoy0r"]
+
+[resource]
+script = ExtResource("2_qoy0r")
+Id = "stool-low"
+Title = "Low three-legged stool"
+Category = "Furniture: seating"
+Scene = ExtResource("1_h7luw")
+Footprint = Vector3(0.3311, 0.2986, 0.337)
+FootprintOffset = Vector3(0, -0.0043, -0.0203)
+FurnitureKind = "stool"
+SeatPoints = PackedVector3Array(0, 0, 0)
+SeatHeight = 0.29
+UsePoint = Vector3(0, 0.5, 0)
+StandPoint = Vector3(0, 0, 0.7)

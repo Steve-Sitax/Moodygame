@@ -1,0 +1,25 @@
+[gd_resource type="Resource" script_class="AuthorCatalog" format=3]
+
+[ext_resource type="Script" path="res://src/Authoring/AuthorAsset.cs" id="1_4rmaa"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-pawn_vis-counter.tres" id="2_pwddk"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-pawn_vis-source-10317-1.tres" id="3_81bqj"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-pawn_vis-source-10317-2.tres" id="4_162uh"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-pawn_vis-source-10317-3.tres" id="5_qfnpd"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-pawn_vis-source-10317-4.tres" id="6_f3jrn"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-pawn_vis-source-10317-5.tres" id="7_30wn1"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-pawn_vis-source-10317-6.tres" id="8_jhcaw"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-pawn_vis-source-10319-7.tres" id="9_xvee0"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-pawn_vis-source-10321-8.tres" id="10_aayym"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-pawn_vis-source-10322-9.tres" id="11_63ubh"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-pawn_vis-source-10322-10.tres" id="12_aqwkv"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-pawn_vis-source-10322-11.tres" id="13_h5i03"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-pawn_vis-source-10322-12.tres" id="14_xcw4d"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-pawn_vis-source-10324-13.tres" id="15_ecxmg"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-pawn_vis-source-10326-14.tres" id="16_qvyn0"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-pawn_vis-source-10326-15.tres" id="17_2viyj"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-pawn_vis-source-10368-16.tres" id="18_uo0jr"]
+[ext_resource type="Script" path="res://src/Authoring/AuthorCatalog.cs" id="19_fo08x"]
+
+[resource]
+script = ExtResource("19_fo08x")
+Assets = Array[ExtResource("1_4rmaa")]([ExtResource("2_pwddk"), ExtResource("3_81bqj"), ExtResource("4_162uh"), ExtResource("5_qfnpd"), ExtResource("6_f3jrn"), ExtResource("7_30wn1"), ExtResource("8_jhcaw"), ExtResource("9_xvee0"), ExtResource("10_aayym"), ExtResource("11_63ubh"), ExtResource("12_aqwkv"), ExtResource("13_h5i03"), ExtResource("14_xcw4d"), ExtResource("15_ecxmg"), ExtResource("16_qvyn0"), ExtResource("17_2viyj"), ExtResource("18_uo0jr")])

@@ -1,0 +1,243 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://src/Authoring/AuthoredObject.cs" id="1_vladn"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-clock_markt-counter.tres" id="2_n6dbo"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-clock_markt-source-11018-1.tres" id="3_hv3xl"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-clock_markt-source-11018-2.tres" id="4_jswy7"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-clock_markt-source-11018-3.tres" id="5_od48r"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-clock_markt-source-11018-4.tres" id="6_ghd61"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-clock_markt-source-11018-5.tres" id="7_up23k"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-clock_markt-source-11020-6.tres" id="8_wtw03"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-clock_markt-source-11020-7.tres" id="9_l8oih"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-clock_markt-source-11020-8.tres" id="10_1lx0k"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-clock_markt-source-11020-9.tres" id="11_2glsq"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-clock_markt-source-11020-10.tres" id="12_yxtlt"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-clock_markt-source-11020-11.tres" id="13_iwv7f"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-clock_markt-source-11020-12.tres" id="14_f78nr"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-clock_markt-source-11020-13.tres" id="15_12n5j"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-clock_markt-source-11020-14.tres" id="16_ahogd"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-clock_markt-source-11020-15.tres" id="17_f0o84"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-clock_markt-source-11020-16.tres" id="18_k5k74"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-clock_markt-source-11020-17.tres" id="19_5ngor"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-clock_markt-source-11020-18.tres" id="20_iex2t"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-clock_markt-source-11020-19.tres" id="21_j8281"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-clock_markt-source-11020-20.tres" id="22_5vf2x"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-clock_markt-source-11020-21.tres" id="23_cvp63"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-clock_markt-source-11020-22.tres" id="24_20df5"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-clock_markt-source-11020-23.tres" id="25_m7g5k"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-clock_markt-source-11020-24.tres" id="26_vytii"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-clock_markt-source-11020-25.tres" id="27_tjg7h"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-clock_markt-source-11020-26.tres" id="28_cd5cg"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-clock_markt-source-11020-27.tres" id="29_mcts8"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-clock_markt-source-11027-28.tres" id="30_7746t"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-clock_markt-source-11027-29.tres" id="31_lqfia"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-clock_markt-source-11027-30.tres" id="32_n7rw8"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-clock_markt-source-11035-31.tres" id="33_j6brj"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-clock_markt-source-11035-32.tres" id="34_818b7"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-clock_markt-source-11133-33.tres" id="35_unrub"]
+
+[node name="Objects" type="Node3D" unique_id=306171728]
+
+[node name="object_counter" type="Node3D" parent="." unique_id=400163094]
+transform = Transform3D(0.96002305, 0, 0.27992088, 0, 1, 0, -0.27992088, 0, 0.96002305, -197.65103, 0.18, 91.86459)
+script = ExtResource("1_vladn")
+ObjectId = "room-shop-clock_markt-counter"
+Asset = ExtResource("2_n6dbo")
+
+[node name="object_source-11018-1" type="Node3D" parent="." unique_id=2084997882]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -198.53214, 0.18, 92.77246)
+script = ExtResource("1_vladn")
+ObjectId = "room-shop-clock_markt-source-11018-1"
+Asset = ExtResource("3_hv3xl")
+
+[node name="object_source-11018-2" type="Node3D" parent="." unique_id=1197558793]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -198.29504, 0.18, 89.05764)
+script = ExtResource("1_vladn")
+ObjectId = "room-shop-clock_markt-source-11018-2"
+Asset = ExtResource("4_jswy7")
+
+[node name="object_source-11018-3" type="Node3D" parent="." unique_id=2101571152]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -194.96793, 0.18, 94.61856)
+script = ExtResource("1_vladn")
+ObjectId = "room-shop-clock_markt-source-11018-3"
+Asset = ExtResource("5_od48r")
+
+[node name="object_source-11018-4" type="Node3D" parent="." unique_id=739472941]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -194.96375, 0.18, 94.63295)
+script = ExtResource("1_vladn")
+ObjectId = "room-shop-clock_markt-source-11018-4"
+Asset = ExtResource("6_ghd61")
+
+[node name="object_source-11018-5" type="Node3D" parent="." unique_id=1083622363]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -192.43243, 0.18, 93.139435)
+script = ExtResource("1_vladn")
+ObjectId = "room-shop-clock_markt-source-11018-5"
+Asset = ExtResource("7_up23k")
+
+[node name="object_source-11020-6" type="Node3D" parent="." unique_id=2077569914]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -193.65472, 0.18, 88.355286)
+script = ExtResource("1_vladn")
+ObjectId = "room-shop-clock_markt-source-11020-6"
+Asset = ExtResource("8_wtw03")
+
+[node name="object_source-11020-7" type="Node3D" parent="." unique_id=199023408]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -193.65472, 0.18, 88.355286)
+script = ExtResource("1_vladn")
+ObjectId = "room-shop-clock_markt-source-11020-7"
+Asset = ExtResource("9_l8oih")
+
+[node name="object_source-11020-8" type="Node3D" parent="." unique_id=1131981716]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -193.65472, 0.18, 88.355286)
+script = ExtResource("1_vladn")
+ObjectId = "room-shop-clock_markt-source-11020-8"
+Asset = ExtResource("10_1lx0k")
+
+[node name="object_source-11020-9" type="Node3D" parent="." unique_id=2061651550]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -193.48679, 0.18, 88.931305)
+script = ExtResource("1_vladn")
+ObjectId = "room-shop-clock_markt-source-11020-9"
+Asset = ExtResource("11_2glsq")
+
+[node name="object_source-11020-10" type="Node3D" parent="." unique_id=649925554]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -193.48679, 0.18, 88.931305)
+script = ExtResource("1_vladn")
+ObjectId = "room-shop-clock_markt-source-11020-10"
+Asset = ExtResource("12_yxtlt")
+
+[node name="object_source-11020-11" type="Node3D" parent="." unique_id=676518414]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -193.31883, 0.18, 89.50731)
+script = ExtResource("1_vladn")
+ObjectId = "room-shop-clock_markt-source-11020-11"
+Asset = ExtResource("13_iwv7f")
+
+[node name="object_source-11020-12" type="Node3D" parent="." unique_id=1628534175]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -193.31885, 0.18, 89.50731)
+script = ExtResource("1_vladn")
+ObjectId = "room-shop-clock_markt-source-11020-12"
+Asset = ExtResource("14_f78nr")
+
+[node name="object_source-11020-13" type="Node3D" parent="." unique_id=1114816058]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -193.31883, 0.18, 89.50731)
+script = ExtResource("1_vladn")
+ObjectId = "room-shop-clock_markt-source-11020-13"
+Asset = ExtResource("15_12n5j")
+
+[node name="object_source-11020-14" type="Node3D" parent="." unique_id=1732720939]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -193.15088, 0.18, 90.08333)
+script = ExtResource("1_vladn")
+ObjectId = "room-shop-clock_markt-source-11020-14"
+Asset = ExtResource("16_ahogd")
+
+[node name="object_source-11020-15" type="Node3D" parent="." unique_id=554851080]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -193.15088, 0.18, 90.08333)
+script = ExtResource("1_vladn")
+ObjectId = "room-shop-clock_markt-source-11020-15"
+Asset = ExtResource("17_f0o84")
+
+[node name="object_source-11020-16" type="Node3D" parent="." unique_id=1833242582]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -193.15088, 0.18, 90.08333)
+script = ExtResource("1_vladn")
+ObjectId = "room-shop-clock_markt-source-11020-16"
+Asset = ExtResource("18_k5k74")
+
+[node name="object_source-11020-17" type="Node3D" parent="." unique_id=330933904]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -192.98294, 0.18, 90.65935)
+script = ExtResource("1_vladn")
+ObjectId = "room-shop-clock_markt-source-11020-17"
+Asset = ExtResource("19_5ngor")
+
+[node name="object_source-11020-18" type="Node3D" parent="." unique_id=1961602193]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -192.98294, 0.18, 90.65935)
+script = ExtResource("1_vladn")
+ObjectId = "room-shop-clock_markt-source-11020-18"
+Asset = ExtResource("20_iex2t")
+
+[node name="object_source-11020-19" type="Node3D" parent="." unique_id=163656856]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -192.98294, 0.18, 90.65935)
+script = ExtResource("1_vladn")
+ObjectId = "room-shop-clock_markt-source-11020-19"
+Asset = ExtResource("21_j8281")
+
+[node name="object_source-11020-20" type="Node3D" parent="." unique_id=1501540427]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -192.81497, 0.18, 91.23535)
+script = ExtResource("1_vladn")
+ObjectId = "room-shop-clock_markt-source-11020-20"
+Asset = ExtResource("22_5vf2x")
+
+[node name="object_source-11020-21" type="Node3D" parent="." unique_id=1470450466]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -192.81497, 0.18, 91.23535)
+script = ExtResource("1_vladn")
+ObjectId = "room-shop-clock_markt-source-11020-21"
+Asset = ExtResource("23_cvp63")
+
+[node name="object_source-11020-22" type="Node3D" parent="." unique_id=772752640]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -192.64703, 0.18, 91.81137)
+script = ExtResource("1_vladn")
+ObjectId = "room-shop-clock_markt-source-11020-22"
+Asset = ExtResource("24_20df5")
+
+[node name="object_source-11020-23" type="Node3D" parent="." unique_id=617754884]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -192.64703, 0.18, 91.81137)
+script = ExtResource("1_vladn")
+ObjectId = "room-shop-clock_markt-source-11020-23"
+Asset = ExtResource("25_m7g5k")
+
+[node name="object_source-11020-24" type="Node3D" parent="." unique_id=1908808852]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -192.64703, 0.18, 91.81137)
+script = ExtResource("1_vladn")
+ObjectId = "room-shop-clock_markt-source-11020-24"
+Asset = ExtResource("26_vytii")
+
+[node name="object_source-11020-25" type="Node3D" parent="." unique_id=1668199433]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -192.47906, 0.18, 92.38739)
+script = ExtResource("1_vladn")
+ObjectId = "room-shop-clock_markt-source-11020-25"
+Asset = ExtResource("27_tjg7h")
+
+[node name="object_source-11020-26" type="Node3D" parent="." unique_id=1322118116]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -192.47906, 0.18, 92.38739)
+script = ExtResource("1_vladn")
+ObjectId = "room-shop-clock_markt-source-11020-26"
+Asset = ExtResource("28_cd5cg")
+
+[node name="object_source-11020-27" type="Node3D" parent="." unique_id=964668494]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -192.47906, 0.18, 92.38739)
+script = ExtResource("1_vladn")
+ObjectId = "room-shop-clock_markt-source-11020-27"
+Asset = ExtResource("29_mcts8")
+
+[node name="object_source-11027-28" type="Node3D" parent="." unique_id=605338980]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -196.43045, 0.18, 93.80026)
+script = ExtResource("1_vladn")
+ObjectId = "room-shop-clock_markt-source-11027-28"
+Asset = ExtResource("30_7746t")
+
+[node name="object_source-11027-29" type="Node3D" parent="." unique_id=961909278]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -198.0046, 0.18, 91.25934)
+script = ExtResource("1_vladn")
+ObjectId = "room-shop-clock_markt-source-11027-29"
+Asset = ExtResource("31_lqfia")
+
+[node name="object_source-11027-30" type="Node3D" parent="." unique_id=41214529]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -195.07858, 0.18, 92.09569)
+script = ExtResource("1_vladn")
+ObjectId = "room-shop-clock_markt-source-11027-30"
+Asset = ExtResource("32_n7rw8")
+
+[node name="object_source-11035-31" type="Node3D" parent="." unique_id=1690435987]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -198.0046, 0.18, 91.25936)
+script = ExtResource("1_vladn")
+ObjectId = "room-shop-clock_markt-source-11035-31"
+Asset = ExtResource("33_j6brj")
+
+[node name="object_source-11035-32" type="Node3D" parent="." unique_id=98544602]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -195.07852, 0.18, 92.095726)
+script = ExtResource("1_vladn")
+ObjectId = "room-shop-clock_markt-source-11035-32"
+Asset = ExtResource("34_818b7")
+
+[node name="object_source-11133-33" type="Node3D" parent="." unique_id=1733625029]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -198.42853, 0.18, 88.59971)
+script = ExtResource("1_vladn")
+ObjectId = "room-shop-clock_markt-source-11133-33"
+Asset = ExtResource("35_unrub")

@@ -1,0 +1,19 @@
+[gd_resource type="Resource" script_class="AuthorAsset" format=3]
+
+[ext_resource type="PackedScene" path="res://assets/props/furniture/room-shop-barber_lane-source-10715-12.tscn" id="1_2b5qg"]
+[ext_resource type="Script" path="res://src/Authoring/AuthorAsset.cs" id="2_3vxuv"]
+
+[resource]
+PlacementAnchor = Vector3(2.3841858e-07, 0, -6.4373016e-06)
+GeometryClearance = true
+script = ExtResource("2_3vxuv")
+Id = "room-shop-barber_lane-source-10715-12"
+Title = "fitting · shop:barber_lane · source-10715-12"
+Category = "Room originals"
+Scene = ExtResource("1_2b5qg")
+Footprint = Vector3(0.061140537, 0.6000166, 0.04)
+FootprintOffset = Vector3(2.3841858e-07, 1.0999835, -6.4373016e-06)
+FurnitureKind = "fitting"
+SeatYaw = 1.6328664
+UsePoint = Vector3(0, 0.5, 0)
+StandPoint = Vector3(0, 0, 0.5999985)

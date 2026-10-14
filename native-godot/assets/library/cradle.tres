@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="AuthorAsset" format=3]
+
+[ext_resource type="PackedScene" path="res://assets/furniture/cradle.tscn" id="1_7nqvt"]
+[ext_resource type="Script" path="res://src/Authoring/AuthorAsset.cs" id="2_rx2qd"]
+
+[resource]
+script = ExtResource("2_rx2qd")
+Id = "cradle"
+Title = "Rocking cradle"
+Category = "Furniture: beds"
+Scene = ExtResource("1_7nqvt")
+Footprint = Vector3(0.957, 0.6699, 0.5564)
+FootprintOffset = Vector3(0, 0.0001, 0)
+FurnitureKind = "cradle"
+UsePoint = Vector3(0, 0.25, 0)
+StandPoint = Vector3(0, 0, 0.7)

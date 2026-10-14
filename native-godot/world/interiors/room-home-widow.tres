@@ -1,0 +1,26 @@
+[gd_resource type="Resource" script_class="AuthorDistrict" format=3]
+
+[ext_resource type="Resource" path="res://world/interiors/room-home-widow.catalog.tres" id="1_axg0c"]
+[ext_resource type="PackedScene" path="res://world/interiors/room-home-widow.structure.tscn" id="2_1clj3"]
+[ext_resource type="PackedScene" path="res://world/interiors/room-home-widow.objects.tscn" id="3_axg0c"]
+[ext_resource type="Script" path="res://src/Authoring/AuthorDistrict.cs" id="4_5c6gl"]
+
+[resource]
+script = ExtResource("4_5c6gl")
+Id = "room-home-widow"
+Title = "home:widow"
+Scene = ExtResource("3_axg0c")
+EditorScenePath = "res://world/interiors/room-home-widow.tscn"
+Catalog = ExtResource("1_axg0c")
+Bounds = Rect2(-273.4087, -28.537056, 200, 200)
+WalkSpawn = Vector3(-173.4087, 0.2, 71.462944)
+FlySpawn = Vector3(-173.4087, 1.78, 71.462944)
+FlyYaw = -2.8578808
+FlyPitch = -0.12
+RoomId = "home:widow"
+RoomFrame = Transform3D(0.96002305, 0, -0.279921, 0, 1, 0, -0.279921, 0, -0.96002305, -172.77888, 0.18, 73.62299)
+RoomBounds = Rect2(-1.75, 0, 3.5, 4.5)
+RoomHeight = 2.7
+EntryPoints = PackedVector3Array(-172.7229, 0.18, 73.814995)
+ReplacedMeshes = PackedInt32Array(11459, 11460, 11461, 11462, 11463, 11464, 11465, 11469)
+RetainedStructure = ExtResource("2_1clj3")

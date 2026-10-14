@@ -1,0 +1,19 @@
+[gd_resource type="Resource" script_class="AuthorAsset" format=3]
+
+[ext_resource type="PackedScene" path="res://assets/props/furniture/room-shop-tobacco_markt-source-10268-26.tscn" id="1_s2qq5"]
+[ext_resource type="Script" path="res://src/Authoring/AuthorAsset.cs" id="2_ekprs"]
+
+[resource]
+PlacementAnchor = Vector3(-8.821487e-06, 0, -4.4107437e-06)
+GeometryClearance = true
+script = ExtResource("2_ekprs")
+Id = "room-shop-tobacco_markt-source-10268-26"
+Title = "stove · shop:tobacco_markt · source-10268-26"
+Category = "Room originals"
+Scene = ExtResource("1_s2qq5")
+Footprint = Vector3(0.6200423, 3.1, 0.6200383)
+FootprintOffset = Vector3(-8.821487e-06, 0, -4.4107437e-06)
+FurnitureKind = "stove"
+SeatYaw = 1.5707964
+UsePoint = Vector3(0, 0.5, 0)
+StandPoint = Vector3(0, 0, 0.5999985)

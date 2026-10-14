@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="AuthorCatalog" format=3]
+
+[ext_resource type="Script" path="res://src/Authoring/AuthorAsset.cs" id="1_wid4k"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-home-garret-fixed-0.tres" id="2_sofqa"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-home-garret-fixed-1.tres" id="3_t4f36"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-home-garret-source-11406-2.tres" id="4_n4e0d"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-home-garret-source-11414-3.tres" id="5_ffbc2"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-home-garret-source-11414-4.tres" id="6_a7gox"]
+[ext_resource type="Script" path="res://src/Authoring/AuthorCatalog.cs" id="7_krvx8"]
+
+[resource]
+script = ExtResource("7_krvx8")
+Assets = Array[ExtResource("1_wid4k")]([ExtResource("2_sofqa"), ExtResource("3_t4f36"), ExtResource("4_n4e0d"), ExtResource("5_ffbc2"), ExtResource("6_a7gox")])

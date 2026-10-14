@@ -1,0 +1,19 @@
+[gd_resource type="Resource" script_class="AuthorAsset" format=3]
+
+[ext_resource type="PackedScene" path="res://assets/props/furniture/room-shop-colonial_steen-source-10626-18.tscn" id="1_kbbrv"]
+[ext_resource type="Script" path="res://src/Authoring/AuthorAsset.cs" id="2_bkmg5"]
+
+[resource]
+PlacementAnchor = Vector3(-1.0987278e-06, 0, 2.026558e-06)
+GeometryClearance = true
+script = ExtResource("2_bkmg5")
+Id = "room-shop-colonial_steen-source-10626-18"
+Title = "fitting · shop:colonial_steen · source-10626-18"
+Category = "Room originals"
+Scene = ExtResource("1_kbbrv")
+Footprint = Vector3(0.04, 2.0187497, 1.8731248)
+FootprintOffset = Vector3(-1.0987278e-06, 0.65125, 2.026558e-06)
+FurnitureKind = "fitting"
+SeatYaw = 1.5707964
+UsePoint = Vector3(0, 0.5, 0)
+StandPoint = Vector3(0, 0, 0.5999985)

@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="AuthorAsset" format=3]
+
+[ext_resource type="PackedScene" path="res://assets/props/furniture/room-home-merchant-source-11618-14.tscn" id="1_dovto"]
+[ext_resource type="Script" path="res://src/Authoring/AuthorAsset.cs" id="2_etbbv"]
+
+[resource]
+GeometryClearance = true
+script = ExtResource("2_etbbv")
+Id = "room-home-merchant-source-11618-14"
+Title = "Architecture marker · home:merchant · room-home-merchant-source-11618-14"
+Category = "Room originals"
+Scene = ExtResource("1_dovto")
+Footprint = Vector3(0.04, 0.04, 0.04)
+FurnitureKind = "architecture-marker"
+SeatYaw = 0.15656859
+UsePoint = Vector3(0, 0.50000024, 0)
+StandPoint = Vector3(0, 0, 0.5999985)

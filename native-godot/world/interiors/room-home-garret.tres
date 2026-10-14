@@ -1,0 +1,25 @@
+[gd_resource type="Resource" script_class="AuthorDistrict" format=3]
+
+[ext_resource type="Resource" path="res://world/interiors/room-home-garret.catalog.tres" id="1_b1kpa"]
+[ext_resource type="PackedScene" path="res://world/interiors/room-home-garret.structure.tscn" id="2_seb2e"]
+[ext_resource type="PackedScene" path="res://world/interiors/room-home-garret.objects.tscn" id="3_b1kpa"]
+[ext_resource type="Script" path="res://src/Authoring/AuthorDistrict.cs" id="4_yg06s"]
+
+[resource]
+script = ExtResource("4_yg06s")
+Id = "room-home-garret"
+Title = "home:garret"
+Scene = ExtResource("3_b1kpa")
+EditorScenePath = "res://world/interiors/room-home-garret.tscn"
+Catalog = ExtResource("1_b1kpa")
+Bounds = Rect2(-216.66501, 20.449997, 200, 200)
+WalkSpawn = Vector3(-116.665, 15.820001, 120.45)
+FlySpawn = Vector3(-116.665, 17.4, 120.45)
+FlyPitch = -0.12
+RoomId = "home:garret"
+RoomFrame = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, 1, -116.665, 15.8, 118.2)
+RoomBounds = Rect2(-1.75, 0, 3.5, 4.5)
+RoomHeight = 2.4
+EntryPoints = PackedVector3Array(-114.615, 15.8, 118)
+ReplacedMeshes = PackedInt32Array(11394, 11395, 11396, 11397, 11398, 11399, 11400, 11406, 11414)
+RetainedStructure = ExtResource("2_seb2e")

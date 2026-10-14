@@ -1,0 +1,21 @@
+[gd_resource type="Resource" script_class="AuthorAsset" format=3]
+
+[ext_resource type="PackedScene" path="res://assets/props/furniture/room-shop-butcher_vlees-counter.tscn" id="1_d8hks"]
+[ext_resource type="Script" path="res://src/Authoring/AuthorAsset.cs" id="2_wkkcu"]
+
+[resource]
+PlacementAnchor = Vector3(-0.5600345, -1.4901161e-08, -2.0384789e-05)
+GeometryClearance = true
+script = ExtResource("2_wkkcu")
+Id = "room-shop-butcher_vlees-counter"
+Title = "counter · shop:butcher_vlees · counter"
+Category = "Room originals"
+Scene = ExtResource("1_d8hks")
+Footprint = Vector3(1.4199286, 0.96999997, 3.520044)
+FootprintOffset = Vector3(-0.5600345, -1.4901161e-08, -2.0384789e-05)
+FurnitureKind = "counter"
+UsePoint = Vector3(0.6300049, 1.2, 0)
+StandPoint = Vector3(1.3300018, 0, 0)
+
+
+KeeperPoint = Vector3(-0.9199988, 0, -2.0384789e-05)

@@ -1,17 +1,18 @@
-[gd_resource type="Resource" script_class="AuthorDistrict" load_steps=4 format=3]
+[gd_resource type="Resource" script_class="AuthorDistrict" format=3]
 
-[ext_resource type="Script" path="res://src/Authoring/AuthorDistrict.cs" id="script"]
-[ext_resource type="PackedScene" path="res://world/districts/outer-wall.tscn" id="scene"]
+[ext_resource type="PackedScene" path="res://world/districts/outer-wall.objects.tscn" id="2_fp1so"]
 [ext_resource type="Resource" path="res://recovered/rijnkaai-recovered/catalog.tres" id="catalog"]
+[ext_resource type="Script" path="res://src/Authoring/AuthorDistrict.cs" id="script"]
 
 [resource]
 script = ExtResource("script")
 Id = "outer-wall"
 Title = "Town wall, gates and ramparts"
-Scene = ExtResource("scene")
+Scene = ExtResource("2_fp1so")
+EditorScenePath = "res://world/districts/outer-wall.tscn"
 Catalog = ExtResource("catalog")
-Bounds = Rect2(-460.0,-25.0,790.0,490.0)
-WalkSpawn = Vector3(-365.0,0.2,150.1)
-FlySpawn = Vector3(-365.0,12.0,130.0)
-FlyYaw = 3.141592653589793
-FlyPitch = -0.24434609527920614
+Bounds = Rect2(-460, -25, 790, 490)
+WalkSpawn = Vector3(-365, 0.2, 150.1)
+FlySpawn = Vector3(-365, 12, 130)
+FlyYaw = 3.1415927
+FlyPitch = -0.2443461

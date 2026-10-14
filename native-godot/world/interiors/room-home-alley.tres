@@ -1,0 +1,26 @@
+[gd_resource type="Resource" script_class="AuthorDistrict" format=3]
+
+[ext_resource type="Resource" path="res://world/interiors/room-home-alley.catalog.tres" id="1_oucnn"]
+[ext_resource type="PackedScene" path="res://world/interiors/room-home-alley.structure.tscn" id="2_5umxa"]
+[ext_resource type="PackedScene" path="res://world/interiors/room-home-alley.objects.tscn" id="3_oucnn"]
+[ext_resource type="Script" path="res://src/Authoring/AuthorDistrict.cs" id="4_otm1i"]
+
+[resource]
+script = ExtResource("4_otm1i")
+Id = "room-home-alley"
+Title = "home:alley"
+Scene = ExtResource("3_oucnn")
+EditorScenePath = "res://world/interiors/room-home-alley.tscn"
+Catalog = ExtResource("1_oucnn")
+Bounds = Rect2(-313.28998, 201.73999, 200, 200)
+WalkSpawn = Vector3(-213.29, 0.2, 301.74)
+FlySpawn = Vector3(-213.29, 1.78, 301.74)
+FlyYaw = 3.1415925
+FlyPitch = -0.12
+RoomId = "home:alley"
+RoomFrame = Transform3D(1, 0, 8.742278e-08, 0, 1, 0, 8.742278e-08, 0, -1, -213.29, 0.18, 304.24)
+RoomBounds = Rect2(-2.25, 0, 4.5, 5)
+RoomHeight = 2.5
+EntryPoints = PackedVector3Array(-213.29, 0.18, 304.44)
+ReplacedMeshes = PackedInt32Array(11511, 11512, 11513, 11514, 11515, 11516, 11517, 11518, 11519, 11525)
+RetainedStructure = ExtResource("2_5umxa")

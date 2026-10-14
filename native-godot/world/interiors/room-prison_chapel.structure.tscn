@@ -1,0 +1,19 @@
+[gd_scene format=3]
+
+[ext_resource type="Material" path="res://world/town/resources/r006838.res" id="1_ioedl"]
+
+[sub_resource type="ArrayMesh" id="ArrayMesh_8u7il"]
+_surfaces = [{
+"aabb": AABB(-354.996, 0.2, 199.5, 11.801483, 1.5254349, 18.157516),
+"format": 34359738369,
+"material": ExtResource("1_ioedl"),
+"primitive": 3,
+"uv_scale": Vector4(0, 0, 0, 0),
+"vertex_count": 3,
+"vertex_data": PackedByteArray(118, 157, 171, 195, 13, 219, 220, 63, 83, 168, 89, 67, 230, 152, 171, 195, 158, 100, 220, 63, 66, 117, 88, 67, 125, 127, 177, 195, 205, 204, 76, 62, 0, 128, 71, 67)
+}]
+
+[node name="RetainedStructure" type="Node3D" unique_id=2107753843]
+
+[node name="Part" type="MeshInstance3D" parent="." unique_id=1136975646]
+mesh = SubResource("ArrayMesh_8u7il")

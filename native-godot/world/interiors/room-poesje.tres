@@ -1,0 +1,25 @@
+[gd_resource type="Resource" script_class="AuthorDistrict" format=3]
+
+[ext_resource type="Resource" path="res://world/interiors/room-poesje.catalog.tres" id="1_gpoog"]
+[ext_resource type="PackedScene" path="res://world/interiors/room-poesje.structure.tscn" id="2_5imrr"]
+[ext_resource type="PackedScene" path="res://world/interiors/room-poesje.objects.tscn" id="3_gpoog"]
+[ext_resource type="Script" path="res://src/Authoring/AuthorDistrict.cs" id="4_kprht"]
+
+[resource]
+script = ExtResource("4_kprht")
+Id = "room-poesje"
+Title = "poesje"
+Scene = ExtResource("3_gpoog")
+EditorScenePath = "res://world/interiors/room-poesje.tscn"
+Catalog = ExtResource("1_gpoog")
+Bounds = Rect2(-218.34, -26.445, 200, 200)
+WalkSpawn = Vector3(-118.34, -2.28, 73.555)
+FlySpawn = Vector3(-118.34, -0.6999999, 73.555)
+FlyPitch = -0.12
+RoomId = "poesje"
+RoomFrame = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -2.3, 0)
+RoomBounds = Rect2(-121.07, 67.01, 5.459999, 13.089996)
+RoomHeight = 5.1499996
+EntryPoints = PackedVector3Array(-119.805, -2.3, 80)
+ReplacedMeshes = PackedInt32Array(12158, 12159, 12160, 12161, 12162, 12164, 12165, 12166, 12167, 12168, 12169, 12170, 12171, 12173, 12174)
+RetainedStructure = ExtResource("2_5imrr")

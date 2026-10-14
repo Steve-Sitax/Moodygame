@@ -1,0 +1,19 @@
+[gd_resource type="Resource" script_class="AuthorAsset" format=3]
+
+[ext_resource type="PackedScene" path="res://assets/props/furniture/room-shop-colonial_steen-source-10571-17.tscn" id="1_pxaci"]
+[ext_resource type="Script" path="res://src/Authoring/AuthorAsset.cs" id="2_nqxau"]
+
+[resource]
+PlacementAnchor = Vector3(-7.1525574e-06, 0, -2.4437904e-06)
+GeometryClearance = true
+script = ExtResource("2_nqxau")
+Id = "room-shop-colonial_steen-source-10571-17"
+Title = "sack · shop:colonial_steen · source-10571-17"
+Category = "Room originals"
+Scene = ExtResource("1_pxaci")
+Footprint = Vector3(0.5201969, 0.62, 0.5305995)
+FootprintOffset = Vector3(-7.1525574e-06, 0, -2.4437904e-06)
+FurnitureKind = "sack"
+SeatYaw = 1.5707964
+UsePoint = Vector3(0, 0.5, 0)
+StandPoint = Vector3(0, 0, 0.5999985)

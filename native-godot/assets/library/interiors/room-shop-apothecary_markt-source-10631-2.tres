@@ -1,0 +1,19 @@
+[gd_resource type="Resource" script_class="AuthorAsset" format=3]
+
+[ext_resource type="PackedScene" path="res://assets/props/furniture/room-shop-apothecary_markt-source-10631-2.tscn" id="1_mslas"]
+[ext_resource type="Script" path="res://src/Authoring/AuthorAsset.cs" id="2_c25fb"]
+
+[resource]
+PlacementAnchor = Vector3(1.9073486e-06, 0, 4.7683716e-07)
+GeometryClearance = true
+script = ExtResource("2_c25fb")
+Id = "room-shop-apothecary_markt-source-10631-2"
+Title = "fitting · shop:apothecary_markt · source-10631-2"
+Category = "Room originals"
+Scene = ExtResource("1_mslas")
+Footprint = Vector3(0.34500027, 2.77, 0.50166416)
+FootprintOffset = Vector3(1.9073486e-06, -5.9604645e-08, 4.7683716e-07)
+FurnitureKind = "fitting"
+SeatYaw = 3.1415925
+UsePoint = Vector3(0, 0.5, 0)
+StandPoint = Vector3(0, 0, 0.5999985)

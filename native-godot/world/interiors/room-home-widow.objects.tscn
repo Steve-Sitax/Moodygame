@@ -1,0 +1,40 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://src/Authoring/AuthoredObject.cs" id="1_kwlde"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-home-widow-fixed-0.tres" id="2_wf7yf"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-home-widow-fixed-1.tres" id="3_th20i"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-home-widow-fixed-2.tres" id="4_yejr8"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-home-widow-source-11459-3.tres" id="5_ieihd"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-home-widow-source-11469-4.tres" id="6_by0wf"]
+
+[node name="Objects" type="Node3D" unique_id=1982420223]
+
+[node name="object_fixed-0" type="Node3D" parent="." unique_id=1534143759]
+transform = Transform3D(0.96002305, 0, 0.2799209, 0, 1, 0, -0.2799209, 0, 0.96002305, -174.95863, 0.18, 70.612816)
+script = ExtResource("1_kwlde")
+ObjectId = "room-home-widow-fixed-0"
+Asset = ExtResource("2_wf7yf")
+
+[node name="object_fixed-1" type="Node3D" parent="." unique_id=555277128]
+transform = Transform3D(0.27992123, 0, -0.960023, 0, 1, 0, 0.960023, 0, 0.27992123, -172.52852, 0.18, 69.12302)
+script = ExtResource("1_kwlde")
+ObjectId = "room-home-widow-fixed-1"
+Asset = ExtResource("3_th20i")
+
+[node name="object_fixed-2" type="Node3D" parent="." unique_id=2125900888]
+transform = Transform3D(0.27992123, 0, -0.960023, 0, 1, 0, 0.960023, 0, 0.27992123, -172.10863, 0.18, 70.56305)
+script = ExtResource("1_kwlde")
+ObjectId = "room-home-widow-fixed-2"
+Asset = ExtResource("4_yejr8")
+
+[node name="object_source-11459-3" type="Node3D" parent="." unique_id=705139605]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -174.03294, 0.18, 69.3221)
+script = ExtResource("1_kwlde")
+ObjectId = "room-home-widow-source-11459-3"
+Asset = ExtResource("5_ieihd")
+
+[node name="object_source-11469-4" type="Node3D" parent="." unique_id=671895559]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -172.77888, 0.18, 73.62299)
+script = ExtResource("1_kwlde")
+ObjectId = "room-home-widow-source-11469-4"
+Asset = ExtResource("6_by0wf")

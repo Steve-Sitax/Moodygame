@@ -1,0 +1,25 @@
+[gd_resource type="Resource" script_class="AuthorDistrict" format=3]
+
+[ext_resource type="Resource" path="res://world/interiors/room-shop-butcher_vlees.catalog.tres" id="1_ksakn"]
+[ext_resource type="PackedScene" path="res://world/interiors/room-shop-butcher_vlees.structure.tscn" id="2_2tcc1"]
+[ext_resource type="PackedScene" path="res://world/interiors/room-shop-butcher_vlees.objects.tscn" id="3_ksakn"]
+[ext_resource type="Script" path="res://src/Authoring/AuthorDistrict.cs" id="4_22kc6"]
+
+[resource]
+script = ExtResource("4_22kc6")
+Id = "room-shop-butcher_vlees"
+Title = "shop:butcher_vlees"
+Scene = ExtResource("3_ksakn")
+EditorScenePath = "res://world/interiors/room-shop-butcher_vlees.tscn"
+Catalog = ExtResource("1_ksakn")
+Bounds = Rect2(-197.05, -32.340004, 200, 200)
+WalkSpawn = Vector3(-97.05, 0.2, 67.659996)
+FlySpawn = Vector3(-97.05, 1.78, 67.659996)
+FlyYaw = -1.5707964
+FlyPitch = -0.12
+RoomId = "shop:butcher_vlees"
+RoomFrame = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -92, 0.18, 69.015)
+RoomBounds = Rect2(-3.865, 0.2, 5.02, 9.7)
+EntryPoints = PackedVector3Array(-92, 0.18, 69.015)
+ReplacedMeshes = PackedInt32Array(10493, 10495, 10496, 10497, 10498, 10499, 10500, 10501, 10502, 10503, 10504, 10505, 10506, 10507, 10508, 10509, 10510, 10511, 10518, 10552)
+RetainedStructure = ExtResource("2_2tcc1")

@@ -1,0 +1,19 @@
+[gd_resource type="Resource" script_class="AuthorAsset" format=3]
+
+[ext_resource type="PackedScene" path="res://assets/props/furniture/room-shop-bakery_rijn-source-9996-13.tscn" id="1_7oftv"]
+[ext_resource type="Script" path="res://src/Authoring/AuthorAsset.cs" id="2_w4xej"]
+
+[resource]
+PlacementAnchor = Vector3(2.3841858e-07, -2.9802322e-08, 2.3245811e-06)
+GeometryClearance = true
+script = ExtResource("2_w4xej")
+Id = "room-shop-bakery_rijn-source-9996-13"
+Title = "oven · shop:bakery_rijn · source-9996-13"
+Category = "Room originals"
+Scene = ExtResource("1_7oftv")
+Footprint = Vector3(0.33636045, 1.7, 1.4128116)
+FootprintOffset = Vector3(2.3841858e-07, -2.9802322e-08, 2.3245811e-06)
+FurnitureKind = "stove"
+SeatYaw = 1.6328664
+UsePoint = Vector3(0, 0.5, 0)
+StandPoint = Vector3(0, 0, 0.5999985)

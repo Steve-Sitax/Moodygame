@@ -1,0 +1,19 @@
+[gd_resource type="Resource" script_class="AuthorAsset" format=3]
+
+[ext_resource type="PackedScene" path="res://assets/props/furniture/room-shop-printer_jezuiet-source-10897-1.tscn" id="1_b6red"]
+[ext_resource type="Script" path="res://src/Authoring/AuthorAsset.cs" id="2_ropdw"]
+
+[resource]
+PlacementAnchor = Vector3(1.6093254e-06, 0, 4.529953e-06)
+GeometryClearance = true
+script = ExtResource("2_ropdw")
+Id = "room-shop-printer_jezuiet-source-10897-1"
+Title = "shelf · shop:printer_jezuiet · source-10897-1"
+Category = "Room originals"
+Scene = ExtResource("1_b6red")
+Footprint = Vector3(1.641791, 2.6, 4.964721)
+FootprintOffset = Vector3(1.6093254e-06, -5.9604645e-08, 4.529953e-06)
+FurnitureKind = "shelf"
+SeatYaw = -2.8784664
+UsePoint = Vector3(0, 0.5, 0)
+StandPoint = Vector3(0, 0, 0.6000061)

@@ -1,0 +1,26 @@
+[gd_resource type="Resource" script_class="AuthorCatalog" format=3]
+
+[ext_resource type="Script" path="res://src/Authoring/AuthorAsset.cs" id="1_724ly"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-bakery_steen-counter.tres" id="2_v82fr"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-bakery_steen-source-10051-1.tres" id="3_jrxc7"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-bakery_steen-source-10051-2.tres" id="4_5np74"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-bakery_steen-source-10051-3.tres" id="5_o1t4m"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-bakery_steen-source-10051-4.tres" id="6_nhc3b"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-bakery_steen-source-10051-5.tres" id="7_851md"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-bakery_steen-source-10051-6.tres" id="8_m0oae"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-bakery_steen-source-10051-7.tres" id="9_c7ceb"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-bakery_steen-source-10058-8.tres" id="10_mk0wt"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-bakery_steen-source-10058-9.tres" id="11_7yb3o"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-bakery_steen-source-10059-10.tres" id="12_7rfkl"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-bakery_steen-source-10059-11.tres" id="13_r02wo"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-bakery_steen-source-10065-12.tres" id="14_gxcns"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-bakery_steen-source-10067-13.tres" id="15_31151"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-bakery_steen-source-10068-14.tres" id="16_pp2ir"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-bakery_steen-source-10068-15.tres" id="17_xgccp"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-bakery_steen-source-10073-16.tres" id="18_puwq6"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-shop-bakery_steen-source-10117-17.tres" id="19_lyufd"]
+[ext_resource type="Script" path="res://src/Authoring/AuthorCatalog.cs" id="20_6boc4"]
+
+[resource]
+script = ExtResource("20_6boc4")
+Assets = Array[ExtResource("1_724ly")]([ExtResource("2_v82fr"), ExtResource("3_jrxc7"), ExtResource("4_5np74"), ExtResource("5_o1t4m"), ExtResource("6_nhc3b"), ExtResource("7_851md"), ExtResource("8_m0oae"), ExtResource("9_c7ceb"), ExtResource("10_mk0wt"), ExtResource("11_7yb3o"), ExtResource("12_7rfkl"), ExtResource("13_r02wo"), ExtResource("14_gxcns"), ExtResource("15_31151"), ExtResource("16_pp2ir"), ExtResource("17_xgccp"), ExtResource("18_puwq6"), ExtResource("19_lyufd")])

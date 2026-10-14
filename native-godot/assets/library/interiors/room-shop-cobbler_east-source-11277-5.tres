@@ -1,0 +1,19 @@
+[gd_resource type="Resource" script_class="AuthorAsset" format=3]
+
+[ext_resource type="PackedScene" path="res://assets/props/furniture/room-shop-cobbler_east-source-11277-5.tscn" id="1_1q40r"]
+[ext_resource type="Script" path="res://src/Authoring/AuthorAsset.cs" id="2_jxdb0"]
+
+[resource]
+PlacementAnchor = Vector3(0, 0, 1.2874603e-05)
+GeometryClearance = true
+script = ExtResource("2_jxdb0")
+Id = "room-shop-cobbler_east-source-11277-5"
+Title = "clock · shop:cobbler_east · source-11277-5"
+Category = "Room originals"
+Scene = ExtResource("1_1q40r")
+Footprint = Vector3(0.32171345, 0.3799863, 0.26865864)
+FootprintOffset = Vector3(0, 2.2599957, 1.2874603e-05)
+FurnitureKind = "clock"
+SeatYaw = 2.4667642
+UsePoint = Vector3(0, 0.5, 0)
+StandPoint = Vector3(0, 0, 0.6000061)

@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="AuthorAsset" format=3]
+
+[ext_resource type="PackedScene" path="res://assets/props/furniture/room-stjacob-source-9937-330.tscn" id="1_n6l2o"]
+[ext_resource type="Script" path="res://src/Authoring/AuthorAsset.cs" id="2_2yi54"]
+
+[resource]
+PlacementAnchor = Vector3(0, 0, 0)
+GeometryClearance = true
+script = ExtResource("2_2yi54")
+Id = "room-stjacob-source-9937-330"
+Title = "fitting · stjacob · source-9937-330"
+Category = "Room originals"
+Scene = ExtResource("1_n6l2o")
+Footprint = Vector3(1.9720001, 4.119999, 1.972)
+FootprintOffset = Vector3(0, 33.260002, 0)
+FurnitureKind = "fitting"
+UsePoint = Vector3(0, 0.5, 0)
+StandPoint = Vector3(0, 0, 0.6000061)

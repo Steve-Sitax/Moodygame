@@ -21,6 +21,12 @@ public partial class BakedWorld : Node3D
     /// <summary>Native worlds supply lights from their live authored objects; legacy worlds read their sidecar.</summary>
     public virtual JsonDocument? NativeLights => null;
     public virtual Scheldemist.Town.WalkMap? NativeWalk => null;
+    public virtual IReadOnlyList<InteriorFurniture>? NativeFurniture => null;
+    public virtual IReadOnlySet<string>? NativeFurnitureRooms => null;
+    public virtual Node3D? CreateNativeFurniture(string kind) => null;
+    /// <summary>0: legacy anchor; 1: authored seat; -1: the owner removed that seat.</summary>
+    public virtual int ResolveNativeSeat(string room, Vector3 original, out Vector3 at, out float height, out float yaw)
+    {at=original;height=0;yaw=0;return 0;}
     /// <summary>The quay ladders a native world drew itself (null: QuayExits reads them back from the baked iron).</summary>
     public virtual IReadOnlyList<QuayExits.Ladder>? NativeQuayLadders => null;
     public virtual bool ContainsPlayPoint(double x, double z) => true;

@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="AuthorAsset" format=3]
+
+[ext_resource type="PackedScene" path="res://assets/props/furniture/room-tavern-ankere-source-11662-15.tscn" id="1_6ibdq"]
+[ext_resource type="Script" path="res://src/Authoring/AuthorAsset.cs" id="2_i13c2"]
+
+[resource]
+PlacementAnchor = Vector3(2.3841858e-07, -1.4901161e-08, 2.861023e-06)
+GeometryClearance = true
+script = ExtResource("2_i13c2")
+Id = "room-tavern-ankere-source-11662-15"
+Title = "cask · tavern:ankere · source-11662-15"
+Category = "Room originals"
+Scene = ExtResource("1_6ibdq")
+Footprint = Vector3(1.3000989, 1.5338485, 1.8999157)
+FootprintOffset = Vector3(2.3841858e-07, -1.4901161e-08, 2.861023e-06)
+FurnitureKind = "cask"
+UsePoint = Vector3(0, 0.5, 0)
+StandPoint = Vector3(0, 0, 0.5999985)

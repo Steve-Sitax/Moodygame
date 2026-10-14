@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="AuthorAsset" format=3]
+
+[ext_resource type="PackedScene" path="res://assets/props/furniture/room-tavern-bassin-source-11967-31.tscn" id="1_0x5vm"]
+[ext_resource type="Script" path="res://src/Authoring/AuthorAsset.cs" id="2_5tkks"]
+
+[resource]
+PlacementAnchor = Vector3(-4.053116e-06, 0, 6.914139e-06)
+GeometryClearance = true
+script = ExtResource("2_5tkks")
+Id = "room-tavern-bassin-source-11967-31"
+Title = "fitting · tavern:bassin · source-11967-31"
+Category = "Room originals"
+Scene = ExtResource("1_0x5vm")
+Footprint = Vector3(0.04, 0.65004945, 0.04)
+FootprintOffset = Vector3(-4.053116e-06, 2.5999506, 6.914139e-06)
+FurnitureKind = "fitting"
+UsePoint = Vector3(0, 0.5, 0)
+StandPoint = Vector3(0, 0, 0.6000061)

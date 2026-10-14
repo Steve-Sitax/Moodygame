@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="AuthorCatalog" format=3]
+
+[ext_resource type="Script" path="res://src/Authoring/AuthorAsset.cs" id="1_vsb5y"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-home-cellar-fixed-0.tres" id="2_r81ka"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-home-cellar-fixed-1.tres" id="3_ctgoj"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-home-cellar-source-11349-2.tres" id="4_tcvkn"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-home-cellar-source-11352-3.tres" id="5_wogf6"]
+[ext_resource type="Resource" path="res://assets/library/interiors/room-home-cellar-source-11353-4.tres" id="6_hgyi6"]
+[ext_resource type="Script" path="res://src/Authoring/AuthorCatalog.cs" id="7_1tvdd"]
+
+[resource]
+script = ExtResource("7_1tvdd")
+Assets = Array[ExtResource("1_vsb5y")]([ExtResource("2_r81ka"), ExtResource("3_ctgoj"), ExtResource("4_tcvkn"), ExtResource("5_wogf6"), ExtResource("6_hgyi6")])

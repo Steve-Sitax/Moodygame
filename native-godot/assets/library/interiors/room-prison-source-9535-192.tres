@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="AuthorAsset" format=3]
+
+[ext_resource type="PackedScene" path="res://assets/props/furniture/room-prison-source-9535-192.tscn" id="1_ayf1v"]
+[ext_resource type="Script" path="res://src/Authoring/AuthorAsset.cs" id="2_odi2c"]
+
+[resource]
+PlacementAnchor = Vector3(1.1444092e-05, 0.19997713, 5.2452087e-06)
+GeometryClearance = true
+script = ExtResource("2_odi2c")
+Id = "room-prison-source-9535-192"
+Title = "stove · prison · source-9535-192"
+Category = "Room originals"
+Scene = ExtResource("1_ayf1v")
+Footprint = Vector3(0.70220184, 1.7000229, 0.16969776)
+FootprintOffset = Vector3(1.1444092e-05, 0.19997713, 5.2452087e-06)
+FurnitureKind = "stove"
+UsePoint = Vector3(0, 0.5, 0)
+StandPoint = Vector3(0, 0, 0.6000061)

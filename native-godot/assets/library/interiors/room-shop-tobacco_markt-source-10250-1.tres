@@ -1,0 +1,19 @@
+[gd_resource type="Resource" script_class="AuthorAsset" format=3]
+
+[ext_resource type="PackedScene" path="res://assets/props/furniture/room-shop-tobacco_markt-source-10250-1.tscn" id="1_qryp2"]
+[ext_resource type="Script" path="res://src/Authoring/AuthorAsset.cs" id="2_bg2h4"]
+
+[resource]
+PlacementAnchor = Vector3(2.3841858e-07, 0, -1.1920929e-07)
+GeometryClearance = true
+script = ExtResource("2_bg2h4")
+Id = "room-shop-tobacco_markt-source-10250-1"
+Title = "shelf · shop:tobacco_markt · source-10250-1"
+Category = "Room originals"
+Scene = ExtResource("1_qryp2")
+Footprint = Vector3(5.050039, 2.6599998, 0.7999399)
+FootprintOffset = Vector3(2.3841858e-07, -5.9604645e-08, -1.1920929e-07)
+FurnitureKind = "shelf"
+SeatYaw = 1.5707964
+UsePoint = Vector3(0, 0.5, 0)
+StandPoint = Vector3(0, 0, 0.5999985)

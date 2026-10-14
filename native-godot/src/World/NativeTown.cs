@@ -21,6 +21,20 @@ public partial class NativeTown : BakedWorld
     private Scheldemist.Town.WalkMap? walk;
     private JsonArray attributes = null!;
     public NativeDistrictLayouts.Result Layouts { get; private set; } = null!;
+    public override IReadOnlySet<string>? NativeFurnitureRooms => Layouts.Districts.Where(d=>d.District.RoomId!="").Select(d=>d.District.RoomId).ToHashSet(StringComparer.Ordinal);
+    private IReadOnlyList<InteriorFurniture>? furniture;
+    private Dictionary<string,InteriorFurniture>? furnitureById;
+    public override IReadOnlyList<InteriorFurniture>? NativeFurniture => furniture??=Layouts.Districts.Where(d=>d.District.RoomId!="").SelectMany(d=>d.Objects.GetChildren().OfType<AuthoredObject>().Select(o=>
+        new InteriorFurniture(d.District.RoomId,o.ObjectId,o.Asset!.FurnitureKind,o,o.Asset.SeatPoints,o.Asset.SeatHeight,o.Asset.SeatYaw,o.Asset.Table,o.Asset.UsePoint,o.Asset.StandPoint,o.Asset.Footprint,o.Asset.FootprintOffset,o.Asset.KeeperPoint==Vector3.Zero?o.Asset.StandPoint:o.Asset.KeeperPoint))).ToArray();
+    public override Node3D? CreateNativeFurniture(string kind)
+    {
+        string path="res://assets/props/furniture-"+kind+".tscn";
+        if(!ResourceLoader.Exists(path))return null;
+        var model=ResourceLoader.Load<PackedScene>(path).Instantiate<Node3D>();
+        model.SetMeta("native_furniture_scene",true);
+        foreach(var body in All(model).OfType<CollisionObject3D>()){body.CollisionLayer=0;body.CollisionMask=0;}
+        return model;
+    }
     public JsonArray LampFacts { get; private set; } = new();
     public override JsonDocument? NativeLights => lights;
     private List<QuayExits.Ladder>? quayLadders;
@@ -36,6 +50,20 @@ public partial class NativeTown : BakedWorld
     }
     private static string SourceOf(Node n) => n.HasMeta("source_name") ? n.GetMeta("source_name").AsString() : "";
     private static int IndexOf(Node n) => n.HasMeta("source_node_index") ? n.GetMeta("source_node_index").AsInt32() : -1;
+    private sealed record SeatBinding(string Room,string Id,float[] Original,float[] Local,float Height,float Yaw);
+    private SeatBinding[] seatBindings=Array.Empty<SeatBinding>();
+    public override int ResolveNativeSeat(string room,Vector3 original,out Vector3 at,out float height,out float yaw)
+    {
+        at=original;height=0;yaw=0;
+        SeatBinding? binding=null;
+        foreach(var candidate in seatBindings)
+            if(candidate.Room==room&&LayoutDocument.Vector(candidate.Original).DistanceSquaredTo(original)<.0004f){binding=candidate;break;}
+        if(binding==null)return 0;
+        furnitureById??=NativeFurniture!.ToDictionary(p=>p.Id,StringComparer.Ordinal);
+        if(!furnitureById.TryGetValue(binding.Id,out var piece))return -1;
+        var node=piece.Node;
+        at=node.ToGlobal(LayoutDocument.Vector(binding.Local));height=binding.Height*node.Scale.Y;yaw=node.GlobalRotation.Y+binding.Yaw;return 1;
+    }
     /// <summary>
     /// The bake's frozen event and crowd pictures that nothing at run time draws or moves (found by the leftover scan, godot/src/Play/LeftoverScan.cs;
     /// issues 111, 80 and the scan of 2026-10-13). Each is matched by the bake's own node number, so a scene that is re-baked or edited shows them again
@@ -66,6 +94,8 @@ public partial class NativeTown : BakedWorld
         Stage = "build";
         town = ResourceLoader.Load<PackedScene>(Root + "/scene.tscn").Instantiate<Node3D>();
         Layouts = NativeDistrictLayouts.Apply(town);
+        if(Godot.FileAccess.FileExists("res://world/interiors/seat-bindings.json"))
+            seatBindings=JsonSerializer.Deserialize<SeatBinding[]>(Godot.FileAccess.GetFileAsString("res://world/interiors/seat-bindings.json"),new JsonSerializerOptions{PropertyNameCaseInsensitive=true})!;
         int eventSnapshots = 0;
         foreach (var snapshot in town.GetChildren().OfType<Node3D>().Where(n => n.HasMeta("source_name") && n.GetMeta("source_name").AsString() == "fire_pump"
             && n.HasMeta("source_node_index") && n.GetMeta("source_node_index").AsInt32() == 13360).ToArray())
@@ -150,7 +180,7 @@ public partial class NativeTown : BakedWorld
         var registered = new HashSet<ulong>();
         foreach (var node in All(town))
         {
-            if (node is StaticBody3D body) { body.CollisionLayer = node.HasMeta("native_replaced_event_snapshot") ? 0 : Solid.Layer; body.CollisionMask = 0; }
+            if (node is StaticBody3D body) { body.CollisionLayer = node.HasMeta("native_replaced_event_snapshot") || node.HasMeta("native_replaced_visual") ? 0 : Solid.Layer; body.CollisionMask = 0; }
             if (node is CollisionShape3D shape && node.HasMeta("native_replaced_event_snapshot")) shape.Disabled = true;
             if (node is AuthoredObject authored) authored.SetMeta("native_collision", true);
             if (node is WorkshopLamp lamp)
