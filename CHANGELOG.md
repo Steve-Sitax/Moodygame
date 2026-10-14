@@ -1,5 +1,9 @@
 # Changelog
 
+- People2 gains period clothing for Peeters, Tuur, Fientje, both sailors, the stranger, thief, foreman, delivery recipient, street boy, urchin and old man, with separate ledger, pipe and walking-stick models.
+
+- People2 now uses independent clothes and full-square face pictures with close-up fabric and skin grain, sharing one compressed layered material.
+
 What changed in each version of Scheldemist, for players first. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow [Semantic Versioning](https://semver.org/).
 Each release on the [Releases page](https://github.com/Steve-Sitax/Moodygame/releases) carries its part of this file.

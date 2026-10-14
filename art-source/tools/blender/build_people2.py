@@ -116,10 +116,14 @@ def grips_json(g):
 
 def all_kinds():
     """Every kind of package C, from the group files (people2/kinds_*.py), in a fixed order."""
-    from people2 import kinds_cast, kinds_uniform, kinds_uniform2, kinds_women, kinds_women2, kinds_workers, kinds_workers2
+    from people2 import kinds_cast, kinds_cast2, kinds_uniform, kinds_uniform2, kinds_women, kinds_women2, kinds_workers, kinds_workers2
     out = []
-    for mod in (kinds_workers, kinds_workers2, kinds_women, kinds_women2, kinds_uniform, kinds_uniform2, kinds_cast):
+    for mod in (kinds_workers, kinds_workers2, kinds_women, kinds_women2, kinds_uniform, kinds_uniform2, kinds_cast, kinds_cast2):
         out += mod.KINDS
+    # Keep the undressed reference rig/hair library distinct from the game's old man.
+    kinds_cast2.OLD_MAN.name = "old_man_dressed"
+    from people2 import held_cast
+    held_cast.register()
     return out
 
 
@@ -225,8 +229,13 @@ def main():
     for cname, (frgb, fnrm) in face_pics.items():
         atl.face(cname, frgb, fnrm)
     dressed = []
+    from people2 import kinds_cast2, cast_build
     for k in kinds:
-        b = getattr(k, "build", dress.build)(k, make_body, ref_uv, layout, atl, tex=TEX)
+        if k in kinds_cast2.KINDS:
+            b = cast_build.build(k, make_body, ref_uv, layout, atl, tex=TEX,
+                                 base_body=next(b for b in bodies if b["name"] == k.body))
+        else:
+            b = getattr(k, "build", dress.build)(k, make_body, ref_uv, layout, atl, tex=TEX)
         dressed.append(k.finish(b) if hasattr(k, "finish") else b)
     held_obs = held.build_all(kinds, layout, atl, tex=TEX)
     from people2 import motion
