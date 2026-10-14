@@ -1,0 +1,80 @@
+{
+ "about": "The player's kinds (jef_*; docs/people.md \"The player\").\n\nOne dressed kind per clothing cut of the character screen and sex, on man_middling and woman_middling. The body\nsliders of the screen (build, age, shoulders, bust, the face) are the base body's; the clothes carry them\n(dress.clothes_keys), so any build fits. Hats and shoes are separate models on sockets (held_player.py); hair, beard\nand moustache are the base bodies' pieces.\n\nThe tint pack. A townsperson's colours are painted into the kind's picture. The player's are chosen on the screen, so\neach jef_* kind is painted twice, with every tinted garment a flat neutral grey of two lightnesses; every painter in\nthe kit is linear in its cloth's colour (weave, folds, wear, dust, seams, mud, lining), so each texel is\n`texel = F + T * colour` and the two paints give F (what the colour does not touch: buttons, stitches, mud, brass) and T\n(how much of the colour shows). The shipped colour layer of each kind is F + T * the kind's default colours (a runtime\nthat never tints shows the default look), so the runtime needs only T and the slot, in\nnative-godot/assets/people2-pictures/jef-tint/<kind>_tint.png (and held_jef_tint.png for the hats and shoes):\n\n- R: T / 2 (0..1, so T is 0..2);\n- G: the colour slot of the texel x 16 (garments_player.SLOTS: 1 skin, 2 hair, 3 hat, 4 coat, 5 shirt, 6 vest,\n  7 lower, 8 apron, 9 boots; 0 a fixed colour);\n- B: the bars of a check shawl (how much the check darkens the texel, x 2; kinds with a check shawl), else 0.\n\ncolour = layer + T * (chosen - default[slot]), in the stored (sRGB-encoded) values. All sizes are the layer's\n1024 x 1024; row 0 is the picture's bottom, as the layer's.\n",
+ "slots": [
+  "skin",
+  "hair",
+  "hat",
+  "coat",
+  "shirt",
+  "vest",
+  "lower",
+  "apron",
+  "boots"
+ ],
+ "levels": [
+  0.15,
+  0.6
+ ],
+ "kinds": {
+  "jef_m_shirt": {
+   "sex": "m",
+   "cut": "shirt"
+  },
+  "jef_m_jacket": {
+   "sex": "m",
+   "cut": "jacket"
+  },
+  "jef_m_coat": {
+   "sex": "m",
+   "cut": "coat"
+  },
+  "jef_m_smock": {
+   "sex": "m",
+   "cut": "smock"
+  },
+  "jef_m_apron": {
+   "sex": "m",
+   "cut": "apron"
+  },
+  "jef_m_jacket_apron": {
+   "sex": "m",
+   "cut": "jacket_apron"
+  },
+  "jef_w_plain": {
+   "sex": "f",
+   "cut": "plain"
+  },
+  "jef_w_apron": {
+   "sex": "f",
+   "cut": "apron"
+  },
+  "jef_w_shawl": {
+   "sex": "f",
+   "cut": "shawl"
+  },
+  "jef_w_shawl_apron": {
+   "sex": "f",
+   "cut": "shawl_apron"
+  },
+  "jef_w_jacket": {
+   "sex": "f",
+   "cut": "jacket"
+  },
+  "jef_w_jacket_apron": {
+   "sex": "f",
+   "cut": "jacket_apron"
+  },
+  "jef_w_coat": {
+   "sex": "f",
+   "cut": "coat"
+  },
+  "jef_w_smock": {
+   "sex": "f",
+   "cut": "smock"
+  },
+  "held_jef": {
+   "sex": "m+f",
+   "cut": "hats and shoes"
+  }
+ }
+}

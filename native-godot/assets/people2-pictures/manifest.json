@@ -63,7 +63,22 @@
     "boy",
     "urchin",
     "old_man_dressed",
-    "held"
+    "jef_m_shirt",
+    "jef_m_jacket",
+    "jef_m_coat",
+    "jef_m_smock",
+    "jef_m_apron",
+    "jef_m_jacket_apron",
+    "jef_w_plain",
+    "jef_w_apron",
+    "jef_w_shawl",
+    "jef_w_shawl_apron",
+    "jef_w_jacket",
+    "jef_w_jacket_apron",
+    "jef_w_coat",
+    "jef_w_smock",
+    "held",
+    "held_jef"
   ],
   "faces": [
     "m_young_fair",
@@ -340,10 +355,70 @@
     },
     "old_man_dressed": {
       "clothes": 60,
-      "face": 14
+      "face": 16
+    },
+    "jef_m_shirt": {
+      "clothes": 61,
+      "face": 0
+    },
+    "jef_m_jacket": {
+      "clothes": 62,
+      "face": 4
+    },
+    "jef_m_coat": {
+      "clothes": 63,
+      "face": 9
+    },
+    "jef_m_smock": {
+      "clothes": 64,
+      "face": 0
+    },
+    "jef_m_apron": {
+      "clothes": 65,
+      "face": 1
+    },
+    "jef_m_jacket_apron": {
+      "clothes": 66,
+      "face": 7
+    },
+    "jef_w_plain": {
+      "clothes": 67,
+      "face": 17
+    },
+    "jef_w_apron": {
+      "clothes": 68,
+      "face": 19
+    },
+    "jef_w_shawl": {
+      "clothes": 69,
+      "face": 18
+    },
+    "jef_w_shawl_apron": {
+      "clothes": 70,
+      "face": 21
+    },
+    "jef_w_jacket": {
+      "clothes": 71,
+      "face": 21
+    },
+    "jef_w_jacket_apron": {
+      "clothes": 72,
+      "face": 18
+    },
+    "jef_w_coat": {
+      "clothes": 73,
+      "face": 17
+    },
+    "jef_w_smock": {
+      "clothes": 74,
+      "face": 19
     },
     "people2_held": {
-      "clothes": 61,
+      "clothes": 75,
+      "face": 0
+    },
+    "people2_held_jef": {
+      "clothes": 76,
       "face": 0
     }
   },

@@ -14047,7 +14047,22 @@
    "boy",
    "urchin",
    "old_man_dressed",
-   "held"
+   "jef_m_shirt",
+   "jef_m_jacket",
+   "jef_m_coat",
+   "jef_m_smock",
+   "jef_m_apron",
+   "jef_m_jacket_apron",
+   "jef_w_plain",
+   "jef_w_apron",
+   "jef_w_shawl",
+   "jef_w_shawl_apron",
+   "jef_w_jacket",
+   "jef_w_jacket_apron",
+   "jef_w_coat",
+   "jef_w_smock",
+   "held",
+   "held_jef"
   ],
   "faces": [
    "m_young_fair",
@@ -14324,10 +14339,70 @@
    },
    "old_man_dressed": {
     "clothes": 60,
-    "face": 14
+    "face": 16
+   },
+   "jef_m_shirt": {
+    "clothes": 61,
+    "face": 0
+   },
+   "jef_m_jacket": {
+    "clothes": 62,
+    "face": 4
+   },
+   "jef_m_coat": {
+    "clothes": 63,
+    "face": 9
+   },
+   "jef_m_smock": {
+    "clothes": 64,
+    "face": 0
+   },
+   "jef_m_apron": {
+    "clothes": 65,
+    "face": 1
+   },
+   "jef_m_jacket_apron": {
+    "clothes": 66,
+    "face": 7
+   },
+   "jef_w_plain": {
+    "clothes": 67,
+    "face": 17
+   },
+   "jef_w_apron": {
+    "clothes": 68,
+    "face": 19
+   },
+   "jef_w_shawl": {
+    "clothes": 69,
+    "face": 18
+   },
+   "jef_w_shawl_apron": {
+    "clothes": 70,
+    "face": 21
+   },
+   "jef_w_jacket": {
+    "clothes": 71,
+    "face": 21
+   },
+   "jef_w_jacket_apron": {
+    "clothes": 72,
+    "face": 18
+   },
+   "jef_w_coat": {
+    "clothes": 73,
+    "face": 17
+   },
+   "jef_w_smock": {
+    "clothes": 74,
+    "face": 19
    },
    "people2_held": {
-    "clothes": 61,
+    "clothes": 75,
+    "face": 0
+   },
+   "people2_held_jef": {
+    "clothes": 76,
     "face": 0
    }
   },
@@ -53993,6 +54068,1068 @@
    "held_basket": "rope 2 cm"
   }
  },
+ "player": {
+  "about": "the player's kinds, hats and shoes (docs/people.md 'The player')",
+  "slots": {
+   "skin": 1,
+   "hair": 2,
+   "hat": 3,
+   "coat": 4,
+   "shirt": 5,
+   "vest": 6,
+   "lower": 7,
+   "apron": 8,
+   "boots": 9
+  },
+  "tint": {
+   "levels": [
+    0.15,
+    0.6
+   ],
+   "dir": "assets/people2-pictures/jef-tint",
+   "formula": "colour = layer + T * (chosen - default[slot]) on the texels of a slot (sRGB-encoded values, as stored); T = <name>_tint.png red x 2; slot = green x 255 / 16 (0 fixed); check bars = blue (a plain shawl: layer / (1 - blue x 0.5) on slot coat); <name> is the kind, or held_jef for the hats and shoes",
+   "checks": {
+    "jef_m_shirt": {
+     "texels": 282011,
+     "meanAbs": 0.0003,
+     "p99Abs": 0.0,
+     "maxAbs": 0.626
+    },
+    "jef_m_jacket": {
+     "texels": 318248,
+     "meanAbs": 0.0006,
+     "p99Abs": 0.0,
+     "maxAbs": 0.583
+    },
+    "jef_m_coat": {
+     "texels": 321615,
+     "meanAbs": 0.0007,
+     "p99Abs": 0.0,
+     "maxAbs": 0.692
+    }
+   }
+  },
+  "kinds": {
+   "jef_m_shirt": {
+    "sex": "m",
+    "cut": "shirt",
+    "base": "man_middling",
+    "defaultPalette": {
+     "hat": "38383a",
+     "coat": "5a4432",
+     "shirt": "c4baa0",
+     "vest": "38383a",
+     "lower": "6e6a62",
+     "apron": "c4baa0",
+     "boots": "5a4632"
+    },
+    "underSlot": "shirt",
+    "pieces": [
+     "trousers",
+     "shirt",
+     "shirt_collar",
+     "cuffL",
+     "cuffR",
+     "waistcoat"
+    ],
+    "slots": {
+     "trousers": "lower",
+     "shirt": "shirt",
+     "shirt_collar": "shirt",
+     "cuffL": "shirt",
+     "cuffR": "shirt",
+     "waistcoat": "vest"
+    },
+    "sleeves": [
+     "shirt",
+     "cuffL",
+     "cuffR"
+    ]
+   },
+   "jef_m_jacket": {
+    "sex": "m",
+    "cut": "jacket",
+    "base": "man_middling",
+    "defaultPalette": {
+     "hat": "38383a",
+     "coat": "5a4432",
+     "shirt": "c4baa0",
+     "vest": "38383a",
+     "lower": "6e6a62",
+     "apron": "c4baa0",
+     "boots": "5a4632"
+    },
+    "underSlot": "shirt",
+    "pieces": [
+     "trousers",
+     "shirt",
+     "shirt_collar",
+     "cuffL",
+     "cuffR",
+     "waistcoat",
+     "coat",
+     "coat_collar"
+    ],
+    "slots": {
+     "trousers": "lower",
+     "shirt": "shirt",
+     "shirt_collar": "shirt",
+     "cuffL": "shirt",
+     "cuffR": "shirt",
+     "waistcoat": "vest",
+     "coat": "coat",
+     "coat_collar": "coat"
+    },
+    "sleeves": [
+     "shirt",
+     "cuffL",
+     "cuffR",
+     "coat"
+    ]
+   },
+   "jef_m_coat": {
+    "sex": "m",
+    "cut": "coat",
+    "base": "man_middling",
+    "defaultPalette": {
+     "hat": "38383a",
+     "coat": "5a4432",
+     "shirt": "c4baa0",
+     "vest": "38383a",
+     "lower": "6e6a62",
+     "apron": "c4baa0",
+     "boots": "5a4632"
+    },
+    "underSlot": "shirt",
+    "pieces": [
+     "trousers",
+     "shirt",
+     "shirt_collar",
+     "cuffL",
+     "cuffR",
+     "waistcoat",
+     "coat",
+     "coat_collar"
+    ],
+    "slots": {
+     "trousers": "lower",
+     "shirt": "shirt",
+     "shirt_collar": "shirt",
+     "cuffL": "shirt",
+     "cuffR": "shirt",
+     "waistcoat": "vest",
+     "coat": "coat",
+     "coat_collar": "coat"
+    },
+    "sleeves": [
+     "shirt",
+     "cuffL",
+     "cuffR",
+     "coat"
+    ]
+   },
+   "jef_m_smock": {
+    "sex": "m",
+    "cut": "smock",
+    "base": "man_middling",
+    "defaultPalette": {
+     "hat": "38383a",
+     "coat": "34425a",
+     "shirt": "c4baa0",
+     "vest": "38383a",
+     "lower": "6e6a62",
+     "apron": "c4baa0",
+     "boots": "5a4632"
+    },
+    "underSlot": "coat",
+    "pieces": [
+     "trousers",
+     "smock",
+     "smock_collar",
+     "smock_cuffL",
+     "smock_cuffR"
+    ],
+    "slots": {
+     "trousers": "lower",
+     "smock": "coat",
+     "smock_collar": "coat",
+     "smock_cuffL": "coat",
+     "smock_cuffR": "coat"
+    },
+    "sleeves": [
+     "smock",
+     "smock_cuffL",
+     "smock_cuffR"
+    ]
+   },
+   "jef_m_apron": {
+    "sex": "m",
+    "cut": "apron",
+    "base": "man_middling",
+    "defaultPalette": {
+     "hat": "38383a",
+     "coat": "5a4432",
+     "shirt": "c4baa0",
+     "vest": "38383a",
+     "lower": "6e6a62",
+     "apron": "c4baa0",
+     "boots": "5a4632"
+    },
+    "underSlot": "shirt",
+    "pieces": [
+     "trousers",
+     "shirt",
+     "shirt_collar",
+     "cuffL",
+     "cuffR",
+     "waistcoat",
+     "apron",
+     "apron_band"
+    ],
+    "slots": {
+     "trousers": "lower",
+     "shirt": "shirt",
+     "shirt_collar": "shirt",
+     "cuffL": "shirt",
+     "cuffR": "shirt",
+     "waistcoat": "vest",
+     "apron": "apron",
+     "apron_band": "apron"
+    },
+    "sleeves": [
+     "shirt",
+     "cuffL",
+     "cuffR"
+    ]
+   },
+   "jef_m_jacket_apron": {
+    "sex": "m",
+    "cut": "jacket_apron",
+    "base": "man_middling",
+    "defaultPalette": {
+     "hat": "38383a",
+     "coat": "5a4432",
+     "shirt": "c4baa0",
+     "vest": "38383a",
+     "lower": "6e6a62",
+     "apron": "c4baa0",
+     "boots": "5a4632"
+    },
+    "underSlot": "shirt",
+    "pieces": [
+     "trousers",
+     "shirt",
+     "shirt_collar",
+     "cuffL",
+     "cuffR",
+     "waistcoat",
+     "coat",
+     "coat_collar",
+     "apron",
+     "apron_band"
+    ],
+    "slots": {
+     "trousers": "lower",
+     "shirt": "shirt",
+     "shirt_collar": "shirt",
+     "cuffL": "shirt",
+     "cuffR": "shirt",
+     "waistcoat": "vest",
+     "coat": "coat",
+     "coat_collar": "coat",
+     "apron": "apron",
+     "apron_band": "apron"
+    },
+    "sleeves": [
+     "shirt",
+     "cuffL",
+     "cuffR",
+     "coat"
+    ]
+   },
+   "jef_w_plain": {
+    "sex": "f",
+    "cut": "plain",
+    "base": "woman_middling",
+    "defaultPalette": {
+     "hat": "e2ded2",
+     "coat": "8a3e32",
+     "shirt": "46505a",
+     "vest": "38383a",
+     "lower": "5a4432",
+     "apron": "c4baa0",
+     "boots": "bfa070"
+    },
+    "underSlot": "shirt",
+    "pieces": [
+     "skirt",
+     "bodice",
+     "collar",
+     "cuffL",
+     "cuffR"
+    ],
+    "slots": {
+     "skirt": "lower",
+     "bodice": "shirt"
+    },
+    "sleeves": [
+     "bodice",
+     "cuffL",
+     "cuffR"
+    ]
+   },
+   "jef_w_apron": {
+    "sex": "f",
+    "cut": "apron",
+    "base": "woman_middling",
+    "defaultPalette": {
+     "hat": "e2ded2",
+     "coat": "8a3e32",
+     "shirt": "46505a",
+     "vest": "38383a",
+     "lower": "5a4432",
+     "apron": "c4baa0",
+     "boots": "bfa070"
+    },
+    "underSlot": "shirt",
+    "pieces": [
+     "skirt",
+     "bodice",
+     "collar",
+     "cuffL",
+     "cuffR",
+     "apron",
+     "apron_band"
+    ],
+    "slots": {
+     "skirt": "lower",
+     "bodice": "shirt",
+     "apron": "apron",
+     "apron_band": "apron"
+    },
+    "sleeves": [
+     "bodice",
+     "cuffL",
+     "cuffR"
+    ]
+   },
+   "jef_w_shawl": {
+    "sex": "f",
+    "cut": "shawl",
+    "base": "woman_middling",
+    "defaultPalette": {
+     "hat": "e2ded2",
+     "coat": "8a3e32",
+     "shirt": "46505a",
+     "vest": "38383a",
+     "lower": "5a4432",
+     "apron": "c4baa0",
+     "boots": "bfa070"
+    },
+    "underSlot": "shirt",
+    "pieces": [
+     "skirt",
+     "bodice",
+     "collar",
+     "cuffL",
+     "cuffR",
+     "shawl",
+     "shawl_fringe"
+    ],
+    "slots": {
+     "skirt": "lower",
+     "bodice": "shirt",
+     "shawl": "coat",
+     "shawl_fringe": "coat"
+    },
+    "sleeves": [
+     "bodice",
+     "cuffL",
+     "cuffR"
+    ]
+   },
+   "jef_w_shawl_apron": {
+    "sex": "f",
+    "cut": "shawl_apron",
+    "base": "woman_middling",
+    "defaultPalette": {
+     "hat": "e2ded2",
+     "coat": "8a3e32",
+     "shirt": "46505a",
+     "vest": "38383a",
+     "lower": "5a4432",
+     "apron": "c4baa0",
+     "boots": "bfa070"
+    },
+    "underSlot": "shirt",
+    "pieces": [
+     "skirt",
+     "bodice",
+     "collar",
+     "cuffL",
+     "cuffR",
+     "apron",
+     "apron_band",
+     "shawl",
+     "shawl_fringe"
+    ],
+    "slots": {
+     "skirt": "lower",
+     "bodice": "shirt",
+     "apron": "apron",
+     "apron_band": "apron",
+     "shawl": "coat",
+     "shawl_fringe": "coat"
+    },
+    "sleeves": [
+     "bodice",
+     "cuffL",
+     "cuffR"
+    ]
+   },
+   "jef_w_jacket": {
+    "sex": "f",
+    "cut": "jacket",
+    "base": "woman_middling",
+    "defaultPalette": {
+     "hat": "e2ded2",
+     "coat": "38383a",
+     "shirt": "46505a",
+     "vest": "38383a",
+     "lower": "5a4432",
+     "apron": "c4baa0",
+     "boots": "bfa070"
+    },
+    "underSlot": "shirt",
+    "pieces": [
+     "skirt",
+     "bodice",
+     "cuffL",
+     "cuffR",
+     "coat",
+     "coat_collar"
+    ],
+    "slots": {
+     "skirt": "lower",
+     "bodice": "shirt",
+     "coat": "coat",
+     "coat_collar": "coat"
+    },
+    "sleeves": [
+     "bodice",
+     "cuffL",
+     "cuffR",
+     "coat"
+    ]
+   },
+   "jef_w_jacket_apron": {
+    "sex": "f",
+    "cut": "jacket_apron",
+    "base": "woman_middling",
+    "defaultPalette": {
+     "hat": "e2ded2",
+     "coat": "38383a",
+     "shirt": "46505a",
+     "vest": "38383a",
+     "lower": "5a4432",
+     "apron": "c4baa0",
+     "boots": "bfa070"
+    },
+    "underSlot": "shirt",
+    "pieces": [
+     "skirt",
+     "bodice",
+     "cuffL",
+     "cuffR",
+     "coat",
+     "coat_collar",
+     "apron",
+     "apron_band"
+    ],
+    "slots": {
+     "skirt": "lower",
+     "bodice": "shirt",
+     "coat": "coat",
+     "coat_collar": "coat",
+     "apron": "apron",
+     "apron_band": "apron"
+    },
+    "sleeves": [
+     "bodice",
+     "cuffL",
+     "cuffR",
+     "coat"
+    ]
+   },
+   "jef_w_coat": {
+    "sex": "f",
+    "cut": "coat",
+    "base": "woman_middling",
+    "defaultPalette": {
+     "hat": "e2ded2",
+     "coat": "38383a",
+     "shirt": "46505a",
+     "vest": "38383a",
+     "lower": "5a4432",
+     "apron": "c4baa0",
+     "boots": "bfa070"
+    },
+    "underSlot": "shirt",
+    "pieces": [
+     "skirt",
+     "bodice",
+     "cuffL",
+     "cuffR",
+     "coat",
+     "coat_collar"
+    ],
+    "slots": {
+     "skirt": "lower",
+     "bodice": "shirt",
+     "coat": "coat",
+     "coat_collar": "coat"
+    },
+    "sleeves": [
+     "bodice",
+     "cuffL",
+     "cuffR",
+     "coat"
+    ]
+   },
+   "jef_w_smock": {
+    "sex": "f",
+    "cut": "smock",
+    "base": "woman_middling",
+    "defaultPalette": {
+     "hat": "e2ded2",
+     "coat": "34425a",
+     "shirt": "46505a",
+     "vest": "38383a",
+     "lower": "5a4432",
+     "apron": "c4baa0",
+     "boots": "bfa070"
+    },
+    "underSlot": "coat",
+    "pieces": [
+     "skirt",
+     "bodice",
+     "cuffL",
+     "cuffR",
+     "smock",
+     "smock_cuffL",
+     "smock_cuffR"
+    ],
+    "slots": {
+     "skirt": "lower",
+     "bodice": "shirt",
+     "smock": "coat",
+     "smock_cuffL": "coat",
+     "smock_cuffR": "coat"
+    },
+    "sleeves": [
+     "bodice",
+     "cuffL",
+     "cuffR",
+     "smock",
+     "smock_cuffL",
+     "smock_cuffR"
+    ]
+   }
+  },
+  "models": {
+   "jef_hat_flatcap": {
+    "sex": "m",
+    "socket": "headTop",
+    "triangles": 898,
+    "slots": [
+     "boots",
+     "hat"
+    ],
+    "pieces": [
+     "flatcap",
+     "flatcap_peak"
+    ]
+   },
+   "jef_hat_knitcap": {
+    "sex": "m",
+    "socket": "headTop",
+    "triangles": 1298,
+    "slots": [
+     "boots",
+     "hat"
+    ],
+    "pieces": [
+     "knitcap"
+    ]
+   },
+   "jef_hat_bowler": {
+    "sex": "m",
+    "socket": "headTop",
+    "triangles": 1598,
+    "slots": [
+     "boots",
+     "hat"
+    ],
+    "pieces": [
+     "bowler"
+    ]
+   },
+   "jef_hat_tophat": {
+    "sex": "m",
+    "socket": "headTop",
+    "triangles": 1598,
+    "slots": [
+     "boots",
+     "hat"
+    ],
+    "pieces": [
+     "tophat"
+    ]
+   },
+   "jef_boots_m_L": {
+    "sex": "m",
+    "socket": "footL",
+    "triangles": 560,
+    "slots": [
+     "boots",
+     "hat"
+    ],
+    "pieces": [
+     "bootsL",
+     "solesL"
+    ]
+   },
+   "jef_clogs_m_L": {
+    "sex": "m",
+    "socket": "footL",
+    "triangles": 559,
+    "slots": [
+     "boots",
+     "hat"
+    ],
+    "pieces": [
+     "clogL",
+     "clogtopL"
+    ]
+   },
+   "jef_boots_m_R": {
+    "sex": "m",
+    "socket": "footR",
+    "triangles": 560,
+    "slots": [
+     "boots",
+     "hat"
+    ],
+    "pieces": [
+     "bootsR",
+     "solesR"
+    ]
+   },
+   "jef_clogs_m_R": {
+    "sex": "m",
+    "socket": "footR",
+    "triangles": 559,
+    "slots": [
+     "boots",
+     "hat"
+    ],
+    "pieces": [
+     "clogR",
+     "clogtopR"
+    ]
+   },
+   "jef_hat_bonnet": {
+    "sex": "f",
+    "socket": "headTop",
+    "triangles": 1500,
+    "slots": [
+     "boots",
+     "hat"
+    ],
+    "pieces": [
+     "bonnet",
+     "bonnet_ties"
+    ]
+   },
+   "jef_hat_whitecap": {
+    "sex": "f",
+    "socket": "headTop",
+    "triangles": 1698,
+    "slots": [
+     "boots",
+     "hat"
+    ],
+    "pieces": [
+     "whitecap",
+     "whitecap_frill",
+     "whitecap_ties"
+    ]
+   },
+   "jef_hat_headscarf": {
+    "sex": "f",
+    "socket": "headTop",
+    "triangles": 1500,
+    "slots": [
+     "boots",
+     "hat"
+    ],
+    "pieces": [
+     "headscarf",
+     "headscarf_knot"
+    ]
+   },
+   "jef_boots_f_L": {
+    "sex": "f",
+    "socket": "footL",
+    "triangles": 560,
+    "slots": [
+     "boots",
+     "hat"
+    ],
+    "pieces": [
+     "bootsL",
+     "solesL"
+    ]
+   },
+   "jef_clogs_f_L": {
+    "sex": "f",
+    "socket": "footL",
+    "triangles": 560,
+    "slots": [
+     "boots",
+     "hat"
+    ],
+    "pieces": [
+     "clogL",
+     "clogtopL"
+    ]
+   },
+   "jef_boots_f_R": {
+    "sex": "f",
+    "socket": "footR",
+    "triangles": 560,
+    "slots": [
+     "boots",
+     "hat"
+    ],
+    "pieces": [
+     "bootsR",
+     "solesR"
+    ]
+   },
+   "jef_clogs_f_R": {
+    "sex": "f",
+    "socket": "footR",
+    "triangles": 559,
+    "slots": [
+     "boots",
+     "hat"
+    ],
+    "pieces": [
+     "clogR",
+     "clogtopR"
+    ]
+   }
+  },
+  "hatFit": {
+   "m": {
+    "head_tall": {
+     "pos": {
+      "scale": [
+       0.9998,
+       1.0,
+       1.0
+      ],
+      "lift": 0.0221,
+      "forward": -0.0
+     }
+    },
+    "head_wide": {
+     "pos": {
+      "scale": [
+       1.1925,
+       1.0,
+       1.0
+      ],
+      "lift": 0.0,
+      "forward": -0.0
+     }
+    },
+    "skull_long": {
+     "pos": {
+      "scale": [
+       0.9992,
+       1.0,
+       1.0904
+      ],
+      "lift": 0.0001,
+      "forward": 0.0019
+     }
+    },
+    "face_fat": {
+     "pos": {
+      "scale": [
+       1.0,
+       1.0,
+       1.0
+      ],
+      "lift": 0.0,
+      "forward": 0.0
+     },
+     "neg": {
+      "scale": [
+       1.0,
+       1.0,
+       1.0
+      ],
+      "lift": 0.0,
+      "forward": -0.0
+     }
+    },
+    "face_round": {
+     "pos": {
+      "scale": [
+       1.1322,
+       1.0,
+       0.9996
+      ],
+      "lift": -0.0034,
+      "forward": 0.0005
+     }
+    },
+    "face_square": {
+     "pos": {
+      "scale": [
+       1.0,
+       1.0,
+       1.0
+      ],
+      "lift": -0.0084,
+      "forward": 0.0
+     }
+    },
+    "face_oval": {
+     "pos": {
+      "scale": [
+       1.1321,
+       1.0,
+       1.0015
+      ],
+      "lift": 0.01,
+      "forward": -0.0006
+     }
+    },
+    "forehead_back": {
+     "pos": {
+      "scale": [
+       1.0,
+       1.0,
+       0.9999
+      ],
+      "lift": 0.0011,
+      "forward": -0.0032
+     },
+     "neg": {
+      "scale": [
+       1.0,
+       1.0,
+       1.0094
+      ],
+      "lift": 0.0,
+      "forward": 0.0044
+     }
+    },
+    "brow_ridge": {
+     "pos": {
+      "scale": [
+       1.0,
+       1.0,
+       1.0463
+      ],
+      "lift": 0.0,
+      "forward": 0.0013
+     },
+     "neg": {
+      "scale": [
+       1.0,
+       1.0,
+       0.9902
+      ],
+      "lift": 0.0,
+      "forward": -0.0006
+     }
+    },
+    "face_age": {
+     "pos": {
+      "scale": [
+       0.9976,
+       1.0,
+       1.0
+      ],
+      "lift": 0.0,
+      "forward": -0.0
+     },
+     "neg": {
+      "scale": [
+       0.9936,
+       1.0,
+       1.0
+      ],
+      "lift": -0.0005,
+      "forward": 0.0
+     }
+    }
+   },
+   "f": {
+    "head_tall": {
+     "pos": {
+      "scale": [
+       1.0103,
+       1.0,
+       1.0001
+      ],
+      "lift": 0.0225,
+      "forward": 0.0
+     }
+    },
+    "head_wide": {
+     "pos": {
+      "scale": [
+       1.1809,
+       1.0,
+       1.0002
+      ],
+      "lift": 0.0,
+      "forward": -0.0
+     }
+    },
+    "skull_long": {
+     "pos": {
+      "scale": [
+       1.0077,
+       1.0,
+       1.0971
+      ],
+      "lift": 0.0001,
+      "forward": 0.0029
+     }
+    },
+    "face_fat": {
+     "pos": {
+      "scale": [
+       1.0,
+       1.0,
+       1.0
+      ],
+      "lift": 0.0,
+      "forward": 0.0001
+     },
+     "neg": {
+      "scale": [
+       1.0,
+       1.0,
+       1.0
+      ],
+      "lift": 0.0,
+      "forward": -0.0
+     }
+    },
+    "face_round": {
+     "pos": {
+      "scale": [
+       1.1138,
+       1.0,
+       0.9904
+      ],
+      "lift": -0.0059,
+      "forward": 0.0005
+     }
+    },
+    "face_square": {
+     "pos": {
+      "scale": [
+       0.9956,
+       1.0,
+       1.0
+      ],
+      "lift": -0.0103,
+      "forward": 0.0
+     }
+    },
+    "face_oval": {
+     "pos": {
+      "scale": [
+       1.1429,
+       1.0,
+       0.9948
+      ],
+      "lift": 0.0102,
+      "forward": -0.0005
+     }
+    },
+    "forehead_back": {
+     "pos": {
+      "scale": [
+       0.9999,
+       1.0,
+       0.9995
+      ],
+      "lift": 0.0011,
+      "forward": -0.0033
+     },
+     "neg": {
+      "scale": [
+       1.0,
+       1.0,
+       1.0054
+      ],
+      "lift": 0.0,
+      "forward": 0.0046
+     }
+    },
+    "brow_ridge": {
+     "pos": {
+      "scale": [
+       1.0,
+       1.0,
+       1.0481
+      ],
+      "lift": 0.0,
+      "forward": 0.0018
+     },
+     "neg": {
+      "scale": [
+       1.0,
+       1.0,
+       0.9886
+      ],
+      "lift": 0.0,
+      "forward": -0.0007
+     }
+    },
+    "face_age": {
+     "pos": {
+      "scale": [
+       1.0,
+       1.0,
+       1.0
+      ],
+      "lift": 0.0,
+      "forward": -0.0
+     },
+     "neg": {
+      "scale": [
+       0.977,
+       1.0,
+       1.0
+      ],
+      "lift": -0.0005,
+      "forward": 0.0
+     }
+    }
+   }
+  }
+ },
  "kinds": {
   "docker_a": {
    "group": "workers",
@@ -61688,61 +62825,61 @@
     "age": 72
    },
    "defaultFace": {
-    "type": "flemish_docker",
-    "cell": "om_white_weather",
+    "type": "heavy_old_man",
+    "cell": "om_bald_grey",
     "sliders": {
-     "head_tall": 0.16,
-     "head_wide": 0.109,
-     "skull_long": -0.605,
-     "face_round": 0.013,
-     "face_square": 0.577,
+     "head_tall": 0.526,
+     "head_wide": -0.053,
+     "skull_long": -0.146,
+     "face_square": 0.311,
      "face_oval": 0.273,
-     "face_fat": -0.101,
+     "face_fat": 0.613,
      "face_age": 0.914,
-     "forehead_back": 0.13,
-     "brow_ridge": 0.483,
-     "brow_high": -0.238,
+     "forehead_back": 0.057,
+     "brow_ridge": -0.119,
+     "brow_high": 0.053,
      "eyes_big": -0.375,
      "eyes_apart": 0.039,
      "eyes_high": -0.166,
      "eyes_open": -0.357,
      "eyes_hooded": 0.555,
      "eyes_slant": -0.389,
-     "eye_bags": -0.284,
-     "nose_long": -0.461,
+     "eye_bags": 0.708,
+     "nose_long": 0.138,
      "nose_wide": 0.3,
-     "nose_out": -0.13,
+     "nose_out": 0.433,
      "nose_hump": -0.041,
      "nose_hook": 0.262,
      "nose_tip_down": -0.431,
-     "nose_bulb": 0.144,
+     "nose_bulb": 0.763,
      "nostrils_wide": 0.564,
      "mouth_wide": 0.151,
      "lips_full": -0.11,
      "mouth_out": 0.17,
      "mouth_corners": 0.03,
-     "cheekbones": 0.273,
-     "cheeks_full": -0.24,
-     "chin_out": -0.055,
-     "chin_wide": 0.434,
-     "chin_tall": -0.017,
-     "jaw_wide": 0.989,
+     "cheekbones": 0.029,
+     "cheeks_full": 0.243,
+     "chin_out": -0.301,
+     "chin_wide": 0.185,
+     "chin_tall": 0.348,
+     "jaw_wide": 0.575,
      "jaw_low": -0.252,
-     "ears_big": -0.192,
-     "ears_out": -0.164,
-     "neck_thick": -0.071,
-     "weight": 0.049,
-     "muscle": 0.08,
-     "belly": 0.007,
-     "shoulders": -0.001,
+     "ears_big": 0.154,
+     "ears_out": 0.383,
+     "neck_thick": 0.281,
+     "double_chin": 0.326,
+     "weight": 0.435,
+     "muscle": -0.22,
+     "belly": 0.508,
+     "shoulders": -0.201,
      "hips_wide": -0.167,
      "buttocks": 0.247
     }
    },
    "hair": {
-    "hair": "crop",
-    "beard": null,
-    "moustache": "handlebar"
+    "hair": "bald",
+    "beard": "chops",
+    "moustache": "walrus"
    },
    "hats": [
     "cap",
@@ -61853,6 +62990,2249 @@
     }
    },
    "note": "Old town man: stooped body, worn long rust-brown coat, grey scarf and flat cap, blackthorn walking stick"
+  },
+  "jef_m_shirt": {
+   "group": "player",
+   "body": "man_middling",
+   "sex": "m",
+   "height": 1.67,
+   "hipsBone": 0.902,
+   "hero": true,
+   "face": {
+    "seed": 1873500,
+    "sex": "m",
+    "age": 22
+   },
+   "defaultFace": {
+    "type": "pale_clerk",
+    "cell": "m_young_fair",
+    "sliders": {
+     "head_tall": 0.395,
+     "head_wide": -0.217,
+     "skull_long": 0.063,
+     "face_round": 0.049,
+     "face_oval": 0.35,
+     "face_fat": -0.561,
+     "face_age": -0.514,
+     "forehead_back": -0.152,
+     "brow_ridge": -0.444,
+     "brow_high": 0.364,
+     "eyes_big": -0.005,
+     "eyes_apart": 0.26,
+     "eyes_high": -0.047,
+     "eyes_open": 0.615,
+     "eyes_hooded": -0.482,
+     "eyes_slant": 0.037,
+     "eye_bags": -0.239,
+     "nose_long": 0.092,
+     "nose_wide": -0.316,
+     "nose_out": -0.131,
+     "nose_hump": -0.224,
+     "nose_hook": 0.419,
+     "nose_tip_down": 0.287,
+     "nose_bulb": -0.418,
+     "nostrils_wide": -0.093,
+     "mouth_wide": -0.642,
+     "lips_full": -0.509,
+     "mouth_out": -0.216,
+     "mouth_corners": 0.178,
+     "cheekbones": -0.082,
+     "cheeks_full": -0.319,
+     "chin_out": -0.409,
+     "chin_wide": -0.722,
+     "chin_tall": 0.097,
+     "jaw_wide": -1.0,
+     "jaw_low": 0.256,
+     "ears_big": -0.302,
+     "ears_out": -0.954,
+     "neck_thick": -0.215,
+     "double_chin": 0.309,
+     "weight": 0.067,
+     "muscle": -0.048,
+     "belly": 0.013,
+     "shoulders": 0.348,
+     "hips_wide": -0.255,
+     "buttocks": -0.139
+    }
+   },
+   "hair": {
+    "hair": "side",
+    "beard": null,
+    "moustache": null
+   },
+   "hats": [],
+   "pieces": [
+    "trousers",
+    "shirt",
+    "shirt_collar",
+    "cuffL",
+    "cuffR",
+    "waistcoat"
+   ],
+   "held": [
+    {
+     "model": "jef_boots_m_L",
+     "socket": "footL",
+     "note": "the default shoe (held_player.py)"
+    },
+    {
+     "model": "jef_boots_m_R",
+     "socket": "footR",
+     "note": "the default shoe (held_player.py)"
+    }
+   ],
+   "shapeKeys": {
+    "hands_hard": 0.3
+   },
+   "avoid": {
+    "walk_f": "a woman's walk",
+    "talk_f": "a woman's talk",
+    "rifle_idle": "no rifle",
+    "rifle_walk": "no rifle",
+    "rifle_talk": "no rifle"
+   },
+   "triangles": {
+    "lod0": 12851,
+    "lod1": 2261
+   },
+   "pieceTriangles": {
+    "lod0": {
+     "trousers": 1848,
+     "shirt": 2375,
+     "shirt_collar": 641,
+     "cuffL": 256,
+     "cuffR": 256,
+     "waistcoat": 1587
+    },
+    "lod1": {
+     "trousers": 276,
+     "shirt": 309,
+     "shirt_collar": 103,
+     "cuffL": 48,
+     "cuffR": 48,
+     "waistcoat": 348
+    }
+   },
+   "clothChecks": {
+    "before": {
+     "lod0": 8712,
+     "lod1": 2278
+    },
+    "density": 255,
+    "rectShare": 0.734,
+    "stretched2": 0.0056,
+    "worstStretch": 3.15,
+    "islandCuts": 18,
+    "hiddenDeleted": {
+     "lod0": {
+      "trousers": 92,
+      "shirt": 596
+     },
+     "lod1": {
+      "shirt": 72
+     }
+    },
+    "reliefPoints": 558,
+    "occlusion": {
+     "lod0": [
+      0.353,
+      1.0
+     ],
+     "lod1": [
+      0.364,
+      1.0
+     ]
+    }
+   },
+   "note": "the player, a man: linen shirt with buttoned cuffs, a waistcoat, trousers"
+  },
+  "jef_m_jacket": {
+   "group": "player",
+   "body": "man_middling",
+   "sex": "m",
+   "height": 1.67,
+   "hipsBone": 0.902,
+   "hero": true,
+   "face": {
+    "seed": 1873501,
+    "sex": "m",
+    "age": 22
+   },
+   "defaultFace": {
+    "type": "fat_publican",
+    "cell": "m_mid_brown",
+    "sliders": {
+     "head_tall": 0.256,
+     "head_wide": 0.39,
+     "skull_long": -0.816,
+     "face_round": 0.226,
+     "face_square": 0.08,
+     "face_oval": 0.182,
+     "face_fat": 1.0,
+     "face_age": -0.514,
+     "forehead_back": 0.51,
+     "brow_ridge": -0.223,
+     "brow_high": -0.291,
+     "eyes_big": -0.438,
+     "eyes_apart": 0.04,
+     "eyes_high": 0.049,
+     "eyes_open": -0.516,
+     "eyes_hooded": 0.441,
+     "eyes_slant": 0.307,
+     "eye_bags": 0.887,
+     "nose_long": -0.119,
+     "nose_wide": 0.256,
+     "nose_out": -0.041,
+     "nose_hump": -0.17,
+     "nose_hook": -0.288,
+     "nose_tip_down": 0.129,
+     "nose_bulb": 0.241,
+     "nostrils_wide": 0.567,
+     "mouth_wide": 0.038,
+     "lips_full": 0.57,
+     "mouth_out": -0.143,
+     "mouth_corners": -0.444,
+     "cheekbones": -0.758,
+     "cheeks_full": 0.5,
+     "chin_out": -0.366,
+     "chin_wide": -0.081,
+     "chin_tall": -0.04,
+     "jaw_wide": 0.485,
+     "jaw_low": -0.428,
+     "ears_big": -0.177,
+     "ears_out": -0.305,
+     "neck_thick": 0.518,
+     "double_chin": 0.659,
+     "weight": 0.342,
+     "muscle": 0.046,
+     "belly": 0.196,
+     "shoulders": -0.34,
+     "hips_wide": 0.004,
+     "buttocks": 0.528
+    }
+   },
+   "hair": {
+    "hair": "side",
+    "beard": null,
+    "moustache": "walrus"
+   },
+   "hats": [],
+   "pieces": [
+    "trousers",
+    "shirt",
+    "shirt_collar",
+    "cuffL",
+    "cuffR",
+    "waistcoat",
+    "coat",
+    "coat_collar"
+   ],
+   "held": [
+    {
+     "model": "jef_boots_m_L",
+     "socket": "footL",
+     "note": "the default shoe (held_player.py)"
+    },
+    {
+     "model": "jef_boots_m_R",
+     "socket": "footR",
+     "note": "the default shoe (held_player.py)"
+    }
+   ],
+   "shapeKeys": {
+    "hands_hard": 0.3
+   },
+   "avoid": {
+    "walk_f": "a woman's walk",
+    "talk_f": "a woman's talk",
+    "rifle_idle": "no rifle",
+    "rifle_walk": "no rifle",
+    "rifle_talk": "no rifle"
+   },
+   "triangles": {
+    "lod0": 12828,
+    "lod1": 2271
+   },
+   "pieceTriangles": {
+    "lod0": {
+     "trousers": 999,
+     "shirt": 1239,
+     "shirt_collar": 486,
+     "cuffL": 256,
+     "cuffR": 256,
+     "waistcoat": 807,
+     "coat": 2351,
+     "coat_collar": 562
+    },
+    "lod1": {
+     "trousers": 211,
+     "shirt": 222,
+     "shirt_collar": 49,
+     "cuffL": 40,
+     "cuffR": 40,
+     "waistcoat": 177,
+     "coat": 331,
+     "coat_collar": 72
+    }
+   },
+   "clothChecks": {
+    "before": {
+     "lod0": 11844,
+     "lod1": 3196
+    },
+    "density": 229,
+    "rectShare": 0.818,
+    "stretched2": 0.0135,
+    "worstStretch": 26.59,
+    "islandCuts": 24,
+    "hiddenDeleted": {
+     "lod0": {
+      "trousers": 140,
+      "shirt": 1526,
+      "waistcoat": 922
+     },
+     "lod1": {
+      "trousers": 4,
+      "shirt": 284,
+      "waistcoat": 124
+     }
+    },
+    "reliefPoints": 1052,
+    "occlusion": {
+     "lod0": [
+      0.464,
+      1.0
+     ],
+     "lod1": [
+      0.428,
+      1.0
+     ]
+    }
+   },
+   "note": "the player, a man: short open jacket over the shirt and waistcoat"
+  },
+  "jef_m_coat": {
+   "group": "player",
+   "body": "man_middling",
+   "sex": "m",
+   "height": 1.67,
+   "hipsBone": 0.902,
+   "hero": true,
+   "face": {
+    "seed": 1873502,
+    "sex": "m",
+    "age": 22
+   },
+   "defaultFace": {
+    "type": "gaunt_porter",
+    "cell": "m_sooty",
+    "sliders": {
+     "head_tall": 0.015,
+     "head_wide": -0.23,
+     "skull_long": -0.065,
+     "face_round": 0.13,
+     "face_square": 0.258,
+     "face_oval": 0.417,
+     "face_fat": -0.983,
+     "face_age": -0.514,
+     "forehead_back": -0.216,
+     "brow_ridge": 0.858,
+     "brow_high": -0.522,
+     "eyes_big": 0.013,
+     "eyes_apart": 0.207,
+     "eyes_high": 0.356,
+     "eyes_open": -0.365,
+     "eyes_hooded": 0.136,
+     "eyes_slant": 0.182,
+     "eye_bags": 0.02,
+     "nose_long": 0.305,
+     "nose_wide": 0.033,
+     "nose_out": -0.014,
+     "nose_hump": 0.052,
+     "nose_hook": -0.282,
+     "nose_tip_down": -0.067,
+     "nose_bulb": -0.026,
+     "nostrils_wide": -0.124,
+     "mouth_wide": -0.363,
+     "lips_full": 0.311,
+     "mouth_out": -0.013,
+     "mouth_corners": -0.35,
+     "cheekbones": 0.619,
+     "cheeks_full": -0.307,
+     "chin_out": 0.134,
+     "chin_wide": 0.191,
+     "chin_tall": 0.306,
+     "jaw_wide": 0.568,
+     "jaw_low": 0.265,
+     "ears_big": 0.181,
+     "ears_out": 0.913,
+     "neck_thick": -0.486,
+     "double_chin": 0.192,
+     "weight": -0.553,
+     "muscle": 0.199,
+     "belly": -0.232,
+     "shoulders": 0.109,
+     "hips_wide": 0.085,
+     "buttocks": 0.077
+    }
+   },
+   "hair": {
+    "hair": "crop",
+    "beard": null,
+    "moustache": "walrus"
+   },
+   "hats": [],
+   "pieces": [
+    "trousers",
+    "shirt",
+    "shirt_collar",
+    "cuffL",
+    "cuffR",
+    "waistcoat",
+    "coat",
+    "coat_collar"
+   ],
+   "held": [
+    {
+     "model": "jef_boots_m_L",
+     "socket": "footL",
+     "note": "the default shoe (held_player.py)"
+    },
+    {
+     "model": "jef_boots_m_R",
+     "socket": "footR",
+     "note": "the default shoe (held_player.py)"
+    }
+   ],
+   "shapeKeys": {
+    "hands_hard": 0.3
+   },
+   "avoid": {
+    "walk_f": "a woman's walk",
+    "talk_f": "a woman's talk",
+    "rifle_idle": "no rifle",
+    "rifle_walk": "no rifle",
+    "rifle_talk": "no rifle"
+   },
+   "triangles": {
+    "lod0": 12808,
+    "lod1": 2268
+   },
+   "pieceTriangles": {
+    "lod0": {
+     "trousers": 981,
+     "shirt": 1237,
+     "shirt_collar": 485,
+     "cuffL": 256,
+     "cuffR": 256,
+     "waistcoat": 805,
+     "coat": 2368,
+     "coat_collar": 560
+    },
+    "lod1": {
+     "trousers": 215,
+     "shirt": 220,
+     "shirt_collar": 49,
+     "cuffL": 38,
+     "cuffR": 38,
+     "waistcoat": 177,
+     "coat": 330,
+     "coat_collar": 72
+    }
+   },
+   "clothChecks": {
+    "before": {
+     "lod0": 11926,
+     "lod1": 3224
+    },
+    "density": 218,
+    "rectShare": 0.81,
+    "stretched2": 0.0145,
+    "worstStretch": 6.75,
+    "islandCuts": 25,
+    "hiddenDeleted": {
+     "lod0": {
+      "trousers": 176,
+      "shirt": 1528,
+      "waistcoat": 922
+     },
+     "lod1": {
+      "trousers": 6,
+      "shirt": 284,
+      "waistcoat": 124
+     }
+    },
+    "reliefPoints": 1099,
+    "occlusion": {
+     "lod0": [
+      0.462,
+      1.0
+     ],
+     "lod1": [
+      0.431,
+      1.0
+     ]
+    }
+   },
+   "note": "the player, a man: long open coat to the knee over the shirt and waistcoat"
+  },
+  "jef_m_smock": {
+   "group": "player",
+   "body": "man_middling",
+   "sex": "m",
+   "height": 1.67,
+   "hipsBone": 0.902,
+   "hero": true,
+   "face": {
+    "seed": 1873503,
+    "sex": "m",
+    "age": 22
+   },
+   "defaultFace": {
+    "type": "pale_clerk",
+    "cell": "m_young_fair",
+    "sliders": {
+     "head_tall": 0.073,
+     "head_wide": -0.096,
+     "skull_long": 0.183,
+     "face_round": 0.161,
+     "face_oval": 0.448,
+     "face_fat": -0.752,
+     "face_age": -0.514,
+     "forehead_back": -0.192,
+     "brow_ridge": -0.64,
+     "brow_high": 0.214,
+     "eyes_big": 0.911,
+     "eyes_apart": -0.45,
+     "eyes_high": 0.083,
+     "eyes_open": 0.528,
+     "eyes_hooded": -0.29,
+     "eyes_slant": -0.065,
+     "eye_bags": -0.275,
+     "nose_long": 0.116,
+     "nose_wide": -0.781,
+     "nose_out": 0.137,
+     "nose_hump": 0.272,
+     "nose_hook": -0.572,
+     "nose_tip_down": 0.117,
+     "nose_bulb": -0.373,
+     "nostrils_wide": -0.197,
+     "mouth_wide": -0.621,
+     "lips_full": -0.593,
+     "mouth_out": -0.116,
+     "mouth_corners": 0.321,
+     "cheekbones": 0.121,
+     "cheeks_full": -0.056,
+     "chin_out": -1.0,
+     "chin_wide": -0.258,
+     "chin_tall": 0.424,
+     "jaw_wide": -0.471,
+     "jaw_low": -0.184,
+     "ears_big": -0.202,
+     "ears_out": -0.64,
+     "neck_thick": -0.211,
+     "weight": -0.323,
+     "muscle": -0.489,
+     "belly": -0.118,
+     "shoulders": 0.2,
+     "hips_wide": 0.448,
+     "buttocks": 0.555
+    }
+   },
+   "hair": {
+    "hair": "side",
+    "beard": "chops",
+    "moustache": null
+   },
+   "hats": [],
+   "pieces": [
+    "trousers",
+    "smock",
+    "smock_collar",
+    "smock_cuffL",
+    "smock_cuffR"
+   ],
+   "held": [
+    {
+     "model": "jef_boots_m_L",
+     "socket": "footL",
+     "note": "the default shoe (held_player.py)"
+    },
+    {
+     "model": "jef_boots_m_R",
+     "socket": "footR",
+     "note": "the default shoe (held_player.py)"
+    }
+   ],
+   "shapeKeys": {
+    "hands_hard": 0.3
+   },
+   "avoid": {
+    "walk_f": "a woman's walk",
+    "talk_f": "a woman's talk",
+    "rifle_idle": "no rifle",
+    "rifle_walk": "no rifle",
+    "rifle_talk": "no rifle"
+   },
+   "triangles": {
+    "lod0": 12827,
+    "lod1": 2268
+   },
+   "pieceTriangles": {
+    "lod0": {
+     "trousers": 2085,
+     "smock": 3596,
+     "smock_collar": 768,
+     "smock_cuffL": 256,
+     "smock_cuffR": 256
+    },
+    "lod1": {
+     "trousers": 344,
+     "smock": 499,
+     "smock_collar": 168,
+     "smock_cuffL": 64,
+     "smock_cuffR": 64
+    }
+   },
+   "clothChecks": {
+    "before": {
+     "lod0": 7522,
+     "lod1": 1924
+    },
+    "density": 327,
+    "rectShare": 0.815,
+    "stretched2": 0.0019,
+    "worstStretch": 3.89,
+    "islandCuts": 8,
+    "hiddenDeleted": {
+     "lod0": {
+      "trousers": 390
+     },
+     "lod1": {
+      "trousers": 54
+     }
+    },
+    "reliefPoints": 1607,
+    "occlusion": {
+     "lod0": [
+      0.274,
+      1.0
+     ],
+     "lod1": [
+      0.323,
+      1.0
+     ]
+    }
+   },
+   "note": "the player, a man: the blue kiel over a shirt"
+  },
+  "jef_m_apron": {
+   "group": "player",
+   "body": "man_middling",
+   "sex": "m",
+   "height": 1.67,
+   "hipsBone": 0.902,
+   "hero": true,
+   "face": {
+    "seed": 1873504,
+    "sex": "m",
+    "age": 22
+   },
+   "defaultFace": {
+    "type": "fat_publican",
+    "cell": "m_fair_fair",
+    "sliders": {
+     "head_tall": 0.04,
+     "head_wide": 0.466,
+     "skull_long": -0.372,
+     "face_round": 0.252,
+     "face_square": 0.263,
+     "face_fat": 0.852,
+     "face_age": -0.514,
+     "forehead_back": 0.132,
+     "brow_ridge": 0.483,
+     "brow_high": 0.268,
+     "eyes_big": -0.509,
+     "eyes_apart": -0.474,
+     "eyes_high": -0.311,
+     "eyes_open": -0.751,
+     "eyes_hooded": 0.713,
+     "eyes_slant": 0.479,
+     "eye_bags": 1.0,
+     "nose_long": -0.379,
+     "nose_wide": 0.785,
+     "nose_out": 0.243,
+     "nose_hump": -0.321,
+     "nose_hook": -0.124,
+     "nose_tip_down": 0.119,
+     "nose_bulb": 0.061,
+     "nostrils_wide": 0.258,
+     "mouth_wide": 0.156,
+     "lips_full": 0.866,
+     "mouth_out": 0.071,
+     "mouth_corners": 0.567,
+     "cheekbones": -0.835,
+     "cheeks_full": 0.772,
+     "chin_out": -0.229,
+     "chin_wide": 0.025,
+     "chin_tall": -0.198,
+     "jaw_wide": 0.07,
+     "jaw_low": 0.075,
+     "ears_big": 0.349,
+     "ears_out": 0.241,
+     "neck_thick": 0.485,
+     "double_chin": 0.486,
+     "weight": 0.403,
+     "muscle": -0.226,
+     "belly": 0.261,
+     "shoulders": -0.179,
+     "hips_wide": -0.207,
+     "buttocks": 0.429
+    }
+   },
+   "hair": {
+    "hair": "bald",
+    "beard": null,
+    "moustache": "chevron"
+   },
+   "hats": [],
+   "pieces": [
+    "trousers",
+    "shirt",
+    "shirt_collar",
+    "cuffL",
+    "cuffR",
+    "waistcoat",
+    "apron",
+    "apron_band"
+   ],
+   "held": [
+    {
+     "model": "jef_boots_m_L",
+     "socket": "footL",
+     "note": "the default shoe (held_player.py)"
+    },
+    {
+     "model": "jef_boots_m_R",
+     "socket": "footR",
+     "note": "the default shoe (held_player.py)"
+    }
+   ],
+   "shapeKeys": {
+    "hands_hard": 0.3
+   },
+   "avoid": {
+    "walk_f": "a woman's walk",
+    "talk_f": "a woman's talk",
+    "rifle_idle": "no rifle",
+    "rifle_walk": "no rifle",
+    "rifle_talk": "no rifle"
+   },
+   "triangles": {
+    "lod0": 12852,
+    "lod1": 2261
+   },
+   "pieceTriangles": {
+    "lod0": {
+     "trousers": 1296,
+     "shirt": 2051,
+     "shirt_collar": 550,
+     "cuffL": 256,
+     "cuffR": 256,
+     "waistcoat": 1245,
+     "apron": 626,
+     "apron_band": 684
+    },
+    "lod1": {
+     "trousers": 228,
+     "shirt": 277,
+     "shirt_collar": 80,
+     "cuffL": 48,
+     "cuffR": 48,
+     "waistcoat": 213,
+     "apron": 102,
+     "apron_band": 136
+    }
+   },
+   "clothChecks": {
+    "before": {
+     "lod0": 11514,
+     "lod1": 2986
+    },
+    "density": 241,
+    "rectShare": 0.739,
+    "stretched2": 0.0073,
+    "worstStretch": 5.6,
+    "islandCuts": 24,
+    "hiddenDeleted": {
+     "lod0": {
+      "trousers": 104,
+      "shirt": 596,
+      "waistcoat": 18
+     },
+     "lod1": {
+      "shirt": 72
+     }
+    },
+    "reliefPoints": 558,
+    "occlusion": {
+     "lod0": [
+      0.376,
+      1.0
+     ],
+     "lod1": [
+      0.353,
+      1.0
+     ]
+    }
+   },
+   "note": "the player, a man: shirt and waistcoat under a long working apron"
+  },
+  "jef_m_jacket_apron": {
+   "group": "player",
+   "body": "man_middling",
+   "sex": "m",
+   "height": 1.67,
+   "hipsBone": 0.902,
+   "hero": true,
+   "face": {
+    "seed": 1873505,
+    "sex": "m",
+    "age": 22
+   },
+   "defaultFace": {
+    "type": "fat_publican",
+    "cell": "m_weather_dark_drink",
+    "sliders": {
+     "head_tall": 0.06,
+     "head_wide": 0.264,
+     "skull_long": -0.834,
+     "face_round": 0.172,
+     "face_square": 0.369,
+     "face_fat": 1.0,
+     "face_age": -0.514,
+     "forehead_back": -0.039,
+     "brow_ridge": -0.072,
+     "brow_high": -0.421,
+     "eyes_big": -0.579,
+     "eyes_apart": -0.66,
+     "eyes_high": -0.185,
+     "eyes_open": -0.645,
+     "eyes_hooded": 0.243,
+     "eyes_slant": 0.572,
+     "eye_bags": 0.454,
+     "nose_long": -0.25,
+     "nose_wide": 0.738,
+     "nose_out": 0.048,
+     "nose_hump": -0.056,
+     "nose_hook": 0.265,
+     "nose_tip_down": 0.086,
+     "nose_bulb": 0.268,
+     "nostrils_wide": 0.421,
+     "mouth_wide": 0.247,
+     "lips_full": 0.67,
+     "mouth_out": 0.339,
+     "mouth_corners": 0.153,
+     "cheekbones": -1.0,
+     "cheeks_full": 0.392,
+     "chin_out": -0.799,
+     "chin_wide": 0.031,
+     "chin_tall": -0.13,
+     "jaw_wide": 0.257,
+     "jaw_low": -0.264,
+     "ears_big": 0.327,
+     "ears_out": -0.008,
+     "neck_thick": 0.383,
+     "double_chin": 0.616,
+     "weight": 0.478,
+     "muscle": -0.121,
+     "belly": 0.836,
+     "shoulders": 0.278,
+     "hips_wide": -0.061,
+     "buttocks": -0.075
+    }
+   },
+   "hair": {
+    "hair": "crop",
+    "beard": "chops",
+    "moustache": "walrus"
+   },
+   "hats": [],
+   "pieces": [
+    "trousers",
+    "shirt",
+    "shirt_collar",
+    "cuffL",
+    "cuffR",
+    "waistcoat",
+    "coat",
+    "coat_collar",
+    "apron",
+    "apron_band"
+   ],
+   "held": [
+    {
+     "model": "jef_boots_m_L",
+     "socket": "footL",
+     "note": "the default shoe (held_player.py)"
+    },
+    {
+     "model": "jef_boots_m_R",
+     "socket": "footR",
+     "note": "the default shoe (held_player.py)"
+    }
+   ],
+   "shapeKeys": {
+    "hands_hard": 0.3
+   },
+   "avoid": {
+    "walk_f": "a woman's walk",
+    "talk_f": "a woman's talk",
+    "rifle_idle": "no rifle",
+    "rifle_walk": "no rifle",
+    "rifle_talk": "no rifle"
+   },
+   "triangles": {
+    "lod0": 12821,
+    "lod1": 2270
+   },
+   "pieceTriangles": {
+    "lod0": {
+     "trousers": 743,
+     "shirt": 1081,
+     "shirt_collar": 437,
+     "cuffL": 242,
+     "cuffR": 242,
+     "waistcoat": 732,
+     "coat": 1830,
+     "coat_collar": 480,
+     "apron": 524,
+     "apron_band": 644
+    },
+    "lod1": {
+     "trousers": 180,
+     "shirt": 187,
+     "shirt_collar": 29,
+     "cuffL": 32,
+     "cuffR": 32,
+     "waistcoat": 160,
+     "coat": 267,
+     "coat_collar": 62,
+     "apron": 86,
+     "apron_band": 106
+    }
+   },
+   "clothChecks": {
+    "before": {
+     "lod0": 14650,
+     "lod1": 3904
+    },
+    "density": 213,
+    "rectShare": 0.786,
+    "stretched2": 0.0193,
+    "worstStretch": 6.63,
+    "islandCuts": 30,
+    "hiddenDeleted": {
+     "lod0": {
+      "trousers": 148,
+      "shirt": 1518,
+      "waistcoat": 936,
+      "coat": 12
+     },
+     "lod1": {
+      "trousers": 4,
+      "shirt": 284,
+      "waistcoat": 124
+     }
+    },
+    "reliefPoints": 1052,
+    "occlusion": {
+     "lod0": [
+      0.475,
+      1.0
+     ],
+     "lod1": [
+      0.414,
+      1.0
+     ]
+    }
+   },
+   "note": "the player, a man: short jacket and a long working apron"
+  },
+  "jef_w_plain": {
+   "group": "player",
+   "body": "woman_middling",
+   "sex": "f",
+   "height": 1.57,
+   "hipsBone": 0.8179,
+   "hero": true,
+   "face": {
+    "seed": 1873520,
+    "sex": "f",
+    "age": 22
+   },
+   "defaultFace": {
+    "type": "young_woman",
+    "cell": "f_fair_fair",
+    "sliders": {
+     "head_tall": 0.415,
+     "head_wide": -0.177,
+     "skull_long": -0.238,
+     "face_oval": 0.431,
+     "face_fat": -0.413,
+     "face_age": -0.514,
+     "forehead_back": -0.126,
+     "brow_ridge": -0.457,
+     "brow_high": 0.128,
+     "eyes_big": 1.0,
+     "eyes_apart": 0.903,
+     "eyes_high": 0.266,
+     "eyes_open": 0.409,
+     "eyes_hooded": -0.523,
+     "eyes_slant": -0.021,
+     "eye_bags": -0.152,
+     "nose_long": -0.913,
+     "nose_wide": 0.087,
+     "nose_out": -0.829,
+     "nose_hump": -0.367,
+     "nose_hook": -0.113,
+     "nose_tip_down": -0.231,
+     "nose_bulb": -0.126,
+     "nostrils_wide": -0.056,
+     "mouth_wide": 0.182,
+     "lips_full": 0.618,
+     "mouth_out": -0.097,
+     "mouth_corners": -0.209,
+     "cheekbones": 0.818,
+     "cheeks_full": -0.283,
+     "chin_out": 0.522,
+     "chin_wide": -0.432,
+     "chin_tall": 0.122,
+     "jaw_wide": -0.309,
+     "jaw_low": -0.129,
+     "ears_big": -0.286,
+     "ears_out": 0.02,
+     "neck_thick": 0.337,
+     "double_chin": 0.55,
+     "weight": -0.419,
+     "muscle": 0.053,
+     "belly": -0.131,
+     "shoulders": 0.244,
+     "hips_wide": 0.08,
+     "buttocks": -0.001,
+     "bust": -0.132
+    }
+   },
+   "hair": {
+    "hair": "undercap",
+    "beard": null,
+    "moustache": null
+   },
+   "hats": [],
+   "pieces": [
+    "skirt",
+    "bodice",
+    "collar",
+    "cuffL",
+    "cuffR"
+   ],
+   "held": [
+    {
+     "model": "jef_clogs_f_L",
+     "socket": "footL",
+     "note": "the default shoe (held_player.py)"
+    },
+    {
+     "model": "jef_clogs_f_R",
+     "socket": "footR",
+     "note": "the default shoe (held_player.py)"
+    }
+   ],
+   "shapeKeys": {
+    "hands_hard": 0.15
+   },
+   "avoid": {
+    "walk": "walk_f is hers",
+    "talk": "talk_f is hers",
+    "rifle_idle": "no rifle",
+    "rifle_walk": "no rifle",
+    "rifle_talk": "no rifle",
+    "ride": "the skirt"
+   },
+   "triangles": {
+    "lod0": 12523,
+    "lod1": 2180
+   },
+   "pieceTriangles": {
+    "lod0": {
+     "skirt": 1896,
+     "bodice": 3136,
+     "collar": 896,
+     "cuffL": 256,
+     "cuffR": 256
+    },
+    "lod1": {
+     "skirt": 268,
+     "bodice": 416,
+     "collar": 165,
+     "cuffL": 64,
+     "cuffR": 64
+    }
+   },
+   "clothChecks": {
+    "before": {
+     "lod0": 6440,
+     "lod1": 1616
+    },
+    "density": 339,
+    "rectShare": 0.834,
+    "stretched2": 0.0017,
+    "worstStretch": 2.92,
+    "islandCuts": 12,
+    "hiddenDeleted": {
+     "lod0": {
+      "skirt": 24
+     },
+     "lod1": {}
+    },
+    "reliefPoints": 0,
+    "occlusion": {
+     "lod0": [
+      0.323,
+      1.0
+     ],
+     "lod1": [
+      0.314,
+      1.0
+     ]
+    }
+   },
+   "note": "the player, a woman: bodice and full skirt, cream collar and cuffs"
+  },
+  "jef_w_apron": {
+   "group": "player",
+   "body": "woman_middling",
+   "sex": "f",
+   "height": 1.57,
+   "hipsBone": 0.8179,
+   "hero": true,
+   "face": {
+    "seed": 1873521,
+    "sex": "f",
+    "age": 22
+   },
+   "defaultFace": {
+    "type": "round_flemish_woman",
+    "cell": "f_mid_dark",
+    "sliders": {
+     "head_tall": 0.266,
+     "head_wide": 0.135,
+     "skull_long": -0.647,
+     "face_round": 0.002,
+     "face_square": 0.298,
+     "face_oval": 0.541,
+     "face_fat": 0.741,
+     "face_age": -0.514,
+     "forehead_back": -0.107,
+     "brow_ridge": 0.017,
+     "brow_high": -0.169,
+     "eyes_big": 0.092,
+     "eyes_apart": 0.359,
+     "eyes_high": -0.157,
+     "eyes_open": 0.511,
+     "eyes_hooded": -0.299,
+     "eyes_slant": -0.111,
+     "eye_bags": 0.566,
+     "nose_long": -0.793,
+     "nose_wide": -0.025,
+     "nose_out": -0.674,
+     "nose_hump": -0.318,
+     "nose_hook": -0.922,
+     "nose_tip_down": -0.419,
+     "nose_bulb": 0.03,
+     "nostrils_wide": 0.433,
+     "mouth_wide": 0.232,
+     "lips_full": 0.338,
+     "mouth_out": -0.019,
+     "mouth_corners": 0.229,
+     "cheekbones": -0.56,
+     "cheeks_full": 0.72,
+     "chin_out": 0.345,
+     "chin_wide": 0.127,
+     "chin_tall": -0.336,
+     "jaw_wide": -0.016,
+     "jaw_low": -0.368,
+     "ears_big": -0.089,
+     "ears_out": 0.444,
+     "neck_thick": 0.218,
+     "weight": 0.43,
+     "muscle": -0.531,
+     "belly": -0.321,
+     "shoulders": 0.145,
+     "hips_wide": -0.349,
+     "buttocks": 0.029,
+     "bust": 0.317
+    }
+   },
+   "hair": {
+    "hair": "bun",
+    "beard": null,
+    "moustache": null
+   },
+   "hats": [],
+   "pieces": [
+    "skirt",
+    "bodice",
+    "collar",
+    "cuffL",
+    "cuffR",
+    "apron",
+    "apron_band"
+   ],
+   "held": [
+    {
+     "model": "jef_clogs_f_L",
+     "socket": "footL",
+     "note": "the default shoe (held_player.py)"
+    },
+    {
+     "model": "jef_clogs_f_R",
+     "socket": "footR",
+     "note": "the default shoe (held_player.py)"
+    }
+   ],
+   "shapeKeys": {
+    "hands_hard": 0.15
+   },
+   "avoid": {
+    "walk": "walk_f is hers",
+    "talk": "talk_f is hers",
+    "rifle_idle": "no rifle",
+    "rifle_walk": "no rifle",
+    "rifle_talk": "no rifle",
+    "ride": "the skirt"
+   },
+   "triangles": {
+    "lod0": 12642,
+    "lod1": 2180
+   },
+   "pieceTriangles": {
+    "lod0": {
+     "skirt": 1435,
+     "bodice": 2782,
+     "collar": 638,
+     "cuffL": 256,
+     "cuffR": 256,
+     "apron": 564,
+     "apron_band": 628
+    },
+    "lod1": {
+     "skirt": 266,
+     "bodice": 316,
+     "collar": 100,
+     "cuffL": 48,
+     "cuffR": 48,
+     "apron": 77,
+     "apron_band": 122
+    }
+   },
+   "clothChecks": {
+    "before": {
+     "lod0": 7788,
+     "lod1": 1956
+    },
+    "density": 253,
+    "rectShare": 0.809,
+    "stretched2": 0.0021,
+    "worstStretch": 3.17,
+    "islandCuts": 20,
+    "hiddenDeleted": {
+     "lod0": {
+      "skirt": 52
+     },
+     "lod1": {
+      "skirt": 4
+     }
+    },
+    "reliefPoints": 0,
+    "occlusion": {
+     "lod0": [
+      0.348,
+      1.0
+     ],
+     "lod1": [
+      0.292,
+      1.0
+     ]
+    }
+   },
+   "note": "the player, a woman: bodice and skirt under a long apron"
+  },
+  "jef_w_shawl": {
+   "group": "player",
+   "body": "woman_middling",
+   "sex": "f",
+   "height": 1.57,
+   "hipsBone": 0.8179,
+   "hero": true,
+   "face": {
+    "seed": 1873522,
+    "sex": "f",
+    "age": 22
+   },
+   "defaultFace": {
+    "type": "round_flemish_woman",
+    "cell": "f_fair_brown",
+    "sliders": {
+     "head_tall": -0.342,
+     "head_wide": 0.427,
+     "skull_long": -0.629,
+     "face_round": 0.618,
+     "face_square": 0.273,
+     "face_fat": 0.589,
+     "face_age": -0.514,
+     "forehead_back": 0.133,
+     "brow_ridge": -0.095,
+     "brow_high": -0.054,
+     "eyes_big": -0.542,
+     "eyes_apart": -0.38,
+     "eyes_high": 0.306,
+     "eyes_open": -0.153,
+     "eyes_hooded": 0.085,
+     "eyes_slant": 0.213,
+     "eye_bags": 0.129,
+     "nose_long": -0.599,
+     "nose_wide": 0.531,
+     "nose_out": 0.02,
+     "nose_hump": 0.056,
+     "nose_hook": -0.682,
+     "nose_tip_down": -0.347,
+     "nose_bulb": -0.155,
+     "nostrils_wide": 0.429,
+     "mouth_wide": 0.145,
+     "lips_full": 0.415,
+     "mouth_out": 0.645,
+     "mouth_corners": 0.619,
+     "cheekbones": -0.316,
+     "cheeks_full": 0.127,
+     "chin_out": 0.26,
+     "chin_wide": 0.195,
+     "chin_tall": -0.396,
+     "jaw_wide": 0.133,
+     "jaw_low": -0.134,
+     "ears_big": 0.079,
+     "ears_out": -0.701,
+     "neck_thick": 0.144,
+     "double_chin": 0.031,
+     "weight": 0.431,
+     "muscle": -0.046,
+     "belly": 0.135,
+     "shoulders": -0.625,
+     "hips_wide": -0.1,
+     "buttocks": -0.283,
+     "bust": 0.153
+    }
+   },
+   "hair": {
+    "hair": "undercap",
+    "beard": null,
+    "moustache": null
+   },
+   "hats": [],
+   "pieces": [
+    "skirt",
+    "bodice",
+    "collar",
+    "cuffL",
+    "cuffR",
+    "shawl",
+    "shawl_fringe"
+   ],
+   "held": [
+    {
+     "model": "jef_clogs_f_L",
+     "socket": "footL",
+     "note": "the default shoe (held_player.py)"
+    },
+    {
+     "model": "jef_clogs_f_R",
+     "socket": "footR",
+     "note": "the default shoe (held_player.py)"
+    }
+   ],
+   "shapeKeys": {
+    "hands_hard": 0.15
+   },
+   "avoid": {
+    "walk": "walk_f is hers",
+    "talk": "talk_f is hers",
+    "rifle_idle": "no rifle",
+    "rifle_walk": "no rifle",
+    "rifle_talk": "no rifle",
+    "ride": "the skirt"
+   },
+   "triangles": {
+    "lod0": 12659,
+    "lod1": 2185
+   },
+   "pieceTriangles": {
+    "lod0": {
+     "skirt": 1169,
+     "bodice": 2358,
+     "collar": 550,
+     "cuffL": 256,
+     "cuffR": 256,
+     "shawl": 1139,
+     "shawl_fringe": 848
+    },
+    "lod1": {
+     "skirt": 167,
+     "bodice": 289,
+     "collar": 95,
+     "cuffL": 48,
+     "cuffR": 48,
+     "shawl": 173,
+     "shawl_fringe": 162
+    }
+   },
+   "clothChecks": {
+    "before": {
+     "lod0": 9222,
+     "lod1": 2336
+    },
+    "density": 289,
+    "rectShare": 0.803,
+    "stretched2": 0.0186,
+    "worstStretch": 6.86,
+    "islandCuts": 11,
+    "hiddenDeleted": {
+     "lod0": {
+      "skirt": 24,
+      "bodice": 134,
+      "shawl": 28
+     },
+     "lod1": {
+      "bodice": 16
+     }
+    },
+    "reliefPoints": 0,
+    "occlusion": {
+     "lod0": [
+      0.379,
+      1.0
+     ],
+     "lod1": [
+      0.323,
+      1.0
+     ]
+    }
+   },
+   "note": "the player, a woman: bodice and skirt under a fringed check shawl"
+  },
+  "jef_w_shawl_apron": {
+   "group": "player",
+   "body": "woman_middling",
+   "sex": "f",
+   "height": 1.57,
+   "hipsBone": 0.8179,
+   "hero": true,
+   "face": {
+    "seed": 1873523,
+    "sex": "f",
+    "age": 22
+   },
+   "defaultFace": {
+    "type": "round_flemish_woman",
+    "cell": "f_red_freckled",
+    "sliders": {
+     "head_tall": 0.197,
+     "head_wide": 0.002,
+     "skull_long": 0.006,
+     "face_round": 0.369,
+     "face_square": 0.274,
+     "face_oval": 0.123,
+     "face_fat": 0.534,
+     "face_age": -0.514,
+     "forehead_back": 0.273,
+     "brow_ridge": 0.103,
+     "brow_high": -0.175,
+     "eyes_big": 0.013,
+     "eyes_apart": 0.041,
+     "eyes_high": 0.129,
+     "eyes_open": -0.41,
+     "eyes_hooded": -0.067,
+     "eyes_slant": 0.065,
+     "eye_bags": -0.334,
+     "nose_long": -0.331,
+     "nose_wide": 0.453,
+     "nose_out": -0.51,
+     "nose_hump": -0.525,
+     "nose_hook": -0.475,
+     "nose_tip_down": -0.015,
+     "nose_bulb": -0.046,
+     "nostrils_wide": 0.085,
+     "mouth_wide": 0.055,
+     "lips_full": 0.058,
+     "mouth_out": -0.544,
+     "mouth_corners": -0.658,
+     "cheekbones": -0.158,
+     "cheeks_full": 0.376,
+     "chin_out": -0.202,
+     "chin_wide": 0.016,
+     "chin_tall": -0.205,
+     "jaw_wide": 0.211,
+     "jaw_low": -0.289,
+     "ears_big": -0.034,
+     "ears_out": -0.13,
+     "neck_thick": 0.26,
+     "double_chin": 0.005,
+     "weight": 0.312,
+     "muscle": 0.48,
+     "belly": -0.072,
+     "shoulders": -0.272,
+     "hips_wide": 0.004,
+     "buttocks": -0.039,
+     "bust": 0.252
+    }
+   },
+   "hair": {
+    "hair": "plaits",
+    "beard": null,
+    "moustache": null
+   },
+   "hats": [],
+   "pieces": [
+    "skirt",
+    "bodice",
+    "collar",
+    "cuffL",
+    "cuffR",
+    "apron",
+    "apron_band",
+    "shawl",
+    "shawl_fringe"
+   ],
+   "held": [
+    {
+     "model": "jef_clogs_f_L",
+     "socket": "footL",
+     "note": "the default shoe (held_player.py)"
+    },
+    {
+     "model": "jef_clogs_f_R",
+     "socket": "footR",
+     "note": "the default shoe (held_player.py)"
+    }
+   ],
+   "shapeKeys": {
+    "hands_hard": 0.15
+   },
+   "avoid": {
+    "walk": "walk_f is hers",
+    "talk": "talk_f is hers",
+    "rifle_idle": "no rifle",
+    "rifle_walk": "no rifle",
+    "rifle_talk": "no rifle",
+    "ride": "the skirt"
+   },
+   "triangles": {
+    "lod0": 12660,
+    "lod1": 2184
+   },
+   "pieceTriangles": {
+    "lod0": {
+     "skirt": 861,
+     "bodice": 1968,
+     "collar": 479,
+     "cuffL": 256,
+     "cuffR": 256,
+     "apron": 416,
+     "apron_band": 548,
+     "shawl": 955,
+     "shawl_fringe": 838
+    },
+    "lod1": {
+     "skirt": 140,
+     "bodice": 243,
+     "collar": 43,
+     "cuffL": 46,
+     "cuffR": 46,
+     "apron": 62,
+     "apron_band": 116,
+     "shawl": 137,
+     "shawl_fringe": 148
+    }
+   },
+   "clothChecks": {
+    "before": {
+     "lod0": 10570,
+     "lod1": 2676
+    },
+    "density": 223,
+    "rectShare": 0.773,
+    "stretched2": 0.0202,
+    "worstStretch": 6.84,
+    "islandCuts": 16,
+    "hiddenDeleted": {
+     "lod0": {
+      "skirt": 52,
+      "bodice": 134,
+      "shawl": 28
+     },
+     "lod1": {
+      "skirt": 4,
+      "bodice": 16
+     }
+    },
+    "reliefPoints": 0,
+    "occlusion": {
+     "lod0": [
+      0.392,
+      1.0
+     ],
+     "lod1": [
+      0.314,
+      1.0
+     ]
+    }
+   },
+   "note": "the player, a woman: check shawl and apron"
+  },
+  "jef_w_jacket": {
+   "group": "player",
+   "body": "woman_middling",
+   "sex": "f",
+   "height": 1.57,
+   "hipsBone": 0.8179,
+   "hero": true,
+   "face": {
+    "seed": 1873524,
+    "sex": "f",
+    "age": 22
+   },
+   "defaultFace": {
+    "type": "round_flemish_woman",
+    "cell": "f_red_freckled",
+    "sliders": {
+     "head_tall": 0.181,
+     "head_wide": -0.017,
+     "skull_long": -0.058,
+     "face_round": 0.005,
+     "face_fat": 1.0,
+     "face_age": -0.514,
+     "forehead_back": -0.063,
+     "brow_ridge": 0.152,
+     "brow_high": -0.511,
+     "eyes_big": 0.245,
+     "eyes_apart": 0.045,
+     "eyes_high": -0.177,
+     "eyes_open": -0.352,
+     "eyes_hooded": 0.028,
+     "eyes_slant": -0.281,
+     "eye_bags": -0.018,
+     "nose_long": -0.664,
+     "nose_wide": 0.219,
+     "nose_out": -0.669,
+     "nose_hump": -0.371,
+     "nose_hook": -0.264,
+     "nose_tip_down": -0.279,
+     "nose_bulb": 0.117,
+     "nostrils_wide": 0.388,
+     "mouth_wide": -0.044,
+     "lips_full": 0.081,
+     "mouth_out": 0.34,
+     "mouth_corners": 0.237,
+     "cheekbones": -0.822,
+     "cheeks_full": 0.169,
+     "chin_out": -0.239,
+     "chin_wide": -0.187,
+     "chin_tall": -0.38,
+     "jaw_wide": 0.354,
+     "jaw_low": 0.064,
+     "ears_big": -0.055,
+     "ears_out": 0.435,
+     "neck_thick": 0.276,
+     "double_chin": 0.131,
+     "weight": 0.15,
+     "muscle": 0.039,
+     "belly": 0.249,
+     "shoulders": 0.313,
+     "hips_wide": 0.17,
+     "buttocks": -0.088,
+     "bust": 1.0
+    }
+   },
+   "hair": {
+    "hair": "coronet",
+    "beard": null,
+    "moustache": null
+   },
+   "hats": [],
+   "pieces": [
+    "skirt",
+    "bodice",
+    "cuffL",
+    "cuffR",
+    "coat",
+    "coat_collar"
+   ],
+   "held": [
+    {
+     "model": "jef_clogs_f_L",
+     "socket": "footL",
+     "note": "the default shoe (held_player.py)"
+    },
+    {
+     "model": "jef_clogs_f_R",
+     "socket": "footR",
+     "note": "the default shoe (held_player.py)"
+    }
+   ],
+   "shapeKeys": {
+    "hands_hard": 0.15
+   },
+   "avoid": {
+    "walk": "walk_f is hers",
+    "talk": "talk_f is hers",
+    "rifle_idle": "no rifle",
+    "rifle_walk": "no rifle",
+    "rifle_talk": "no rifle",
+    "ride": "the skirt"
+   },
+   "triangles": {
+    "lod0": 12660,
+    "lod1": 2189
+   },
+   "pieceTriangles": {
+    "lod0": {
+     "skirt": 998,
+     "bodice": 1155,
+     "cuffL": 256,
+     "cuffR": 256,
+     "coat": 3144,
+     "coat_collar": 768
+    },
+    "lod1": {
+     "skirt": 142,
+     "bodice": 233,
+     "cuffL": 48,
+     "cuffR": 48,
+     "coat": 419,
+     "coat_collar": 96
+    }
+   },
+   "clothChecks": {
+    "before": {
+     "lod0": 8390,
+     "lod1": 2228
+    },
+    "density": 266,
+    "rectShare": 0.802,
+    "stretched2": 0.0065,
+    "worstStretch": 6.76,
+    "islandCuts": 8,
+    "hiddenDeleted": {
+     "lod0": {
+      "skirt": 60,
+      "bodice": 1782,
+      "coat": 8
+     },
+     "lod1": {
+      "bodice": 332
+     }
+    },
+    "reliefPoints": 0,
+    "occlusion": {
+     "lod0": [
+      0.388,
+      1.0
+     ],
+     "lod1": [
+      0.349,
+      1.0
+     ]
+    }
+   },
+   "note": "the player, a woman: fitted short jacket over a bodice and skirt"
+  },
+  "jef_w_jacket_apron": {
+   "group": "player",
+   "body": "woman_middling",
+   "sex": "f",
+   "height": 1.57,
+   "hipsBone": 0.8179,
+   "hero": true,
+   "face": {
+    "seed": 1873525,
+    "sex": "f",
+    "age": 22
+   },
+   "defaultFace": {
+    "type": "lean_widow",
+    "cell": "f_fair_brown",
+    "sliders": {
+     "head_tall": 0.142,
+     "head_wide": -0.374,
+     "skull_long": 0.319,
+     "face_oval": 0.415,
+     "face_fat": -0.619,
+     "face_age": -0.514,
+     "forehead_back": -0.033,
+     "brow_ridge": 0.298,
+     "brow_high": -0.218,
+     "eyes_big": 0.368,
+     "eyes_apart": -0.079,
+     "eyes_high": -0.031,
+     "eyes_open": -0.116,
+     "eyes_hooded": -0.228,
+     "eyes_slant": -0.003,
+     "eye_bags": -0.027,
+     "nose_long": 0.201,
+     "nose_wide": -0.597,
+     "nose_out": 0.449,
+     "nose_hump": -0.486,
+     "nose_hook": -0.252,
+     "nose_tip_down": 0.056,
+     "nose_bulb": -0.511,
+     "nostrils_wide": -0.718,
+     "mouth_wide": -0.102,
+     "lips_full": -0.944,
+     "mouth_out": -0.168,
+     "mouth_corners": -0.328,
+     "cheekbones": -0.15,
+     "cheeks_full": -0.544,
+     "chin_out": 0.371,
+     "chin_wide": -0.53,
+     "chin_tall": 0.377,
+     "jaw_wide": -0.906,
+     "jaw_low": -0.378,
+     "ears_big": -0.184,
+     "ears_out": 0.3,
+     "neck_thick": -0.601,
+     "double_chin": 0.358,
+     "weight": -0.167,
+     "muscle": 0.551,
+     "belly": -0.276,
+     "shoulders": 0.047,
+     "hips_wide": -0.315,
+     "buttocks": -0.098,
+     "bust": -0.4
+    }
+   },
+   "hair": {
+    "hair": "bun",
+    "beard": null,
+    "moustache": null
+   },
+   "hats": [],
+   "pieces": [
+    "skirt",
+    "bodice",
+    "cuffL",
+    "cuffR",
+    "coat",
+    "coat_collar",
+    "apron",
+    "apron_band"
+   ],
+   "held": [
+    {
+     "model": "jef_clogs_f_L",
+     "socket": "footL",
+     "note": "the default shoe (held_player.py)"
+    },
+    {
+     "model": "jef_clogs_f_R",
+     "socket": "footR",
+     "note": "the default shoe (held_player.py)"
+    }
+   ],
+   "shapeKeys": {
+    "hands_hard": 0.15
+   },
+   "avoid": {
+    "walk": "walk_f is hers",
+    "talk": "talk_f is hers",
+    "rifle_idle": "no rifle",
+    "rifle_walk": "no rifle",
+    "rifle_talk": "no rifle",
+    "ride": "the skirt"
+   },
+   "triangles": {
+    "lod0": 12662,
+    "lod1": 2191
+   },
+   "pieceTriangles": {
+    "lod0": {
+     "skirt": 777,
+     "bodice": 1036,
+     "cuffL": 256,
+     "cuffR": 256,
+     "coat": 2642,
+     "coat_collar": 626,
+     "apron": 434,
+     "apron_band": 552
+    },
+    "lod1": {
+     "skirt": 122,
+     "bodice": 195,
+     "cuffL": 44,
+     "cuffR": 44,
+     "coat": 339,
+     "coat_collar": 70,
+     "apron": 64,
+     "apron_band": 110
+    }
+   },
+   "clothChecks": {
+    "before": {
+     "lod0": 9732,
+     "lod1": 2568
+    },
+    "density": 204,
+    "rectShare": 0.794,
+    "stretched2": 0.0097,
+    "worstStretch": 6.75,
+    "islandCuts": 44,
+    "hiddenDeleted": {
+     "lod0": {
+      "skirt": 74,
+      "bodice": 1782,
+      "coat": 24,
+      "apron": 4
+     },
+     "lod1": {
+      "skirt": 4,
+      "bodice": 332
+     }
+    },
+    "reliefPoints": 0,
+    "occlusion": {
+     "lod0": [
+      0.411,
+      1.0
+     ],
+     "lod1": [
+      0.364,
+      1.0
+     ]
+    }
+   },
+   "note": "the player, a woman: short jacket and an apron"
+  },
+  "jef_w_coat": {
+   "group": "player",
+   "body": "woman_middling",
+   "sex": "f",
+   "height": 1.57,
+   "hipsBone": 0.8179,
+   "hero": true,
+   "face": {
+    "seed": 1873526,
+    "sex": "f",
+    "age": 22
+   },
+   "defaultFace": {
+    "type": "young_woman",
+    "cell": "f_fair_fair",
+    "sliders": {
+     "head_tall": -0.115,
+     "head_wide": -0.286,
+     "skull_long": -0.098,
+     "face_fat": -0.463,
+     "face_age": -0.514,
+     "forehead_back": -0.16,
+     "brow_ridge": 0.445,
+     "brow_high": -0.02,
+     "eyes_big": 0.706,
+     "eyes_apart": 0.027,
+     "eyes_high": 0.157,
+     "eyes_open": 0.289,
+     "eyes_hooded": -0.35,
+     "eyes_slant": 0.128,
+     "eye_bags": 0.072,
+     "nose_long": -0.454,
+     "nose_wide": 0.063,
+     "nose_out": -0.277,
+     "nose_hump": -0.052,
+     "nose_hook": -0.884,
+     "nose_tip_down": -0.201,
+     "nose_bulb": -0.074,
+     "nostrils_wide": -0.367,
+     "mouth_wide": 0.018,
+     "lips_full": 0.096,
+     "mouth_out": -0.264,
+     "mouth_corners": 0.18,
+     "cheekbones": 0.65,
+     "cheeks_full": 0.192,
+     "chin_out": 0.119,
+     "chin_wide": 0.065,
+     "chin_tall": -0.186,
+     "jaw_wide": -0.496,
+     "jaw_low": -0.017,
+     "ears_big": 0.074,
+     "ears_out": -0.069,
+     "neck_thick": 0.115,
+     "weight": -0.102,
+     "muscle": -0.158,
+     "belly": 0.447,
+     "shoulders": -0.052,
+     "hips_wide": 0.127,
+     "buttocks": -0.21,
+     "bust": -0.313
+    }
+   },
+   "hair": {
+    "hair": "coronet",
+    "beard": null,
+    "moustache": null
+   },
+   "hats": [],
+   "pieces": [
+    "skirt",
+    "bodice",
+    "cuffL",
+    "cuffR",
+    "coat",
+    "coat_collar"
+   ],
+   "held": [
+    {
+     "model": "jef_clogs_f_L",
+     "socket": "footL",
+     "note": "the default shoe (held_player.py)"
+    },
+    {
+     "model": "jef_clogs_f_R",
+     "socket": "footR",
+     "note": "the default shoe (held_player.py)"
+    }
+   ],
+   "shapeKeys": {
+    "hands_hard": 0.15
+   },
+   "avoid": {
+    "walk": "walk_f is hers",
+    "talk": "talk_f is hers",
+    "rifle_idle": "no rifle",
+    "rifle_walk": "no rifle",
+    "rifle_talk": "no rifle",
+    "ride": "the skirt"
+   },
+   "triangles": {
+    "lod0": 12657,
+    "lod1": 2190
+   },
+   "pieceTriangles": {
+    "lod0": {
+     "skirt": 882,
+     "bodice": 1131,
+     "cuffL": 256,
+     "cuffR": 256,
+     "coat": 3261,
+     "coat_collar": 788
+    },
+    "lod1": {
+     "skirt": 126,
+     "bodice": 227,
+     "cuffL": 48,
+     "cuffR": 48,
+     "coat": 442,
+     "coat_collar": 96
+    }
+   },
+   "clothChecks": {
+    "before": {
+     "lod0": 8352,
+     "lod1": 2216
+    },
+    "density": 262,
+    "rectShare": 0.852,
+    "stretched2": 0.0064,
+    "worstStretch": 6.76,
+    "islandCuts": 8,
+    "hiddenDeleted": {
+     "lod0": {
+      "skirt": 46,
+      "bodice": 1818,
+      "coat": 8
+     },
+     "lod1": {
+      "bodice": 340
+     }
+    },
+    "reliefPoints": 0,
+    "occlusion": {
+     "lod0": [
+      0.382,
+      1.0
+     ],
+     "lod1": [
+      0.349,
+      1.0
+     ]
+    }
+   },
+   "note": "the player, a woman: fitted long coat (a redingote) over a bodice and skirt"
+  },
+  "jef_w_smock": {
+   "group": "player",
+   "body": "woman_middling",
+   "sex": "f",
+   "height": 1.57,
+   "hipsBone": 0.8179,
+   "hero": true,
+   "face": {
+    "seed": 1873527,
+    "sex": "f",
+    "age": 22
+   },
+   "defaultFace": {
+    "type": "young_woman",
+    "cell": "f_mid_dark",
+    "sliders": {
+     "head_tall": 0.269,
+     "head_wide": 0.016,
+     "skull_long": 0.167,
+     "face_round": 0.157,
+     "face_oval": 0.381,
+     "face_fat": -0.102,
+     "face_age": -0.514,
+     "forehead_back": -0.117,
+     "brow_ridge": 0.12,
+     "brow_high": 0.113,
+     "eyes_big": 0.435,
+     "eyes_apart": 0.077,
+     "eyes_high": -0.558,
+     "eyes_open": 0.35,
+     "eyes_hooded": -0.346,
+     "eyes_slant": 0.222,
+     "eye_bags": -0.159,
+     "nose_long": -0.465,
+     "nose_wide": 0.277,
+     "nose_out": -0.768,
+     "nose_hump": -0.366,
+     "nose_hook": 0.051,
+     "nose_tip_down": -0.237,
+     "nose_bulb": -0.058,
+     "nostrils_wide": 0.56,
+     "mouth_wide": 0.025,
+     "lips_full": -0.249,
+     "mouth_out": 0.189,
+     "mouth_corners": 0.551,
+     "cheekbones": 0.587,
+     "cheeks_full": -0.128,
+     "chin_out": 0.017,
+     "chin_wide": -0.393,
+     "chin_tall": -0.312,
+     "jaw_wide": -0.605,
+     "jaw_low": -0.186,
+     "ears_big": -0.182,
+     "ears_out": 0.167,
+     "neck_thick": -0.072,
+     "weight": -0.337,
+     "muscle": 0.024,
+     "belly": 0.176,
+     "shoulders": -0.031,
+     "hips_wide": -0.011,
+     "buttocks": -0.475,
+     "bust": 0.357
+    }
+   },
+   "hair": {
+    "hair": "coronet",
+    "beard": null,
+    "moustache": null
+   },
+   "hats": [],
+   "pieces": [
+    "skirt",
+    "bodice",
+    "cuffL",
+    "cuffR",
+    "smock",
+    "smock_cuffL",
+    "smock_cuffR"
+   ],
+   "held": [
+    {
+     "model": "jef_clogs_f_L",
+     "socket": "footL",
+     "note": "the default shoe (held_player.py)"
+    },
+    {
+     "model": "jef_clogs_f_R",
+     "socket": "footR",
+     "note": "the default shoe (held_player.py)"
+    }
+   ],
+   "shapeKeys": {
+    "hands_hard": 0.15
+   },
+   "avoid": {
+    "walk": "walk_f is hers",
+    "talk": "talk_f is hers",
+    "rifle_idle": "no rifle",
+    "rifle_walk": "no rifle",
+    "rifle_talk": "no rifle",
+    "ride": "the skirt"
+   },
+   "triangles": {
+    "lod0": 12677,
+    "lod1": 2190
+   },
+   "pieceTriangles": {
+    "lod0": {
+     "skirt": 683,
+     "bodice": 1455,
+     "cuffL": 256,
+     "cuffR": 256,
+     "smock": 3432,
+     "smock_cuffL": 256,
+     "smock_cuffR": 256
+    },
+    "lod1": {
+     "skirt": 131,
+     "bodice": 286,
+     "cuffL": 48,
+     "cuffR": 48,
+     "smock": 378,
+     "smock_cuffL": 48,
+     "smock_cuffR": 48
+    }
+   },
+   "clothChecks": {
+    "before": {
+     "lod0": 7226,
+     "lod1": 1918
+    },
+    "density": 279,
+    "rectShare": 0.804,
+    "stretched2": 0.0082,
+    "worstStretch": 7.43,
+    "islandCuts": 8,
+    "hiddenDeleted": {
+     "lod0": {
+      "bodice": 1630,
+      "smock": 40
+     },
+     "lod1": {
+      "bodice": 306
+     }
+    },
+    "reliefPoints": 708,
+    "occlusion": {
+     "lod0": [
+      0.376,
+      1.0
+     ],
+     "lod1": [
+      0.349,
+      1.0
+     ]
+    }
+   },
+   "note": "the player, a woman: a loose linen smock over a bodice and skirt"
   }
  }
 }

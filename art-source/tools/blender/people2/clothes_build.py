@@ -764,6 +764,8 @@ def unwrap(ob, rect, scales=None, pad_px=5, log=None):
         parts = [raw[v] for f in fids for v in polys[f].vertices]
         part = next((x for x in parts if x.startswith("in_")), parts[0])
         k = (scales or {}).get(part, 1.0)
+        if scales and "__island__" in scales:  # a kind's own factor per island (kinds_player: the sleeves)
+            k *= scales["__island__"](lv)
         q = q * math.sqrt(a3 / max(a2, 1e-12)) * k  # metres (times the piece's factor)
         # turn the island so the cloth's up (Blender z) runs up the picture: the least-squares gradient of height
         # over the island's UVs
@@ -1094,7 +1096,7 @@ def _limb(name):
     return "trunk"
 
 
-def occlusion(ob, P, reach=0.10, rays=40):
+def occlusion(ob, P, reach=0.10, rays=40, through=False):
     """Ambient occlusion per vertex at rest (Blender space; game up is z), by cosine-weighted rays over each
     vertex's hemisphere up to `reach`: the crevices every pose keeps (under a collar, a cap's peak over the brow, a
     shawl's edge, between garments, the armpit). Hits between parts that move on their own are not counted (an arm
@@ -1127,19 +1129,27 @@ def occlusion(ob, P, reach=0.10, rays=40):
         acc = 0.0
         for d in dirs:
             dv = t * float(d[0]) + bt * float(d[1]) + n * float(d[2])
-            hit, _, fi, dist = tree.ray_cast(o, dv, reach)
-            if hit is None:
-                continue
-            b = pgrp[fi]
-            if a != b:
-                if "trunk" in (a, b):
-                    limb = a if b == "trunk" else b
-                    lo = y_pit if limb.startswith("arm") else y_crotch
-                    if co[i].z < lo or hit.z < lo:
-                        continue
-                else:
-                    continue
-            acc += (1.0 - (dist / reach) ** 2) * float(d[2])
+            start, travelled = o, 0.0
+            for _ in range(4 if through else 1):
+                hit, _, fi, dist = tree.ray_cast(start, dv, reach - travelled)
+                if hit is None:
+                    break
+                dist += travelled
+                b = pgrp[fi]
+                skip = False
+                if a != b:
+                    if "trunk" in (a, b):
+                        limb = a if b == "trunk" else b
+                        lo = y_pit if limb.startswith("arm") else y_crotch
+                        skip = co[i].z < lo or hit.z < lo
+                    else:
+                        skip = True
+                if not skip:
+                    acc += (1.0 - (dist / reach) ** 2) * float(d[2])
+                    break
+                # through: a limb resting against the cloth at rest does not leave its shape in the bake (the ray
+                # goes on past it to what lies behind)
+                start, travelled = hit + dv * 0.0005, dist + 0.0005
         occ[i] = acc / wsum
     return np.clip(occ, 0.0, 1.0)
 
@@ -1150,9 +1160,9 @@ AO_RULE = ("picture_flags blue = ambient light reaching the point at rest, 1 ope
            "and indirect light by it, never the lamps or the albedo")
 
 
-def bake_occlusion(ob, P, strength=0.85, reach=0.10):
+def bake_occlusion(ob, P, strength=0.85, reach=0.10, through=False):
     """Write 1 - strength x occlusion into vertex colour blue (picture_flags, every corner of the vertex)."""
-    occ = occlusion(ob, P, reach=reach)
+    occ = occlusion(ob, P, reach=reach, through=through)
     vis = np.maximum(0.22, 1.0 - strength * occ)
     me = ob.data
     attr = me.color_attributes.get("picture_flags")

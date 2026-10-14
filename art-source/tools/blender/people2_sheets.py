@@ -14,7 +14,10 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from people2 import preview_mh  # noqa: E402
 
 ARGS = sys.argv[sys.argv.index("--") + 1:] if "--" in sys.argv else []
-if "cloth" in ARGS:
+if "player" in ARGS:
+    from people2 import preview_player  # noqa: E402
+    preview_player.run([a for a in ARGS if a != "player"])
+elif "cloth" in ARGS:
     from people2 import preview_cloth  # noqa: E402
     preview_cloth.run([a for a in ARGS if a != "cloth"])
 else:

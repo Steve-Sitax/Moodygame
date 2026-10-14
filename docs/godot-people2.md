@@ -196,7 +196,7 @@ pwsh -File native-godot/scripts/check-people2.ps1
 The routing fixture verifies the map overrides, all 61 body/kind roots, the
 16/64-bone off/on switch and the face setter/reset contract.
 
-The runner builds/prepares once, accepts ports 8800–9139 with `-Port`, disables AI and writes evidence
+The runner builds/prepares once, accepts ports 8800–9179 with `-Port`, disables AI and writes evidence
 under `.scratch/people2-native-*`. Each process has separate saves, settings, layouts
 and static cache, a 420-second timeout and guaranteed shutdown/data cleanup.
 Timing rejects every other Godot process before and throughout the run, including failed-launch

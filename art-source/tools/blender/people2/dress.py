@@ -232,6 +232,23 @@ def clothes_keys(ob, b, first, lod):
         kb[kn].data.foreach_set("co", k.ravel())
 
 
+def fill_nearest(ids, has, steps=14):
+    """Whole-number labels grown outward into the empty texels from the nearest labelled one (no averaging)."""
+    s, m = ids.copy(), has.copy()
+    for _ in range(steps):
+        new = np.zeros_like(m)
+        val = s.copy()
+        for dy in (-1, 0, 1):
+            for dx in (-1, 0, 1):
+                if dx == 0 and dy == 0:
+                    continue
+                take = (~m) & np.roll(np.roll(m, dy, 0), dx, 1) & ~new
+                val[take] = np.roll(np.roll(s, dy, 0), dx, 1)[take]
+                new |= take
+        s, m = val, m | new
+    return s
+
+
 def paint_clothes(ob, pieces, fit, size, seed=3, layer=False):
     """The cloth picture: every piece painted where its texels are (part_<piece>, part_in_<piece>). layer: the UVs
     are already in the 1024 px layer's coordinates (clothes_build.unwrap): paint the whole layer at `size` (2048: twice
@@ -262,12 +279,14 @@ def paint_clothes(ob, pieces, fit, size, seed=3, layer=False):
     zn = np.array([n.split("|")[1] for n in names] + [""])
     pname = pn[np.where(part >= 0, part, len(names))]
     zname = zn[np.where(part >= 0, part, len(names))]
+    slots = np.zeros(pos.shape[:2], np.uint8)  # the player's colour slot of every texel (kinds_player.py), 0: fixed
     for k, pc in enumerate(pieces):
         m_out = pname == pc.name
         m_in = pname == "in_" + pc.name
         m = m_out | m_in
         if not m.any():
             continue
+        slots[m] = getattr(pc, "slot_id", 0)
         idx = np.nonzero(m)
         ctx = ck.Ctx(pos[idx].astype(np.float64), nrm[idx].astype(np.float64), m_in[idx], pc, fit,
                      np.zeros((len(idx[0]), 3), np.float32), np.zeros(len(idx[0])), seed + 31 * k)
@@ -293,8 +312,10 @@ def paint_clothes(ob, pieces, fit, size, seed=3, layer=False):
             nmap = down_normals(np.where(has[..., None], nmap, np.array((0.5, 0.5, 1.0), np.float32)))
             zones = np.where(cov > 0, cb.down2(zones[..., None] * has[..., None])[..., 0] / np.maximum(cov, 1e-6), 0)
             zones = np.round(zones)
+            slots = slots[::2, ::2]
             has = cov > 0.24
     paint_clothes.zones = paint.dilate(zones[..., None].astype(np.float32), has)[..., 0]
+    paint_clothes.slots = fill_nearest(slots, has)
     rgb = paint.dilate(rgb.astype(np.float32), has, steps=14)
     nmap = paint.dilate(nmap.astype(np.float32), has, steps=14)
     return rgb, nmap
@@ -341,9 +362,9 @@ def build(kind, make_body, ref_uv, layout, atl, tex=2048, log=print):
     order0 = {p for p in order0 if (p[1], p[0]) not in told} | told
     order1 = {p for p in order1 if (p[1], p[0]) not in told} | told
     before = {"lod0": cb.tris(near), "lod1": cb.tris(cage)}
-    budget0 = (NEAR_HERO if kind.hero else NEAR_CROWD) - lod.tris(b["lod0"])
-    budget1 = FAR - lod.tris(b["lod1"])
-    cb.reduce(near, budget0)
+    budget0 = (getattr(kind, "near_budget", None) or (NEAR_HERO if kind.hero else NEAR_CROWD)) - lod.tris(b["lod0"])
+    budget1 = (getattr(kind, "far_budget", None) or FAR) - lod.tris(b["lod1"])
+    cb.reduce(near, budget0, weights=kind.reduce_weights(near) if getattr(kind, "reduce_weights", None) else None)
     cb.reduce(cage, budget1, weights=cb.protect_weights(cage, seam=0.4, rim=0.35))
     m0 = ck.clear_layers(near, b["lod0"], order0, clearance=0.0035, passes=3, body_clearance=0.005)
     m1 = ck.clear_layers(cage, b["lod1"], order1, clearance=0.004, body_clearance=0.006)
@@ -364,6 +385,8 @@ def build(kind, make_body, ref_uv, layout, atl, tex=2048, log=print):
         # the insides and the rims (hems, cuffs, brims' edges) at the cloth's own density too (the owner's rule of
         # 2026-10-13: no stretched or blurred small sides)
         scales["in_" + pc.name] = pc.scale
+    if getattr(kind, "uv_boost", None):  # more texels for some islands (the player's sleeves: kinds_player.py)
+        scales["__island__"] = kind.uv_boost(near)
     density, share = cb.unwrap(near, layout["cloth_" + kind.name], scales, log=log)
     bad, worst = cb.stretch(near)
     log("[people2]   %s UVs after the reduction: %d cuts added, %.0f px/m, %.1f%% of triangles stretched over 2:1 "
@@ -402,8 +425,9 @@ def build(kind, make_body, ref_uv, layout, atl, tex=2048, log=print):
     clothes_keys(b["lod0"], b, n0, 0)
     clothes_keys(b["lod1"], b, n1, 1)
     # baked occlusion over body and clothes (vertex colour blue; clothes_build.AO_RULE)
-    ao0 = cb.bake_occlusion(b["lod0"], b["P"])
-    ao1 = cb.bake_occlusion(b["lod1"], b["P"])
+    through = getattr(kind, "ao_through", False)  # kinds_player: no resting-arm shapes in the bake
+    ao0 = cb.bake_occlusion(b["lod0"], b["P"], through=through)
+    ao1 = cb.bake_occlusion(b["lod1"], b["P"], through=through)
     b["cloth_checks"]["occlusion"] = {"lod0": [round(x, 3) for x in ao0], "lod1": [round(x, 3) for x in ao1]}
     b["vparts"] = wt.parts(b["lod0"])
     b["cparts"] = wt.parts(b["lod1"])
