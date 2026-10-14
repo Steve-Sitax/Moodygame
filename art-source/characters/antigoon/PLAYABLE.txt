@@ -1,0 +1,78 @@
+ANTIGOON — PLAYABLE CHARACTER
+
+Run from the repository:
+  powershell -File native-godot/scripts/play-antigoon.ps1
+The character test uses no saved town and changes no player progress.
+WASD: move. Shift: run. Mouse: look. Left click: strike. Escape: release mouse.
+L: toggle light refuge. T: day/night. R: reset. 1/2/3: smirk/laugh/angry.
+
+Reusable visual scene: native-godot/assets/characters/antigoon/antigoon.tscn
+Skinned model: native-godot/assets/characters/antigoon/antigoon-playable.glb
+Editable rig: art-source/characters/antigoon/source/antigoon-playable.blend
+Restore the editable source with pack_delivery.py unpack (see below).
+Original approved v13 sources are retained separately.
+
+The model is 5.4 metres tall and 563,375 triangles, with 46 bones, five facial morph controls,
+separate eyes/irises, teeth and mouth cavity. Body/head maps are 4096 pixels;
+belt maps are 2048 pixels. Iris/eyelid albedo maps are 1024 pixels.
+Wrist skin uses its own material to prevent cloth texture bleed.
+Albedo, roughness and tangent normals are embedded
+in the GLB. Godot generates distance LODs when creating the actor.
+Animation clips: idle, walk, run, attack, throw, hit, recoil_light, death, roar,
+smirk, laugh and angry. Root translation belongs to the gameplay brain.
+
+Combat: 120 health, 15 damage per player strike with a 0.8 second cooldown.
+Run speed: 4.8 m/s versus the player's 3.4. Walk: 1.8 m/s.
+Kick wind-up: 0.62 seconds; full attack: 1.35 seconds; range: 2.2 metres.
+The host validates range, walls, light and target health at contact.
+Street lamps and working carried lanterns protect players. Rain/wet lantern
+rules use the existing native service. Daylight makes him return home.
+
+Native town: automatic night event, 20:00–06:00, in single and multiplayer.
+F6 remains a separate single-player investigation opt-in.
+Spawns require a dark, connected back alley, giant clearance and no player
+line of sight. Antigoon patrols connected street routes.
+He throws stones at burning lamps from darkness. A 0.7 s wind-up precedes
+flight; impact extinguishes the lamp until 20:00 the following night.
+Outages persist across midnight and saves; normal lamplighting cannot
+override the outage. Existing lamp geometry and placement are preserved.
+Nearby visible outdoor residents scream and flee along paths to their homes.
+He occasionally chases one. Light, lost sight or house entry ends pursuit.
+A caught resident falls, waits at least 3 s and until Antigoon is over 14 m
+away, gets up, runs home, rests inside 8 s and resumes their normal schedule.
+The event temporarily owns resident poses on all clients. No permanent
+resident health loss. Active transport and existing actor actions are not
+preempted. Alarm cries are original synthetic voices.
+Multiplayer uses one host-owned enemy and disables the investigation route.
+Health/position persist in world_state; save/load resets the live simulation.
+Use --no-antigoon to disable the client encounter part during other tests.
+
+Verification:
+  dotnet run --project native-godot/services/proofs/antigoon/Antigoon.Proof.csproj
+  powershell -File native-godot/scripts/play-antigoon.ps1 -Proof
+Godot proof loads the actual GLB, checks animations and runs service checks
+against an in-memory database. Logs and Blender/Godot renders are in logs/
+and review/. This test arena is a functional lab, not finished city artwork.
+
+Limits: the full authored Ruien map and branching quest campaign are not
+included. Native street placement is conservative and can refuse to spawn
+when no giant-sized dark route exists. A live two-client town playthrough
+still needs acceptance. Animation is authored in place without terrain IK
+or cloth simulation; hair is sculpted geometry. The roar clip has no voice
+performance. Footsteps/impact reuse the project's Kenney CC0 sounds;
+heartbeat is original runtime synthesis.
+
+Street verification: 18 brain + 17 event + 21 host checks. Native street
+preview: review/night-event-proof-06/antigoon-street-event.png. The staged
+proof checks an authored alley, a giant-sized route out, actual resident
+panic and rendering. Character maps use native sky/lamp light and fog.
+Resident fleeing uses accelerated existing crowd strides; knockdown/rise
+are procedural poses, not ragdolls or dedicated motion-capture clips.
+
+Repository delivery: lossless 24 MiB chunks in native-godot/assets/characters/
+antigoon/packed and art-source/characters/antigoon/source/packed. The game
+loads its runtime bundle directly, including from an exported PCK. Restore
+the standalone GLB and editable Blender source with:
+  python art-source/characters/antigoon/pack_delivery.py unpack
+After editing/exporting both files, run the same command with pack.
+Hashes verify exact model, embedded textures and source reconstruction.

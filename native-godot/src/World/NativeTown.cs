@@ -192,7 +192,7 @@ public partial class NativeTown : BakedWorld
             .Select(s => {
                 string label = s!["label"]!.GetValue<string>();
                 string id = s["id"]?.GetValue<string>() ?? (label.StartsWith("gas lamp ", StringComparison.Ordinal) ? label[9..] : "");
-                return new JsonObject { ["id"] = id, ["x"] = s["at"]![0]!.DeepClone(), ["z"] = s["at"]![2]!.DeepClone(), ["hung"] = s["power"]!.GetValue<double>() <= 9 };
+                return new JsonObject { ["id"] = id, ["x"] = s["at"]![0]!.DeepClone(), ["y"] = s["at"]![1]!.DeepClone(), ["z"] = s["at"]![2]!.DeepClone(), ["hung"] = s["power"]!.GetValue<double>() <= 9 };
             }).Where(l => l["id"]!.GetValue<string>() != "").Select(l => (JsonNode)l).ToArray());
         lights = JsonDocument.Parse(data.ToJsonString());
     }

@@ -62,7 +62,7 @@ public partial class NativeStreet : Node
             row.Changed = together.ServerNow; row.Track = new() { Delay = 220 }; row.Heard = together.ServerNow;
             row.Fresh = previous == together.PlayerId; row.OffsetX = row.OffsetZ = 0;
             row.GoneAt = owner < 0 ? together.ServerNow + 520 : 0;
-            var person = town.ActionPerson(id); if (person == null || person.ActionOwner is Game.Actors) continue;
+            var person = town.ActionPerson(id); if (person == null || (person.ActionOwner is Game.Actors || person.ServerEventDriven)) continue;
             if (owner == together.PlayerId || owner == 0) { town.RemoteRelease(person); sent.Remove(id); }
             else if (person.P != null) person.P.Remote = true;
         }
@@ -76,7 +76,7 @@ public partial class NativeStreet : Node
             if (!EventPuppets.Read(data.AsSpan(10 + i * 24, 24), time, out ushort number, out var pose, out float size)
                 || !numbered.TryGetValue(number, out string? id) || !people.TryGetValue(id, out var row)
                 || row.Owner <= 0 || row.Owner == together.PlayerId) continue;
-            if (town.ActionPerson(id)?.ActionOwner is Game.Actors) continue;
+            if (town.ActionPerson(id) is { } held && (held.ActionOwner is Game.Actors || held.ServerEventDriven)) continue;
             pose.Flags |= MpProtocol.FlagGrounded;
             row.Track.Push(pose, received); row.Size = size; row.Heard = together.ServerNow; Received++;
         }
@@ -92,7 +92,7 @@ public partial class NativeStreet : Node
         foreach (var pair in people)
         {
             var row = pair.Value;
-            if (row.Owner == together.PlayerId || row.Owner == 0 || town.ActionPerson(pair.Key) is not { } person || person.ActionOwner is Game.Actors) continue;
+            if (row.Owner == together.PlayerId || row.Owner == 0 || town.ActionPerson(pair.Key) is not { } person || (person.ActionOwner is Game.Actors || person.ServerEventDriven)) continue;
             if (together.ServerNow - row.Heard > 3000 || row.GoneAt > 0 && together.ServerNow > row.GoneAt)
             {
                 if (person.P?.Remote == true) town.RemoteRelease(person, true); continue;
@@ -119,7 +119,7 @@ public partial class NativeStreet : Node
             claimAge = 0; var claims = new List<string>(); var steal = new List<string>(); var releases = new List<string>(); var gone = new List<string>();
             foreach (var person in town.Sims)
             {
-                if (person.ActionOwner is Game.Actors) continue;
+                if ((person.ActionOwner is Game.Actors || person.ServerEventDriven)) continue;
                 int owner = OwnerOf(person.R.Id); int pin = pins.GetValueOrDefault(person.R.Id);
                 if (pin == together.PlayerId && owner != together.PlayerId) { steal.Add(person.R.Id); continue; }
                 if (pin > 0 && pin != together.PlayerId) continue;
@@ -141,7 +141,7 @@ public partial class NativeStreet : Node
         var output = new List<(ushort Number, MpState State, float Size)>();
         foreach (var person in town.Sims)
         {
-            if (person.P is not { Remote: false } puppet || person.ActionOwner is Game.Actors || !people.TryGetValue(person.R.Id, out var row) || row.Owner != together.PlayerId) continue;
+            if (person.P is not { Remote: false } puppet || (person.ActionOwner is Game.Actors || person.ServerEventDriven) || !people.TryGetValue(person.R.Id, out var row) || row.Owner != together.PlayerId) continue;
             int mode = Math.Max(0, Array.IndexOf(EventPuppets.Motions, puppet.Human.Motion ?? "idle"));
             int gear = (puppet.State == "sit" ? 1 : 0) | (puppet.Lantern != null ? 2 : 0) | (puppet.Loaded ? 4 : 0);
             int bought = Math.Max(0, Array.IndexOf(EventPuppets.Bought, puppet.Bought));

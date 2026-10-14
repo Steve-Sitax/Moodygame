@@ -1,0 +1,78 @@
+{
+  "character": "Antigoon",
+  "status": "Playable high-resolution character v1: rigged, textured, facial morphs, twelve clips, Godot actor and encounter integration; final campaign and live multiplayer acceptance remain open",
+  "date": "2026-10-14",
+  "height_m": 5.4,
+  "human_reference_m": 1.8,
+  "visual_reference": {
+    "description": "User's four photographs show Albert Poels' Lange Wapper statue beside Het Steen. Its face, parted bob hair, slender proportions, collar, flared sleeves and belted tunic inform the fictional Antigoon character.",
+    "identification": "https://kunstindestad.middelheimmuseum.be/en/all/langewapper",
+    "photo_usage": "Shape reference only. Photographs and their watermarks are not used as model textures."
+  },
+  "appearance": {
+    "body": "Slender living male giant, long limbs, pale skin, golden blond hair, large pale light-blue eyes, dark tunic, faded slate-blue trousers and muddy brown leather shoes.",
+    "weathering": "Uneven damp staining and silt concentrate at ankles, knees, tunic hem, cuffs and shoes. Colour, roughness and tangent normals baked to 4K body/head maps; woven cloth detail has colour and relief. Belt has its own 2K PBR set.",
+    "belt": "Separate brown leather mesh fitted above the tunic, 190 mm wide and 16 mm thick at giant scale, 3 mm bevelled edges, saddle stitches and hanging strap. The 40 mm wide, 6 mm thick keeper is centred at X=0.260 m, to the right of the hanging end. Its front and back follow the actual belt surfaces so the belt passes through its opening. The approved 230 x 184 mm brass buckle remains centred at X=0 with horizontal tongue and 4 mm edge bevel. Metal uses a constant metallic material; no dedicated corrosion map.",
+    "approval": "User approved the blond smirk portrait as perfect. That approval applies to the expression study, not automatically to the later reconstructed mesh.",
+    "collar": "Upper tunic rebuilt with a separate folded collar: 12 mm cloth thickness and 5 mm rounded rim at giant scale.",
+    "hands": "Both hands retained to follow the supplied statue references; no missing-hand variant yet.",
+    "pose": "Editable neutral A-pose with 46-bone deform rig and five facial controls: jaw_open, smirk, angry, blink, laugh.",
+    "back": "Inferred from the frontal references and reviewed separately.",
+    "face": "Separate eyeballs, radial pale-blue irises, pupils, eyelid rims, teeth, tongue and mouth cavity. Mouth opening follows the curved lip seam; lip colour is baked around that opening.",
+    "materials": "Corrected cuff cloth and exposed wrist assignments; baked body/head PBR maps preserve original garment UVs. Explicit wrist skin material prevents cloth-island dilation bleeding onto hands. Iris and eyelid colour use image textures for portable runtime loading."
+  },
+  "tools": {
+    "references": "Built-in image_gen tool: full body, then a separate identity-preserving head reference.",
+    "geometry": "Locally installed Hunyuan3D 2.0 draft and Hunyuan3D 2.1 refinement.",
+    "textures": "Locally installed Hunyuan3D Paint 2.0, six views, separate body and head atlases.",
+    "assembly": "Blender 5.2; original sources retained, metric scaling, editable skeletal rig and facial morphs, authored in-place clips, Cycles review.",
+    "validation": "Native Godot actor loads the delivered GLB: 46 bones, 12 clips, finite animated poses and 172 surface LODs. 18 brain, 17 street-event and 21 in-memory host checks pass. A disposable native-town proof verifies a real authored alley, giant-sized exit route, a real resident adopting host panic and native lighting/rendering; preview in review/night-event-proof-06."
+  },
+  "remaining_work": [
+    "Full authored Ruien map, scripted first-sighting quest sequence and branching campaign are not included.",
+    "Live two-client native-town playthrough and broader city spawn/path acceptance remain unverified. The staged native street proof passed; placement refuses routes too small for the giant.",
+    "Animation remains a first playable pass, without terrain IK, cloth simulation or ragdoll. Hair is sculpted geometry; automatic source topology limits deformation polish.",
+    "Roar/laugh clips have no recorded voice performance.",
+    "Exact visual approval of the reconstructed laughing mesh remains with the user; expression concept approval does not automatically approve the model."
+  ],
+  "delivery": {
+    "glb": "native-godot/assets/characters/antigoon/antigoon-playable.glb",
+    "blend": "art-source/characters/antigoon/source/antigoon-playable.blend",
+    "scene": "native-godot/assets/characters/antigoon/antigoon.tscn",
+    "test_launcher": "native-godot/scripts/play-antigoon.ps1",
+    "instructions": "art-source/characters/antigoon/PLAYABLE.txt",
+    "original_master": "art-source/characters/antigoon/source/antigoon-v13-highres-keeper-fit-asset.blend",
+    "master_triangles": 1724512,
+    "playable_triangles": 563375,
+    "bones": 46,
+    "clips": [
+      "idle",
+      "walk",
+      "run",
+      "attack",
+      "throw",
+      "hit",
+      "recoil_light",
+      "death",
+      "roar",
+      "smirk",
+      "laugh",
+      "angry"
+    ],
+    "textures": [
+      "art-source/characters/antigoon/textures/playable",
+      "art-source/characters/antigoon/textures/v13-highres-keeper-fit"
+    ],
+    "texture_sizes": "Body/head 4096px PBR; leather belt 2048px PBR; irises/eyelid rims 1024px albedo; metallic brass and exposed wrist skin use separate materials. Images embedded in GLB and packed in Blender source.",
+    "review": "art-source/characters/antigoon/review",
+    "godot_check": "Actual GLB imported in Godot 4.7.2. Isolated arena and staged native street proof passed. No full-city art or live two-client acceptance claimed."
+  },
+  "street_event": {
+    "trigger": "automatic between 20:00 and 06:00, dark offscreen back alley with giant clearance",
+    "lamps": "timed rock throw; persistent outage until next evening at 20:00",
+    "residents": "host-controlled panic, occasional pursuit, protected light and home escape, knockdown, stand after 14m separation, home recovery and schedule release",
+    "scope": "ordinary outdoor residents; existing actor actions and transport are not preempted",
+    "audio": "original runtime synthetic alarm cry; existing Kenney CC0 impact",
+    "lighting": "Character and thrown stones use native sky/spill-light/fog. Character normal, roughness and metallic maps are retained; no night emission added."
+  }
+}

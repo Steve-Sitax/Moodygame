@@ -10,7 +10,10 @@ public sealed class NativeStreetLighting
 {
     private readonly NativeServiceHost host;
     private readonly Func<JsonArray> nativeLampFacts;
-    public NativeStreetLighting(NativeServiceHost host, Func<JsonArray> nativeLampFacts) { this.host = host; this.nativeLampFacts = nativeLampFacts; }
+    private IReadOnlyList<AntigoonNightEvent.Lamp>? targetCache;
+    private long targetCacheAt;
+    private double targetCacheHour;
+    public NativeStreetLighting(NativeServiceHost host, Func<JsonArray> nativeLampFacts) { this.host = host; this.nativeLampFacts = nativeLampFacts;host.NewGame+=()=>targetCache=null;host.Loaded+=()=>targetCache=null; }
     private static JsonArray A(JsonNode? node) => node as JsonArray ?? new();
     private static double N(JsonNode? node) => NativeGoods.Number(node);
     private static string S(JsonNode? node, string key) => NativeGoods.S(node, key);
@@ -52,17 +55,41 @@ public sealed class NativeStreetLighting
         }
         return LampLit(round, index, hour, fog);
     }
-    public static double At(JsonArray rounds, JsonArray fallback, double x, double z, double hour, JsonObject? fog, JsonObject? help, int day)
+    public static double At(JsonArray rounds, JsonArray fallback, double x, double z, double hour, JsonObject? fog, JsonObject? help, int day, Func<string,bool>? broken=null)
     {
         if (Daylight(hour) >= 1) return 0; double best = 0;
-        if (rounds.Count > 0) foreach (var round in rounds) { int index = 0; foreach (var lamp in A(round?["lamps"])) { double dx = N(lamp?["x"]) - x, dz = N(lamp?["z"]) - z, distance = Math.Sqrt(dx * dx + dz * dz); if (distance < 13 && LampLight(distance) > best && LampLitHelped(round!.AsObject(), index, hour, fog, help, day)) best = LampLight(distance); index++; } }
-        else foreach (var lamp in fallback) { double dx = N(lamp?["x"]) - x, dz = N(lamp?["z"]) - z; best = Math.Max(best, LampLight(Math.Sqrt(dx * dx + dz * dz))); }
+        if (rounds.Count > 0) foreach (var round in rounds) { int index = 0; foreach (var lamp in A(round?["lamps"])) { double dx = N(lamp?["x"]) - x, dz = N(lamp?["z"]) - z, distance = Math.Sqrt(dx * dx + dz * dz); if (broken?.Invoke(S(lamp,"id"))!=true && distance < 13 && LampLight(distance) > best && LampLitHelped(round!.AsObject(), index, hour, fog, help, day)) best = LampLight(distance); index++; } }
+        else foreach (var lamp in fallback) { if(broken?.Invoke(S(lamp,"id"))==true)continue;double dx = N(lamp?["x"]) - x, dz = N(lamp?["z"]) - z; best = Math.Max(best, LampLight(Math.Sqrt(dx * dx + dz * dz))); }
         return best;
     }
     public double At(double x, double z)
     {
-        var clock = host.Clock.View(); int day = NativeCoreClock.Number(clock, "day"); double hour = N(clock["hour"]) + N(clock["minute"]) / 60;
-        var help = host.Context.World("lamps_help") as JsonObject; if (help != null && N(help["day"]) != day) help = null;
-        var rounds = A(host.Context.World("townlife_lamps")?["rounds"]); return At(rounds, rounds.Count == 0 ? nativeLampFacts() : new JsonArray(), x, z, hour, host.Clock.FogView(), help, day);
+        var clock=host.Clock.View();if(Daylight(N(clock["hour"])+N(clock["minute"])/60)>=1)return 0;
+        double best=0;foreach(var lamp in Targets()){double dx=lamp.At.X-x,dz=lamp.At.Z-z;if(Math.Abs(dx)<13&&Math.Abs(dz)<13)best=Math.Max(best,LampLight(Math.Sqrt(dx*dx+dz*dz)));}return best;
+    }
+    public static double NextNight(int day,double hour)=>(day-1)*24+(hour<20?20:44);
+    private double AbsoluteHour {get{var c=host.Clock.View();return (N(c["day"])-1)*24+N(c["hour"])+N(c["minute"])/60;}}
+    public HashSet<string> Disabled()
+    {
+        double time=AbsoluteHour;var data=host.Context.World("antigoon_lamps") as JsonObject;
+        return data==null?new():data.Where(p=>N(p.Value)>time).Select(p=>p.Key).ToHashSet();
+    }
+    public void Extinguish(string id)
+    {
+        var data=(host.Context.World("antigoon_lamps") as JsonObject)?.DeepClone().AsObject()??new();
+        foreach(var key in data.Where(p=>N(p.Value)<=AbsoluteHour).Select(p=>p.Key).ToArray())data.Remove(key);
+        var c=host.Clock.View();data[id]=NextNight((int)N(c["day"]),N(c["hour"])+N(c["minute"])/60);host.Context.SetWorld("antigoon_lamps",data);targetCache=null;
+    }
+    public IReadOnlyList<AntigoonNightEvent.Lamp> Targets()
+    {
+        double absolute=AbsoluteHour;
+        if(targetCache!=null&&host.Context.Now-targetCacheAt<500&&absolute==targetCacheHour)return targetCache;
+        var c=host.Clock.View();int day=(int)N(c["day"]);double hour=N(c["hour"])+N(c["minute"])/60;var disabled=Disabled();
+        var rounds=A(host.Context.World("townlife_lamps")?["rounds"]);var result=new List<AntigoonNightEvent.Lamp>();
+        var heights=nativeLampFacts().Where(l=>l?["y"]!=null).ToDictionary(l=>S(l,"id"),l=>N(l?["y"]));
+        void Add(JsonNode? l){string id=S(l,"id");if(!disabled.Contains(id))result.Add(new(id,new(N(l?["x"]),N(l?["z"])),heights.GetValueOrDefault(id,3.6)));}
+        if(rounds.Count==0){foreach(var l in nativeLampFacts())Add(l);}
+        else foreach(var r in rounds){int i=0;foreach(var l in A(r?["lamps"])){if(LampLitHelped(r!.AsObject(),i++,hour,host.Clock.FogView(),host.Context.World("lamps_help") as JsonObject,day))Add(l);}}
+        targetCache=result;targetCacheAt=host.Context.Now;targetCacheHour=absolute;return result;
     }
 }

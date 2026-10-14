@@ -1,0 +1,64 @@
+{
+  "height": 5.4,
+  "bones": 46,
+  "clips": {
+    "idle": [
+      3,
+      true
+    ],
+    "walk": [
+      1.2,
+      true
+    ],
+    "run": [
+      0.72,
+      true
+    ],
+    "attack": [
+      1.35,
+      false
+    ],
+    "throw": [
+      2.4,
+      false
+    ],
+    "hit": [
+      0.65,
+      false
+    ],
+    "recoil_light": [
+      1.25,
+      false
+    ],
+    "death": [
+      2.2,
+      false
+    ],
+    "roar": [
+      2.1,
+      false
+    ],
+    "smirk": [
+      2,
+      true
+    ],
+    "laugh": [
+      2.4,
+      true
+    ],
+    "angry": [
+      2,
+      true
+    ]
+  },
+  "attack_contact_seconds": 0.62,
+  "blend_shapes": [
+    "jaw_open",
+    "smirk",
+    "angry",
+    "blink",
+    "laugh"
+  ],
+  "rig": "AntigoonRig",
+  "triangles": 563375
+}

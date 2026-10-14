@@ -187,6 +187,16 @@ public partial class Solid : Node
     public string BodyName(Rid body) => names.GetValueOrDefault(body, "");
     public Aabb BodyBounds(Rid body) => bounds.GetValueOrDefault(body);
 
+    /// <summary>Immutable world-space solid triangles for host-side visibility/large actor clearance. Capture on the scene thread.</summary>
+    public IEnumerable<(Vector3 A,Vector3 B,Vector3 C)> WorldTriangles()
+    {
+        foreach(var item in items)
+        {
+            var vertices=FacesOf(item.Mesh);
+            for(int i=0;i+2<vertices.Length;i+=3)yield return(item.Xf*vertices[i],item.Xf*vertices[i+1],item.Xf*vertices[i+2]);
+        }
+    }
+
     /// <summary>The Godot physics shapes include details absent from the browser's collider boxes. Raster their actual triangles,
     /// not a whole model AABB (which would close the bridge under its overhead beam).</summary>
     public void Footprints(Scheldemist.Town.WalkMap map)
