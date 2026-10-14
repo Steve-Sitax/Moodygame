@@ -11,6 +11,8 @@ Bugs and loose ends are tracked as [issues](https://github.com/Steve-Sitax/Moody
 
 ## [Unreleased]
 
+- Night pickpockets now work from behind. When you look at one, he stops or strolls away instead of walking up to you, and he waits for your back to turn. They no longer rob you while a talk window is open. A thief you catch by the collar runs off and leaves you alone.
+
 - All 51 dressed townspeople now appear by default, including quay workers, soldiers, customs officers, shopkeepers, the named cast and children. Porters hold the shared sack truck and carters push the shared handcart.
 - The knife-sharp corner house north-east of the cathedral is gone: its thin tip and the house behind it were pulled down. The corner is now a small paved square with a lime tree and a bench; its shop baskets, door lantern and lit windows went with it.
 - Dev console: `where` shows your position and the camera view on screen, in the same form the test pictures use. Type `where` again to hide it.

@@ -4,6 +4,7 @@ using Godot;
 using Scheldemist.Game;
 using Scheldemist.Player;
 using Scheldemist.Net;
+using Scheldemist.Windows;
 namespace Scheldemist.Play;
 public partial class Deeds
 {
@@ -15,19 +16,41 @@ public partial class Deeds
         {
             if(s.R.Trade!="thief" || s.P==null || s.Inside || pursuers.ContainsKey(s.R.Id) || s.ActionHeld && !ReferenceEquals(s.ActionOwner,this)) continue;
             var p=s.P; double dx=p.X-Jef.I.X,dz=p.Z-Jef.I.Z,d=Math.Sqrt(dx*dx+dz*dz);
+            if(caught.Contains(s.R.Id))
+            {
+                // caught by the collar: he runs off for a while, then he is the police's and the street's again
+                if(fled.TryGetValue(s.R.Id,out var ran))
+                {
+                    if(GameState.PlayNow-ran>25000) { town.ReleasePlayerPerson(s.R.Id,this); fled.Remove(s.R.Id); }
+                    else town.Crowd.PuppetGo(p,Jef.I.X+dx/Math.Max(d,0.1)*24,Jef.I.Z+dz/Math.Max(d,0.1)*24,2.8);
+                }
+                continue;
+            }
             if(robbed.TryGetValue(s.R.Id,out var when))
             {
                 if(GameState.PlayNow-when>25000) { town.ReleasePlayerPerson(s.R.Id,this); continue; }
                 town.Crowd.PuppetGo(p,Jef.I.X+dx/Math.Max(d,0.1)*20,Jef.I.Z+dz/Math.Max(d,0.1)*20,2.8);
                 continue;
             }
-            bool can=(GameState.I.HourF>=20 || GameState.I.HourF<6) && !Interact.I.IsShut && !Day.I.Busy && !busy;
+            bool can=(GameState.I.HourF>=20 || GameState.I.HourF<6) && !Interact.I.IsShut && !Day.I.Busy && !busy && !Dialogs.I!.Any;
             if(!can || d>28) { town.ReleasePlayerPerson(s.R.Id,this); thieves.Remove(s.R.Id); continue; }
             if(d>=22 || s.ActionHeld && !ReferenceEquals(s.ActionOwner,this)) continue;
             var sim=town.ClaimPlayerPerson(s.R.Id,this); if(sim==null) continue;
             var t=thieves.GetValueOrDefault(s.R.Id);
-            bool unseen=(-Math.Sin(Jef.I.Yaw)*dx-Math.Cos(Jef.I.Yaw)*dz)/Math.Max(d,1)<0.2;
-            t.close=d<1.9 && unseen ? t.close+dt : Math.Max(0,t.close-dt);
+            // how far in front of Jef he stands: 1 straight ahead, 0 to the side, -1 right behind
+            double ahead=(-Math.Sin(Jef.I.Yaw)*dx-Math.Cos(Jef.I.Yaw)*dz)/Math.Max(d,1);
+            // a thief works from behind and never in plain sight: when Jef looks at him he gives it up for a moment,
+            // keeps his distance (or strolls off when he is near) and tries again only when Jef's back is turned
+            if(ahead>0.35 && d<16) t.wary=2.5; else t.wary=Math.Max(0,t.wary-dt);
+            if(t.wary>0 || ahead>=0.1)
+            {
+                t.close=0;
+                if(t.wary>0 && d<7) town.Crowd.PuppetGo(p,p.X+dx/Math.Max(d,0.1)*8,p.Z+dz/Math.Max(d,0.1)*8,1.3);
+                else if(town.Crowd.PuppetBusy(p) || p.Human.Motion!="idle") town.Crowd.PuppetStand(p,"idle",p.Yaw);
+                thieves[s.R.Id]=t;
+                continue;
+            }
+            t.close=d<1.9 ? t.close+dt : Math.Max(0,t.close-dt);
             double bx=Jef.I.X+Math.Sin(Jef.I.Yaw)*0.8,bz=Jef.I.Z+Math.Cos(Jef.I.Yaw)*0.8;
             if(d<4.5)
             {
