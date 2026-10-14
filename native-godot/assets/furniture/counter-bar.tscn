@@ -1,0 +1,41 @@
+[gd_scene format=3]
+
+[ext_resource type="ArrayMesh" path="res://assets/furniture/resources/counters-r0001.res" id="1_hkipm"]
+[ext_resource type="ArrayMesh" path="res://assets/furniture/resources/counters-r0003.res" id="2_snsm6"]
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_hkipm"]
+size = Vector3(2, 1.03, 0.64)
+
+[node name="counter_bar" type="Node3D" unique_id=273561741]
+
+[node name="counter_bar" type="Node3D" parent="." unique_id=1607129279]
+metadata/extras = {
+"furniture": "{\"id\": \"counter-bar\", \"title\": \"Bar counter with a zinc top\", \"category\": \"Furniture: counters\", \"footprint\": [2.006, 1.0295, 1.1472], \"footprintOffset\": [0.0, 0.0, -0.2464], \"collision\": [{\"size\": [2.0, 1.03, 0.64], \"at\": [0, 0.515, 0], \"yaw\": 0.0}], \"points\": [{\"kind\": \"use\", \"node\": \"counter_bar_use_0\", \"at\": [-0.6, 0, 0.75], \"facing\": [0, 0, -1], \"action\": \"drink\"}, {\"kind\": \"use\", \"node\": \"counter_bar_use_1\", \"at\": [0.0, 0, 0.75], \"facing\": [0, 0, -1], \"action\": \"drink\"}, {\"kind\": \"use\", \"node\": \"counter_bar_use_2\", \"at\": [0.6, 0, 0.75], \"facing\": [0, 0, -1], \"action\": \"drink\"}, {\"kind\": \"use\", \"node\": \"counter_bar_use_3\", \"at\": [0, 0.024, -0.55], \"facing\": [0, 0, 1], \"action\": \"serve\"}]}"
+}
+
+[node name="counter_bar_far" type="MeshInstance3D" parent="counter_bar" unique_id=402034511]
+visible = false
+mesh = ExtResource("1_hkipm")
+
+[node name="counter_bar_near" type="MeshInstance3D" parent="counter_bar" unique_id=1792767752]
+mesh = ExtResource("2_snsm6")
+
+[node name="counter_bar_use_0" type="Node3D" parent="counter_bar" unique_id=971357269]
+transform = Transform3D(-1, 0, -8.742278e-08, 0, 1, 0, 8.742278e-08, 0, -1, -0.6, 0, 0.75)
+
+[node name="counter_bar_use_1" type="Node3D" parent="counter_bar" unique_id=1670102086]
+transform = Transform3D(-1, 0, -8.742278e-08, 0, 1, 0, 8.742278e-08, 0, -1, 0, 0, 0.75)
+
+[node name="counter_bar_use_2" type="Node3D" parent="counter_bar" unique_id=747683885]
+transform = Transform3D(-1, 0, -8.742278e-08, 0, 1, 0, 8.742278e-08, 0, -1, 0.6, 0, 0.75)
+
+[node name="counter_bar_use_3" type="Node3D" parent="counter_bar" unique_id=1232715375]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.024, -0.55)
+
+[node name="Solid" type="StaticBody3D" parent="." unique_id=1892535398]
+collision_layer = 2
+collision_mask = 0
+
+[node name="Shape" type="CollisionShape3D" parent="Solid" unique_id=1019518660]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.515, 0)
+shape = SubResource("BoxShape3D_hkipm")

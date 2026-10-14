@@ -1,0 +1,45 @@
+[gd_scene format=3]
+
+[ext_resource type="ArrayMesh" path="res://assets/furniture/resources/seating-r0021.res" id="1_nihjf"]
+[ext_resource type="ArrayMesh" path="res://assets/furniture/resources/seating-r0023.res" id="2_qdrw1"]
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_nihjf"]
+size = Vector3(1.5, 0.445, 0.5)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_qdrw1"]
+size = Vector3(1.5, 0.805, 0.06)
+
+[node name="settle" type="Node3D" unique_id=1698922477]
+
+[node name="settle" type="Node3D" parent="." unique_id=542973934]
+metadata/extras = {
+"furniture": "{\"id\": \"settle\", \"title\": \"High-backed settle\", \"category\": \"Furniture: seating\", \"footprint\": [1.53, 1.401, 0.5], \"footprintOffset\": [0.0, -0.14, -0.01], \"collision\": [{\"size\": [1.5, 0.445, 0.5], \"at\": [0, 0.2225, 0], \"yaw\": 0.0}, {\"size\": [1.5, 0.805, 0.06], \"at\": [0, 0.8475, -0.215], \"yaw\": 0.0}], \"points\": [{\"kind\": \"seat\", \"node\": \"settle_seat_0\", \"at\": [-0.48, 0.447, 0.04], \"facing\": [0, 0, 1]}, {\"kind\": \"seat\", \"node\": \"settle_seat_1\", \"at\": [0.0, 0.447, 0.04], \"facing\": [0, 0, 1]}, {\"kind\": \"seat\", \"node\": \"settle_seat_2\", \"at\": [0.48, 0.447, 0.04], \"facing\": [0, 0, 1]}]}"
+}
+
+[node name="settle_far" type="MeshInstance3D" parent="settle" unique_id=2067268675]
+visible = false
+mesh = ExtResource("1_nihjf")
+
+[node name="settle_near" type="MeshInstance3D" parent="settle" unique_id=1124310704]
+mesh = ExtResource("2_qdrw1")
+
+[node name="settle_seat_0" type="Node3D" parent="settle" unique_id=1666254249]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.48, 0.447, 0.04)
+
+[node name="settle_seat_1" type="Node3D" parent="settle" unique_id=2144269285]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.447, 0.04)
+
+[node name="settle_seat_2" type="Node3D" parent="settle" unique_id=764964167]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.48, 0.447, 0.04)
+
+[node name="Solid" type="StaticBody3D" parent="." unique_id=1393856260]
+collision_layer = 2
+collision_mask = 0
+
+[node name="Shape" type="CollisionShape3D" parent="Solid" unique_id=1343824592]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.2225, 0)
+shape = SubResource("BoxShape3D_nihjf")
+
+[node name="@CollisionShape3D@5" type="CollisionShape3D" parent="Solid" unique_id=933812777]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.8475, -0.215)
+shape = SubResource("BoxShape3D_qdrw1")

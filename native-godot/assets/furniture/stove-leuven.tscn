@@ -1,0 +1,42 @@
+[gd_scene format=3]
+
+[ext_resource type="ArrayMesh" path="res://assets/furniture/resources/stoves-r0005.res" id="1_hhurf"]
+[ext_resource type="ArrayMesh" path="res://assets/furniture/resources/stoves-r0007.res" id="2_nx3ty"]
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_hhurf"]
+size = Vector3(0.66, 0.702, 0.54)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_nx3ty"]
+size = Vector3(0.16, 1.148, 0.16)
+
+[node name="stove_leuven" type="Node3D" unique_id=13083843]
+
+[node name="stove_leuven" type="Node3D" parent="." unique_id=1599187740]
+metadata/extras = {
+"furniture": "{\"id\": \"stove-leuven\", \"title\": \"Cast-iron stove\", \"category\": \"Furniture: stoves\", \"footprint\": [0.656, 1.9793, 0.7976], \"footprintOffset\": [0.0, -0.0066, -0.0812], \"collision\": [{\"size\": [0.66, 0.702, 0.54], \"at\": [0, 0.351, 0], \"yaw\": 0.0}, {\"size\": [0.16, 1.148, 0.16], \"at\": [0, 1.246, -0.12], \"yaw\": 0.0}], \"points\": [{\"kind\": \"use\", \"node\": \"stove_leuven_use_0\", \"at\": [0, 0, 0.8], \"facing\": [0, 0, -1], \"action\": \"stoke\"}, {\"kind\": \"use\", \"node\": \"stove_leuven_use_1\", \"at\": [-0.6, 0, 0.5], \"facing\": [0.7, 0, -0.7], \"action\": \"warm\"}]}"
+}
+
+[node name="stove_leuven_far" type="MeshInstance3D" parent="stove_leuven" unique_id=27102982]
+visible = false
+mesh = ExtResource("1_hhurf")
+
+[node name="stove_leuven_near" type="MeshInstance3D" parent="stove_leuven" unique_id=1881587473]
+mesh = ExtResource("2_nx3ty")
+
+[node name="stove_leuven_use_0" type="Node3D" parent="stove_leuven" unique_id=80632387]
+transform = Transform3D(-1, 0, -8.742278e-08, 0, 1, 0, 8.742278e-08, 0, -1, 0, 0, 0.8)
+
+[node name="stove_leuven_use_1" type="Node3D" parent="stove_leuven" unique_id=849735360]
+transform = Transform3D(-0.7071067, 0, 0.70710677, 0, 1, 0, -0.70710677, 0, -0.7071067, -0.6, 0, 0.5)
+
+[node name="Solid" type="StaticBody3D" parent="." unique_id=213497627]
+collision_layer = 2
+collision_mask = 0
+
+[node name="Shape" type="CollisionShape3D" parent="Solid" unique_id=1303563447]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.351, 0)
+shape = SubResource("BoxShape3D_hhurf")
+
+[node name="@CollisionShape3D@23" type="CollisionShape3D" parent="Solid" unique_id=794955246]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.246, -0.12)
+shape = SubResource("BoxShape3D_nx3ty")

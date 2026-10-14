@@ -1,0 +1,45 @@
+[gd_scene format=3]
+
+[ext_resource type="ArrayMesh" path="res://assets/furniture/resources/clocks-r0008.res" id="1_eoboq"]
+[ext_resource type="ArrayMesh" path="res://assets/furniture/resources/clocks-r0009.res" id="2_s8psm"]
+[ext_resource type="ArrayMesh" path="res://assets/furniture/resources/clocks-r0010.res" id="3_msssi"]
+[ext_resource type="ArrayMesh" path="res://assets/furniture/resources/clocks-r0012.res" id="4_a2dwm"]
+[ext_resource type="ArrayMesh" path="res://assets/furniture/resources/clocks-r0013.res" id="5_mrftq"]
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_eoboq"]
+size = Vector3(0.4, 0.62, 0.11)
+
+[node name="clock_wall" type="Node3D" unique_id=1071475166]
+
+[node name="clock_wall" type="Node3D" parent="." unique_id=383853144]
+metadata/extras = {
+"furniture": "{\"id\": \"clock-wall\", \"title\": \"Drop-dial wall clock\", \"category\": \"Furniture: clocks\", \"footprint\": [0.384, 0.612, 0.118], \"footprintOffset\": [0.0, 1.53, 0.059], \"collision\": [{\"size\": [0.4, 0.62, 0.11], \"at\": [0, 1.84, 0.055], \"yaw\": 0.0}], \"points\": [{\"kind\": \"use\", \"node\": \"clock_wall_use_0\", \"at\": [0, 0, 0.55], \"facing\": [0, 0, -1], \"action\": \"wind\"}]}"
+}
+
+[node name="clock_wall_dial" type="MeshInstance3D" parent="clock_wall" unique_id=919829763]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.95, 0.099)
+mesh = ExtResource("1_eoboq")
+
+[node name="clock_wall_hour_hand" type="MeshInstance3D" parent="clock_wall/clock_wall_dial" unique_id=1219607751]
+mesh = ExtResource("2_s8psm")
+
+[node name="clock_wall_minute_hand" type="MeshInstance3D" parent="clock_wall/clock_wall_dial" unique_id=339890382]
+mesh = ExtResource("3_msssi")
+
+[node name="clock_wall_far" type="MeshInstance3D" parent="clock_wall" unique_id=2071186712]
+visible = false
+mesh = ExtResource("4_a2dwm")
+
+[node name="clock_wall_near" type="MeshInstance3D" parent="clock_wall" unique_id=88041768]
+mesh = ExtResource("5_mrftq")
+
+[node name="clock_wall_use_0" type="Node3D" parent="clock_wall" unique_id=1000195210]
+transform = Transform3D(-1, 0, -8.742278e-08, 0, 1, 0, 8.742278e-08, 0, -1, 0, 0, 0.55)
+
+[node name="Solid" type="StaticBody3D" parent="." unique_id=154025250]
+collision_layer = 2
+collision_mask = 0
+
+[node name="Shape" type="CollisionShape3D" parent="Solid" unique_id=791578869]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.84, 0.055)
+shape = SubResource("BoxShape3D_eoboq")

@@ -1,0 +1,32 @@
+[gd_scene format=3]
+
+[ext_resource type="ArrayMesh" path="res://assets/furniture/resources/wash-r0001.res" id="1_4eg62"]
+[ext_resource type="ArrayMesh" path="res://assets/furniture/resources/wash-r0003.res" id="2_uvd7l"]
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_4eg62"]
+size = Vector3(0.82, 0.78, 0.44)
+
+[node name="washstand" type="Node3D" unique_id=1840502507]
+
+[node name="washstand" type="Node3D" parent="." unique_id=1471936742]
+metadata/extras = {
+"furniture": "{\"id\": \"washstand\", \"title\": \"Washstand with basin and jug\", \"category\": \"Furniture: washing\", \"footprint\": [0.8235, 1.0, 0.44], \"footprintOffset\": [0.0058, 0.0, -0.0], \"collision\": [{\"size\": [0.82, 0.78, 0.44], \"at\": [0, 0.39, 0], \"yaw\": 0.0}], \"points\": [{\"kind\": \"use\", \"node\": \"washstand_use_0\", \"at\": [0, 0, 0.55], \"facing\": [0, 0, -1], \"action\": \"wash\"}]}"
+}
+
+[node name="washstand_far" type="MeshInstance3D" parent="washstand" unique_id=666459893]
+visible = false
+mesh = ExtResource("1_4eg62")
+
+[node name="washstand_near" type="MeshInstance3D" parent="washstand" unique_id=1156524859]
+mesh = ExtResource("2_uvd7l")
+
+[node name="washstand_use_0" type="Node3D" parent="washstand" unique_id=756743959]
+transform = Transform3D(-1, 0, -8.742278e-08, 0, 1, 0, 8.742278e-08, 0, -1, 0, 0, 0.55)
+
+[node name="Solid" type="StaticBody3D" parent="." unique_id=579191561]
+collision_layer = 2
+collision_mask = 0
+
+[node name="Shape" type="CollisionShape3D" parent="Solid" unique_id=1339400832]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.39, 0)
+shape = SubResource("BoxShape3D_4eg62")

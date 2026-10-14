@@ -1,0 +1,53 @@
+[gd_scene format=3]
+
+[ext_resource type="ArrayMesh" path="res://assets/furniture/resources/seating-r0001.res" id="1_ng1eq"]
+[ext_resource type="ArrayMesh" path="res://assets/furniture/resources/seating-r0003.res" id="2_fnh1t"]
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_ng1eq"]
+size = Vector3(2, 0.455, 0.3)
+
+[node name="bench_long" type="Node3D" unique_id=940427642]
+
+[node name="bench_long" type="Node3D" parent="." unique_id=919101963]
+metadata/extras = {
+"furniture": "{\"id\": \"bench-long\", \"title\": \"Long bench\", \"category\": \"Furniture: seating\", \"footprint\": [2.0, 0.4561, 0.3], \"footprintOffset\": [0.0, 0.0, -0.0], \"collision\": [{\"size\": [2.0, 0.455, 0.3], \"at\": [0, 0.2275, 0], \"yaw\": 0.0}], \"points\": [{\"kind\": \"seat\", \"node\": \"bench_long_seat_0\", \"at\": [-0.75, 0.455, -0.0], \"facing\": [0, 0, 1]}, {\"kind\": \"seat\", \"node\": \"bench_long_seat_1\", \"at\": [-0.75, 0.455, -0.0], \"facing\": [0, 0, -1]}, {\"kind\": \"seat\", \"node\": \"bench_long_seat_2\", \"at\": [-0.25, 0.455, -0.0], \"facing\": [0, 0, 1]}, {\"kind\": \"seat\", \"node\": \"bench_long_seat_3\", \"at\": [-0.25, 0.455, -0.0], \"facing\": [0, 0, -1]}, {\"kind\": \"seat\", \"node\": \"bench_long_seat_4\", \"at\": [0.25, 0.455, -0.0], \"facing\": [0, 0, 1]}, {\"kind\": \"seat\", \"node\": \"bench_long_seat_5\", \"at\": [0.25, 0.455, -0.0], \"facing\": [0, 0, -1]}, {\"kind\": \"seat\", \"node\": \"bench_long_seat_6\", \"at\": [0.75, 0.455, -0.0], \"facing\": [0, 0, 1]}, {\"kind\": \"seat\", \"node\": \"bench_long_seat_7\", \"at\": [0.75, 0.455, -0.0], \"facing\": [0, 0, -1]}]}"
+}
+
+[node name="bench_long_far" type="MeshInstance3D" parent="bench_long" unique_id=1091654723]
+visible = false
+mesh = ExtResource("1_ng1eq")
+
+[node name="bench_long_near" type="MeshInstance3D" parent="bench_long" unique_id=2043841897]
+mesh = ExtResource("2_fnh1t")
+
+[node name="bench_long_seat_0" type="Node3D" parent="bench_long" unique_id=1709481017]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.75, 0.455, 0)
+
+[node name="bench_long_seat_1" type="Node3D" parent="bench_long" unique_id=2136021901]
+transform = Transform3D(-1, 0, -8.742278e-08, 0, 1, 0, 8.742278e-08, 0, -1, -0.75, 0.455, 0)
+
+[node name="bench_long_seat_2" type="Node3D" parent="bench_long" unique_id=634076807]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.25, 0.455, 0)
+
+[node name="bench_long_seat_3" type="Node3D" parent="bench_long" unique_id=69598652]
+transform = Transform3D(-1, 0, -8.742278e-08, 0, 1, 0, 8.742278e-08, 0, -1, -0.25, 0.455, 0)
+
+[node name="bench_long_seat_4" type="Node3D" parent="bench_long" unique_id=593337743]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.25, 0.455, 0)
+
+[node name="bench_long_seat_5" type="Node3D" parent="bench_long" unique_id=1373504134]
+transform = Transform3D(-1, 0, -8.742278e-08, 0, 1, 0, 8.742278e-08, 0, -1, 0.25, 0.455, 0)
+
+[node name="bench_long_seat_6" type="Node3D" parent="bench_long" unique_id=539448278]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.75, 0.455, 0)
+
+[node name="bench_long_seat_7" type="Node3D" parent="bench_long" unique_id=1449456150]
+transform = Transform3D(-1, 0, -8.742278e-08, 0, 1, 0, 8.742278e-08, 0, -1, 0.75, 0.455, 0)
+
+[node name="Solid" type="StaticBody3D" parent="." unique_id=1251724975]
+collision_layer = 2
+collision_mask = 0
+
+[node name="Shape" type="CollisionShape3D" parent="Solid" unique_id=237718638]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.2275, 0)
+shape = SubResource("BoxShape3D_ng1eq")

@@ -1,0 +1,32 @@
+[gd_scene format=3]
+
+[ext_resource type="ArrayMesh" path="res://assets/furniture/resources/seating-r0025.res" id="1_g04nd"]
+[ext_resource type="ArrayMesh" path="res://assets/furniture/resources/seating-r0027.res" id="2_mg50y"]
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_g04nd"]
+size = Vector3(0.38, 0.74, 0.38)
+
+[node name="stool_bar" type="Node3D" unique_id=172896455]
+
+[node name="stool_bar" type="Node3D" parent="." unique_id=1788501661]
+metadata/extras = {
+"furniture": "{\"id\": \"stool-bar\", \"title\": \"Tall tavern stool\", \"category\": \"Furniture: seating\", \"footprint\": [0.3854, 0.7428, 0.3856], \"footprintOffset\": [0.0, -0.0028, -0.0], \"collision\": [{\"size\": [0.38, 0.74, 0.38], \"at\": [0, 0.37, 0], \"yaw\": 0.0}], \"points\": [{\"kind\": \"seat\", \"node\": \"stool_bar_seat_0\", \"at\": [0, 0.74, 0], \"facing\": [0, 0, 1]}]}"
+}
+
+[node name="stool_bar_far" type="MeshInstance3D" parent="stool_bar" unique_id=391065085]
+visible = false
+mesh = ExtResource("1_g04nd")
+
+[node name="stool_bar_near" type="MeshInstance3D" parent="stool_bar" unique_id=392929043]
+mesh = ExtResource("2_mg50y")
+
+[node name="stool_bar_seat_0" type="Node3D" parent="stool_bar" unique_id=680815034]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.74, 0)
+
+[node name="Solid" type="StaticBody3D" parent="." unique_id=1987116158]
+collision_layer = 2
+collision_mask = 0
+
+[node name="Shape" type="CollisionShape3D" parent="Solid" unique_id=1313899823]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.37, 0)
+shape = SubResource("BoxShape3D_g04nd")

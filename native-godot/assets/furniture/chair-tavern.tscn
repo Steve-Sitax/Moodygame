@@ -1,0 +1,39 @@
+[gd_scene format=3]
+
+[ext_resource type="ArrayMesh" path="res://assets/furniture/resources/seating-r0017.res" id="1_cxtn2"]
+[ext_resource type="ArrayMesh" path="res://assets/furniture/resources/seating-r0019.res" id="2_stxt4"]
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_cxtn2"]
+size = Vector3(0.45, 0.46, 0.42)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_stxt4"]
+size = Vector3(0.42, 0.44, 0.08)
+
+[node name="chair_tavern" type="Node3D" unique_id=259876862]
+
+[node name="chair_tavern" type="Node3D" parent="." unique_id=1321342999]
+metadata/extras = {
+"furniture": "{\"id\": \"chair-tavern\", \"title\": \"Tavern chair\", \"category\": \"Furniture: seating\", \"footprint\": [0.445, 0.9195, 0.4944], \"footprintOffset\": [0.0, -0.0, -0.0357], \"collision\": [{\"size\": [0.45, 0.46, 0.42], \"at\": [0, 0.23, 0.004], \"yaw\": 0.0}, {\"size\": [0.42, 0.44, 0.08], \"at\": [0, 0.69, -0.2], \"yaw\": 0.0}], \"points\": [{\"kind\": \"seat\", \"node\": \"chair_tavern_seat_0\", \"at\": [0, 0.458, 0.01], \"facing\": [0, 0, 1]}]}"
+}
+
+[node name="chair_tavern_far" type="MeshInstance3D" parent="chair_tavern" unique_id=1268463863]
+visible = false
+mesh = ExtResource("1_cxtn2")
+
+[node name="chair_tavern_near" type="MeshInstance3D" parent="chair_tavern" unique_id=387117756]
+mesh = ExtResource("2_stxt4")
+
+[node name="chair_tavern_seat_0" type="Node3D" parent="chair_tavern" unique_id=1339760649]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.458, 0.01)
+
+[node name="Solid" type="StaticBody3D" parent="." unique_id=1080576735]
+collision_layer = 2
+collision_mask = 0
+
+[node name="Shape" type="CollisionShape3D" parent="Solid" unique_id=1839855705]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.23, 0.004)
+shape = SubResource("BoxShape3D_cxtn2")
+
+[node name="@CollisionShape3D@3" type="CollisionShape3D" parent="Solid" unique_id=1803731063]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.69, -0.2)
+shape = SubResource("BoxShape3D_stxt4")
