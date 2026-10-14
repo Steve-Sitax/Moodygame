@@ -27,7 +27,6 @@ public partial class NativeTownGame
         Vector3 At(P p,float height=0)=>new((float)p.X,(float)map.BaseAt(p.X,p.Z)+height,(float)p.Z);
         bool Clear(P p)=>map.PathFree(p.X,p.Z)&&geometry.Clear(At(p),.65f,5.5f);
         bool Sight(P a,P b)=>geometry.Visible(At(a,1.7f),At(b,1.7f));
-        bool HeadVisible(P a,P b)=>geometry.Visible(At(a,1.7f),At(b,5.4f));
         P? PlayerAt(int id)
         {
             if(multiplayer.Enabled)return multiplayer.Position(id) is {} p?new P(NativeGoods.Number(p["x"]),NativeGoods.Number(p["z"])):null;
@@ -62,7 +61,7 @@ public partial class NativeTownGame
             HumanPath=(a,b)=>Ways.Path(new Vector2((float)a.X,(float)a.Z),new Vector2((float)b.X,(float)b.Z))?.Select(p=>new P(p.X,p.Y)).ToArray(),
             MayObserve=(player,id)=>(!multiplayer.Enabled||multiplayer.Walker(id)==player)&&actions.Of(id)==null,
             ResidentHome=id=>actions.Resident(id)?["home"] is JsonObject h?new P(NativeGoods.Number(h["sx"]),NativeGoods.Number(h["sz"])):null,
-            Clear=Clear, Ground=p=>map.BaseAt(p.X,p.Z), Light=Light, Sight=Sight, SpawnVisible=(a,b)=>Sight(a,b)||HeadVisible(a,b),
+            Clear=Clear, Ground=p=>map.BaseAt(p.X,p.Z), Light=Light, Sight=Sight,
             Path=(a,b)=> {
                 var route=Ways.Path(new Vector2((float)a.X,(float)a.Z),new Vector2((float)b.X,(float)b.Z));
                 if(route==null)return null;

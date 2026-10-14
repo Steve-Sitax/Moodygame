@@ -20,7 +20,7 @@ public sealed partial class NativeAntigoon
                 host.Clock.SetTime(day,hour,minute);
                 throw new NativeServiceException("No dark alley with a clear street exit is available for Antigoon.",409);
             }
-            observed.Clear();Create(at.Home);brain!.Patrol.Insert(0,at.Watch);brain.Reveal();last=host.Context.Now;Save();
+            observed.Clear();developmentEnabled=true;Create(at.Home);brain!.Patrol.Insert(0,at.Watch);brain.Reveal();last=host.Context.Now;Save();
             host.Clock.ResetLimits();host.PublishState();
             var view=View(r.PlayerId);view["watch_x"]=at.Watch.X;view["watch_y"]=Ground(at.Watch);view["watch_z"]=at.Watch.Z;
             view["world"]=host.Payload(r.PlayerId);return view;

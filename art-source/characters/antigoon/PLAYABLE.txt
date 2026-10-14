@@ -28,10 +28,10 @@ The host validates range, walls, light and target health at contact.
 Street lamps and working carried lanterns protect players. Rain/wet lantern
 rules use the existing native service. Daylight makes him return home.
 
-Native town: automatic night event, 20:00–06:00, in single and multiplayer.
-F6 remains a separate single-player investigation opt-in.
-Spawns require a dark, connected back alley, giant clearance and no player
-line of sight. Antigoon patrols connected street routes.
+Native town: development-only encounter, selected through F8 > Events.
+Ordinary play, previous saves and subsequent nights never enable him.
+The development button stages the encounter at 22:00; F6 does not start it.
+The development stage requires a dark, connected back alley and giant clearance. Antigoon patrols connected street routes.
 He throws stones at burning lamps from darkness. A 0.7 s wind-up precedes
 flight; impact extinguishes the lamp until 20:00 the following night.
 Outages persist across midnight and saves; normal lamplighting cannot
@@ -43,8 +43,8 @@ away, gets up, runs home, rests inside 8 s and resumes their normal schedule.
 The event temporarily owns resident poses on all clients. No permanent
 resident health loss. Active transport and existing actor actions are not
 preempted. Alarm cries are original synthetic voices.
-Multiplayer uses one host-owned enemy and disables the investigation route.
-Health/position persist in world_state; save/load resets the live simulation.
+Multiplayer uses one host-owned enemy; only the host starts the DEV event.
+Save/load ends the development encounter. Saved health/position never activate it.
 Use --no-antigoon to disable the client encounter part during other tests.
 
 Verification:
@@ -62,7 +62,7 @@ or cloth simulation; hair is sculpted geometry. The roar clip has no voice
 performance. Footsteps/impact reuse the project's Kenney CC0 sounds;
 heartbeat is original runtime synthesis.
 
-Street verification: 19 brain + 17 event + 25 host checks. Native street
+Street verification: 18 brain + 17 event + 28 host checks. Native street
 preview: review/night-event-proof-06/antigoon-street-event.png. The staged
 proof checks an authored alley, a giant-sized route out, actual resident
 panic and rendering. Character maps use native sky/lamp light and fog.
@@ -80,5 +80,5 @@ Hashes verify exact model, embedded textures and source reconstruction.
 Selectable encounter: F8 > Events > Event: Antigoon (development mode).
 It starts a fresh giant at 22:00 and puts Jef at a validated alley entrance.
 Close the panel to let the encounter run. Console: event antigoon.
-Automatic encounters remain enabled every night 20:00-06:00. Defeating
-Antigoon persists in the save; the dev button can restart him for testing.
+There are no automatic nightly encounters. The selected DEV encounter ends
+at dawn; select it again to repeat the test. The button restarts defeated giants.
