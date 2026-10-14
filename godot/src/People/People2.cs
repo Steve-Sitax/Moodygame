@@ -259,4 +259,41 @@ public static class People2
         makeMs += (Time.GetTicksUsec()-begin)/1000.0;
         return human;
     }
+
+    internal static void PlayerAccessories(Node3D root, Menu.Profile profile)
+    {
+        var sk = root.GetNode<Skeleton3D>("Skeleton3D");
+        foreach (var node in BakedWorld.All(root))
+            if (node is BoneAttachment3D && node.Name.ToString().StartsWith("jef_")) node.QueueFree();
+        if (model == null || !model.Roots.TryGetValue("people2_held", out var props)) throw new InvalidDataException("Missing player accessories");
+        void Attach(string name, string bone)
+        {
+            var source = props.GetNodeOrNull<Node3D>(name) ?? throw new InvalidDataException("Missing player accessory " + name);
+            var socket = new BoneAttachment3D { Name = name + "_profile", BoneName = bone, BoneIdx = sk.FindBone(bone) };
+            sk.AddChild(socket);
+            var copy = (Node3D)source.Duplicate(); copy.Position = copy.Rotation = Vector3.Zero;
+            socket.AddChild(copy); People2Material.Assign(copy, "people2_held_jef");
+            if (bone == "headTop")
+            {
+                using var rig = JsonDocument.Parse(File.ReadAllText(Paths.Shared("peopleRig.json")));
+                var fit = rig.RootElement.GetProperty("player").GetProperty("hatFit").GetProperty(profile.Sex == "woman" ? "f" : "m");
+                foreach (var slider in fit.EnumerateObject())
+                {
+                    float weight = People2Faces.PlayerValue(profile, slider.Name);
+                    if (weight == 0) continue;
+                    float w = weight; JsonElement rule;
+                    if (weight < 0 && slider.Value.TryGetProperty("neg", out rule)) w = -weight;
+                    else if (!slider.Value.TryGetProperty("pos", out rule)) continue;
+                    var scale = rule.GetProperty("scale");
+                    copy.Scale *= Vector3.One.Lerp(new Vector3(scale[0].GetSingle(), scale[1].GetSingle(), scale[2].GetSingle()), w);
+                    copy.Position += new Vector3(0, rule.GetProperty("lift").GetSingle(), rule.GetProperty("forward").GetSingle()) * w;
+                }
+            }
+        }
+        string sex = profile.Sex == "woman" ? "f" : "m";
+        string shoes = profile.Clothes.Feet.Kind == "clogs" ? "clogs" : "boots";
+        Attach("jef_" + shoes + "_" + sex + "_L", "footL"); Attach("jef_" + shoes + "_" + sex + "_R", "footR");
+        string hat = profile.Clothes.Head.Kind switch { "cap" => "flatcap", "woolcap" => "knitcap", _ => profile.Clothes.Head.Kind };
+        if (hat != "none") Attach("jef_hat_" + hat, "headTop");
+    }
 }

@@ -20,11 +20,24 @@ public partial class NativeProfileProof : Node
             foreach (var row in oracle["profiles"]!.AsArray()) {
                 var actual = NativeTownProfile.Check(row?["raw"]); string name = "original character " + index++;
                 if (row?["checked"] == null) { Check(name + " invalid object", actual == null); continue; }
-                var p = actual!.Value.Profile; var expected = row!["checked"]!;
+                var p = actual!.Value.Profile; var expected = row!["checked"]!.DeepClone();
+                string expectedCode = row["code"]!.GetValue<string>(), expectedLook = row["look"]!.GetValue<string>();
+                var expectedDecoded = row["decoded"]!.DeepClone();
+                // The 2026-10-14 player intake explicitly adds women's versions of these existing cuts.
+                // Retain the historical oracle; change only this approved policy in the independent expectation.
+                string? cut = row["raw"]?["sex"]?.ToString() == "woman" ? row["raw"]?["clothes"]?["coat"]?["kind"]?.ToString() : null;
+                if (cut is "jacket" or "coat" or "smock")
+                {
+                    expected["profile"]!["clothes"]!["coat"]!["kind"] = cut;
+                    expectedDecoded["clothes"]!["coat"]!["kind"] = cut;
+                    expected["fixed"] = new JsonArray(expected["fixed"]!.AsArray().Where(f => f!.GetValue<string>() != "coat.kind").Select(f => f!.DeepClone()).ToArray());
+                    var codeChars = expectedCode.ToCharArray(); codeChars[10] = cut == "jacket" ? 'B' : cut == "coat" ? 'C' : 'D'; expectedCode = new string(codeChars);
+                    expectedLook = expectedLook.Replace("check shawl", cut == "coat" ? "long coat" : cut);
+                }
                 Check(name + " clamp", JsonNode.DeepEquals(JsonNode.Parse(Character.ToJson(p)), expected["profile"]) && JsonNode.DeepEquals(new JsonArray(actual.Value.Fixed.Select(f => (JsonNode)JsonValue.Create(f)!).ToArray()), expected["fixed"]), new JsonObject { ["profile"] = JsonNode.Parse(Character.ToJson(p)), ["fixed"] = new JsonArray(actual.Value.Fixed.Select(f => (JsonNode)JsonValue.Create(f)!).ToArray()) });
-                string code = NativeTownProfile.Code(p); Check(name + " appearance code", code == row["code"]!.GetValue<string>(), code);
-                Check(name + " decoded appearance", JsonNode.DeepEquals(JsonNode.Parse(Character.ToJson(NativeTownProfile.FromCode(code, p.First, p.Last)!)), row["decoded"]));
-                Check(name + " look and words", Character.AgeBand(p.Age) == row["band"]!.GetValue<string>() && Character.LookLine(p) == row["look"]!.GetValue<string>() && JsonNode.DeepEquals(NativeTownProfile.Words(p), row["words"]));
+                string code = NativeTownProfile.Code(p); Check(name + " appearance code", code == expectedCode, code);
+                Check(name + " decoded appearance", JsonNode.DeepEquals(JsonNode.Parse(Character.ToJson(NativeTownProfile.FromCode(code, p.First, p.Last)!)), expectedDecoded));
+                Check(name + " look and words", Character.AgeBand(p.Age) == row["band"]!.GetValue<string>() && Character.LookLine(p) == expectedLook && JsonNode.DeepEquals(NativeTownProfile.Words(p), row["words"]));
                 Check(name + " addressed and named prose", NativeTownProfile.About(p, row["text"]!.GetValue<string>()) == row["about"]!.GetValue<string>() && NativeTownProfile.Addressed(p, row["text"]!.GetValue<string>()) == row["addressed"]!.GetValue<string>());
             }
             index = 0; foreach (var row in oracle["gates"]!.AsArray()) {

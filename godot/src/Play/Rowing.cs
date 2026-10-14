@@ -112,7 +112,7 @@ public partial class Rowing:Node,RowPhysics.IWorld
         {wanted.Add("mine");if(!Drawings.TryGetValue("mine",out var d))d=Make("mine",data.Hire.Kind,left.X,left.Z,0);}
         if(Busy&&data.On=="hire"&&Drawings.ContainsKey("mine"))wanted.Add("mine");
         var gone=new List<string>();foreach(var pair in Drawings)if(!wanted.Contains(pair.Key)&&pair.Value!=Boat)gone.Add(pair.Key);foreach(string key in gone){Drawings[key].Root.QueueFree();Drawings.Remove(key);}
-        if(Boat!=null&&data.On==null&&!Busy){var at=Rower.Seat;Clear();Jef.I.Place(at.X,at.Z,Jef.I.Yaw,Jef.I.Pitch,at.Y);}
+        if(Boat!=null&&Boat.Key!="proof"&&data.On==null&&!Busy){var at=Rower.Seat;Clear();Jef.I.Place(at.X,at.Z,Jef.I.Yaw,Jef.I.Pitch,at.Y);}
         if(data.Notice is {} note&&note.N!=notice){notice=note.N;if(note.Text!="")GameState.I.Say(note.Text);}
     }
     private Offers Keys(float x,float z)
@@ -181,6 +181,12 @@ public partial class Rowing:Node,RowPhysics.IWorld
     }
     private void Sit(Drawn d)
     {Boat=d;Rower.Start(d.X,d.Z,d.Yaw,d.Hull);d.Root.Visible=d.Oars.Visible=true;Jef.I.Yaw=d.Yaw+MathF.PI;Jef.I.Pitch=-.12f;Jef.I.Carry(Rower.Seat);Jef.I.DrivenEye=.78f;Jef.I.Drive=drive;}
+    internal void ProofSeat(Vector3? at)
+    {
+        if (Main.I.Arg("jef-proof") == "") throw new InvalidOperationException("Only the isolated Jef fixture may stage rowing");
+        if (Boat is { Key: "proof" } previous) { Drawings.Remove(previous.Key); previous.Root.QueueFree(); }
+        Clear(); if (at is { } p) Sit(Make("proof", "rowboat", p.X, p.Z, MathF.PI));
+    }
     public Exit? ExitHere()
     {
         var seat=Rower.Seat;var exit=QuayExits.Near(seat.X,seat.Z,2.3f)??QuayExits.Near(Rower.X,Rower.Z,2);if(exit!=null)return exit;

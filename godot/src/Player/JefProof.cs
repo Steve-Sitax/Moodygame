@@ -41,7 +41,7 @@ internal partial class JefProof : Node
             var eyes = (sk.GetBoneGlobalPose(sk.FindBone("eyeL")).Origin + sk.GetBoneGlobalPose(sk.FindBone("eyeR")).Origin) * .5f;
             maxSwimEyeError = Math.Max(maxSwimEyeError, arms.Figure.Root.ToGlobal(eyes).DistanceTo(Jef.I.Cam.GlobalPosition));
         }
-        pictures.Add(new { name, arms.Pose, arms.HandLift, handsVisible = arms.Hands.Root.Visible, arms.WallClearance, arms.ReachScale, arms.LoadGripError, feet = new[] { Jef.I.X, Jef.I.Y, Jef.I.Z }, hour = Daylight.I.Hour, profile = Character.ToJson(arms.Profile), triangles = arms.Hands.Root.GetMeta("arm_triangles").AsInt32() });
+        pictures.Add(new { name, arms.Pose, slots = arms.Slots.ToString(), arms.LanternOnBelt, kind = arms.Figure.Kind, arms.HandLift, handsVisible = arms.Hands.Root.Visible, arms.WallClearance, arms.ReachScale, arms.LoadGripError, arms.BodyGripError, arms.ViewGripError, skeletonFrame = arms.Hands.Root.GetNode<Skeleton3D>("Skeleton3D").Transform.ToString(), feet = new[] { Jef.I.X, Jef.I.Y, Jef.I.Z }, hour = Daylight.I.Hour, profile = Character.ToJson(arms.Profile), triangles = arms.Hands.Root.GetMeta("arm_triangles").AsInt32() });
     }
     public override async void _Ready()
     {
@@ -67,12 +67,12 @@ internal partial class JefProof : Node
             Vector3 spot = new(p[0].GetSingle(), 0, p[2].GetSingle());
             j.Place(spot.X, spot.Z, 0, 0); j.Frozen = true; j.TestInput = true;
             var crate = Play.Goods.I.MakeGoods("crates"); j.Cam.AddChild(crate);
-            crate.Position = new Vector3(0, -.64f, -.72f); crate.Visible = false;
+            crate.Position = new Vector3(0, -.74f, -.78f); crate.Visible = false;
             await Frames(30);
             foreach (var light in new[] { ("day", 13.0, "clear"), ("night", 23.0, "clear"), ("rain", 13.0, "rain") })
             {
                 await Dev.Kit.I.Light(light.Item2, light.Item3); arms.ProofLantern = light.Item1 == "night";
-                foreach (string pose in new[] { "idle", "walk", "run", "give", "take", "lantern", "carry", "push", "climb", "vault", "swim", "row", "velo" })
+                foreach (string pose in new[] { "idle", "walk", "run", "give", "take", "lantern", "knife_ready", "carry", "push", "climb", "vault", "swim", "row", "velo" })
                 {
                     arms.ProofPose = pose; crate.Visible = pose == "carry"; arms.ProofLoad = crate.Visible ? crate : null;
                     await Frames(30); await Shot(light.Item1 + "-" + pose);
@@ -80,10 +80,25 @@ internal partial class JefProof : Node
             }
             crate.QueueFree(); arms.ProofLoad = null;
             arms.ProofLantern = false;
+            await Dev.Kit.I.Light(13, "clear");
+            var sack = Play.Goods.I.MakeGoods("sacks"); j.Cam.AddChild(sack);
+            sack.Position = new Vector3(0, -.58f, -.70f); arms.ProofLoad = sack; arms.ProofPose = "carry";
+            await Frames(40); await Shot("day-sack"); sack.QueueFree(); arms.ProofLoad = null;
+            arms.ProofPose = null; arms.ProofLantern = true;
+            Play.Handcarts.I.ProofHold(spot); await Frames(45); await Shot("day-handcart-belt"); Play.Handcarts.I.ProofHold(null);
+            Play.Velocipedes.I.ProofMount(spot); await Frames(45); await Shot("day-velocipede-belt"); Play.Velocipedes.I.ProofMount(null);
+            int ladder = Enumerable.Range(0, Movers.Railway.I.LadderCount).First(i => Play.CraneClimb.I.FootOf(i) != null);
+            var foot = Play.CraneClimb.I.FootOf(ladder)!.Value; var ladderFrame = Movers.Railway.I.LadderAt(ladder);
+            j.Place(foot.X, foot.Z, ladderFrame.Face, .08f, foot.Y); Play.CraneClimb.I.Up(ladder);
+            await Frames(90); await Shot("day-ladder-belt"); Play.CraneClimb.I.ProofRelease();
+            Play.Rowing.I.ProofSeat(new Vector3(-118, 0, -75)); await Frames(45); await Shot("day-rowing-belt"); Play.Rowing.I.ProofSeat(null);
+            j.StandOnFeet(); j.Place(spot.X, spot.Z, 0, 0); arms.ProofLantern = false;
             var api = Net.ServerLink.I!.Api!;
             var profiles = new[] { Character.Jef, Character.Mie, Character.Jef, Character.Jef };
             profiles[2].Age = 60; profiles[2].Hair.Colour = "grey"; profiles[2].FaceType = "shrunken_old";
             profiles[3].Age = 16; profiles[3].Build = "slight"; profiles[3].Sliders["nose_long"] = -.5f;
+            profiles[2].Clothes.Coat = new ClothesPiece("coat", "charcoal"); profiles[2].Clothes.Head.Kind = "tophat";
+            profiles[3].Clothes.Coat = new ClothesPiece("smock", "blue"); profiles[3].Clothes.Head.Kind = "none";
             profiles[3].Sliders["eyes_open"] = 0;
             var persisted = new List<bool>();
             for (int i = 0; i < profiles.Length; i++)
@@ -119,6 +134,14 @@ internal partial class JefProof : Node
                 j.ClearKeys();
             }
             j.Frozen = true; j.Place(spot.X, spot.Z, 0); await Frames(12);
+            arms.ProofPose = null; arms.ProofLantern = true;
+            foreach (var light in new[] { ("day", 13.0), ("night", 23.0) })
+            {
+                await Dev.Kit.I.Light(light.Item2, "clear"); j.Frozen = false; j.SetKey(Key.W, true);
+                for (int frame = 0; frame < 6; frame++) { await Frames(5); await Shot(light.Item1 + "-lantern-walking-" + frame.ToString("00")); }
+                j.ClearKeys(); j.Frozen = true; j.Place(spot.X, spot.Z, 0);
+            }
+            arms.ProofLantern = false;
             arms.ProofPose = "lantern"; await Frames(40);
             // Real physics wall, held at the player's collision radius. It is removed with this fixture.
             var wall = new StaticBody3D { Position = spot + new Vector3(0, 1, -.34f), CollisionLayer = Solid.Layer };
@@ -140,11 +163,14 @@ internal partial class JefProof : Node
             // The lantern pool is normally stepped by Townspeople (paused above for repeatable captures).
             for (int i = 0; i < 45; i++) { People.LanternPool.I!.Update(.05, observer.GlobalPosition, 23); await Frames(1); }
             await Shot("lantern-body-shadow");
+            arms.Apply(Character.Mie); arms.ProofPose = "lantern"; await Frames(45); await Shot("woman-lantern-body-shadow");
             await Dev.Kit.I.Light(13, "rain");
             observer.LookAtFromPosition(spot + new Vector3(0, 1.5f, -3), spot + new Vector3(0, .45f, 0));
             await Shot("mirror-body-rain");
             var mirror = Main.I.View.GetNode<SubViewport>("mirror_puddles");
             await Frames(30); mirror.GetTexture().GetImage().SavePng(Path.Combine(dir, "planar-reflection.png"));
+            arms.Apply(Character.Jef); await Frames(45); await Shot("man-mirror-body-rain");
+            await Frames(30); mirror.GetTexture().GetImage().SavePng(Path.Combine(dir, "man-planar-reflection.png"));
             bool hidden = (j.Cam.CullMask & Arms.BodyLayer) == 0;
             File.WriteAllText(Path.Combine(dir, "jef.json"), JsonSerializer.Serialize(new { ok = wallSafe && hidden && emptyHandsHidden && persisted.All(x => x) && maxGripError < .003f && maxDuplicateProps == 0 && maxSwimEyeError < .003f, bodyHiddenFromEyes = hidden, emptyHandsHidden, wallSafe, persisted, maxGripError, maxDuplicateProps, maxSwimEyeError, lightsAdded = 0, shaderKindsAdded = 0, pictures }, new JsonSerializerOptions { WriteIndented = true }));
             if (!wallSafe || !hidden || !emptyHandsHidden || persisted.Any(x => !x) || maxGripError >= .003f || maxDuplicateProps != 0 || maxSwimEyeError >= .003f) throw new InvalidOperationException($"Jef proof invariant failed; empty hands hidden {emptyHandsHidden}; crate palm {maxGripError}; duplicate props {maxDuplicateProps}; swim eye {maxSwimEyeError}");

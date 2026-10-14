@@ -34,7 +34,7 @@ public partial class PeopleTest : Node
     private readonly List<double> times = new();
     private ulong drawCalls;
     private readonly List<double> logic = new();
-    private readonly List<double> animationTime = new(), layerTime = new(), legacyTime = new(), newTime = new(), animalTime = new(), animalsShown = new();
+    private readonly List<double> animationTime = new(), layerTime = new(), legacyTime = new(), newTime = new(), animalTime = new(), animalsShown = new(), playerTime = new();
     private readonly List<double>[] animationParts = { new(), new(), new() };
     private readonly List<double> allocations = new(256), animalAllocations = new(256), wildlifeAllocations = new(256);
     private readonly List<double> allAllocations = new(640);
@@ -89,6 +89,8 @@ public partial class PeopleTest : Node
             return;
         }
         Directory.CreateDirectory(dir);
+        // Sample after the local rig (priority 75), including its IK and collision probes once.
+        ProcessPriority = 100;
         town = GetParent().GetNode<Townspeople>("Townspeople");
         if (Main.I.Arg("hour", "") == "") town.SetClock(1, 10.5);
         // the pictures are taken from the free camera (no body to walk round); Jef comes back for his own part of the test
@@ -300,7 +302,8 @@ public partial class PeopleTest : Node
                 if (frames == 5) for (int i = 0; i < 3; i++) collectionsAt[i] = GC.CollectionCount(i);
                 if (frames > 5)
                 {
-                    animationTime.Add(Dev.PeopleTiming.LegacyMs + Dev.PeopleTiming.People2Ms);
+                    animationTime.Add(Dev.PeopleTiming.LegacyMs + Dev.PeopleTiming.People2Ms + Dev.PeopleTiming.PlayerOverheadMs);
+                    playerTime.Add(Dev.PeopleTiming.PlayerMs);
                     for(int i=0;i<animationParts.Length;i++) animationParts[i].Add(Dev.PeopleTiming.PartsMs[i]);
                     animalTime.Add((Scheldemist.People.Animals.I?.LogicMs ?? 0) + SmallLife.AllMs);
                     animalsShown.Add(Scheldemist.People.Animals.I?.Shown ?? 0);
@@ -339,12 +342,15 @@ public partial class PeopleTest : Node
                 row["peopleAndAnimalsMeanMs"] = Math.Round(animationTime.Average() + animalTime.Average(), 3);
                 animalTime.Clear(); animalsShown.Clear();
                 row["animationDirectMs"] = Stats(animationTime);
+                row["playerArmsMs"] = Stats(playerTime);
+                row["playerTimingPose"] = Main.I.Arg("people2-player-pose", "idle");
+                row["playerRigIncluded"] = Main.I.Flag("people2-player-timing");
                 if(Main.I.Flag("people2-profile")) row["animationPartsMs"] = animationParts.Select(Stats).ToArray();
                 foreach(var part in animationParts) part.Clear();
                 row["legacyAnimationDirectMs"] = Stats(legacyTime); row["people2AnimationDirectMs"] = Stats(newTime);
                 row["layersDirectMs"] = Stats(layerTime);
                 row["directTimingScope"] = "All Human.Update calls (includes layers), Animals.LogicMs, park wildlife, courtyard skins, town small-life and pigeons. Includes MultiMesh uploads; excludes crowd routing and GPU execution. Layers are a subset, not an added cost.";
-                animationTime.Clear(); layerTime.Clear(); legacyTime.Clear(); newTime.Clear();
+                animationTime.Clear(); layerTime.Clear(); legacyTime.Clear(); newTime.Clear(); playerTime.Clear();
                 row["allocationSamples"] = allocations.Count;
                 row["collectionsDuringSample"] = Enumerable.Range(0, 3).Select(i => GC.CollectionCount(i) - collectionsAt[i]).ToArray();
                 row["townAllocationPartsMean"] = allocationParts.Select(n => (double)n / allocations.Count).ToArray();

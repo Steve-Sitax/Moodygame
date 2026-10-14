@@ -26,7 +26,7 @@ public partial class Deeds : Node
     private Node3D? hand;
     private LanternPool.Source? playerLight;
     private bool owned, held, busy, polling, leaving, heldTick, disposed;
-    public bool Lit => owned && held && Goods.I?.Carried == null;
+    public bool Lit => owned && held;
     public bool Held => held;
     public PoliceView? Police { get; private set; }
     public DeedsWorld? World { get; private set; }
@@ -362,12 +362,13 @@ public partial class Deeds : Node
     {
         if(disposed || Jef.I==null) return; clock+=(float)delta;
         if(hand!=null) {
-            hand.Visible=Lit || Arms.I?.ProofLantern == true || Arms.I?.Pose == "lantern";
-            hand.Position=new Vector3(0.28f,-0.17f+MathF.Sin(clock*3)*0.008f,-0.5f);
-            if (Arms.I?.LanternGrip is { } grip) hand.GlobalPosition = grip - Vector3.Up * .054f;
+            hand.Visible=(Lit || Arms.I?.ProofLantern == true || Arms.I?.Pose == "lantern") && Arms.I?.LanternViewVisible != false;
+            hand.Position=new Vector3(-0.28f,-0.17f+MathF.Sin(clock*3)*0.008f,-0.5f);
+            hand.Rotation = new Vector3(0, 0, MathF.Sin(clock * 3) * .06f);
+            if (Arms.I?.LanternGrip is { } grip) hand.GlobalPosition = grip - hand.GlobalBasis.Orthonormalized() * Vector3.Up * .086f;
         }
-        if (playerLight != null && hand != null) { playerLight.On = hand.Visible; playerLight.Pos = hand.GlobalPosition; }
-        if(Lights.I!=null) Lights.I.Lantern=hand?.Visible == true ? new Vector4(hand.GlobalPosition.X,hand.GlobalPosition.Y,hand.GlobalPosition.Z,0.9f+MathF.Sin(clock*7.3f)*0.05f+MathF.Sin(clock*17.9f)*0.04f) : null;
+        if (playerLight != null && hand != null) { playerLight.On = Lit || Arms.I?.ProofLantern == true || Arms.I?.Pose == "lantern"; playerLight.Pos = Arms.I?.LanternGrip ?? hand.GlobalPosition; }
+        if(Lights.I!=null && hand != null) { var at = Arms.I?.LanternGrip ?? hand.GlobalPosition; Lights.I.Lantern=Lit || Arms.I?.ProofLantern == true || Arms.I?.Pose == "lantern" ? new Vector4(at.X,at.Y,at.Z,0.9f+MathF.Sin(clock*7.3f)*0.05f+MathF.Sin(clock*17.9f)*0.04f) : null; }
         foreach(var pair in lamps) { var n=pair.Value; lampLight[pair.Key](n.GlobalPosition, n.Visible && (GameState.I.HourF>=19 || GameState.I.HourF<6.5) ? 1 : 0); }
         if(!GameState.I.Live || GameState.I.Paused) return;
         if((pollT-=delta)<=0) { pollT=2; _=Poll(); }

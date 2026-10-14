@@ -25,6 +25,7 @@ internal static class People2Material
     internal static ulong GpuAfter { get; private set; }
     internal static void Forget()
     {
+        Player.PlayerPalette.Forget();
         foreach (var texture in colours.Values) texture.Dispose();
         foreach (var texture in normals.Values) texture.Dispose();
         colours.Clear(); normals.Clear(); AnimalTextureBytes = 0;
@@ -45,10 +46,11 @@ internal static class People2Material
     }
     /// <summary>A picture with linear-light mipmaps (colour) or renormalised ones (normals); cached until Forget.</summary>
     internal static Texture2D Mipmapped(Texture2D source, bool colour) => Mips(source, colour);
-    private static Texture2D Mips(Texture2D source, bool colour)
+    internal static Texture2D PlayerMipmapped(Texture2D source) => Mips(source, true, false);
+    private static Texture2D Mips(Texture2D source, bool colour, bool cacheResult = true)
     {
         var cache = colour ? colours : normals;
-        if (cache.TryGetValue(source, out var known)) return known;
+        if (cacheResult && cache.TryGetValue(source, out var known)) return known;
         using var image = source.GetImage();
         if (image.IsCompressed()) image.Decompress();
         image.ClearMipmaps();
@@ -80,7 +82,7 @@ internal static class People2Material
         else image.GenerateMipmaps(true);
         AnimalTextureBytes += image.GetData().LongLength;
         var result = ImageTexture.CreateFromImage(image);
-        cache[source] = result;
+        if (cacheResult) cache[source] = result;
         return result;
     }
     private const string PictureRoot = "res://assets/people2-pictures/";

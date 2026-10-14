@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using Godot;
@@ -85,6 +86,7 @@ public partial class Velocipedes:Node
     }
     public void Apply(VeloWorld world)
     {
+        if (Ridden?.Info.Id == "proof" && Main.I.Arg("jef-proof") != "") return;
         var present=new HashSet<string>();foreach(var v in world.Velos)
         {
             present.Add(v.Id);if(!Machines.TryGetValue(v.Id,out var m))
@@ -154,6 +156,14 @@ public partial class Velocipedes:Node
         catch(ApiException ex){GameState.I.Say(ex.Message);}finally{Busy=false;}
     }
     private void Clear(){if(Jef.I.Drive==drive){Jef.I.Drive=null;Jef.I.DrivenEye=Jef.Eye;Jef.I.DrivenRoll=0;}Ridden=null;Speed=0;FallT=0;}
+    internal void ProofMount(Vector3? at)
+    {
+        if (Main.I.Arg("jef-proof") == "") throw new InvalidOperationException("Only the isolated Jef fixture may stage a velocipede");
+        Clear(); if (at is not { } p) { if (Machines.Remove("proof", out var previous)) previous.Root.QueueFree(); return; }
+        Apply(new VeloWorld { Velos = Machines.Values.Select(m => m.Info).Append(new VeloInfo { Id = "proof", Mine = true, X = p.X, Z = p.Z }).ToList() });
+        var m = Machines["proof"]; Ridden = m; m.Info = m.Info with { Ridden = true }; x = p.X; z = p.Z; y = p.Y; Heading = 0;
+        m.Solid.CollisionLayer = 0; Jef.I.Drive = drive; Jef.I.DrivenEye = 1.86f; Jef.I.Place(x, z, 0, -.65f, y); Drive(0);
+    }
     public async Task Leave(bool down=false)
     {
         var m=Ridden;if(m==null||Busy)return;Busy=true;int e=++epoch;

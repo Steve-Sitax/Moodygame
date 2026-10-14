@@ -487,7 +487,7 @@ public partial class Goods : Node
         var g = GoodsRules.Of(it.Kind);
         it.Obj.Visible = true;
         it.Obj.Position = new Vector3(g.HoldX, g.HoldY, g.HoldZ);
-        if (it.Kind == "crates") it.Obj.Position += new Vector3(0, .08f, .14f);
+        if (it.Kind == "crates") it.Obj.Position = new Vector3(0, -.74f, -.78f);
         it.Obj.Rotation = new Vector3(0.05f, 0.08f, 0);
         // goods.ts toHands: a big model is held smaller, so it does not fill the view
         float size = PropOf(it.S.Look) != null ? Math.Max(0.7f, 0.7f * (float)(it.S.Sc ?? 1) * 1.3f) : 0.7f;

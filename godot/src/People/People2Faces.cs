@@ -597,12 +597,25 @@ public static class People2Faces
 
     internal static float PlayerSlider(Menu.Profile profile, Menu.Character.Shape shape)
     {
-        if (profile.Sliders.TryGetValue(shape.Id, out float explicitValue)) return explicitValue;
-        if (shape.Id == "weight") return profile.Build == "slight" ? -.35f : profile.Build == "stout" ? .4f : 0;
+        return Math.Clamp(PlayerValue(profile, shape.Id), shape.Min, shape.Max);
+    }
+    internal static float PlayerValue(Menu.Profile profile, string id)
+    {
+        if (profile.Sliders.TryGetValue(id, out float explicitValue)) return explicitValue;
+        if (id == "face_age") return Math.Clamp((profile.Age - 40) / 22f, -.6f, .9f);
+        float? build = id switch {
+            "weight" => profile.Build == "slight" ? -.6f : profile.Build == "stout" ? .6f : 0,
+            "muscle" => profile.Build == "slight" ? -.4f : profile.Build == "stout" ? .1f : 0,
+            "shoulders" => profile.Build == "slight" ? -.5f : profile.Build == "stout" ? .4f : 0,
+            "hips_wide" => profile.Build == "slight" ? -.3f : profile.Build == "stout" ? .5f : 0,
+            "belly" => profile.Build == "slight" ? -.5f : profile.Build == "stout" ? .7f : 0,
+            "buttocks" => profile.Build == "stout" ? .4f : 0,
+            "bust" => profile.Build == "slight" ? -.6f : profile.Build == "stout" ? .6f : 0, _ => null };
+        if (build.HasValue) return build.Value;
         Data();
         if (!Types.GetProperty("types").TryGetProperty(profile.FaceType, out var preset)) preset = Types.GetProperty("types").GetProperty(profile.Sex == "woman" ? "young_woman" : "flemish_docker");
         foreach (string group in new[] { "sliders", "body" })
-            if (preset.GetProperty(group).TryGetProperty(shape.Id, out var value)) return Math.Clamp(value[0].GetSingle(), shape.Min, shape.Max);
+            if (preset.GetProperty(group).TryGetProperty(id, out var value)) return value[0].GetSingle();
         return 0;
     }
 
@@ -620,14 +633,19 @@ public static class People2Faces
         foreach (string group in new[] { "sliders", "body" })
             foreach (var s in preset.GetProperty(group).EnumerateObject()) values[s.Name] = s.Value[0].GetSingle();
         foreach (var shape in Menu.Character.Shapes)
-            values[shape.Id] = profile.Sliders.TryGetValue(shape.Id, out var v) ? v : Math.Clamp(values.GetValueOrDefault(shape.Id), shape.Min, shape.Max);
-        values["face_age"] = Math.Clamp((profile.Age - 40) / 35f, -.6f, 1);
-        string cell = woman ? profile.Age >= 58 ? "of_grey" : profile.Skin switch { "olive" => "f_olive_black", "brown" => "f_dark_black", "weathered" or "rosy" => "f_weather_ruddy", _ => "f_fair_brown" }
-            : profile.Age >= 58 ? "om_grey" : profile.Skin switch { "olive" => "m_olive_black", "brown" => "m_dark_black", "weathered" or "rosy" => "m_weather_brown", _ => "m_young_fair" };
+            values[shape.Id] = PlayerSlider(profile, shape);
+        foreach (string id in new[] { "face_age", "buttocks", "bust" }) values[id] = PlayerValue(profile, id);
+        string groupPrefix = profile.Age >= 46 ? woman ? "of" : "om" : woman ? "f" : "m";
+        int hairHex = Menu.Character.HairColours.First(s => s.Id == profile.Hair.Colour).Hex;
+        var chosenHair = new Vector3((hairHex >> 16 & 255) / 255f, (hairHex >> 8 & 255) / 255f, (hairHex & 255) / 255f);
+        string cell = Types.GetProperty("cells").EnumerateObject().Where(c => c.Value.GetProperty("group").GetString() == groupPrefix)
+            .OrderBy(c => { var rgb = c.Value.GetProperty("hairRgb"); return chosenHair.DistanceSquaredTo(new Vector3(rgb[0].GetSingle(), rgb[1].GetSingle(), rgb[2].GetSingle())); }).First().Name;
         string hair = profile.Hair.Style switch { "short" => "crop", "long" => "long", "balding" => "bald", _ => profile.Hair.Style };
-        string? beard = profile.Beard == "none" ? null : profile.Beard != "" ? profile.Beard : profile.Face switch { "beard" => "full", "whiskers" => "sideburns", _ => null };
+        if (profile.Clothes.Head.Kind != "none") hair = woman ? "undercap" : "capped";
+        string? beard = profile.Beard == "none" ? null : profile.Beard != "" ? profile.Beard : profile.Face switch { "beard" => "short", "whiskers" => "chops", _ => null };
         string? moustache = profile.Moustache == "none" ? null : profile.Moustache != "" ? profile.Moustache : profile.Face switch { "moustache" => "chevron", "walrus" or "beard" => "walrus", _ => null };
         var job = new Job { Kind = kind, Body = body, Face = new Face(type, values, cell, hair, beard, moustache, 0), Weights = KeyWeights(values) };
+        job.Weights["hands_hard"] = woman ? .15f : .3f;
         var p = Compute(job, 0);
         // Rest-space palette regions must not move between hat/shirt/lower colours when a limb is posed.
         p.PlayerRegions = p.V.Select(v => new Vector2(v.Y, v.X)).ToArray();
@@ -636,7 +654,8 @@ public static class People2Faces
             var template = p.Source;
             int inf = p.Weights!.Length / p.V.Length;
             var skeleton = root.GetNode<Skeleton3D>("Skeleton3D");
-            float cut = skeleton.GetBoneGlobalRest(skeleton.FindBone("armUpL")).Origin.Y - .07f;
+            // The view model starts just above the elbow, where its hidden cut stays behind the eye.
+            float cut = skeleton.GetBoneGlobalRest(skeleton.FindBone("armLowL")).Origin.Y + .025f;
             bool ArmVertex(int v)
             {
                 float weight = 0;
@@ -644,9 +663,9 @@ public static class People2Faces
                 {
                     int b = p.Bones![v * inf + k];
                     string name = b < template.BindNames.Length ? template.BindNames[b] : "";
-                    if (name.StartsWith("arm") || name.StartsWith("hand") || name.StartsWith("thumb") || name.StartsWith("index") || name.StartsWith("middle") || name.StartsWith("ring")) weight += p.Weights[v * inf + k];
+                    if (name.StartsWith("armLow") || name.StartsWith("armTwist") || name.StartsWith("hand") || name.StartsWith("thumb") || name.StartsWith("index") || name.StartsWith("middle") || name.StartsWith("ring")) weight += p.Weights[v * inf + k];
                 }
-                return weight > .4f && p.V[v].Y < cut;
+                return weight > .35f && p.V[v].Y < cut;
             }
             var index = new List<int>();
             for (int i = 0; i < p.Index!.Length; i += 3)

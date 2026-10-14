@@ -97,6 +97,11 @@ public partial class CraneClimb : Node
         return null;
     }
     public Vector3? FootOf(int i) => StandOf(Railway.I.LadderAt(i));
+    internal void ProofRelease()
+    {
+        if (Main.I.Arg("jef-proof") == "") throw new InvalidOperationException("Only the isolated Jef fixture may release its ladder");
+        On = -1; OnLadder = false; move = null; Jef.I.StandOnFeet();
+    }
     private int NearFoot(float x, float z)
     {
         if (Jef.I.Y > .5f || Jef.I.Swimming || Jef.I.Riding || Railway.I == null) return -1;

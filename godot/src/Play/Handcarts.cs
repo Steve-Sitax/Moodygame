@@ -31,7 +31,7 @@ public partial class Handcarts : Node, CartPhysics.IWorld
     public readonly Dictionary<string,Drawn> Drawings=new();
     public string? Held { get; private set; }
     internal Vector3? PlayerGrip(int side) => Held != null && Drawings.TryGetValue(Held, out var cart)
-        ? cart.Bed.ToGlobal(new Vector3(side == 0 ? -.57f : .57f, .18f, 2.15f)) : null;
+        ? cart.Bed.ToGlobal(new Vector3(side == 0 ? -.34f : .34f, .18f, 2.15f)) : null;
     public bool Busy { get; private set; }
     public CartView View { get; private set; }=new();
     public event Action<string,CartReply>? Answered;
@@ -103,6 +103,7 @@ public partial class Handcarts : Node, CartPhysics.IWorld
     }
     public void Apply(CartView v)
     {
+        if (Held == "cart:proof" && Main.I.Arg("jef-proof") != "") return;
         View=v;
         foreach(var id in Drawings.Keys.Where(id=>!v.List.Any(c=>c.Id==id)).ToArray())
         { if(id==Held)ClearHold();Forget(Drawings[id]);Drawings.Remove(id); }
@@ -216,6 +217,17 @@ public partial class Handcarts : Node, CartPhysics.IWorld
     private void ClearHold()
     {
         Held=null;if(Jef.I.CartStep==step)Jef.I.CartStep=null;Jef.I.Laden=Goods.I.Carried!=null;Jef.I.SpeedFactor=1;
+    }
+    internal void ProofHold(Vector3? at)
+    {
+        if (Main.I.Arg("jef-proof") == "") throw new InvalidOperationException("Only the isolated Jef fixture may stage a cart");
+        ClearHold();
+        if (Drawings.Remove("cart:proof", out var previous)) previous.Root.QueueFree();
+        if (at is not { } p) return;
+        var d = Make(new HandcartInfo { Id = "cart:proof", Kind = "handcart", Held = true, X = p.X, Z = p.Z - 2.6f, Yaw = MathF.PI }) ?? throw new InvalidOperationException("Missing shared handcart model");
+        Drawings[d.Info.Id] = d; dir = MathF.PI; Held = d.Info.Id;
+        d.X = p.X; d.Z = p.Z - 2.6f; d.Yaw = dir; Park(d); d.Body.CollisionLayer = 0;
+        Jef.I.Place(p.X, p.Z, 0, -.55f); Jef.I.Laden = true;
     }
     public async Task Release(bool force=false,bool keepParked=false)
     {

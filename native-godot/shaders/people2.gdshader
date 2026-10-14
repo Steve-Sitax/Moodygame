@@ -25,6 +25,8 @@ uniform sampler2DArray face_colour : source_color, filter_linear_mipmap_anisotro
 uniform sampler2DArray face_normal : hint_normal, filter_linear_mipmap_anisotropic, repeat_disable;
 uniform sampler2DArray detail_colour : source_color, filter_linear_mipmap_anisotropic, repeat_enable;
 uniform sampler2DArray detail_normal : hint_normal, filter_linear_mipmap_anisotropic, repeat_enable;
+uniform bool player_tint = false;
+uniform sampler2D player_cloth : source_color, filter_linear_mipmap_anisotropic, repeat_disable;
 instance uniform int clothes_layer = 0;
 instance uniform int face_layer = 0;
 instance uniform vec3 skin_tone_shift = vec3(0.0);
@@ -123,7 +125,8 @@ void vertex() {
     // Reverse-Z: keep the camera rig in front of close geometry while retaining its own depth order.
     // It still contracts physically at walls; this also covers thin overhangs between the collision probes.
     POSITION = PROJECTION_MATRIX * view;
-    POSITION.z = mix(POSITION.z, POSITION.w, viewmodel_depth_pull * 0.99);
+    // Retain the real near-plane clip: pulling vertices behind the eye forward exposes the sleeve cut.
+    if (view.z < -0.08) POSITION.z = mix(POSITION.z, POSITION.w, viewmodel_depth_pull * 0.99);
     world = (INV_VIEW_MATRIX * view).xyz;
     fog_depth = -view.z;
 }
@@ -131,7 +134,7 @@ void fragment() {
     if ((world.y < psx_mir0.w - 0.02 && distance(CAMERA_POSITION_WORLD, psx_mir0.xyz) < 0.02) || (world.y < psx_mir1.w - 0.02 && distance(CAMERA_POSITION_WORLD, psx_mir1.xyz) < 0.02)) discard;
     bool face = layered_pictures && COLOR.g > 0.5;
     vec4 cloth = layered_pictures ? texture(clothes_colour, vec3(UV, float(clothes_layer))) : texture(tex, UV) * albedo;
-    vec4 c = face ? texture(face_colour, vec3(UV, float(face_layer))) : cloth;
+    vec4 c = face ? texture(face_colour, vec3(UV, float(face_layer))) : player_tint ? texture(player_cloth, UV) : cloth;
     // Strand coverage and the geometric fade together retain an opaque depth/shadow path.
     if (face && c.a + COLOR.a <= 1.0) discard;
     ALPHA = 1.0;
@@ -152,13 +155,6 @@ void fragment() {
     if (eye < 0.5) {
         if (hair) palette = player_hair;
         else if (face || zone > 4.5) palette = player_skin;
-        else if (authored_position.y > 1.48) palette = player_head;
-        else if (authored_position.y < 0.15) palette = player_feet;
-        else if (authored_position.y < 0.82) palette = player_lower;
-        else if (zone > 2.5 && zone < 3.5) palette = player_apron;
-        else if (zone > 1.5 && zone < 2.5) palette = player_shirt;
-        else if (abs(authored_position.x) < 0.15) palette = player_vest;
-        else palette = player_coat;
     }
     float pigment = clamp(dot(c.rgb, vec3(0.2126, 0.7152, 0.0722)) / (face || zone > 4.5 ? 0.46 : hair ? 0.18 : 0.30), 0.25, 1.8);
     c.rgb = mix(c.rgb, palette.rgb * pigment, palette.a);

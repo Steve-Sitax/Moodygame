@@ -270,9 +270,9 @@ public static class Character
     public static readonly IReadOnlyList<Choice> Coats = new Choice[]
     {
         new("none", "Shirt and waistcoat", "man"),
-        new("jacket", "Short jacket", "man"),
-        new("coat", "Long coat", "man"),
-        new("smock", "Blue smock (kiel)", "man"),
+        new("jacket", "Short jacket"),
+        new("coat", "Long coat"),
+        new("smock", "Blue smock (kiel)"),
         new("no_shawl", "No shawl", "woman"),
         new("shawl", "Shawl", "woman"),
         new("check_shawl", "Check shawl", "woman"),
@@ -898,7 +898,8 @@ public static class Character
             parts.Add(c.Head.Kind == "whitecap" ? "a white cap" : $"a {ClothWord(c.Head.Colour)} {(HeadNames.TryGetValue(c.Head.Kind, out var headName) ? headName : c.Head.Kind)}");
         if (w)
         {
-            if (c.Coat.Kind != "no_shawl") parts.Add($"a {ClothWord(c.Coat.Colour)} {(c.Coat.Kind == "check_shawl" ? "check shawl" : "shawl")} over a {ClothWord(c.Shirt.Colour)} blouse");
+            string outer = c.Coat.Kind switch { "jacket" => "jacket", "coat" => "long coat", "smock" => "smock", "check_shawl" => "check shawl", _ => "shawl" };
+            if (c.Coat.Kind != "no_shawl") parts.Add($"a {ClothWord(c.Coat.Colour)} {outer} over a {ClothWord(c.Shirt.Colour)} blouse");
             else parts.Add($"a {ClothWord(c.Shirt.Colour)} blouse");
             parts.Add($"a {ClothWord(c.Lower.Colour)} skirt");
         }
