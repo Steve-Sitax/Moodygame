@@ -116,9 +116,9 @@ def grips_json(g):
 
 def all_kinds():
     """Every kind of package C, from the group files (people2/kinds_*.py), in a fixed order."""
-    from people2 import kinds_cast, kinds_uniform, kinds_women, kinds_women2, kinds_workers
+    from people2 import kinds_cast, kinds_uniform, kinds_women, kinds_women2, kinds_workers, kinds_workers2
     out = []
-    for mod in (kinds_workers, kinds_women, kinds_women2, kinds_uniform, kinds_cast):
+    for mod in (kinds_workers, kinds_workers2, kinds_women, kinds_women2, kinds_uniform, kinds_cast):
         out += mod.KINDS
     return out
 
@@ -211,8 +211,9 @@ def main():
     # C: the kinds, and independent picture layers and one native material for everybody (docs/people.md "Kinds and clothes")
     from people2 import pictures as at
     from people2 import dress, held
-    from people2 import held_women
+    from people2 import held_women, held_workers
     held.MODELS.update(held_women.MODELS)  # C2's held things (one model each, on hipL)
+    held_workers.register(held)
     kinds = [] if "--nokinds" in ARGS else [k for k in all_kinds()
                                             if (not KINDS_ONLY or k.name in KINDS_ONLY) and k.body in present]
     layout = at.cells([(k.name, k.hero) for k in kinds])
@@ -225,7 +226,7 @@ def main():
         atl.face(cname, frgb, fnrm)
     dressed = []
     for k in kinds:
-        dressed.append(dress.build(k, make_body, ref_uv, layout, atl, tex=TEX))
+        dressed.append(getattr(k, "build", dress.build)(k, make_body, ref_uv, layout, atl, tex=TEX))
     held_obs = held.build_all(kinds, layout, atl, tex=TEX)
     from people2 import motion
     for b in bodies + dressed:
