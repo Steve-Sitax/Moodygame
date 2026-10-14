@@ -1208,7 +1208,8 @@ The fixture gives each place its own face recipe, so a woman's kind in a man's p
 women's kinds to `fishwife_a`.
 Known limits: the forearm and its cuff are still the clothes layer's texels (with the detail layers' weave) at 0.3 m;
 the idle_f clasped hands meet the front of a long coat; the pose-time armpit occlusion shows as a soft dark mark at
-the front of the shoulder when the arms come forward.
+the front of the shoulder when the arms come forward; on a stout woman (belly slider) the skirt shows through the
+jacket's open front edges at the belly.
 
 ## Checks
 
