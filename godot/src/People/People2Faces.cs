@@ -671,6 +671,7 @@ public static class People2Faces
             for (int i = 0; i < p.Index!.Length; i += 3)
                 if (ArmVertex(p.Index[i]) && ArmVertex(p.Index[i + 1]) && ArmVertex(p.Index[i + 2]))
                 { index.Add(p.Index[i]); index.Add(p.Index[i + 1]); index.Add(p.Index[i + 2]); }
+            CapOpenEnds(p, index, inf);
             p.Index = index.ToArray(); p.Expressions = null; p.ExpressionNormals = null;
             root.SetMeta("arm_triangles", index.Count / 3);
         }
@@ -683,6 +684,53 @@ public static class People2Faces
         }
         People2Material.Face(root, cell);
         root.SetMeta("player_recipe", Menu.Character.ToJson(profile));
+    }
+
+    // The first-person sleeve is cut open at the elbow. When the upper arm points at the eye (ladder, oars)
+    // the camera looks straight down that tube, so each open rim is closed with a fan to its centre.
+    private static void CapOpenEnds(Prepared p, List<int> index, int inf)
+    {
+        var edges = new Dictionary<(int, int), int>();
+        for (int i = 0; i < index.Count; i += 3)
+            for (int k = 0; k < 3; k++) edges[(index[i + k], index[i + (k + 1) % 3])] = index[i + (k + 2) % 3];
+        var next = new Dictionary<int, List<int>>();
+        foreach (var (a, b) in edges.Keys)
+            if (!edges.ContainsKey((b, a))) { if (!next.TryGetValue(a, out var l)) next[a] = l = new List<int>(); l.Add(b); }
+        var seen = new HashSet<int>(); var loops = new List<List<int>>();
+        foreach (int start in next.Keys.OrderBy(v => v))
+        {
+            if (seen.Contains(start)) continue;
+            // Flood one connected rim (jagged cuts can branch; the fan only needs the vertex set and its edges).
+            var group = new List<int>(); var stack = new Stack<int>(); stack.Push(start);
+            while (stack.Count > 0)
+            {
+                int v = stack.Pop(); if (!seen.Add(v)) continue; group.Add(v);
+                if (next.TryGetValue(v, out var outs)) foreach (int w in outs) stack.Push(w);
+                foreach (var pair in next) if (pair.Value.Contains(v) && !seen.Contains(pair.Key)) stack.Push(pair.Key);
+            }
+            loops.Add(group);
+        }
+        if (loops.Count == 0) return;
+        int count = p.V.Length, extra = loops.Count, tan = p.Tan != null ? p.Tan.Length / count : 0;
+        Array.Resize(ref p.V, count + extra); Array.Resize(ref p.N, count + extra); Array.Resize(ref p.UV, count + extra);
+        Array.Resize(ref p.C, count + extra);
+        if (p.PlayerRegions != null) { var r = p.PlayerRegions; Array.Resize(ref r, count + extra); p.PlayerRegions = r; }
+        var bones = p.Bones!; var weights = p.Weights!; var tangents = p.Tan;
+        Array.Resize(ref bones, (count + extra) * inf); Array.Resize(ref weights, (count + extra) * inf);
+        if (tangents != null) Array.Resize(ref tangents, (count + extra) * tan);
+        for (int l = 0; l < loops.Count; l++)
+        {
+            var group = loops[l]; int centre = count + l, first = group[0];
+            Vector3 sum = Vector3.Zero; foreach (int v in group) sum += p.V[v];
+            p.V[centre] = sum / group.Count; p.N[centre] = Vector3.Up;
+            p.UV[centre] = p.UV[first]; p.C[centre] = p.C[first];
+            if (p.PlayerRegions != null) p.PlayerRegions[centre] = new Vector2(p.V[centre].Y, p.V[centre].X);
+            for (int k = 0; k < inf; k++) { bones[centre * inf + k] = bones[first * inf + k]; weights[centre * inf + k] = weights[first * inf + k]; }
+            if (tangents != null) for (int k = 0; k < tan; k++) tangents[centre * tan + k] = tangents[first * tan + k];
+            foreach (int a in group)
+                if (next.TryGetValue(a, out var outs)) foreach (int b in outs) { index.Add(b); index.Add(a); index.Add(centre); }
+        }
+        p.Bones = bones; p.Weights = weights; p.Tan = tangents;
     }
 
     internal static void Next(Human human)
