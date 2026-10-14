@@ -617,3 +617,9 @@ All people2 and animal proof modes passed across isolated runs; final motion/wor
 The pack holds 322 files / 71,959,156 bytes. Final fingerprint:
 `f28f075142fa1b9800a534306c3a6ea6a25b5884b6b0b09cbefebff070828ffe`.
 Local handoff receipts and reviewed-picture manifest: `.scratch/batch2-review/`; report: `.scratch/report.md`.
+
+### Local Jef runtime (package G)
+
+Action hands, the reflection/shadow body, MakeHuman character preview and profile controls are documented in
+[Jef in Godot](godot-jef.md), including the separate clothing intake boundary and current acceptance-gate status.
+Remote player packets remain unchanged; [the appearance transport proposal](jef-look-network.md) awaits approval.

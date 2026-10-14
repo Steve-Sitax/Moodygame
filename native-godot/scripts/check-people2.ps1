@@ -2,7 +2,7 @@ param(
     [string]$Godot,
     # Comma lists are normalized below for pwsh -File.
     [string[]]$Modes = @('captures','shaders','parade','timing','identity','pack','network'),
-    [ValidateRange(8800,9139)][int]$Port = 8980,
+    [ValidateRange(8800,9159)][int]$Port = 8980,
     [ValidateRange(0,3600)][int]$WaitForTimingSeconds = 900,
     [switch]$AllowSharedTiming,
     [string[]]$Extra = @()

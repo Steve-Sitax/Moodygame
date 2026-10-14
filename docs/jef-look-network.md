@@ -20,7 +20,8 @@ Suggested binary layout, little endian:
 | Twenty curated sliders, signed int16 at 1/1000 | 40 |
 | **Total at the current maximum** | **76** |
 
-Zero sliders can be omitted only with a revisioned index/value encoding; the fixed 40-byte block is simpler.
+The fixed block sends all resolved values, including explicit zeros that override a preset's nonzero mean.
+A future sparse index/value encoding must distinguish an absent preset default from an explicit zero.
 Sex, age, build, skin, hair, clothes and colours already fit the appearance code. Body and face-picture selection
 must be derived from the validated profile on receipt, never supplied as arbitrary resource paths.
 
