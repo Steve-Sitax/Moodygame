@@ -79,17 +79,9 @@ public partial class Solid : Node
         ulong t0 = Time.GetTicksUsec();
         var world = Main.I.World;
         space = Main.I.View.FindWorld3D().Space;
-        var people = new HashSet<Node>();
-        foreach (var n in BakedWorld.All(world))
-            if (n is Skeleton3D)
-            {
-                people.Add(n);
-                var p = n.GetParent();
-                if (p != null && p != world && p.GetParent() != world) people.Add(p);
-            }
         var skip = new Dictionary<string, int>();
         void Note(string why) => skip[why] = skip.GetValueOrDefault(why) + 1;
-        Collect(world, false, people, Note);
+        CollectWorld(world, Note);
         ulong tHoles = Time.GetTicksUsec();
         FindStairHoles(world);
         GD.Print($"solid: stair holes found in {(Time.GetTicksUsec() - tHoles) / 1000.0:0.0} ms");
@@ -108,6 +100,19 @@ public partial class Solid : Node
         Main.I.World.Report["solidShapes"] = Built;
         Main.I.World.Report["solidTriangles"] = Triangles;
         Main.I.World.Report["solidBuildMs"] = Math.Round(BuildMs);
+    }
+
+    private void CollectWorld(Node world, Action<string> note)
+    {
+        var people = new HashSet<Node>();
+        foreach (var n in BakedWorld.All(world))
+            if (n is Skeleton3D)
+            {
+                people.Add(n);
+                var p = n.GetParent();
+                if (p != null && p != world && p.GetParent() != world) people.Add(p);
+            }
+        Collect(world, false, people, note);
     }
 
     private void Collect(Node n, bool skipped, HashSet<Node> people, Action<string> note)
@@ -195,6 +200,19 @@ public partial class Solid : Node
             var vertices=FacesOf(item.Mesh);
             for(int i=0;i+2<vertices.Length;i+=3)yield return(item.Xf*vertices[i],item.Xf*vertices[i+1],item.Xf*vertices[i+2]);
         }
+    }
+
+    /// <summary>The same geometry scan for dedicated hosts, without a viewport or physics bodies.</summary>
+    public static IEnumerable<(Vector3 A, Vector3 B, Vector3 C)> CaptureWorldTriangles(Node world)
+    {
+        var snapshot = new Solid();
+        try
+        {
+            snapshot.CollectWorld(world, _ => { });
+            snapshot.FindStairHoles(world);
+            foreach (var triangle in snapshot.WorldTriangles()) yield return triangle;
+        }
+        finally { snapshot.Free(); }
     }
 
     /// <summary>The Godot physics shapes include details absent from the browser's collider boxes. Raster their actual triangles,

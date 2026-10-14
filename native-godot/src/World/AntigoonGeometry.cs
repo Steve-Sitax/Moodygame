@@ -13,7 +13,8 @@ internal sealed class AntigoonGeometry
     private readonly Dictionary<(int,int),List<Triangle>> cells=new();
     public AntigoonGeometry(Node world)
     {
-        foreach(var (a,b,c) in Solid.I.WorldTriangles())Add(a,b,c);
+        var triangles = Solid.I is { } solid ? solid.WorldTriangles() : Solid.CaptureWorldTriangles(world);
+        foreach(var (a,b,c) in triangles)Add(a,b,c);
         foreach(var shape in world.FindChildren("*","CollisionShape3D",true,false).OfType<CollisionShape3D>())
         {
             if(shape.Disabled||shape.Shape==null||!shape.IsVisibleInTree()||shape.GetParent() is not CollisionObject3D body||(body.CollisionLayer&Solid.Layer)==0)continue;

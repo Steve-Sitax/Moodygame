@@ -3,6 +3,8 @@
     <TargetFramework>net8.0</TargetFramework>
     <EnableDynamicLoading>true</EnableDynamicLoading>
     <Nullable>enable</Nullable>
+    <!-- The native editor runs this shared animation runtime too. Keep its hot sampler optimized. -->
+    <Optimize>true</Optimize>
     <RootNamespace>Scheldemist</RootNamespace>
   </PropertyGroup>
 </Project>

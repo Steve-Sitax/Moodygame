@@ -586,6 +586,7 @@ internal sealed class Human2
         fadeLeft = Math.Max(0, fadeLeft - dt);
         float blend = fadeDuration > 0 ? 1 - fadeLeft / fadeDuration : 1;
         if (blend < 1) blend = blend * blend * (3 - 2 * blend);
+        long poseStart = Dev.PeopleTiming.ProfileStart();
         for (int bone = 0; bone < rest.Length; bone++)
         {
             int source = boneMap[bone];
@@ -603,6 +604,8 @@ internal sealed class Human2
                 ValidatedPoseSkips++;
             }
         }
+        Dev.PeopleTiming.ProfileEnd(poseStart, 0);
+        long layerStart = Dev.PeopleTiming.ProfileStart();
         Vector3 p = sk.GetBoneRest(hipBone).Origin;
         // Position keys are authored on trackBase, not on the receiving body's rest height.
         if (a.PositionTrack >= 0) p += (a.Animation.PositionTrackInterpolate(a.PositionTrack, ta) - HumanLayers.TrackBase) * bodyRatio;
@@ -620,6 +623,8 @@ internal sealed class Human2
         bool paced = PacedLoop && Math.Abs(Pace) > 0.01f;
         layers.Update(dt, (locomotion || paced) && Math.Abs(Pace) > 0.01f, paced ? time / clip.Length : phase,
             paced ? clip.Duty : Mathf.Lerp(a.Duty, b.Duty, weight), stand, motion == "sit" && queued == null ? sitFeet : 0);
+        Dev.PeopleTiming.ProfileEnd(layerStart, 1);
+        long propStart = Dev.PeopleTiming.ProfileStart();
         // the things the work moves (D3), or the load carried
         var at = root.GlobalPosition;
         if (hadAt) roll += new Vector2(at.X - lastAt.X, at.Z - lastAt.Z).Length() / Math.Max(0.01f, root.GlobalBasis.Y.Length());
@@ -635,6 +640,7 @@ internal sealed class Human2
         BasketPose();
         vehicle.Update(dt, clipName.StartsWith("truck_", StringComparison.Ordinal) || clipName.StartsWith("cart_", StringComparison.Ordinal));
         things.Tick(dt);
+        Dev.PeopleTiming.ProfileEnd(propStart, 2);
     }
 
     private void BasketPose()

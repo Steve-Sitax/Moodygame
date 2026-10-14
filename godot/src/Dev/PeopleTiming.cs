@@ -9,6 +9,10 @@ namespace Scheldemist.Dev;
 public partial class PeopleTiming : Node
 {
     private static bool enabled;
+    private static bool profiling;
+    public static readonly double[] PartsMs = new double[3];
+    public static long ProfileStart() => profiling ? Stopwatch.GetTimestamp() : 0;
+    public static void ProfileEnd(long start, int part) { if(start != 0) PartsMs[part] += Stopwatch.GetElapsedTime(start).TotalMilliseconds; }
     public static double LegacyMs, People2Ms, LayersMs;
     public static double LastHumanMs;
     public static int LegacyCalls, People2Calls;
@@ -31,9 +35,10 @@ public partial class PeopleTiming : Node
     public override void _Ready()
     {
         enabled = Main.I.Flag("peopletest");
+        profiling = enabled && Main.I.Flag("people2-profile");
         if (enabled) RenderingServer.FramePostDraw += Reset;
         SetProcess(false);
     }
-    private static void Reset() { LastHumanMs = LegacyMs + People2Ms; LegacyMs = People2Ms = LayersMs = 0; LegacyCalls = People2Calls = 0; }
+    private static void Reset() { LastHumanMs = LegacyMs + People2Ms; LegacyMs = People2Ms = LayersMs = 0; LegacyCalls = People2Calls = 0; Array.Clear(PartsMs); }
     public override void _ExitTree() { if (enabled) RenderingServer.FramePostDraw -= Reset; enabled = false; Reset(); }
 }

@@ -597,3 +597,14 @@ edges remain visibly coarse and need a separate material-specific bevel pass. Th
 triangles in existing base hair, beguine LOD1 and the incoming scabbard, without nonfinite attributes or bad weights.
 Close captures also show rolled-sleeve/cuff clipping and basket/cane pose limitations; these are handoff faults,
 not reasons to change the shared batch-1 geometry or authored placements during this integration.
+
+The shared game assembly enables compiler optimization, including native editor runs. Profiling found the bone
+sampler was the largest cost. Exactly constant rotation curves now keep their value in managed memory for every
+interpolation mode; nonconstant unsupported curves still use Godot. Routing compares 11,996 tracks across all
+252 clips at keys, midpoints and boundaries: 4,493,048 samples, maximum component difference 0.000000179.
+`--people2-profile` adds optional bone/layer/prop timings to the crowd report without changing animation rates.
+Exclusive batch-2 timing passed at `.scratch/people2-native-642740ce849a49a79fbd799e2df2e3fb/timing/`:
+people+animals CPU means 1.470 / 1.197 ms and town logic means 1.389 / 1.261 ms (Vismarkt / Grote Markt).
+Whole-frame mean/worst times were 15.301/182.659 ms and 18.893/40.185 ms; startup/upload stalls remain visible.
+Dedicated startup also captures the same solid-triangle scan without creating viewport physics bodies. Antigoon's
+clearance index previously dereferenced the absent rendered Solid node, stopping the headless network proof.

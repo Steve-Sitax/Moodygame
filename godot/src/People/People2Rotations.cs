@@ -7,7 +7,7 @@ namespace Scheldemist.People;
 // Other interpolation modes and boundary times keep the engine's sampler.
 internal sealed class People2Rotations
 {
-    private sealed record Track(double[] Times, Quaternion[] Values);
+    private sealed record Track(double[] Times, Quaternion[] Values, bool Constant);
     private readonly Animation animation;
     private readonly Track?[] tracks;
     private readonly double length;
@@ -17,27 +17,35 @@ internal sealed class People2Rotations
         tracks = new Track?[animation.GetTrackCount()];
         for (int t = 0; t < tracks.Length; t++)
         {
-            if (animation.TrackGetType(t) != Animation.TrackType.Rotation3D ||
-                animation.TrackGetInterpolationType(t) != Animation.InterpolationType.Linear) continue;
+            if (animation.TrackGetType(t) != Animation.TrackType.Rotation3D) continue;
             int count = animation.TrackGetKeyCount(t);
             if (count == 0) continue;
-            var times = new double[count]; var values = new Quaternion[count]; bool eligible = true;
+            var times = new double[count]; var values = new Quaternion[count];
+            bool eligible = animation.TrackGetInterpolationType(t) == Animation.InterpolationType.Linear;
+            bool ordered = true;
             for (int k = 0; k < count; k++)
             {
                 times[k] = animation.TrackGetKeyTime(t, k);
                 values[k] = animation.TrackGetKeyValue(t, k).AsQuaternion();
                 if (animation.TrackGetKeyTransition(t, k) != 1 || k > 0 && times[k] <= times[k - 1]) eligible = false;
+                if (k > 0 && times[k] <= times[k - 1]) ordered = false;
             }
-            if (eligible) tracks[t] = new Track(times, values);
+            bool constant = true;
+            for (int k = 1; k < count; k++) if (values[k] != values[0]) { constant = false; break; }
+            if (eligible || constant && ordered) tracks[t] = new Track(times, values, constant);
         }
     }
     internal Quaternion At(int track, double time)
     {
         var keys = tracks[track];
+        // A constant curve remains constant for every interpolation/transition, including its endpoints.
+        if (keys is { Constant: true } && time >= 0 && time <= length) return keys.Values[0];
         if (keys == null || time <= 0 || time >= length) return animation.RotationTrackInterpolate(track, time);
         if (keys.Values.Length == 1) return keys.Values[0];
         // Sparse tracks can leave a gap at the loop seam; retain the engine's wrap there.
         if (time < keys.Times[0] || time > keys.Times[^1]) return animation.RotationTrackInterpolate(track, time);
+        // Dense exported finger/rest tracks often repeat exactly. Preserve their value without a search or slerp.
+        if (keys.Constant) return keys.Values[0];
         int at = Array.BinarySearch(keys.Times, time);
         if (at >= 0) return keys.Values[at];
         int next = ~at, previous = next - 1;
