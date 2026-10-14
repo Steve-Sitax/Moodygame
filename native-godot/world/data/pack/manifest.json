@@ -1,6 +1,6 @@
 {
   "format": 2,
-  "version": "native-pack-af3e13eb68db21809e2a2d90dba7a15ee1e71fcfc7740a2856413fb60d80a998",
+  "version": "native-pack-2b25535a9e28c4ae3de01b3a4af770bd6462b2f65833a9fec35d856d0062fd66",
   "files": [
     {
       "file": "maps/dirt.json",
@@ -1870,8 +1870,8 @@
     },
     {
       "file": "shared/faceTypes.json",
-      "blob": "blobs/fe62f51214f84416511523380c6464b77bae70e13fbc3c0ee23d679984794c31.bin",
-      "sha256": "fe62f51214f84416511523380c6464b77bae70e13fbc3c0ee23d679984794c31",
+      "blob": "blobs/58682d07604e6f57f7ce1030b27c8a1bb947e3a16e195955e1d912222d23e8b3.bin",
+      "sha256": "58682d07604e6f57f7ce1030b27c8a1bb947e3a16e195955e1d912222d23e8b3",
       "bytes": 74755
     },
     {
