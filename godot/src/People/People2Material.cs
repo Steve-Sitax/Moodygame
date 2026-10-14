@@ -209,7 +209,8 @@ internal static class People2Material
     }
     internal static void LoadPart(ModelLibrary.Model model, string rootName)
     {
-        string part = "people2_" + rootName;
+        using var index = System.Text.Json.JsonDocument.Parse(Godot.FileAccess.GetFileAsString("res://assets/game-models/people2_parts.json"));
+        string part = index.RootElement.GetProperty(rootName).GetString()!;
         if (ModelLibrary.NativeScene?.Invoke(part) is not { } scene)
             throw new InvalidDataException("Missing people model part: " + part);
         People2Faces.LoadMorphs(part);

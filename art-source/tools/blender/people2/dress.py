@@ -99,6 +99,12 @@ def limit4(ob):
 NEAR_CROWD, NEAR_HERO, FAR = 14000, 16000, 2500
 
 
+def reduce_cloth(ob, budget):
+    """Compatibility entry for scoped garment modules authored before clothes_build."""
+    from . import clothes_build
+    return clothes_build.reduce(ob, budget)
+
+
 def piece_counts(ob):
     parts = wt.parts(ob)
     counts = {}

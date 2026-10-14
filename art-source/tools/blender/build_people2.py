@@ -237,6 +237,7 @@ def main():
         else:
             b = getattr(k, "build", dress.build)(k, make_body, ref_uv, layout, atl, tex=TEX)
         dressed.append(k.finish(b) if hasattr(k, "finish") else b)
+        b["ao"]["people2_group"] = k.group
     held_obs = held.build_all(kinds, layout, atl, tex=TEX)
     from people2 import motion
     for b in bodies + dressed:

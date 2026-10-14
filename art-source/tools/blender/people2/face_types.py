@@ -370,7 +370,11 @@ KIND_CELLS = {"coalman": ["m_sooty"], "sweep": ["m_sooty"], "sweep_boy": ["c_soo
 # pressed flat under a cap's or kepi's band and gone above it; "undercap" a woman's hair under the linen cap)
 KIND_HAIR = {"docker_a": {"capped": 3, "bald": 1}, "police": {"capped": 1}, "sooi": {"capped": 1},
              "fishwife_a": {"undercap": 1}, "fishwife_b": {"undercap": 1}, "nun": {"undercap": 1},
-             "beguine": {"undercap": 1}, "maid": {"undercap": 1}}
+             "beguine": {"undercap": 1}, "maid": {"undercap": 1}, "milk_woman": {"undercap": 1},
+             "old_woman": {"undercap": 1}, "old_woman_dressed": {"undercap": 1}, "shopwife": {"undercap": 1},
+             "tourist_lady": {"bun": 1}, "wife_a": {"undercap": 1}, "wife_b": {"undercap": 1}}
+KIND_TYPES["old_woman_dressed"] = dict(KIND_TYPES["old_woman"])
+KIND_TYPES["old_man_dressed"] = dict(KIND_TYPES["old_man"])
 
 # ---------------------------------------------------------------- the named cast: fixed faces (sliders by name)
 CAST = {

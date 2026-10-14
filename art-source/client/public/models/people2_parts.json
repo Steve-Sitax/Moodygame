@@ -1,43 +1,219 @@
 {
+  "man_middling": {
+    "part": "people2",
+    "bytes": 14408416
+  },
+  "baker": {
+    "part": "people2_uniform1",
+    "bytes": 4383752
+  },
+  "clerk": {
+    "part": "people2_uniform1",
+    "bytes": 4383752
+  },
+  "customs": {
+    "part": "people2_uniform1",
+    "bytes": 4383752
+  },
+  "gentleman": {
+    "part": "people2_uniform2",
+    "bytes": 4453464
+  },
+  "police": {
+    "part": "people2_uniform2",
+    "bytes": 4453464
+  },
+  "priest": {
+    "part": "people2_uniform2",
+    "bytes": 4453464
+  },
+  "publican": {
+    "part": "people2_uniform3",
+    "bytes": 4573416
+  },
+  "sentry": {
+    "part": "people2_uniform3",
+    "bytes": 4573416
+  },
+  "shopkeeper": {
+    "part": "people2_uniform3",
+    "bytes": 4573416
+  },
+  "soldier": {
+    "part": "people2_uniform4",
+    "bytes": 4767820
+  },
+  "soldier_b": {
+    "part": "people2_uniform4",
+    "bytes": 4767820
+  },
+  "tourist": {
+    "part": "people2_uniform4",
+    "bytes": 4767820
+  },
+  "baker_boy": {
+    "part": "people2_workers1",
+    "bytes": 4947556
+  },
+  "beggar": {
+    "part": "people2_workers1",
+    "bytes": 4947556
+  },
+  "carter": {
+    "part": "people2_workers1",
+    "bytes": 4947556
+  },
+  "coalman": {
+    "part": "people2_workers2",
+    "bytes": 4408596
+  },
+  "docker_a": {
+    "part": "people2_workers2",
+    "bytes": 4408596
+  },
+  "docker_b": {
+    "part": "people2_workers2",
+    "bytes": 4408596
+  },
+  "docker_c": {
+    "part": "people2_workers3",
+    "bytes": 4772700
+  },
+  "docker_sack": {
+    "part": "people2_workers3",
+    "bytes": 4772700
+  },
+  "grinder": {
+    "part": "people2_workers3",
+    "bytes": 4772700
+  },
+  "porter": {
+    "part": "people2_workers4",
+    "bytes": 5314064
+  },
+  "ragman": {
+    "part": "people2_workers4",
+    "bytes": 5314064
+  },
+  "sweep": {
+    "part": "people2_workers4",
+    "bytes": 5314064
+  },
+  "sweep_boy": {
+    "part": "people2_workers5",
+    "bytes": 1681780
+  },
   "beguine": {
-    "part": "people2_beguine",
-    "bytes": 1690108
+    "part": "people2_women1",
+    "bytes": 4994068
+  },
+  "fishwife_a": {
+    "part": "people2_women1",
+    "bytes": 4994068
+  },
+  "fishwife_b": {
+    "part": "people2_women1",
+    "bytes": 4994068
+  },
+  "girl": {
+    "part": "people2_women2",
+    "bytes": 4368832
+  },
+  "girl_b": {
+    "part": "people2_women2",
+    "bytes": 4368832
+  },
+  "maid": {
+    "part": "people2_women2",
+    "bytes": 4368832
+  },
+  "milk_woman": {
+    "part": "people2_women3",
+    "bytes": 5225820
+  },
+  "nun": {
+    "part": "people2_women3",
+    "bytes": 5225820
+  },
+  "old_woman_dressed": {
+    "part": "people2_women3",
+    "bytes": 5225820
+  },
+  "shopwife": {
+    "part": "people2_women4",
+    "bytes": 4800596
+  },
+  "tourist_lady": {
+    "part": "people2_women4",
+    "bytes": 4800596
+  },
+  "wife_a": {
+    "part": "people2_women4",
+    "bytes": 4800596
+  },
+  "wife_b": {
+    "part": "people2_women5",
+    "bytes": 1583028
+  },
+  "boy": {
+    "part": "people2_cast1",
+    "bytes": 4056172
+  },
+  "fientje": {
+    "part": "people2_cast1",
+    "bytes": 4056172
+  },
+  "foreman": {
+    "part": "people2_cast1",
+    "bytes": 4056172
+  },
+  "old_man_dressed": {
+    "part": "people2_cast2",
+    "bytes": 3939208
+  },
+  "peeters": {
+    "part": "people2_cast2",
+    "bytes": 3939208
+  },
+  "recipient": {
+    "part": "people2_cast2",
+    "bytes": 3939208
+  },
+  "sailor": {
+    "part": "people2_cast3",
+    "bytes": 3651124
+  },
+  "sailor_b": {
+    "part": "people2_cast3",
+    "bytes": 3651124
+  },
+  "sooi": {
+    "part": "people2_cast3",
+    "bytes": 3651124
+  },
+  "stranger": {
+    "part": "people2_cast4",
+    "bytes": 4264412
+  },
+  "thief": {
+    "part": "people2_cast4",
+    "bytes": 4264412
+  },
+  "tuur": {
+    "part": "people2_cast4",
+    "bytes": 4264412
+  },
+  "urchin": {
+    "part": "people2_cast5",
+    "bytes": 1307400
   },
   "child_middling": {
     "part": "people2_child_middling",
-    "bytes": 1596240
+    "bytes": 1596236
   },
   "child_slight": {
     "part": "people2_child_slight",
     "bytes": 1842112
-  },
-  "docker_a": {
-    "part": "people2_docker_a",
-    "bytes": 1353508
-  },
-  "fishwife_a": {
-    "part": "people2_fishwife_a",
-    "bytes": 1564396
-  },
-  "fishwife_b": {
-    "part": "people2_fishwife_b",
-    "bytes": 1741352
-  },
-  "girl": {
-    "part": "people2_girl",
-    "bytes": 1319556
-  },
-  "girl_b": {
-    "part": "people2_girl_b",
-    "bytes": 1439868
-  },
-  "maid": {
-    "part": "people2_maid",
-    "bytes": 1611200
-  },
-  "man_middling": {
-    "part": "people2",
-    "bytes": 14322468
   },
   "man_slight": {
     "part": "people2_man_slight",
@@ -47,14 +223,6 @@
     "part": "people2_man_stout",
     "bytes": 4719716
   },
-  "milk_woman": {
-    "part": "people2_milk_woman",
-    "bytes": 1679876
-  },
-  "nun": {
-    "part": "people2_nun",
-    "bytes": 1665088
-  },
   "old_man": {
     "part": "people2_old_man",
     "bytes": 4987660
@@ -62,34 +230,6 @@
   "old_woman": {
     "part": "people2_old_woman",
     "bytes": 1879104
-  },
-  "old_woman_dressed": {
-    "part": "people2_old_woman_dressed",
-    "bytes": 1882668
-  },
-  "police": {
-    "part": "people2_police",
-    "bytes": 1378928
-  },
-  "shopwife": {
-    "part": "people2_shopwife",
-    "bytes": 1544648
-  },
-  "sooi": {
-    "part": "people2_sooi",
-    "bytes": 1601428
-  },
-  "tourist_lady": {
-    "part": "people2_tourist_lady",
-    "bytes": 1690080
-  },
-  "wife_a": {
-    "part": "people2_wife_a",
-    "bytes": 1567668
-  },
-  "wife_b": {
-    "part": "people2_wife_b",
-    "bytes": 1583024
   },
   "woman_middling": {
     "part": "people2_woman_middling",

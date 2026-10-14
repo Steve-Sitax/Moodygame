@@ -101,7 +101,7 @@ public partial class NativeModelRecovery : Node
                     manifest.Remove(name); full.Remove(name);
                 }
                 if (Directory.Exists(ProjectSettings.GlobalizePath(resources))) throw new IOException("Keep existing model resources: " + resources);
-                if (name == "people2") StorePeopleParts(scene, output);
+                if (name == "people2") StorePeopleParts(scene, output, extras);
                 else new NativeResourceStore(resources).Scene(scene, output + "/" + name + ".scn");
                 File.WriteAllText(ProjectSettings.GlobalizePath(output + "/" + name + ".extras.json"), extras.ToJsonString());
                 manifest[name] = new JsonObject { ["sourceSha256"] = sha, ["nodes"] = BakedWorld.All(scene).Count(), ["animations"] = BakedWorld.All(scene).OfType<AnimationPlayer>().Sum(a => a.GetAnimationList().Length), ["extras"] = name + ".extras.json" };
@@ -132,18 +132,27 @@ public partial class NativeModelRecovery : Node
         }
     }
 
-    private static void StorePeopleParts(Node3D scene, string output)
+    private static void StorePeopleParts(Node3D scene, string output, JsonObject extras)
     {
         var parts = new System.Collections.Generic.List<(string Name, Node3D Scene)>();
+        var groups = new System.Collections.Generic.Dictionary<string, System.Collections.Generic.List<Node3D>>();
         foreach (var child in scene.GetChildren().OfType<Node3D>().ToArray())
         {
             if (child.Name == "man_middling" || child.Name == "people2_held") continue;
             foreach (var node in BakedWorld.All(child)) node.Owner = null;
             scene.RemoveChild(child);
-            var part = new Node3D { Name = "PeoplePart" };
-            part.AddChild(child);
-            parts.Add(("people2_" + child.Name, part));
+            string group = extras[child.Name.ToString()]?["people2_group"]?.GetValue<string>() ?? child.Name.ToString();
+            if (!groups.TryGetValue(group, out var members)) groups[group] = members = new();
+            members.Add(child);
         }
+        foreach (var (group, members) in groups)
+            for (int i = 0; i < members.Count; i += 3)
+            {
+                var part = new Node3D { Name = "PeoplePart" };
+                foreach (var child in members.Skip(i).Take(3)) part.AddChild(child);
+                bool dressed = extras[members[0].Name.ToString()]?["people2_group"] != null;
+                parts.Add(("people2_" + group + (dressed ? (i/3+1).ToString() : ""), part));
+            }
         parts.Insert(0, ("people2", scene));
         var index = new JsonObject();
         foreach (var (name, part) in parts)

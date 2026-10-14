@@ -71,13 +71,14 @@ public static class People2
         EnsureRoot(body);
         return model.Roots.ContainsKey(body);
     }
-    private static string Body(string kind) => kind.StartsWith("p2:", StringComparison.Ordinal) ? kind[3..] : map.GetValueOrDefault(kind, kind == "old_woman" ? "old_woman_dressed" : kind);
+    private static string Body(string kind) => kind.StartsWith("p2:", StringComparison.Ordinal) ? kind[3..] : map.GetValueOrDefault(kind, kind is "old_woman" or "old_man" ? kind + "_dressed" : kind);
     private static void EnsureRoot(string body)
     {
-        if (model == null || model.Roots.ContainsKey(body)) return;
-        People2Material.LoadPart(model, body);
-        if (BaseBody.TryGetValue(body, out string? basis) && !model.Roots.ContainsKey(basis)) People2Material.LoadPart(model, basis);
-        foreach (var root in model.Roots.Values) PrepareRoot(root);
+        if (model == null) return;
+        bool changed = false;
+        if (!model.Roots.ContainsKey(body)) { People2Material.LoadPart(model, body); changed = true; }
+        if (BaseBody.TryGetValue(body, out string? basis) && !model.Roots.ContainsKey(basis)) { People2Material.LoadPart(model, basis); changed = true; }
+        if (changed) foreach (var root in model.Roots.Values) PrepareRoot(root);
     }
     private static void PrepareRoot(Node3D root)
     {
@@ -228,7 +229,7 @@ public static class People2
         bool female = Humans.Women.Contains(recipeKind);
         string style = height < 0.75f ? "child" : kind.StartsWith("old_", StringComparison.Ordinal) ? "old" : female ? "woman" : "man";
         var info = Bodies.GetValueOrDefault(body, (height, female, style));
-        var runtime = new Human2(kind, root, info);
+        var runtime = new Human2(recipeKind, root, info);
         if (held.TryGetValue(body, out var items) && model.Roots.TryGetValue("people2_held", out var props))
             foreach (var item in items)
                 if (props.GetNodeOrNull<Node3D>(item.Model) is { } source)
@@ -237,7 +238,9 @@ public static class People2
                     sk.AddChild(attachment);
                     var copy = (Node3D)source.Duplicate();
                     copy.Position = new Basis(Vector3.Right, Mathf.DegToRad(item.Tilt)) * item.Offset;
-                    copy.Rotation = new Vector3(Mathf.DegToRad(item.Tilt), 0, 0);
+                    // C4's shared blackthorn is authored along +y; gripR's hanging axis is -z.
+                    float turn = item.Model == "held_cane" ? -MathF.PI/2 : 0;
+                    copy.Rotation = new Vector3(Mathf.DegToRad(item.Tilt) + turn, 0, 0);
                     People2Material.Assign(copy, "people2_held");
                     attachment.AddChild(copy);
                 }

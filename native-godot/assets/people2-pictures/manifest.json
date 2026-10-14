@@ -13,6 +13,18 @@
     "old_man",
     "old_woman",
     "docker_a",
+    "docker_b",
+    "docker_c",
+    "docker_sack",
+    "porter",
+    "carter",
+    "coalman",
+    "sweep",
+    "sweep_boy",
+    "grinder",
+    "ragman",
+    "baker_boy",
+    "beggar",
     "fishwife_a",
     "fishwife_b",
     "maid",
@@ -27,7 +39,30 @@
     "beguine",
     "tourist_lady",
     "police",
+    "soldier",
+    "soldier_b",
+    "sentry",
+    "customs",
+    "priest",
+    "gentleman",
+    "clerk",
+    "tourist",
+    "shopkeeper",
+    "publican",
+    "baker",
     "sooi",
+    "peeters",
+    "tuur",
+    "fientje",
+    "sailor",
+    "sailor_b",
+    "stranger",
+    "thief",
+    "foreman",
+    "recipient",
+    "boy",
+    "urchin",
+    "old_man_dressed",
     "held"
   ],
   "faces": [
@@ -107,68 +142,208 @@
       "clothes": 10,
       "face": 6
     },
-    "fishwife_a": {
+    "docker_b": {
       "clothes": 11,
+      "face": 1
+    },
+    "docker_c": {
+      "clothes": 12,
+      "face": 2
+    },
+    "docker_sack": {
+      "clothes": 13,
+      "face": 4
+    },
+    "porter": {
+      "clothes": 14,
+      "face": 4
+    },
+    "carter": {
+      "clothes": 15,
+      "face": 5
+    },
+    "coalman": {
+      "clothes": 16,
+      "face": 9
+    },
+    "sweep": {
+      "clothes": 17,
+      "face": 9
+    },
+    "sweep_boy": {
+      "clothes": 18,
+      "face": 28
+    },
+    "grinder": {
+      "clothes": 19,
+      "face": 7
+    },
+    "ragman": {
+      "clothes": 20,
+      "face": 14
+    },
+    "baker_boy": {
+      "clothes": 21,
+      "face": 28
+    },
+    "beggar": {
+      "clothes": 22,
+      "face": 15
+    },
+    "fishwife_a": {
+      "clothes": 23,
       "face": 19
     },
     "fishwife_b": {
-      "clothes": 12,
+      "clothes": 24,
       "face": 19
     },
     "maid": {
-      "clothes": 13,
+      "clothes": 25,
       "face": 17
     },
     "wife_a": {
-      "clothes": 14,
+      "clothes": 26,
       "face": 19
     },
     "wife_b": {
-      "clothes": 15,
+      "clothes": 27,
       "face": 19
     },
     "shopwife": {
-      "clothes": 16,
+      "clothes": 28,
       "face": 17
     },
     "old_woman_dressed": {
-      "clothes": 17,
+      "clothes": 29,
       "face": 24
     },
     "milk_woman": {
-      "clothes": 18,
+      "clothes": 30,
       "face": 22
     },
     "girl": {
-      "clothes": 19,
+      "clothes": 31,
       "face": 29
     },
     "girl_b": {
-      "clothes": 20,
+      "clothes": 32,
       "face": 29
     },
     "nun": {
-      "clothes": 21,
+      "clothes": 33,
       "face": 19
     },
     "beguine": {
-      "clothes": 22,
+      "clothes": 34,
       "face": 17
     },
     "tourist_lady": {
-      "clothes": 23,
+      "clothes": 35,
       "face": 21
     },
     "police": {
-      "clothes": 24,
+      "clothes": 36,
       "face": 7
     },
+    "soldier": {
+      "clothes": 37,
+      "face": 0
+    },
+    "soldier_b": {
+      "clothes": 38,
+      "face": 7
+    },
+    "sentry": {
+      "clothes": 39,
+      "face": 0
+    },
+    "customs": {
+      "clothes": 40,
+      "face": 10
+    },
+    "priest": {
+      "clothes": 41,
+      "face": 2
+    },
+    "gentleman": {
+      "clothes": 42,
+      "face": 4
+    },
+    "clerk": {
+      "clothes": 43,
+      "face": 0
+    },
+    "tourist": {
+      "clothes": 44,
+      "face": 4
+    },
+    "shopkeeper": {
+      "clothes": 45,
+      "face": 2
+    },
+    "publican": {
+      "clothes": 46,
+      "face": 1
+    },
+    "baker": {
+      "clothes": 47,
+      "face": 4
+    },
     "sooi": {
-      "clothes": 25,
+      "clothes": 48,
       "face": 6
     },
+    "peeters": {
+      "clothes": 49,
+      "face": 24
+    },
+    "tuur": {
+      "clothes": 50,
+      "face": 5
+    },
+    "fientje": {
+      "clothes": 51,
+      "face": 18
+    },
+    "sailor": {
+      "clothes": 52,
+      "face": 3
+    },
+    "sailor_b": {
+      "clothes": 53,
+      "face": 3
+    },
+    "stranger": {
+      "clothes": 54,
+      "face": 10
+    },
+    "thief": {
+      "clothes": 55,
+      "face": 8
+    },
+    "foreman": {
+      "clothes": 56,
+      "face": 4
+    },
+    "recipient": {
+      "clothes": 57,
+      "face": 2
+    },
+    "boy": {
+      "clothes": 58,
+      "face": 28
+    },
+    "urchin": {
+      "clothes": 59,
+      "face": 27
+    },
+    "old_man_dressed": {
+      "clothes": 60,
+      "face": 14
+    },
     "people2_held": {
-      "clothes": 26,
+      "clothes": 61,
       "face": 0
     }
   },
