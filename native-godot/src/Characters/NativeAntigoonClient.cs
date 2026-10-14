@@ -20,12 +20,14 @@ public partial class NativeAntigoonClient : Node
         hint = new Label { Position = new Vector2(24, 150), MouseFilter = Control.MouseFilterEnum.Ignore };
         hint.AddThemeColorOverride("font_color",new Color(.82f,.79f,.68f));
         Main.I.Ui.AddChild(hint);
+        BuildDevelopmentPointer();
     }
     public override void _Process(double delta)
     {
         bool playing = GameState.I.Live && GameState.I.Playing && ServerLink.I?.Up == true && !ServerLink.I.Paused;
         actor?.Pause(!playing);
         hint.Visible = playing;
+        UpdateDevelopmentPointer(playing);
         if (!playing || busy) return;
         poll += delta;
         if (poll >= .1) { poll = 0; _ = Refresh(); }
@@ -45,6 +47,7 @@ public partial class NativeAntigoonClient : Node
         if(!IsInsideTree())return;
         ApplyStreetEvent(v);
         bool visible = v["active"]?.GetValue<bool>()==true;
+        developmentSpawn=v["development_spawn"]?.GetValue<bool>()==true&&visible&&v["health"]?.GetValue<int>()>0;
         if (!visible && actor == null) return;
         if(actor==null){actor=new AntigoonActor { Name="Antigoon", TownLighting=true };Main.I.View.AddChild(actor);}
         if(v["x"]==null){actor.Snapshot(actor.GlobalPosition,actor.Rotation.Y,"hidden",0,0,false);return;}
@@ -75,5 +78,5 @@ public partial class NativeAntigoonClient : Node
         catch(Exception e){Hud.I?.Say(e.Message);}
         finally{busy=false;}
     }
-    public override void _ExitTree(){StopStreetEvent();if(IsInstanceValid(actor))actor!.QueueFree();if(IsInstanceValid(hint))hint.QueueFree();}
+    public override void _ExitTree(){StopStreetEvent();if(IsInstanceValid(actor))actor!.QueueFree();if(IsInstanceValid(hint))hint.QueueFree();if(IsInstanceValid(developmentPointer))developmentPointer.QueueFree();}
 }

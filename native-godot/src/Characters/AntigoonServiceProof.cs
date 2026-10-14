@@ -22,7 +22,7 @@ internal static class AntigoonServiceProof
         host.AddModule(service);
         async Task<JsonObject> Call(string method,string path,int player=1)=>JsonNode.Parse(await host.Call(method,"/api/antigoon"+path,"{}",player))!.AsObject();
         int checks=0;void Check(bool yes,string title){if(!yes)throw new Exception("Antigoon service: "+title);checks++;GD.Print("PASS "+title);}
-        var initial=await Call("GET","");Check(initial["active"]!.GetValue<bool>()==false,"night never starts Antigoon without development selection");
+        var initial=await Call("GET","");Check(initial["active"]!.GetValue<bool>()==false&&!initial["development_spawn"]!.GetValue<bool>(),"night never starts Antigoon or exposes a marker without development selection");
         host.Context.SetWorld("antigoon",new JsonObject{["x"]=0,["z"]=0,["hx"]=0,["hz"]=0,["health"]=120});
         now+=100;Check((await Call("GET",""))["active"]!.GetValue<bool>()==false,"previously saved enemy does not restore into ordinary play");
         bool investigation=false;try{await Call("POST","/investigate");}catch(NativeServiceException ex){investigation=ex.Status==409;}Check(investigation,"normal-play investigation cannot enable development encounter");
@@ -62,7 +62,7 @@ internal static class AntigoonServiceProof
         Check(shared["residents"]!.ToJsonString()==panic["residents"]!.ToJsonString(),"both peers receive identical resident panic state");
         automatic.DevelopmentStage=_=>(new P(0,28),new P(0,18));autoHost.Clock.SetTime(1,13,0);autoHost.Saves.SetPausedAll(true);
         var selected=JsonNode.Parse(await autoHost.Call("POST","/api/dev/antigoon","{}",1))!;
-        Check(selected["active"]!.GetValue<bool>()&&selected["health"]!.GetValue<int>()==120,"development event starts fresh while Events panel pauses the town");
+        Check(selected["active"]!.GetValue<bool>()&&selected["development_spawn"]!.GetValue<bool>()&&selected["health"]!.GetValue<int>()==120,"development event starts fresh with a DEV marker while Events panel pauses the town");
         Check(NativeGoods.Number(autoHost.Clock.View()["hour"])==22&&selected["watch_z"]!.GetValue<double>()==18&&selected["world"]!=null,"development event sets night and returns viewing position and current world");
         refused=false;try{await autoHost.Call("POST","/api/dev/antigoon","{}",2);}catch(NativeServiceException ex){refused=ex.Status==403;}Check(refused,"only the multiplayer host can start development encounter");
         autoHost.Clock.SetTime(1,14,12);automatic.DevelopmentStage=_=>null;
@@ -71,7 +71,7 @@ internal static class AntigoonServiceProof
         autoHost.Saves.SetPausedAll(false);autoHost.Clock.SetTime(1,7,0);now+=100;await autoHost.Call("GET","/api/antigoon",null,1);
         autoHost.Clock.SetTime(2,22,0);now+=100;
         var followingNight=JsonNode.Parse(await autoHost.Call("GET","/api/antigoon",null,1))!;
-        Check(!followingNight["active"]!.GetValue<bool>(),"completed development encounter does not return on the next night");
+        Check(!followingNight["active"]!.GetValue<bool>()&&!followingNight["development_spawn"]!.GetValue<bool>(),"completed development encounter and marker do not return on the next night");
         GD.Print($"ANTIGOON_SERVICE_PASS {checks} checks");
     }
 }

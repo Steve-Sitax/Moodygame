@@ -7,6 +7,12 @@ namespace Scheldemist.Play;
 public partial class Tick : Control
 {
     private float turn;
+    private Color ink = new("e8d8b0");
+    public Color Ink
+    {
+        get => ink;
+        set { if (ink == value) return; ink = value; QueueRedraw(); }
+    }
     /// <summary>Degrees: 0 down, 90 or -90 when the goal is behind Jef.</summary>
     public float Turn
     {
@@ -33,6 +39,6 @@ public partial class Tick : Control
             for (int i = 0; i < 3; i++) grown[i] = c + (pts[i] - c) * (1 + 0.18f * k);
             DrawColoredPolygon(grown, new Color(0, 0, 0, 0.18f));
         }
-        DrawColoredPolygon(pts, new Color("e8d8b0"));
+        DrawColoredPolygon(pts, ink);
     }
 }
