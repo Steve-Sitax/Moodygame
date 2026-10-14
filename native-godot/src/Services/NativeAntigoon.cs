@@ -83,6 +83,7 @@ public sealed partial class NativeAntigoon : INativeServiceModule
     private JsonObject View(int player)
     {
         var v=new JsonObject{["active"]=developmentEnabled&&brain!=null&&brain.State!="hidden",["night"]=Night,["multiplayer"]=host.MultiplayerEnabled(),["development_only"]=true,["server_ms"]=host.Context.Now};
+        v["development_spawn"]=developmentEnabled&&brain!=null;
         if(brain!=null){v["x"]=brain.Position.X;v["y"]=Ground(brain.Position);v["z"]=brain.Position.Z;v["yaw"]=brain.Yaw;v["health"]=brain.Health;v["state"]=brain.State;v["state_time"]=brain.StateTime;v["attack_serial"]=brain.AttackSerial;v["target"]=brain.Target;}
         EventView(v);
         return v;

@@ -85,6 +85,8 @@ Hashes verify exact model, embedded textures and source reconstruction.
 Selectable encounter: F8 > Events > Event: Antigoon (development mode).
 It starts a fresh giant at 22:00, at least 18 m from Jef, and leaves Jef in place.
 Close the panel to let the encounter run. Console: event antigoon.
+Follow the red quest-style arrow labelled Antigoon and its live distance.
+It tracks only explicit DEV spawns while DEV mode is on; normal play has no arrow.
 There are no automatic nightly encounters. The selected DEV encounter ends
 at dawn; select it again to repeat the test. The button restarts defeated giants.
 Menu recreation, repeated panel opening/closing and window resizing pass

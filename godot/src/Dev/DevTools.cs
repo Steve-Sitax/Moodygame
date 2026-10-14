@@ -179,7 +179,7 @@ public partial class DevTools : Node
         var result = await Api.Post<JsonElement>("api/dev/antigoon", new { }, timeoutMs: 30000);
         GameState.I.Apply(JsonSerializer.Deserialize<JobsPayload>(result.GetProperty("world"), Scheldemist.Net.Api.Json)!);
         People?.Refill();
-        return $"Antigoon is walking from a back alley at 22:00 (x {result.GetProperty("x").GetDouble():0}, z {result.GetProperty("z").GetDouble():0}). Your position stays the same. Close this panel to watch.";
+        return $"Antigoon is walking from a back alley at 22:00 (x {result.GetProperty("x").GetDouble():0}, z {result.GetProperty("z").GetDouble():0}). Your position stays the same. Close this panel and follow the red arrow.";
     }
 
     /// <summary>An event a button planned that has not begun yet (its id, its title).</summary>

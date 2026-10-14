@@ -55,8 +55,11 @@ public partial class Deeds : Node
     private readonly List<(int deed, string id, ulong at)> discoveries = new();
     private readonly List<(int deed, string id, ulong until)> suspects = new();
     private readonly Dictionary<string, ulong> recognised = new();
-    private readonly Dictionary<string, (double close, double left)> thieves = new();
+    private readonly Dictionary<string, (double close, double wary)> thieves = new();
     private readonly Dictionary<string, ulong> robbed = new();
+    // a pickpocket Jef caught: he runs off for a while, and the police have him; he never works Jef again this game
+    private readonly HashSet<string> caught = new();
+    private readonly Dictionary<string, ulong> fled = new();
     private sealed class TargetActions { public Act Pick = null!; public Act Catch = null!; }
     private readonly Dictionary<string, TargetActions> targetActions = new();
     private readonly Offers offered = new() { Extra = new(), Options = new() };
@@ -91,7 +94,8 @@ public partial class Deeds : Node
     {
         foreach (string id in pursuers.Keys) town?.ReleasePlayerPerson(id, this);
         foreach (string id in thieves.Keys) town?.ReleasePlayerPerson(id, this);
-        pursuers.Clear(); discoveries.Clear(); suspects.Clear(); robbed.Clear(); thieves.Clear(); recognised.Clear(); targetActions.Clear();
+        foreach (string id in fled.Keys) town?.ReleasePlayerPerson(id, this);
+        pursuers.Clear(); discoveries.Clear(); suspects.Clear(); robbed.Clear(); thieves.Clear(); caught.Clear(); fled.Clear(); recognised.Clear(); targetActions.Clear();
         walkedAgent = null; verdict = 0; seen = -1; night = null; cell.Close(); Police = null; heldTick = false;
         held = false; owned = false; PocketChanged(); _ = Load(); _ = Poll();
     }
@@ -163,7 +167,7 @@ public partial class Deeds : Node
         actions.Pick.X = actions.Catch.X = at.X; actions.Pick.Y = actions.Catch.Y = at.Y; actions.Pick.Z = actions.Catch.Z = at.Z;
         if (robbed.TryGetValue(s.R.Id, out var when) && GameState.PlayNow - when < 25000 && d < 3.2)
             options.Add((d - 20, actions.Catch));
-        if (d >= 1.8 || Jef.I.Hurrying || pursuers.ContainsKey(s.R.Id) || Facing(s, x, z) >= -0.25) return;
+        if (d >= 1.8 || Jef.I.Hurrying || pursuers.ContainsKey(s.R.Id) || caught.Contains(s.R.Id) || Facing(s, x, z) >= -0.25) return;
         extra.Add(actions.Pick);
     }
     private readonly record struct KeyState(int Kind, float Distance, Key Key, string Text, float X, float? Y, float Z, bool Self, float? Cone, Action Run);
@@ -400,7 +404,7 @@ public partial class Deeds : Node
     }
     private async Task Notice(int deed,string id) { if(Api==null) return; try { Apply(await Api.Post<DeedReply>($"api/deed/{deed}/noticed",new { who=id })); } catch(ApiException e) { LastError=e.Message; } }
     private async Task Recognise(string id,Vector3 at) { if(Api==null) return; try { Apply(await Api.Post<DeedReply>("api/deed/recognise",new { id=id,facing=Facing(town!.Sims.First(s => s.R.Id==id),Jef.I.X,Jef.I.Z),d=new Vector2(at.X-Jef.I.X,at.Z-Jef.I.Z).Length(),los=Los(at.X,at.Z,Jef.I.X,Jef.I.Z),x=Jef.I.X,z=Jef.I.Z,lantern=Lit })); } catch(ApiException e) { LastError=e.Message; } }
-    public async Task Catch(string id) { if(busy || Api==null) return; busy=true; try { var r=await Api.CatchPocketThief(id); Answered?.Invoke(new { catchThief=id },r); Apply(r); robbed.Remove(id); town?.ReleasePlayerPerson(id,this); } catch(ApiException e) { Fail(e); } finally { busy=false; } }
+    public async Task Catch(string id) { if(busy || Api==null) return; busy=true; try { var r=await Api.CatchPocketThief(id); Answered?.Invoke(new { catchThief=id },r); Apply(r); robbed.Remove(id); thieves.Remove(id); caught.Add(id); fled[id]=GameState.PlayNow; } catch(ApiException e) { Fail(e); } finally { busy=false; } }
     public override void _ExitTree()
     {
         disposed=true; cell.Close(); foreach(var e in entries) e.Dispose();

@@ -61,6 +61,18 @@ public static class NativeAntigoonEventProof
             GD.Print($"ANTIGOON_EVENTS_BUTTON_PASS at {home}");
             Scheldemist.Dev.DevSheet.Close();Pause.Clear();
             GameState.I.PlayingWhen=()=>true;GameState.I.Hold=false;
+            var pointer=game.Ui.GetNode<Control>("AntigoonDevPointer");
+            var pointerDeadline=DateTime.UtcNow.AddSeconds(30);
+            while(!pointer.Visible){if(DateTime.UtcNow>pointerDeadline)throw new Exception("DEV Antigoon arrow never appeared");await Frames(1);}
+            var red=pointer.GetNode<Scheldemist.Play.Tick>("Arrow");
+            if(red.Ink.R<.8f||red.Ink.G>.4f||!pointer.GetNode<Label>("Distance").Text.StartsWith("Antigoon · "))throw new Exception("Antigoon pointer is not red with a labelled distance");
+            await game.ToSignal(RenderingServer.Singleton,RenderingServer.SignalName.FramePostDraw);
+            game.GetViewport().GetTexture().GetImage().SavePng(Path.Combine(output,"antigoon-dev-arrow.png"));
+            Scheldemist.Menu.Prefs.SetDevMode(false);await Frames(3);
+            if(pointer.Visible)throw new Exception("Antigoon arrow leaked into normal mode");
+            Scheldemist.Menu.Prefs.SetDevMode(true);await Frames(3);
+            if(!pointer.Visible)throw new Exception("Antigoon DEV arrow did not restore");
+            GD.Print("ANTIGOON_DEV_ARROW_PASS: red quest-style arrow with live distance, hidden outside DEV mode.");
             if(!Jef.I.Fly)Jef.I.ToggleFly();
             // Move only this disposable proof camera/player to inspect the remote encounter after checking no teleport.
             var view=Enumerable.Range(0,16).Select(i=>encounter.Snap(new(home.X+Math.Sin(i*Math.PI/8)*9,home.Z+Math.Cos(i*Math.PI/8)*9)))
