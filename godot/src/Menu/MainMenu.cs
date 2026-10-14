@@ -131,7 +131,7 @@ public partial class MainMenu : Node
     public override void _ExitTree()
     {
         Dialogs.Changed -= OnDialogs;
-        GetViewport().SizeChanged -= OnResize;
+        if (GetViewport() is { } viewport && viewport.IsConnected(Viewport.SignalName.SizeChanged, Callable.From(OnResize))) viewport.SizeChanged -= OnResize;
         if (ServerLink.I is { } link)
         {
             link.StatusChanged -= OnLink;

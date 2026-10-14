@@ -2,7 +2,7 @@ param(
     [string]$Godot,
     # Comma lists are normalized below for pwsh -File.
     [string[]]$Modes = @('captures','shaders','parade','timing','identity','pack','network'),
-    [ValidateRange(8800,9179)][int]$Port = 8980,
+    [ValidateRange(8800,9239)][int]$Port = 8980,
     [ValidateRange(0,3600)][int]$WaitForTimingSeconds = 900,
     [switch]$AllowSharedTiming,
     [string[]]$Extra = @()
@@ -123,7 +123,8 @@ try {
             if ($child.ExitCode -ne 0 -or $log -match '(?m)^ERROR:') { throw "People2 $mode failed; inspect $dir/engine.log" }
             $reportFile = switch ($mode) { {$_ -in @('captures','batch2-captures','integration-captures','dress-captures','distance-captures','crowd-captures')} {'captures.json'} 'motion' {'motion.json'} 'work' {'work.json'} 'routing' {'people2-proof.json'} 'shaders' {'shaders.json'} 'parade' {'parade.json'} 'network' {'network.json'} default {'peopletest.json'} }
             $report = Get-Content -LiteralPath (Join-Path $dir $reportFile) -Raw | ConvertFrom-Json
-            if ($mode -eq 'shaders' -and ($report.firstKinds.Count -ne 130 -or $report.people2ShaderKindCount -ne 1 -or -not $report.ok -or $report.problems.Count)) { throw 'Shader inventory must keep 130 kinds, exactly one people2 kind, and zero problems.' }
+            # Main's accepted inventory includes Antigoon (issue #136).
+            if ($mode -eq 'shaders' -and ($report.firstKinds.Count -ne 131 -or $report.people2ShaderKindCount -ne 1 -or -not $report.ok -or $report.problems.Count)) { throw 'Shader inventory must keep main''s 131 kinds, exactly one people2 kind, and zero problems.' }
             if ($mode -in @('captures','batch2-captures','integration-captures','crowd-captures','motion','work','dress-captures','distance-captures','timing','legacy-timing') -and -not $report.ok) { throw "People2 $mode report failed." }
             if ($mode -eq 'network' -and -not $report.passed) { throw 'Native multiplayer identity proof failed.' }
             if ($mode -eq 'routing' -and (-not $report.switchOkay -or -not $report.faceSetter.ok -or $report.bodyHeights.Count -ne $expectedRoots -or $report.figures[0].body -ne 'man_middling' -or $report.figures[1].body -ne 'woman_stout' -or $report.figures[2].body -ne 'man_stout' -or $report.figures[3].body -ne 'man_slight')) { throw 'People2 map/body/toggle proof failed.' }

@@ -1,4 +1,4 @@
-param([string]$Godot, [ValidateRange(9140,9159)][int]$Port=9140, [ValidateSet('jef','menu','inventory')][string]$Mode='jef', [switch]$WithoutArms)
+param([string]$Godot, [ValidateRange(9140,9239)][int]$Port=9220, [ValidateSet('jef','menu','inventory')][string]$Mode='jef', [switch]$WithoutArms)
 $ErrorActionPreference='Stop'
 . (Join-Path $PSScriptRoot 'engine-tools.ps1')
 $project=[IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
