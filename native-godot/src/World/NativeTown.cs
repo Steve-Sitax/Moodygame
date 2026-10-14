@@ -24,6 +24,7 @@ public partial class NativeTown : BakedWorld
     public JsonArray LampFacts { get; private set; } = new();
     public override JsonDocument? NativeLights => lights;
     private List<QuayExits.Ladder>? quayLadders;
+    private NativeRazedHouses.Result razed = new(0, 0, 0, Array.Empty<string>());
     public override IReadOnlyList<QuayExits.Ladder>? NativeQuayLadders => quayLadders;
     public override Scheldemist.Town.WalkMap? NativeWalk
     {
@@ -107,8 +108,10 @@ public partial class NativeTown : BakedWorld
         int werfCut = Scheldemist.Main.I.Flag("no-werf-cut") ? 0 : QuayNotch.Cut(town, "city_-4_0_3", QuayExits.WerfFrame, QuayExits.WerfNotchS0, QuayExits.WerfNotchS1, QuayExits.WerfNotchU0, QuayExits.WerfNotchU1);
         // Houses pulled down after the bake (city_build.json "razed"): cut out before collision and navigation read the meshes.
         // (dev: --keep-razed leaves them standing, for a before-and-after)
-        var razed = Scheldemist.Main.I.Flag("keep-razed") ? new NativeRazedHouses.Result(0, 0, 0, Array.Empty<string>()) : NativeRazedHouses.Cut(town, Scheldemist.Paths.Shared("city_build.json"));
+        razed = Scheldemist.Main.I.Flag("keep-razed") ? new NativeRazedHouses.Result(0, 0, 0, Array.Empty<string>()) : NativeRazedHouses.Cut(town, Scheldemist.Paths.Shared("city_build.json"));
         foreach (var note in razed.Notes) GD.Print("razed houses: " + note);
+        // The corner they leave gets a lime and a bench (only when the cut happened, so a re-baked town shows no tree in a house).
+        var dressing = razed.Houses > 0 ? NativeRazedHouses.Dress(town) : Array.Empty<string>();
         // The baked quay ladders ran through the coping and into the stone (issue 85): the native ladder replaces them.
         var ladders = Scheldemist.Native.World.NativeQuayLadders.Install(town);
         quayLadders = ladders.Ladders;
@@ -118,6 +121,7 @@ public partial class NativeTown : BakedWorld
         Report["razedHouses"] = razed.Houses;
         Report["razedTriangles"] = razed.Triangles;
         Report["razedWindowGlows"] = razed.WindowGlows;
+        Report["razedCornerDressing"] = string.Join(", ", dressing);
         Report["source"] = "complete native Godot town";
         Report["quayLadders"] = ladders.Ladders.Count;
         Report["quayLadderMeshes"] = ladders.Meshes;
@@ -174,11 +178,14 @@ public partial class NativeTown : BakedWorld
         Solid.Leave.Add(n => n.HasMeta("native_author_district"));
         Solid.Leave.Add(n => n.HasMeta("native_replaced_event_snapshot"));
         Solid.Leave.Add(n => n.HasMeta(Scheldemist.Native.World.NativeQuayLadders.LeaveMeta));
+        Solid.Leave.Add(n => n.HasMeta(NativeRazedHouses.DressingMeta));
         BuildLights();
     }
     private void BuildLights()
     {
         var data = JsonNode.Parse(Godot.FileAccess.GetFileAsString(Root + "/lights.json"))!;
+        var (razedSpill, razedPanes) = NativeRazedHouses.DropLights(razed, data.AsObject());
+        Report["razedLightSpill"] = razedSpill; Report["razedLitPanes"] = razedPanes;
         var spill = data["spill"]!.AsArray();
         var template = spill.First(s => s!["kind"]!.GetValue<string>() == "lamp")!.DeepClone();
         var review = Layouts.Districts.Single(d => d.District.Id == NativeDistrictLayouts.ReviewedDistrict);

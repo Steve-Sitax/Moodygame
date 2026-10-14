@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using Godot;
 using Scheldemist.World;
 
@@ -19,7 +20,13 @@ namespace Scheldemist.Native.World;
 /// </summary>
 public static class NativeRazedHouses
 {
-    public sealed record Result(int Houses, int Triangles, int WindowGlows, IReadOnlyList<string> Notes);
+    public sealed record Result(int Houses, int Triangles, int WindowGlows, IReadOnlyList<string> Notes)
+    {
+        internal IReadOnlyList<Vector2[]> Razed { get; init; } = Array.Empty<Vector2[]>();
+        internal IReadOnlyList<Vector2[]> Standing { get; init; } = Array.Empty<Vector2[]>();
+        /// <summary>A point that belonged to a razed house: near one, and nearer to it than to any standing house.</summary>
+        public bool Owned(float x, float z) => Razed.Count > 0 && Belongs(new Vector2(x, z), Razed, Standing);
+    }
 
     private sealed record House(int Index, Vector2[] Outline, bool Razed);
 
@@ -27,6 +34,7 @@ public static class NativeRazedHouses
     private const float Reach = 1.2f;
     // the triangles that name a house's alpha lie at least this far inside its outline
     private const float Inset = 0.4f;
+    private static readonly Regex DressingChunk = new("^(lively|streetlife|clutter|posters|litter)_", RegexOptions.Compiled);
 
     public static Result Cut(Node3D town, string cityBuildPath)
     {
@@ -55,6 +63,37 @@ public static class NativeRazedHouses
         int triangles = 0, glowTriangles = 0;
         foreach (var mesh in chunks)
             triangles += Filter(mesh, (a, b, c, alpha) => cut.Any(h => alpha == tags[h.Index] && Within(h.Outline, Centre(a, b, c), Reach)));
+        // The street dressing the bake merged by kind (shop fronts, street life, clutter, posters, litter) carries no house alpha either:
+        // a piece goes when it is near a razed house and nearer to it than to any standing one, so a neighbour's door keeps its baskets.
+        int dressingTriangles = 0;
+        foreach (var mesh in meshes.Where(m => DressingChunk.IsMatch(m.Name.ToString())).Where(Touches))
+            dressingTriangles += Filter(mesh, (a, b, c, _) =>
+            {
+                var p = Centre(a, b, c);
+                return Belongs(new Vector2(p.X, p.Z), cut.Select(h => h.Outline).ToList(), standing.Select(h => h.Outline).ToList());
+            });
+        if (dressingTriangles > 0) notes.Add($"street dressing at the razed houses: {dressingTriangles} triangles");
+        // copies (weeds at the wall foot, goods by the door) standing on or against a razed house: the copy set is rebuilt without them
+        int copiesGone = 0;
+        var razedOutlines = cut.Select(h => h.Outline).ToList(); var standingOutlines = standing.Select(h => h.Outline).ToList();
+        foreach (var copies in BakedWorld.All(town).OfType<MultiMeshInstance3D>().Where(m => m.Multimesh is { InstanceCount: > 0 }))
+        {
+            var mm = copies.Multimesh; var xf = WorldOf(copies);
+            var keep = Enumerable.Range(0, mm.InstanceCount).Where(i => { var at = xf * mm.GetInstanceTransform(i).Origin; return !Belongs(new Vector2(at.X, at.Z), razedOutlines, standingOutlines); }).ToList();
+            if (keep.Count == mm.InstanceCount) continue;
+            var transforms = keep.Select(mm.GetInstanceTransform).ToList();
+            var colours = mm.UseColors ? keep.Select(mm.GetInstanceColor).ToList() : null;
+            var custom = mm.UseCustomData ? keep.Select(mm.GetInstanceCustomData).ToList() : null;
+            copiesGone += mm.InstanceCount - keep.Count;
+            mm.InstanceCount = keep.Count;
+            for (int i = 0; i < keep.Count; i++)
+            {
+                mm.SetInstanceTransform(i, transforms[i]);
+                if (colours != null) mm.SetInstanceColor(i, colours[i]);
+                if (custom != null) mm.SetInstanceCustomData(i, custom[i]);
+            }
+        }
+        if (copiesGone > 0) notes.Add($"copies at the razed houses: {copiesGone}");
         foreach (var mesh in glows)
             glowTriangles += Filter(mesh, (a, b, c, _) =>
             {
@@ -69,7 +108,80 @@ public static class NativeRazedHouses
                 return true;
             });
         foreach (var h in cut) notes.Add($"house {h.Index}: razed (alpha {tags[h.Index]})");
-        return new(cut.Count, triangles, glowTriangles, notes);
+        return new(cut.Count, triangles, glowTriangles, notes) { Razed = cut.Select(h => h.Outline).ToList(), Standing = standing.Select(h => h.Outline).ToList() };
+    }
+
+    private static bool Belongs(Vector2 q, IReadOnlyList<Vector2[]> razed, IReadOnlyList<Vector2[]> standing)
+    {
+        float Away(Vector2[] outline) => Inside(outline, q) ? 0 : EdgeDistance(outline, q);
+        float razedAt = razed.Min(Away);
+        return razedAt <= Reach && standing.All(n => Away(n) > razedAt);
+    }
+
+    /// <summary>The bake's light facts (lights.json) for the razed houses go too: their window and door-lantern spill and their lit panes.</summary>
+    public static (int Spill, int Panes) DropLights(Result razed, System.Text.Json.Nodes.JsonObject data)
+    {
+        if (razed.Houses == 0) return (0, 0);
+        var spill = data["spill"]!.AsArray();
+        var keep = spill.Where(l => l!["kind"]!.GetValue<string>() == "lamp" || !razed.Owned(l["at"]![0]!.GetValue<float>(), l["at"]![2]!.GetValue<float>())).Select(l => l!.DeepClone()).ToArray();
+        int spillGone = spill.Count - keep.Length;
+        data["spill"] = new System.Text.Json.Nodes.JsonArray(keep);
+        // a pane: three corners (x, y, z each), then its hours, tone and kind
+        var panes = data["panes"]!.AsArray();
+        var kept = new System.Text.Json.Nodes.JsonArray();
+        int paneGone = 0;
+        foreach (var pane in panes)
+        {
+            var v = pane!.AsArray();
+            float x = (v[0]!.GetValue<float>() + v[3]!.GetValue<float>() + v[6]!.GetValue<float>()) / 3, z = (v[2]!.GetValue<float>() + v[5]!.GetValue<float>() + v[8]!.GetValue<float>()) / 3;
+            if (razed.Owned(x, z)) { paneGone++; continue; }
+            kept.Add(pane.DeepClone());
+        }
+        data["panes"] = kept;
+        return (spillGone, paneGone);
+    }
+
+    /// <summary>Marks the dressing's own nodes: their bodies bring their own collision (Solid leaves them).</summary>
+    public const string DressingMeta = "native_razed_dressing";
+
+    // The corner opened by houses 536 and 537, north-east of the cathedral: a lime on the cleared ground and a bench against the
+    // blank end wall of house 538, facing the tree. World x, z; the bench's yaw turns its seat away from the wall.
+    private static readonly (float X, float Z) LimeAt = (-216.2f, 276.2f);
+    private static readonly (float X, float Z, float Yaw) BenchAt = (-212.7f, 272.7f, -0.396f);
+
+    /// <summary>Plants the lime (a copy of the town's own street limes, bark and leaves) and sets the bench. Returns what was placed.</summary>
+    public static IReadOnlyList<string> Dress(Node3D town)
+    {
+        var placed = new List<string>();
+        var copies = town.GetChildren().OfType<MultiMeshInstance3D>().Where(m => m.Multimesh is { InstanceCount: > 0, Mesh: not null }).ToList();
+        // the street limes: the bark group with the most trees, and its leaves (the next source node)
+        var bark = copies.Where(m => Regex.IsMatch(m.Name.ToString(), "^INST\\d+_treelimebark_mm$")).MaxBy(m => m.Multimesh.InstanceCount);
+        if (bark != null && int.TryParse(Regex.Match(bark.Name.ToString(), "\\d+").Value, out int n)
+            && copies.FirstOrDefault(m => m.Name.ToString() == $"INST{n + 1}_treelimeleaves_mm") is { } leaves)
+        {
+            var basis = bark.Multimesh.GetInstanceTransform(0).Basis;
+            var at = new Transform3D(basis, new Vector3(LimeAt.X, 0, LimeAt.Z));
+            // (named as the town's own copies, so the trunk is solid like theirs)
+            foreach (var (source, name) in new[] { (bark, "INST9001_treelimebark_mm"), (leaves, "INST9002_treelimeleaves_mm") })
+            {
+                var mm = new MultiMesh { TransformFormat = MultiMesh.TransformFormatEnum.Transform3D, Mesh = source.Multimesh.Mesh, InstanceCount = 1 };
+                mm.SetInstanceTransform(0, at);
+                var copy = new MultiMeshInstance3D { Name = name, Multimesh = mm };
+                foreach (var key in source.GetMetaList()) copy.SetMeta(key, source.GetMeta(key));
+                town.AddChild(copy);
+            }
+            placed.Add("lime");
+        }
+        if (ResourceLoader.Load<Scheldemist.Native.Authoring.AuthorAsset>("res://assets/library/bench.tres") is { } bench)
+        {
+            var seat = new Scheldemist.Native.Authoring.AuthoredObject { Name = "razed_corner_bench", ObjectId = "razed-corner-bench", Asset = bench };
+            seat.Position = new Vector3(BenchAt.X, 0, BenchAt.Z);
+            seat.Rotation = new Vector3(0, BenchAt.Yaw, 0);
+            seat.SetMeta(DressingMeta, true);
+            town.AddChild(seat);
+            placed.Add("bench");
+        }
+        return placed;
     }
 
     private static List<House> Read(string path)
