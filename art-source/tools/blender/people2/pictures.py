@@ -23,6 +23,7 @@ def cells(kinds):
         out["cloth_" + name] = (8, 520, 1008, 496)
         out["face_" + name] = (0, 0, SIZE, SIZE)
     out["held"] = (0, 0, SIZE, SIZE)
+    out["held_jef"] = (0, 0, SIZE, SIZE)
     return out
 
 
@@ -197,6 +198,13 @@ class Pictures:
             cloth_names.append("held")
             save("held_colour", np.concatenate((rgb, np.zeros((SIZE, SIZE, 1))), axis=2), directory)
             save("held_normal", nrm, directory, True)
+        if "held_jef" in self.parts:  # the player's hats and shoes (held_player.py)
+            rgb, nrm = self.parts["held_jef"]
+            zone = self.zones.get("held_jef", np.zeros((SIZE, SIZE)))
+            entries["people2_held_jef"] = {"clothes": len(cloth_names), "face": 0}
+            cloth_names.append("held_jef")
+            save("held_jef_colour", np.concatenate((rgb, zone[..., None] / 5), axis=2), directory)
+            save("held_jef_normal", nrm, directory, True)
         detail_names = detail(directory)
         manifest = {"version": 2, "size": SIZE, "clothes": cloth_names, "faces": face_names, "entries": entries,
                     "faceIds": {n: i for i, n in enumerate(face_names)}, "zones": ZONES, "detail": detail_names,

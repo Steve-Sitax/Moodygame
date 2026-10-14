@@ -1114,6 +1114,77 @@ Known limits (C2): the baskets, pouch and bag hang at hipL, so they do not follo
 arm yet); held things show the held layer's placeholder in Blender's sheets; the shawls' and kerchiefs' clearance is
 checked in Blender poses, the folds of a seated skirt are skinning, not simulation.
 
+### The player (`kinds_player.py`, `garments_player.py`, `held_player.py`, 2026-10-14)
+
+Jef (or Mie) on the people2 kit, with every choice of the character screen (`godot/src/Menu/Character.cs`) kept.
+Each clothing cut of the old player (`build_player.py`) is a dressed kind, a man's on `man_middling` and a woman's on
+`woman_middling`; the women get period versions of the men's outer cuts (the old player had none):
+
+| Kind | Character screen | Reads as |
+|---|---|---|
+| jef_m_shirt | coat none, apron none | linen shirt with buttoned cuffs, waistcoat, trousers |
+| jef_m_jacket | coat jacket | short open jacket over shirt and waistcoat |
+| jef_m_coat | coat coat | long open coat to the knee |
+| jef_m_smock | coat smock | the blue kiel over trousers |
+| jef_m_apron | coat none, apron | shirt and waistcoat under a long working apron |
+| jef_m_jacket_apron | coat jacket, apron | jacket and apron (any other coat with an apron: show the coat's kind, see below) |
+| jef_w_plain | coat no_shawl | bodice and full skirt, cream collar and cuffs |
+| jef_w_apron | no_shawl, apron | bodice and skirt under a long apron |
+| jef_w_shawl | shawl or check_shawl | fringed check shawl over the bodice |
+| jef_w_shawl_apron | shawl or check_shawl, apron | shawl and apron |
+| jef_w_jacket | (new) jacket | fitted short jacket over the bodice |
+| jef_w_jacket_apron | (new) jacket, apron | jacket and apron |
+| jef_w_coat | (new) coat | fitted long coat (a redingote) |
+| jef_w_smock | (new) smock | loose linen smock to the knee over the skirt |
+
+A man's coat or smock with an apron, and a woman's coat or smock with one, have no kind of their own (the old player
+had none either): the runtime shows the coat's kind. Shawls stay a woman's garment, as on the screen.
+
+**What the runtime needs** (`peopleRig.json player`, beside `kinds.<jef_*>`):
+
+- **Kind:** `jef_<m|w>_<cut>` from sex, coat and apron (table above). Root, LODs, clips and locomotion as any kind
+  (`kinds.<kind>.body`). Budgets: near 13,000 for body and clothes, far 2,300; the shoes and the hat come on top.
+- **Build and age** are the base body's sliders, carried by the clothes (`dress.clothes_keys`): `slight` = weight -0.8,
+  muscle -0.4, shoulders -0.5, hips -0.3, belly -0.5, bust -0.6; `stout` = weight 0.9, muscle 0.1, shoulders 0.4, hips
+  0.5, belly 0.7, buttocks 0.4, bust 0.6 (`preview_player.SLIGHT`, `STOUT`); age 46-60 adds `face_age` (0.9 at 60) and
+  a face cell of the old groups. Face sliders as the creator proposal above.
+- **Skin and hair colour** come from the face cell (`faceTypes.json cells`: skin, hair, `bodyTone`) and
+  `People2Material.Face`: pick the cell of the sex and age group whose `hairRgb` is nearest the chosen hair colour
+  (flaxen and fair: `*_fair_fair`; red: `*_fair_red` / `f_red_freckled`; light and dark brown: `*_mid_brown`,
+  `*_mid_dark`; black: `*_olive_black`; grey and white: the old cells) and shift `body_tone` toward the chosen skin.
+  Slots 1 (skin) and 2 (hair) are never painted into a jef layer.
+- **Hair, beard, moustache:** the base body's pieces (`<base>_hair|beard|mous_<style>`), merged as for townspeople.
+  Screen to people2: short `crop` (or `side`), long `long`, balding `bald`; bun, plaits, coronet the same names;
+  under any hat `capped` (men) or `undercap` (women). Facial hair: moustache `chevron`, whiskers `chops`, beard
+  `short`, walrus `walrus`; light stubble and stubble are the stubble painted in the chosen face cell (no piece; the cells differ in it).
+- **Hats and shoes** are rigid models under `people2_held`, one per thing, each in its socket bone's rest frame:
+  `jef_hat_flatcap|knitcap|bowler|tophat` (men) and `jef_hat_bonnet|whitecap|headscarf` (women) on `headTop`;
+  `jef_boots_<m|f>_<L|R>` and `jef_clogs_<m|f>_<L|R>` on `footL` / `footR`. Put the model on a BoneAttachment3D of the
+  bone with no offset. They use the picture entry `people2_held_jef` (`People2.cs` picks it for every `jef_*` model).
+  A kind's `held` lists its default shoes (boots for men, clogs for women), so the game shows a shod default; the
+  runtime swaps them per profile. A hat follows the head sliders through `player.hatFit` (scale x/z and lift per unit
+  of each head slider; the hat has no morphs). The kinds' feet are drawn in (`squash_feet`) to lie inside every shoe:
+  never show a jef kind without shoes.
+- **Colours (the tint pack):** each jef layer ships in Jef's or Mie's default colours (`player.kinds.<kind>.
+  defaultPalette`). `assets/people2-pictures/jef-tint/<kind>_tint.png` (and `held_jef_tint.png`; lossless, no mips):
+  red = T / 2, green = slot x 16 (1 skin, 2 hair, 3 hat, 4 coat or shawl or smock, 5 shirt or blouse or bodice,
+  6 waistcoat, 7 trousers or skirt, 8 apron, 9 boots or clogs; 0 fixed: buttons, soles, the women's linen collar and
+  cuffs), blue = the check shawl's bars. Per texel of a slot: `colour = layer + T * (chosen - default[slot])`, in the
+  stored sRGB-encoded values (decode after the sum); a plain shawl on a check kind divides the layer by
+  `1 - 0.5 * blue`. The kit's painters are linear in a cloth's colour, so this equals a repaint in that colour
+  (`player.tint.checks`: mean error below 0.002 per channel).
+- **First-person sleeves:** `player.kinds.<kind>.sleeves` names the pieces with forearm weight (the sleeve of the
+  outermost garment, the shirt or smock cuffs `cuffL`/`cuffR`/`smock_cuffL`/`smock_cuffR`, the women's linen cuffs).
+  Every cut ends its sleeve at the wrist in a closed, rounded cuff band (a shirt's stands 2 cm proud when it is the
+  outer layer; under a jacket or coat 1 cm, with a sliver of linen showing at the coat's cuff). The forearm islands
+  get 1.6 times the texel density of the rest (`SLEEVE_BOOST`). The hands are the body's MakeHuman hands
+  (`hands_hard` 0.3 men, 0.15 women).
+
+Checks: `people2_sheets.py -- player [kinds=...] [what=views,close,builds,acc,hair] out=<dir>` (`preview_player.py`):
+front, side and back at 3 m and 1 m; collar, nape, shoulder, forearms, cuffs and hands at 0.35-0.5 m and the arms
+seen from the eyes; slight, stout and old builds; every hat with its hair, boots and clogs; every hair, beard and
+moustache.
+
 ## Checks
 
 `--preview` and `--cast` write to `.scratch/people2-build/shots/`:

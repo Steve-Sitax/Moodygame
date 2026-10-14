@@ -2,7 +2,7 @@ param(
     [string]$SourceModels,
     [string]$Rig,
     [string]$Godot,
-    [ValidateRange(8800,9139)][int]$Port = 8900
+    [ValidateRange(8800,9179)][int]$Port = 8900
 )
 $ErrorActionPreference = 'Stop'
 . (Join-Path $PSScriptRoot 'engine-tools.ps1')

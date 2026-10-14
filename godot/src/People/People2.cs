@@ -241,7 +241,8 @@ public static class People2
                     // C4's shared blackthorn is authored along +y; gripR's hanging axis is -z.
                     float turn = item.Model == "held_cane" ? -MathF.PI/2 : 0;
                     copy.Rotation = new Vector3(Mathf.DegToRad(item.Tilt) + turn, 0, 0);
-                    People2Material.Assign(copy, "people2_held");
+                    // The player's hats and shoes (jef_*) have their own picture layer (docs/people.md "The player").
+                    People2Material.Assign(copy, item.Model.StartsWith("jef_", StringComparison.Ordinal) ? "people2_held_jef" : "people2_held");
                     attachment.AddChild(copy);
                 }
         runtime.HeldReady();

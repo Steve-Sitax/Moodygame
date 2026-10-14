@@ -124,6 +124,8 @@ def all_kinds():
     kinds_cast2.OLD_MAN.name = "old_man_dressed"
     from people2 import held_cast
     held_cast.register()
+    from people2 import kinds_player  # the player's jef_* kinds go last: every other kind keeps its picture layer
+    out += kinds_player.KINDS
     return out
 
 
@@ -239,6 +241,9 @@ def main():
         dressed.append(k.finish(b) if hasattr(k, "finish") else b)
         b["ao"]["people2_group"] = k.group
     held_obs = held.build_all(kinds, layout, atl, tex=TEX)
+    if any(k.name.startswith("jef_") for k in kinds):  # the player's hats and shoes (held_player.py)
+        from people2 import held_player
+        held_obs += held_player.build_all(bodies, layout, atl, tex=TEX)
     from people2 import motion
     for b in bodies + dressed:
         changed, difference = motion.match_lod_weights(b["lod0"], b["lod1"])
@@ -248,6 +253,9 @@ def main():
             return b["face"]["cell"]
         return DEFAULT_CELLS_OF[picture_of(b["P"])]
     picture_manifest = atl.write(bodies, dressed, PICTURES_DIR, default_face)
+    from people2 import kinds_player
+    if kinds_player.TINT:
+        kinds_player.write_tint(PICTURES_DIR)  # the player's tint pack (kinds_player.py)
     # Tiny intake placeholder; native load replaces it with one layered material.
     img = paint.to_image("people2_placeholder", np.ones((4,4,3), np.float32))
     nimg = paint.to_image("people2_placeholder_n", np.tile((.5,.5,1.), (4,4,1)))
@@ -306,6 +314,7 @@ def main():
                      "idles": clips_idle.rig_json(idle_meta),
                      "work": clips_work.rig_json(work_meta),
                      "held": held.json_all(kinds),
+                     "player": __import__("people2.kinds_player", fromlist=["x"]).rig_json(),
                      "kinds": {b["name"]: dress.kind_json(b) for b in dressed}})
     shared = os.path.dirname(export.RIG_JSON)
     with open(os.path.join(shared, "peopleSliders.json" if export.RIG_JSON.endswith("peopleRig.json")
