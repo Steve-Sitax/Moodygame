@@ -11,6 +11,8 @@ namespace Scheldemist.Native.Characters;
 public partial class AntigoonActor : Node3D
 {
     public const string ModelPath = "res://assets/characters/antigoon/packed/manifest.json";
+    /// <summary>The verified model bytes (tools fit animations onto this rig).</summary>
+    public static byte[] ModelData()=>ModelBytes();
     private static byte[] ModelBytes()
     {
         var manifest=JsonNode.Parse(Godot.FileAccess.GetFileAsString(ModelPath))!.AsObject();
@@ -86,6 +88,8 @@ public partial class AntigoonActor : Node3D
         foreach (string name in Animations.GetAnimationList())
             Animations.GetAnimation(name).LoopMode = name is "idle" or "walk" or "run" or "laugh" or "smirk" or "angry"
                 ? Animation.LoopModeEnum.Linear : Animation.LoopModeEnum.None;
+        // CC0 Quaternius clips fitted to this rig (scripts/AntigoonRetarget.cs); they keep their own loop modes.
+        if (ResourceLoader.Exists(Tools.AntigoonRetarget.Output)) Animations.AddAnimationLibrary("ual", ResourceLoader.Load<AnimationLibrary>(Tools.AntigoonRetarget.Output));
         body = new StaticBody3D { Name = "TorsoCollision", CollisionLayer = 1, CollisionMask = 0 }; AddChild(body);
         body.AddChild(new CollisionShape3D { Position = new Vector3(0, 2.6f, 0), Shape = new CapsuleShape3D { Radius = .62f, Height = 5.2f } });
         Pose=new AntigoonPose{Actor=this};Skeleton.AddChild(Pose);
@@ -105,14 +109,34 @@ public partial class AntigoonActor : Node3D
     }
     public void SetState(string state, double time = 0)
     {
+        string before = Animations.CurrentAnimation;
+        double phase = Animations.HasAnimation(before) && Animations.GetAnimation(before).Length > 0 ? Animations.CurrentAnimationPosition / Animations.GetAnimation(before).Length : 0;
         State = state;
-        string clip = state switch { "retreat" => "run", "shield" => "walk", "hidden" or "notice" => "idle", _ => state };
-        Animations.SpeedScale=state=="shield"?(float)(Services.AntigoonBrain.ShieldSpeed/Services.AntigoonBrain.WalkSpeed):1;
-        if (!Animations.HasAnimation(clip)) clip = "idle";
-        Animations.Play(clip, .13);
+        var (clip, speed) = Clip(state);
+        if (!Animations.HasAnimation(clip)) clip = Animations.HasAnimation("ual/idle") ? "ual/idle" : "idle";
+        Animations.SpeedScale = speed;
+        // No cross-fade here: the pose dead-blends every change from the last pose and its motion.
+        Animations.Play(clip, 0);
         double length = Animations.GetAnimation(clip).Length;
+        // Walk, run and back keep their place in the stride, so the arms swing on as the gait changes.
+        bool gait(string c) => c is "ual/walk" or "ual/run" or "ual/sprint";
+        if (gait(before) && gait(clip)) time = phase * length;
         Animations.Seek(Animations.GetAnimation(clip).LoopMode == Animation.LoopModeEnum.Linear ? time % length : Math.Min(time, length), true);
     }
+    /// <summary>The clip for a state: the CC0 library where it has the move, our own hand-made clip where it does not.</summary>
+    private static (string Clip, float Speed) Clip(string state) => state switch
+    {
+        "hidden" or "idle" or "notice" => ("ual/idle", 1),
+        "walk" => ("ual/walk", 1.15f),
+        "run" or "retreat" => ("ual/run", 1.5f),
+        "shield" => ("ual/walk", (float)(Services.AntigoonBrain.ShieldSpeed / Services.AntigoonBrain.WalkSpeed) * 1.15f),
+        "hit" => ("ual/hit", 1),
+        "recoil_light" => ("ual/hit_head", .8f),
+        "death" => ("ual/death", 1),
+        "throw" => ("ual/throw", .86f),
+        // Hand-made: the library has no kick.
+        _ => (state, 1),
+    };
     /// <summary>The kicking boot lands: the street shakes under anyone close.</summary>
     public void Stomped()
     {

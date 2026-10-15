@@ -87,7 +87,13 @@ public partial class AntigoonArena : Node3D
             // Scripted move: walk/run past, turn to face the camera's side, notice (look at the camera), or kick.
             float speed=shotPose=="run"?(float)AntigoonBrain.RunSpeed:shotPose=="walk"?(float)AntigoonBrain.WalkSpeed:0;
             var at=new Vector3(0,0,-14+speed*(float)elapsed);
-            string state=shotPose is "turn"?"idle":shotPose;float yaw=shotPose is "turn" or "notice"&&elapsed>.4?Mathf.Pi*.5f:0;
+            string state=shotPose is "turn"?"idle":shotPose;
+            // "mix": walk, break into a run, pull up and stand: every change must blend.
+            if(shotPose=="mix")
+            {
+                double e=elapsed;state=e<1.4?"walk":e<2.8?"run":"idle";
+                float z=-14+(float)(Math.Min(e,1.4)*AntigoonBrain.WalkSpeed+Math.Clamp(e-1.4,0,1.4)*AntigoonBrain.RunSpeed);at=new Vector3(0,0,z);
+            }float yaw=shotPose is "turn" or "notice"&&elapsed>.4?Mathf.Pi*.5f:0;
             giant.Snapshot(at,yaw,state,shotPose=="attack"?Math.Max(0,elapsed-.4):elapsed,shotPose=="attack"&&elapsed>.4?1:0,true);
             giant.Pose.LookAt=shotPose=="notice"?camera.GlobalPosition:null;
             camera.GlobalPosition=new Vector3(10,1.6f,giant.GlobalPosition.Z);camera.Fov=55;camera.LookAt(giant.GlobalPosition+Vector3.Up*2.5f);
@@ -117,7 +123,8 @@ public partial class AntigoonArena : Node3D
                 var gait=ProveGait();
                 if(gait!=""){GD.PrintErr(gait);SetPhysicsProcess(false);GetTree().Quit(1);return;}
                 giant.SetState("shield");giant.Animations.Advance(.25);giant.Pose.ApplyPose(.01);
-                foreach(string hand in new[]{"hand.L","hand.R"})if(giant.Skeleton.GetBoneGlobalPose(giant.Skeleton.FindBone(hand)).Origin.Y<4.6f)throw new Exception("Shielding hand does not protect the head");
+                for(int settle=0;settle<30;settle++){giant.Animations.Advance(1/60.0);giant.Pose.ApplyPose(1/60.0);}
+                foreach(string hand in new[]{"hand.L","hand.R"})if(giant.Skeleton.GetBoneGlobalPose(giant.Skeleton.FindBone(hand)).Origin.Y is var y&&y<4.6f)throw new Exception($"Shielding hand {hand} at {y:0.00} m does not protect the head (head {giant.Skeleton.GetBoneGlobalPose(giant.Skeleton.FindBone("head")).Origin})");
                 GD.Print("ANTIGOON_POSE_PASS: world-locked boots, stepping turns, upright trunk, planar kick, hands shielding the head.");
                 GD.Print($"ANTIGOON_SCENE_PASS: 46 bones, 12 clips, {giant.LodCount} surface LODs, collision, finite animated poses, same gameplay brain.");SetPhysicsProcess(false);_ = ProveService();
             }
@@ -157,7 +164,7 @@ public partial class AntigoonArena : Node3D
                 {
                     var (at,planted)=giant.Pose.Boots(i);
                     if(planted&&was[i]&&at.DistanceTo(held[i])>.002f)return $"{state}: boot {i} slid {at.DistanceTo(held[i]):0.000} m while standing";
-                    if(planted&&f>5&&giant.Pose.BootError(i)>.04f)return $"{state}: boot {i} misses its hold by {giant.Pose.BootError(i):0.000} m";
+                    if(planted&&f>5&&giant.Pose.BootError(i)>.04f)return $"{state}: boot {i} misses its hold by {giant.Pose.BootError(i):0.000} m at frame {f}: {giant.Pose.Reach(i)}";
                     if(!planted&&was[i])steps++;
                     held[i]=at;was[i]=planted;
                 }

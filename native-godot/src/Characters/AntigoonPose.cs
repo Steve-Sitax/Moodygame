@@ -33,6 +33,13 @@ public partial class AntigoonPose : SkeletonModifier3D
     private Vector3 lastBody,velocity;
     private string lastState="";
     private Func<Vector3,float?>? groundAt;
+    // Dead blending (after D. Holden's description): on a clip change the last pose keeps its motion, slowing
+    // with a short half-life, and fades into the new clip. Only the current pose and its speed are needed.
+    public const float BlendTime=.28f,BlendHalfLife=.07f;
+    private Quaternion[] lastPose=Array.Empty<Quaternion>(),heldPose=Array.Empty<Quaternion>();
+    private Vector3[] spin=Array.Empty<Vector3>();
+    private string lastClip="";
+    private float blend=BlendTime;
 
     public override void _Ready()
     {
@@ -71,6 +78,7 @@ public partial class AntigoonPose : SkeletonModifier3D
     {
         if(rig==null||!Actor.Visible||Actor.State=="death")return;
         float dt=(float)Math.Clamp(delta,0,.1);clock+=dt;
+        DeadBlend(dt);
         string state=Actor.State;
         var body=Actor.GlobalPosition;
         if(!booted){for(int i=0;i<2;i++)Plant(boots[i],Home(i),BodyYaw,i);lastBody=body;booted=true;}
@@ -83,6 +91,12 @@ public partial class AntigoonPose : SkeletonModifier3D
 
         bool kicking=state=="attack";
         float speed=velocity.Length();
+        // The library's hip travel is a man's, scaled to a giant: keep a third of its bounce, half its sway.
+        if(state is not ("death" or "hit" or "recoil_light"))
+        {
+            var hipsPose=rig.GetBoneGlobalPose(pelvis);var rest=rig.GetBoneGlobalRest(pelvis).Origin;var off=hipsPose.Origin-rest;
+            hipsPose.Origin=rest+new Vector3(off.X*.5f,off.Y*.35f,off.Z*.5f);rig.SetBoneGlobalPose(pelvis,hipsPose);
+        }
         Posture(state,speed);
         if(kicking)KickBody(Actor.Animations.CurrentAnimationPosition);
         // Mid-kick he stands on his left boot: a swing already under way finishes, no new step starts.
@@ -98,6 +112,7 @@ public partial class AntigoonPose : SkeletonModifier3D
             float horizontal=new Vector2(target.X-hip.X,target.Z-hip.Z).LengthSquared();
             settle=Math.Max(settle,hip.Y-target.Y-Mathf.Sqrt(Math.Max(.01f,reach*reach-horizontal)));
         }
+        LastSettle=settle;settle=Math.Min(settle,.7f);
         if(settle>0){var hipsPose=rig.GetBoneGlobalPose(pelvis);hipsPose.Origin-=Vector3.Up*settle;rig.SetBoneGlobalPose(pelvis,hipsPose);}
         Attend(dt,state);
         for(int i=0;i<2;i++)
@@ -120,6 +135,35 @@ public partial class AntigoonPose : SkeletonModifier3D
         }
     }
 
+    private void DeadBlend(float dt)
+    {
+        int n=rig.GetBoneCount();
+        if(lastPose.Length!=n){lastPose=new Quaternion[n];heldPose=new Quaternion[n];spin=new Vector3[n];for(int b=0;b<n;b++)lastPose[b]=heldPose[b]=rig.GetBonePoseRotation(b);}
+        string clip=Actor.Animations.CurrentAnimation;
+        if(clip!=lastClip&&lastClip!=""){blend=0;for(int b=0;b<n;b++)heldPose[b]=lastPose[b];}
+        lastClip=clip;
+        for(int b=0;b<n;b++)
+        {
+            var now=rig.GetBonePoseRotation(b);
+            if(blend<BlendTime)
+            {
+                // Carry the held pose on along its spin, the spin dying away, then ease from it into the clip.
+                if(spin[b].LengthSquared()>1e-10f)heldPose[b]=(new Quaternion(spin[b].Normalized(),spin[b].Length()*dt)*heldPose[b]).Normalized();
+                spin[b]*=Mathf.Exp(-.6931472f*dt/BlendHalfLife);
+                now=heldPose[b].Slerp(now,Smooth(blend/BlendTime));rig.SetBonePoseRotation(b,now);
+            }
+            else if(dt>0)
+            {
+                // Remember each bone's spin (axis times rad/s) for the next change.
+                var turn=(now*lastPose[b].Inverse()).Normalized();if(turn.W<0)turn=-turn;
+                float angle=2*Mathf.Acos(Math.Clamp(turn.W,-1,1));var axis=new Vector3(turn.X,turn.Y,turn.Z);
+                spin[b]=axis.LengthSquared()>1e-12f?axis.Normalized()*angle/dt:Vector3.Zero;
+            }
+            lastPose[b]=now;
+        }
+        blend+=dt;
+    }
+
     // ---- footsteps
 
     private void Plant(Boot b,Vector3 at,float yaw,int i)
@@ -140,23 +184,27 @@ public partial class AntigoonPose : SkeletonModifier3D
     private float BootPitch(int i){var b=boots[i];return b.Swinging?.35f*Mathf.Sin(Mathf.Pi*b.T*1.2f)-.15f*Smooth((b.T-.8)/.2):0;}
     private void Step(float dt,float speed,bool start=true)
     {
-        float swing=Math.Clamp(.62f-speed*.068f,.3f,.55f);
+        float swing=Math.Clamp(.62f-speed*.072f,.27f,.55f);
         for(int i=0;i<2;i++)
         {
             var b=boots[i];if(!b.Swinging)continue;
             b.T+=dt/swing;if(b.T>=1){Plant(b,b.To,b.ToYaw,i);}
         }
-        if(!start||boots[0].Swinging||boots[1].Swinging)return;
+        // A boot left beyond any stride (a jump in the host's position) is set back under him.
+        for(int i=0;i<2;i++)if(!boots[i].Swinging&&new Vector2(Home(i).X-boots[i].At.X,Home(i).Z-boots[i].At.Z).Length()>2.4f)Plant(boots[i],Home(i),BodyYaw,i);
+        // Running has a flight: the next boot may lift once the other is past the top of its swing.
+        bool Busy(Boot b)=>b.Swinging&&!(speed>3&&b.T>.5f);
+        if(!start||Busy(boots[0])||Busy(boots[1]))return;
         // A walking boot lifts once the body has passed it by part of a stride; it lands as far ahead again, so each
         // boot stands about 1.3 swings and both stand together between steps. A still giant squares his feet after
         // a pause, and any boot left facing the old way when he turns steps round.
         var heading=speed>.2f?velocity/speed:Vector3.Zero;
         // Running, each boot stands only as long as the other is in the air.
-        float stand=speed>3?.5f:.65f;
+        float stand=speed>3?.42f:.65f;
         int pick=-1;float worst=0;
         for(int i=0;i<2;i++)
         {
-            var b=boots[i];if(clock-b.Landed<.08)continue;
+            var b=boots[i];if(b.Swinging||clock-b.Landed<.08)continue;
             var d=Home(i)-b.At;d.Y=0;
             float turn=Math.Abs(Mathf.AngleDifference(b.Yaw,BodyYaw)),score;bool due;
             if(speed>.2f)
@@ -287,6 +335,8 @@ public partial class AntigoonPose : SkeletonModifier3D
     /// <summary>World ankle position of a boot and whether it is standing (not swinging).</summary>
     public (Vector3 At,bool Planted) Boots(int i)=>(BootPoint(i),!boots[i].Swinging);
     /// <summary>How far the posed ankle is from its boot's hold (IK error, metres).</summary>
+    public float LastSettle;
+    public string Reach(int i){var h=rig.GlobalTransform*rig.GetBoneGlobalPose(hips[i]).Origin;var p=BootPoint(i);return $"hip {h} boot {p} distance {h.DistanceTo(p):0.00} settle wanted {LastSettle:0.00}";}
     public float BootError(int i)=>(rig.GlobalTransform*rig.GetBoneGlobalPose(ankles[i]).Origin).DistanceTo(BootPoint(i));
     /// <summary>Trunk lean after posing: radians forward of vertical, pelvis to neck.</summary>
     public float Lean(){var p=rig.GetBoneGlobalPose(pelvis).Origin;var n=rig.GetBoneGlobalPose(neck).Origin;return Mathf.Atan2(n.Z-p.Z,n.Y-p.Y);}
