@@ -11,7 +11,7 @@ public sealed partial class NativeAntigoon
     public Func<P,bool> Fits=_=>false;
     public Func<AntigoonReach>? ReachMap;
     /// <summary>Proof trace of the live brain. Call through WithState.</summary>
-    internal string DevelopmentTrace()=>brain==null?"none":$"{brain.State} at ({brain.Position.X:0.0},{brain.Position.Z:0.0}) target {brain.Target} patrol {brain.Patrol.Count} light {Light(brain.Position):0.00}";
+    internal string DevelopmentTrace()=>brain==null?"none":$"{brain.State} at ({brain.Position.X:0.0},{brain.Position.Z:0.0}) target {brain.Target} patrol {brain.Patrol.Count} light {Light(brain.Position):0.00} shield goal ({brain.Goals.Shield.X:0.0},{brain.Goals.Shield.Z:0.0}) lit {Light(brain.Goals.Shield):0.00} patrol goal ({brain.Goals.Patrol.X:0.0},{brain.Goals.Patrol.Z:0.0}) lit {Light(brain.Goals.Patrol):0.00}";
     private void RegisterDevelopment(NativeServiceHost service)
     {
         service.Register("POST","/api/dev/antigoon",r=>

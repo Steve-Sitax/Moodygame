@@ -78,6 +78,8 @@ public partial class AntigoonPose : SkeletonModifier3D
         var hit=space.IntersectRay(ray);return hit.Count>0?hit["position"].AsVector3().Y:Actor.GlobalPosition.Y;
     }
     private float BodyYaw=>Actor.GlobalRotation.Y;
+    /// <summary>Where his boots point, on average (a swinging boot counts where it will land).</summary>
+    public float FeetYaw{get{float a=boots[0].Swinging?boots[0].ToYaw:boots[0].Yaw,b=boots[1].Swinging?boots[1].ToYaw:boots[1].Yaw;return a+Mathf.AngleDifference(a,b)*.5f;}}
     private Vector3 Home(int i)=>rig.GlobalTransform*restFeet[i].Origin;
     private float AnkleLift(int i)=>restFeet[i].Origin.Y;
 
@@ -236,6 +238,7 @@ public partial class AntigoonPose : SkeletonModifier3D
         {
             var b=boots[i];if(b.Swinging||clock-b.Landed<.08)continue;
             var d=Home(i)-b.At;d.Y=0;
+            // Turning on the spot he steps early, so the hips never twist far over a planted boot.
             float turn=Math.Abs(Mathf.AngleDifference(b.Yaw,BodyYaw)),score;bool due;
             if(speed>.2f)
             {
@@ -245,14 +248,17 @@ public partial class AntigoonPose : SkeletonModifier3D
             else
             {
                 float off=d.Length(),need=clock-b.Landed>.6?.1f:.32f;
-                due=off>need||turn>.42f;score=off/need+turn/.42f;
+                due=off>need||turn>.18f;score=off/need+turn/.18f;
             }
             if(due&&score>worst){worst=score;pick=i;}
         }
         if(pick<0)return;
         var boot=boots[pick];
-        var to=Home(pick)+velocity*swing*(1+stand);
-        boot.Swinging=true;boot.T=0;boot.From=boot.At;boot.FromYaw=boot.Yaw;boot.ToYaw=BodyYaw;
+        // A turning step lands already turned part of the way on toward where he means to face.
+        float ahead=Math.Clamp(Mathf.AngleDifference(BodyYaw,Actor.Facing),-AntigoonActor.TwistLimit,AntigoonActor.TwistLimit);
+        var hold=rig.GlobalTransform.Origin;var spot=Home(pick)-hold;spot=new Basis(Vector3.Up,ahead)*spot;
+        var to=hold+spot+velocity*swing*(1+stand);
+        boot.Swinging=true;boot.T=0;boot.From=boot.At;boot.FromYaw=boot.Yaw;boot.ToYaw=BodyYaw+ahead;
         boot.To=new(to.X,Ground(to)+AnkleLift(pick),to.Z);boot.Length=new Vector2(boot.To.X-boot.From.X,boot.To.Z-boot.From.Z).Length();
     }
 

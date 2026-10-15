@@ -1,5 +1,6 @@
 using Godot;
 using System;
+using Scheldemist.Native.Services;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.Json.Nodes;
@@ -18,6 +19,17 @@ public partial class NativeAntigoonClient
     private readonly Dictionary<int,(MeshInstance3D Mesh,JsonObject State,Vector3? Launch)> stones=new();
     private readonly HashSet<int> landedStones=new();
     private double eventTime,snapshotAge;
+    // Residents in his fist or thrown: a physics body on their own skeleton, and the street spot it is anchored to.
+    private readonly Dictionary<string,(HumanRagdoll Body,Vector2 Anchor,int Throw)> limp=new();
+    private static Skeleton3D? SkeletonOf(Townspeople.Sim s)=>s.P?.Human.Root.FindChildren("*","Skeleton3D",true,false).OfType<Skeleton3D>().FirstOrDefault();
+    /// <summary>The neck of the resident he is after (his target id is negative), for his reaching fist.</summary>
+    private Vector3? ResidentNeck(int target)
+    {
+        foreach(var row in frightened.Values)
+            if((int)Num(row.State["target"])==target&&SkeletonOf(row.Person) is {} skeleton&&skeleton.FindBone("neck") is var neck&&neck>=0)
+                return skeleton.GlobalTransform*skeleton.GetBoneGlobalRest(neck).Origin;
+        return null;
+    }
     private static double Num(JsonNode? n)=>n?.GetValue<double>()??0;
     private void StartStreetEvent()
     {
@@ -71,6 +83,8 @@ public partial class NativeAntigoonClient
             var p=row.Person;var s=row.State;string phase=s["phase"]!.GetValue<string>();
             if(phase=="home"){town.ActionInside(p,Num(s["x"]),Num(s["z"]));p.Door=new(Num(s["x"]),Num(s["z"]));continue;}
             town.ActionOutside(p);double tx=Num(s["x"]),tz=Num(s["z"]);
+            // A body in physics stays where its skeleton was when it went limp: moving it would teleport the bones.
+            if(limp.TryGetValue(p.R.Id,out var body)){tx=body.Anchor.X;tz=body.Anchor.Y;}
             if(phase=="flee"&&p.P is {} current&&new Vector2((float)(current.X-tx),(float)(current.Z-tz)).LengthSquared()<4)
             {
                 double blend=1-Math.Exp(-dt*18),x=current.X+(tx-current.X)*blend,z=current.Z+(tz-current.Z)*blend;
@@ -96,12 +110,47 @@ public partial class NativeAntigoonClient
         foreach(var row in frightened.Values)if(row.Person.P is {} p)
         {
             string phase=row.State["phase"]!.GetValue<string>();double time=Num(row.State["time"])+snapshotAge;
+            if(Limp(row.Person,row.State,phase))continue;
             float down=phase=="down"?(float)Math.Clamp(time/.35,0,1):phase=="rise"?1-(float)Math.Clamp(time/1.4,0,1):0;
             p.Human.Root.Rotation=new(phase=="flee"?.12f:Mathf.Pi*.5f*down,0,0);p.Human.Root.Position=row.Origin+Vector3.Up*(.18f*down);
         }
     }
+    /// <summary>
+    /// Held: the resident hangs by the neck from his fist under its own weight. Thrown: the body flies along the
+    /// host's flight and lands as it falls. Down: it lies where it came to rest. Rising: physics lets go there.
+    /// </summary>
+    private bool Limp(Townspeople.Sim person,JsonObject state,string phase)
+    {
+        string id=person.R.Id;bool has=limp.TryGetValue(id,out var body);
+        if(phase is "held" or "thrown" or "down"&&!has&&actor!=null&&SkeletonOf(person) is {} skeleton)
+        {
+            var human=person.P!.Human;human.Root.Rotation=Vector3.Zero;human.Root.Position=Vector3.Zero;
+            var ragdoll=HumanRagdoll.Attach(skeleton,HumanRagdoll.People2,72*human.Root.Scale.Y,1);
+            var hold=actor;ragdoll.Hang("neck",()=>hold.Fist()-Vector3.Up*.08f);
+            body=(ragdoll,new((float)person.X,(float)person.Z),0);limp[id]=body;has=true;
+        }
+        if(!has)return false;
+        int serial=(int)Num(state["throw"]);
+        if(phase is "thrown" or "down"&&serial!=body.Throw)
+        {
+            // Out of the fist at the speed that reaches the host's landing spot in the flight time.
+            float time=(float)Services.AntigoonNightEvent.FlightTime;var from=actor?.Fist()??body.Body.Centre;
+            var to=new Vector3((float)Num(state["tx"]),(float)(town.Walk?.BaseAt(Num(state["tx"]),Num(state["tz"]))??0),(float)Num(state["tz"]));
+            var velocity=(to-from)/time;velocity.Y=(to.Y-from.Y+.5f*9.8f*time*time)/time;
+            body.Body.Fling(velocity,new Vector3((float)GD.RandRange(-2,2),(float)GD.RandRange(-1,1),(float)GD.RandRange(-2,2)));
+            limp[id]=body with {Throw=serial};
+        }
+        if(phase is "rise" or "flee" or "home")
+        {
+            // Stand up from where the body came to rest, not from where it was anchored.
+            var rest=body.Body.Centre;body.Body.Remove();limp.Remove(id);person.X=rest.X;person.Z=rest.Z;
+            return false;
+        }
+        return true;
+    }
     private void ReleaseResident(string id)
     {
+        if(limp.Remove(id,out var body))body.Body.Remove();
         var row=frightened[id];row.Person.ServerEventDriven=false;
         if(row.Person.P is {} p){p.Human.Root.Position=row.Origin;p.Human.Root.Rotation=Vector3.Zero;p.Remote=false;}
         town.ActionRelease(row.Person,this);frightened.Remove(id);

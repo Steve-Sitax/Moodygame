@@ -79,7 +79,7 @@ public partial class HumanRagdoll : PhysicalBoneSimulator3D
         }
         ragdoll.Active=false;
         // After the physics: every bone back to its own length, every joint inside its human range.
-        var keeper=new RagdollShape{Name="RagdollShape",Ragdoll=ragdoll,Parts=parts};skeleton.AddChild(keeper);
+        var keeper=new RagdollShape{Name="RagdollShape",Ragdoll=ragdoll,Parts=parts};skeleton.AddChild(keeper);ragdoll.keeper=keeper;
         return ragdoll;
     }
     /// <summary>
@@ -118,6 +118,9 @@ public partial class HumanRagdoll : PhysicalBoneSimulator3D
         foreach(var body in bodies.Values){body.ApplyCentralImpulse(toss.Velocity*body.Mass);body.AngularVelocity=toss.Spin;}
     }
     public void Release(){LetGo();PhysicalBonesStopSimulation();Active=false;}
+    private RagdollShape? keeper;
+    /// <summary>Stop and take the physics body off the skeleton again (the person goes back to animation).</summary>
+    public void Remove(){Release();keeper?.QueueFree();QueueFree();}
     /// <summary>All parts nearly still.</summary>
     public bool Settled=>bodies.Values.All(b=>b.LinearVelocity.Length()<.25f);
     public Vector3 Centre=>bodies.TryGetValue("hips",out var hips)?hips.GlobalPosition:skeleton.GlobalPosition;

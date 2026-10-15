@@ -145,6 +145,7 @@ public partial class Jef : Node, Mantle.IWorld
     private bool jumpedOff;
     /// <summary>The view's dip as the legs take a landing: a spring, metres down (negative) and m/s.</summary>
     private float dip, dipV, shake, stagger;
+    private bool flung;
     /// <summary>The last jump's measures (for the move check): when it left, its top, its time in the air.</summary>
     public (ulong Frame, float From, float Top, float Air, float Impact) LastJump { get; private set; }
     private float airT;
@@ -547,7 +548,8 @@ public partial class Jef : Node, Mantle.IWorld
             {
                 float h = fallTop - Y;
                 fallTop = float.NegativeInfinity;
-                if (h >= 3) Fell?.Invoke(h, true);
+                if (h >= 3 && !flung) Fell?.Invoke(h, true);
+                flung = false;
                 EnterWater();
                 return;
             }
@@ -560,8 +562,9 @@ public partial class Jef : Node, Mantle.IWorld
                 vy = 0;
                 Grounded = true;
                 Landed?.Invoke();
-                // a fall of 3 m or more: the engine judges the harm
-                if (h >= 3) Fell?.Invoke(h, false);
+                // a fall of 3 m or more: the engine judges the harm (a throw is judged by whoever threw him)
+                if (h >= 3 && !flung) Fell?.Invoke(h, false);
+                flung = false;
             }
             else if (Y < Tide.LwMin - 6)
             {
@@ -607,9 +610,10 @@ public partial class Jef : Node, Mantle.IWorld
     }
 
     /// <summary>A blow that throws him: `push` m/s over the ground, `lift` m/s up, the keys dead for `stun` seconds.</summary>
-    public void Knock(Vector2 push, float lift, float stun)
+    public void Knock(Vector2 push, float lift, float stun, bool thrown = false)
     {
         if (Fly || Swimming || climb != null || Drive != null) return;
+        flung = thrown;
         vel = push;
         vy = Math.Max(vy, lift);
         Grounded = false;

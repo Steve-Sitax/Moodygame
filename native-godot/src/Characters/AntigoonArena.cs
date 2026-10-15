@@ -166,7 +166,7 @@ public partial class AntigoonArena : Node3D
             {
                 double e=elapsed;state=e<1.4?"walk":e<2.8?"run":"idle";
                 float z=-14+(float)(Math.Min(e,1.4)*AntigoonBrain.WalkSpeed+Math.Clamp(e-1.4,0,1.4)*AntigoonBrain.RunSpeed);at=new Vector3(0,0,z);
-            }float yaw=shotPose is "turn" or "notice"&&elapsed>.4?Mathf.Pi*.5f:0;
+            }float yaw=shotPose=="turn"&&elapsed>.4?Mathf.Pi*.95f:shotPose=="notice"&&elapsed>.4?Mathf.Pi*.5f:0;
             if(shotPose=="grab")Prey();
             giant.Snapshot(at,yaw,state,shotPose is "attack" or "grab"?Math.Max(0,elapsed-.4):elapsed,shotPose is "attack" or "grab"&&elapsed>.4?1:0,true);
             giant.Pose.LookAt=shotPose=="notice"?camera.GlobalPosition:null;
@@ -232,7 +232,9 @@ public partial class AntigoonArena : Node3D
             for(int f=0;f<seconds/dt;f++)
             {
                 giant.GlobalPosition+=new Vector3(0,0,speed*dt);
-                if(turnTo!=0)giant.Rotation=new Vector3(0,Mathf.MoveToward(giant.Rotation.Y,turnTo,1.4f*dt),0);
+                giant.Face(turnTo);giant.TurnStep(dt);
+                float twist=Math.Abs(Mathf.AngleDifference(giant.Pose.FeetYaw,giant.Rotation.Y));
+                if(twist>AntigoonActor.TwistLimit+.03f)return $"{state}: hips twisted {twist:0.00} rad over his boots";
                 giant.Animations.Advance(dt);giant.Pose.ApplyPose(dt);
                 for(int i=0;i<2;i++)
                 {
@@ -256,6 +258,7 @@ public partial class AntigoonArena : Node3D
         {
             string error=Run("idle",0,2.6f,Mathf.Pi*.5f,out int steps,out _);if(error!="")return error;
             if(steps<2)return $"turn: he turned a quarter without stepping ({steps} steps)";
+            if(Math.Abs(Mathf.AngleDifference(giant.Rotation.Y,Mathf.Pi*.5f))>.15f)return $"turn: he ended facing {giant.Rotation.Y:0.00} instead of a quarter round";
             GD.Print($"ANTIGOON_GAIT turn: a quarter turn on the spot in {steps} steps");
         }
         giant.Rotation=Vector3.Zero;giant.SetState("attack");float lowest=1;

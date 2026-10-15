@@ -111,7 +111,7 @@ public sealed partial class NativeAntigoon : INativeServiceModule
         var v=new JsonObject{["active"]=developmentEnabled&&brain!=null&&brain.State!="hidden",["night"]=Night,["multiplayer"]=host.MultiplayerEnabled(),["development_only"]=true,["server_ms"]=host.Context.Now};
         v["development_spawn"]=developmentEnabled&&brain!=null;
         if(brain!=null){v["x"]=brain.Position.X;v["y"]=Ground(brain.Position);v["z"]=brain.Position.Z;v["yaw"]=brain.Yaw;v["health"]=brain.Health;v["state"]=brain.State;v["state_time"]=brain.StateTime;v["attack_serial"]=brain.AttackSerial;v["target"]=brain.Target;v["kicked"]=brain.Kicks.GetValueOrDefault(player);
-            v["held"]=brain.Held;
+            v["held"]=brain.Held;v["you"]=player;
             if(brain.LastThrow is {} t)v["throw"]=new JsonObject{["serial"]=t.Serial,["victim"]=t.Victim,["fx"]=t.From.X,["fz"]=t.From.Z,["tx"]=t.To.X,["tz"]=t.To.Z,["wall"]=t.Wall};}
         EventView(v);
         return v;

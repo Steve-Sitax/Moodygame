@@ -174,6 +174,29 @@ public partial class AntigoonActor : Node3D
         // Hand-made: the library has no kick.
         _ => (state, 1),
     };
+    /// <summary>The way he means to face (the host's heading); the body follows it step by step.</summary>
+    public float Facing => facing;
+    /// <summary>Proof aid: aim the body without a host snapshot.</summary>
+    public void Face(float yaw) => facing = yaw;
+    /// <summary>The body may turn this far past where his boots point; further only after a boot has stepped round.</summary>
+    public const float TwistLimit = .35f;
+    /// <summary>
+    /// Turn the body toward `facing` at a giant's pace, never more than `TwistLimit` past his boots: the feet lead,
+    /// the hips follow. Standing, his head covers the first 60 degrees before the body comes round at all.
+    /// </summary>
+    public void TurnStep(double delta)
+    {
+        bool moving = State is "walk" or "run" or "retreat" or "shield";
+        float turn = Mathf.AngleDifference(Rotation.Y, facing);
+        if (moving || State is "attack" or "grab" || Math.Abs(turn) > 1.05f) turning = true;
+        else if (Math.Abs(turn) < .12f) turning = false;
+        if (!turning) return;
+        float rate = (State is "run" or "retreat" ? 3.2f : moving ? 2.2f : 1.6f) * (float)delta;
+        float yaw = Rotation.Y + Math.Clamp(turn, -rate, rate);
+        float lead = Mathf.AngleDifference(Pose.FeetYaw, yaw);
+        if (Math.Abs(lead) > TwistLimit) yaw = Pose.FeetYaw + Math.Sign(lead) * TwistLimit;
+        Rotation = new Vector3(0, yaw, 0);
+    }
     /// <summary>The kicking boot lands: the street shakes under anyone close.</summary>
     public void Stomped()
     {
@@ -190,18 +213,7 @@ public partial class AntigoonActor : Node3D
     {
         if (!placed || !Visible) return;
         GlobalPosition = GlobalPosition.Lerp(destination, 1 - Mathf.Exp(-(float)delta * 18));
-        // He turns his body at a giant's pace and only by stepping round (the pose steps each boot that falls behind).
-        // Standing, his head covers the first 60 degrees; only beyond that does the body come round, and it keeps
-        // turning until it nearly faces the target.
-        bool moving = State is "walk" or "run" or "retreat" or "shield";
-        float turn = Mathf.AngleDifference(Rotation.Y, facing);
-        if (moving || State == "attack" || Math.Abs(turn) > 1.05f) turning = true;
-        else if (Math.Abs(turn) < .2f) turning = false;
-        if (turning)
-        {
-            float rate = (State is "run" or "retreat" ? 3.2f : moving ? 2.2f : 1.4f) * (float)delta;
-            Rotation = new Vector3(0, Rotation.Y + Math.Clamp(turn, -rate, rate), 0);
-        }
+        TurnStep(delta);
         if (State == "grab") GrabClips(delta); else Pose.Grip = null;
     }
 }

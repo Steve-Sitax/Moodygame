@@ -13,7 +13,7 @@ public sealed class AntigoonBrain
         public Point Toward(Point p,double distance) { double d=Distance(p); return d<1e-6?this:new(X+(p.X-X)*Math.Min(1,distance/d),Z+(p.Z-Z)*Math.Min(1,distance/d)); }
     }
     public sealed record Player(int Id,Point At,bool Available=true);
-    public const double WalkSpeed=1.8, RunSpeed=4.8, AttackRange=2.2, ContactTime=.62, AttackDuration=1.35, SafeLight=.45, ShieldSpeed=.7;
+    public const double WalkSpeed=1.8, RunSpeed=4.8, AttackRange=2.2, ContactTime=.62, AttackDuration=1.35, SafeLight=.45, ShieldSpeed=1.3;
     // Prey spotted from afar: he stops dead and stares, then charges. Close prey gets the boot at once.
     public const double NoticeTime=1.6, NoticeDistance=7, NoticeRest=14, LungeSpeed=2.6;
     public const int KickDamage=3;
@@ -51,6 +51,8 @@ public sealed class AntigoonBrain
     private int routeIndex, patrolIndex;
     private double routeAge,now,calmUntil,noticedAt=-NoticeRest,darkPicked=-1;
     private Point shieldGoal;
+    /// <summary>Proof aid: where he is heading while shielding, and the next patrol spot.</summary>
+    public (Point Shield,Point Patrol) Goals=>(shieldGoal,RoamGoal());
     private bool contacted,grabNext;
     private int throws;
     public AntigoonBrain(Point home) { Position=Home=home; }
@@ -100,7 +102,8 @@ public sealed class AntigoonBrain
             // Re-choose at most twice a second: each choice tries real routes.
             bool moved=Position.Distance(shieldGoal)>=.55&&Move(shieldGoal,ShieldSpeed,dt,true);
             if(!moved&&now-darkPicked>.5){shieldGoal=DarkGoal();route=null;}
-            if(Light(Position)<SafeLight&&StateTime>.8)Set("walk");
+            // Out only once clearly dark: at the very edge of a lamp's pool he would flicker in and out.
+            if(Light(Position)<SafeLight*.8&&StateTime>.8)Set("walk");
             return;
         }
         if(State=="hidden")Set("idle");
@@ -164,10 +167,13 @@ public sealed class AntigoonBrain
     private Point DarkGoal()
     {
         darkPicked=now;
+        // A lit square can be wide: look up to 25 m out, and go for real darkness, not the dimmest lit spot nearby.
         var spots=new List<Point>(Patrol);
-        foreach(double r in new[]{3.0,6,10})for(int i=0;i<12;i++){double a=i*Math.PI/6;spots.Add(new(Position.X+Math.Sin(a)*r,Position.Z+Math.Cos(a)*r));}
-        foreach(var p in spots.Where(p=>p.Distance(Position)>.6&&Clear(p)).OrderBy(p=>Light(p)+.02*p.Distance(Position)).Take(8))
-            if(Path(Position,p) is {Count:>0})return p;
+        foreach(double r in new[]{3.0,6,10,15,20,25})for(int i=0;i<16;i++){double a=i*Math.PI/8;spots.Add(new(Position.X+Math.Sin(a)*r,Position.Z+Math.Cos(a)*r));}
+        var open=spots.Where(p=>p.Distance(Position)>1.5&&Clear(p)).Select(p=>(At:p,Lit:Light(p))).ToList();
+        var dark=open.Where(p=>p.Lit<SafeLight*.7).OrderBy(p=>p.At.Distance(Position)).Concat(open.OrderBy(p=>p.Lit+.01*p.At.Distance(Position)));
+        foreach(var p in dark.Take(10))
+            if(Path(Position,p.At) is {Count:>0})return p.At;
         return RoamGoal();
     }
     private Point RoamGoal()=>Patrol.Count>0?Patrol[patrolIndex%Patrol.Count]:new(Position.X+Math.Sin(Yaw)*3,Position.Z+Math.Cos(Yaw)*3);
