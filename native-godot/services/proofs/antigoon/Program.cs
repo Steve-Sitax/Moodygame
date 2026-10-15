@@ -38,16 +38,30 @@ Tick(freed,AntigoonBrain.AttackDuration+.3+AntigoonBrain.GrabContact+.2,true,hel
 Check(freed.Strike(new(6,new(1,1)))&&dropped is {Wall:false}&&freed.Held==0&&dropped.From.Distance(dropped.To)<2,"a blow from another player makes him drop the prey at his feet");
 var missed=Make();Tick(missed,1.65,true,held);Tick(missed,.25,true,held);
 Tick(missed,.4,true,held with {At=new(0,7)});Tick(missed,.7,true);Check(missed.Held==0&&missed.State!="grab","stepping out of reach makes the grab miss");
+// A cart across the street, too tall to step over: he leaps it and walks on beyond.
+var leaper=Make();leaper.Clear=p=>!(p.Z>4&&p.Z<5.5);leaper.Jumpable=p=>p.Z>4&&p.Z<5.5;leaper.Path=(_,to)=>new[]{to};
+leaper.Patrol.Add(new(0,12));bool leapt=false;double top=0;
+for(int i=0;i<200;i++){leaper.Step(.05,true,Array.Empty<AntigoonBrain.Player>());leapt|=leaper.State=="jump";top=Math.Max(top,leaper.Lift);}
+Check(leapt&&leaper.Position.Z>6&&top>1.2,"he leaps an obstacle too tall to step over and walks on");
+var walled2=Make();walled2.Clear=p=>p.Z<4;walled2.Jumpable=p=>p.Z>4&&p.Z<5.5;walled2.Path=(_,to)=>new[]{to};walled2.Patrol.Add(new(0,12));
+for(int i=0;i<100;i++)walled2.Step(.05,true,Array.Empty<AntigoonBrain.Player>());
+Check(walled2.Position.Z<4.1&&walled2.State!="jump","no leap without street to land on beyond");
 var safe=Make();safe.Reach=p=>p.Z<10;Tick(safe,2,true,new AntigoonBrain.Player(1,new(0,12)));Check(safe.Target==0&&safe.State!="notice","a spot he cannot reach is a safe place");
 var lunge=Make();damage=0;lunge.HurtPlayer=(_,v)=>damage+=v;Tick(lunge,.55,true,new AntigoonBrain.Player(1,new(0,2.1)));Check(lunge.Position.Z>.15&&lunge.Position.Z<.3&&lunge.State=="attack","he lunges into the kick's wind-up and stops at kicking distance");
 // Reachability map: a lit street, a lit square cut off from it by a gate, a small yard, and open land at the edge.
 bool Fits(P p)=>(p.X>=0&&p.X<=150&&p.Z>=0&&p.Z<=12)||(p.X>=0&&p.X<=60&&p.Z>=20&&p.Z<=50)||(p.X>=80&&p.X<=86&&p.Z>=20&&p.Z<=26)||p.Z>=60;
 var lit=new[]{new P(10,1),new P(50,1),new P(100,1),new P(10,21),new P(30,21),new P(50,21),new P(82,21),new P(82,25),new P(83,23)};
-var reach=AntigoonReach.Build(Fits,lit,-2,-2,160,80);
+var reach=AntigoonReach.Build(Fits,_=>false,lit,-2,-2,160,80);
 int lane=reach.Area(new(30,3)),square=reach.Area(new(30,30));
 Check(lane!=0&&square!=0&&lane!=square&&reach.Areas==2,"lit street and lit square are separate areas he can roam");
 Check(!reach.Reachable(new(83,23))&&!reach.Reachable(new(30,70)),"a small yard and open land at the edge are not his");
 Check(reach.Near(new(20,13.4),1.5,lane)&&!reach.Near(new(20,16),1.5,lane)&&!reach.Near(new(30,19.5),1.5,lane),"he can kick into a doorway beside his street, not across into another area");
+// A cart 1.5 m deep across a street joins its two halves; a block 4 m deep does not.
+bool Halves(P p)=>p.X>=0&&p.X<=120&&p.Z>=0&&p.Z<=22&&!(p.X>=59&&p.X<=60.5)&&!(p.X>=90&&p.X<=94);
+var lamps=new[]{new P(10,1),new P(30,1),new P(50,1),new P(70,1),new P(80,1),new P(110,1),new P(115,1),new P(100,1)};
+var bridged=AntigoonReach.Build(Halves,p=>p.X>=59&&p.X<=60.5||p.X>=90&&p.X<=94,lamps,-2,-2,122,24);
+Check(bridged.Area(new(30,5))==bridged.Area(new(80,5))&&bridged.Jumpable(new(60,5))&&!bridged.Reachable(new(60,5)),"a cart he can leap joins the street; he cannot stand on it");
+Check(!bridged.Jumpable(new(92,5))&&bridged.Area(new(110,5))!=bridged.Area(new(80,5)),"a block too deep to leap keeps the streets apart");
 string file=Path.Combine(Path.GetTempPath(),"antigoon-reach-proof-"+Guid.NewGuid().ToString("N")+".bin");
 try{reach.Save(file,"world-a");Check(AntigoonReach.Load(file,"world-a")?.Count==reach.Count&&AntigoonReach.Load(file,"world-b")==null,"reach map is kept per world and rebuilt for another");}
 finally{File.Delete(file);}

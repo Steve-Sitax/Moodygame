@@ -210,18 +210,27 @@ public static class NativeAntigoonEventProof
     private static async Task Kicks(NativeTownGame game,Scheldemist.Net.Api api,Scheldemist.Native.Services.NativeAntigoon encounter,string output,Func<int,Task> frames)
     {
         if(Jef.I.Fly)Jef.I.ToggleFly();
+        // The new game's ferry arrival may still be carrying the proof's Jef: he is on foot in the street now.
+        Jef.I.Drive=null;
         game.Cam.SetProcess(true);
-        var giant=At(await Sample(api));
-        // No lamp light between them: light protects, and he would not come.
-        bool DarkWay(P q){int n=(int)Math.Ceiling(q.Distance(giant));return Enumerable.Range(0,n+1).All(k=>encounter.Light(new(giant.X+(q.X-giant.X)*k/n,giant.Z+(q.Z-giant.Z)*k/n))<.4);}
-        // Open stones behind Jef, so the throw is not stopped by a wall at his back.
-        bool Behind(P q){double dx=q.X-giant.X,dz=q.Z-giant.Z,d=Math.Sqrt(dx*dx+dz*dz);return Enumerable.Range(1,6).All(k=>encounter.HumanClear(new(q.X+dx/d*k*.5,q.Z+dz/d*k*.5)));}
-        var spot=new[]{9.0,7,11,13,6}.SelectMany(r=>Enumerable.Range(0,24).Select(i=>encounter.Snap(new(giant.X+Math.Sin(i*Math.PI/12)*r,giant.Z+Math.Cos(i*Math.PI/12)*r))))
-            .Where(p=>p is {} q&&encounter.HumanClear(q)&&encounter.Clear(q)&&encounter.Sight(q,giant)&&encounter.Light(q)<.38&&Behind(q)&&DarkWay(q)).Select(p=>p!.Value).FirstOrDefault();
+        P giant=default,spot=default;
+        for(int attempt=0;attempt<8&&spot.X==0&&spot.Z==0;attempt++)
+        {
+            if(attempt>0)await frames(90);
+            giant=At(await Sample(api));
+            // No lamp light between them: light protects, and he would not come.
+            bool DarkWay(P q){int n=(int)Math.Ceiling(q.Distance(giant));return Enumerable.Range(0,n+1).All(k=>encounter.Light(new(giant.X+(q.X-giant.X)*k/n,giant.Z+(q.Z-giant.Z)*k/n))<.4);}
+            // Open stones behind Jef, so the throw is not stopped by a wall at his back.
+            bool Behind(P q){double dx=q.X-giant.X,dz=q.Z-giant.Z,d=Math.Sqrt(dx*dx+dz*dz);return Enumerable.Range(1,6).All(k=>encounter.HumanClear(new(q.X+dx/d*k*.5,q.Z+dz/d*k*.5)));}
+                spot=new[]{9.0,7,11,13,6,16,20}.SelectMany(r=>Enumerable.Range(0,24).Select(i=>encounter.Snap(new(giant.X+Math.Sin(i*Math.PI/12)*r,giant.Z+Math.Cos(i*Math.PI/12)*r))))
+                .Where(p=>p is {} q&&encounter.HumanClear(q)&&encounter.Clear(q)&&encounter.Sight(q,giant)&&encounter.Light(q)<.38&&Behind(q)&&DarkWay(q)).Select(p=>p!.Value).FirstOrDefault();
+        }
         if(spot.X==0&&spot.Z==0)throw new Exception($"No dark open spot on his map near {giant} for the kick proof");
         float Face(P from,P to)=>(float)Math.Atan2(-(to.X-from.X),-(to.Z-from.Z));
         // A teleport holds Jef still until the street's collision round him is built; let that finish first.
-        Jef.I.Place((float)spot.X,(float)spot.Z,Face(spot,giant),-.12f);await frames(120);
+        Jef.I.Place((float)spot.X,(float)spot.Z,Face(spot,giant),-.12f);await frames(30);
+        for(int i=0;i<600&&Scheldemist.World.Solid.I.Ensure(new Vector3(Jef.I.X,Jef.I.Y,Jef.I.Z),14)>0;i++)await frames(1);
+        await frames(30);
         var client=(Scheldemist.Native.Characters.NativeAntigoonClient)game.FindChild("AntigoonEncounter",true,false);int felt=client.KicksFelt;
         int kicked=0;var landed=Vector2.Zero;var hit=Vector2.Zero;var deadline=DateTime.UtcNow.AddSeconds(45);var shots=new System.Collections.Generic.HashSet<string>();
         while(kicked==0)
@@ -247,7 +256,7 @@ public static class NativeAntigoonEventProof
         await game.ToSignal(RenderingServer.Singleton,RenderingServer.SignalName.FramePostDraw);
         game.GetViewport().GetTexture().GetImage().SavePng(Path.Combine(output,"antigoon-after-kick.png"));
         landed=hit+(new Vector2(Jef.I.X,Jef.I.Z)-hit).Normalized()*furthest;
-        GD.Print($"ANTIGOON_KICK shots {string.Join(",",shots.Where(s=>!s.StartsWith("log")))}; felt {client.KicksFelt-felt}; Jef thrown {hit.DistanceTo(landed):0.00} m");
+        GD.Print($"ANTIGOON_KICK shots {string.Join(",",shots.Where(s=>!s.StartsWith("log")))}; felt {client.KicksFelt-felt}; Jef thrown {hit.DistanceTo(landed):0.00} m (fly {Jef.I.Fly}, driven {Jef.I.Drive!=null}, swimming {Jef.I.Swimming}, climbing {Jef.I.Climbing}, grounded {Jef.I.Grounded}, collision pending {Scheldemist.World.Solid.I.Ensure(new Vector3(Jef.I.X,Jef.I.Y,Jef.I.Z),14)})");
         if(hit.DistanceTo(landed)<1.5f)throw new Exception($"Kick did not throw Jef back: {hit.DistanceTo(landed):0.00} m");
         GD.Print("ANTIGOON_KICK_PASS: landed kick throws Jef back with the view shaken.");
     }

@@ -1,5 +1,6 @@
 using Godot;
 using System;
+using System.Collections.Generic;
 using System.Linq;
 
 namespace Scheldemist.Native.Characters;
@@ -36,7 +37,8 @@ public partial class AntigoonPose : SkeletonModifier3D
         public Vector3 From,To;public float FromYaw,ToYaw,T,Length;public double Landed;
     }
     private readonly Boot[] boots={new(),new()};
-    private bool booted;
+    private bool booted,leaping;
+    private float lastGround;
     private Vector3 lastBody,velocity;
     private string lastState="";
     private Func<Vector3,float?>? groundAt;
@@ -93,7 +95,7 @@ public partial class AntigoonPose : SkeletonModifier3D
         var body=Actor.GlobalPosition;
         if(!booted){for(int i=0;i<2;i++)Plant(boots[i],Home(i),BodyYaw,i);lastBody=body;booted=true;}
         if(dt>0)velocity=velocity.Lerp(new Vector3(body.X-lastBody.X,0,body.Z-lastBody.Z)/dt,1-Mathf.Exp(-dt*10));
-        if(body.DistanceTo(lastBody)>6){for(int i=0;i<2;i++)Plant(boots[i],Home(i),BodyYaw,i);velocity=Vector3.Zero;}
+        if(body.DistanceTo(lastBody)>6){for(int i=0;i<2;i++){Plant(boots[i],Home(i),BodyYaw,i);held[i]=false;holdWeight[i]=0;}velocity=Vector3.Zero;}
         lastBody=body;
         // The kicking boot comes down where the stomp left it; the stepping takes it home from there.
         if(lastState=="attack"&&state!="attack")Plant(boots[1],rig.GlobalTransform*rig.GetBoneGlobalPose(ankles[1]).Origin,BodyYaw,1);
@@ -101,24 +103,42 @@ public partial class AntigoonPose : SkeletonModifier3D
 
         bool kicking=state=="attack";
         float speed=velocity.Length();
-        // The library's hip travel is a man's, scaled to a giant: keep a third of its bounce, half its sway.
-        if(state is not ("death" or "hit" or "recoil_light"))
+        // Walking and running are the library's own legs: its clip plays at the stride that matches his speed, and a
+        // foot is only held to the street while the clip has it down. Standing, turning and the rest are stepped here.
+        string clip=Actor.Animations.CurrentAnimation;
+        bool striding=state is "walk" or "run" or "retreat" or "shield"&&clip.StartsWith("ual/")&&GaitOf(clip) is not null;
+        if(striding!=wasStriding)
         {
+            if(!striding)for(int i=0;i<2;i++)Plant(boots[i],rig.GlobalTransform*rig.GetBoneGlobalPose(ankles[i]).Origin,BodyYaw,i);
+            else for(int i=0;i<2;i++){held[i]=false;holdWeight[i]=0;}
+            wasStriding=striding;
+        }
+        if(!striding&&state is not ("death" or "hit" or "recoil_light"))
+        {
+            // The library's hip travel is a man's, scaled to a giant: standing, keep a third of its bounce, half its sway.
             var hipsPose=rig.GetBoneGlobalPose(pelvis);var rest=rig.GetBoneGlobalRest(pelvis).Origin;var off=hipsPose.Origin-rest;
             hipsPose.Origin=rest+new Vector3(off.X*.5f,off.Y*.35f,off.Z*.5f);rig.SetBoneGlobalPose(pelvis,hipsPose);
         }
-        Posture(state,speed);
+        if(striding)Upright();else Posture(state,speed);
         Stoop();
         if(kicking)KickBody(Actor.Animations.CurrentAnimationPosition);
         // Mid-kick he stands on his left boot: a swing already under way finishes, no new step starts.
-        Step(dt,speed,start:!kicking);
+        // In a leap both boots leave the street and travel tucked under him; both land together.
+        if(state!="jump")lastGround=Actor.GlobalPosition.Y;
+        if(striding)Stride(dt,speed,clip);
+        else if(state=="jump"){for(int i=0;i<2;i++){var b=boots[i];b.Swinging=false;b.At=Home(i)+Vector3.Up*(.25f+.45f*Mathf.Clamp(Actor.GlobalPosition.Y-lastGround,0,1));b.Yaw=BodyYaw;}leaping=true;}
+        else
+        {
+            if(leaping){leaping=false;for(int i=0;i<2;i++){Plant(boots[i],Home(i),BodyYaw,i);Landed?.Invoke(i);}}
+            Step(dt,speed,start:!kicking);
+        }
         // Lower the pelvis only as far as the boots need to reach their holds: a straight leg never stretches.
         float settle=state is "walk" or "run" or "retreat" or "shield"?Math.Min(.06f,speed*.012f):0;
         for(int i=0;i<2;i++)
         {
             if(kicking&&i==1)continue;
             var hip=rig.GetBoneGlobalPose(hips[i]).Origin;var knee=rig.GetBoneGlobalPose(knees[i]).Origin;var ankle=rig.GetBoneGlobalPose(ankles[i]).Origin;
-            var target=rig.GlobalTransform.AffineInverse()*BootPoint(i);
+            var target=rig.GlobalTransform.AffineInverse()*(striding?strideTarget[i]:BootPoint(i));
             float reach=hip.DistanceTo(knee)+knee.DistanceTo(ankle)-.01f;
             float horizontal=new Vector2(target.X-hip.X,target.Z-hip.Z).LengthSquared();
             settle=Math.Max(settle,hip.Y-target.Y-Mathf.Sqrt(Math.Max(.01f,reach*reach-horizontal)));
@@ -129,6 +149,14 @@ public partial class AntigoonPose : SkeletonModifier3D
         for(int i=0;i<2;i++)
         {
             if(kicking&&i==1){KickLeg(Actor.Animations.CurrentAnimationPosition);continue;}
+            if(striding)
+            {
+                // Keep the clip's own knee line and foot angle; only the ankle is moved onto its hold or the street.
+                var hip=rig.GetBoneGlobalPose(hips[i]).Origin;var knee=rig.GetBoneGlobalPose(knees[i]).Origin;var foot=rig.GetBoneGlobalPose(ankles[i]);
+                var bend=knee-(hip+foot.Origin)*.5f;
+                Limb(hips[i],knees[i],ankles[i],rig.GlobalTransform.AffineInverse()*strideTarget[i],knee+bend*2+new Vector3(0,0,.05f),foot.Basis);
+                continue;
+            }
             var target=rig.GlobalTransform.AffineInverse()*BootPoint(i);
             var pole=rig.GetBoneGlobalPose(hips[i]).Origin+new Vector3(i==0?.12f:-.12f,-1,2.2f);
             var turn=new Basis(Vector3.Up,BootYaw(i)-BodyYaw);
@@ -196,6 +224,89 @@ public partial class AntigoonPose : SkeletonModifier3D
         Turn(spine,Vector3.Right,.8f*s);Turn(neck,Vector3.Right,-.35f*s);
     }
 
+    // ---- the library's stride
+
+    private sealed class Gait{public float Speed;public bool[][] Down=new bool[2][];public int Samples;}
+    private readonly Dictionary<string,Gait?> gaits=new();
+    private readonly bool[] held=new bool[2];
+    private readonly float[] holdWeight=new float[2];
+    private readonly Vector3[] holdAt=new Vector3[2],strideTarget=new Vector3[2];
+    private bool wasStriding;
+    /// <summary>
+    /// Read a walk or run clip once: when each foot is down (lowest part of its arc and travelling back) and the
+    /// speed it is meant for (how fast a planted foot slides back under the body in the clip).
+    /// </summary>
+    private Gait? GaitOf(string clip)
+    {
+        if(gaits.TryGetValue(clip,out var known))return known;
+        var a=Actor.Animations.GetAnimation(clip);Gait? gait=null;
+        if(a!=null&&a.LoopMode==Animation.LoopModeEnum.Linear&&a.Length>.2f)
+        {
+            const int n=60;gait=new Gait{Samples=n};var speeds=new List<float>();
+            for(int i=0;i<2;i++)
+            {
+                var y=new float[n];var z=new float[n];
+                for(int k=0;k<n;k++){var p=ClipBone(a,ankles[i],a.Length*k/n);y[k]=p.Y;z[k]=p.Z;}
+                float low=y.Min(),high=y.Max();var down=new bool[n];
+                for(int k=0;k<n;k++)
+                {
+                    float back=z[(k+1)%n]-z[(k+n-1)%n];
+                    down[k]=y[k]<low+Math.Max(.06f,(high-low)*.2f)&&back<0;
+                }
+                // The foot's own backward pace while down, step by step; the loop seam is left out.
+                for(int k=0;k+1<n;k++)if(down[k]&&down[k+1])speeds.Add((float)(-(z[k+1]-z[k])/(a.Length/n)));
+                gait.Down[i]=down;
+            }
+            speeds.Sort();gait.Speed=speeds.Count>0?Math.Max(.2f,speeds[speeds.Count/2]):1;
+        }
+        gaits[clip]=gait;return gait;
+    }
+    /// <summary>A bone's skeleton-space position in a clip at time `t`, from the clip's own tracks over the rest pose.</summary>
+    private Vector3 ClipBone(Animation a,int bone,double t)
+    {
+        var chain=new List<int>();for(int b=bone;b>=0;b=rig.GetBoneParent(b))chain.Add(b);chain.Reverse();
+        var global=Transform3D.Identity;
+        foreach(int b in chain)
+        {
+            var rest=rig.GetBoneRest(b);var origin=rest.Origin;var turn=rest.Basis.GetRotationQuaternion();string name=":"+rig.GetBoneName(b);
+            for(int k=0;k<a.GetTrackCount();k++)
+            {
+                if(!a.TrackGetPath(k).ToString().EndsWith(name))continue;
+                if(a.TrackGetType(k)==Animation.TrackType.Rotation3D)turn=a.RotationTrackInterpolate(k,t);
+                else if(a.TrackGetType(k)==Animation.TrackType.Position3D)origin=a.PositionTrackInterpolate(k,t);
+            }
+            global=global*new Transform3D(new Basis(turn.Normalized()),origin);
+        }
+        return global.Origin;
+    }
+    private void Stride(float dt,float speed,string clip)
+    {
+        var gait=GaitOf(clip)!;
+        // Play the stride at the pace that matches his ground speed, so a planted foot keeps still in the street.
+        Actor.Animations.SpeedScale=Math.Clamp(speed/Math.Max(.1f,gait.Speed),.35f,2.2f);
+        var a=Actor.Animations.GetAnimation(clip);int at=(int)(Actor.Animations.CurrentAnimationPosition/a.Length*gait.Samples)%gait.Samples;
+        for(int i=0;i<2;i++)
+        {
+            var animated=rig.GlobalTransform*rig.GetBoneGlobalPose(ankles[i]).Origin;
+            // The street under the foot replaces the clip's flat floor.
+            float floorY=Ground(animated);var target=animated+Vector3.Up*(floorY-Actor.GlobalPosition.Y);
+            bool down=gait.Down[i][at];
+            if(down&&!held[i]){held[i]=true;holdAt[i]=new(target.X,floorY+AnkleLift(i),target.Z);Landed?.Invoke(i);}
+            if(!down)held[i]=false;
+            holdWeight[i]=Mathf.MoveToward(holdWeight[i],held[i]?1:0,dt/.08f);
+            if(held[i])holdAt[i].Y=floorY+AnkleLift(i);
+            strideTarget[i]=target.Lerp(holdAt[i],holdWeight[i]);
+        }
+    }
+    /// <summary>Proof aid: the stride a clip is read as: its ground speed and how many samples each foot is down.</summary>
+    public string GaitReport(string clip)=>GaitOf(clip) is {} g?$"{clip}: {g.Speed:0.00} m/s, left down {g.Down[0].Count(d=>d)}/{g.Samples}, right down {g.Down[1].Count(d=>d)}/{g.Samples}":clip+": not a stride";
+    /// <summary>The library walk is upright; only never let the trunk fall behind the hips.</summary>
+    private void Upright()
+    {
+        // Hurrying, he leans into it.
+        if(spine<0||neck<0)return;float want=Actor.State is "run" or "retreat"?.12f:.03f,lean=Lean();if(lean<want)Turn(spine,Vector3.Right,want-lean);
+    }
+
     // ---- footsteps
 
     private void Plant(Boot b,Vector3 at,float yaw,int i)
@@ -231,6 +342,9 @@ public partial class AntigoonPose : SkeletonModifier3D
         // boot stands about 1.3 swings and both stand together between steps. A still giant squares his feet after
         // a pause, and any boot left facing the old way when he turns steps round.
         var heading=speed>.2f?velocity/speed:Vector3.Zero;
+        // Balance first: where his weight is heading (the capture point) must stay over his boots, or a boot must
+        // go and catch it, as anyone would step rather than fall.
+        var (icp,tip)=Balance();
         // Running, each boot stands only as long as the other is in the air.
         float stand=speed>3?.42f:.65f;
         int pick=-1;float worst=0;
@@ -252,14 +366,51 @@ public partial class AntigoonPose : SkeletonModifier3D
             }
             if(due&&score>worst){worst=score;pick=i;}
         }
+        // Running is falling forward caught by each stride: there the gait itself does the catching.
+        if(tip>0&&speed<2.5f)
+        {
+            // Out of balance: the boot furthest from where the weight goes steps to catch it.
+            int far=-1;float farthest=-1;
+            for(int i=0;i<2;i++){var b=boots[i];if(b.Swinging||clock-b.Landed<.05)continue;float d=new Vector2(b.At.X-icp.X,b.At.Z-icp.Z).Length();if(d>farthest){farthest=d;far=i;}}
+            if(far>=0)pick=far;
+        }
         if(pick<0)return;
         var boot=boots[pick];
         // A turning step lands already turned part of the way on toward where he means to face.
         float ahead=Math.Clamp(Mathf.AngleDifference(BodyYaw,Actor.Facing),-AntigoonActor.TwistLimit,AntigoonActor.TwistLimit);
         var hold=rig.GlobalTransform.Origin;var spot=Home(pick)-hold;spot=new Basis(Vector3.Up,ahead)*spot;
         var to=hold+spot+velocity*swing*(1+stand);
+        // Land where the weight will be: the boot's own side of the capture point, where it is heading by then.
+        var flank=Home(pick)-hold;flank=flank-BodyBasisZ*flank.Dot(BodyBasisZ);flank.Y=0;
+        var catchAt=icp+velocity*swing+flank;catchAt.Y=to.Y;
+        to=to.Lerp(catchAt,speed>=2.5f?.15f:tip>0?.8f:.35f);
+        var reachFrom=Home(pick);var stride=new Vector2(to.X-reachFrom.X,to.Z-reachFrom.Z);
+        if(stride.Length()>1.9f){stride=stride.Normalized()*1.9f;to=new(reachFrom.X+stride.X,to.Y,reachFrom.Z+stride.Y);}
         boot.Swinging=true;boot.T=0;boot.From=boot.At;boot.FromYaw=boot.Yaw;boot.ToYaw=BodyYaw+ahead;
         boot.To=new(to.X,Ground(to)+AnkleLift(pick),to.Z);boot.Length=new Vector2(boot.To.X-boot.From.X,boot.To.Z-boot.From.Z).Length();
+    }
+
+    private Vector3 BodyBasisZ=>Actor.GlobalBasis.Z;
+    /// <summary>
+    /// His capture point (centre of mass carried on by its speed, linear inverted pendulum: x + v / sqrt(g / h)) and
+    /// how far it lies outside the ground his planted boots cover (negative: safely inside).
+    /// </summary>
+    public (Vector3 Capture,float Outside) Balance()
+    {
+        var hips=rig.GlobalTransform*rig.GetBoneGlobalPose(pelvis).Origin;var trunk=rig.GlobalTransform*rig.GetBoneGlobalPose(chest).Origin;
+        var mass=hips.Lerp(trunk,.35f);float height=Math.Max(.5f,mass.Y-Actor.GlobalPosition.Y);
+        var capture=mass+velocity/Mathf.Sqrt(9.8f/height);capture.Y=Actor.GlobalPosition.Y;
+        const float Sole=.4f;
+        var planted=boots.Where(b=>!b.Swinging).Select(b=>b.At).ToArray();
+        if(planted.Length==0)return (capture,0);
+        float d;
+        if(planted.Length==1)d=new Vector2(capture.X-planted[0].X,capture.Z-planted[0].Z).Length();
+        else
+        {
+            var a=new Vector2(planted[0].X,planted[0].Z);var b=new Vector2(planted[1].X,planted[1].Z);var c=new Vector2(capture.X,capture.Z);
+            var ab=b-a;float t=ab.LengthSquared()<1e-6f?0:Math.Clamp((c-a).Dot(ab)/ab.LengthSquared(),0,1);d=c.DistanceTo(a+ab*t);
+        }
+        return (capture,d-Sole);
     }
 
     // ---- posture and attention
@@ -327,7 +478,9 @@ public partial class AntigoonPose : SkeletonModifier3D
     {
         float wind=Smooth(t/.34),strike=Smooth((t-.34)/.28),stomp=Smooth((t-.8)/.3);
         var hipsPose=rig.GetBoneGlobalPose(pelvis);
-        hipsPose.Origin+=new Vector3(0,-.1f*wind*(1-stomp),.22f*strike);
+        // His weight goes over the standing boot before the other leaves the ground.
+        float support=Math.Sign(restFeet[0].Origin.X)*.32f*Smooth(t/.2)*(1-stomp);
+        hipsPose.Origin+=new Vector3(support,-.1f*wind*(1-stomp),.22f*strike);
         hipsPose.Basis=new Basis(Vector3.Up,-.18f*wind*(1-strike)+.22f*strike*(1-stomp))*hipsPose.Basis;
         rig.SetBoneGlobalPose(pelvis,hipsPose);
         // Coil forward over the wind-up, set the shoulders back against the swing, then come forward over the stomp.
@@ -369,11 +522,11 @@ public partial class AntigoonPose : SkeletonModifier3D
     // ---- proof aids
 
     /// <summary>World ankle position of a boot and whether it is standing (not swinging).</summary>
-    public (Vector3 At,bool Planted) Boots(int i)=>(BootPoint(i),!boots[i].Swinging);
+    public (Vector3 At,bool Planted) Boots(int i)=>wasStriding?(held[i]?holdAt[i]:strideTarget[i],held[i]):(BootPoint(i),!boots[i].Swinging);
     /// <summary>How far the posed ankle is from its boot's hold (IK error, metres).</summary>
     public float LastSettle;
     public string Reach(int i){var h=rig.GlobalTransform*rig.GetBoneGlobalPose(hips[i]).Origin;var p=BootPoint(i);return $"hip {h} boot {p} distance {h.DistanceTo(p):0.00} settle wanted {LastSettle:0.00}";}
-    public float BootError(int i)=>(rig.GlobalTransform*rig.GetBoneGlobalPose(ankles[i]).Origin).DistanceTo(BootPoint(i));
+    public float BootError(int i)=>(rig.GlobalTransform*rig.GetBoneGlobalPose(ankles[i]).Origin).DistanceTo(wasStriding?strideTarget[i]:BootPoint(i));
     /// <summary>Trunk lean after posing: radians forward of vertical, pelvis to neck.</summary>
     public float Lean(){var p=rig.GetBoneGlobalPose(pelvis).Origin;var n=rig.GetBoneGlobalPose(neck).Origin;return Mathf.Atan2(n.Z-p.Z,n.Y-p.Y);}
     /// <summary>Knee fold of the kicking leg: the shin's angle behind the thigh line, radians (never negative).</summary>

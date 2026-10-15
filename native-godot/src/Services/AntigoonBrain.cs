@@ -21,6 +21,12 @@ public sealed class AntigoonBrain
     public const double GrabContact=.8, GrabRelease=3.1, GrabDuration=3.9, GrabRange=2.4, ThrowDistance=6;
     public const int ThrowDamage=3, WallDamage=2;
     public sealed record Throw(int Serial,int Victim,Point From,Point To,bool Wall);
+    // A leap over an obstacle he cannot step over: crouch and spring, clear it, land and walk on.
+    public const double JumpTime=.95, JumpTakeoff=.3, JumpHeight=1.7;
+    /// <summary>Cells he can leap across but not stand on.</summary>
+    public Func<Point,bool> Jumpable = _=>false;
+    /// <summary>His height above the street now (in a leap).</summary>
+    public double Lift=>State=="jump"&&StateTime>JumpTakeoff?JumpHeight*Math.Sin(Math.PI*Math.Min(1,(StateTime-JumpTakeoff)/(JumpTime-JumpTakeoff-.12))):0;
     public Point Position { get; private set; }
     public Point Home { get; private set; }
     public double Yaw { get; private set; }
@@ -50,7 +56,8 @@ public sealed class AntigoonBrain
     private Point routeGoal;
     private int routeIndex, patrolIndex;
     private double routeAge,now,calmUntil,noticedAt=-NoticeRest,darkPicked=-1;
-    private Point shieldGoal;
+    private Point shieldGoal,jumpFrom,jumpTo;
+    private string jumpThen="walk";
     /// <summary>Proof aid: where he is heading while shielding, and the next patrol spot.</summary>
     public (Point Shield,Point Patrol) Goals=>(shieldGoal,RoamGoal());
     private bool contacted,grabNext;
@@ -60,7 +67,7 @@ public sealed class AntigoonBrain
     public void Reveal() { if(Health>0)Set("idle"); }
     public bool BeginThrow(Point lamp)
     {
-        if(Health<=0||State is "hidden" or "attack" or "grab" or "hit" or "recoil_light" or "retreat" or "shield" or "notice"||Light(Position)>=SafeLight)return false;
+        if(Health<=0||State is "hidden" or "attack" or "grab" or "jump" or "hit" or "recoil_light" or "retreat" or "shield" or "notice"||Light(Position)>=SafeLight)return false;
         Target=0;Yaw=Math.Atan2(lamp.X-Position.X,lamp.Z-Position.Z);Set("throw");return true;
     }
     private void Set(string state)
@@ -88,6 +95,15 @@ public sealed class AntigoonBrain
     {
         dt=Math.Clamp(dt,0,.1);now+=dt;StateTime+=dt;routeAge+=dt;
         if(Health<=0){Set("death");return;}
+        // A leap is finished whatever happens around him: nothing turns him back in mid-air.
+        if(State=="jump")
+        {
+            // Crouch in place, then fly from take-off to landing; a short landing crouch before walking on.
+            double u=Math.Clamp((StateTime-JumpTakeoff)/(JumpTime-JumpTakeoff-.12),0,1);
+            Position=new(jumpFrom.X+(jumpTo.X-jumpFrom.X)*u,jumpFrom.Z+(jumpTo.Z-jumpFrom.Z)*u);
+            if(StateTime>=JumpTime){Position=jumpTo;route=null;Set(jumpThen);}
+            return;
+        }
         if(!night)
         {
             Target=0;
@@ -97,7 +113,7 @@ public sealed class AntigoonBrain
         if(State=="shield"||Light(Position)>=SafeLight)
         {
             // Out of the light by the shortest way: shield his eyes and grope toward the nearest dark spot he can reach.
-            if(State!="shield") { shieldGoal=DarkGoal();Set("shield"); }
+            if(State!="shield"||Light(shieldGoal)>=SafeLight) { bool entering=State!="shield";if(entering)Set("shield");if(entering||now-darkPicked>.5)shieldGoal=DarkGoal(); }
             Target=0;calmUntil=now+1.2;
             // Re-choose at most twice a second: each choice tries real routes.
             bool moved=Position.Distance(shieldGoal)>=.55&&Move(shieldGoal,ShieldSpeed,dt,true);
@@ -164,6 +180,23 @@ public sealed class AntigoonBrain
         }
         Target=0;Roam(dt);
     }
+    /// <summary>Start a leap toward `toward` over the obstacle ahead, if there is street to land on beyond it.</summary>
+    private bool Leap(Point toward)
+    {
+        if(State is "jump" or "attack" or "grab" or "shield")return false;
+        double d=Position.Distance(toward);if(d<1e-3)return false;
+        var dir=new Point((toward.X-Position.X)/d,(toward.Z-Position.Z)/d);
+        bool over=false;
+        for(double r=.3;r<=AntigoonReach.JumpDepth+1.6;r+=.25)
+        {
+            var p=new Point(Position.X+dir.X*r,Position.Z+dir.Z*r);
+            if(Jumpable(p)){over=true;continue;}
+            if(!Clear(p))return false;
+            // Land a little beyond the obstacle, on street he can stand on.
+            if(over){jumpFrom=Position;jumpTo=new(p.X+dir.X*.6,p.Z+dir.Z*.6);if(!Clear(jumpTo))jumpTo=p;jumpThen=State is "run" or "retreat"?State:"walk";Yaw=Math.Atan2(dir.X,dir.Z);Set("jump");return true;}
+        }
+        return false;
+    }
     private Point DarkGoal()
     {
         darkPicked=now;
@@ -183,7 +216,8 @@ public sealed class AntigoonBrain
         for(int i=0;i<Patrol.Count;i++)
         {
             var goal=RoamGoal();
-            if(Position.Distance(goal)<.55){patrolIndex++;route=null;continue;}
+            // A patrol spot a lamp now lights is no place for him: pass it by.
+            if(Position.Distance(goal)<.55||Light(goal)>=SafeLight){patrolIndex++;route=null;continue;}
             Set("walk");if(Move(goal,WalkSpeed,dt,false)||State=="shield")return;
             patrolIndex++;route=null;
         }
@@ -203,9 +237,9 @@ public sealed class AntigoonBrain
         if(route==null||route.Count==0)return false;
         while(routeIndex<route.Count-1&&Position.Distance(route[routeIndex])<.3)routeIndex++;
         Point next=Position.Toward(route[routeIndex],speed*dt);
-        if(!Clear(next)){route=null;return false;}
+        if(!Clear(next)){if(Jumpable(next)&&Leap(route[routeIndex]))return true;route=null;return false;}
         if(!allowLight&&Light(next)>=SafeLight)
-        {shieldGoal=goal;Target=0;Set("shield");return false;}
+        {shieldGoal=Light(goal)<SafeLight?goal:DarkGoal();Target=0;Set("shield");return false;}
         if(Position.Distance(next)>1e-5)Yaw=Math.Atan2(next.X-Position.X,next.Z-Position.Z);
         bool moved=Position.Distance(next)>1e-5;Position=next;return moved;
     }

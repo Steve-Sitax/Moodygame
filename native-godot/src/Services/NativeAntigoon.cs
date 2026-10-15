@@ -21,6 +21,7 @@ public sealed partial class NativeAntigoon : INativeServiceModule
     public Func<P,bool> BackAlley = _=>true;
     public Func<P,P?> Snap = p=>p;
     public Func<P,double,IReadOnlyList<P>>? Roamable;
+    public Func<P,bool> Jumpable = _=>false;
     /// <summary>(giant, spot): can he stand within kicking reach of the spot, walking from where he is?</summary>
     public Func<P,P,bool> Reach = (_,_)=>true;
     private bool developmentEnabled;
@@ -60,7 +61,7 @@ public sealed partial class NativeAntigoon : INativeServiceModule
     private void Create(P home)
     {
         street=new(){HumanPath=HumanPath,HumanClear=HumanClear,Lamps=()=>Lighting?.Targets()??Array.Empty<AntigoonNightEvent.Lamp>(),Extinguish=id=>Lighting?.Extinguish(id)};
-        brain=new(home){Clear=Clear,Light=Light,Path=Path,Sight=Sight,HurtPlayer=(id,damage)=>
+        brain=new(home){Clear=Clear,Light=Light,Path=Path,Sight=Sight,Jumpable=Jumpable,HurtPlayer=(id,damage)=>
         {
             if(id<0){street.KnockDown(id);return;}
             host.Context.Execute("UPDATE player SET health=MAX(0,health-$p0) WHERE id=$p1",damage,id);
@@ -110,7 +111,7 @@ public sealed partial class NativeAntigoon : INativeServiceModule
     {
         var v=new JsonObject{["active"]=developmentEnabled&&brain!=null&&brain.State!="hidden",["night"]=Night,["multiplayer"]=host.MultiplayerEnabled(),["development_only"]=true,["server_ms"]=host.Context.Now};
         v["development_spawn"]=developmentEnabled&&brain!=null;
-        if(brain!=null){v["x"]=brain.Position.X;v["y"]=Ground(brain.Position);v["z"]=brain.Position.Z;v["yaw"]=brain.Yaw;v["health"]=brain.Health;v["state"]=brain.State;v["state_time"]=brain.StateTime;v["attack_serial"]=brain.AttackSerial;v["target"]=brain.Target;v["kicked"]=brain.Kicks.GetValueOrDefault(player);
+        if(brain!=null){v["x"]=brain.Position.X;v["y"]=Ground(brain.Position)+brain.Lift;v["z"]=brain.Position.Z;v["yaw"]=brain.Yaw;v["health"]=brain.Health;v["state"]=brain.State;v["state_time"]=brain.StateTime;v["attack_serial"]=brain.AttackSerial;v["target"]=brain.Target;v["kicked"]=brain.Kicks.GetValueOrDefault(player);
             v["held"]=brain.Held;v["you"]=player;
             if(brain.LastThrow is {} t)v["throw"]=new JsonObject{["serial"]=t.Serial,["victim"]=t.Victim,["fx"]=t.From.X,["fz"]=t.From.Z,["tx"]=t.To.X,["tz"]=t.To.Z,["wall"]=t.Wall};}
         EventView(v);

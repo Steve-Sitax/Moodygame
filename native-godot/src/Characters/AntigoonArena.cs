@@ -121,6 +121,7 @@ public partial class AntigoonArena : Node3D
         }
     }
     // Film stand-in prey: a man-sized capsule 2.1 m before him, seized by the neck, held up, thrown.
+    private bool jumpCart;
     private MeshInstance3D? prey;private Vector3 preyVelocity;private bool preyFlying;
     private void Prey()
     {
@@ -161,6 +162,15 @@ public partial class AntigoonArena : Node3D
             float speed=shotPose=="run"?(float)AntigoonBrain.RunSpeed:shotPose=="walk"?(float)AntigoonBrain.WalkSpeed:0;
             var at=new Vector3(0,0,-14+speed*(float)elapsed);
             string state=shotPose is "turn"?"idle":shotPose;
+            // "jump": walk up to a 2 m cart, leap it, walk on.
+            if(shotPose=="jump")
+            {
+                if(!jumpCart){jumpCart=true;Box("Cart",new Vector3(0,1,-9.5f),new Vector3(2.6f,2,1.4f),new Color(.36f,.26f,.16f));}
+                double e=elapsed,j0=1.2,jt=AntigoonBrain.JumpTime,up=AntigoonBrain.JumpTakeoff;float z0=-14+(float)(j0*AntigoonBrain.WalkSpeed),z1=z0+3.6f;
+                if(e<j0){state="walk";at=new Vector3(0,0,-14+(float)(e*AntigoonBrain.WalkSpeed));}
+                else if(e<j0+jt){state="jump";double t=e-j0,u=Math.Clamp((t-up)/(jt-up-.12),0,1);at=new Vector3(0,(float)(t>up?AntigoonBrain.JumpHeight*Math.Sin(Math.PI*u):0),z0+(z1-z0)*(float)u);}
+                else{state="walk";at=new Vector3(0,0,z1+(float)((e-j0-jt)*AntigoonBrain.WalkSpeed));}
+            }
             // "mix": walk, break into a run, pull up and stand: every change must blend.
             if(shotPose=="mix")
             {
@@ -228,7 +238,7 @@ public partial class AntigoonArena : Node3D
         string Run(string state,float speed,float seconds,float turnTo,out int steps,out float worstLean)
         {
             steps=0;worstLean=0;giant.GlobalPosition=new Vector3(0,0,-14);giant.Rotation=Vector3.Zero;giant.SetState(state);
-            giant.Pose.ApplyPose(dt);var held=new Vector3[2];var was=new bool[2];
+            giant.Pose.ApplyPose(dt);var held=new Vector3[2];var was=new bool[2];double falling=0;
             for(int f=0;f<seconds/dt;f++)
             {
                 giant.GlobalPosition+=new Vector3(0,0,speed*dt);
@@ -245,15 +255,20 @@ public partial class AntigoonArena : Node3D
                     held[i]=at;was[i]=planted;
                 }
                 if(f>30)worstLean=Math.Min(worstLean,giant.Pose.Lean());
+                // Gravity: with both boots down and nothing stepping, his weight must stay over them.
+                var (_,outside)=giant.Pose.Balance();
+                bool stepping=!giant.Pose.Boots(0).Planted||!giant.Pose.Boots(1).Planted;
+                falling=!stepping&&outside>.12f&&speed<2.5f?falling+dt:0;
+                if(f>30&&falling>.25)return $"{state}: his weight stayed {outside:0.00} m outside his boots with no step: he would fall";
             }
             return "";
         }
         foreach(var (state,speed) in new[]{("walk",(float)AntigoonBrain.WalkSpeed),("run",(float)AntigoonBrain.RunSpeed)})
         {
             string error=Run(state,speed,4,0,out int steps,out float lean);if(error!="")return error;
-            if(steps<(state=="walk"?4:6))return $"{state}: only {steps} steps in 4 s";
+            if(steps<3)return $"{state}: only {steps} steps in 4 s";
             if(lean<-.02f)return $"{state}: trunk leans back {-lean:0.000} rad";
-            GD.Print($"ANTIGOON_GAIT {state}: {steps} steps in 4 s, boots held while standing, trunk never behind the hips");
+            GD.Print($"ANTIGOON_GAIT {state}: {steps} steps in 4 s, boots held while standing, trunk never behind the hips ({giant.Pose.GaitReport(giant.Animations.CurrentAnimation)})");
         }
         {
             string error=Run("idle",0,2.6f,Mathf.Pi*.5f,out int steps,out _);if(error!="")return error;

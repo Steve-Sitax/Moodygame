@@ -134,6 +134,19 @@ public partial class AntigoonActor : Node3D
         Pose.Grip = (target, grabClock < GrabSeize ? reach : 1 - letGo, grabClock >= GrabSeize * .9 && grabClock < GrabRelease);
         Pose.LookAt = grabClock >= GrabSeize ? HoldPoint() : neck;
     }
+    private double jumpClock;
+    /// <summary>The leap in library clips: the end of the jump start (crouch and spring), the air loop, the landing.</summary>
+    private void JumpClips(double delta)
+    {
+        jumpClock += delta;
+        double takeoff = Services.AntigoonBrain.JumpTakeoff, land = Services.AntigoonBrain.JumpTime - .12;
+        string clip = jumpClock < takeoff ? "ual/jump_start" : jumpClock < land ? "ual/jump_air" : "ual/jump_land";
+        if (Animations.CurrentAnimation == clip || !Animations.HasAnimation(clip)) return;
+        Animations.SpeedScale = 1; Animations.Play(clip, 0);
+        double length = Animations.GetAnimation(clip).Length;
+        Animations.Seek(clip == "ual/jump_start" ? Math.Max(0, length - takeoff + jumpClock) : 0, true);
+        if (clip == "ual/jump_land") Stomped();
+    }
     private static float Smooth(float x) { x = Mathf.Clamp(x, 0, 1); return x * x * (3 - 2 * x); }
     public void Snapshot(Vector3 position, float yaw, string state, double time, int attackSerial, bool visible)
     {
@@ -141,7 +154,7 @@ public partial class AntigoonActor : Node3D
         body.CollisionLayer = visible && state != "death" ? 1u : 0u;
         if (!placed || GlobalPosition.DistanceTo(position) > 12) { GlobalPosition = position; Rotation = new Vector3(0, yaw, 0); placed = true; }
         bool newAttack = attackSerial != serial; serial = attackSerial;
-        if (State != state || state is "attack" or "grab" && newAttack) { SetState(state, time); grabClock = time; }
+        if (State != state || state is "attack" or "grab" && newAttack) { SetState(state, time); grabClock = time; jumpClock = time; }
         if (state == "grab" && Math.Abs(grabClock - time) > .4) grabClock = time;
     }
     public void SetState(string state, double time = 0)
@@ -165,7 +178,9 @@ public partial class AntigoonActor : Node3D
     {
         "hidden" or "idle" or "notice" => ("ual/idle", 1),
         "walk" => ("ual/walk", 1.15f),
-        "run" or "retreat" => ("ual/run", 1.5f),
+        // The library jog, scaled to his size, is a 15 m/s run: at his 4.8 m/s chase it would crawl in slow motion.
+        // He hurries in long walking strides instead; the pose matches the stride to his speed.
+        "run" or "retreat" => ("ual/walk", 1.5f),
         "shield" => ("ual/walk", (float)(Services.AntigoonBrain.ShieldSpeed / Services.AntigoonBrain.WalkSpeed) * 1.15f),
         "hit" => ("ual/hit", 1),
         "recoil_light" => ("ual/hit_head", .8f),
@@ -215,5 +230,6 @@ public partial class AntigoonActor : Node3D
         GlobalPosition = GlobalPosition.Lerp(destination, 1 - Mathf.Exp(-(float)delta * 18));
         TurnStep(delta);
         if (State == "grab") GrabClips(delta); else Pose.Grip = null;
+        if (State == "jump") JumpClips(delta);
     }
 }

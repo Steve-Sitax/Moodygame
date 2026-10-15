@@ -26,7 +26,7 @@ public partial class NativeTownGame
         // Capture actual solid triangles once; requests never access scene nodes or physics.
         var geometry=new AntigoonGeometry(World);
         // He steps over crates, benches and low walls a man must climb; anything taller below his crown stops him.
-        const float Step=1.1f,Radius=.65f,Crown=5.5f;
+        const float Step=1.1f,Radius=.65f,Crown=5.5f,Leap=2.3f;
         int Quarter(double v,double origin)=>(int)Math.Floor((v-origin)*4);
         // Street level beside a crate or bench: the walk map's own footing within 1.25 m, never the top of the thing.
         (double X,double Z)? Footing(P p)
@@ -40,10 +40,12 @@ public partial class NativeTownGame
         double Floor(P p)=>Footing(p) is {} f?map.BaseAt(f.X,f.Z):map.BaseAt(p.X,p.Z);
         Vector3 At(P p,float height=0)=>new((float)p.X,(float)Floor(p)+height,(float)p.Z);
         bool Fits(P p)=>!Water.In((float)p.X,(float)p.Z)&&Footing(p) is {} f&&geometry.Clear(new((float)p.X,(float)map.BaseAt(f.X,f.Z),(float)p.Z),Radius,Crown,Step);
+        // Too tall to step over but low enough to leap: nothing between 2.3 m and his crown.
+        bool Leaps(P p)=>!Water.In((float)p.X,(float)p.Z)&&Footing(p) is {} f&&geometry.Clear(new((float)p.X,(float)map.BaseAt(f.X,f.Z),(float)p.Z),Radius,Crown,Leap);
         var lampPositions=((NativeTown)World).LampFacts.Select(l=>new P(NativeGoods.Number(l?["x"]),NativeGoods.Number(l?["z"]))).ToArray();
         // His reachability map: built once per world on a worker thread, then kept in the data folder.
         AntigoonReach? reach=null;
-        string key=fingerprint+$"|step {Step} radius {Radius} crown {Crown}";
+        string key=fingerprint+$"|step {Step} radius {Radius} crown {Crown} leap {Leap}";
         string file=System.IO.Path.Combine(Paths.Data,"antigoon-cache","reach.bin");
         Water.In(0,0);// load the water outline here, not on the worker
         var drawing=System.Threading.Tasks.Task.Run(()=>
@@ -52,11 +54,11 @@ public partial class NativeTownGame
             var loaded=AntigoonReach.Load(file,key);bool built=loaded==null;
             if(loaded==null)
             {
-                loaded=AntigoonReach.Build(Fits,lampPositions,map.X0,map.Z0,map.X0+map.W,map.Z0+map.D);
+                loaded=AntigoonReach.Build(Fits,Leaps,lampPositions,map.X0,map.Z0,map.X0+map.W,map.Z0+map.D);
                 try{loaded.Save(file,key);}catch(Exception e) when (e is System.IO.IOException or UnauthorizedAccessException){GD.PushWarning("Antigoon reach map not saved: "+e.Message);}
             }
             Volatile.Write(ref reach,loaded);
-            GD.Print($"ANTIGOON_REACH_MAP {(built?"built":"loaded")}: {loaded.Count*AntigoonReach.Cell*AntigoonReach.Cell:0} m2 of streets in {loaded.Areas} areas, {clock.ElapsedMilliseconds} ms");
+            GD.Print($"ANTIGOON_REACH_MAP {(built?"built":"loaded")}: {loaded.Count*AntigoonReach.Cell*AntigoonReach.Cell:0} m2 of streets in {loaded.Areas} areas, {loaded.Hops*AntigoonReach.Cell*AntigoonReach.Cell:0} m2 to jump, {clock.ElapsedMilliseconds} ms");
         });
         AntigoonReach Reach()
         {
@@ -106,7 +108,8 @@ public partial class NativeTownGame
             // Anyone further than a kick from his map is safe: a doorway, a narrow lane, a back yard behind a gate.
             Reach=(giant,p)=>Reach() is var m&&m.Near(p,AntigoonBrain.AttackRange-.2,m.Area(giant)),
             // His own grid route over his map: human footpaths hug walls, lamp posts and steps where a giant does not fit.
-            Path=(a,b)=>Scheldemist.Play.JourneyRules.WaterPath((x,z)=>OnMap(new(x,z)),new(a.X,a.Z),new(b.X,b.Z),.5,12,60000)?.Select(p=>new P(p.X,p.Z)).ToArray(),
+            Jumpable=p=>Reach().Jumpable(p),
+            Path=(a,b)=>Scheldemist.Play.JourneyRules.WaterPath((x,z)=>OnMap(new(x,z))||Reach().Jumpable(new(x,z)),new(a.X,a.Z),new(b.X,b.Z),.5,12,60000)?.Select(p=>new P(p.X,p.Z)).ToArray(),
             Roamable=(home,radius)=>
             {
                 // Sample his streets around home, one dark spot per direction and distance band.
