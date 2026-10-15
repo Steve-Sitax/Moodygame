@@ -46,6 +46,22 @@ Check(leapt&&leaper.Position.Z>6&&top>1.2,"he leaps an obstacle too tall to step
 var walled2=Make();walled2.Clear=p=>p.Z<4;walled2.Jumpable=p=>p.Z>4&&p.Z<5.5;walled2.Path=(_,to)=>new[]{to};walled2.Patrol.Add(new(0,12));
 for(int i=0;i<100;i++)walled2.Step(.05,true,Array.Empty<AntigoonBrain.Player>());
 Check(walled2.Position.Z<4.1&&walled2.State!="jump","no leap without street to land on beyond");
+// Hunger: fish 30 m off beats grain 6 m off; he eats, then moves on and leaves the eaten place alone for a while.
+var hungry=Make();
+hungry.Foods.Add(new("grain","grain",new(6,1),new(6,0),1));hungry.Foods.Add(new("fish","fish",new(0,31),new(0,30),3));
+string? first=null;for(int i=0;i<600&&first==null;i++){hungry.Step(.05,true,Array.Empty<AntigoonBrain.Player>());if(hungry.State=="eat")first=hungry.Meal;}
+Check(first=="food:fish","he goes for fish before grain");
+for(int i=0;i<(int)(AntigoonBrain.EatTime/.05)+5;i++)hungry.Step(.05,true,Array.Empty<AntigoonBrain.Player>());
+string? second=null;for(int i=0;i<1200&&second==null;i++){hungry.Step(.05,true,Array.Empty<AntigoonBrain.Player>());if(hungry.State=="eat")second=hungry.Meal;}
+Check(second=="food:grain","after eating he roams on to the next food place");
+// A cat that runs from him at 3.3 m/s is run down, seized and eaten.
+var stalker=Make();var cat=new P(0,8);
+stalker.Beasts=()=>stalker.Eaten.Contains("cat1")?Array.Empty<AntigoonBrain.Beast>():new[]{new AntigoonBrain.Beast("cat1","cat",cat)};
+for(int i=0;i<300&&stalker.State!="eat";i++){stalker.Step(.05,true,Array.Empty<AntigoonBrain.Player>());var away=cat.Distance(stalker.Position)<1e-6?new P(0,1):new P((cat.X-stalker.Position.X)/cat.Distance(stalker.Position),(cat.Z-stalker.Position.Z)/cat.Distance(stalker.Position));cat=new(cat.X+away.X*3.3*.05,cat.Z+away.Z*3.3*.05);}
+Check(stalker.State=="eat"&&stalker.Meal=="beast:cat1"&&stalker.Eaten.Contains("cat1"),"a fleeing cat is run down and eaten");
+var spared=Make();spared.Beasts=()=>new[]{new AntigoonBrain.Beast("dog1","dog",new(0,8))};spared.Light=p=>p.Z>6?1:0;
+for(int i=0;i<60;i++)spared.Step(.05,true,Array.Empty<AntigoonBrain.Player>());
+Check(spared.Prey==null&&!spared.Eaten.Contains("dog1"),"a dog in lamp light is safe from him");
 var safe=Make();safe.Reach=p=>p.Z<10;Tick(safe,2,true,new AntigoonBrain.Player(1,new(0,12)));Check(safe.Target==0&&safe.State!="notice","a spot he cannot reach is a safe place");
 var lunge=Make();damage=0;lunge.HurtPlayer=(_,v)=>damage+=v;Tick(lunge,.55,true,new AntigoonBrain.Player(1,new(0,2.1)));Check(lunge.Position.Z>.15&&lunge.Position.Z<.3&&lunge.State=="attack","he lunges into the kick's wind-up and stops at kicking distance");
 // Reachability map: a lit street, a lit square cut off from it by a gate, a small yard, and open land at the edge.

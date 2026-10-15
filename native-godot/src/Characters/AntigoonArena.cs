@@ -122,6 +122,7 @@ public partial class AntigoonArena : Node3D
     }
     // Film stand-in prey: a man-sized capsule 2.1 m before him, seized by the neck, held up, thrown.
     private bool jumpCart;
+    private MeshInstance3D? morsel;
     private MeshInstance3D? prey;private Vector3 preyVelocity;private bool preyFlying;
     private void Prey()
     {
@@ -178,6 +179,12 @@ public partial class AntigoonArena : Node3D
                 float z=-14+(float)(Math.Min(e,1.4)*AntigoonBrain.WalkSpeed+Math.Clamp(e-1.4,0,1.4)*AntigoonBrain.RunSpeed);at=new Vector3(0,0,z);
             }float yaw=shotPose=="turn"&&elapsed>.4?Mathf.Pi*.95f:shotPose=="notice"&&elapsed>.4?Mathf.Pi*.5f:0;
             if(shotPose=="grab")Prey();
+            if(shotPose=="eat")
+            {
+                // A cat-sized stand-in 1.4 m before him: stooped for, lifted, eaten.
+                if(morsel==null){morsel=new MeshInstance3D{Mesh=new BoxMesh{Size=new Vector3(.25f,.3f,.55f)},MaterialOverride=new StandardMaterial3D{AlbedoColor=new Color(.4f,.35f,.3f)},Position=new Vector3(0,.15f,-14+1.4f)};AddChild(morsel);giant.MealAt=()=>morsel.GlobalPosition;}
+                if(giant.HoldsMeal){morsel.GlobalPosition=giant.MealHand()-Vector3.Up*.25f;}
+            }
             giant.Snapshot(at,yaw,state,shotPose is "attack" or "grab"?Math.Max(0,elapsed-.4):elapsed,shotPose is "attack" or "grab"&&elapsed>.4?1:0,true);
             giant.Pose.LookAt=shotPose=="notice"?camera.GlobalPosition:null;
             camera.GlobalPosition=new Vector3(shotPose=="grab"?-10:10,1.6f,giant.GlobalPosition.Z+(shotPose=="grab"?3:0));camera.Fov=shotPose=="grab"?65:55;camera.LookAt(giant.GlobalPosition+Vector3.Up*2.5f+(shotPose=="grab"?Vector3.Back*3:Vector3.Zero));

@@ -26,7 +26,7 @@ public partial class AntigoonRetarget : Node
         ("UAL1_Standard.glb","Punch_Enter","reach",false),("UAL1_Standard.glb","PickUp_Table","pick_up",false),
         ("UAL2_Standard.glb","OverhandThrow","throw",false),("UAL2_Standard.glb","Hit_Knockback","knockback",false),
         ("UAL2_Standard.glb","NinjaJump_Start","leap_start",false),("UAL2_Standard.glb","NinjaJump_Idle_Loop","leap_air",true),("UAL2_Standard.glb","NinjaJump_Land","leap_land",false),
-        ("UAL2_Standard.glb","Zombie_Idle_Loop","menace",true),
+        ("UAL2_Standard.glb","Zombie_Idle_Loop","menace",true),("UAL2_Standard.glb","Consume","eat",false),
     };
     private static readonly Dictionary<string,string> Rigify=new()
     {

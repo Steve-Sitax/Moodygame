@@ -39,9 +39,26 @@ public partial class NativeAntigoonClient
     private void WorldChanged(string reason,ClientState? state)=>ClearStreetEvent();
     private object ObserveStreet()=>new {people=town.Sims.Where(p=>p.P!=null&&!p.Inside&&!p.ActionHeld&&!p.InTrip&&!p.Aboard&&(NativeStreet.I==null||NativeStreet.I.Owns(p.R.Id)))
         .OrderBy(p=>actor==null?0:new Vector2((float)p.X,(float)p.Z).DistanceSquaredTo(new(actor.GlobalPosition.X,actor.GlobalPosition.Z)))
-        .Take(60).Select(p=>new {id=p.R.Id,x=p.P!.X,z=p.P!.Z}).ToArray()};
+        .Take(60).Select(p=>new {id=p.R.Id,x=p.P!.X,z=p.P!.Z}).ToArray(),
+        // The strays and cats this machine runs, near the giant: he hunts them.
+        animals=actor==null||Scheldemist.People.Animals.I==null?Array.Empty<object>():Scheldemist.People.Animals.I.Wild
+            .Where(a=>new Vector2((float)a.X-actor.GlobalPosition.X,(float)a.Z-actor.GlobalPosition.Z).Length()<30).Take(30)
+            .Select(a=>(object)new {id=a.Id,species=a.Species,x=a.X,z=a.Z}).ToArray()};
+    // The cat or dog in his fist, while he eats it.
+    private (string Id,Node3D Body)? meal;
+    private void Feast(JsonObject state)
+    {
+        var animals=Scheldemist.People.Animals.I;if(animals==null)return;
+        animals.Terror=actor is {Visible:true}&&actor.State is not ("hidden" or "death")?actor.GlobalPosition:null;
+        string? eating=state["meal"]?.GetValue<string>() is {} m&&m.StartsWith("beast:")&&actor?.State=="eat"?m[6..]:null;
+        if(meal is {} held&&held.Id!=eating){animals.Eaten(held.Id);meal=null;}
+        if(eating!=null&&meal==null&&animals.Seize(eating) is {} body)meal=(eating,body);
+        foreach(var id in (state["eaten"] as JsonArray??new()).Select(n=>n!.GetValue<string>()))if(id!=eating)animals.Eaten(id);
+        if(actor!=null)actor.MealAt=meal is {} hold?()=>hold.Body.GlobalPosition:null;
+    }
     private void ApplyStreetEvent(JsonObject state)
     {
+        Feast(state);
         snapshotAge=0;eventTime=Num(state["event_time"]);
         Lights.I?.SetEventExtinguished((state["extinguished"] as JsonArray??new()).Select(p=>p!.GetValue<string>()));
         var present=new HashSet<string>();int cried=0;
@@ -94,6 +111,8 @@ public partial class NativeAntigoonClient
             var pose=new Pose {X=(float)p.X,Z=(float)p.Z,Yaw=(float)Num(s["yaw"]),Mode=phase=="flee"?1:0,Speed=phase=="flee"?3.2f:1};
             town.RemotePose(p,pose,puppet.Size);
         }
+        // A caught animal hangs from his fist once he has it up.
+        if(meal is {} carried&&actor!=null&&actor.HoldsMeal){carried.Body.GlobalPosition=actor.MealHand()-Vector3.Up*.25f;carried.Body.Rotation=new Vector3(Mathf.Pi*.5f,actor.Rotation.Y,0);}
         double now=eventTime+Math.Min(.3,snapshotAge);
         foreach(var pair in stones.ToArray())
         {
@@ -159,6 +178,7 @@ public partial class NativeAntigoonClient
     {
         foreach(var id in frightened.Keys.ToArray())ReleaseResident(id);
         foreach(var r in stones.Values)if(IsInstanceValid(r.Mesh))r.Mesh.QueueFree();stones.Clear();landedStones.Clear();heard.Clear();Lights.I?.SetEventExtinguished(Array.Empty<string>());
+        if(meal is {} m)Scheldemist.People.Animals.I?.Eaten(m.Id);meal=null;if(Scheldemist.People.Animals.I is {} animals)animals.Terror=null;
     }
     private void StopStreetEvent()
     {

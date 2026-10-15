@@ -21,6 +21,23 @@ public sealed class AntigoonBrain
     public const double GrabContact=.8, GrabRelease=3.1, GrabDuration=3.9, GrabRange=2.4, ThrowDistance=6;
     public const int ThrowDamage=3, WallDamage=2;
     public sealed record Throw(int Serial,int Victim,Point From,Point To,bool Wall);
+    // Hunger: with no one to hunt he goes from food to food: fish and flesh first, grain only when nothing better is
+    // near. Cats and dogs run from him; one he catches, he eats.
+    public sealed record Food(string Id,string Kind,Point At,Point Stand,double Worth);
+    public sealed record Beast(string Id,string Species,Point At);
+    public const double EatTime=8, FoodRest=600, HuntRange=16, SeizeRange=2.2;
+    public List<Food> Foods { get; }=new();
+    public Func<IReadOnlyList<Beast>> Beasts = ()=>Array.Empty<Beast>();
+    /// <summary>What he is eating: "food:&lt;id&gt;" or "beast:&lt;id&gt;" (null when not eating).</summary>
+    public string? Meal { get; private set; }
+    /// <summary>The cat or dog he is after.</summary>
+    public string? Prey { get; private set; }
+    /// <summary>Animals he has eaten tonight; they are gone for good.</summary>
+    public HashSet<string> Eaten { get; }=new();
+    private readonly Dictionary<string,double> fed=new();
+    private string? goingFor;
+    public string? GoingFor=>goingFor;
+    private int stuck;
     // A leap over an obstacle he cannot step over: crouch and spring, clear it, land and walk on.
     public const double JumpTime=.95, JumpTakeoff=.3, JumpHeight=1.7;
     /// <summary>Cells he can leap across but not stand on.</summary>
@@ -75,6 +92,7 @@ public sealed class AntigoonBrain
     private void Set(string state)
     {
         if(State==state)return;
+        if(State=="eat"&&state!="eat")Meal=null;
         if(state is "walk" or "run" or "retreat" or "shield"&&State is not ("walk" or "run" or "retreat" or "shield" or "jump"))heading=Yaw;
         // Whatever ends a grab early (light, a blow, dawn) lets the prey drop at his feet.
         if(State=="grab"&&Held!=0)Release(1.4,false);
@@ -181,7 +199,53 @@ public sealed class AntigoonBrain
             if(fresh&&State!="run"&&now-noticedAt>=NoticeRest&&Position.Distance(target.At)>=NoticeDistance){noticedAt=now;Set("notice");return;}
             Set("run");if(!Move(target.At,RunSpeed,dt,false)&&State!="shield")Roam(dt);return;
         }
-        Target=0;Roam(dt);
+        Target=0;
+        if(Hunt(dt))return;
+        if(State=="eat")
+        {
+            if(StateTime<EatTime)return;
+            if(Meal is {} meal&&meal.StartsWith("food:"))fed[meal[5..]]=now;
+            Meal=null;Set("walk");
+        }
+        if(Forage(dt))return;
+        Roam(dt);
+    }
+    /// <summary>A cat or dog near and in the dark: run it down; within reach, seize it and eat it.</summary>
+    private bool Hunt(double dt)
+    {
+        if(State=="eat"&&Meal?.StartsWith("beast:")==true){if(StateTime<EatTime)return true;Meal=null;Set("walk");}
+        var prey=Beasts().Where(b=>!Eaten.Contains(b.Id)&&b.At.Distance(Position)<HuntRange&&Light(b.At)<SafeLight&&Reach(b.At)&&Sight(Position,b.At))
+            .OrderBy(b=>b.Id==Prey?0:1).ThenBy(b=>b.At.Distance(Position)).FirstOrDefault();
+        if(prey==null){Prey=null;return false;}
+        Prey=prey.Id;Yaw=Math.Atan2(prey.At.X-Position.X,prey.At.Z-Position.Z);
+        if(prey.At.Distance(Position)<=SeizeRange)
+        {
+            Meal="beast:"+prey.Id;Eaten.Add(prey.Id);Prey=null;Set("eat");Meal="beast:"+prey.Id;return true;
+        }
+        Set("run");if(!Move(prey.At,RunSpeed*.9,dt,false)&&State!="shield"){Prey=null;return false;}
+        return true;
+    }
+    /// <summary>The best food place he can reach in the dark: worth over distance, none eaten from lately.</summary>
+    private bool Forage(double dt)
+    {
+        if(Foods.Count==0)return false;
+        // Near beats far: every 15 m of walking costs half the gap between fish (worth 3) and grain (worth 1).
+        var best=Foods.Where(f=>now-fed.GetValueOrDefault(f.Id,-FoodRest)>=FoodRest&&Light(f.Stand)<SafeLight*.7&&Clear(f.Stand))
+            .OrderByDescending(f=>f.Worth-f.Stand.Distance(Position)/15-(f.Id==goingFor?0:.3)).FirstOrDefault();
+        if(best==null){goingFor=null;return false;}
+        goingFor=best.Id;
+        if(Position.Distance(best.Stand)<1.1)
+        {
+            Yaw=Math.Atan2(best.At.X-Position.X,best.At.Z-Position.Z);Set("eat");Meal="food:"+best.Id;return true;
+        }
+        Set("walk");
+        // A stuck step now and then is no reason to give a place up; three in a row and he tries elsewhere a while.
+        if(!Move(best.Stand,WalkSpeed,dt,false)&&State!="shield")
+        {
+            if(++stuck>=3){fed[best.Id]=now-FoodRest+60;goingFor=null;stuck=0;}
+            return false;
+        }
+        stuck=0;return true;
     }
     /// <summary>Start a leap toward `toward` over the obstacle ahead, if there is street to land on beyond it.</summary>
     private bool Leap(Point toward)
@@ -239,7 +303,8 @@ public sealed class AntigoonBrain
         {
             route=Path(Position,goal);routeGoal=goal;routeAge=0;routeIndex=0;
             // A fresh route starts on the grid spot nearest him, which may lie behind: never step back to it.
-            while(route!=null&&routeIndex<route.Count-1&&(Position.Distance(route[routeIndex])<.75||Position.Distance(route[routeIndex+1])<=route[routeIndex].Distance(route[routeIndex+1])))routeIndex++;
+            // Only that first spot is passed over, never a corner further on: cutting a corner walks into the wall.
+            if(route!=null&&route.Count>1&&Position.Distance(route[0])<1.0&&Position.Distance(route[1])<=route[0].Distance(route[1])+.05)routeIndex=1;
         }
         if(route==null||route.Count==0)return false;
         while(routeIndex<route.Count-1&&Position.Distance(route[routeIndex])<.6)routeIndex++;

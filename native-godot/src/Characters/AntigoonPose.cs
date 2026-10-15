@@ -16,9 +16,13 @@ public partial class AntigoonPose : SkeletonModifier3D
     public Vector3? LookAt;
     /// <summary>His right fist: where it reaches (world), how much (0..1), and whether the hand is closed on a neck.</summary>
     public (Vector3 Target,float Weight,bool Closed)? Grip;
+    /// <summary>Which hand reaches: 1 right (the neck grab), 0 left (picking up a meal).</summary>
+    public int GripHand=1;
     public event Action<int>? Landed;
     /// <summary>His right fist after the full pose (the bone's own pose omits this modifier's work).</summary>
     public Vector3 FistWorld { get; private set; }
+    /// <summary>His left hand after the full pose.</summary>
+    public Vector3 LeftHandWorld { get; private set; }
     private Skeleton3D rig=null!;
     private readonly int[] hips=new int[2],knees=new int[2],ankles=new int[2],arms=new int[2],elbows=new int[2],hands=new int[2];
     private readonly Transform3D[] restFeet=new Transform3D[2],restHands=new Transform3D[2];
@@ -165,13 +169,14 @@ public partial class AntigoonPose : SkeletonModifier3D
         if(Grip is {} grip&&grip.Weight>0)
         {
             // The right arm reaches for the neck, then holds it out before his face.
-            var hand=rig.GetBoneGlobalPose(hands[1]);var shoulder=rig.GetBoneGlobalPose(arms[1]).Origin;
+            int g=GripHand;float side=Math.Sign(restHands[g].Origin.X);
+            var hand=rig.GetBoneGlobalPose(hands[g]);var shoulder=rig.GetBoneGlobalPose(arms[g]).Origin;
             var want=rig.GlobalTransform.AffineInverse()*grip.Target;
             var target=hand.Origin.Lerp(want,Smooth(grip.Weight));
-            Limb(arms[1],elbows[1],hands[1],target,shoulder+new Vector3(-.9f,-.6f,-.5f),hand.Basis);
+            Limb(arms[g],elbows[g],hands[g],target,shoulder+new Vector3(side*.9f,-.6f,-.5f),hand.Basis);
             if(grip.Closed)foreach(int finger in fingersR)rig.SetBonePoseRotation(finger,rig.GetBonePoseRotation(finger)*new Quaternion(Vector3.Right,1.1f));
         }
-        FistWorld=rig.GlobalTransform*rig.GetBoneGlobalPose(hands[1]).Origin;
+        FistWorld=rig.GlobalTransform*rig.GetBoneGlobalPose(hands[1]).Origin;LeftHandWorld=rig.GlobalTransform*rig.GetBoneGlobalPose(hands[0]).Origin;
         if(state=="shield")
         {
             var face=rig.GetBoneGlobalPose(head).Origin+new Vector3(0,.14f,.4f);
@@ -218,7 +223,7 @@ public partial class AntigoonPose : SkeletonModifier3D
     private void Stoop()
     {
         if(Grip is not {} grip||grip.Weight<=0)return;
-        float shoulder=(rig.GlobalTransform*rig.GetBoneGlobalPose(arms[1]).Origin).Y;
+        float shoulder=(rig.GlobalTransform*rig.GetBoneGlobalPose(arms[GripHand]).Origin).Y;
         float s=Smooth((shoulder-grip.Target.Y-1.1f)/1.7f)*Smooth(grip.Weight);if(s<=0)return;
         var hipsPose=rig.GetBoneGlobalPose(pelvis);hipsPose.Origin+=new Vector3(0,-.9f*s,-.25f*s);rig.SetBoneGlobalPose(pelvis,hipsPose);
         Turn(spine,Vector3.Right,.8f*s);Turn(neck,Vector3.Right,-.35f*s);

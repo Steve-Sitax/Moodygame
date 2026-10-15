@@ -128,6 +128,7 @@ public static class NativeAntigoonEventProof
             await Roams(game,api,encounter,playerBefore,output,Frames);
             await Kicks(game,api,encounter,output,Frames);
             await Grabs(game,api,encounter,output,Frames);
+            await Feeds(game,api,encounter,playerBefore,output,Frames);
             game.GetTree().Quit();
         }
         catch(Exception error){File.WriteAllText(Path.Combine(output,"failure.txt"),error.ToString());GD.PrintErr(error);game.GetTree().Quit(1);}
@@ -194,6 +195,26 @@ public static class NativeAntigoonEventProof
         GD.Print($"ANTIGOON_ROAM travelled {travelled:0.0} m, furthest {reach:0.0} m from where he started");
         if(travelled<25||reach<8)throw new Exception($"Antigoon stood still: travelled {travelled:0.0} m, furthest {reach:0.0} m");
         GD.Print("ANTIGOON_ROAM_PASS: the giant keeps walking reachable streets.");
+    }
+    /// <summary>Left alone he goes to food: a fish stall, the butcher, a bakery, a stray or a cat, and eats.</summary>
+    private static async Task Feeds(NativeTownGame game,Scheldemist.Net.Api api,Scheldemist.Native.Services.NativeAntigoon encounter,Vector2 far,string output,Func<int,Task> frames)
+    {
+        Jef.I.Drive=null;Jef.I.Place(far.X,far.Y,0,0);
+        GD.Print($"ANTIGOON_FOOD {await encounter.WithState(e=>e.FoodTrace())}");
+        var until=DateTime.UtcNow.AddSeconds(90);string meal="";
+        while(DateTime.UtcNow<until)
+        {
+            await frames(20);if(Pause.Paused){Input.MouseMode=Input.MouseModeEnum.Captured;Pause.Clear();}
+            var v=await Sample(api);
+            if(v["state"]!.GetValue<string>()=="eat"&&v["meal"]?.GetValue<string>() is {} m){meal=m;break;}
+        }
+        GD.Print($"ANTIGOON_FOOD {await encounter.WithState(e=>e.FoodTrace())}");
+        if(meal=="")throw new Exception("Left alone for 90 s, Antigoon never went to food");
+        var at=At(await Sample(api));
+        game.Cam.SetProcess(false);game.Cam.GlobalPosition=new((float)at.X+9,(float)encounter.Ground(at)+3,(float)at.Z+4);game.Cam.LookAt(new((float)at.X,(float)encounter.Ground(at)+2.5f,(float)at.Z));
+        await frames(50);await game.ToSignal(RenderingServer.Singleton,RenderingServer.SignalName.FramePostDraw);
+        game.GetViewport().GetTexture().GetImage().SavePng(Path.Combine(output,"antigoon-eating.png"));
+        GD.Print($"ANTIGOON_FOOD_PASS: he went to {meal} and ate.");
     }
     /// <summary>The attack after a kick is a grab: Jef is lifted by the neck before his face, then thrown about 6 m.</summary>
     private static async Task Grabs(NativeTownGame game,Scheldemist.Net.Api api,Scheldemist.Native.Services.NativeAntigoon encounter,string output,Func<int,Task> frames)

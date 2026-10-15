@@ -22,6 +22,10 @@ public sealed partial class NativeAntigoon : INativeServiceModule
     public Func<P,P?> Snap = p=>p;
     public Func<P,double,IReadOnlyList<P>>? Roamable;
     public Func<P,bool> Jumpable = _=>false;
+    /// <summary>Nearest spot of the giant's own street area to `p`, within `radius` metres, from `home`'s area.</summary>
+    public Func<P,P,double,P?> StandNear = (_,_,_)=>null;
+    /// <summary>Extra food spots the town knows outside its stall and shop lists (fish scraps by the market).</summary>
+    public Func<IEnumerable<(string Id,string Kind,P At)>> MoreFood = ()=>Array.Empty<(string,string,P)>();
     /// <summary>(giant, spot): can he stand within kicking reach of the spot, walking from where he is?</summary>
     public Func<P,P,bool> Reach = (_,_)=>true;
     private bool developmentEnabled;
@@ -68,7 +72,7 @@ public sealed partial class NativeAntigoon : INativeServiceModule
             if(NativeGoods.Number(host.Player(id)["health"])<=0)host.Clock.End(id,"health");
             host.PublishState(id);
         }};
-        var giant=brain;brain.Reach=p=>Reach(giant.Position,p);
+        var giant=brain;brain.Reach=p=>Reach(giant.Position,p);brain.Beasts=Beasts;
         // A thrown body flies at chest height until a wall stops it; it comes down just short of the wall.
         brain.Landing=(from,to)=>
         {
@@ -101,6 +105,33 @@ public sealed partial class NativeAntigoon : INativeServiceModule
             foreach(var p in approach.Where(p=>p.Distance(home)>6&&p.Distance(home)<55))
                 if(brain.Patrol.All(q=>q.Distance(p)>7))brain.Patrol.Add(p);
         brain.Patrol.Add(home);
+        Feed(home);
+    }
+    /// <summary>
+    /// His food in the town: fish stalls and fish scraps, the butcher, the meat hall, bakeries for grain. Each gets a
+    /// spot on his own streets to stand at; places he cannot reach are left out.
+    /// </summary>
+    private void Feed(P home)
+    {
+        var town=host.Context.World("town");var spots=new List<(string Id,string Kind,P At)>();
+        foreach(var stall in (town?["stalls"] as JsonArray??new()).OfType<JsonObject>().Select((v,i)=>(v,i)))
+        {
+            string goods=NativeGoods.S(stall.v,"goods");string kind=goods=="fish"?"fish":goods is "meat" or "sausage"?"meat":goods=="bread"?"grain":"";
+            if(kind!="")spots.Add(("stall:"+stall.i,kind,new(NativeGoods.Number(stall.v["x"]),NativeGoods.Number(stall.v["z"]))));
+        }
+        foreach(var shop in (town?["shops"] as JsonArray??new()).OfType<JsonObject>())
+        {
+            string id=NativeGoods.S(shop,"id"),goods=NativeGoods.S(shop,"goods");
+            string kind=id.Contains("butcher")?"meat":id.Contains("fish")?"fish":goods=="bread"||id.Contains("bakery")?"grain":"";
+            var door=shop["door"] as JsonArray;
+            if(kind!=""&&door?.Count>=2)spots.Add(("shop:"+id,kind,new(NativeGoods.Number(door[0]),NativeGoods.Number(door[1]))));
+        }
+        foreach(var (id,kind) in new[]{("vismarkt","fish"),("vleeshuis","meat")})
+            if(town?["places"]?[id] is JsonObject place)spots.Add(("place:"+id,kind,new(NativeGoods.Number(place["x"]),NativeGoods.Number(place["z"]))));
+        spots.AddRange(MoreFood());
+        foreach(var (id,kind,at) in spots)
+            if(StandNear(home,at,7) is {} stand)
+                brain!.Foods.Add(new(id,kind,at,stand,kind is "fish" or "meat"?3:1));
     }
     private void Save()
     {
@@ -113,6 +144,8 @@ public sealed partial class NativeAntigoon : INativeServiceModule
         v["development_spawn"]=developmentEnabled&&brain!=null;
         if(brain!=null){v["x"]=brain.Position.X;v["y"]=Ground(brain.Position)+brain.Lift;v["z"]=brain.Position.Z;v["yaw"]=brain.Yaw;v["health"]=brain.Health;v["state"]=brain.State;v["state_time"]=brain.StateTime;v["attack_serial"]=brain.AttackSerial;v["target"]=brain.Target;v["kicked"]=brain.Kicks.GetValueOrDefault(player);
             v["held"]=brain.Held;v["you"]=player;
+            v["meal"]=brain.Meal;v["prey"]=brain.Prey;
+            v["eaten"]=new JsonArray(brain.Eaten.Select(id=>(JsonNode)JsonValue.Create(id)!).ToArray());
             if(brain.LastThrow is {} t)v["throw"]=new JsonObject{["serial"]=t.Serial,["victim"]=t.Victim,["fx"]=t.From.X,["fz"]=t.From.Z,["tx"]=t.To.X,["tz"]=t.To.Z,["wall"]=t.Wall};}
         EventView(v);
         return v;

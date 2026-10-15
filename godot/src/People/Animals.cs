@@ -48,6 +48,7 @@ public partial class Animals : Node
         public int Shelter;
         public float Tremble;
         public bool Exhibit;
+        public bool Seized;
         /// <summary>Time not yet given to its skeleton (far animals are posed in turns).</summary>
         public double Acc;
     }
@@ -70,6 +71,25 @@ public partial class Animals : Node
     private double fogNow;
 
     public int Count => beasts.Count;
+    /// <summary>Something huge and hungry here (the giant): strays and cats within `TerrorRadius` run from it.</summary>
+    public Vector3? Terror;
+    public float TerrorRadius = 14;
+    private readonly HashSet<string> eaten = new();
+    /// <summary>The town's own strays and cats (not the townspeople's dogs at heel), as id, species and place.</summary>
+    public IEnumerable<(string Id, string Species, double X, double Z)> Wild =>
+        beasts.Where(b => b.Owner == null && b.Id != null && !b.Seized && !b.Exhibit).Select(b => (b.Id!, b.A.Species, b.X, b.Z));
+    /// <summary>Hand an animal over to whatever carries it now; it no longer moves or is dropped by distance.</summary>
+    public Node3D? Seize(string id)
+    {
+        foreach (var b in beasts) if (b.Id == id) { b.Seized = true; b.Goal = null; b.Route.Clear(); b.A.Play("idle"); return b.A.Group; }
+        return null;
+    }
+    /// <summary>Eaten: gone for good tonight; its haunt never brings it back.</summary>
+    public void Eaten(string id)
+    {
+        if (!eaten.Add(id)) return;
+        for (int i = beasts.Count - 1; i >= 0; i--) if (beasts[i].Id == id) DropBeast(beasts[i]);
+    }
     /// <summary>For the frame-time trace: animals taken from the pool and route searches in the last update.</summary>
     public int SpawnedLastFrame { get; private set; }
     /// <summary>For the frame-time trace: the part of the last update spent on spawning, and the slowest single animal
@@ -262,7 +282,7 @@ public partial class Animals : Node
             spawnT = 0.5;
             foreach (var h in haunts!)
             {
-                if (Hyp(h.X - eye.X, h.Z - eye.Z) > ReachR || (h.Night && !night) || HasBeast(h.Id)) continue;
+                if (Hyp(h.X - eye.X, h.Z - eye.Z) > ReachR || (h.Night && !night) || HasBeast(h.Id) || eaten.Contains(h.Id)) continue;
                 if(Net.Mp.NativeExtras.I?.RunAnimal(h.Id,h.X,h.Z,ReachR)==false)continue;
                 var an = Animal.Make(h.Kind, h.Id);
                 if (an == null) break;
@@ -311,6 +331,8 @@ public partial class Animals : Node
             ulong tb = Time.GetTicksUsec();
             var b = beasts[index];
             double d = Hyp(b.X - eye.X, b.Z - eye.Z);
+            // In the giant's fist: whoever holds it places it.
+            if (b.Seized) { b.A.Group.Visible = true; b.A.Update((float)dt); continue; }
             if (b.Owner == null && d > DropR)
             {
                 DropBeast(b);
@@ -333,6 +355,7 @@ public partial class Animals : Node
                 b.Timer = Rnd(1, 4);
                 b.A.Play(b.A.Species == "cat" ? "sit" : "idle");
             }
+            else if (Terrified(b, dt)) { }
             else if (b.A.Species == "dog") Stray(b, dt, jef);
             else Cat(b, dt, dogs, jef);
             // shown within the fog and in view; it stands on the ground under it (the pontoon, steps, a raised courtyard)
@@ -663,6 +686,22 @@ public partial class Animals : Node
     }
 
     private static readonly double[] EscapeAngles = { 0, 0.6, -0.6, 1.2, -1.2, 1.9, -1.9 };
+    /// <summary>The giant near: a stray or cat runs flat out away from him, re-choosing its way as he comes on.</summary>
+    private bool Terrified(Beast b, double dt)
+    {
+        if (b.Owner != null || Terror is not { } t) return false;
+        double dx = b.X - t.X, dz = b.Z - t.Z, d = Hyp(dx, dz);
+        if (d > TerrorRadius || d < 1e-3) return false;
+        b.Scared -= dt;
+        if (b.Goal == null || b.Scared <= 0)
+        {
+            if (b.Scared <= 0 && b.A.Species == "cat") Scheldemist.Audio.LifeAnimalSounds.Hiss(b.X, b.Z);
+            b.Goal = null; b.Route.Clear(); b.Scared = 1.2;
+            if (!Flee(b, dx / d, dz / d)) return true;
+        }
+        if (Go(b, b.A.Species == "cat" ? 3.4 : 3.1, dt) != "going") { b.Goal = null; b.Route.Clear(); }
+        return true;
+    }
     private void Cat(Beast b, double dt, List<Beast> dogs, (double x, double z)? jef)
     {
         // what frightens a cat: a dog near, or Jef right on top of it

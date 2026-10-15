@@ -9,6 +9,9 @@ public sealed partial class NativeAntigoon
 {
     private AntigoonNightEvent? street;
     private readonly Dictionary<string,(AntigoonNightEvent.Witness Person,long At)> observed=new();
+    // Cats and dogs live on the players' machines: each reports those near the giant; the host only hunts them.
+    private readonly Dictionary<string,(AntigoonBrain.Beast Beast,long At)> beasts=new();
+    internal IReadOnlyList<AntigoonBrain.Beast> Beasts()=>beasts.Values.Where(b=>host.Context.Now-b.At<1500).Select(b=>b.Beast).ToArray();
     public NativeStreetLighting? Lighting;
     public Func<P,P,IReadOnlyList<P>?> HumanPath=(_,_)=>null;
     public Func<P,bool> HumanClear=_=>false;
@@ -27,6 +30,13 @@ public sealed partial class NativeAntigoon
                 if(!Controls(id))observed[id]=(new(id,p,home),host.Context.Now);
             }
             foreach(var id in observed.Where(p=>host.Context.Now-p.Value.At>1500).Select(p=>p.Key).ToArray())observed.Remove(id);
+            if(PositionOf(r.PlayerId) is {} near)foreach(var node in (r.Body["animals"] as JsonArray??new()).Take(30))
+            {
+                string id=NativeGoods.S(node,"id"),species=NativeGoods.S(node,"species");var p=new P(NativeGoods.Number(node?["x"]),NativeGoods.Number(node?["z"]));
+                if(id.Length is 0 or >80||species is not ("cat" or "dog")||!double.IsFinite(p.X)||!double.IsFinite(p.Z)||p.Distance(near)>90)continue;
+                beasts[id]=(new(id,species,p),host.Context.Now);
+            }
+            foreach(var id in beasts.Where(p=>host.Context.Now-p.Value.At>1500).Select(p=>p.Key).ToArray())beasts.Remove(id);
             Advance();return View(r.PlayerId);
         });
     }

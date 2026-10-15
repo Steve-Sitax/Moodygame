@@ -117,6 +117,7 @@ public partial class AntigoonActor : Node3D
     public Vector3 Fist() => Pose.FistWorld;
     private void GrabClips(double delta)
     {
+        Pose.GripHand = 1;
         grabClock += delta;
         // Library clips where they exist: the pick-up bend, standing, the overhand throw (released at 0.5 s of it).
         var (clip, start, speed) = grabClock < GrabSeize ? ("ual/pick_up", 0.0, .95f) : grabClock < GrabThrow ? ("ual/idle", GrabSeize, 1f) : ("ual/throw", GrabThrow, 1f);
@@ -134,6 +135,27 @@ public partial class AntigoonActor : Node3D
         if (grabClock >= GrabSeize && neck is { } held && hold < 1) target = held.Lerp(HoldPoint(), Smooth(hold));
         Pose.Grip = (target, grabClock < GrabSeize ? reach : 1 - letGo, grabClock >= GrabSeize * .9 && grabClock < GrabRelease);
         Pose.LookAt = grabClock >= GrabSeize ? HoldPoint() : neck;
+    }
+    /// <summary>Where the animal he is about to eat is (the client tells him); his fist goes there as he stoops.</summary>
+    public Func<Vector3>? MealAt;
+    /// <summary>True once he has the caught animal up in his fist.</summary>
+    public bool HoldsMeal { get; private set; }
+    /// <summary>The hand that has the meal: his left, the one the CC0 consume clip lifts to his mouth.</summary>
+    public Vector3 MealHand() => Pose.LeftHandWorld;
+    private double eatClock;
+    /// <summary>Eating in library clips: stoop and pick up (the CC0 pick-up), then bites (the CC0 consume), again and again.</summary>
+    private void EatClips(double delta)
+    {
+        eatClock += delta;
+        const double pick = 1.0;
+        string clip = eatClock < pick ? "ual/pick_up" : "ual/eat";
+        if (Animations.HasAnimation(clip) && (Animations.CurrentAnimation != clip || clip == "ual/eat" && !Animations.IsPlaying()))
+        { Animations.SpeedScale = clip == "ual/pick_up" ? .8f : .9f; Animations.Play(clip, 0); Animations.Seek(0, true); }
+        // A caught animal: the fist goes down to it while he stoops, and he has it from the top of the pick-up.
+        var target = MealAt?.Invoke();
+        HoldsMeal = target != null && eatClock >= pick * .7;
+        if (target is { } at && !HoldsMeal) { Pose.GripHand = 0; Pose.Grip = (at + Vector3.Up * .2f, Mathf.Clamp((float)(eatClock / (pick * .6)), 0, 1), false); }
+        else if (Pose.Grip != null && State == "eat") Pose.Grip = null;
     }
     private double jumpClock;
     /// <summary>The leap in library clips: the end of the jump start (crouch and spring), the air loop, the landing.</summary>
@@ -155,7 +177,7 @@ public partial class AntigoonActor : Node3D
         body.CollisionLayer = visible && state != "death" ? 1u : 0u;
         if (!placed || GlobalPosition.DistanceTo(position) > 12) { GlobalPosition = position; Rotation = new Vector3(0, yaw, 0); placed = true; }
         bool newAttack = attackSerial != serial; serial = attackSerial;
-        if (State != state || state is "attack" or "grab" && newAttack) { SetState(state, time); grabClock = time; jumpClock = time; }
+        if (State != state || state is "attack" or "grab" && newAttack) { SetState(state, time); grabClock = time; jumpClock = time; eatClock = time; }
         if (state == "grab" && Math.Abs(grabClock - time) > .4) grabClock = time;
     }
     public void SetState(string state, double time = 0)
@@ -187,6 +209,7 @@ public partial class AntigoonActor : Node3D
         "recoil_light" => ("ual/hit_head", .8f),
         "death" => ("ual/death", 1),
         "throw" => ("ual/throw", .86f),
+        "eat" => ("ual/pick_up", .8f),
         // Hand-made: the library has no kick.
         _ => (state, 1),
     };
@@ -236,7 +259,8 @@ public partial class AntigoonActor : Node3D
         GlobalPosition = GlobalPosition.Lerp(destination, 1 - Mathf.Exp(-(float)delta * 18));
         if (delta > 0) motion = motion.Lerp((GlobalPosition - was) / (float)delta, 1 - Mathf.Exp(-(float)delta * 6));
         TurnStep(delta);
-        if (State == "grab") GrabClips(delta); else Pose.Grip = null;
+        if (State == "grab") GrabClips(delta); else if (State != "eat") Pose.Grip = null;
         if (State == "jump") JumpClips(delta);
+        if (State == "eat") EatClips(delta); else HoldsMeal = false;
     }
 }

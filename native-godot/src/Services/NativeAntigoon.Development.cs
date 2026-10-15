@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using System.Text.Json.Nodes;
 using P=Scheldemist.Native.Services.AntigoonBrain.Point;
 namespace Scheldemist.Native.Services;
@@ -10,6 +11,8 @@ public sealed partial class NativeAntigoon
     /// <summary>Raw giant clearance, without his reachability map. Proof aid.</summary>
     public Func<P,bool> Fits=_=>false;
     public Func<AntigoonReach>? ReachMap;
+    /// <summary>Proof aid: his food places, and what he is eating and has eaten.</summary>
+    internal string FoodTrace()=>brain==null?"none":$"{brain.Foods.Count} food places ({string.Join(", ",brain.Foods.GroupBy(f=>f.Kind).Select(g=>g.Count()+" "+g.Key))}), meal {brain.Meal??"none"}, eaten {brain.Eaten.Count}, animals seen {Beasts().Count}; going for {brain.GoingFor??"none"}; "+string.Join("; ",brain.Foods.Select(f=>$"{f.Id} {f.Kind} {f.Stand.Distance(brain.Position):0} m lit {Light(f.Stand):0.00}"));
     /// <summary>Proof trace of the live brain. Call through WithState.</summary>
     internal string DevelopmentTrace()=>brain==null?"none":$"{brain.State} at ({brain.Position.X:0.0},{brain.Position.Z:0.0}) target {brain.Target} patrol {brain.Patrol.Count} light {Light(brain.Position):0.00} shield goal ({brain.Goals.Shield.X:0.0},{brain.Goals.Shield.Z:0.0}) lit {Light(brain.Goals.Shield):0.00} patrol goal ({brain.Goals.Patrol.X:0.0},{brain.Goals.Patrol.Z:0.0}) lit {Light(brain.Goals.Patrol):0.00}";
     private void RegisterDevelopment(NativeServiceHost service)
