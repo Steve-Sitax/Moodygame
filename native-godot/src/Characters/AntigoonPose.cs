@@ -283,7 +283,9 @@ public partial class AntigoonPose : SkeletonModifier3D
     {
         var gait=GaitOf(clip)!;
         // Play the stride at the pace that matches his ground speed, so a planted foot keeps still in the street.
-        Actor.Animations.SpeedScale=Math.Clamp(speed/Math.Max(.1f,gait.Speed),.35f,2.2f);
+        // Eased: a pace that jumps with every position update makes the stride stutter.
+        float pace=Math.Clamp(speed/Math.Max(.1f,gait.Speed),.35f,2.2f);
+        Actor.Animations.SpeedScale=Mathf.Lerp(Actor.Animations.SpeedScale,pace,1-Mathf.Exp(-dt*4));
         var a=Actor.Animations.GetAnimation(clip);int at=(int)(Actor.Animations.CurrentAnimationPosition/a.Length*gait.Samples)%gait.Samples;
         for(int i=0;i<2;i++)
         {

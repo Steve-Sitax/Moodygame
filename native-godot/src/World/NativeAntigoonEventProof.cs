@@ -138,11 +138,30 @@ public static class NativeAntigoonEventProof
     private static async Task Roams(NativeTownGame game,Scheldemist.Net.Api api,Scheldemist.Native.Services.NativeAntigoon encounter,Vector2 far,string output,Func<int,Task> frames)
     {
         Jef.I.Place(far.X,far.Y,0,0);var trail=new System.Collections.Generic.List<P>();var until=DateTime.UtcNow.AddSeconds(30);
+        // What the player sees: the drawn giant, frame by frame. Walking, his body must face the way he goes, and he
+        // must not jerk back and forth.
+        var actor=(Scheldemist.Native.Characters.AntigoonActor)game.FindChild("Antigoon",true,false);
+        int moving=0,sideways=0,reversals=0;Vector3 last=actor.GlobalPosition,lastStep=Vector3.Zero;double clock=0,since=0;
         while(DateTime.UtcNow<until)
         {
-            await frames(30);if(Pause.Paused){Input.MouseMode=Input.MouseModeEnum.Captured;Pause.Clear();}var v=await Sample(api);trail.Add(At(v));
+            for(int f=0;f<30;f++)
+            {
+                await frames(1);double dt=game.GetProcessDeltaTime();clock+=dt;since+=dt;
+                if(since<.2)continue;
+                var step=actor.GlobalPosition-last;step.Y=0;float speed=step.Length()/(float)since;last=actor.GlobalPosition;since=0;
+                if(speed>.5f&&actor.State is "walk" or "run" or "shield")
+                {
+                    moving++;var face=new Vector3(Mathf.Sin(actor.Rotation.Y),0,Mathf.Cos(actor.Rotation.Y));
+                    if(face.AngleTo(step)>Mathf.DegToRad(50)){sideways++;GD.Print($"ANTIGOON_OFF {actor.State} facing off {Mathf.RadToDeg(face.AngleTo(step)):0} deg at {speed:0.0} m/s, host heading {Mathf.RadToDeg(Mathf.AngleDifference(actor.Rotation.Y,actor.Facing)):0} deg from body");}
+                    if(lastStep.LengthSquared()>.01f&&lastStep.AngleTo(step)>Mathf.DegToRad(120)){reversals++;GD.Print($"ANTIGOON_REVERSAL {actor.State} turned {Mathf.RadToDeg(lastStep.AngleTo(step)):0} deg in 0.2 s at {speed:0.0} m/s");}
+                }
+                lastStep=speed>.5f?step:Vector3.Zero;
+            }
+            if(Pause.Paused){Input.MouseMode=Input.MouseModeEnum.Captured;Pause.Clear();}var v=await Sample(api);trail.Add(At(v));
             GD.Print($"ANTIGOON_TRACE {await encounter.WithState(e=>e.DevelopmentTrace())}");
         }
+        GD.Print($"ANTIGOON_GAIT_LOOK {moving} moving samples: {sideways} facing over 50 degrees off his way, {reversals} sudden reversals");
+        if(moving>10&&(sideways>moving/10||reversals>2))throw new Exception($"Antigoon walks sideways or jerks: {sideways}/{moving} off, {reversals} reversals");
         var start=trail[0];
         var spots=await encounter.WithState(e=>e.Roamable!(start,46));
         double furthest=spots.Count==0?0:spots.Max(p=>p.Distance(start));
@@ -202,7 +221,9 @@ public static class NativeAntigoonEventProof
         game.GetViewport().GetTexture().GetImage().SavePng(Path.Combine(output,"antigoon-after-throw.png"));
         float flown=release.DistanceTo(new(Jef.I.X,Jef.I.Z));
         GD.Print($"ANTIGOON_GRAB thrown {flown:0.0} m from his fist");
-        if(flown<3)throw new Exception($"The throw carried Jef only {flown:0.0} m");
+        bool walled=(await Sample(api))["throw"]?["wall"]?.GetValue<bool>()==true;
+        if(flown<3&&!walled)throw new Exception($"The throw carried Jef only {flown:0.0} m");
+        if(walled)GD.Print("ANTIGOON_GRAB a wall stopped the throw");
         GD.Print("ANTIGOON_GRAB_PASS: seized by the neck, held before his face, thrown across the street.");
         double encoder(P p)=>encounter.Ground(p);
     }

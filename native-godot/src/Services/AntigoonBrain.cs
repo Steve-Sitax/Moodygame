@@ -57,6 +57,8 @@ public sealed class AntigoonBrain
     private int routeIndex, patrolIndex;
     private double routeAge,now,calmUntil,noticedAt=-NoticeRest,darkPicked=-1;
     private Point shieldGoal,jumpFrom,jumpTo;
+    // The way his body points while he walks: it comes round at a giant's pace, and he slows until it has.
+    private double heading;
     private string jumpThen="walk";
     /// <summary>Proof aid: where he is heading while shielding, and the next patrol spot.</summary>
     public (Point Shield,Point Patrol) Goals=>(shieldGoal,RoamGoal());
@@ -73,6 +75,7 @@ public sealed class AntigoonBrain
     private void Set(string state)
     {
         if(State==state)return;
+        if(state is "walk" or "run" or "retreat" or "shield"&&State is not ("walk" or "run" or "retreat" or "shield" or "jump"))heading=Yaw;
         // Whatever ends a grab early (light, a blow, dawn) lets the prey drop at his feet.
         if(State=="grab"&&Held!=0)Release(1.4,false);
         State=state;StateTime=0;contacted=false;if(state is "attack" or "grab")AttackSerial++;
@@ -233,14 +236,26 @@ public sealed class AntigoonBrain
     private bool Move(Point goal,double speed,double dt,bool allowLight)
     {
         if(route==null||routeAge>1.2||routeGoal.Distance(goal)>2)
-        { route=Path(Position,goal);routeGoal=goal;routeAge=0;routeIndex=0; }
+        {
+            route=Path(Position,goal);routeGoal=goal;routeAge=0;routeIndex=0;
+            // A fresh route starts on the grid spot nearest him, which may lie behind: never step back to it.
+            while(route!=null&&routeIndex<route.Count-1&&(Position.Distance(route[routeIndex])<.75||Position.Distance(route[routeIndex+1])<=route[routeIndex].Distance(route[routeIndex+1])))routeIndex++;
+        }
         if(route==null||route.Count==0)return false;
-        while(routeIndex<route.Count-1&&Position.Distance(route[routeIndex])<.3)routeIndex++;
-        Point next=Position.Toward(route[routeIndex],speed*dt);
+        while(routeIndex<route.Count-1&&Position.Distance(route[routeIndex])<.6)routeIndex++;
+        // Into a sharp corner he slows, as a walker does, so his body comes round with his path.
+        double bearing=Math.Atan2(route[routeIndex].X-Position.X,route[routeIndex].Z-Position.Z);
+        double gap=Math.IEEERemainder(bearing-heading,2*Math.PI);heading+=Math.Clamp(gap,-3*dt,3*dt);
+        double corner=Math.Abs(Math.IEEERemainder(bearing-heading,2*Math.PI));
+        if(corner>.5)speed*=Math.Max(.25,1-(corner-.5)/2);
+        // He goes where his body points; heading straight at the next spot would slide him sideways round a corner.
+        var along=new Point(Position.X+Math.Sin(heading)*speed*dt,Position.Z+Math.Cos(heading)*speed*dt);
+        Point next=corner<.3?Position.Toward(route[routeIndex],speed*dt):along;
+        if(!Clear(next))next=Position.Toward(route[routeIndex],speed*dt);
         if(!Clear(next)){if(Jumpable(next)&&Leap(route[routeIndex]))return true;route=null;return false;}
         if(!allowLight&&Light(next)>=SafeLight)
         {shieldGoal=Light(goal)<SafeLight?goal:DarkGoal();Target=0;Set("shield");return false;}
-        if(Position.Distance(next)>1e-5)Yaw=Math.Atan2(next.X-Position.X,next.Z-Position.Z);
+        if(Position.Distance(next)>1e-5)Yaw=heading;
         bool moved=Position.Distance(next)>1e-5;Position=next;return moved;
     }
 }

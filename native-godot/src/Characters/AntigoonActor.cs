@@ -47,6 +47,7 @@ public partial class AntigoonActor : Node3D
     private int serial = -1;
     public int AttackSerial => serial;
     private bool placed, turning;
+    private Vector3 motion;
     private bool paused;
     public override void _Ready()
     {
@@ -202,14 +203,18 @@ public partial class AntigoonActor : Node3D
     public void TurnStep(double delta)
     {
         bool moving = State is "walk" or "run" or "retreat" or "shield";
-        float turn = Mathf.AngleDifference(Rotation.Y, facing);
+        // Walking, he faces the way he is really going (the host's heading can flick at a route corner).
+        var travel = new Vector2(motion.X, motion.Z);
+        float want = moving && travel.Length() > .4f ? Mathf.Atan2(travel.X, travel.Y) : facing;
+        float turn = Mathf.AngleDifference(Rotation.Y, want);
         if (moving || State is "attack" or "grab" || Math.Abs(turn) > 1.05f) turning = true;
         else if (Math.Abs(turn) < .12f) turning = false;
         if (!turning) return;
-        float rate = (State is "run" or "retreat" ? 3.2f : moving ? 2.2f : 1.6f) * (float)delta;
+        float rate = (State is "run" or "retreat" ? 3.6f : moving ? 3.0f : 1.6f) * (float)delta;
         float yaw = Rotation.Y + Math.Clamp(turn, -rate, rate);
+        // Standing, the feet lead and the hips may not pass them by much; striding, the clip's own legs turn with him.
         float lead = Mathf.AngleDifference(Pose.FeetYaw, yaw);
-        if (Math.Abs(lead) > TwistLimit) yaw = Pose.FeetYaw + Math.Sign(lead) * TwistLimit;
+        if (!moving && Math.Abs(lead) > TwistLimit) yaw = Pose.FeetYaw + Math.Sign(lead) * TwistLimit;
         Rotation = new Vector3(0, yaw, 0);
     }
     /// <summary>The kicking boot lands: the street shakes under anyone close.</summary>
@@ -227,7 +232,9 @@ public partial class AntigoonActor : Node3D
     public override void _Process(double delta)
     {
         if (!placed || !Visible) return;
+        var was = GlobalPosition;
         GlobalPosition = GlobalPosition.Lerp(destination, 1 - Mathf.Exp(-(float)delta * 18));
+        if (delta > 0) motion = motion.Lerp((GlobalPosition - was) / (float)delta, 1 - Mathf.Exp(-(float)delta * 6));
         TurnStep(delta);
         if (State == "grab") GrabClips(delta); else Pose.Grip = null;
         if (State == "jump") JumpClips(delta);
