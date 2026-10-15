@@ -1,3 +1,5 @@
+using System.Collections.Generic;
+using System.Linq;
 using Godot;
 using Scheldemist.Models;
 using Scheldemist.Movers;
@@ -11,7 +13,12 @@ internal sealed class EventHorse
     private readonly Node3D? body;
     private readonly Node3D?[] upper = new Node3D?[4], lower = new Node3D?[4];
     private readonly HorseGait.Pose pose = new();
-    public EventHorse()
+    private readonly HorseNodes? parts;
+    private static int made;
+    private readonly int id = 300 + made++;
+    private double walked;
+    /// <summary>coat: bay, chestnut (the fire pump's), black (the hearse's) or roan.</summary>
+    public EventHorse(string coat = "bay")
     {
         var model = ModelLibrary.Get("props"); body = model?.Copy("tr_horse_body");
         if (body != null) Root.AddChild(body);
@@ -20,12 +27,20 @@ internal sealed class EventHorse
             upper[i] = model?.Copy(i < 2 ? "tr_leg_front" : "tr_leg_hind"); lower[i] = model?.Copy(i < 2 ? "tr_leg_front_lo" : "tr_leg_hind_lo");
             if (upper[i] != null) Root.AddChild(upper[i]!); if (lower[i] != null) Root.AddChild(lower[i]!);
         }
+        var legs = new List<Node3D?>();
+        for (int i = 0; i < 4; i++) { legs.Add(upper[i]); legs.Add(lower[i]); }
+        parts = HorseNodes.Make(body, legs, coat, false, id);
         Set(0, 0, false);
     }
     public void Set(double distance, float moving, bool trot)
     {
         HorseGait.PoseAt(pose, (float)(distance / (trot ? HorseGait.TrotStride : HorseGait.WalkStride) % 1), moving, trot ? 1 : 0);
         if (body != null) body.Position = new Vector3(0, pose.Bob, 0);
+        if (parts != null)
+        {
+            HorseGait.Life(pose, (float)(distance / (trot ? HorseGait.TrotStride : HorseGait.WalkStride) % 1), moving, trot ? 1 : 0, MoverClock.T, id);
+            parts.Set(pose);
+        }
         for (int i = 0; i < 4; i++)
         {
             var leg = pose.Legs[i];

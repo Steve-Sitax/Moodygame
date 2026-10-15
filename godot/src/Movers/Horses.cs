@@ -165,6 +165,70 @@ public static class HorseGait
     {
         public float Bob;
         public readonly LegPose[] Legs = new LegPose[4];
+        /// <summary>The rigid parts on their pivots (radians): the neck about the base of the neck and the head at the poll
+        /// (+ nose down), each ear (yaw + turns its opening outward, pitch - lays it back), the tail (yaw to the horse's
+        /// left, pitch + lifts it). Set by Life().</summary>
+        public float NeckNod, HeadNod, EarYawL, EarYawR, EarPitchL, EarPitchR, TailYaw, TailPitch;
+    }
+
+    private static float Hash1(int i, int seed)
+    {
+        uint x = unchecked((uint)(i * 374761393 + seed * 668265263));
+        x = unchecked((x ^ (x >> 13)) * 1274126177u);
+        x ^= x >> 16;
+        return (x & 0xffffff) / 16777216f;
+    }
+
+    private static float Noise1(double t, int seed)
+    {
+        double fl = Math.Floor(t);
+        int i = (int)fl;
+        float f = (float)(t - fl);
+        f = f * f * (3 - 2 * f);
+        return Hash1(i, seed) * (1 - f) + Hash1(i + 1, seed) * f;
+    }
+
+    private static float Smooth(float a, float b, float x)
+    {
+        float t = Math.Clamp((x - a) / (b - a), 0, 1);
+        return t * t * (3 - 2 * t);
+    }
+
+    /// <summary>What the head, ears and tail do (the plan's package H: the one thing the bar lacked): at the walk the head
+    /// and neck nod twice a stride, lowest just after each forefoot takes the weight; at the trot the head is carried
+    /// steadier; standing, the head now and then drops or lifts a little. Each ear on its own: mostly forward, now and
+    /// then turned out or back, laid back a little at the trot. The tail sways with the walk and every few seconds swishes
+    /// to one side and back (more often standing). All from the gait and the shared mover clock, by the horse's number,
+    /// so every game shows the same.</summary>
+    public static void Life(Pose o, float gait, float amp, float mix, double t, int id)
+    {
+        const float D = MathF.PI / 180;
+        float a = Math.Clamp(amp, 0, 1), m = Math.Clamp(mix, 0, 1);
+        float walk = (1 - m) * a, trot = m * a, still = 1 - a;
+        float g = gait * MathF.Tau;
+        o.NeckNod = walk * 1.4f * D * MathF.Cos(2 * (g - 0.3f * MathF.Tau)) + trot * 0.4f * D * MathF.Cos(2 * g);
+        o.HeadNod = walk * 3.8f * D * MathF.Cos(2 * (g - 0.33f * MathF.Tau)) + trot * 1.1f * D * MathF.Cos(2 * g - 0.6f)
+            + still * 7 * D * (Smooth(0.35f, 0.8f, Noise1(t * 0.09, id * 7 + 1)) - 0.3f);
+        for (int k = 0; k < 2; k++)
+        {
+            float turn = Smooth(0.5f, 0.85f, Noise1(t * 0.21 + k * 17.3, id * 13 + k * 5)) * 50 - 4;
+            float lay = Smooth(0.62f, 0.92f, Noise1(t * 0.14 + k * 3.1, id * 19 + k)) * 24 + trot * 10;
+            if (k == 0) { o.EarYawL = turn * D; o.EarPitchL = -lay * D; }
+            else { o.EarYawR = turn * D; o.EarPitchR = -lay * D; }
+        }
+        float sway = a * 4 * D * MathF.Sin(g + 0.6f);
+        double period = (still > 0.5f ? 4.5 : 7.0) + 3 * Hash1(id, 31);
+        double ph = t / period + Hash1(id, 37);
+        int ev = (int)Math.Floor(ph);
+        float u = (float)((ph - ev) * period / 1.3);
+        float swish = 0;
+        if (u < 1)
+        {
+            float side = Hash1(ev, id * 41 + 3) < 0.5f ? -1 : 1;
+            swish = side * 17 * D * MathF.Sin(MathF.PI * u) * (1 - 0.35f * u);
+        }
+        o.TailYaw = sway + swish;
+        o.TailPitch = trot * 7 * D + Math.Abs(swish) * 0.25f;
     }
 
     private static float ikA1, ikJz, ikJy, ikA2;
@@ -291,6 +355,18 @@ public static class HorseGait
 
     private static readonly float[] wz = new float[4], wy = new float[4];
 
+    /// <summary>The middle of a hind sole on the standing horse (its z in the body's frame).</summary>
+    public static float HindSole => Hind.Sz;
+
+    /// <summary>Leg k (FL, FR, HL, HR) of a pose solved for its sole at (z, y) in the body's frame (a foot set apart: the
+    /// standing horse's resting hind foot).</summary>
+    public static void LegAt(Pose o, int k, float z, float y)
+    {
+        var L = Legs[k];
+        Solve(L.Rig, L.Rig.Py + o.Bob, z, y);
+        o.Legs[k] = new LegPose { X = L.Side * L.Rig.X, Uy = L.Rig.Py + o.Bob, Uz = L.Rig.Pz, Up = -(ikA1 - L.Rig.Rest1), Ly = ikJy, Lz = ikJz, Lp = -(ikA2 - L.Rig.Rest2) };
+    }
+
     /// <summary>The pose at `gait` 0..1 through the step cycle, `amp` 0 (standing) .. 1 (full stride); `mix` 0 walk .. 1 trot.</summary>
     public static Pose PoseAt(Pose o, float gait, float amp, float mix = 0, float? stride = null)
     {
@@ -337,6 +413,7 @@ public partial class HorsePool : Node
     private const float TrotEase = 0.5f;
     private Copies? body;
     private readonly Copies?[] legs = new Copies?[4];
+    private HorseCopies? parts;
     private readonly HorseGait.Pose pose = new();
     private float[] bobs = Array.Empty<float>(), mixes = Array.Empty<float>();
     private double[] setAt = Array.Empty<double>();
@@ -354,6 +431,8 @@ public partial class HorsePool : Node
         body = Copies.Find(g, "horsebody");
         string[] names = { "horselegfront", "horselegfrontlo", "horseleghind", "horseleghindlo" };
         for (int i = 0; i < 4; i++) legs[i] = Copies.Find(g, names[i]);
+        // the horse of horse.scn: a herd, each team of two with a coat of its own (the train's is team 0)
+        if (body != null && HorseModel.Ready) parts = new HorseCopies(g, body, legs, null, false, "horses", 11);
         Count = body?.Count ?? 0;
         bobs = new float[Count];
         mixes = new float[Count];
@@ -378,15 +457,20 @@ public partial class HorsePool : Node
         float mix = mixes[i];
         HorseGait.PoseAt(pose, gait, amp, mix, mix <= 0 || mix >= 1 || trot ? stride : null);
         bobs[i] = pose.Bob;
-        body.Put(i, x, y + pose.Bob, z, yaw);
+        (parts?.BodyOf(i) ?? body).Put(i, x, y + pose.Bob, z, yaw);
+        if (parts != null)
+        {
+            HorseGait.Life(pose, gait, amp, mix, MoverClock.T, i);
+            parts.Set(i, new Transform3D(new Basis(Vector3.Up, yaw), new Vector3(x, y + pose.Bob, z)), pose);
+        }
         float cy = MathF.Cos(yaw), sy = MathF.Sin(yaw);
         for (int k = 0; k < 4; k++)
         {
             var L = pose.Legs[k];
             int j = i * 2 + k % 2;
             int up = k < 2 ? 0 : 2;
-            legs[up]?.Put(j, x + L.X * cy + L.Uz * sy, y + L.Uy, z - L.X * sy + L.Uz * cy, yaw, L.Up);
-            legs[up + 1]?.Put(j, x + L.X * cy + L.Lz * sy, y + L.Ly, z - L.X * sy + L.Lz * cy, yaw, L.Lp);
+            (parts?.LegOf(i, up) ?? legs[up])?.Put(j, x + L.X * cy + L.Uz * sy, y + L.Uy, z - L.X * sy + L.Uz * cy, yaw, L.Up);
+            (parts?.LegOf(i, up + 1) ?? legs[up + 1])?.Put(j, x + L.X * cy + L.Lz * sy, y + L.Ly, z - L.X * sy + L.Lz * cy, yaw, L.Lp);
         }
     }
 
@@ -395,6 +479,7 @@ public partial class HorsePool : Node
 
     public void Hide(int i)
     {
+        parts?.Zero(i);
         body?.Zero(i);
         foreach (var m in legs)
         {
@@ -407,10 +492,13 @@ public partial class HorsePool : Node
     {
         body?.Commit();
         foreach (var m in legs) m?.Commit();
+        parts?.Commit();
     }
 
     public override void _Process(double delta)
     {
         MoverCost.Begin("horse_buffers"); Commit(); MoverCost.End("horse_buffers");
     }
+
+    public override void _ExitTree() => HorseModel.Forget();
 }

@@ -219,6 +219,7 @@ internal sealed class NativeLedDray
         bed=Part("tr_dray_bed");fore=Part("tr_dray_fore");rear=Part("tr_wheels_rear");front=Part("tr_wheels_front");
         load=Part("tr_load_sacks");var body=Part("tr_horse_body");var legs=new List<Node3D>();
         foreach(string n in new[]{"tr_leg_front","tr_leg_front","tr_leg_hind","tr_leg_hind"}){var up=Part(n);var lo=Part(n+"_lo");if(up!=null&&lo!=null){legs.Add(up);legs.Add(lo);}}
+        // the led drays' horses take a coat from the herd by their number
         if(body!=null&&legs.Count==8)horse=new DrayHorse(body,legs.ToArray());
         bedBody=Mv.BoxBody(Root,new Aabb(new(-.95f,0,-1.9f),new(1.9f,1.7f,3.8f)),"bed_solid");
         horseBody=Mv.BoxBody(Root,new Aabb(new(-.4f,0,-1.2f),new(.8f,1.8f,2.4f)),"horse_solid");parent.AddChild(Root);
