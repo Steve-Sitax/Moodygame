@@ -26,6 +26,8 @@ public partial class AntigoonArena : Node3D
     private bool faceShot;
     private string shotPose="smirk";
     private double shotTime=-1;
+    private string filmDir="";
+    private int filmFrame;
     private float shotYaw=.15f;
     public override void _Ready()
     {
@@ -33,6 +35,7 @@ public partial class AntigoonArena : Node3D
         int ix=Array.IndexOf(args,"--antigoon-shot");if(ix>=0&&ix+1<args.Length)output=args[ix+1];
         int pose=Array.IndexOf(args,"--antigoon-pose");if(pose>=0&&pose+1<args.Length)shotPose=args[pose+1];
         // A frozen moment of a clip, seen from any side: --antigoon-time 0.62 --antigoon-yaw -1.57
+        int film=Array.IndexOf(args,"--antigoon-film");if(film>=0&&film+1<args.Length)filmDir=args[film+1];
         int at=Array.IndexOf(args,"--antigoon-time");if(at>=0&&at+1<args.Length)shotTime=double.Parse(args[at+1],System.Globalization.CultureInfo.InvariantCulture);
         int yaw=Array.IndexOf(args,"--antigoon-yaw");if(yaw>=0&&yaw+1<args.Length)shotYaw=float.Parse(args[yaw+1],System.Globalization.CultureInfo.InvariantCulture);
         var environment=new Godot.Environment { BackgroundMode=Godot.Environment.BGMode.Color, BackgroundColor=new Color(.025f,.035f,.047f), AmbientLightSource=Godot.Environment.AmbientSource.Color, AmbientLightColor=new Color(.52f,.61f,.74f), AmbientLightEnergy=.6f, TonemapMode=Godot.Environment.ToneMapper.Filmic };
@@ -53,7 +56,8 @@ public partial class AntigoonArena : Node3D
         if(proof)Box("UnevenBootSupport",new Vector3(.52f,.06f,-.19f),new Vector3(.45f,.12f,.8f),new Color(.2f,.22f,.24f));
         var canvas=new CanvasLayer();AddChild(canvas);hud=new Label {Position=new Vector2(24,24)};hud.AddThemeFontSizeOverride("font_size",20);canvas.AddChild(hud);
         Reset();
-        if(!proof&&output=="")Input.MouseMode=Input.MouseModeEnum.Captured;
+        if(!proof&&output==""&&filmDir=="")Input.MouseMode=Input.MouseModeEnum.Captured;
+        if(filmDir!=""){hud.Visible=false;System.IO.Directory.CreateDirectory(filmDir);AddChild(new OmniLight3D {Position=new Vector3(6,6,-6),LightColor=new Color(1,.88f,.73f),LightEnergy=4,OmniRange=30});}
         if(output!="") {player.Position=new Vector3(4,0,.5f);camera.GlobalPosition=new Vector3(4,3.1f,.5f);camera.Fov=43;camera.LookAt(new Vector3(0,2.7f,-8));hud.Visible=false;
             AddChild(new OmniLight3D {Position=new Vector3(2,5,-3),LightColor=new Color(1,.88f,.73f),LightEnergy=4,OmniRange=13});
             // A man's-eye camera from the side, with a 1.3 m chest-height post beside the giant as a ruler.
@@ -78,6 +82,19 @@ public partial class AntigoonArena : Node3D
     public override void _PhysicsProcess(double delta)
     {
         elapsed+=delta;
+        if(filmDir!="")
+        {
+            // Scripted move: walk/run past, turn to face the camera's side, notice (look at the camera), or kick.
+            float speed=shotPose=="run"?(float)AntigoonBrain.RunSpeed:shotPose=="walk"?(float)AntigoonBrain.WalkSpeed:0;
+            var at=new Vector3(0,0,-14+speed*(float)elapsed);
+            string state=shotPose is "turn"?"idle":shotPose;float yaw=shotPose is "turn" or "notice"&&elapsed>.4?Mathf.Pi*.5f:0;
+            giant.Snapshot(at,yaw,state,shotPose=="attack"?Math.Max(0,elapsed-.4):elapsed,shotPose=="attack"&&elapsed>.4?1:0,true);
+            giant.Pose.LookAt=shotPose=="notice"?camera.GlobalPosition:null;
+            camera.GlobalPosition=new Vector3(10,1.6f,giant.GlobalPosition.Z);camera.Fov=55;camera.LookAt(giant.GlobalPosition+Vector3.Up*2.5f);
+            if(elapsed>.3&&(++filmFrame)%3==0)GetViewport().GetTexture().GetImage().SavePng(System.IO.Path.Combine(filmDir,$"{shotPose}-{filmFrame/3:000}.png"));
+            if(elapsed>(shotPose=="run"?3:4.2)){SetPhysicsProcess(false);GetTree().Quit();}
+            return;
+        }
         if(output!="")
         {
             giant.Snapshot(new Vector3(0,0,-8),shotYaw,faceShot?"laugh":shotPose,shotTime>=0?shotTime:elapsed,0,true);
@@ -97,23 +114,11 @@ public partial class AntigoonArena : Node3D
                     for(int i=0;i<46;i++)if(!giant.Skeleton.GetBoneGlobalPose(i).Origin.IsFinite())throw new Exception("Invalid pose "+clip);
                 }
                 if(giant.LodCount<1)throw new Exception("Distance LODs missing");
-                giant.SetState("idle");giant.Animations.Advance(.25);giant.Pose._PhysicsProcess(.01);giant.Pose.ApplyPose(.01);
-                if(giant.Pose.PlantedFootError(0)>.025f||giant.Pose.PlantedFootError(1)>.025f)
-                { GD.PrintErr($"Idle foot contact: {giant.Pose.PlantedFootError(0)}, {giant.Pose.PlantedFootError(1)}; {giant.Pose.Diagnostics()}");SetPhysicsProcess(false);GetTree().Quit(1);return; }
-                foreach(string gait in new[]{"walk","run","shield"})
-                {
-                    giant.SetState(gait);giant.Animations.Advance(.25);
-                    double period=gait=="run"?.72:1.2;
-                    for(int step=0;step<12;step++)
-                    {
-                        giant.Animations.Seek(period*step/12,true);giant.Pose._PhysicsProcess(.01);giant.Pose.ApplyPose(.01);
-                        for(int foot=0;foot<2;foot++)if(giant.Pose.IsPlanted(foot)&&giant.Pose.PlantedFootError(foot)>.03f)
-                        {GD.PrintErr($"Unplanted {gait} foot {foot} at phase {step}: {giant.Pose.PlantedFootError(foot)}");SetPhysicsProcess(false);GetTree().Quit(1);return;}
-                    }
-                }
+                var gait=ProveGait();
+                if(gait!=""){GD.PrintErr(gait);SetPhysicsProcess(false);GetTree().Quit(1);return;}
                 giant.SetState("shield");giant.Animations.Advance(.25);giant.Pose.ApplyPose(.01);
                 foreach(string hand in new[]{"hand.L","hand.R"})if(giant.Skeleton.GetBoneGlobalPose(giant.Skeleton.FindBone(hand)).Origin.Y<4.6f)throw new Exception("Shielding hand does not protect the head");
-                GD.Print("ANTIGOON_POSE_PASS: grounded idle feet and hands shielding the head.");
+                GD.Print("ANTIGOON_POSE_PASS: world-locked boots, stepping turns, upright trunk, planar kick, hands shielding the head.");
                 GD.Print($"ANTIGOON_SCENE_PASS: 46 bones, 12 clips, {giant.LodCount} surface LODs, collision, finite animated poses, same gameplay brain.");SetPhysicsProcess(false);_ = ProveService();
             }
             return;
@@ -131,6 +136,55 @@ public partial class AntigoonArena : Node3D
         giant.Pause(!captured);
         lamp.Visible=lit;refuge.Visible=lit;sun.LightEnergy=night?.8f:2.5f;
         hud.Text=$"ANTIGOON · CHARACTER TEST\nHealth {health}/10     Antigoon {brain.Health}/120 · {brain.State}\nWASD move · Shift run · Mouse look · Left click strike\nL light refuge · T day/night · R reset · Esc release mouse\n1 smirk · 2 laugh · 3 angry\n\nThe amber circle is safe while lit. Your strike reaches 2.5 m.\nHis kick lands after 0.62 s; step away or reach the light."+(health==0?"\n\nYou fell. Press R to try again.":brain.Health==0?"\n\nAntigoon defeated. Press R to reset.":"");
+    }
+    /// <summary>
+    /// Drive the real pose frame by frame: walking, running, a turn on the spot and a kick. Boots must hold their
+    /// ground while planted, reach their holds, step in turn; the trunk must not lean back; the knee must fold only forward.
+    /// </summary>
+    private string ProveGait()
+    {
+        const float dt=1/60f;giant.Pose.GroundAt=_=>0f;
+        string Run(string state,float speed,float seconds,float turnTo,out int steps,out float worstLean)
+        {
+            steps=0;worstLean=0;giant.GlobalPosition=new Vector3(0,0,-14);giant.Rotation=Vector3.Zero;giant.SetState(state);
+            giant.Pose.ApplyPose(dt);var held=new Vector3[2];var was=new bool[2];
+            for(int f=0;f<seconds/dt;f++)
+            {
+                giant.GlobalPosition+=new Vector3(0,0,speed*dt);
+                if(turnTo!=0)giant.Rotation=new Vector3(0,Mathf.MoveToward(giant.Rotation.Y,turnTo,1.4f*dt),0);
+                giant.Animations.Advance(dt);giant.Pose.ApplyPose(dt);
+                for(int i=0;i<2;i++)
+                {
+                    var (at,planted)=giant.Pose.Boots(i);
+                    if(planted&&was[i]&&at.DistanceTo(held[i])>.002f)return $"{state}: boot {i} slid {at.DistanceTo(held[i]):0.000} m while standing";
+                    if(planted&&f>5&&giant.Pose.BootError(i)>.04f)return $"{state}: boot {i} misses its hold by {giant.Pose.BootError(i):0.000} m";
+                    if(!planted&&was[i])steps++;
+                    held[i]=at;was[i]=planted;
+                }
+                if(f>30)worstLean=Math.Min(worstLean,giant.Pose.Lean());
+            }
+            return "";
+        }
+        foreach(var (state,speed) in new[]{("walk",(float)AntigoonBrain.WalkSpeed),("run",(float)AntigoonBrain.RunSpeed)})
+        {
+            string error=Run(state,speed,4,0,out int steps,out float lean);if(error!="")return error;
+            if(steps<(state=="walk"?4:6))return $"{state}: only {steps} steps in 4 s";
+            if(lean<-.02f)return $"{state}: trunk leans back {-lean:0.000} rad";
+            GD.Print($"ANTIGOON_GAIT {state}: {steps} steps in 4 s, boots held while standing, trunk never behind the hips");
+        }
+        {
+            string error=Run("idle",0,2.6f,Mathf.Pi*.5f,out int steps,out _);if(error!="")return error;
+            if(steps<2)return $"turn: he turned a quarter without stepping ({steps} steps)";
+            GD.Print($"ANTIGOON_GAIT turn: a quarter turn on the spot in {steps} steps");
+        }
+        giant.Rotation=Vector3.Zero;giant.SetState("attack");float lowest=1;
+        for(double t=0;t<=1.35;t+=1/60.0){giant.Animations.Seek(t,true);giant.Pose.ApplyPose(dt);lowest=Math.Min(lowest,giant.Pose.KickKnee());}
+        if(lowest<-.02f)return $"kick: the knee bends backwards by {-lowest:0.000} rad";
+        giant.Animations.Seek(.62,true);giant.Pose.ApplyPose(dt);
+        var boot=giant.ToLocal(giant.Skeleton.GlobalTransform*giant.Skeleton.GetBoneGlobalPose(giant.Skeleton.FindBone("foot.R")).Origin);
+        if(boot.Y<.85f||boot.Y>1.6f||boot.Z<1.3f)return $"kick: the boot meets {boot} instead of a man's chest ahead";
+        GD.Print($"ANTIGOON_GAIT kick: knee folds only forward; boot at {boot.Y:0.00} m high and {boot.Z:0.00} m ahead at contact");
+        giant.Pose.GroundAt=null!;return "";
     }
     private async System.Threading.Tasks.Task Shot()
     {

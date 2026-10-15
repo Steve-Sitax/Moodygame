@@ -186,7 +186,8 @@ public static class NativeAntigoonEventProof
         var spot=Enumerable.Range(0,24).Select(i=>encounter.Snap(new(giant.X+Math.Sin(i*Math.PI/12)*9,giant.Z+Math.Cos(i*Math.PI/12)*9)))
             .Where(p=>p is {} q&&encounter.HumanClear(q)&&encounter.Clear(q)&&encounter.Sight(q,giant)&&encounter.Light(q)<.3&&Behind(q)).Select(p=>p!.Value).First();
         float Face(P from,P to)=>(float)Math.Atan2(-(to.X-from.X),-(to.Z-from.Z));
-        Jef.I.Place((float)spot.X,(float)spot.Z,Face(spot,giant),-.12f);await frames(30);
+        // A teleport holds Jef still until the street's collision round him is built; let that finish first.
+        Jef.I.Place((float)spot.X,(float)spot.Z,Face(spot,giant),-.12f);await frames(120);
         var client=(Scheldemist.Native.Characters.NativeAntigoonClient)game.FindChild("AntigoonEncounter",true,false);int felt=client.KicksFelt;
         int kicked=0;var landed=Vector2.Zero;var hit=Vector2.Zero;var deadline=DateTime.UtcNow.AddSeconds(25);var shots=new System.Collections.Generic.HashSet<string>();
         while(kicked==0)
@@ -198,7 +199,7 @@ public static class NativeAntigoonEventProof
             Jef.I.Yaw=Face(me,g);
             string state=v["state"]!.GetValue<string>();double time=v["state_time"]!.GetValue<double>();
             if(shots.Add("log"+(int)(DateTime.UtcNow-deadline).TotalSeconds))GD.Print($"ANTIGOON_KICK_TRACE {state} {time:0.00} at {g} jef {me} light {encounter.Light(me):0.00}");
-            foreach(var (name,at) in new[]{("roar",.8),("attack",.35),("attack",.6)})
+            foreach(var (name,at) in new[]{("notice",.8),("attack",.35),("attack",.6)})
                 if(state==name&&time>=at&&shots.Add(name+at))
                 {
                     await game.ToSignal(RenderingServer.Singleton,RenderingServer.SignalName.FramePostDraw);
@@ -206,7 +207,7 @@ public static class NativeAntigoonEventProof
                 }
             hit=new(Jef.I.X,Jef.I.Z);
         }
-        await frames(40);
+        await frames(90);
         await game.ToSignal(RenderingServer.Singleton,RenderingServer.SignalName.FramePostDraw);
         game.GetViewport().GetTexture().GetImage().SavePng(Path.Combine(output,"antigoon-after-kick.png"));
         landed=new(Jef.I.X,Jef.I.Z);

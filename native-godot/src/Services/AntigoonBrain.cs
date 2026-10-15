@@ -14,8 +14,8 @@ public sealed class AntigoonBrain
     }
     public sealed record Player(int Id,Point At,bool Available=true);
     public const double WalkSpeed=1.8, RunSpeed=4.8, AttackRange=2.2, ContactTime=.62, AttackDuration=1.35, SafeLight=.45, ShieldSpeed=.7;
-    // He bellows at prey he spots from afar, then charges. Close prey gets the boot at once.
-    public const double RoarTime=1.5, RoarDistance=7, RoarRest=14, LungeSpeed=2.6;
+    // Prey spotted from afar: he stops dead and stares, then charges. Close prey gets the boot at once.
+    public const double NoticeTime=1.6, NoticeDistance=7, NoticeRest=14, LungeSpeed=2.6;
     public const int KickDamage=3;
     public Point Position { get; private set; }
     public Point Home { get; private set; }
@@ -39,7 +39,7 @@ public sealed class AntigoonBrain
     private IReadOnlyList<Point>? route;
     private Point routeGoal;
     private int routeIndex, patrolIndex;
-    private double routeAge,now,calmUntil,roarAt=-RoarRest,darkPicked=-1;
+    private double routeAge,now,calmUntil,noticedAt=-NoticeRest,darkPicked=-1;
     private Point shieldGoal;
     private bool contacted;
     public AntigoonBrain(Point home) { Position=Home=home; }
@@ -47,7 +47,7 @@ public sealed class AntigoonBrain
     public void Reveal() { if(Health>0)Set("idle"); }
     public bool BeginThrow(Point lamp)
     {
-        if(Health<=0||State is "hidden" or "attack" or "hit" or "recoil_light" or "retreat" or "shield" or "roar"||Light(Position)>=SafeLight)return false;
+        if(Health<=0||State is "hidden" or "attack" or "hit" or "recoil_light" or "retreat" or "shield" or "notice"||Light(Position)>=SafeLight)return false;
         Target=0;Yaw=Math.Atan2(lamp.X-Position.X,lamp.Z-Position.Z);Set("throw");return true;
     }
     private void Set(string state) { if(State==state)return;State=state;StateTime=0;contacted=false;if(state=="attack")AttackSerial++; }
@@ -82,10 +82,10 @@ public sealed class AntigoonBrain
         if(State=="hidden")Set("idle");
         if(State=="hit") {if(StateTime<.36)return;Set("idle");}
         if(State=="throw") {if(StateTime<2.4)return;Set("idle");}
-        if(State=="roar")
+        if(State=="notice")
         {
             if(players.FirstOrDefault(p=>p.Id==Target) is {} prey)Yaw=Math.Atan2(prey.At.X-Position.X,prey.At.Z-Position.Z);
-            if(StateTime<RoarTime)return;Set("run");
+            if(StateTime<NoticeTime)return;Set("run");
         }
         var target=players.Where(p=>now>=calmUntil&&p.Available&&Light(p.At)<SafeLight&&p.At.Distance(Position)<24&&Reach(p.At)&&Sight(Position,p.At)).OrderBy(p=>p.At.Distance(Position)).FirstOrDefault();
         if(State=="attack")
@@ -113,7 +113,7 @@ public sealed class AntigoonBrain
         {
             bool fresh=Target!=target.Id;Target=target.Id;Yaw=Math.Atan2(target.At.X-Position.X,target.At.Z-Position.Z);
             if(Position.Distance(target.At)<=AttackRange){Set("attack");return;}
-            if(fresh&&State!="run"&&now-roarAt>=RoarRest&&Position.Distance(target.At)>=RoarDistance){roarAt=now;Set("roar");return;}
+            if(fresh&&State!="run"&&now-noticedAt>=NoticeRest&&Position.Distance(target.At)>=NoticeDistance){noticedAt=now;Set("notice");return;}
             Set("run");if(!Move(target.At,RunSpeed,dt,false)&&State!="shield")Roam(dt);return;
         }
         Target=0;Roam(dt);

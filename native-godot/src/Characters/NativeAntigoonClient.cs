@@ -62,6 +62,8 @@ public partial class NativeAntigoonClient : Node
         if(v["x"]==null){actor.Snapshot(actor.GlobalPosition,actor.Rotation.Y,"hidden",0,0,false);return;}
         static double N(JsonNode? n)=>n?.GetValue<double>()??0;
         actor.Snapshot(new Vector3((float)N(v["x"]),(float)N(v["y"]),(float)N(v["z"])),(float)N(v["yaw"]),v["state"]!.GetValue<string>(),N(v["state_time"]),(int)N(v["attack_serial"]),visible);
+        // He looks at whoever he is after; the host names a player target with a positive id.
+        actor.Pose.LookAt=N(v["target"])>0&&Jef.I?.Body is {} me&&me.GlobalPosition.DistanceTo(actor.GlobalPosition)<30?Jef.I.Cam.GlobalPosition:null;
         if(visible&&!warned&&Jef.I?.Body!=null&&Jef.I.Body.GlobalPosition.DistanceTo(actor.GlobalPosition)<20){warned=true;Hud.I?.Say("Heavy footsteps. Stay near a burning lamp.");}
         if(v["health"]?.GetValue<int>()==0) hint.Text="Antigoon has fallen.";
         int kicks=(int)N(v["kicked"]);

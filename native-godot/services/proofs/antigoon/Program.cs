@@ -13,8 +13,8 @@ var b=Make();damage=0;b.HurtPlayer=(_,d)=>damage+=d;Tick(b,.5,true,victim);Tick(
 var c=Make();damage=0;c.HurtPlayer=(_,d)=>damage+=d;Tick(c,.5,true,victim);c.Light=p=>p.Z>1?1:0;Tick(c,.6,true,victim);Check(damage==0,"light protects player during contact");
 var d=Make();damage=0;d.HurtPlayer=(_,v)=>damage+=v;Tick(d,.5,true,victim);d.Sight=(_,_)=>false;Tick(d,.6,true,victim);Check(damage==0,"wall blocks attack contact");
 var e=Make();e.Light=p=>p.Z>5?1:0;Tick(e,2,true,new AntigoonBrain.Player(1,new(0,12)));Check(e.Target==0&&e.Position.Distance(new(0,0))<=AntigoonBrain.WalkSpeed*2+.1,"does not chase a player inside protected light");
-var f=Make();Tick(f,.1,true,new AntigoonBrain.Player(1,new(0,20)));Check(f.State=="roar"&&f.Position.Z<.01,"bellows at distant prey before charging");
-Tick(f,AntigoonBrain.RoarTime,true,new AntigoonBrain.Player(1,new(0,20)));double charge=f.Position.Z;Tick(f,1,true,new AntigoonBrain.Player(1,new(0,20)));Check(f.Position.Z-charge>4.6&&AntigoonBrain.RunSpeed>3.4,"runs faster than the player at 4.8 m/s");
+var f=Make();Tick(f,.1,true,new AntigoonBrain.Player(1,new(0,20)));Check(f.State=="notice"&&f.Position.Z<.01,"stops and stares at distant prey before charging");
+Tick(f,AntigoonBrain.NoticeTime,true,new AntigoonBrain.Player(1,new(0,20)));double charge=f.Position.Z;Tick(f,1,true,new AntigoonBrain.Player(1,new(0,20)));Check(f.Position.Z-charge>4.6&&AntigoonBrain.RunSpeed>3.4,"runs faster than the player at 4.8 m/s");
 f.Light=_=>1;Tick(f,.1,true,new AntigoonBrain.Player(1,new(0,20)));Check(f.State=="shield","new light interrupts pursuit and starts shielding");
 var g=Make();g.Clear=p=>p.Z<3;Tick(g,2,true,new AntigoonBrain.Player(1,new(0,20)));Check(g.Position.Z<3,"never moves into blocked geometry");
 var h=Make();Check(!h.Strike(new(1,new(0,7))),"remote melee rejected");Check(h.Strike(victim),"nearby melee accepted");Check(!h.Strike(victim)&&h.Health==105,"duplicate melee is rate limited");
@@ -24,7 +24,7 @@ var m=Make();damage=0;int target=0;m.HurtPlayer=(id,v)=>{target=id;damage+=v;};T
 var n=Make();n.Sight=(_,_)=>false;Check(!n.Strike(victim),"player cannot strike through a wall");
 var dazzled=Make();dazzled.Light=p=>Math.Abs(p.X)<4&&Math.Abs(p.Z)<4?1:.3;Tick(dazzled,.2,true);Check(dazzled.State=="shield","a lamp's light makes him shield his eyes");
 Tick(dazzled,8,true);Check(dazzled.State!="shield"&&dazzled.Position.Distance(new(0,0))>3.5,"he gropes out of the light and stops shielding in dim light");
-var safe=Make();safe.Reach=p=>p.Z<10;Tick(safe,2,true,new AntigoonBrain.Player(1,new(0,12)));Check(safe.Target==0&&safe.State!="roar","a spot he cannot reach is a safe place");
+var safe=Make();safe.Reach=p=>p.Z<10;Tick(safe,2,true,new AntigoonBrain.Player(1,new(0,12)));Check(safe.Target==0&&safe.State!="notice","a spot he cannot reach is a safe place");
 var lunge=Make();damage=0;lunge.HurtPlayer=(_,v)=>damage+=v;Tick(lunge,.55,true,new AntigoonBrain.Player(1,new(0,2.1)));Check(lunge.Position.Z>.15&&lunge.Position.Z<.3&&lunge.State=="attack","he lunges into the kick's wind-up and stops at kicking distance");
 // Reachability map: a lit street, a lit square cut off from it by a gate, a small yard, and open land at the edge.
 bool Fits(P p)=>(p.X>=0&&p.X<=150&&p.Z>=0&&p.Z<=12)||(p.X>=0&&p.X<=60&&p.Z>=20&&p.Z<=50)||(p.X>=80&&p.X<=86&&p.Z>=20&&p.Z<=26)||p.Z>=60;

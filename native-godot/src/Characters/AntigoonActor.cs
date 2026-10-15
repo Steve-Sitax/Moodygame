@@ -45,7 +45,7 @@ public partial class AntigoonActor : Node3D
     private double footTimer;
     private int serial = -1;
     public int AttackSerial => serial;
-    private bool placed;
+    private bool placed, turning;
     private bool paused;
     public override void _Ready()
     {
@@ -106,7 +106,7 @@ public partial class AntigoonActor : Node3D
     public void SetState(string state, double time = 0)
     {
         State = state;
-        string clip = state switch { "retreat" => "run", "shield" => "walk", "hidden" => "idle", _ => state };
+        string clip = state switch { "retreat" => "run", "shield" => "walk", "hidden" or "notice" => "idle", _ => state };
         Animations.SpeedScale=state=="shield"?(float)(Services.AntigoonBrain.ShieldSpeed/Services.AntigoonBrain.WalkSpeed):1;
         if (!Animations.HasAnimation(clip)) clip = "idle";
         Animations.Play(clip, .13);
@@ -129,7 +129,18 @@ public partial class AntigoonActor : Node3D
     {
         if (!placed || !Visible) return;
         GlobalPosition = GlobalPosition.Lerp(destination, 1 - Mathf.Exp(-(float)delta * 18));
-        Rotation = new Vector3(0, Mathf.LerpAngle(Rotation.Y, facing, 1 - Mathf.Exp(-(float)delta * 12)), 0);
+        // He turns his body at a giant's pace and only by stepping round (the pose steps each boot that falls behind).
+        // Standing, his head covers the first 60 degrees; only beyond that does the body come round, and it keeps
+        // turning until it nearly faces the target.
+        bool moving = State is "walk" or "run" or "retreat" or "shield";
+        float turn = Mathf.AngleDifference(Rotation.Y, facing);
+        if (moving || State == "attack" || Math.Abs(turn) > 1.05f) turning = true;
+        else if (Math.Abs(turn) < .2f) turning = false;
+        if (turning)
+        {
+            float rate = (State is "run" or "retreat" ? 3.2f : moving ? 2.2f : 1.4f) * (float)delta;
+            Rotation = new Vector3(0, Rotation.Y + Math.Clamp(turn, -rate, rate), 0);
+        }
         if (State is "walk" or "run" or "retreat" or "shield")
         {
             footTimer += delta;
