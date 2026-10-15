@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="AuthorAsset" format=3]
+
+[ext_resource type="PackedScene" path="res://recovered/street-props-20261015/props/wheel-guard-stone.tscn" id="1_0ywh8"]
+[ext_resource type="Script" path="res://src/Authoring/AuthorAsset.cs" id="2_b2urk"]
+
+[resource]
+script = ExtResource("2_b2urk")
+Id = "wheel-guard-stone"
+Title = "Stone wheel guard"
+Category = "Street furniture"
+Scene = ExtResource("1_0ywh8")
+Footprint = Vector3(0.38111275, 0.7049477, 0.38201767)
+FootprintOffset = Vector3(0, -0.120622344, -0.00016722083)

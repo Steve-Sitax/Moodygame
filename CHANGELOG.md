@@ -11,6 +11,8 @@ Bugs and loose ends are tracked as [issues](https://github.com/Steve-Sitax/Moody
 
 ## [Unreleased]
 
+- New street furniture in town. The brewery front on the Canal des Brasseurs has two iron hitching posts and a painted cellar hatch in its pavement, and the lane beside it has a stone wheel guard on its corner and a cast-iron gutter grate marked "Stad Antwerpen 1872". The Stadspark has two green cast-iron benches by the pond. The Grote Markt has a pillar letter box with the lion and the "Lettres / Brieven" slots, the Vismarkt has a cast-iron street pump with its stone basin, and a two-stall street urinal stands on the Steenplein under Het Steen.
+
 - Antigoon (development event) no longer stands frozen on one spot. He has his own map of the wide streets and squares he fits through, steps over crates and benches, and walks it all night, starting at a different dark spot each time. Narrow lanes and back yards are safe from him. When he spots you he stops dead and stares, turning his head and then stepping round to face you; then he charges, lunges in and kicks hard: a clean swing back and through at chest height, a stomp, and you are thrown about 3 m for 3 health, with a red flash and a shaking view. He stands and walks upright and every move is made of real steps: his boots stay planted until they lift, and he turns by stepping. In lamp light he shields his eyes and gropes back to the dark instead of getting stuck.
 
 - Workshop: opening the town no longer prints pages of "shader uses global parameter ... removed" warnings, and the quay's walls, roofs and paving show with their proper materials from the first frame.

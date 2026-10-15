@@ -1,0 +1,57 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://src/Authoring/AuthoredObject.cs" id="1_3aqkm"]
+[ext_resource type="Resource" path="res://recovered/street-props-20261015/props/park-bench-iron.tres" id="2_co1p0"]
+[ext_resource type="Resource" path="res://recovered/street-props-20261015/props/cellar-hatch.tres" id="3_n266a"]
+[ext_resource type="Resource" path="res://recovered/street-props-20261015/props/gutter-grate.tres" id="4_u6wbt"]
+[ext_resource type="Resource" path="res://recovered/street-props-20261015/props/hitching-post.tres" id="5_7ehjl"]
+[ext_resource type="Resource" path="res://recovered/street-props-20261015/props/pissoir.tres" id="6_hqh7d"]
+[ext_resource type="Resource" path="res://recovered/street-props-20261015/props/post-box-pillar.tres" id="7_o402t"]
+[ext_resource type="Resource" path="res://recovered/street-props-20261015/props/street-pump-iron.tres" id="8_1tl17"]
+[ext_resource type="Resource" path="res://recovered/street-props-20261015/props/wheel-guard-stone.tres" id="9_m8uud"]
+
+[node name="Rijnkaai" type="Node3D" unique_id=1402736121]
+
+[node name="Scenery" type="Node3D" parent="." unique_id=163224177]
+
+[node name="Objects" type="Node3D" parent="." unique_id=206857000]
+
+[node name="object_park-bench-iron" type="Node3D" parent="Objects" unique_id=1560991773]
+script = ExtResource("1_3aqkm")
+ObjectId = "park-bench-iron"
+Asset = ExtResource("2_co1p0")
+
+[node name="object_cellar-hatch" type="Node3D" parent="Objects" unique_id=940652776]
+script = ExtResource("1_3aqkm")
+ObjectId = "cellar-hatch"
+Asset = ExtResource("3_n266a")
+
+[node name="object_gutter-grate" type="Node3D" parent="Objects" unique_id=70876767]
+script = ExtResource("1_3aqkm")
+ObjectId = "gutter-grate"
+Asset = ExtResource("4_u6wbt")
+
+[node name="object_hitching-post" type="Node3D" parent="Objects" unique_id=403275740]
+script = ExtResource("1_3aqkm")
+ObjectId = "hitching-post"
+Asset = ExtResource("5_7ehjl")
+
+[node name="object_pissoir" type="Node3D" parent="Objects" unique_id=742524285]
+script = ExtResource("1_3aqkm")
+ObjectId = "pissoir"
+Asset = ExtResource("6_hqh7d")
+
+[node name="object_post-box-pillar" type="Node3D" parent="Objects" unique_id=1682670571]
+script = ExtResource("1_3aqkm")
+ObjectId = "post-box-pillar"
+Asset = ExtResource("7_o402t")
+
+[node name="object_street-pump-iron" type="Node3D" parent="Objects" unique_id=1290400621]
+script = ExtResource("1_3aqkm")
+ObjectId = "street-pump-iron"
+Asset = ExtResource("8_1tl17")
+
+[node name="object_wheel-guard-stone" type="Node3D" parent="Objects" unique_id=296109469]
+script = ExtResource("1_3aqkm")
+ObjectId = "wheel-guard-stone"
+Asset = ExtResource("9_m8uud")

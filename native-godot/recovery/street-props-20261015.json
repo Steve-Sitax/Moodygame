@@ -1,0 +1,15 @@
+{
+  "id": "street-props-20261015", "title": "Antwerp 1870 street props", "modelPack": true,
+  "bounds": [-100, -100, 200, 200], "walkSpawn": [0, 0, 0], "flySpawn": [0, 2, 4], "flyYaw": 0, "flyPitch": -0.35,
+  "groups": [], "props": ["bench", "post_box", "hitching_post", "wheel_guard_stone", "cellar_hatch", "gutter_grate", "water_pump", "pissoir"], "roots": [],
+  "modelAssets": [
+    {"node": "bench", "id": "park-bench-iron", "title": "Cast-iron park bench", "category": "Street furniture"},
+    {"node": "post_box", "id": "post-box-pillar", "title": "Pillar letter box", "category": "Street furniture"},
+    {"node": "hitching_post", "id": "hitching-post", "title": "Hitching post", "category": "Street furniture"},
+    {"node": "wheel_guard_stone", "id": "wheel-guard-stone", "title": "Stone wheel guard", "category": "Street furniture"},
+    {"node": "cellar_hatch", "id": "cellar-hatch", "title": "Pavement cellar hatch", "category": "Street furniture"},
+    {"node": "gutter_grate", "id": "gutter-grate", "title": "Gutter grate", "category": "Street furniture"},
+    {"node": "water_pump", "id": "street-pump-iron", "title": "Cast-iron street pump", "category": "Street furniture"},
+    {"node": "pissoir", "id": "pissoir", "title": "Street urinal", "category": "Street furniture"}
+  ]
+}

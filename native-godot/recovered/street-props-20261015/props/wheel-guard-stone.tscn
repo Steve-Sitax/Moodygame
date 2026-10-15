@@ -1,0 +1,27 @@
+[gd_scene format=3]
+
+[ext_resource type="ArrayMesh" path="res://recovered/street-props-20261015/resources/r0030.res" id="1_q7wp8"]
+[ext_resource type="Shape3D" path="res://recovered/street-props-20261015/resources/r0031.res" id="2_t31ap"]
+
+[node name="source_15" type="Node3D" unique_id=934427091]
+metadata/source_node_index = 15
+metadata/source_name = "wheel_guard_stone"
+
+[node name="recover_15" type="Node3D" parent="." unique_id=551626381]
+metadata/source_node_index = 15
+metadata/source_name = "wheel_guard_stone"
+metadata/legacy_extras_json = "{}"
+
+[node name="recover_14" type="MeshInstance3D" parent="recover_15" unique_id=868885927]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.00012730807, 0, 0)
+mesh = ExtResource("1_q7wp8")
+metadata/source_node_index = 14
+metadata/source_name = "wheel_guard_stone_mesh"
+metadata/legacy_extras_json = "{}"
+
+[node name="Solid" type="StaticBody3D" parent="recover_15/recover_14" unique_id=1487326694]
+collision_layer = 2
+collision_mask = 0
+
+[node name="Shape" type="CollisionShape3D" parent="recover_15/recover_14/Solid" unique_id=729099661]
+shape = ExtResource("2_t31ap")

@@ -1,0 +1,26 @@
+[gd_scene format=3]
+
+[ext_resource type="ArrayMesh" path="res://recovered/street-props-20261015/resources/r0026.res" id="1_k3in2"]
+[ext_resource type="Shape3D" path="res://recovered/street-props-20261015/resources/r0027.res" id="2_o7qwm"]
+
+[node name="source_13" type="Node3D" unique_id=1182997181]
+metadata/source_node_index = 13
+metadata/source_name = "water_pump"
+
+[node name="recover_13" type="Node3D" parent="." unique_id=491131866]
+metadata/source_node_index = 13
+metadata/source_name = "water_pump"
+metadata/legacy_extras_json = "{}"
+
+[node name="recover_12" type="MeshInstance3D" parent="recover_13" unique_id=413107018]
+mesh = ExtResource("1_k3in2")
+metadata/source_node_index = 12
+metadata/source_name = "water_pump_mesh"
+metadata/legacy_extras_json = "{}"
+
+[node name="Solid" type="StaticBody3D" parent="recover_13/recover_12" unique_id=674126678]
+collision_layer = 2
+collision_mask = 0
+
+[node name="Shape" type="CollisionShape3D" parent="recover_13/recover_12/Solid" unique_id=1815819517]
+shape = ExtResource("2_o7qwm")

@@ -1,3 +1,12 @@
 [gd_scene format=3]
 
+[ext_resource type="Script" path="res://src/Authoring/AuthoredObject.cs" id="1_obj"]
+[ext_resource type="Resource" path="res://recovered/street-props-20261015/props/pissoir.tres" id="2_sp15"]
+
 [node name="Objects" type="Node3D" unique_id=1115818774]
+
+[node name="object_steenplein-pissoir" type="Node3D" parent="." unique_id=1894569649]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -170, 0, -14.2)
+script = ExtResource("1_obj")
+ObjectId = "steenplein-pissoir"
+Asset = ExtResource("2_sp15")

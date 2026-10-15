@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="AuthorAsset" format=3]
+
+[ext_resource type="PackedScene" path="res://recovered/street-props-20261015/props/gutter-grate.tscn" id="1_252ad"]
+[ext_resource type="Script" path="res://src/Authoring/AuthorAsset.cs" id="2_yjny5"]
+
+[resource]
+script = ExtResource("2_yjny5")
+Id = "gutter-grate"
+Title = "Gutter grate"
+Category = "Street furniture"
+Scene = ExtResource("1_252ad")
+Footprint = Vector3(0.53, 0.48000002, 0.45)
+FootprintOffset = Vector3(0, -0.48000002, 0)

@@ -1,3 +1,39 @@
 [gd_scene format=3]
 
+[ext_resource type="Script" path="res://src/Authoring/AuthoredObject.cs" id="1_obj"]
+[ext_resource type="Resource" path="res://recovered/street-props-20261015/props/hitching-post.tres" id="2_sp15"]
+[ext_resource type="Resource" path="res://recovered/street-props-20261015/props/cellar-hatch.tres" id="3_sp15"]
+[ext_resource type="Resource" path="res://recovered/street-props-20261015/props/wheel-guard-stone.tres" id="4_sp15"]
+[ext_resource type="Resource" path="res://recovered/street-props-20261015/props/gutter-grate.tres" id="5_sp15"]
+
 [node name="Objects" type="Node3D" unique_id=1561436064]
+
+[node name="object_brewery-hitching-post-1" type="Node3D" parent="." unique_id=534827817]
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, -60.55, 0.12, 119.65)
+script = ExtResource("1_obj")
+ObjectId = "brewery-hitching-post-1"
+Asset = ExtResource("2_sp15")
+
+[node name="object_brewery-cellar-hatch" type="Node3D" parent="." unique_id=841752600]
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, -59.9, 0.126, 122.55)
+script = ExtResource("1_obj")
+ObjectId = "brewery-cellar-hatch"
+Asset = ExtResource("3_sp15")
+
+[node name="object_brewery-hitching-post-2" type="Node3D" parent="." unique_id=1947804822]
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, -60.55, 0.12, 125.75)
+script = ExtResource("1_obj")
+ObjectId = "brewery-hitching-post-2"
+Asset = ExtResource("2_sp15")
+
+[node name="object_brewery-lane-wheel-guard-south" type="Node3D" parent="." unique_id=739863338]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -60.2, 0.12, 110.05)
+script = ExtResource("1_obj")
+ObjectId = "brewery-lane-wheel-guard-south"
+Asset = ExtResource("4_sp15")
+
+[node name="object_brewery-lane-gutter-grate" type="Node3D" parent="." unique_id=1693765095]
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -61.2, 0.004, 113.8)
+script = ExtResource("1_obj")
+ObjectId = "brewery-lane-gutter-grate"
+Asset = ExtResource("5_sp15")
