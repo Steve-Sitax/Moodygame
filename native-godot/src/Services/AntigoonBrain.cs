@@ -17,6 +17,10 @@ public sealed class AntigoonBrain
     // Prey spotted from afar: he stops dead and stares, then charges. Close prey gets the boot at once.
     public const double NoticeTime=1.6, NoticeDistance=7, NoticeRest=14, LungeSpeed=2.6;
     public const int KickDamage=3;
+    // Every second attack he grabs instead: bends to seize the neck, lifts the prey to his face, stares, throws.
+    public const double GrabContact=.8, GrabRelease=3.1, GrabDuration=3.9, GrabRange=2.4, ThrowDistance=6;
+    public const int ThrowDamage=3, WallDamage=2;
+    public sealed record Throw(int Serial,int Victim,Point From,Point To,bool Wall);
     public Point Position { get; private set; }
     public Point Home { get; private set; }
     public double Yaw { get; private set; }
@@ -27,6 +31,12 @@ public sealed class AntigoonBrain
     public int AttackSerial { get; private set; }
     /// <summary>Landed kicks per target; clients play the knock-back when their count rises.</summary>
     public Dictionary<int,int> Kicks { get; }=new();
+    /// <summary>The prey in his fist (0: none). Its position is his, not its own, until the throw.</summary>
+    public int Held { get; private set; }
+    public Throw? LastThrow { get; private set; }
+    /// <summary>Where a body thrown from `from` toward `to` comes down: short of `to` when a wall is in the way.</summary>
+    public Func<Point,Point,Point> Landing = (_,to)=>to;
+    public Action<Throw>? Thrown;
     public Func<Point,double> Light = _=>0;
     public Func<Point,bool> Clear = _=>true;
     public Func<Point,Point,bool> Sight = (_,_)=>true;
@@ -41,21 +51,35 @@ public sealed class AntigoonBrain
     private int routeIndex, patrolIndex;
     private double routeAge,now,calmUntil,noticedAt=-NoticeRest,darkPicked=-1;
     private Point shieldGoal;
-    private bool contacted;
+    private bool contacted,grabNext;
+    private int throws;
     public AntigoonBrain(Point home) { Position=Home=home; }
     public void Restore(Point p,int health) { Position=p;Health=Math.Clamp(health,0,120);Set(Health==0?"death":"hidden"); }
     public void Reveal() { if(Health>0)Set("idle"); }
     public bool BeginThrow(Point lamp)
     {
-        if(Health<=0||State is "hidden" or "attack" or "hit" or "recoil_light" or "retreat" or "shield" or "notice"||Light(Position)>=SafeLight)return false;
+        if(Health<=0||State is "hidden" or "attack" or "grab" or "hit" or "recoil_light" or "retreat" or "shield" or "notice"||Light(Position)>=SafeLight)return false;
         Target=0;Yaw=Math.Atan2(lamp.X-Position.X,lamp.Z-Position.Z);Set("throw");return true;
     }
-    private void Set(string state) { if(State==state)return;State=state;StateTime=0;contacted=false;if(state=="attack")AttackSerial++; }
+    private void Set(string state)
+    {
+        if(State==state)return;
+        // Whatever ends a grab early (light, a blow, dawn) lets the prey drop at his feet.
+        if(State=="grab"&&Held!=0)Release(1.4,false);
+        State=state;StateTime=0;contacted=false;if(state is "attack" or "grab")AttackSerial++;
+    }
+    private void Release(double distance,bool flung)
+    {
+        var dir=new Point(Math.Sin(Yaw),Math.Cos(Yaw));var from=new Point(Position.X+dir.X*.9,Position.Z+dir.Z*.9);
+        var want=new Point(from.X+dir.X*distance,from.Z+dir.Z*distance);var to=flung?Landing(from,want):want;
+        LastThrow=new(++throws,Held,from,to,flung&&to.Distance(from)<distance-.3);Held=0;Thrown?.Invoke(LastThrow);
+    }
     public bool Strike(Player p)
     {
         if(!p.Available||Health<=0||State=="hidden"||p.At.Distance(Position)>2.5||!Sight(p.At,Position))return false;
         if(swings.TryGetValue(p.Id,out double last)&&now-last<.8)return false;
         swings[p.Id]=now;Health=Math.Max(0,Health-15);Target=State=="shield"?0:p.Id;
+        // A blow while he holds someone makes him drop them: a friend can free a grabbed player.
         if(Health==0)Set("death");else if(State is not ("attack" or "shield"))Set("hit");return true;
     }
     public void Step(double dt,bool night,IReadOnlyList<Player> players)
@@ -88,6 +112,25 @@ public sealed class AntigoonBrain
             if(StateTime<NoticeTime)return;Set("run");
         }
         var target=players.Where(p=>now>=calmUntil&&p.Available&&Light(p.At)<SafeLight&&p.At.Distance(Position)<24&&Reach(p.At)&&Sight(Position,p.At)).OrderBy(p=>p.At.Distance(Position)).FirstOrDefault();
+        if(State=="grab")
+        {
+            var prey=players.FirstOrDefault(p=>p.Id==Target&&p.Available);
+            if(Held==0&&!contacted&&prey!=null)
+            {
+                Yaw=Math.Atan2(prey.At.X-Position.X,prey.At.Z-Position.Z);
+                if(Position.Distance(prey.At)>1.8)Move(prey.At,Target<0?RunSpeed*.7:LungeSpeed,dt,false);
+                if(State!="grab")return;
+            }
+            if(!contacted&&StateTime>=GrabContact)
+            {
+                contacted=true;
+                if(prey!=null&&prey.At.Distance(Position)<GrabRange&&Light(prey.At)<SafeLight&&Sight(Position,prey.At)&&Math.Cos(Math.Atan2(prey.At.X-Position.X,prey.At.Z-Position.Z)-Yaw)>.5)Held=prey.Id;
+            }
+            if(contacted&&Held==0&&StateTime>=GrabContact+.6){Set("idle");return;}
+            if(Held!=0&&StateTime>=GrabRelease)Release(ThrowDistance,true);
+            if(StateTime>=GrabDuration)Set("idle");
+            return;
+        }
         if(State=="attack")
         {
             var victim=players.FirstOrDefault(p=>p.Id==Target&&p.Available);
@@ -112,7 +155,7 @@ public sealed class AntigoonBrain
         if(target!=null)
         {
             bool fresh=Target!=target.Id;Target=target.Id;Yaw=Math.Atan2(target.At.X-Position.X,target.At.Z-Position.Z);
-            if(Position.Distance(target.At)<=AttackRange){Set("attack");return;}
+            if(Position.Distance(target.At)<=AttackRange){Set(grabNext?"grab":"attack");grabNext=!grabNext;return;}
             if(fresh&&State!="run"&&now-noticedAt>=NoticeRest&&Position.Distance(target.At)>=NoticeDistance){noticedAt=now;Set("notice");return;}
             Set("run");if(!Move(target.At,RunSpeed,dt,false)&&State!="shield")Roam(dt);return;
         }

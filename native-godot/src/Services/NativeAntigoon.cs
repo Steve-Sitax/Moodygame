@@ -68,6 +68,21 @@ public sealed partial class NativeAntigoon : INativeServiceModule
             host.PublishState(id);
         }};
         var giant=brain;brain.Reach=p=>Reach(giant.Position,p);
+        // A thrown body flies at chest height until a wall stops it; it comes down just short of the wall.
+        brain.Landing=(from,to)=>
+        {
+            int n=Math.Max(1,(int)Math.Ceiling(from.Distance(to)/.3));var last=from;
+            for(int i=1;i<=n;i++){var p=new P(from.X+(to.X-from.X)*i/n,from.Z+(to.Z-from.Z)*i/n);if(!Sight(from,p)||!HumanClear(p))break;last=p;}
+            return last.Distance(from)>.6?last.Toward(from,.35):last;
+        };
+        brain.Thrown=t=>
+        {
+            if(t.Victim<0){street.Thrown(t);return;}
+            int damage=AntigoonBrain.ThrowDamage+(t.Wall?AntigoonBrain.WallDamage:0);
+            host.Context.Execute("UPDATE player SET health=MAX(0,health-$p0) WHERE id=$p1",damage,t.Victim);
+            if(NativeGoods.Number(host.Player(t.Victim)["health"])<=0)host.Clock.End(t.Victim,"health");
+            host.PublishState(t.Victim);
+        };
         // Patrol a shuffled loop of reachable dark streets, ordered so each leg goes to the nearest next spot.
         var spots=(Roamable?.Invoke(home,46)??Array.Empty<P>()).ToList();var at=home;
         while(spots.Count>0&&brain.Patrol.Count<10)
@@ -95,7 +110,9 @@ public sealed partial class NativeAntigoon : INativeServiceModule
     {
         var v=new JsonObject{["active"]=developmentEnabled&&brain!=null&&brain.State!="hidden",["night"]=Night,["multiplayer"]=host.MultiplayerEnabled(),["development_only"]=true,["server_ms"]=host.Context.Now};
         v["development_spawn"]=developmentEnabled&&brain!=null;
-        if(brain!=null){v["x"]=brain.Position.X;v["y"]=Ground(brain.Position);v["z"]=brain.Position.Z;v["yaw"]=brain.Yaw;v["health"]=brain.Health;v["state"]=brain.State;v["state_time"]=brain.StateTime;v["attack_serial"]=brain.AttackSerial;v["target"]=brain.Target;v["kicked"]=brain.Kicks.GetValueOrDefault(player);}
+        if(brain!=null){v["x"]=brain.Position.X;v["y"]=Ground(brain.Position);v["z"]=brain.Position.Z;v["yaw"]=brain.Yaw;v["health"]=brain.Health;v["state"]=brain.State;v["state_time"]=brain.StateTime;v["attack_serial"]=brain.AttackSerial;v["target"]=brain.Target;v["kicked"]=brain.Kicks.GetValueOrDefault(player);
+            v["held"]=brain.Held;
+            if(brain.LastThrow is {} t)v["throw"]=new JsonObject{["serial"]=t.Serial,["victim"]=t.Victim,["fx"]=t.From.X,["fz"]=t.From.Z,["tx"]=t.To.X,["tz"]=t.To.Z,["wall"]=t.Wall};}
         EventView(v);
         return v;
     }

@@ -1,5 +1,6 @@
 using Godot;
 using System;
+using System.Linq;
 
 namespace Scheldemist.Native.Characters;
 
@@ -12,10 +13,16 @@ public partial class AntigoonPose : SkeletonModifier3D
     public AntigoonActor Actor=null!;
     /// <summary>World point he turns his head to (null: idle glances).</summary>
     public Vector3? LookAt;
+    /// <summary>His right fist: where it reaches (world), how much (0..1), and whether the hand is closed on a neck.</summary>
+    public (Vector3 Target,float Weight,bool Closed)? Grip;
+    public event Action<int>? Landed;
+    /// <summary>His right fist after the full pose (the bone's own pose omits this modifier's work).</summary>
+    public Vector3 FistWorld { get; private set; }
     private Skeleton3D rig=null!;
     private readonly int[] hips=new int[2],knees=new int[2],ankles=new int[2],arms=new int[2],elbows=new int[2],hands=new int[2];
     private readonly Transform3D[] restFeet=new Transform3D[2],restHands=new Transform3D[2];
     private int head,neck,chest,spine,pelvis,jaw;
+    private int[] fingersR=Array.Empty<int>();
     private Quaternion jawOpen=Quaternion.Identity;
     private bool hasJaw;
     private double clock;
@@ -51,6 +58,7 @@ public partial class AntigoonPose : SkeletonModifier3D
             arms[i]=rig.FindBone("upper_arm."+side);elbows[i]=rig.FindBone("forearm."+side);hands[i]=rig.FindBone("hand."+side);
             restFeet[i]=rig.GetBoneGlobalRest(ankles[i]);restHands[i]=rig.GetBoneGlobalRest(hands[i]);
         }
+        fingersR=Enumerable.Range(0,rig.GetBoneCount()).Where(b=>rig.GetBoneName(b).StartsWith("finger")&&rig.GetBoneName(b).EndsWith(".R")).ToArray();
         // Borrow the open jaw from the authored roar clip for the kick's snarl.
         jaw=rig.FindBone("jaw");
         if(jaw>=0&&Actor.Animations.HasAnimation("roar"))
@@ -98,6 +106,7 @@ public partial class AntigoonPose : SkeletonModifier3D
             hipsPose.Origin=rest+new Vector3(off.X*.5f,off.Y*.35f,off.Z*.5f);rig.SetBoneGlobalPose(pelvis,hipsPose);
         }
         Posture(state,speed);
+        Stoop();
         if(kicking)KickBody(Actor.Animations.CurrentAnimationPosition);
         // Mid-kick he stands on his left boot: a swing already under way finishes, no new step starts.
         Step(dt,speed,start:!kicking);
@@ -123,6 +132,16 @@ public partial class AntigoonPose : SkeletonModifier3D
             var turn=new Basis(Vector3.Up,BootYaw(i)-BodyYaw);
             Limb(hips[i],knees[i],ankles[i],target,pole,turn*new Basis(Vector3.Right,BootPitch(i))*restFeet[i].Basis);
         }
+        if(Grip is {} grip&&grip.Weight>0)
+        {
+            // The right arm reaches for the neck, then holds it out before his face.
+            var hand=rig.GetBoneGlobalPose(hands[1]);var shoulder=rig.GetBoneGlobalPose(arms[1]).Origin;
+            var want=rig.GlobalTransform.AffineInverse()*grip.Target;
+            var target=hand.Origin.Lerp(want,Smooth(grip.Weight));
+            Limb(arms[1],elbows[1],hands[1],target,shoulder+new Vector3(-.9f,-.6f,-.5f),hand.Basis);
+            if(grip.Closed)foreach(int finger in fingersR)rig.SetBonePoseRotation(finger,rig.GetBonePoseRotation(finger)*new Quaternion(Vector3.Right,1.1f));
+        }
+        FistWorld=rig.GlobalTransform*rig.GetBoneGlobalPose(hands[1]).Origin;
         if(state=="shield")
         {
             var face=rig.GetBoneGlobalPose(head).Origin+new Vector3(0,.14f,.4f);
@@ -138,19 +157,20 @@ public partial class AntigoonPose : SkeletonModifier3D
     private void DeadBlend(float dt)
     {
         int n=rig.GetBoneCount();
-        if(lastPose.Length!=n){lastPose=new Quaternion[n];heldPose=new Quaternion[n];spin=new Vector3[n];for(int b=0;b<n;b++)lastPose[b]=heldPose[b]=rig.GetBonePoseRotation(b);}
+        if(lastPose.Length!=n){lastPose=new Quaternion[n];heldPose=new Quaternion[n];spin=new Vector3[n];for(int b=0;b<n;b++)lastPose[b]=heldPose[b]=rig.GetBonePoseRotation(b).Normalized();}
         string clip=Actor.Animations.CurrentAnimation;
         if(clip!=lastClip&&lastClip!=""){blend=0;for(int b=0;b<n;b++)heldPose[b]=lastPose[b];}
         lastClip=clip;
         for(int b=0;b<n;b++)
         {
-            var now=rig.GetBonePoseRotation(b);
+            // Clip keys and earlier layers leave tiny drift; slerp needs unit quaternions.
+            var now=rig.GetBonePoseRotation(b).Normalized();
             if(blend<BlendTime)
             {
                 // Carry the held pose on along its spin, the spin dying away, then ease from it into the clip.
                 if(spin[b].LengthSquared()>1e-10f)heldPose[b]=(new Quaternion(spin[b].Normalized(),spin[b].Length()*dt)*heldPose[b]).Normalized();
                 spin[b]*=Mathf.Exp(-.6931472f*dt/BlendHalfLife);
-                now=heldPose[b].Slerp(now,Smooth(blend/BlendTime));rig.SetBonePoseRotation(b,now);
+                now=heldPose[b].Normalized().Slerp(now,Smooth(blend/BlendTime)).Normalized();rig.SetBonePoseRotation(b,now);
             }
             else if(dt>0)
             {
@@ -162,6 +182,16 @@ public partial class AntigoonPose : SkeletonModifier3D
             lastPose[b]=now;
         }
         blend+=dt;
+    }
+
+    /// <summary>To reach a man's neck far below his shoulder he squats and bends forward; the boots stay planted.</summary>
+    private void Stoop()
+    {
+        if(Grip is not {} grip||grip.Weight<=0)return;
+        float shoulder=(rig.GlobalTransform*rig.GetBoneGlobalPose(arms[1]).Origin).Y;
+        float s=Smooth((shoulder-grip.Target.Y-1.1f)/1.7f)*Smooth(grip.Weight);if(s<=0)return;
+        var hipsPose=rig.GetBoneGlobalPose(pelvis);hipsPose.Origin+=new Vector3(0,-.9f*s,-.25f*s);rig.SetBoneGlobalPose(pelvis,hipsPose);
+        Turn(spine,Vector3.Right,.8f*s);Turn(neck,Vector3.Right,-.35f*s);
     }
 
     // ---- footsteps
@@ -188,7 +218,7 @@ public partial class AntigoonPose : SkeletonModifier3D
         for(int i=0;i<2;i++)
         {
             var b=boots[i];if(!b.Swinging)continue;
-            b.T+=dt/swing;if(b.T>=1){Plant(b,b.To,b.ToYaw,i);}
+            b.T+=dt/swing;if(b.T>=1){Plant(b,b.To,b.ToYaw,i);Landed?.Invoke(i);}
         }
         // A boot left beyond any stride (a jump in the host's position) is set back under him.
         for(int i=0;i<2;i++)if(!boots[i].Swinging&&new Vector2(Home(i).X-boots[i].At.X,Home(i).Z-boots[i].At.Z).Length()>2.4f)Plant(boots[i],Home(i),BodyYaw,i);

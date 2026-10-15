@@ -24,6 +24,20 @@ var m=Make();damage=0;int target=0;m.HurtPlayer=(id,v)=>{target=id;damage+=v;};T
 var n=Make();n.Sight=(_,_)=>false;Check(!n.Strike(victim),"player cannot strike through a wall");
 var dazzled=Make();dazzled.Light=p=>Math.Abs(p.X)<4&&Math.Abs(p.Z)<4?1:.3;Tick(dazzled,.2,true);Check(dazzled.State=="shield","a lamp's light makes him shield his eyes");
 Tick(dazzled,8,true);Check(dazzled.State!="shield"&&dazzled.Position.Distance(new(0,0))>3.5,"he gropes out of the light and stops shielding in dim light");
+// Grab: every second attack. He seizes, lifts, stares and throws about 6 m; a wall cuts the flight short.
+var grabber=Make();AntigoonBrain.Throw? flung=null;grabber.Thrown=t=>flung=t;var held=new AntigoonBrain.Player(5,new(0,2));
+Tick(grabber,1.2,true,held);Check(grabber.State=="attack"&&flung==null,"the first attack is a kick");
+Tick(grabber,.4,true,held);Check(grabber.State=="grab","the next attack is a grab");
+Tick(grabber,.8,true,held);Check(grabber.Held==5,"he seizes prey within reach at contact");
+Tick(grabber,2.3,true,held);
+Check(flung is {Victim:5,Wall:false}&&Math.Abs(flung.From.Distance(flung.To)-AntigoonBrain.ThrowDistance)<.05&&grabber.Held==0,"he throws the prey 6 m");
+var walled=Make();AntigoonBrain.Throw? hit=null;walled.Thrown=t=>hit=t;walled.Landing=(a,b)=>new(a.X+(b.X-a.X)*.4,a.Z+(b.Z-a.Z)*.4);
+Tick(walled,AntigoonBrain.AttackDuration+.3+AntigoonBrain.GrabRelease,true,held);Check(hit is {Wall:true},"a wall cuts the throw short and counts as a wall hit");
+var freed=Make();AntigoonBrain.Throw? dropped=null;freed.Thrown=t=>dropped=t;
+Tick(freed,AntigoonBrain.AttackDuration+.3+AntigoonBrain.GrabContact+.2,true,held);Check(freed.Held==5,"the prey is held");
+Check(freed.Strike(new(6,new(1,1)))&&dropped is {Wall:false}&&freed.Held==0&&dropped.From.Distance(dropped.To)<2,"a blow from another player makes him drop the prey at his feet");
+var missed=Make();Tick(missed,1.65,true,held);Tick(missed,.25,true,held);
+Tick(missed,.4,true,held with {At=new(0,7)});Tick(missed,.7,true);Check(missed.Held==0&&missed.State!="grab","stepping out of reach makes the grab miss");
 var safe=Make();safe.Reach=p=>p.Z<10;Tick(safe,2,true,new AntigoonBrain.Player(1,new(0,12)));Check(safe.Target==0&&safe.State!="notice","a spot he cannot reach is a safe place");
 var lunge=Make();damage=0;lunge.HurtPlayer=(_,v)=>damage+=v;Tick(lunge,.55,true,new AntigoonBrain.Player(1,new(0,2.1)));Check(lunge.Position.Z>.15&&lunge.Position.Z<.3&&lunge.State=="attack","he lunges into the kick's wind-up and stops at kicking distance");
 // Reachability map: a lit street, a lit square cut off from it by a gate, a small yard, and open land at the edge.
@@ -80,4 +94,16 @@ Tick(shield,1,true,new AntigoonBrain.Player(1,new(1,shield.Position.Z+1)));Check
 Check(!shield.BeginThrow(new(0,9)),"shielding cannot throw a stone");
 Tick(shield,8,true);Check(shield.Position.Z>6&&shield.State!="shield","shielding crosses a lit street and returns to roaming in darkness");
 var roam=Make();Tick(roam,2,true);Check(roam.State=="walk"&&roam.Position.Distance(new(0,0))>3,"unoccupied giant keeps walking rather than freezing");
+// A resident in his fist hangs at his hand, flies about 6 m when thrown, lies sprawled, then gets up.
+var crowd=new AntigoonNightEvent();var thrower2=Make();thrower2.Thrown=crowd.Thrown;
+crowd.Step(.05,true,thrower2,new[]{new AntigoonNightEvent.Witness("victim",new(0,2),new(0,60))});
+var victim2=crowd.Residents["victim"];
+for(int i=0;i<200&&victim2.Phase!="held";i++){victim2.At=new(thrower2.Position.X,thrower2.Position.Z+2);crowd.Step(.05,true,thrower2,Array.Empty<AntigoonNightEvent.Witness>());thrower2.Step(.05,true,new[]{new AntigoonBrain.Player(victim2.TargetId,victim2.At)});}
+Check(victim2.Phase=="held"&&victim2.At.Distance(thrower2.Position)<1.2,"a seized resident hangs at the giant's hand");
+for(int i=0;i<80&&victim2.Phase=="held";i++){crowd.Step(.05,true,thrower2,Array.Empty<AntigoonNightEvent.Witness>());thrower2.Step(.05,true,crowd.Targets());}
+Check(victim2.Phase=="thrown","he throws the resident");
+for(int i=0;i<20;i++){crowd.Step(.05,true,thrower2,Array.Empty<AntigoonNightEvent.Witness>());thrower2.Step(.05,true,crowd.Targets());}
+Check(victim2.At.Distance(victim2.To)<.05&&victim2.From.Distance(victim2.To)>5.5,"the resident lands about 6 m away");
+for(int i=0;i<50;i++){crowd.Step(.05,true,thrower2,Array.Empty<AntigoonNightEvent.Witness>());thrower2.Step(.05,true,crowd.Targets());}
+Check(victim2.Phase is "down" or "rise" or "flee","after lying sprawled the resident is down and recovers");
 Console.WriteLine($"ANTIGOON_EVENT_PASS {checks-before} checks");

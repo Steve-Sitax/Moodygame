@@ -66,6 +66,78 @@ public partial class AntigoonArena : Node3D
             if(faceShot){camera.GlobalPosition=new Vector3(.6f,5.05f,-5.6f);camera.Fov=32;camera.LookAt(new Vector3(0,4.96f,-8));}
         }
     }
+    // Ragdoll proof: a real dressed docker hangs by the neck 4.3 m up, is flung 7 m/s at a wall 6 m away, and comes to
+    // rest. Every joint is then measured against its limit.
+    private Scheldemist.People.Human? body;private HumanRagdoll? ragdoll;private bool flung;private double still;
+    private void Ragdoll()
+    {
+        if(body==null)
+        {
+            Scheldemist.Native.Game.NativeGlobals.Ensure();Scheldemist.Native.World.NativeData.Initialize();
+            Scheldemist.Models.ModelLibrary.NativeScene=name=>ResourceLoader.Load<PackedScene>("res://assets/game-models/"+name+".scn").Instantiate<Node3D>();
+            body=Scheldemist.People.Humans.Make("docker_a")??throw new Exception("No people2 docker");AddChild(body.Root);
+            var skeleton=body.Root.FindChildren("*","Skeleton3D",true,false).OfType<Skeleton3D>().First();
+            ragdoll=HumanRagdoll.Attach(skeleton,HumanRagdoll.People2,72,1);
+            Box("ThrowWall",new Vector3(0,2,6.2f),new Vector3(8,4,.4f),new Color(.3f,.26f,.22f));
+            // Out of the way: his torso capsule is solid even when he is hidden.
+            giant.Visible=false;giant.GlobalPosition=new Vector3(0,0,-40);
+        }
+        var neck=body.Root.FindChildren("*","Skeleton3D",true,false).OfType<Skeleton3D>().First();
+        double t=elapsed;
+        // Lifted by the neck to 4.3 m over 0.6 s and held, hanging by its own weight, then thrown.
+        if(t<1.6){if(!ragdoll!.Active)ragdoll.Hang("neck",()=>new Vector3(0,Mathf.Lerp(1.45f,4.3f,Mathf.Clamp((float)(elapsed-.1)/.6f,0,1)),0));}
+        else if(!flung){flung=true;ragdoll!.Fling(new Vector3(0,1.7f,7),new Vector3(2,0,1));}
+        camera.GlobalPosition=new Vector3(9,2.2f,3);camera.Fov=60;camera.LookAt(new Vector3(0,1.5f,3));
+        if(t>.3&&(++filmFrame)%3==0)GetViewport().GetTexture().GetImage().SavePng(System.IO.Path.Combine(filmDir,$"ragdoll-{filmFrame/3:000}.png"));
+        if(flung&&ragdoll!.Settled)still+=1/60.0;else still=0;
+        if(t>9||still>1)
+        {
+            GD.Print($"RAGDOLL at rest after {t:0.0} s, hips {ragdoll!.Centre}");
+            foreach(var part in HumanRagdoll.People2)
+            {
+                int b=neck.FindBone(part.Bone),parent=neck.GetBoneParent(b);if(b<0||parent<0||part.Swing==0)continue;
+                // Joint turn relative to rest, measured on the physics bodies themselves (the bone pose omits the ragdoll).
+                string up=neck.GetBoneName(parent);while(ragdoll.Body(up)==null&&neck.GetBoneParent(neck.FindBone(up)) is var q&&q>=0)up=neck.GetBoneName(q);
+                var keeper=neck.GetNode<RagdollShape>("RagdollShape");
+                if(!keeper.Final.TryGetValue(b,out var mine)||!keeper.Final.TryGetValue(neck.FindBone(up),out var theirs))continue;
+                var restLocal=(neck.GetBoneGlobalRest(neck.FindBone(up)).Basis.Inverse()*neck.GetBoneGlobalRest(b).Basis).GetRotationQuaternion();
+                var pose=(theirs.Basis.Inverse()*mine.Basis).GetRotationQuaternion();
+                float stretch=Math.Abs(mine.Origin.DistanceTo(theirs.Origin)-neck.GetBoneGlobalRest(b).Origin.DistanceTo(neck.GetBoneGlobalRest(neck.FindBone(up)).Origin));
+                var turn=restLocal.Inverse()*pose;float angle=Mathf.RadToDeg(turn.GetAngle());var axis=turn.GetAxis();
+                string fold="";
+                if(part.Joint==HumanRagdoll.Kind.Hinge&&angle>10)
+                {
+                    // A knee folds the foot back, an elbow folds the hand forward (the way the toes point at rest).
+                    int toe=neck.FindBone(part.Bone.EndsWith("L")?"toeL":"toeR"),foot=neck.FindBone(part.Bone.EndsWith("L")?"footL":"footR");
+                    var forward=neck.GetBoneGlobalRest(neck.FindBone(up)).Basis.Inverse()*(neck.GetBoneGlobalRest(toe).Origin-neck.GetBoneGlobalRest(foot).Origin);
+                    var end=keeper.Final.TryGetValue(neck.FindBone(part.Child),out var c)?c.Origin:mine.Origin;var reach=theirs.Basis.Inverse()*(end-mine.Origin);
+                    bool back=reach.Dot(forward)<0;bool ok=part.Bone.StartsWith("legLow")?back:!back;
+                    fold=ok?" folds the natural way":" FOLDS THE WRONG WAY";
+                }
+                if(angle>180)angle=360-angle;
+                GD.Print($"RAGDOLL_JOINT {part.Bone} {angle:0} deg (limit {Math.Abs(part.Swing)}) stretch {stretch*100:0.0} cm{fold}");
+            }
+            SetPhysicsProcess(false);GetTree().Quit();
+        }
+    }
+    // Film stand-in prey: a man-sized capsule 2.1 m before him, seized by the neck, held up, thrown.
+    private MeshInstance3D? prey;private Vector3 preyVelocity;private bool preyFlying;
+    private void Prey()
+    {
+        if(prey==null)
+        {
+            prey=new MeshInstance3D{Mesh=new CapsuleMesh{Radius=.25f,Height=1.75f},MaterialOverride=new StandardMaterial3D{AlbedoColor=new Color(.55f,.42f,.3f)},Position=new Vector3(0,.875f,-14+2.1f)};AddChild(prey);
+            giant.PreyNeck=()=>prey.GlobalPosition+Vector3.Up*.62f;
+        }
+        double t=elapsed-.4;
+        if(t>=AntigoonActor.GrabSeize&&t<AntigoonActor.GrabRelease){prey.GlobalPosition=giant.Fist()-Vector3.Up*.62f;preyVelocity=Vector3.Zero;}
+        else if(t>=AntigoonActor.GrabRelease)
+        {
+            if(!preyFlying){preyFlying=true;preyVelocity=giant.GlobalBasis.Z*7f+Vector3.Up*1.5f;}
+            preyVelocity+=Vector3.Down*9.8f/60f;prey.GlobalPosition+=preyVelocity/60f;
+            if(prey.GlobalPosition.Y<.25f){prey.GlobalPosition=new(prey.GlobalPosition.X,.25f,prey.GlobalPosition.Z);preyVelocity*=.6f;prey.Rotation=new Vector3(Mathf.Pi/2,0,0);}
+        }
+    }
     private void Box(string name,Vector3 at,Vector3 size,Color color)
     {
         var block=new StaticBody3D {Name=name,Position=at};AddChild(block);
@@ -82,6 +154,7 @@ public partial class AntigoonArena : Node3D
     public override void _PhysicsProcess(double delta)
     {
         elapsed+=delta;
+        if(filmDir!=""&&shotPose=="ragdoll"){Ragdoll();return;}
         if(filmDir!="")
         {
             // Scripted move: walk/run past, turn to face the camera's side, notice (look at the camera), or kick.
@@ -94,11 +167,12 @@ public partial class AntigoonArena : Node3D
                 double e=elapsed;state=e<1.4?"walk":e<2.8?"run":"idle";
                 float z=-14+(float)(Math.Min(e,1.4)*AntigoonBrain.WalkSpeed+Math.Clamp(e-1.4,0,1.4)*AntigoonBrain.RunSpeed);at=new Vector3(0,0,z);
             }float yaw=shotPose is "turn" or "notice"&&elapsed>.4?Mathf.Pi*.5f:0;
-            giant.Snapshot(at,yaw,state,shotPose=="attack"?Math.Max(0,elapsed-.4):elapsed,shotPose=="attack"&&elapsed>.4?1:0,true);
+            if(shotPose=="grab")Prey();
+            giant.Snapshot(at,yaw,state,shotPose is "attack" or "grab"?Math.Max(0,elapsed-.4):elapsed,shotPose is "attack" or "grab"&&elapsed>.4?1:0,true);
             giant.Pose.LookAt=shotPose=="notice"?camera.GlobalPosition:null;
-            camera.GlobalPosition=new Vector3(10,1.6f,giant.GlobalPosition.Z);camera.Fov=55;camera.LookAt(giant.GlobalPosition+Vector3.Up*2.5f);
+            camera.GlobalPosition=new Vector3(shotPose=="grab"?-10:10,1.6f,giant.GlobalPosition.Z+(shotPose=="grab"?3:0));camera.Fov=shotPose=="grab"?65:55;camera.LookAt(giant.GlobalPosition+Vector3.Up*2.5f+(shotPose=="grab"?Vector3.Back*3:Vector3.Zero));
             if(elapsed>.3&&(++filmFrame)%3==0)GetViewport().GetTexture().GetImage().SavePng(System.IO.Path.Combine(filmDir,$"{shotPose}-{filmFrame/3:000}.png"));
-            if(elapsed>(shotPose=="run"?3:4.2)){SetPhysicsProcess(false);GetTree().Quit();}
+            if(elapsed>(shotPose=="run"?3:shotPose=="grab"?5.6:4.2)){SetPhysicsProcess(false);GetTree().Quit();}
             return;
         }
         if(output!="")
