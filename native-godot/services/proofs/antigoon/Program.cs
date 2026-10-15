@@ -62,6 +62,10 @@ Check(stalker.State=="eat"&&stalker.Meal=="beast:cat1"&&stalker.Eaten.Contains("
 var spared=Make();spared.Beasts=()=>new[]{new AntigoonBrain.Beast("dog1","dog",new(0,8))};spared.Light=p=>p.Z>6?1:0;
 for(int i=0;i<60;i++)spared.Step(.05,true,Array.Empty<AntigoonBrain.Player>());
 Check(spared.Prey==null&&!spared.Eaten.Contains("dog1"),"a dog in lamp light is safe from him");
+// Whatever blocks every step toward his goal, he gives it up within a few seconds and walks on elsewhere.
+var boxed=Make();boxed.Patrol.Add(new(0,10));boxed.Patrol.Add(new(-10,0));boxed.Clear=p=>!(p.Z>.5&&Math.Abs(p.X)<3);boxed.Path=(_,to)=>new[]{to};
+for(int i=0;i<200;i++)boxed.Step(.05,true,Array.Empty<AntigoonBrain.Player>());
+Check(boxed.Position.Distance(new(0,0))>3,"a blocked goal does not freeze him: he gives it up and walks on");
 var safe=Make();safe.Reach=p=>p.Z<10;Tick(safe,2,true,new AntigoonBrain.Player(1,new(0,12)));Check(safe.Target==0&&safe.State!="notice","a spot he cannot reach is a safe place");
 var lunge=Make();damage=0;lunge.HurtPlayer=(_,v)=>damage+=v;Tick(lunge,.55,true,new AntigoonBrain.Player(1,new(0,2.1)));Check(lunge.Position.Z>.15&&lunge.Position.Z<.3&&lunge.State=="attack","he lunges into the kick's wind-up and stops at kicking distance");
 // Reachability map: a lit street, a lit square cut off from it by a gate, a small yard, and open land at the edge.

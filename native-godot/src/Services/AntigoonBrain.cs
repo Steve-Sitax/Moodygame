@@ -75,7 +75,9 @@ public sealed class AntigoonBrain
     private double routeAge,now,calmUntil,noticedAt=-NoticeRest,darkPicked=-1;
     private Point shieldGoal,jumpFrom,jumpTo;
     // The way his body points while he walks: it comes round at a giant's pace, and he slows until it has.
-    private double heading;
+    private double heading,noLeapUntil;
+    /// <summary>False for a while after a leap he could not make: his routes then go round every obstacle.</summary>
+    public bool LeapsAllowed=>now>=noLeapUntil;
     private string jumpThen="walk";
     /// <summary>Proof aid: where he is heading while shielding, and the next patrol spot.</summary>
     public (Point Shield,Point Patrol) Goals=>(shieldGoal,RoamGoal());
@@ -115,6 +117,7 @@ public sealed class AntigoonBrain
     public void Step(double dt,bool night,IReadOnlyList<Player> players)
     {
         dt=Math.Clamp(dt,0,.1);now+=dt;StateTime+=dt;routeAge+=dt;
+        Unstick();
         if(Health<=0){Set("death");return;}
         // A leap is finished whatever happens around him: nothing turns him back in mid-air.
         if(State=="jump")
@@ -264,6 +267,19 @@ public sealed class AntigoonBrain
         }
         return false;
     }
+    private Point progressAt;private double progressTime;
+    /// <summary>
+    /// Safety net: meaning to walk but not 30 cm further in 4 s, he gives his goal up, leaves leaps and targets alone
+    /// for a moment and walks on to his next spot. Whatever blocks him, he never stands frozen.
+    /// </summary>
+    private void Unstick()
+    {
+        if(State is not ("walk" or "run")){progressAt=Position;progressTime=now;return;}
+        if(Position.Distance(progressAt)>.3){progressAt=Position;progressTime=now;return;}
+        if(now-progressTime<4)return;
+        progressAt=Position;progressTime=now;route=null;noLeapUntil=now+8;calmUntil=now+3;patrolIndex++;Prey=null;
+        if(goingFor!=null){fed[goingFor]=now-FoodRest+60;goingFor=null;}
+    }
     private Point DarkGoal()
     {
         darkPicked=now;
@@ -316,8 +332,15 @@ public sealed class AntigoonBrain
         // He goes where his body points; heading straight at the next spot would slide him sideways round a corner.
         var along=new Point(Position.X+Math.Sin(heading)*speed*dt,Position.Z+Math.Cos(heading)*speed*dt);
         Point next=corner<.3?Position.Toward(route[routeIndex],speed*dt):along;
-        if(!Clear(next))next=Position.Toward(route[routeIndex],speed*dt);
-        if(!Clear(next)){if(Jumpable(next)&&Leap(route[routeIndex]))return true;route=null;return false;}
+        // Heading into a wall at a corner: slow to a third and swing round onto the route, rather than give the step up.
+        if(!Clear(next)){heading+=Math.Clamp(Math.IEEERemainder(bearing-heading,2*Math.PI),-6*dt,6*dt);next=Position.Toward(route[routeIndex],speed*.33*dt);}
+        if(!Clear(next))
+        {
+            if(Jumpable(next)&&Leap(route[routeIndex]))return true;
+            // A leap he cannot make (no street to land on in line): route round without leaps for a while.
+            if(Jumpable(next))noLeapUntil=now+8;
+            route=null;return false;
+        }
         if(!allowLight&&Light(next)>=SafeLight)
         {shieldGoal=Light(goal)<SafeLight?goal:DarkGoal();Target=0;Set("shield");return false;}
         if(Position.Distance(next)>1e-5)Yaw=heading;

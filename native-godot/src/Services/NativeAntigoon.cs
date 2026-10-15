@@ -22,6 +22,8 @@ public sealed partial class NativeAntigoon : INativeServiceModule
     public Func<P,P?> Snap = p=>p;
     public Func<P,double,IReadOnlyList<P>>? Roamable;
     public Func<P,bool> Jumpable = _=>false;
+    /// <summary>Whether his routes may cross obstacles he leaps (his brain turns this off after a failed leap).</summary>
+    public bool LeapsAllowed=>brain?.LeapsAllowed!=false;
     /// <summary>Nearest spot of the giant's own street area to `p`, within `radius` metres, from `home`'s area.</summary>
     public Func<P,P,double,P?> StandNear = (_,_,_)=>null;
     /// <summary>Extra food spots the town knows outside its stall and shop lists (fish scraps by the market).</summary>

@@ -11,6 +11,7 @@ public sealed partial class NativeAntigoon
     /// <summary>Raw giant clearance, without his reachability map. Proof aid.</summary>
     public Func<P,bool> Fits=_=>false;
     public Func<AntigoonReach>? ReachMap;
+    internal string FoodGoal()=>brain?.GoingFor is {} id&&brain.Foods.FirstOrDefault(f=>f.Id==id) is {} f?$"food goal {id} at ({f.Stand.X:0},{f.Stand.Z:0}), {f.Stand.Distance(brain.Position):0} m, path {(Path(brain.Position,f.Stand)?.Count.ToString()??"none")} points":"no food goal";
     /// <summary>Proof aid: his food places, and what he is eating and has eaten.</summary>
     internal string FoodTrace()=>brain==null?"none":$"{brain.Foods.Count} food places ({string.Join(", ",brain.Foods.GroupBy(f=>f.Kind).Select(g=>g.Count()+" "+g.Key))}), meal {brain.Meal??"none"}, eaten {brain.Eaten.Count}, animals seen {Beasts().Count}; going for {brain.GoingFor??"none"}; "+string.Join("; ",brain.Foods.Select(f=>$"{f.Id} {f.Kind} {f.Stand.Distance(brain.Position):0} m lit {Light(f.Stand):0.00}"));
     /// <summary>Proof trace of the live brain. Call through WithState.</summary>

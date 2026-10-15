@@ -201,25 +201,52 @@ public static class NativeAntigoonEventProof
     {
         Jef.I.Drive=null;Jef.I.Place(far.X,far.Y,0,0);
         GD.Print($"ANTIGOON_FOOD {await encounter.WithState(e=>e.FoodTrace())}");
-        var until=DateTime.UtcNow.AddSeconds(90);string meal="";
+        var until=DateTime.UtcNow.AddSeconds(120);string meal="";int ticks=0;
         while(DateTime.UtcNow<until)
         {
             await frames(20);if(Pause.Paused){Input.MouseMode=Input.MouseModeEnum.Captured;Pause.Clear();}
             var v=await Sample(api);
             if(v["state"]!.GetValue<string>()=="eat"&&v["meal"]?.GetValue<string>() is {} m){meal=m;break;}
+            if(++ticks%15==0)GD.Print($"ANTIGOON_FOOD_TRACE {await encounter.WithState(e=>e.DevelopmentTrace()+" | "+e.FoodGoal())}");
         }
         GD.Print($"ANTIGOON_FOOD {await encounter.WithState(e=>e.FoodTrace())}");
-        if(meal=="")throw new Exception("Left alone for 90 s, Antigoon never went to food");
+        if(meal=="")throw new Exception("Left alone for 120 s, Antigoon never went to food");
         var at=At(await Sample(api));
         game.Cam.SetProcess(false);game.Cam.GlobalPosition=new((float)at.X+9,(float)encounter.Ground(at)+3,(float)at.Z+4);game.Cam.LookAt(new((float)at.X,(float)encounter.Ground(at)+2.5f,(float)at.Z));
         await frames(50);await game.ToSignal(RenderingServer.Singleton,RenderingServer.SignalName.FramePostDraw);
         game.GetViewport().GetTexture().GetImage().SavePng(Path.Combine(output,"antigoon-eating.png"));
         GD.Print($"ANTIGOON_FOOD_PASS: he went to {meal} and ate.");
     }
+    /// <summary>
+    /// Put the proof's Jef on a dark open spot before the giant, with no lamp light between them (light protects, and
+    /// he would not come) and open stones behind (a throw is not stopped at once by a wall). Waits out the teleport
+    /// hold while the street's collision round Jef is built.
+    /// </summary>
+    private static async Task<(P Giant,P Spot)> StandBefore(Scheldemist.Net.Api api,Scheldemist.Native.Services.NativeAntigoon encounter,Func<int,Task> frames,string what)
+    {
+        P giant=default,spot=default;
+        for(int attempt=0;attempt<8&&spot.X==0&&spot.Z==0;attempt++)
+        {
+            if(attempt>0)await frames(90);
+            giant=At(await Sample(api));var g=giant;
+            bool DarkWay(P q){int n=(int)Math.Ceiling(q.Distance(g));return Enumerable.Range(0,n+1).All(k=>encounter.Light(new(g.X+(q.X-g.X)*k/n,g.Z+(q.Z-g.Z)*k/n))<.4);}
+            bool Behind(P q){double dx=q.X-g.X,dz=q.Z-g.Z,d=Math.Sqrt(dx*dx+dz*dz);return Enumerable.Range(1,6).All(k=>encounter.HumanClear(new(q.X+dx/d*k*.5,q.Z+dz/d*k*.5)));}
+            spot=new[]{9.0,7,11,13,6,16,20}.SelectMany(r=>Enumerable.Range(0,24).Select(i=>encounter.Snap(new(g.X+Math.Sin(i*Math.PI/12)*r,g.Z+Math.Cos(i*Math.PI/12)*r))))
+                .Where(p=>p is {} q&&encounter.HumanClear(q)&&encounter.Clear(q)&&encounter.Sight(q,g)&&encounter.Light(q)<.38&&Behind(q)&&DarkWay(q)).Select(p=>p!.Value).FirstOrDefault();
+        }
+        if(spot.X==0&&spot.Z==0)throw new Exception($"No dark open spot on his map near {giant} for the {what} proof");
+        Jef.I.Drive=null;
+        Jef.I.Place((float)spot.X,(float)spot.Z,(float)Math.Atan2(-(giant.X-spot.X),-(giant.Z-spot.Z)),-.12f);await frames(30);
+        for(int i=0;i<600&&Scheldemist.World.Solid.I.Ensure(new Vector3(Jef.I.X,Jef.I.Y,Jef.I.Z),14)>0;i++)await frames(1);
+        await frames(30);
+        return (giant,spot);
+    }
     /// <summary>The attack after a kick is a grab: Jef is lifted by the neck before his face, then thrown about 6 m.</summary>
     private static async Task Grabs(NativeTownGame game,Scheldemist.Net.Api api,Scheldemist.Native.Services.NativeAntigoon encounter,string output,Func<int,Task> frames)
     {
         float Face(P from,P to)=>(float)Math.Atan2(-(to.X-from.X),-(to.Z-from.Z));
+        // Up again where the kick threw him: back on a dark spot before the giant for his next attack, the grab.
+        await StandBefore(api,encounter,frames,"grab");
         var deadline=DateTime.UtcNow.AddSeconds(40);bool held=false,thrown=false,shot=false;Vector2 release=Vector2.Zero;
         while(!thrown)
         {
@@ -255,23 +282,8 @@ public static class NativeAntigoonEventProof
         // The new game's ferry arrival may still be carrying the proof's Jef: he is on foot in the street now.
         Jef.I.Drive=null;
         game.Cam.SetProcess(true);
-        P giant=default,spot=default;
-        for(int attempt=0;attempt<8&&spot.X==0&&spot.Z==0;attempt++)
-        {
-            if(attempt>0)await frames(90);
-            giant=At(await Sample(api));
-            // No lamp light between them: light protects, and he would not come.
-            bool DarkWay(P q){int n=(int)Math.Ceiling(q.Distance(giant));return Enumerable.Range(0,n+1).All(k=>encounter.Light(new(giant.X+(q.X-giant.X)*k/n,giant.Z+(q.Z-giant.Z)*k/n))<.4);}
-            // Open stones behind Jef, so the throw is not stopped by a wall at his back.
-            bool Behind(P q){double dx=q.X-giant.X,dz=q.Z-giant.Z,d=Math.Sqrt(dx*dx+dz*dz);return Enumerable.Range(1,6).All(k=>encounter.HumanClear(new(q.X+dx/d*k*.5,q.Z+dz/d*k*.5)));}
-                spot=new[]{9.0,7,11,13,6,16,20}.SelectMany(r=>Enumerable.Range(0,24).Select(i=>encounter.Snap(new(giant.X+Math.Sin(i*Math.PI/12)*r,giant.Z+Math.Cos(i*Math.PI/12)*r))))
-                .Where(p=>p is {} q&&encounter.HumanClear(q)&&encounter.Clear(q)&&encounter.Sight(q,giant)&&encounter.Light(q)<.38&&Behind(q)&&DarkWay(q)).Select(p=>p!.Value).FirstOrDefault();
-        }
-        if(spot.X==0&&spot.Z==0)throw new Exception($"No dark open spot on his map near {giant} for the kick proof");
+        var (giant,spot)=await StandBefore(api,encounter,frames,"kick");
         float Face(P from,P to)=>(float)Math.Atan2(-(to.X-from.X),-(to.Z-from.Z));
-        // A teleport holds Jef still until the street's collision round him is built; let that finish first.
-        Jef.I.Place((float)spot.X,(float)spot.Z,Face(spot,giant),-.12f);await frames(30);
-        for(int i=0;i<600&&Scheldemist.World.Solid.I.Ensure(new Vector3(Jef.I.X,Jef.I.Y,Jef.I.Z),14)>0;i++)await frames(1);
         await frames(30);
         var client=(Scheldemist.Native.Characters.NativeAntigoonClient)game.FindChild("AntigoonEncounter",true,false);int felt=client.KicksFelt;
         int kicked=0;var landed=Vector2.Zero;var hit=Vector2.Zero;var deadline=DateTime.UtcNow.AddSeconds(45);var shots=new System.Collections.Generic.HashSet<string>();

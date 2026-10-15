@@ -96,6 +96,7 @@ public partial class NativeTownGame
             }
             return false;
         }
+        NativeAntigoon? live=null;
         // Lamp light per half-metre spot, refreshed every few seconds (lamps are lit, put out, broken by his stones).
         var glow=new ConcurrentDictionary<(int,int),float>();long glowAt=0;
         float Glow(int i,int k)
@@ -113,8 +114,10 @@ public partial class NativeTownGame
             if(nx<=0||nz<=0||(long)nx*nz>most)return null;
             P At(int i,int k)=>new(x0+(i+.5)*cell,z0+(k+.5)*cell);
             var open=new sbyte[nx*nz];
-            bool Free(int i,int k){if(i<0||k<0||i>=nx||k>=nz)return false;int n=k*nx+i;if(open[n]==0){var p=At(i,k);open[n]=(sbyte)(map.Reachable(p)||map.Jumpable(p)?1:-1);}return open[n]==1;}
-            float Cost(int i,int k){var p=At(i,k);float lit=Glow((int)Math.Round(p.X*2),(int)Math.Round(p.Z*2));return 1+6*Math.Clamp((lit-.2f)/.4f,0,1);}
+            bool leaps=live?.LeapsAllowed!=false;
+            bool Free(int i,int k){if(i<0||k<0||i>=nx||k>=nz)return false;int n=k*nx+i;if(open[n]==0){var p=At(i,k);open[n]=(sbyte)(map.Reachable(p)?1:leaps&&map.Jumpable(p)?2:-1);}return open[n]>0;}
+            // A leap is a last resort too: an obstacle costs as much as four metres of walking round it.
+            float Cost(int i,int k){var p=At(i,k);float lit=Glow((int)Math.Round(p.X*2),(int)Math.Round(p.Z*2));return (1+6*Math.Clamp((lit-.2f)/.4f,0,1))*(open[k*nx+i]==2?4:1);}
             int? Near(P p){int ci=(int)((p.X-x0)/cell),ck=(int)((p.Z-z0)/cell);int? best=null;int bd=int.MaxValue;for(int dk=-4;dk<=4;dk++)for(int di=-4;di<=4;di++){if(!Free(ci+di,ck+dk))continue;int d=di*di+dk*dk;if(d<bd){bd=d;best=(ck+dk)*nx+ci+di;}}return best;}
             if(Near(a) is not int start||Near(b) is not int goal)return null;
             var g=new float[nx*nz];Array.Fill(g,float.PositiveInfinity);var from=new int[nx*nz];Array.Fill(from,-1);
@@ -199,6 +202,7 @@ public partial class NativeTownGame
         };
         encounter.BlockReason=p=>Water.In((float)p.X,(float)p.Z)?"water":Footing(p)==null?"no footing":geometry.Blocker(At(p),Radius,Crown,Step);
         encounter.Fits=Fits;encounter.ReachMap=Reach;
+        live=encounter;
         host.AddModule(encounter);
         AntigoonService=encounter;
         var priorReservation=actions.Reserved;actions.Reserved=id=>encounter.Controls(id)||priorReservation?.Invoke(id)==true;
