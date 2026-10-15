@@ -1,3 +1,18 @@
 [gd_scene format=3]
 
+[ext_resource type="Script" path="res://src/Authoring/AuthoredObject.cs" id="1_obj"]
+[ext_resource type="Resource" path="res://recovered/street-props-20261015/props/park-bench-iron.tres" id="2_sp15"]
+
 [node name="Objects" type="Node3D" unique_id=1316363692]
+
+[node name="object_stadspark-bench-west-1" type="Node3D" parent="." unique_id=802005751]
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -321.2, 0, 313.5)
+script = ExtResource("1_obj")
+ObjectId = "stadspark-bench-west-1"
+Asset = ExtResource("2_sp15")
+
+[node name="object_stadspark-bench-west-2" type="Node3D" parent="." unique_id=320821133]
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -321.2, 0, 320.5)
+script = ExtResource("1_obj")
+ObjectId = "stadspark-bench-west-2"
+Asset = ExtResource("2_sp15")

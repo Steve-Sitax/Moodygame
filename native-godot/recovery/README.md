@@ -66,6 +66,18 @@ These output ids already exist here. Reuse their native resources, or choose new
 Collision comes from solid mesh faces; transparent decals do not become obstacles. Clearance uses the model's
 local bounds and origin offset. Preserve the behavior in the wrapper, especially a lamp's light and flame toggle.
 
+`street-props-20261015.json` took eight props from the Antwerp 1870 Blender kit (2026-10-15). The kit exports one GLB
+per prop with a `-convcolonly` collision proxy and normal/ORM maps. The recovery tool would draw the proxy as a
+visible mesh, and the game's shaders read only the base colour, so the pack was combined in Blender first. That step
+dropped the proxies and the unused maps, put each prop under an empty named for its plan node, and centred the
+wheel guard on its own origin. It also halved the pissoir lantern's cream pane texels, because at dusk the game's
+grade showed them as a lit white box that casts no light. The cellar hatch is a narrower build of the kit's hatch: a 0.44 m opening in a
+0.10 m frame. The original is 1.16 m deep and does not fit the town's 0.7 to 0.85 m raised pavements. The boot
+scraper niche, iron wheel guard, kerb kit, downpipe, and the interior pieces (crucifix, holy water font, clogs,
+coffee grinder, box bed) were left out. The placements are in the `north-canal`, `north-vismarkt`,
+`north-werf-steen`, `centre-landmarks` and `outer-park-prison` seeds. Pavements stand 0.12 m above the street, and
+props on them are placed at that height.
+
 ## Keep identities when updating a district
 
 GLB node numbers are snapshot indices. They are not durable identities: six Rijnkaai lamps moved from indices

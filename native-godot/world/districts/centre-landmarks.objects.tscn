@@ -1,3 +1,12 @@
 [gd_scene format=3]
 
+[ext_resource type="Script" path="res://src/Authoring/AuthoredObject.cs" id="1_obj"]
+[ext_resource type="Resource" path="res://recovered/street-props-20261015/props/post-box-pillar.tres" id="2_sp15"]
+
 [node name="Objects" type="Node3D" unique_id=1779458900]
+
+[node name="object_grote-markt-post-box" type="Node3D" parent="." unique_id=284422256]
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -285.6, 0.121, 94.55)
+script = ExtResource("1_obj")
+ObjectId = "grote-markt-post-box"
+Asset = ExtResource("2_sp15")

@@ -1,0 +1,19 @@
+[gd_resource type="Resource" script_class="AuthorCatalog" format=3]
+
+[ext_resource type="Script" path="res://src/Authoring/AuthorAsset.cs" id="1_nqv76"]
+[ext_resource type="Resource" path="res://assets/library/bench.tres" id="2_f1lao"]
+[ext_resource type="Resource" path="res://assets/library/crate.tres" id="3_klnob"]
+[ext_resource type="Resource" path="res://assets/library/lamp.tres" id="4_sk3vr"]
+[ext_resource type="Resource" path="res://recovered/street-props-20261015/props/park-bench-iron.tres" id="5_68c53"]
+[ext_resource type="Resource" path="res://recovered/street-props-20261015/props/cellar-hatch.tres" id="6_syxua"]
+[ext_resource type="Resource" path="res://recovered/street-props-20261015/props/gutter-grate.tres" id="7_vgk7j"]
+[ext_resource type="Resource" path="res://recovered/street-props-20261015/props/hitching-post.tres" id="8_o8203"]
+[ext_resource type="Resource" path="res://recovered/street-props-20261015/props/pissoir.tres" id="9_61onm"]
+[ext_resource type="Resource" path="res://recovered/street-props-20261015/props/post-box-pillar.tres" id="10_hubmk"]
+[ext_resource type="Resource" path="res://recovered/street-props-20261015/props/street-pump-iron.tres" id="11_al87u"]
+[ext_resource type="Resource" path="res://recovered/street-props-20261015/props/wheel-guard-stone.tres" id="12_7jm01"]
+[ext_resource type="Script" path="res://src/Authoring/AuthorCatalog.cs" id="13_et8i1"]
+
+[resource]
+script = ExtResource("13_et8i1")
+Assets = Array[ExtResource("1_nqv76")]([ExtResource("2_f1lao"), ExtResource("3_klnob"), ExtResource("4_sk3vr"), ExtResource("5_68c53"), ExtResource("6_syxua"), ExtResource("7_vgk7j"), ExtResource("8_o8203"), ExtResource("9_61onm"), ExtResource("10_hubmk"), ExtResource("11_al87u"), ExtResource("12_7jm01")])

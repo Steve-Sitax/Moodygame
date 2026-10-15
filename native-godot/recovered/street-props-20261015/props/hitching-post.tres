@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="AuthorAsset" format=3]
+
+[ext_resource type="PackedScene" path="res://recovered/street-props-20261015/props/hitching-post.tscn" id="1_bieec"]
+[ext_resource type="Script" path="res://src/Authoring/AuthorAsset.cs" id="2_5heb2"]
+
+[resource]
+script = ExtResource("2_5heb2")
+Id = "hitching-post"
+Title = "Hitching post"
+Category = "Street furniture"
+Scene = ExtResource("1_bieec")
+Footprint = Vector3(0.2852581, 1.052, 0.22)
+FootprintOffset = Vector3(0.032629058, 0, 0)

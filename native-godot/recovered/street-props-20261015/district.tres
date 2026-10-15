@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="AuthorDistrict" format=3]
+
+[ext_resource type="Resource" path="res://recovered/street-props-20261015/catalog.tres" id="1_hgdpg"]
+[ext_resource type="PackedScene" path="res://recovered/street-props-20261015/district.tscn" id="2_8cced"]
+[ext_resource type="Script" path="res://src/Authoring/AuthorDistrict.cs" id="3_buhap"]
+
+[resource]
+script = ExtResource("3_buhap")
+Id = "street-props-20261015"
+Title = "Antwerp 1870 street props"
+Scene = ExtResource("2_8cced")
+Catalog = ExtResource("1_hgdpg")
+Bounds = Rect2(-100, -100, 200, 200)
+WalkSpawn = Vector3(0, 0, 0)
+FlySpawn = Vector3(0, 2, 4)

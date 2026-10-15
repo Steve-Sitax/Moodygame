@@ -1,0 +1,26 @@
+[gd_scene format=3]
+
+[ext_resource type="ArrayMesh" path="res://recovered/street-props-20261015/resources/r0022.res" id="1_5yrhc"]
+[ext_resource type="Shape3D" path="res://recovered/street-props-20261015/resources/r0023.res" id="2_paktp"]
+
+[node name="source_11" type="Node3D" unique_id=181789455]
+metadata/source_node_index = 11
+metadata/source_name = "post_box"
+
+[node name="recover_11" type="Node3D" parent="." unique_id=1956671520]
+metadata/source_node_index = 11
+metadata/source_name = "post_box"
+metadata/legacy_extras_json = "{}"
+
+[node name="recover_10" type="MeshInstance3D" parent="recover_11" unique_id=1424603407]
+mesh = ExtResource("1_5yrhc")
+metadata/source_node_index = 10
+metadata/source_name = "post_box_mesh"
+metadata/legacy_extras_json = "{}"
+
+[node name="Solid" type="StaticBody3D" parent="recover_11/recover_10" unique_id=63963686]
+collision_layer = 2
+collision_mask = 0
+
+[node name="Shape" type="CollisionShape3D" parent="recover_11/recover_10/Solid" unique_id=2019157327]
+shape = ExtResource("2_paktp")

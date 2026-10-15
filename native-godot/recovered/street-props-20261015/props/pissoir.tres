@@ -1,0 +1,12 @@
+[gd_resource type="Resource" script_class="AuthorAsset" format=3]
+
+[ext_resource type="PackedScene" path="res://recovered/street-props-20261015/props/pissoir.tscn" id="1_t7obd"]
+[ext_resource type="Script" path="res://src/Authoring/AuthorAsset.cs" id="2_0j4m0"]
+
+[resource]
+script = ExtResource("2_0j4m0")
+Id = "pissoir"
+Title = "Street urinal"
+Category = "Street furniture"
+Scene = ExtResource("1_t7obd")
+Footprint = Vector3(1.7723712, 3.96, 2.084923)

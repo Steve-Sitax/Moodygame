@@ -1,0 +1,26 @@
+[gd_scene format=3]
+
+[ext_resource type="ArrayMesh" path="res://recovered/street-props-20261015/resources/r0018.res" id="1_xqnmu"]
+[ext_resource type="Shape3D" path="res://recovered/street-props-20261015/resources/r0019.res" id="2_d2anf"]
+
+[node name="source_9" type="Node3D" unique_id=555148858]
+metadata/source_node_index = 9
+metadata/source_name = "pissoir"
+
+[node name="recover_9" type="Node3D" parent="." unique_id=541450195]
+metadata/source_node_index = 9
+metadata/source_name = "pissoir"
+metadata/legacy_extras_json = "{}"
+
+[node name="recover_8" type="MeshInstance3D" parent="recover_9" unique_id=261493029]
+mesh = ExtResource("1_xqnmu")
+metadata/source_node_index = 8
+metadata/source_name = "pissoir_mesh"
+metadata/legacy_extras_json = "{}"
+
+[node name="Solid" type="StaticBody3D" parent="recover_9/recover_8" unique_id=995436500]
+collision_layer = 2
+collision_mask = 0
+
+[node name="Shape" type="CollisionShape3D" parent="recover_9/recover_8/Solid" unique_id=678154061]
+shape = ExtResource("2_d2anf")
