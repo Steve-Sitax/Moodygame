@@ -118,6 +118,7 @@ Cannon/mushroom bollards, a capstan, a hand barrow and a coiled hawser are also 
 | Game services | Native C# rules/SQLite run in process; retained original comparisons and actual gameplay tests are recorded in service notes. |
 | Multiplayer server | Native headless Kestrel, TLS and rendered host/guest play passed; actor authority, host bus ride and guest return to local play checked. |
 | Transport | Rendered bicycle, handcart, dray and multi-person boat journey passed 37 checks; a fresh seed's cart/dray scenario passed 28. |
+| Opening ferry, landing stage and quay bridge | Rebuilt on branch `worktree-arrival-pier` (2026-10-16), not merged and not seen by Steve. `scripts/check-arrival-pier.ps1` passed 15 checks and took the pictures: a floor from the pier over the bridge to the quay at high, mid and low water (largest step 6.6 cm), and the ferry's gangway stays on her side until she is gone. Frame time was not measured; the stage is now 50k triangles and the ferry 28k (they were 19k and 15k). |
 | Retiring the browser and Node game | Completed in this worktree; 493 source/art files checksum-archived, legacy entrypoints/dependencies removed, user layouts retained. |
 
 The existing town's bake also contains custom material metadata, instance transforms, rooms, openings, lights,

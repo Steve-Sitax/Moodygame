@@ -212,6 +212,7 @@ def stage(water=True):
         bm.faces.new(bm.verts)
         bm.to_mesh(me)
         wm = bpy.data.materials.new("water_prev")
+        wm.use_nodes = True
         b = wm.node_tree.nodes.get("Principled BSDF")
         b.inputs["Base Color"].default_value = (0.12, 0.14, 0.12, 1)
         b.inputs["Roughness"].default_value = 0.35
@@ -238,6 +239,7 @@ def quay(x0, x1, y0, y1, top=1.8):
     q.scale = (x1 - x0, y1 - y0, top + 3)
     q.location = ((x0 + x1) / 2, (y0 + y1) / 2, (top - 3) / 2)
     qm = bpy.data.materials.new("quay_prev")
+    qm.use_nodes = True
     qm.node_tree.nodes.get("Principled BSDF").inputs["Base Color"].default_value = (0.3, 0.29, 0.27, 1)
     me.materials.append(qm)
     bpy.context.scene.collection.objects.link(q)

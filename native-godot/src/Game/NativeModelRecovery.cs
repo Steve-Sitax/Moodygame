@@ -78,6 +78,7 @@ public partial class NativeModelRecovery : Node
                                     if (image == null || image.IsEmpty())
                                         throw new IOException("People2 intake requires readable atlas images; use rendered --rendering-method forward_plus, not --headless.");
                                 }
+                if (name == "ferry") CompressPictures(scene);
                 // People2's sliders leave the meshes for one sparse file (People2Morphs): dense blend shapes would
                 // cost over 100 MB of stored resources.
                 string resources = output + "/" + name + "-resources";
@@ -130,6 +131,33 @@ public partial class NativeModelRecovery : Node
                 else if (File.Exists(pair.Backup)) File.Move(pair.Backup, pair.Original);
             GD.PrintErr(error); GetTree().Quit(1);
         }
+    }
+
+    /// <summary>
+    /// The ferry's pictures are stored as BC7 with mipmaps (its deck alone is 2048 x 1536): a quarter of the size on disk
+    /// and on the card. A picture under 128 px stays as it is. The stored texture keeps the glTF image's name.
+    /// </summary>
+    private static void CompressPictures(Node3D scene)
+    {
+        var done = new System.Collections.Generic.Dictionary<Texture2D, Texture2D>();
+        foreach (var mesh in BakedWorld.All(scene).OfType<MeshInstance3D>())
+            for (int surface = 0; surface < mesh.Mesh.GetSurfaceCount(); surface++)
+                if (mesh.Mesh.SurfaceGetMaterial(surface) is BaseMaterial3D { AlbedoTexture: { } picture } material)
+                {
+                    if (!done.TryGetValue(picture, out var packed))
+                    {
+                        using var image = picture.GetImage();
+                        if (image == null || image.IsCompressed() || Math.Min(image.GetWidth(), image.GetHeight()) < 128) packed = picture;
+                        else
+                        {
+                            image.GenerateMipmaps();
+                            image.Compress(Image.CompressMode.Bptc, Image.CompressSource.Srgb);
+                            var texture = ImageTexture.CreateFromImage(image); texture.ResourceName = picture.ResourceName; packed = texture;
+                        }
+                        done[picture] = packed;
+                    }
+                    material.AlbedoTexture = packed;
+                }
     }
 
     private static void StorePeopleParts(Node3D scene, string output, JsonObject extras)
