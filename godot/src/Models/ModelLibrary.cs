@@ -170,9 +170,11 @@ public static class ModelLibrary
                     // browser's rule), or a decal or pane seen through (bumps.ts autoBump)
                     float bumpScale = 0;
                     Texture2D? height = null;
+                    var drawn = ModelBump.Authored(m.Name, bm.ResourceName);
                     if (!Psx.BumpOff && !kind.Unlit && !kind.Blend && mi.Skin == null && bm.AlbedoTexture is { } picture && bm.NormalTexture == null
-                        && ModelBump.StrengthOf(bm.ResourceName, picture.ResourceName != "" ? picture.ResourceName : picture.ResourcePath, mi.Name.ToString() + " " + mi.GetParent()?.Name) is var strength and > 0
-                        && ModelBump.HeightOf(picture) is { } map)
+                        && ModelBump.StrengthOf(bm.ResourceName, picture.ResourceName != "" ? picture.ResourceName : picture.ResourcePath, mi.Name.ToString() + " " + mi.GetParent()?.Name) is var rule
+                        && (rule > 0 ? rule : drawn != null && !ModelBump.IsSmooth(bm.ResourceName) ? 0.8f : 0f) is var strength and > 0
+                        && (drawn ?? ModelBump.HeightOf(picture)) is { } map)
                     {
                         bumpScale = strength;
                         height = map;

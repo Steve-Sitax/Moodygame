@@ -1,11 +1,13 @@
-"""The arrival ferry and the Werf landing stage, Antwerp 1873, modelled and painted by this script.
+"""The arrival ferry and the Werf landing stage with its two bridges, Antwerp 1873, modelled and painted by this script.
 
-    blender -b --factory-startup -P tools/blender/build_ferry.py
-    blender -b --factory-startup -P tools/blender/build_ferry.py -- --closeup ferry out.png [azimuth] [elevation]
+    blender -b --factory-startup -P art-source/tools/blender/build_ferry.py
+    blender -b --factory-startup -P art-source/tools/blender/build_ferry.py -- --plain .scratch/ferry-plain/ferry.glb
 
-Writes client/public/models/ferry.glb (Draco), two nodes:
+Writes art-source/client/public/models/ferry.glb (Draco), the drawn height maps beside it in ferry_heights/ (one grey
+PNG per material with relief, which native-godot/scripts/replace-ferry.ps1 copies to assets/game-models/heights/ferry),
+and with --plain the same model with plain meshes for that script's intake (the native intake refuses Draco). Nodes:
 
-  ferry          the paddle ferry "St. Anna" of the left-bank crossing (game/ferryArrival.ts): an iron
+  ferry          the paddle ferry "St. Anna" of the left-bank crossing: an iron
                  paddle steamer of about 24 m, as the Scheldt ferries to the Vlaamsch Hoofd were in the
                  1860s and 70s: black iron hull with a cream sheer line and red lead below, paddle boxes
                  with fan vents and her name, a bridge across the boxes with the helm and the telegraph,
@@ -14,16 +16,25 @@ Writes client/public/models/ferry.glb (Draco), two nodes:
                  the steaming light, the side lights on the boxes (1863 rules), lifebuoys, fenders,
                  rubbing strakes, the anchor at the bow, and luggage and goods on deck. A gangway port
                  in the port rail (the pontoon side, +x) at y -4.5.
-  landing_stage  the floating landing stage at the Werf (world/landingStage.ts): 60 m of deck on tarred
+  landing_stage  the floating landing stage at the Werf: 60 m of deck on tarred
                  floats that ride the tide, weed and a tide line on the floats, a railed deck of loose
-                 planks, a head with fenders and a rail with the gangway gap, iron bollards, cleats,
-                 collars round the guide piles, a ladder, a waiting shelter with a ticket hatch and
-                 notice boards, oil lamps on posts, crates, luggage, ropes and puddles.
+                 oak boards (one to each 0.25 m, chamfered), a head with fenders and a rail with the gangway gap,
+                 iron bollards, cleats, collars round the guide piles, a ladder, a waiting shelter of upright
+                 boards with a ticket hatch and notice boards, oil lamps on posts, crates, luggage, ropes and
+                 puddles. The two wheel rails at x = +-1.25 near the quay end are where the bridge's wheels run.
+  stage_bridge   the tidal bridge from the quay to the stage (pier_parts.py): two riveted plate girders, an oak
+                 deck with cleats, a rail, a hinge at the quay end and two cast-iron wheels at the toe. Rigid: the
+                 game turns it about its pin (origin) by the tide.
+  bridge_lip     the toe plate, hinged on the bridge's toe and laid by the game with its tip on the boards.
+  quay_hinge     the iron bed on the quay that holds the bridge's pin.
+  gangway        the ferry's brow, hinged on her sill (origin) and rigid: laid to the stage head, hauled up on her side.
 
-Both follow build_boats.py: origin at the waterline, bow toward -Y (+Z in the game), metres, and the
-same painted materials (our own work, see assets/ATTRIBUTION.md) plus a few painted here. The ferry's
-extras say where her lamps, windows, gangway port, helm and bitts are; the stage's where its lamps,
-bollards and the things on its deck that you walk into are (Blender x, y, z; the game reads x, z, -y).
+All follow build_boats.py: origin at the waterline (the bridge parts: at their pin or hinge), bow toward -Y (+Z in the
+game), metres. Every box and beam of the ferry and the stage is bevelled (pier_kit.BMesh: the AGENTS.md edge rule). The
+materials are the boat library's, painted at 512 px with their height (the glb carried them at 128 px, so it looked
+flat), and the stage's deck is our own painter at 2048 x 1536 (pier_kit.deck_surf). The ferry's extras say where her
+lamps, windows, gangway port, helm and bitts are; the stage's where its lamps, bollards and the things on its deck that
+you walk into are; the bridge's its length, deck height and wheel size (Blender x, y, z; the game reads x, z, -y).
 
 The old arrival boat was boats.glb "paddle_tug" (build_boats.py tug(paddle=True)); the arrival no
 longer uses it, and the old pontoon deck (boats.glb "pontoon_section") is hidden under this stage.
@@ -44,6 +55,10 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import build_boats as bb  # noqa: E402  (mesh helpers, hull loft, painters, the boat materials)
 import build_props as bp  # noqa: E402
 import lantern_kit  # noqa: E402  (the town's lamps and lanterns, one design)
+from boats import common as bc  # noqa: E402  (the boat pictures' size: CELL and IMG_PX)
+from boats import tugs  # noqa: E402  (the name zones: build_boats re-exports the other hulls' stern_zone under the same name)
+import pier_kit as pk  # noqa: E402  (bevelled timber and iron, the deck's painter)
+import pier_parts as pp  # noqa: E402  (the tidal bridge, its lip, the quay hinge, the ferry's gangway)
 from build_props import col, move, rot_z, speckle  # noqa: E402
 
 V = bb.V
@@ -246,13 +261,24 @@ def boat_paints():
     }
 
 
-def material(name, arr, alpha=None):
-    img = bb.image_rgba(f"{name}_tex", arr, alpha)
+def material(name, arr, alpha=None, jpeg=False):
+    """A material with its picture (named <name>_tex in the glb). jpeg: an opaque picture the glb may keep as a JPEG."""
+    h, w, _ = arr.shape
+    img = bpy.data.images.new(f"{name}_tex", w, h, alpha=alpha is not None)
+    rgba = np.ones((h, w, 4), dtype=np.float32)
+    rgba[..., :3] = np.clip(arr, 0, 1)
+    if alpha is not None:
+        rgba[..., 3] = alpha
+    img.pixels.foreach_set(rgba.ravel())
+    if jpeg and alpha is None:
+        img.file_format = "JPEG"
+    img.pack()
     m = bpy.data.materials.new(name)
+    m.use_nodes = True
     nt = m.node_tree
     t = nt.nodes.new("ShaderNodeTexImage")
     t.image = img
-    t.interpolation = "Closest"
+    t.interpolation = "Linear"
     bsdf = nt.nodes.get("Principled BSDF")
     nt.links.new(t.outputs["Color"], bsdf.inputs["Base Color"])
     if alpha is not None:
@@ -262,17 +288,40 @@ def material(name, arr, alpha=None):
     return m
 
 
+HEIGHTS = {}  # material name -> its height picture [v, u], 0.5 level, rows bottom-up: written beside the glb, lit by the game
+PX = 512  # a boat material's picture in the glb (it was 128: the library paints at 512 and averaged down)
+
+
 def make_materials():
-    known = boat_paints()
+    """Every picture the ferry and the stage draw. The boat library paints each material with a height beside its
+    colour (boats/common.py Surf); the glb carries the colour at PX and the heights go in HEIGHT_DIR for the game's bump.
+    The stage's deck is our own painter at 2048 x 1536 (pier_kit.deck_surf)."""
+    bc.CELL = PX
+    bc.IMG_PX[0] = PX
+    cells = bb.cells_painted()
     for name in bb.MATS:
-        res = known[name]() if name in known else np.ones((8, 8, 3)) * 0.3
-        arr, alpha = res if isinstance(res, tuple) else (res, None)
-        material(name, arr, alpha)
+        if name in cells:
+            c, alpha = bb.glb_picture(name)
+            if name not in ("glass", "window", "flag", "names", "names2", "names3", "names4"):  # (flat on purpose: ModelBump)
+                HEIGHTS[name] = cells[name].h
+        else:
+            c, alpha = np.ones((8, 8, 3)) * 0.3, None
+        material(name, c, alpha, jpeg=True)
     cap = bpy.data.materials.new("cap")
+    cap.use_nodes = True
     t = cap.node_tree.nodes.new("ShaderNodeTexImage")
     t.image = bb.image_rgba("cap_tex", np.zeros((1, 1, 3)))
     for k, name in enumerate(NEW):
-        material(name, PAINT[name](701 + k))
+        if name == "stage_deck":
+            c, h = pk.deck_surf(701 + k)
+            HEIGHTS[name] = h
+            material(name, c, None, jpeg=True)
+        else:
+            res = PAINT[name](701 + k)
+            arr, alpha = res if isinstance(res, tuple) else (res, None)
+            if name in cells:
+                HEIGHTS[name] = cells[name].h
+            material(name, arr, alpha, jpeg=True)
         IDX[name] = len(bb.MATS)
         bb.MATS.append(name)
 
@@ -366,8 +415,9 @@ def lantern(m, c, glass=None, h=0.42, w=0.26, roof=True):
 def bollard(m, c, r=0.16, h=0.5):
     """A cast-iron bollard: a waisted post with a cap."""
     with m.at(move(*Vector(c))):
-        m.lathe([(r * 1.35, 0.0), (r * 1.35, 0.05), (r, 0.1), (r * 0.9, h * 0.6), (r * 1.25, h * 0.85), (r * 1.25, h),
-                 (0.02, h + 0.02)], 8, bb.IRON, smooth=False, cap1=True)
+        m.lathe([(r * 1.4, 0.0), (r * 1.4, 0.05), (r * 1.18, 0.075), (r, 0.12), (r * 0.9, h * 0.55), (r * 0.95, h * 0.64),
+                 (r * 1.22, h * 0.8), (r * 1.3, h * 0.88), (r * 1.22, h), (r * 0.6, h + 0.016), (0.02, h + 0.022)], 14, bb.IRON,
+                smooth=True, cap1=True)
 
 
 def cleat(m, c, along=(0, 1, 0)):
@@ -565,7 +615,7 @@ def awning(m, t0, t1, strips=10):
 
 def ferry(far=False):
     """The ferry St. Anna; far=True her far copy (FarMesh: no small parts)."""
-    m = FarMesh(ao=0.0) if far else bb.Mesh(ao=0.0)
+    m = FarMesh(ao=0.0) if far else pk.BMesh(ao=0.0)
     ts = [0, 0.012, 0.03, 0.05, 0.07, 0.095, 0.12, 0.16, 0.2, 0.25, 0.3, 0.34, 0.38, 0.41, 0.44, 0.47, 0.5, 0.54, 0.58,
           0.62, PORT[0], PORT[1], 0.74, 0.78, 0.81, 0.85, 0.875, 0.9, 0.92, 0.94, 0.955, 0.97, 0.985, 0.99, 1.0]
     if far:
@@ -892,12 +942,12 @@ def ferry(far=False):
     zones = {}
     bw, bh = 1.9, 0.475
     for sx, key in ((1, "bow_p"), (-1, "bow_s")):
-        parts[f"name_{key}"] = bb.bow_zone(hull, 0.875, sheer(0.875) - 0.42, bw, bh, sx, off=0.035)
+        parts[f"name_{key}"] = tugs.bow_zone(hull, 0.875, sheer(0.875) - 0.42, bw, bh, sx, off=0.035)
         zones[key] = [bw, bh]
-    parts["name_stern"] = bb.stern_zone(hull, sheer(0.0) - 0.42, bw, bh, off=0.03)
+    parts["name_stern"] = tugs.stern_zone(hull, sheer(0.0) - 0.42, bw, bh, off=0.03)
     zones["stern"] = [bw, bh]
     for sx, key in ((1, "box_p"), (-1, "box_s")):
-        parts[f"name_{key}"] = bb.box_zone(sx * (xout + 0.02), yc, ZA, BOX_R0, BOX_R1, sx, BOX_HALF)
+        parts[f"name_{key}"] = tugs.box_zone(sx * (xout + 0.02), yc, ZA, BOX_R0, BOX_R1, sx, BOX_HALF)
         zones[key] = [round(BOX_W, 2), round(BOX_R1 - BOX_R0, 2)]
     m.children = parts
 
@@ -919,7 +969,7 @@ GAP = 5.9  # it floats this far off the quay wall; the quay's gangway spans the 
 
 
 def stage():
-    m = bb.Mesh(ao=0.0)
+    m = pk.BMesh(ao=0.0)
     rnd = random.Random(1873)
     slime = IDX["float_slime"]
     # --- floats: a pair per 10 m, tarred, rounded ends, weed below the waterline; posts and bracing
@@ -964,18 +1014,18 @@ def stage():
     for y in np.arange(GAP + 0.75, SL, 1.5):
         m.beam((-SW - 0.05, float(y), 1.665), (SW + 0.05, float(y), 1.665), 0.14, 0.13, bb.DARK, side=(0, 1, 0), shade=0.7)
     # --- deck: loose boards across with gaps, each its own shade; worn and patched ones
-    y = GAP + 0.02
-    k = 0
-    while y < SL - 0.05:
-        w = 0.22
-        y1 = min(y + w, SL - 0.01)
+    # A board to each 0.25 m, laid from a multiple of 0.25 so each takes one band of the oak picture (pier_kit.deck_surf),
+    # the two long top edges chamfered, the grain mirrored at random, its own tone. The picture's nail columns are the
+    # stringers' x (u = x / 2.7).
+    edges = [GAP] + [k * 0.25 for k in range(int(GAP / 0.25) + 1, int(SL / 0.25) + 1)]
+    for y0, y1 in zip(edges, edges[1:]):
+        y0, y1 = y0 + 0.011, y1 - 0.011
         worn = rnd.random()
         shade = 0.72 if worn < 0.1 else (1.12 if worn > 0.93 else rnd.uniform(0.86, 1.04))
         a = -SW - 0.04 + rnd.uniform(0, 0.05)
         b = SW + 0.04 - rnd.uniform(0, 0.05)
-        m.box(((a + b) / 2, (y + y1) / 2, DT - 0.035), (b - a, y1 - y, 0.07), IDX["stage_deck"], shade=shade, tile=0.9, skip=("-z",))
-        y = y1 + 0.022
-        k += 1
+        m.plank(a, b, y0, y1, DT, 0.07, IDX["stage_deck"], shade=shade,
+                uvf=pk.deck_uvf(y0, y1, rnd.randrange(pk.DECK_BANDS), rnd.random() < 0.5))
     # --- rails both sides: posts with iron knees, a top and a middle rail, a kick board
     posts = list(np.arange(GAP + 0.1, SL - 0.2, 1.5)) + [SL - 0.12]
     for sx in (1, -1):
@@ -983,7 +1033,11 @@ def stage():
         for yy in posts:
             yy = float(yy)
             m.box((x, yy, DT + 0.55), (0.1, 0.1, 1.1), bb.DARK)
+            m.box((x, yy, DT + 1.115), (0.13, 0.13, 0.03), bb.DARK, shade=1.12)  # a cap that sheds the rain
             m.beam(V(x, yy, DT + 0.45), V(sx * 2.42, yy, DT - 0.15), 0.04, 0.04, bb.IRON)
+            for zz in (DT + 1.08, DT + 0.55):  # a bolt through post and rail, a square washer under its head
+                m.box((x - sx * 0.0505, yy, zz), (0.006, 0.05, 0.05), bb.IRON)
+                m.bolt(V(x - sx * 0.0535, yy, zz), (-sx, 0, 0), 0.011, 0.007)
         for z, w, h in ((1.08, 0.09, 0.08), (0.55, 0.06, 0.06)):
             m.beam((x, GAP + 0.05, DT + z), (x, SL - 0.08, DT + z), w, h, bb.DARK)
         m.box((x, (SL + GAP) / 2, DT + 0.08), (0.04, SL - GAP, 0.16), bb.WOOD, shade=0.85)
@@ -1039,19 +1093,27 @@ def stage():
     # --- the waiting shelter with the ticket hatch, on the -x side at y 40..44.5
     X0, X1, Y0, Y1, YB = -2.1, -1.0, 40.0, 44.5, 41.5  # its back wall stands inside the rail
     zr0, zr1 = DT + 2.45, DT + 2.2
-    # back wall along the rail, end walls, the booth's front with its hatch
-    m.box((X0 + 0.04, (Y0 + Y1) / 2, DT + 1.1), (0.08, Y1 - Y0, 2.2), bb.WOOD, tile=1.6, shade=0.85)
-    for yy in (Y0, Y1):
-        m.box(((X0 + X1) / 2, yy, DT + 1.12), (X1 - X0, 0.08, 2.24), bb.WOOD, tile=1.6)
-    m.box((X1 - 0.04, (Y0 + YB) / 2, DT + 1.12), (0.08, YB - Y0, 2.24), bb.WOOD, tile=1.6, shade=0.95)
-    m.box((X1 - 0.09, (Y0 + YB) / 2, DT + 1.35), (0.02, 0.75, 0.55), bb.WINDOW)
-    m.box((X1 + 0.08, (Y0 + YB) / 2, DT + 1.03), (0.2, 0.9, 0.04), bb.DARK)  # the counter
-    m.box(((X0 + X1) / 2, YB, DT + 1.12), (X1 - X0, 0.06, 2.24), bb.WOOD, tile=1.6, shade=0.8)
+    # upright boards (the deck's oak picture): the back wall along the rail, the end walls, the booth's front with its
+    # hatch open (a counter in it), the partition behind the booth
+    ztop, tall = DT + 2.24, 2.24
+    sd = IDX["stage_deck"]
+    m.wall_boards(V(X0, Y0, ztop), (0, 0, 1), (0, 1, 0), (-1, 0, 0), Y1 - Y0, tall, sd, rnd)
+    for yy, n in ((Y0, -1), (Y1, 1)):
+        m.wall_boards(V(X0, yy, ztop), (0, 0, 1), (1, 0, 0), (0, n, 0), X1 - X0, tall, sd, rnd)
+    h0, h1 = Y0 + 0.42, Y0 + 1.12  # the hatch: its sill 1.0 m and its head 1.75 m over the deck
+    for a, b, z0, z1 in ((Y0, h0, 0.0, tall), (h1, YB, 0.0, tall), (h0, h1, 0.0, 1.0), (h0, h1, 1.75, tall)):
+        m.wall_boards(V(X1, a, DT + z1), (0, 0, 1), (0, 1, 0), (1, 0, 0), b - a, z1 - z0, sd, rnd)
+    for yy in (h0, h1):  # the hatch's frame
+        m.box((X1 + 0.012, yy, DT + 1.375), (0.06, 0.05, 0.85), bb.DARK)
+    m.box((X1 + 0.012, (h0 + h1) / 2, DT + 1.775), (0.06, h1 - h0 + 0.05, 0.05), bb.DARK)
+    m.box((X1 + 0.03, (h0 + h1) / 2, DT + 0.975), (0.2, h1 - h0 + 0.1, 0.045), bb.DARK)  # the counter
+    m.box((X1 - 0.02, (h0 + h1) / 2, DT + 1.5), (0.012, h1 - h0, 0.5), bb.WINDOW)  # the sash, pushed up behind the opening
+    m.wall_boards(V(X0, YB, ztop), (0, 0, 1), (1, 0, 0), (0, 1, 0), X1 - X0, tall, sd, rnd)
     for yy in (YB + 1.4, Y1 - 0.06):
         m.box((X1 - 0.05, yy, DT + 1.12), (0.1, 0.1, 2.24), bb.DARK)
-    # the roof: boards sloping to the rail, a fascia along the front
-    rpts = [V(X0 - 0.15, Y0 - 0.2, zr1), V(X1 + 0.28, Y0 - 0.2, zr0), V(X1 + 0.28, Y1 + 0.2, zr0), V(X0 - 0.15, Y1 + 0.2, zr1)]
-    m.slab(rpts, 0.06, bb.DARK, out=(0.2, 0, 1))
+    # the roof: boards down the slope to the rail (a board's long edges chamfered), a fascia along the front
+    up = Vector((X1 + 0.28 - (X0 - 0.15), 0, zr0 - zr1))
+    m.wall_boards(V(X1 + 0.28, Y0 - 0.2, zr0 + 0.02), up, (0, 1, 0), (-up.z, 0, up.x), Y1 - Y0 + 0.4, up.length, sd, rnd, pitch=0.24, thick=0.04)
     m.beam(V(X1 + 0.28, Y0 - 0.2, zr0 - 0.08), V(X1 + 0.28, Y1 + 0.2, zr0 - 0.08), 0.04, 0.2, bb.WOOD, side=(1, 0, 0))
     # the bench inside, a notice board on each end wall, a lamp at the front corner
     for dx in (0.0, 0.12, 0.24):
@@ -1199,6 +1261,10 @@ def build_objects():
     sm_ = stage()
     so = bb.to_object(sm_, "landing_stage")
     children(sm_, "landing_stage", so)
+    bf = sys.modules[__name__]
+    parts = {"stage_bridge": pp.bridge(bf), "bridge_lip": pp.lip(), "quay_hinge": pp.quay_hinge(bf), "gangway": pp.gangway(bf)}
+    for name, mesh in parts.items():
+        parts[name] = bb.to_object(mesh, name)
     bb.CUR[0] = None
     n_parts = len(PARTS)
     bb.NO_SACKS[0] = True
@@ -1213,7 +1279,42 @@ def build_objects():
     finally:
         bb.NO_SACKS[0] = False
     del PARTS[n_parts:]
-    return {"ferry": fo, "landing_stage": so, "ferry_bare": fbo, "landing_stage_bare": sbo}
+    return {"ferry": fo, "landing_stage": so, "ferry_bare": fbo, "landing_stage_bare": sbo, **parts}
+
+
+HEIGHT_DIR = os.path.join(bb.ROOT, "client", "public", "models", "ferry_heights")
+
+
+def export(path=OUT, draco=True):
+    """ferry.glb with Draco meshes (the art source), or with plain ones for the native intake (--plain: Godot's
+    NativeModelRecovery refuses Draco)."""
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    bpy.ops.export_scene.gltf(filepath=path, export_format="GLB", export_yup=True, export_texcoords=True, export_normals=True,
+                              export_materials="EXPORT", export_image_format="AUTO", export_jpeg_quality=92, export_apply=False,
+                              use_selection=False, export_extras=True, export_vertex_color="ACTIVE", export_all_vertex_colors=True,
+                              export_draco_mesh_compression_enable=draco, export_draco_mesh_compression_level=7,
+                              export_draco_position_quantization=14, export_draco_texcoord_quantization=12,
+                              export_draco_color_quantization=8, export_draco_normal_quantization=8)
+
+
+def write_heights():
+    """One grey PNG per material with relief, <material>.png: what the game's bump reads (models/ModelBump.cs Authored)."""
+    os.makedirs(HEIGHT_DIR, exist_ok=True)
+    used = {ob.data.materials[p.material_index].name for ob in bpy.data.objects if ob.type == "MESH" for p in ob.data.polygons}
+    for old in os.listdir(HEIGHT_DIR):
+        if old.endswith(".png"):
+            os.remove(os.path.join(HEIGHT_DIR, old))
+    n = 0
+    for name, h in HEIGHTS.items():
+        if name in used:
+            # the game's own maps (models/ModelBump.cs Make) run the 98th percentile of their relief to the full 0..1: the
+            # same here, so a drawn map and a made one take the same bump strength by kind
+            d = np.asarray(h, dtype=np.float64) - 0.5
+            top = np.percentile(np.abs(d), 98)
+            hn = np.clip(0.5 + 0.5 * d / top, 0, 1) if top > 1e-4 else np.full(d.shape, 0.5)
+            bb.png_write(os.path.join(HEIGHT_DIR, name + ".png"), hn[::-1])
+            n += 1
+    print(f"[build_ferry] heights: {n} of {len(used)} materials used -> {HEIGHT_DIR}")
 
 
 def main():
@@ -1222,10 +1323,14 @@ def main():
     make_materials()
     objs = build_objects()
     fo, so = objs["ferry"], objs["landing_stage"]
-    with open(os.path.join(bb.ROOT, "client", "src", "game", "ferry_sack_sockets.json"), "w", encoding="utf-8") as f:
-        json.dump(bb.SACK_SOCKETS, f, separators=(",", ":"))
-    bb.OUT = OUT
-    bb.export()
+    sockets = os.path.join(bb.ROOT, "client", "src", "game")
+    if os.path.isdir(sockets):  # (the retired browser client's file: only written where that folder still exists)
+        with open(os.path.join(sockets, "ferry_sack_sockets.json"), "w", encoding="utf-8") as f:
+            json.dump(bb.SACK_SOCKETS, f, separators=(",", ":"))
+    export()
+    if "--plain" in argv:  # the same model with plain meshes, for tools/../native-godot/scripts/replace-ferry.ps1
+        export(os.path.abspath(argv[argv.index("--plain") + 1]), draco=False)
+    write_heights()
     for ob in (fo, so):
         print(f"[build_ferry] {ob.name:14s} {bb.tris(ob):6d} tris")
     print(f"[build_ferry] -> {OUT} ({os.path.getsize(OUT) // 1024} KB)")
