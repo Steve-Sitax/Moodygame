@@ -41,7 +41,8 @@ public partial class NativeAntigoonClient : Node
         poll += delta;
         if (poll >= .1) { poll = 0; _ = Refresh(); }
         hint.Text = "";
-        if (actor is { Visible: true } && Jef.I?.Body != null && Jef.I.Body.GlobalPosition.DistanceTo(actor.GlobalPosition)<7)
+        // The blunt rules are the developer event's. The story teaches them through its people instead.
+        if (developmentSpawn && actor is { Visible: true } && Jef.I?.Body != null && Jef.I.Body.GlobalPosition.DistanceTo(actor.GlobalPosition)<7)
             hint.Text = "Stay in the light, or slip into a lane too narrow for him.\nDodge his kick. Left mouse · strike when within reach";
     }
     private async Task Refresh()
@@ -57,8 +58,12 @@ public partial class NativeAntigoonClient : Node
         ApplyStreetEvent(v);
         bool visible = v["active"]?.GetValue<bool>()==true;
         developmentSpawn=v["development_spawn"]?.GetValue<bool>()==true&&visible&&v["health"]?.GetValue<int>()>0;
-        if (!visible && actor == null) return;
-        if(actor==null){actor=new AntigoonActor { Name="Antigoon", TownLighting=true };Main.I.View.AddChild(actor);}
+        StorySound(v);
+        // Load him while the story's junction is near, hidden, so his first step out of cover does not stall the frame.
+        bool near=v["story_near"]?.GetValue<bool>()==true;
+        if (!visible && actor == null && !near) return;
+        if(actor==null){actor=new AntigoonActor { Name="Antigoon", TownLighting=true, Visible=false };Main.I.View.AddChild(actor);}
+        if(!visible&&v["x"]==null){actor.Visible=false;return;}
         if(v["x"]==null){actor.Snapshot(actor.GlobalPosition,actor.Rotation.Y,"hidden",0,0,false);return;}
         static double N(JsonNode? n)=>n?.GetValue<double>()??0;
         actor.Snapshot(new Vector3((float)N(v["x"]),(float)N(v["y"]),(float)N(v["z"])),(float)N(v["yaw"]),v["state"]!.GetValue<string>(),N(v["state_time"]),(int)N(v["attack_serial"]),visible);
@@ -70,7 +75,7 @@ public partial class NativeAntigoonClient : Node
         if(v["throw"] is JsonObject t&&(int)N(t["serial"]) is var serial&&serial!=lastThrow){bool old=lastThrow<0;lastThrow=serial;if(!old&&(int)N(t["victim"])==you)Flung(t);}
         else if(v["throw"]==null&&lastThrow<0)lastThrow=0;
         Held(you>0&&(int)N(v["held"])==you);
-        if(visible&&!warned&&Jef.I?.Body!=null&&Jef.I.Body.GlobalPosition.DistanceTo(actor.GlobalPosition)<20){warned=true;Hud.I?.Say("Heavy footsteps. Stay near a burning lamp.");}
+        if(visible&&developmentSpawn&&!warned&&Jef.I?.Body!=null&&Jef.I.Body.GlobalPosition.DistanceTo(actor.GlobalPosition)<20){warned=true;Hud.I?.Say("Heavy footsteps. Stay near a burning lamp.");}
         if(v["health"]?.GetValue<int>()==0) hint.Text="Antigoon has fallen.";
         int kicks=(int)N(v["kicked"]);
         if(kicked>=0&&kicks>kicked)Kicked();
@@ -132,7 +137,7 @@ public partial class NativeAntigoonClient : Node
     public override void _UnhandledInput(InputEvent e)
     {
         if(!GameState.I.Playing||ServerLink.I?.Paused!=false||busy)return;
-        if(e is InputEventMouseButton { Pressed:true,ButtonIndex:MouseButton.Left } && actor is { Visible:true } && Jef.I?.Body!=null)
+        if(e is InputEventMouseButton { Pressed:true,ButtonIndex:MouseButton.Left } && developmentSpawn && actor is { Visible:true } && Jef.I?.Body!=null)
         {
             var direction=actor.GlobalPosition-Jef.I.Body.GlobalPosition;
             var forward=-Main.I.Cam.GlobalBasis.Z;direction.Y=0;forward.Y=0;

@@ -182,6 +182,14 @@ public partial class DevTools : Node
         return $"Antigoon is walking from a back alley at 22:00 (x {result.GetProperty("x").GetDouble():0}, z {result.GetProperty("z").GetDouble():0}). Your position stays the same. Close this panel and follow the red arrow.";
     }
 
+    /// <summary>The Antigoon story from the lamplighter's offer again: the chapter's lamps, props and facts start afresh.</summary>
+    public async Task<string> StoryAgain()
+    {
+        await Api.Post<JsonElement>("api/dev/story", new { });
+        GameState.I.Apply(await Api.Jobs());
+        return GameState.I.Payload?.Story is { } s ? $"Chapter 1 starts again: talk to {s.LowieName} (J, S follows the story)." : "This town has no lamp rounds for the story yet.";
+    }
+
     /// <summary>An event a button planned that has not begun yet (its id, its title).</summary>
     public (int Id, string Title)? Pending { get; private set; }
     private double pendingLeft, pendingPoll;

@@ -164,7 +164,45 @@ public record JobsPayload
     public RideState? Ride { get; init; }
     public LampsFog? LampsFog { get; init; }
     public LampsHelp? LampsHelp { get; init; }
+    public StoryView? Story { get; init; }
 }
+
+/// <summary>The story entry beside the jobs (NativeStory): one chapter, its objective, steps, props and kept facts.</summary>
+public sealed record StoryView
+{
+    public int Chapter { get; init; }
+    public string Title { get; init; } = "";
+    /// <summary>"offered", "active" or "done".</summary>
+    public string Status { get; init; } = "";
+    public string Objective { get; init; } = "";
+    public List<StoryStep> Steps { get; init; } = new();
+    public StoryGoal? Goal { get; init; }
+    public string Lowie { get; init; } = "";
+    public string LowieName { get; init; } = "";
+    public string Helper { get; init; } = "";
+    public string Round { get; init; } = "";
+    public double Open { get; init; }
+    public bool LampTime { get; init; }
+    public List<StoryLamp> Lamps { get; init; } = new();
+    public StoryProp? Ladder { get; init; }
+    public StoryProp? Book { get; init; }
+    public StoryPoint? Door { get; init; }
+    public bool Inspected { get; init; }
+    public List<StoryFact> Facts { get; init; } = new();
+    public int OwedC { get; init; }
+    public int PaidC { get; init; }
+}
+public sealed record StoryStep { public string Text { get; init; } = ""; public bool Done { get; init; } }
+/// <summary>Where the story wants Jef: a person by id, or a spot. Never the giant.</summary>
+public sealed record StoryGoal { public string Kind { get; init; } = ""; public string? Id { get; init; } public float X { get; init; } public float Z { get; init; } public string Label { get; init; } = ""; }
+public sealed record StoryLamp { public string Id { get; init; } = ""; public float X { get; init; } public float Z { get; init; } public float Sx { get; init; } public float Sz { get; init; } public bool Lit { get; init; } public double Until { get; init; } }
+public sealed record StoryProp { public float X { get; init; } public float Z { get; init; } public float Yaw { get; init; } public bool Taken { get; init; } }
+public sealed record StoryPoint { public float X { get; init; } public float Z { get; init; } }
+/// <summary>A journal fact: "evidence", "sight", "sound", "word", "work" or "lead".</summary>
+public sealed record StoryFact { public string Id { get; init; } = ""; public string Kind { get; init; } = ""; public int Day { get; init; } public string At { get; init; } = ""; public string Text { get; init; } = ""; }
+/// <summary>A story action's answer: what to say, a paper to show, and the new game state.</summary>
+public sealed record StoryReply : JobsPayload { public string Text { get; init; } = ""; public StoryPaper? Paper { get; init; } }
+public sealed record StoryPaper { public string Title { get; init; } = ""; public string Text { get; init; } = ""; }
 
 public sealed record Robbed
 {

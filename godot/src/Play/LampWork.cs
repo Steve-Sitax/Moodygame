@@ -113,6 +113,13 @@ public partial class LampPole : Node
         pole.Position = held ? new(0.38f, -0.6f, -0.6f) : new(task.Lamps[0].X + 0.15f, 0, task.Lamps[0].Z);
         pole.Rotation = Vector3.Zero;
     }
+    /// <summary>The pole in Jef's hand without a lamp job: the lamplighter's loan for the story's lamps.</summary>
+    public void Hold()
+    {
+        if (held && pole.Visible) return;
+        held = true; pole.Visible = true; pole.Reparent(Main.I.Cam);
+        pole.Position = new(0.38f, -0.6f, -0.6f); pole.Rotation = Vector3.Zero;
+    }
     public void Aim(double lift, LampPoint? lamp) { if (held) pole.Rotation = new(0, 0, lift < 0 ? -0.08f : (float)(-0.08 - Math.Sin(Math.Min(1, lift / 2.3) * Math.PI) * 0.24)); }
     public void Hide() => pole.Visible = false;
     public override void _ExitTree() { pole.QueueFree(); if (I == this) I = null; }

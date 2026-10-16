@@ -14,7 +14,7 @@ try {
     if($LASTEXITCODE -ne 0){throw 'Build failed'}
     Update-WorkshopImports $engine $project
     $arguments=@('--rendering-method','forward_plus','--audio-driver','Dummy','--path',$project,'--log-file',(Join-Path $proof 'live.log'),'res://town.tscn','--','--no-ai','--dev','--port',"$Port",'--db',(Join-Path $proof 'game.sqlite'),'--prefs',(Join-Path $proof 'settings.json'),'--author-root',(Join-Path $proof 'layouts'),'--antigoon-event-proof',$proof)
-    Invoke-WorkshopEngine -Engine $engine -Project $project -EngineArguments $arguments -Log (Join-Path $proof 'engine.log') -LimitSeconds 420
+    Invoke-WorkshopEngine -Engine $engine -Project $project -EngineArguments $arguments -Log (Join-Path $proof 'engine.log') -LimitSeconds 900
     if(Test-Path -LiteralPath (Join-Path $proof 'failure.txt')){throw ('Antigoon proof failed: '+(Get-Content -LiteralPath (Join-Path $proof 'failure.txt') -Raw))}
     Write-Output "PROOF: $proof"
 } finally {

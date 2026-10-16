@@ -49,15 +49,15 @@ public sealed partial class NativeAntigoon : INativeServiceModule
         });
         service.NewGame+=Reset;service.Loaded+=Reset;
     }
-    private void Reset(){brain=null;last=0;saved=0;developmentEnabled=false;street=null;observed.Clear();}
+    private void Reset(){brain=null;last=0;saved=0;developmentEnabled=false;street=null;observed.Clear();crossing=null;stageTry=0;facing.Clear();}
     private bool Available(int id)=>NativeGoods.Number(host.Player(id)["health"])>0&&host.Clock.Where(id)["shelter"]?.GetValue<string>()=="outside";
     private void Advance()
     {
         long now=host.Context.Now;
-        if(!developmentEnabled||host.Saves.Paused){last=now;return;}
-        var players=host.OnlinePlayers().Distinct().Select(id=>(id,p:PositionOf(id))).Where(v=>v.p!=null).Select(v=>new AntigoonBrain.Player(v.id,v.p!.Value,Available(v.id))).ToArray();
+        if(host.Saves.Paused){last=now;return;}
         double elapsed=last==0||now-last>1000?0:Math.Clamp((now-last)/1000.0,0,.5);last=now;
-        if(brain==null)return;
+        if(!developmentEnabled||brain==null){StoryStep(elapsed);return;}
+        var players=host.OnlinePlayers().Distinct().Select(id=>(id,p:PositionOf(id))).Where(v=>v.p!=null).Select(v=>new AntigoonBrain.Player(v.id,v.p!.Value,Available(v.id))).ToArray();
         var witnesses=observed.Values.Where(v=>now-v.At<1500).Select(v=>v.Person).ToArray();
         while(elapsed>.0001){double dt=Math.Min(.05,elapsed);street!.Step(dt,Night,brain,witnesses);brain.Step(dt,Night,players.Concat(street.Targets()).ToArray());elapsed-=dt;}
         if(now-saved>2000)Save();
@@ -149,7 +149,7 @@ public sealed partial class NativeAntigoon : INativeServiceModule
             v["meal"]=brain.Meal;v["prey"]=brain.Prey;
             v["eaten"]=new JsonArray(brain.Eaten.Select(id=>(JsonNode)JsonValue.Create(id)!).ToArray());
             if(brain.LastThrow is {} t)v["throw"]=new JsonObject{["serial"]=t.Serial,["victim"]=t.Victim,["fx"]=t.From.X,["fz"]=t.From.Z,["tx"]=t.To.X,["tz"]=t.To.Z,["wall"]=t.Wall};}
-        EventView(v);
+        EventView(v);StoryView(v,player);
         return v;
     }
 }

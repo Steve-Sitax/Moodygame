@@ -26,6 +26,9 @@ public partial class TownLife
     public int LampsWorked { get; private set; }
     public Func<LampsHelp?>? LampsHelpNow { get; set; }
     public Func<LampsFog?>? LampsFogNow { get; set; }
+    /// <summary>A lamp the story holds (false dark, true lit by Jef, null the clock's) and where it stops a round's walk.</summary>
+    public Func<string, bool?>? StoryLamp { get; set; }
+    public Func<string, int?>? StoryCut { get; set; }
     private LampsFog? windowFog;
     public static bool SameLampRound(LampRound a, LampRound b)
     {
@@ -107,11 +110,14 @@ public partial class TownLife
             bool helped = help?.Round == round.Id && help.Day == GameState.I.Day;
             bool holds = false; if (helped && hour >= 12 && hour < help!.Until) foreach (var w in r.Windows) if (w.On && !w.Fog) holds = true;
             int cut = holds ? help!.From : round.Lamps.Count;
+            // The story's stretch (Pieter's lamps) is not his to light while the chapter runs: he stops before it.
+            if (StoryCut?.Invoke(round.Id) is int storyCut && storyCut < cut) { cut = storyCut; holds = true; }
             for (int k = 0; k < round.Lamps.Count; k++)
             {
                 bool on = PlannedLamp(r, k, hour);
                 if (r.Person?.P != null && window is { } seen) on = k < r.Done ? seen.On : PlannedLamp(r, k, seen.Start - 1e-6);
                 if (helped && k >= help!.From) { if (hour >= 12 && help.Lit.Contains(round.Lamps[k].Id)) on = true; else if (holds) on = false; }
+                if (StoryLamp?.Invoke(round.Lamps[k].Id) is bool told) on = told;
                 Lights.I.SetLampLit(round.Lamps[k].Id, on);
             }
             if (Actors.I?.NpcOwned(round.Lamplighter) == false) continue;

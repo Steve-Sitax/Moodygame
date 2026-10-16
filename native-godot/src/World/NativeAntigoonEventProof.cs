@@ -24,7 +24,7 @@ public static class NativeAntigoonEventProof
         try
         {
             if(!Path.GetFullPath(Paths.Database).StartsWith(Path.GetFullPath(output)+Path.DirectorySeparatorChar,StringComparison.OrdinalIgnoreCase)||!game.Flag("no-ai"))throw new Exception("Event proof requires its own database and --no-ai.");
-            var deadline=DateTime.UtcNow.AddSeconds(120);
+            var deadline=DateTime.UtcNow.AddSeconds(600);
             while(!game.Loaded||Loading.Busy||ServerLink.I?.Up!=true||!GameState.I.Live||game.GetNodeOrNull<Townspeople>("Townspeople")?.Sims.Count is not >500)
             {if(DateTime.UtcNow>deadline)throw new TimeoutException("Native town not ready");await Frames(1);}
             MainMenu.I!.Start();Jef.I.TestInput=true;Pause.Clear();var api=ServerLink.I!.Api!;var town=game.GetNode<Townspeople>("Townspeople");

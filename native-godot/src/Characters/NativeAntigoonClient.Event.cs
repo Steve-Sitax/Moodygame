@@ -6,6 +6,7 @@ using System.Linq;
 using System.Text.Json.Nodes;
 using Scheldemist.Game;
 using Scheldemist.Net;
+using Scheldemist.Player;
 using Scheldemist.Net.Mp;
 using Scheldemist.Town;
 using Scheldemist.World;
@@ -37,7 +38,7 @@ public partial class NativeAntigoonClient
         if(Scheldemist.Menu.MainMenu.I is {} menu)menu.WorldReplaced+=WorldChanged;
     }
     private void WorldChanged(string reason,ClientState? state)=>ClearStreetEvent();
-    private object ObserveStreet()=>new {people=town.Sims.Where(p=>p.P!=null&&!p.Inside&&!p.ActionHeld&&!p.InTrip&&!p.Aboard&&(NativeStreet.I==null||NativeStreet.I.Owns(p.R.Id)))
+    private object ObserveStreet()=>new {yaw=Jef.I?.Yaw??0,people=town.Sims.Where(p=>p.P!=null&&!p.Inside&&!p.ActionHeld&&!p.InTrip&&!p.Aboard&&(NativeStreet.I==null||NativeStreet.I.Owns(p.R.Id)))
         .OrderBy(p=>actor==null?0:new Vector2((float)p.X,(float)p.Z).DistanceSquaredTo(new(actor.GlobalPosition.X,actor.GlobalPosition.Z)))
         .Take(60).Select(p=>new {id=p.R.Id,x=p.P!.X,z=p.P!.Z}).ToArray(),
         // The strays and cats this machine runs, near the giant: he hunts them.
@@ -173,6 +174,15 @@ public partial class NativeAntigoonClient
         var row=frightened[id];row.Person.ServerEventDriven=false;
         if(row.Person.P is {} p){p.Human.Root.Position=row.Origin;p.Human.Root.Rotation=Vector3.Zero;p.Remote=false;}
         town.ActionRelease(row.Person,this);frightened.Remove(id);
+    }
+    private int storySound;
+    /// <summary>The story's sounds: the scrape at the junction before he is seen, his steps after he is gone.</summary>
+    private void StorySound(JsonObject state)
+    {
+        if(state["story_sound"] is not JsonObject s)return;
+        int serial=(int)Num(s["serial"]);if(serial==storySound)return;storySound=serial;
+        var at=new Vector3((float)Num(s["x"]),(float)Num(s["y"]),(float)Num(s["z"]));
+        if(s["kind"]?.GetValue<string>()=="scrape")AntigoonEventAudio.Scrape(Main.I.View,at);else AntigoonEventAudio.Step(Main.I.View,at);
     }
     private void ClearStreetEvent()
     {

@@ -164,6 +164,15 @@ public partial class NativeTownGame : Scheldemist.Main
             // and fresh-world lifecycle registration need no scene-node calls or render-thread blocking.
             await Task.Run(() => host.WithState(_ => { host.AddModule(populationLifecycle); return true; }));
             host.AddModule(new NativeLampJobs(host));
+            var story = new NativeStory(host) {
+                Resident = town.Resident, Doing = id => town.Activity(id).Act,
+                Open = (x, z, maximum) => Ways.NearestOpen(x, z, maximum) is { } point ? (point.X, point.Y) : null,
+                // "Down by the river" only where the water really is within a few strides.
+                Where = (x, z) => Enumerable.Range(0, 16).Any(i => Water.In((float)(x + System.Math.Sin(i * System.Math.PI / 8) * 14), (float)(z + System.Math.Cos(i * System.Math.PI / 8) * 14))) ? "down by the river" : "at the end of my round"
+            };
+            host.AddModule(story); story.AttachTalk(talk);
+            streetLighting.StoryDark = story.Dark; streetLighting.StoryLit = story.Lit;
+            StoryService = story; ServiceHost = host;
             var multiplayer = new NativeMultiplayer(host, Path.ChangeExtension(Paths.Database, ".mp-config.json"), fingerprint) {
                 EnsurePlayer = host.Saves.EnsurePlayer,
                 CreateProfile = (id, name) => profile.Save(id, new JsonObject { ["sex"] = "man", ["first"] = name, ["last"] = "" }),
@@ -174,6 +183,7 @@ public partial class NativeTownGame : Scheldemist.Main
             host.MultiplayerEnabled = () => multiplayer.Enabled;
             host.OnlinePlayers = multiplayer.OnlineIds;
             AttachAntigoon(host, multiplayer, navigation, streetLighting, actions, population.City);
+            AntigoonService!.StoryWanted = story.SightingWanted; AntigoonService.StoryWitnessed = story.Witness;
             actions.Walker = multiplayer.Walker;
             goods.NpcMayReport = multiplayer.MayReportNpc;
             park.PositionOf = player => {
@@ -243,6 +253,8 @@ public partial class NativeTownGame : Scheldemist.Main
             if (Arg("native-journey-proof") is { Length: > 0 } journeyProof) _ = RunJourneyProof(Paths.Absolute(journeyProof));
             if (Arg("native-extras-proof") is { Length: > 0 } extrasProof) _ = RunExtrasProof(Paths.Absolute(extrasProof));
             if (Arg("antigoon-event-proof") is { Length: > 0 } antigoonProof) _ = NativeAntigoonEventProof.Run(this, Paths.Absolute(antigoonProof));
+            if (Arg("antigoon-story-map") is { Length: > 0 } storyMap) _ = NativeAntigoonStoryMap.Run(this, Paths.Absolute(storyMap));
+            if (Arg("story-proof") is { Length: > 0 } storyProof) _ = NativeStoryProof.Run(this, Paths.Absolute(storyProof));
         }
         catch (System.Exception error) { GD.PrintErr(error); GetTree().Quit(1); }
     }

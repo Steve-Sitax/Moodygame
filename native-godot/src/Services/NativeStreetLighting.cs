@@ -67,12 +67,14 @@ public sealed class NativeStreetLighting
         var clock=host.Clock.View();if(Daylight(N(clock["hour"])+N(clock["minute"])/60)>=1)return 0;
         double best=0;foreach(var lamp in Targets()){double dx=lamp.At.X-x,dz=lamp.At.Z-z;if(Math.Abs(dx)<13&&Math.Abs(dz)<13)best=Math.Max(best,LampLight(Math.Sqrt(dx*dx+dz*dz)));}return best;
     }
+    /// <summary>Story lamps: held dark tonight, or lit by Jef ahead of the clock (NativeStory, chapter 1).</summary>
+    public Func<IEnumerable<string>> StoryDark=()=>Array.Empty<string>(), StoryLit=()=>Array.Empty<string>();
     public static double NextNight(int day,double hour)=>(day-1)*24+(hour<20?20:44);
     private double AbsoluteHour {get{var c=host.Clock.View();return (N(c["day"])-1)*24+N(c["hour"])+N(c["minute"])/60;}}
     public HashSet<string> Disabled()
     {
         double time=AbsoluteHour;var data=host.Context.World("antigoon_lamps") as JsonObject;
-        return data==null?new():data.Where(p=>N(p.Value)>time).Select(p=>p.Key).ToHashSet();
+        var off=data==null?new():data.Where(p=>N(p.Value)>time).Select(p=>p.Key).ToHashSet();off.UnionWith(StoryDark());return off;
     }
     public void Extinguish(string id)
     {
@@ -86,10 +88,10 @@ public sealed class NativeStreetLighting
         if(targetCache!=null&&host.Context.Now-targetCacheAt<500&&absolute==targetCacheHour)return targetCache;
         var c=host.Clock.View();int day=(int)N(c["day"]);double hour=N(c["hour"])+N(c["minute"])/60;var disabled=Disabled();
         var rounds=A(host.Context.World("townlife_lamps")?["rounds"]);var result=new List<AntigoonNightEvent.Lamp>();
-        var heights=nativeLampFacts().Where(l=>l?["y"]!=null).ToDictionary(l=>S(l,"id"),l=>N(l?["y"]));
+        var lit=StoryLit().ToHashSet();var heights=nativeLampFacts().Where(l=>l?["y"]!=null).ToDictionary(l=>S(l,"id"),l=>N(l?["y"]));
         void Add(JsonNode? l){string id=S(l,"id");if(!disabled.Contains(id))result.Add(new(id,new(N(l?["x"]),N(l?["z"])),heights.GetValueOrDefault(id,3.6)));}
         if(rounds.Count==0){foreach(var l in nativeLampFacts())Add(l);}
-        else foreach(var r in rounds){int i=0;foreach(var l in A(r?["lamps"])){if(LampLitHelped(r!.AsObject(),i++,hour,host.Clock.FogView(),host.Context.World("lamps_help") as JsonObject,day))Add(l);}}
+        else foreach(var r in rounds){int i=0;foreach(var l in A(r?["lamps"])){if(LampLitHelped(r!.AsObject(),i++,hour,host.Clock.FogView(),host.Context.World("lamps_help") as JsonObject,day)||lit.Contains(S(l,"id")))Add(l);}}
         targetCache=result;targetCacheAt=host.Context.Now;targetCacheHour=absolute;return result;
     }
 }
