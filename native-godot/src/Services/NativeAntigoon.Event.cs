@@ -22,7 +22,8 @@ public sealed partial class NativeAntigoon
     {
         service.Register("POST","/api/antigoon/observe",r=>
         {
-            if(!developmentEnabled||host.Saves.Paused)return View(r.PlayerId);
+            Face(r);
+            if(!developmentEnabled||host.Saves.Paused){Advance();return View(r.PlayerId);}
             if(PositionOf(r.PlayerId) is {} eye)foreach(var node in (r.Body["people"] as JsonArray??new()).Take(60))
             {
                 string id=NativeGoods.S(node,"id");var p=new P(NativeGoods.Number(node?["x"]),NativeGoods.Number(node?["z"]));

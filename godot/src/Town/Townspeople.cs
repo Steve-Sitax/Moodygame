@@ -481,7 +481,8 @@ public partial class Townspeople : Node
         // the other parts' hooks: where someone stands (the bubbles over a talk in the street, the map's marks of people with work)
         if (Scheldemist.Talks.Bubbles.I is { } bubbles)
         {
-            bubbles.PositionOf ??= id => HomeVisitors.I?.PositionOf(id) ?? HallPeople.I?.PositionOf(id) ?? Indoors.PositionOf(id) ?? (PositionOf(id) is { } q ? new Vector3((float)q.x, (float)Walk!.BaseAt(q.x, q.z), (float)q.z) : null);
+            // Set once and kept: a load may ask while the next town's rooms and walk map are still being made.
+            bubbles.PositionOf ??= id => HomeVisitors.I?.PositionOf(id) ?? HallPeople.I?.PositionOf(id) ?? Indoors?.PositionOf(id) ?? (PositionOf(id) is { } q && Walk is { } walk ? new Vector3((float)q.x, (float)walk.BaseAt(q.x, q.z), (float)q.z) : null);
             bubbles.InfoOf ??= id => peopleInfo.TryGetValue(id, out var r) ? (r.Sex, r.Age) : null;
         }
         if (Scheldemist.Game.TownMap.I is { } map) map.PersonAt ??= id => PositionOf(id) is { } q ? new Vector2((float)q.x, (float)q.z) : null;

@@ -16,6 +16,8 @@ namespace Scheldemist.Native.World;
 public partial class NativeTownGame
 {
     internal NativeAntigoon? AntigoonService;
+    internal NativeStory? StoryService;
+    internal NativeServiceHost? ServiceHost;
     protected override IEnumerable<Node> CreateParts()
     {
         foreach (var part in base.CreateParts()) yield return part;
@@ -198,6 +200,39 @@ public partial class NativeTownGame
                     noWatch++;
                 }
             GD.Print($"Antigoon stage: {spots.Length} spots on his map; lit {lit}, in sight {seen}, too tight {tight}, no exit {noWatch}");
+            return null;
+        };
+        // Any of him in a man's line of sight: legs, chest or head, from eyes at 1.6 m.
+        bool BodyVisible(P eye,P giant)=>geometry.Visible(At(eye,1.6f),At(giant,1.3f))||geometry.Visible(At(eye,1.6f),At(giant,2.9f))||geometry.Visible(At(eye,1.6f),At(giant,4.5f));
+        double Walked(IReadOnlyList<P> path){double sum=0;for(int i=1;i<path.Count;i++)sum+=path[i].Distance(path[i-1]);return sum;}
+        encounter.BodyVisible=BodyVisible;
+        encounter.Roofed=p=>!geometry.Visible(At(p,2),At(p,60));
+        encounter.StageAt=(junction,eye,goal)=>
+        {
+            // The story's crossing: from cover on one side of a dark junction, across it in plain view of the eye,
+            // into cover on the far side, then on out of sight towards the goal. Every point dark and well away from Jef.
+            var m=Reach();
+            var j=m.Within(junction,1.5).OrderBy(p=>p.Distance(junction)).Cast<P?>().FirstOrDefault();
+            if(j is not {} at||Light(at)>=.25||encounter.Roofed(at)||!BodyVisible(eye,at))return null;
+            double dx=at.X-eye.X,dz=at.Z-eye.Z,d=Math.Sqrt(dx*dx+dz*dz);if(d<20)return null;
+            double sx=-dz/d,sz=dx/d;int area=m.Area(at);
+            var ring=m.Within(at,16,area).Where(p=>p.Distance(at)>=6&&p.Distance(eye)>22).ToArray();
+            bool Safe(IReadOnlyList<P> path)=>path.All(q=>Light(q)<AntigoonBrain.SafeLight&&q.Distance(eye)>20);
+            IReadOnlyList<P>? Cover(int sign,bool from)
+            {
+                foreach(var c in ring.Where(p=>((p.X-at.X)*sx+(p.Z-at.Z)*sz)*sign>4).OrderBy(p=>Math.Abs(p.Distance(at)-10)).Where(p=>Light(p)<AntigoonBrain.SafeLight&&!BodyVisible(eye,p)).Take(10))
+                    if((from?encounter.Path(c,at):encounter.Path(at,c)) is {Count:>0} path&&Walked(path)<=24&&Safe(path))return from?new[]{c}.Concat(path).ToArray():new[]{at}.Concat(path).ToArray();
+                return null;
+            }
+            foreach(int sign in new[]{1,-1})
+            {
+                if(Cover(sign,true) is not {} cross||Cover(-sign,false) is not {} away)continue;
+                var b=away[^1];var tail=new List<P>{b};
+                // He walks on unseen towards the river; his steps carry back to Jef.
+                foreach(var t in m.Within(b,32,area).Where(p=>p.Distance(b)>12&&p.Distance(eye)>b.Distance(eye)+2).OrderBy(p=>p.Distance(goal)).Take(80).Where(p=>!BodyVisible(eye,p)).Take(10))
+                    if(encounter.Path(b,t) is {Count:>0} on&&Walked(on)<=42&&Safe(on)){tail.AddRange(on);break;}
+                return (cross.Concat(away.Skip(1)).ToArray(),tail);
+            }
             return null;
         };
         encounter.BlockReason=p=>Water.In((float)p.X,(float)p.Z)?"water":Footing(p)==null?"no footing":geometry.Blocker(At(p),Radius,Crown,Step);

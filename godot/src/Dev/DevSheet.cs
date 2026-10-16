@@ -105,6 +105,7 @@ public static class DevSheet
         };
         foreach (string tp in DevTools.Templates) events.Add(Btn("ev_" + tp, "Event: " + DevTools.Words(tp), () => t.Event(tp)));
         events.Add(Btn("ev_antigoon", "Event: Antigoon", t.Antigoon));
+        events.Add(Btn("ev_story", "Story: chapter 1 again", t.StoryAgain));
         events.Add(Btn("ev_think", "Director: think now", () => t.Director(false)));
         events.Add(Btn("ev_invent", "Director: invent an event now", () => t.Director(true)));
         body.AddChild(Flow(events, c => c));

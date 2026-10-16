@@ -52,6 +52,10 @@ public partial class Jobs : Node
 
     public Job? Active => active;
     public IRun? Run => run;
+    /// <summary>The story's objective has the pointer, the map's way and the task card (S in the book), not the job.</summary>
+    public bool StoryFollowed { get; private set; }
+    private string storyStatus = "";
+    private bool taleCard;
     public bool BoardOpen => board.IsOpen;
     public bool BookOpen => book.IsOpen;
     /// <summary>What the last job paid, for the checks: the server's settlement.</summary>
@@ -117,7 +121,7 @@ public partial class Jobs : Node
         if (TownMap.I is { } map)
         {
             map.JobMarks = MapMarks;
-            map.WayGoal = () => active != null && run?.Goal() is { } g ? new Vector2(g.X, g.Z) : null;
+            map.WayGoal = () => PointerGoal() is { } g ? new Vector2(g.X, g.Z) : null;
             map.PersonAt = id => Folk.At(id) is { } at ? new Vector2(at.X, at.Z) : null;
         }
         // a save loaded, a new week: the server's game is another one; the job in hand is taken up again from it
@@ -173,9 +177,15 @@ public partial class Jobs : Node
             var next = inHand.FirstOrDefault(j => j.Id != a.Id);
             if (next != null) Follow(next);
         }
+        // The story entry: taken up, its objective is followed; finished, the pointer goes back to the work.
+        string status = p.Story?.Status ?? "";
+        if (status != storyStatus) { if (status == "active") StoryFollowed = true; else if (status != "offered") StoryFollowed = false; storyStatus = status; }
         if (board.IsOpen) board.Render();
         if (book.IsOpen) book.Render();
     }
+
+    /// <summary>Where the pointer leads: the followed story's person or place, else the followed job's goal.</summary>
+    private Vector3? PointerGoal() => StoryFollowed && Story.I?.Goal() is { } story ? story.At : active != null ? run?.Goal() : null;
 
     // ------------------------------------------------------------------ per frame
 
@@ -585,6 +595,7 @@ public partial class Jobs : Node
 
     // ------------------------------------------------------------------ T4 the quest book (J)
 
+    public void CloseBook() => book.Close();
     public void OpenBook()
     {
         giveUpAsk = null;
@@ -613,11 +624,12 @@ public partial class Jobs : Node
     {
         var sh = BoardSheet();
         var list = InHand();
+        bool story = WriteStory(sh);
         if (list.Count == 0)
         {
             sh.Text("[b]Your book[/b]", Face.Hand, 26, bottom: 8);
             sh.Text("No work in hand. The hiring board on the Rijnkaai, or a word with someone who has work.", Face.Print, 16);
-            sh.Keys("J or Esc to close", Face.Hand, top: 8, bottom: 0);
+            sh.Keys(story ? "S follows the story · J or Esc to close" : "J or Esc to close", Face.Hand, top: 8, bottom: 0);
             return sh;
         }
         sh.Text($"[b]Your book — {list.Count} of {MaxInHand} jobs[/b]", Face.Hand, 26, bottom: 8);
@@ -633,8 +645,33 @@ public partial class Jobs : Node
                 KnownTwists.TryGetValue(twist, out var known) ? $"You know: {known}" : "",
                 giveUpAsk == j.Id ? $"[b]Give it up? G again: no pay, and {Css.Esc(j.EmployerName)} thinks less of you.[/b]" : "");
         }
-        sh.Keys("A number follows that job · G then G gives up the one asked · M the map · J or Esc to close", Face.Hand, top: 8, bottom: 0);
+        sh.Keys($"A number follows that job{(story ? " · S the story" : "")} · G then G gives up the one asked · M the map · J or Esc to close", Face.Hand, top: 8, bottom: 0);
         return sh;
+    }
+
+    /// <summary>
+    /// The story's one entry above the jobs: the chapter, the objective now, its steps, and what Jef knows, each fact
+    /// marked by how he knows it (seen, heard, found, told). It takes no job's place. False when there is no story.
+    /// </summary>
+    private bool WriteStory(Sheet sh)
+    {
+        if (Story.I?.View is not { } v) return false;
+        bool followed = StoryFollowed && v.Status != "done";
+        sh.Text($"[b]Story · chapter {v.Chapter}: {Css.Esc(v.Title)}[/b]{(followed ? " · followed" : "")}", Face.Hand, 22, followed || v.Status == "offered" ? 1 : 0.6f, bottom: 4);
+        string where = Story.I.Goal() is { } g ? $" · to {Css.Esc(g.Label)}, {Metres(RunWords.Dist(g.At.X, g.At.Z, Jef.I.X, Jef.I.Z))}" : "";
+        sh.Text(Css.Esc(v.Objective) + where, Face.Print, 15, bottom: 4);
+        foreach (var step in v.Steps) sh.Text(step.Done ? $"[s]{Css.Esc(step.Text)}[/s]" : "· " + Css.Esc(step.Text), Face.Print, 14, step.Done ? 0.55f : 0.9f);
+        if (v.Facts.Count > 0)
+        {
+            sh.Text("[b]What you know[/b]", Face.Hand, 17, top: 6, bottom: 2);
+            foreach (var f in v.Facts)
+            {
+                string how = f.Kind switch { "sight" => "You saw", "sound" => "You heard", "evidence" => "You found", "word" => "You were told", "work" => "Done", _ => "Next" };
+                sh.Text($"[b]{how}[/b] (day {f.Day}, {Css.Esc(f.At)}): {Css.Esc(f.Text)}", Face.Print, 13, 0.85f);
+            }
+        }
+        sh.Text("", Face.Print, 6);
+        return true;
     }
 
     private void BookKey(string code, string key)
@@ -645,10 +682,17 @@ public partial class Jobs : Node
             return;
         }
         var list = InHand();
+        if (code == "KeyS" && Story.I?.View is { Status: not "done" })
+        {
+            StoryFollowed = true; giveUpAsk = null;
+            Toast(Story.I.View.Status == "offered" ? $"Following the story: find {Story.I.View.LowieName}." : "Following the story.");
+            book.Render();
+            return;
+        }
         int n = Dialogs.Digit(key);
         if (n >= 1 && n <= list.Count)
         {
-            giveUpAsk = null;
+            giveUpAsk = null; StoryFollowed = false;
             if (!Playable(list[n - 1])) Toast("That work has its own way: it needs no following.");
             else
             {
@@ -819,6 +863,9 @@ public partial class Jobs : Node
             end = Spots.Get(t?.Kind == "watch" ? null : t?.To);
             if (end != null && RunWords.Dist(goal.Value.X, goal.Value.Z, end.X, end.Z) >= 4) o.Add(new MapMark(end.X, end.Z, $"then: {end.Label}", "goal", $"where {active.Title} ends"));
         }
+        // the story's person or place: a goal like any other, never the giant
+        if (Story.I?.Goal() is { } story && Story.I.View is { } view)
+            o.Add(new MapMark(story.At.X, story.At.Z, StoryFollowed ? story.Label : $"story: {story.Label}", "goal", $"{view.Title}: {view.Objective}"));
         // T4: the other jobs in hand, numbered as in the book
         var list = InHand();
         for (int i = 0; i < list.Count; i++)
@@ -888,14 +935,17 @@ public partial class Jobs : Node
     /// <summary>.task: under the clock in the top left corner, at most 380px wide, padding 8 14, turned 0.8 degrees.</summary>
     private bool TaskEmpty()
     {
-        if (!Render.UniformUpdates.Cached || run != null || lastTask != "") return false;
+        if (!Render.UniformUpdates.Cached || run != null || lastTask != "" || Story.I?.View is { Status: "active" } || StoryFollowed) return false;
         var jobs = GameState.I.Jobs;
         for (int i = 0; i < jobs.Count; i++) if (jobs[i].Status == "taken") return false;
         return true;
     }
     private void RenderTask()
     {
-        bool cached = Scheldemist.Dev.SpeedComparison.Cached && cacheHud && (run is HaulRun or WatchRun || active?.Source != "night");
+        var tale = Story.I?.View is { Status: "active" or "offered" } shown && (StoryFollowed || shown.Status == "active") ? shown : null;
+        // The frame after the story card goes is written uncached, so the emptied card really clears.
+        bool wasTale = taleCard; taleCard = tale != null;
+        bool cached = tale == null && !wasTale && Scheldemist.Dev.SpeedComparison.Cached && cacheHud && (run is HaulRun or WatchRun || active?.Source != "night");
         List<string> lines;
         if (cached)
         {
@@ -915,6 +965,13 @@ public partial class Jobs : Node
             if (j.Id == active?.Id) continue;
             also.Add($"and: {j.Title}{(GoalOf(j) is { } g ? $" – {Metres(RunWords.Dist(g.X, g.Z, Jef.I.X, Jef.I.Z))}" : "")}");
         }
+        // The followed story takes the card; the job in hand goes under it, or the story under the job.
+        if (tale != null && StoryFollowed)
+        {
+            if (active != null) also.Insert(0, $"and: {active.Title}");
+            lines = new List<string> { tale.Title, tale.Objective };
+        }
+        else if (tale != null) also.Add($"and: the story – {tale.Objective}");
         if (lines.Count == 0 && also.Count > 0) also.Add("J: your book, to follow one");
         if (cached && lastTask != "\u0000" && SameTaskLines(lines, also)) return;
         string full = cached ? JoinTaskLines(lines, also) : string.Join("\n", lines.Concat(also));
@@ -1055,7 +1112,7 @@ public partial class Jobs : Node
     private void UpdatePointer(float dt)
     {
         if (glow == null) MakeGlow();
-        var goal = active != null ? run?.Goal() : null;
+        var goal = PointerGoal();
         var jef = Jef.I;
         if (goal == null || jef == null)
         {

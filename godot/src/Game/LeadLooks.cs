@@ -27,6 +27,26 @@ internal static class LeadLooks
     {
         var m = new MeshInstance3D { Mesh = new CylinderMesh { TopRadius = top, BottomRadius = bottom, Height = h, RadialSegments = 10, Rings = 1, Material = Goods.I.Plain(c) }, Position = new Vector3(x, y, z) }; p.AddChild(m); return m;
     }
+    /// <summary>
+    /// The lamplighter's ladder (one model wherever it appears: on his back, or bent at the foot of a lamp): 1.9 m of
+    /// bevelled oak rails and six rungs, its foot at `at`. `bend` folds the top half over at the middle rung and splits
+    /// its two top rungs, as a ladder something heavy came down on.
+    /// </summary>
+    internal static Node3D Ladder(Node3D parent, Vector3 at, float bend = 0)
+    {
+        var ladder = new Node3D { Name = "ladder", Position = at }; parent.AddChild(ladder);
+        var wood = Goods.I.Plain(0x5a3a20);
+        var top = new Node3D { Name = "top", Position = new Vector3(0, 0.95f, 0), Rotation = new Vector3(bend, bend * 0.35f, bend * 0.2f) }; ladder.AddChild(top);
+        void Part(Node3D p, Vector3 size, Vector3 where, Vector3? turn = null) => p.AddChild(new MeshInstance3D { Mesh = Scheldemist.Models.BevelMesh.Shared(size, 0.003f, wood), Position = where, Rotation = turn ?? Vector3.Zero });
+        foreach (float x in new[] { -0.165f, 0.165f }) { Part(ladder, new Vector3(0.045f, 0.95f, 0.045f), new Vector3(x, 0.475f, 0)); Part(top, new Vector3(0.045f, 0.95f, 0.045f), new Vector3(x, 0.475f, 0)); }
+        for (int i = 0; i < 6; i++)
+        {
+            float y = 0.15f + i * 0.3f; var p = y < 0.95f ? ladder : top; float local = y < 0.95f ? y : y - 0.95f;
+            if (bend != 0 && i >= 4) { Part(p, new Vector3(0.16f, 0.035f, 0.035f), new Vector3(-0.09f, local, 0), new Vector3(0, 0, 0.35f - i * 0.12f)); Part(p, new Vector3(0.12f, 0.035f, 0.035f), new Vector3(0.11f, local - 0.03f, 0), new Vector3(0, 0, -0.5f)); }
+            else Part(p, new Vector3(0.33f, 0.04f, 0.04f), new Vector3(0, local, 0));
+        }
+        return ladder;
+    }
     private static void Hat(Node3D p) { Cylinder(p, 0.155f, 0.155f, 0.015f, 0x151417, 0, 1.68f, 0); Cylinder(p, 0.1f, 0.095f, 0.2f, 0x151417, 0, 1.78f, 0); }
     public static Node3D Make(string role)
     {
@@ -59,8 +79,7 @@ internal static class LeadLooks
             case "lamplighter":
                 var pole = new Node3D { Position = new Vector3(0.24f, 1.0f, 0.1f) }; r.AddChild(pole); r.Moving = pole;
                 Box(pole, 0.035f, 2.8f, 0.035f, 0x5a3a20, 0, 0.7f, 0); Box(pole, 0.14f, 0.035f, 0.035f, 0x2a2a2c, 0.04f, 2.1f, 0);
-                foreach (float x in new[] { -0.45f, -0.12f }) Box(r, 0.045f, 1.9f, 0.045f, 0x5a3a20, x, 1, -0.25f);
-                for (int i = 0; i < 6; i++) Box(r, 0.36f, 0.04f, 0.04f, 0x5a3a20, -0.285f, 0.2f + i * 0.3f, -0.25f);
+                Ladder(r, new Vector3(-0.285f, 0.05f, -0.25f));
                 break;
             case "fireman": Cylinder(r, 0.12f, 0.16f, 0.16f, 0xa68434, 0, 1.7f, 0); Box(r, 0.03f, 0.08f, 0.24f, 0xa68434, 0, 1.82f, 0); break;
             case "natie_foreman": Hat(r); Box(r, 0.13f, 0.18f, 0.025f, 0xd8cfb4, 0.2f, 1.22f, 0.26f); break;
