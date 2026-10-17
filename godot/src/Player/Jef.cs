@@ -131,8 +131,12 @@ public partial class Jef : Node, Mantle.IWorld
         /// <summary>A way to turn to over the first part of the climb (down a ladder: to face the rungs), or null.</summary>
         public float? Face;
         public float Yaw0;
+        /// <summary>The quay ladder he is on (the hands take its rungs and hoops), or null.</summary>
+        public Exit? Ladder;
     }
     private ClimbRun? climb;
+    /// <summary>The quay ladder of the climb under way, or null.</summary>
+    public Exit? ClimbLadder => climb?.Ladder;
 
     // the jump as in a good first-person game (2026-10-11, Steve: "it seems scripted and not natural behaviour like in
     // a fps"): the jump leaves at once, flies a real arc that keeps the run's speed, steers a little in the air, still
@@ -716,6 +720,7 @@ public partial class Jef : Node, Mantle.IWorld
             keys.Add((new Vector3(tx, ty, tz), 0.5f));
         }
         ClimbTo(keys, null, null, new Vector3(vel.X, vy, vel.Y), default, rungs);
+        if (e.Ladder) climb!.Ladder = e;
     }
 
     /// <summary>
@@ -752,6 +757,7 @@ public partial class Jef : Node, Mantle.IWorld
         ClimbTo(keys, foot.Swim ? () => { vy = 0; EnterWater(); } : null, null, null, default, 1);
         climb!.Face = MathF.Atan2(e.Nx, e.Nz);
         climb.Yaw0 = Yaw;
+        climb.Ladder = e;
     }
 
     /// <summary>Up a quay ladder from the mud at its foot (the swimmer's way up is the same, StartClimb).</summary>

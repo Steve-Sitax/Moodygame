@@ -19,6 +19,8 @@ public sealed class Exit
     public float Over;
     /// <summary>A ladder's head on the quay line (where its hoops stand), for the way down it.</summary>
     public float Wx, Wz;
+    /// <summary>The ladder itself (its rungs and hoops, for the hands), or null for a landing.</summary>
+    public QuayExits.Ladder? Of;
 }
 
 /// <summary>
@@ -100,6 +102,10 @@ public static class QuayExits
         public float Inset = 0.9f;
         /// <summary>The lowest rung (for the checks and a climb down).</summary>
         public float Foot = Tide.LwMin - 0.45f;
+        /// <summary>The highest rung, the rise between rungs and how far in from (X, Z) the hoops come down behind the coping (the native ladder's fit).</summary>
+        public float TopRung = float.NaN, Pitch = 0.29f, HoopBack = -0.3f;
+        /// <summary>Where a hand takes a rung (from the middle), the hoops' bar off the middle and how high they rise over the top rung (NativeQuayLadderModel).</summary>
+        public const float GripX = 0.15f, HoopX = 0.252f, HoopRise = 0.62f;
     }
 
     public static readonly List<Exit> Exits = new();
@@ -156,7 +162,7 @@ public static class QuayExits
         var wall = new Vector2(l.X, l.Z);
         var g = wall + nrm * (l.Rung + 0.415f);
         var t = wall - nrm * l.Inset;
-        Exits.Add(new Exit { Ladder = true, Gx = g.X, Gz = g.Y, Nx = nrm.X, Nz = nrm.Y, Tx = t.X, Tz = t.Y, Ty = l.Top, Wx = wall.X, Wz = wall.Y });
+        Exits.Add(new Exit { Ladder = true, Gx = g.X, Gz = g.Y, Nx = nrm.X, Nz = nrm.Y, Tx = t.X, Tz = t.Y, Ty = l.Top, Wx = wall.X, Wz = wall.Y, Of = l });
         Ladders.Add(l);
     }
 

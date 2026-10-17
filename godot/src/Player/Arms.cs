@@ -43,6 +43,13 @@ public partial class Arms : Node
     private readonly System.Collections.Generic.Dictionary<(string, int), (int Bone, Quaternion Rotation)[]> gripPoses = new();
     private readonly Vector3[] handTargets = new Vector3[2], bodyTargets = new Vector3[2];
     private Node3D? loadObject;
+    private (Vector3 Left, Vector3 Right)? quayGrips;
+    private Exit? gripLadder;
+    private readonly Vector3[] quayHold = new Vector3[2], quayFingers = new Vector3[2], quayPalm = new Vector3[2];
+    internal bool OnQuayLadder => quayGrips != null;
+    private float armReach;
+    private bool hoopsLetGo;
+    internal float ArmReach => armReach;
     private Aabb loadBounds;
     internal float LoadGripError { get; private set; }
     internal float BodyGripError { get; private set; }
@@ -101,7 +108,7 @@ public partial class Arms : Node
         using (var rig = JsonDocument.Parse(File.ReadAllText(Paths.Shared("peopleRig.json")))) grips = rig.RootElement.GetProperty("grips").GetProperty("sizes").Clone();
         if (Figure != null) Figure.Dispose();
         if (Hands != null) Hands.Dispose();
-        Figure = Make(Profile); Hands = Make(Profile, true);
+        Figure = Make(Profile); Hands = Make(Profile, true); armReach = 0;
         gripPoses.Clear();
         foreach (string size in new[] { "rope", "handle" }) for (int side = 0; side < 2; side++) gripPoses[(size, side)] = BuildGrip(Figure.Root.GetNode<Skeleton3D>("Skeleton3D"), side, size);
         Figure.Root.Name = "jef_mirror_body"; Hands.Root.Name = "jef_viewmodel";
@@ -140,6 +147,15 @@ public partial class Arms : Node
         speed = Mathf.Lerp(speed, Math.Min(measured, Jef.Hurry), Math.Min(1, dt * 12)); lastAt = at;
         if (gesture > 0) gesture -= dt;
         Pose = ProofPose ?? timingPose ?? (Day.I?.Asleep == true ? "sleep" : j.Climbing ? j.Vaulting ? "vault" : "climb" : CraneClimb.I?.OnLadder == true ? "climb" : j.Swimming ? "swim" : Rowing.I?.Boat != null ? "row" : Handcarts.I?.Held != null ? "push" : Velocipedes.I?.Ridden != null ? "velo" : j.Riding || Main.I.GetNodeOrNull<TavernSeats>("TavernSeats")?.Sitting != null || Main.I.GetNodeOrNull<CathedralComfort>("CathedralComfort")?.Sitting != null ? "sit" : gesture > 0 ? gestureKind! : Goods.I?.Carried != null ? "carry" : Deeds.I?.Lit == true || ProofLantern ? "lantern" : speed > 2 ? "run" : speed > .1 ? "walk" : "idle");
+        // On a quay ladder the hands hold its rungs and hoops; once they would reach behind him he lets go.
+        bool quayHeld = quayGrips != null;
+        quayGrips = null;
+        if (Pose == "climb" && ProofPose == null && j.ClimbLadder is { } quayLadder)
+        {
+            quayGrips = QuayLadderGrips(quayLadder, at, j.Cam.GlobalPosition, dt, quayHeld);
+            if (quayGrips == null) Pose = speed > .1f ? "walk" : "idle";
+        }
+        else gripLadder = null;
         Figure.Root.Position = at; Figure.Root.Rotation = new Vector3(0, j.Yaw + MathF.PI, 0);
         Figure.Root.Visible = !j.Fly || ProofPose != null;
         Slots = Pose switch { "idle" or "walk" or "run" or "sleep" or "sit" => HandSlots.None, "lantern" => HandSlots.Left, "knife_ready" => HandSlots.Right, _ => HandSlots.Both };
@@ -198,7 +214,7 @@ public partial class Arms : Node
         }
         float turn = Mathf.AngleDifference(lastYaw, j.Yaw); lastYaw = j.Yaw;
         lag = Mathf.Lerp(lag, Math.Clamp(turn * -.08f, -.018f, .018f), Math.Min(1, dt * 10));
-        WallClearance = (activeHands || HandLift > 0) && CraneClimb.I?.OnLadder != true ? Clearance() : 1;
+        WallClearance = (activeHands || HandLift > 0) && CraneClimb.I?.OnLadder != true && quayGrips == null ? Clearance() : 1;
         // A conservative immediate contraction also protects the first frame of a teleport against a wall.
         ReachScale = Math.Clamp((WallClearance - .08f) / .65f, .22f, 1);
         // Keep the forearm cut behind the near plane; the arms emerge from below the camera.
@@ -223,6 +239,7 @@ public partial class Arms : Node
             var centre = ladder.Foot + inward * .50f; centre.Y = rung;
             ContactPoints(centre + side * .14f, centre - side * .14f);
         }
+        else if (quayGrips is { } quay) ContactPoints(quay.Left, quay.Right, true);
         // Lower the complete rig out of frame before hiding it; reverse the same eased lift on use.
         Hands.Root.Position += Vector3.Down * (.9f * (1 - Mathf.SmoothStep(0, 1, HandLift)));
         bodyLantern.Visible = Deeds.I?.Lit == true || ProofLantern || Pose == "lantern";
@@ -236,6 +253,80 @@ public partial class Arms : Node
             bodyLantern.Rotation = new Vector3(0, 0, MathF.Sin(clock * 3) * .06f);
             bodyLantern.GlobalPosition = bodyLanternAt - bodyLantern.GlobalBasis.Orthonormalized() * Vector3.Up * .086f;
         }
+    }
+    /// <summary>
+    /// Where the hands hold a quay ladder: hand over hand up the rungs (the left on every other rung, the right on the
+    /// ones between), then the grab hoops over the coping. Null once a hand would have to reach behind him or past an
+    /// arm's length: he has let go. A hand moves to its next hold, never jumps, and turns to close round its bar: over
+    /// a rung or the hoop's bend palm down, round the hoop's upright palm to the wall, the fingers across the bar.
+    /// </summary>
+    private (Vector3 Left, Vector3 Right)? QuayLadderGrips(Exit e, Vector3 feet, Vector3 eye, float dt, bool held)
+    {
+        if (e.Of is not { } l) return null;
+        var n = new Vector3(l.Nx, 0, l.Nz);
+        var right = (-n).Cross(Vector3.Up); // he faces the wall
+        var wall = new Vector3(l.X, 0, l.Z);
+        float off = (feet - wall).Dot(n), top = float.IsFinite(l.TopRung) ? l.TopRung : l.Top - .15f;
+        float reach = eye.Y; // (a rung at eye height, give or take one)
+        // his own shoulders and a straight arm's length to the wrist, less a little: a hold whose wrist lies past it is let go
+        var sk = Figure.Root.GetNode<Skeleton3D>("Skeleton3D");
+        if (armReach == 0)
+        {
+            Vector3 Rest(string bone) => sk.GetBoneGlobalRest(sk.FindBone(bone)).Origin;
+            armReach = .97f * (Rest("armUpL").DistanceTo(Rest("armLowL")) + Rest("armLowL").DistanceTo(Rest("handL")));
+        }
+        Span<Vector3> grip = stackalloc Vector3[2], fingers = stackalloc Vector3[2], palm = stackalloc Vector3[2], hold = stackalloc Vector3[2];
+        bool rungs = reach <= top + .05f && off > l.Rung + .05f;
+        for (int side = 0; side < 2; side++)
+        {
+            float s = side == 0 ? -1 : 1;
+            if (rungs)
+            {
+                int last = (int)MathF.Floor((top - l.Foot) / l.Pitch + .01f);
+                int rung = Math.Clamp((int)MathF.Round(((reach - l.Foot) / l.Pitch - side) / 2) * 2 + side, 0, last);
+                grip[side] = wall + n * l.Rung + right * (s * QuayExits.Ladder.GripX) + Vector3.Up * (l.Foot + rung * l.Pitch);
+                (fingers[side], palm[side]) = (-n, Vector3.Down);
+                hoopsLetGo = false;
+                continue;
+            }
+            // the hoop in the ladder's own plane: up from the top rung, over the coping in a half circle, down behind it
+            float wantOut = off - .30f, wantUp = Math.Min(reach, top + QuayExits.Ladder.HoopRise + .2f);
+            float rise = top + QuayExits.Ladder.HoopRise, centre = (l.Rung + l.HoopBack) / 2, radius = (l.Rung - l.HoopBack) / 2;
+            Vector2 best = new(l.Rung, top + .1f); float bestD = float.MaxValue;
+            void Try(Vector2 p) { float d = (p - new Vector2(wantOut, wantUp)).LengthSquared(); if (d < bestD) (best, bestD) = (p, d); }
+            for (float y = top + .1f; y < rise; y += .04f) Try(new Vector2(l.Rung, y));
+            for (int k = 0; k <= 16; k++) { float a = MathF.PI * k / 16; Try(new Vector2(centre + radius * MathF.Cos(a), rise + radius * MathF.Sin(a))); }
+            for (float y = rise; y > l.Top + .2f; y -= .04f) Try(new Vector2(l.HoopBack, y));
+            grip[side] = wall + n * best.X + right * (s * QuayExits.Ladder.HoopX) + Vector3.Up * best.Y;
+            (fingers[side], palm[side]) = (right * -s, best.Y < rise - .03f ? -n : Vector3.Down);
+        }
+        float turn = 1 - MathF.Exp(-dt * 12);
+        if (gripLadder != e) hoopsLetGo = false;
+        for (int side = 0; side < 2; side++)
+        {
+            bool first = gripLadder != e;
+            quayHold[side] = first ? grip[side] : quayHold[side].MoveToward(grip[side], dt * 3);
+            quayFingers[side] = first ? fingers[side] : quayFingers[side].Lerp(fingers[side], turn).Normalized();
+            quayPalm[side] = first ? palm[side] : quayPalm[side].Lerp(palm[side], turn).Normalized();
+        }
+        gripLadder = e;
+        for (int side = 0; side < 2; side++)
+        {
+            var shoulder = sk.ToGlobal(sk.GetBoneGlobalPose(sk.FindBone(side == 0 ? "armUpL" : "armUpR")).Origin);
+            int hand = sk.FindBone(side == 0 ? "handL" : "handR"), palmBone = sk.FindBone(side == 0 ? "gripL" : "gripR");
+            var toPalm = sk.GetBoneGlobalRest(hand).AffineInverse() * sk.GetBoneGlobalRest(palmBone).Origin;
+            var wrist = quayHold[side] - sk.GlobalBasis.Orthonormalized().GetRotationQuaternion() * BarHold(sk, side, quayFingers[side], quayPalm[side]) * toPalm;
+            if ((quayHold[side] - wall).Dot(n) > off + .02f) return null;
+            hold[side] = quayHold[side];
+            if (wrist.DistanceTo(shoulder) <= armReach) continue;
+            // a rung not yet in reach (pulling in to the ladder from the water): the hand reaches out toward it
+            if (!rungs) return null;
+            hold[side] += shoulder + (wrist - shoulder).Normalized() * armReach - wrist;
+        }
+        // (and once a hand fell short of its hold last frame, he lets go of the hoops for good: the bend of the body can
+        // take a hold out of reach before the arm's length says so)
+        if (held && !rungs && Math.Max(BodyGripError, ViewGripError) > .02f) hoopsLetGo = true;
+        return hoopsLetGo ? null : (hold[0], hold[1]);
     }
     private float Clearance()
     {
@@ -358,7 +449,8 @@ public partial class Arms : Node
         var right = obj.ToGlobal(new Vector3(loadBounds.End.X, gripY, loadBounds.End.Z - .015f));
         LoadGripError = ContactPoints(left, right);
     }
-    private float ContactPoints(Vector3 left, Vector3 right)
+    /// <summary>Both hands onto world points; `bars`: turned as the quay ladder's holds say (quayFingers, quayPalm), else as the pose has them.</summary>
+    private float ContactPoints(Vector3 left, Vector3 right, bool bars = false)
     {
         float error = 0;
         var bodySkeleton = Figure.Root.GetNode<Skeleton3D>("Skeleton3D");
@@ -371,7 +463,7 @@ public partial class Arms : Node
         {
             var target = side == 0 ? left : right;
             string handName = side == 0 ? "handL" : "handR", gripName = side == 0 ? "gripL" : "gripR";
-            var worldRotation = bodySkeleton.GlobalBasis.Orthonormalized().GetRotationQuaternion() * bodySkeleton.GetBoneGlobalPose(bodySkeleton.FindBone(handName)).Basis.GetRotationQuaternion();
+            var worldRotation = bodySkeleton.GlobalBasis.Orthonormalized().GetRotationQuaternion() * (bars ? BarHold(bodySkeleton, side, quayFingers[side], quayPalm[side]) : bodySkeleton.GetBoneGlobalPose(bodySkeleton.FindBone(handName)).Basis.GetRotationQuaternion());
             foreach (var (h, ik) in new[] { (Figure, bodyIK), (Hands, handIK) })
             {
                 var sk = h.Root.GetNode<Skeleton3D>("Skeleton3D");
@@ -385,6 +477,17 @@ public partial class Arms : Node
             }
         }
         return error;
+    }
+    /// <summary>A hand's turn in its skeleton (as PoseHands builds it) with the fingers and the palm along these world directions.</summary>
+    private static Quaternion BarHold(Skeleton3D sk, int side, Vector3 fingers, Vector3 palm)
+    {
+        float sign = side == 0 ? 1 : -1;
+        var frame = sk.GlobalBasis.Orthonormalized().Inverse();
+        Vector3 f = (frame * fingers).Normalized(), p = frame * palm;
+        p = (p - f * p.Dot(f)).Normalized();
+        var from = new Basis(Vector3.Down, new Vector3(-sign, 0, 0), Vector3.Down.Cross(new Vector3(-sign, 0, 0)));
+        var to = new Basis(f, p, f.Cross(p));
+        return (to * from.Inverse()).GetRotationQuaternion() * sk.GetBoneGlobalRest(sk.FindBone(side == 0 ? "handL" : "handR")).Basis.GetRotationQuaternion();
     }
     private static Vector3 ViewElbow(Human h, int side) => h.Root.GlobalBasis.Orthonormalized().Inverse() *
         (Jef.I.Cam.GlobalBasis.Z * 2 + Jef.I.Cam.GlobalBasis.X * (side == 0 ? -.25f : .25f) - Vector3.Up * 1.5f);

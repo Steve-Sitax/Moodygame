@@ -116,6 +116,7 @@ public static class NativeQuayLadders
             holder.AddChild(mi);
             l.Rung = fit.RungZ;
             l.Foot = made.Rungs.Length > 0 ? made.Rungs[^1] : NativeQuayLadderModel.FootY;
+            l.TopRung = fit.TopRung; l.Pitch = NativeQuayLadderModel.Pitch; l.HoopBack = fit.LegZ;
             result.Ladders.Add(l);
         }
         result.Meshes = meshes.Count;

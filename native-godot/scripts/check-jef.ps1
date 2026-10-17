@@ -1,4 +1,4 @@
-param([string]$Godot, [ValidateRange(9140,9239)][int]$Port=9220, [ValidateSet('jef','menu','inventory')][string]$Mode='jef', [switch]$WithoutArms)
+param([string]$Godot, [ValidateRange(9140,9239)][int]$Port=9220, [ValidateSet('jef','menu','inventory','ladder')][string]$Mode='jef', [switch]$WithoutArms)
 $ErrorActionPreference='Stop'
 . (Join-Path $PSScriptRoot 'engine-tools.ps1')
 $project=[IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
@@ -21,11 +21,12 @@ try {
         'jef' {$arguments+=@('--jef-proof',$proof)}
         'menu' {$arguments+=@('--menutest',$proof)}
         'inventory' {$arguments+=@('--jef-proof',$proof,'--jef-inventory')}
+        'ladder' {$arguments+=@('--jef-proof',$proof,'--jef-ladder')}
     }
     Invoke-WorkshopEngine -Engine $engine -Project $project -EngineArguments $arguments -Log (Join-Path $proof 'engine.log') -LimitSeconds 720
-    $reportFile=switch($Mode){'jef'{'jef.json'} 'menu'{'menutest.json'} 'inventory'{'inventory.json'}}
+    $reportFile=switch($Mode){'jef'{'jef.json'} 'ladder'{'jef.json'} 'menu'{'menutest.json'} 'inventory'{'inventory.json'}}
     $report=Get-Content -LiteralPath (Join-Path $proof $reportFile) -Raw | ConvertFrom-Json -AsHashtable
-    if($Mode -eq 'jef' -and -not $report.ok){throw 'Jef proof report failed'}
+    if($Mode -in 'jef','ladder' -and -not $report.ok){throw 'Jef proof report failed'}
     if($Mode -eq 'menu' -and ($report.ok -eq $false -or $report.passed -eq $false)){throw 'Menu proof report failed'}
     Write-Output "PROOF: $proof"
 } finally {

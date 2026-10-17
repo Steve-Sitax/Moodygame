@@ -21,6 +21,8 @@ internal partial class JefProof : Node
     private float maxSwimEyeError;
     private int maxDuplicateProps;
     private bool emptyHandsHidden = true;
+    private float maxQuayGripError, maxQuayBodyError;
+    private int quayHeld, quayLetGo;
     public override void _Process(double dt)
     {
         if (capture) People.LanternPool.I?.Update(dt, Main.I.Cam.GlobalPosition, Daylight.I.Hour);
@@ -42,6 +44,44 @@ internal partial class JefProof : Node
             maxSwimEyeError = Math.Max(maxSwimEyeError, arms.Figure.Root.ToGlobal(eyes).DistanceTo(Jef.I.Cam.GlobalPosition));
         }
         pictures.Add(new { name, arms.Pose, slots = arms.Slots.ToString(), arms.LanternOnBelt, kind = arms.Figure.Kind, arms.HandLift, handsVisible = arms.Hands.Root.Visible, arms.WallClearance, arms.ReachScale, arms.LoadGripError, arms.BodyGripError, arms.ViewGripError, skeletonFrame = arms.Hands.Root.GetNode<Skeleton3D>("Skeleton3D").Transform.ToString(), feet = new[] { Jef.I.X, Jef.I.Y, Jef.I.Z }, hour = Daylight.I.Hour, profile = Character.ToJson(arms.Profile), triangles = arms.Hands.Root.GetMeta("arm_triangles").AsInt32() });
+    }
+    private bool QuayLadderOk => quayHeld > 30 && quayLetGo > 0 && maxQuayGripError < .01f && maxQuayBodyError < .03f;
+    /// <summary>
+    /// Down a quay ladder into the water and back up it, with pictures on the way: the hands hold the rungs and the
+    /// hoops (never empty air in front of the face), and let go once the hoops are behind him.
+    /// </summary>
+    private async Task QuayLadder(Jef j, Arms arms)
+    {
+        Exit? ladder = null;
+        foreach (var exit in QuayExits.Exits.Where(e => e.Ladder && e.Of != null && float.IsFinite(e.Of.TopRung)))
+        {
+            j.Place(exit.Tx, exit.Tz, MathF.Atan2(exit.Nx, exit.Nz) + MathF.PI, 0, exit.Ty); await Frames(20);
+            if (j.LadderFoot(exit) is { Swim: true }) { ladder = exit; break; }
+        }
+        if (ladder == null) throw new InvalidOperationException("No quay ladder over open water");
+        bool frozen = j.Frozen; j.Frozen = false;
+        float facing = MathF.Atan2(ladder.Nx, ladder.Nz);
+        async Task Climb(string name, Action start)
+        {
+            start();
+            if (!j.Climbing) throw new InvalidOperationException("Quay ladder climb did not start: " + name);
+            bool held = false;
+            for (int frame = 0, shot = 0; j.Climbing && frame < 900; frame++)
+            {
+                await Frames(1);
+                if (!j.Climbing) break;
+                if (arms.OnQuayLadder) { quayHeld++; held = true; maxQuayGripError = Math.Max(maxQuayGripError, arms.ViewGripError); maxQuayBodyError = Math.Max(maxQuayBodyError, arms.BodyGripError); }
+                else if (held) quayLetGo++;
+                if (frame % 24 == 0) await Shot($"quay-ladder-{name}-{shot++:00}");
+            }
+            await Frames(20); await Shot($"quay-ladder-{name}-out");
+        }
+        j.Place(ladder.Tx, ladder.Tz, facing + MathF.PI, 0, ladder.Ty); await Frames(30);
+        await Climb("down", () => j.ClimbDown(ladder));
+        await Frames(40);
+        j.Yaw = facing; j.Pitch = 0;
+        await Climb("up", () => j.ClimbUp(ladder));
+        j.Frozen = frozen;
     }
     public override async void _Ready()
     {
@@ -69,6 +109,13 @@ internal partial class JefProof : Node
             var crate = Play.Goods.I.MakeGoods("crates"); j.Cam.AddChild(crate);
             crate.Position = new Vector3(0, -.74f, -.78f); crate.Visible = false;
             await Frames(30);
+            if (Main.I.Flag("jef-ladder"))
+            {
+                await Dev.Kit.I.Light(13, "clear"); await QuayLadder(j, arms);
+                File.WriteAllText(Path.Combine(dir, "jef.json"), JsonSerializer.Serialize(new { ok = QuayLadderOk, armReach = arms.ArmReach, maxQuayGripError, maxQuayBodyError, quayHeld, quayLetGo, pictures }, new JsonSerializerOptions { WriteIndented = true }));
+                if (!QuayLadderOk) throw new InvalidOperationException($"Quay ladder hands failed: held {quayHeld} frames, let go {quayLetGo}, view grip {maxQuayGripError}, body grip {maxQuayBodyError}");
+                GetTree().Quit(); return;
+            }
             foreach (var light in new[] { ("day", 13.0, "clear"), ("night", 23.0, "clear"), ("rain", 13.0, "rain") })
             {
                 await Dev.Kit.I.Light(light.Item2, light.Item3); arms.ProofLantern = light.Item1 == "night";
@@ -92,6 +139,7 @@ internal partial class JefProof : Node
             j.Place(foot.X, foot.Z, ladderFrame.Face, .08f, foot.Y); Play.CraneClimb.I.Up(ladder);
             await Frames(90); await Shot("day-ladder-belt"); Play.CraneClimb.I.ProofRelease();
             Play.Rowing.I.ProofSeat(new Vector3(-118, 0, -75)); await Frames(45); await Shot("day-rowing-belt"); Play.Rowing.I.ProofSeat(null);
+            arms.ProofLantern = false; await QuayLadder(j, arms); arms.ProofLantern = true;
             j.StandOnFeet(); j.Place(spot.X, spot.Z, 0, 0); arms.ProofLantern = false;
             var api = Net.ServerLink.I!.Api!;
             var profiles = new[] { Character.Jef, Character.Mie, Character.Jef, Character.Jef };
@@ -172,8 +220,8 @@ internal partial class JefProof : Node
             arms.Apply(Character.Jef); await Frames(45); await Shot("man-mirror-body-rain");
             await Frames(30); mirror.GetTexture().GetImage().SavePng(Path.Combine(dir, "man-planar-reflection.png"));
             bool hidden = (j.Cam.CullMask & Arms.BodyLayer) == 0;
-            File.WriteAllText(Path.Combine(dir, "jef.json"), JsonSerializer.Serialize(new { ok = wallSafe && hidden && emptyHandsHidden && persisted.All(x => x) && maxGripError < .003f && maxDuplicateProps == 0 && maxSwimEyeError < .003f, bodyHiddenFromEyes = hidden, emptyHandsHidden, wallSafe, persisted, maxGripError, maxDuplicateProps, maxSwimEyeError, lightsAdded = 0, shaderKindsAdded = 0, pictures }, new JsonSerializerOptions { WriteIndented = true }));
-            if (!wallSafe || !hidden || !emptyHandsHidden || persisted.Any(x => !x) || maxGripError >= .003f || maxDuplicateProps != 0 || maxSwimEyeError >= .003f) throw new InvalidOperationException($"Jef proof invariant failed; empty hands hidden {emptyHandsHidden}; crate palm {maxGripError}; duplicate props {maxDuplicateProps}; swim eye {maxSwimEyeError}");
+            File.WriteAllText(Path.Combine(dir, "jef.json"), JsonSerializer.Serialize(new { ok = QuayLadderOk && wallSafe && hidden && emptyHandsHidden && persisted.All(x => x) && maxGripError < .003f && maxDuplicateProps == 0 && maxSwimEyeError < .003f, bodyHiddenFromEyes = hidden, emptyHandsHidden, wallSafe, persisted, maxGripError, maxDuplicateProps, maxSwimEyeError, maxQuayGripError, maxQuayBodyError, quayHeld, quayLetGo, lightsAdded = 0, shaderKindsAdded = 0, pictures }, new JsonSerializerOptions { WriteIndented = true }));
+            if (!QuayLadderOk || !wallSafe || !hidden || !emptyHandsHidden || persisted.Any(x => !x) || maxGripError >= .003f || maxDuplicateProps != 0 || maxSwimEyeError >= .003f) throw new InvalidOperationException($"Jef proof invariant failed; empty hands hidden {emptyHandsHidden}; crate palm {maxGripError}; duplicate props {maxDuplicateProps}; swim eye {maxSwimEyeError}");
             GetTree().Quit();
         }
         catch (Exception e) { GD.PushError("Jef proof: " + e); GetTree().Quit(1); }
