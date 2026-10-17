@@ -1416,7 +1416,7 @@
       }
     },
     {
-      "title": "Cotton bales to the Entrepot",
+      "title": "Sacks to the Entrepot",
       "employer": "katoen",
       "task_type": "carry",
       "goods": "sacks",
@@ -1427,7 +1427,7 @@
       "recipient": "",
       "pay_c": 80,
       "risk": "low",
-      "pitch": "Two bales off the lighter on the Entrepot quay, in at our door. Quick about it.",
+      "pitch": "Two sacks off the lighter on the Entrepot quay, in at our door. Quick about it.",
       "items": 2,
       "cart": false,
       "task": {
@@ -1823,7 +1823,7 @@
         }
       },
       {
-        "title": "Cotton bales to the Entrepot",
+        "title": "Sacks to the Entrepot",
         "employer": "katoen",
         "task_type": "carry",
         "goods": "sacks",
@@ -1834,7 +1834,7 @@
         "recipient": "",
         "pay_c": 80,
         "risk": "low",
-        "pitch": "Two bales off the lighter on the Entrepot quay, in at our door. Quick about it.",
+        "pitch": "Two sacks off the lighter on the Entrepot quay, in at our door. Quick about it.",
         "items": 2,
         "cart": false,
         "task": {
@@ -1967,7 +1967,7 @@
         }
       },
       {
-        "title": "Cotton bales to the Entrepot",
+        "title": "Sacks to the Entrepot",
         "employer": "katoen",
         "task_type": "carry",
         "goods": "sacks",
@@ -1978,7 +1978,7 @@
         "recipient": "",
         "pay_c": 80,
         "risk": "low",
-        "pitch": "Two bales off the lighter on the Entrepot quay, in at our door. Quick about it.",
+        "pitch": "Two sacks off the lighter on the Entrepot quay, in at our door. Quick about it.",
         "items": 2,
         "cart": false,
         "task": {
@@ -2137,7 +2137,7 @@
         }
       },
       {
-        "title": "Cotton bales to the Entrepot",
+        "title": "Sacks to the Entrepot",
         "employer": "katoen",
         "task_type": "carry",
         "goods": "sacks",
@@ -2148,7 +2148,7 @@
         "recipient": "",
         "pay_c": 150,
         "risk": "low",
-        "pitch": "Two bales off the lighter on the Entrepot quay, in at our door. Quick about it.",
+        "pitch": "Two sacks off the lighter on the Entrepot quay, in at our door. Quick about it.",
         "items": 2,
         "cart": false,
         "task": {
@@ -2281,7 +2281,7 @@
         }
       },
       {
-        "title": "Cotton bales to the Entrepot",
+        "title": "Sacks to the Entrepot",
         "employer": "katoen",
         "task_type": "carry",
         "goods": "sacks",
@@ -2292,7 +2292,7 @@
         "recipient": "",
         "pay_c": 150,
         "risk": "low",
-        "pitch": "Two bales off the lighter on the Entrepot quay, in at our door. Quick about it.",
+        "pitch": "Two sacks off the lighter on the Entrepot quay, in at our door. Quick about it.",
         "items": 2,
         "cart": false,
         "task": {
@@ -2451,7 +2451,7 @@
         }
       },
       {
-        "title": "Cotton bales to the Entrepot",
+        "title": "Sacks to the Entrepot",
         "employer": "katoen",
         "task_type": "carry",
         "goods": "sacks",
@@ -2462,7 +2462,7 @@
         "recipient": "",
         "pay_c": 300,
         "risk": "low",
-        "pitch": "Two bales off the lighter on the Entrepot quay, in at our door. Quick about it.",
+        "pitch": "Two sacks off the lighter on the Entrepot quay, in at our door. Quick about it.",
         "items": 2,
         "cart": false,
         "task": {
@@ -2595,7 +2595,7 @@
         }
       },
       {
-        "title": "Cotton bales to the Entrepot",
+        "title": "Sacks to the Entrepot",
         "employer": "katoen",
         "task_type": "carry",
         "goods": "sacks",
@@ -2606,7 +2606,7 @@
         "recipient": "",
         "pay_c": 300,
         "risk": "low",
-        "pitch": "Two bales off the lighter on the Entrepot quay, in at our door. Quick about it.",
+        "pitch": "Two sacks off the lighter on the Entrepot quay, in at our door. Quick about it.",
         "items": 2,
         "cart": false,
         "task": {
@@ -2765,7 +2765,7 @@
         }
       },
       {
-        "title": "Cotton bales to the Entrepot",
+        "title": "Sacks to the Entrepot",
         "employer": "katoen",
         "task_type": "carry",
         "goods": "sacks",
@@ -2776,7 +2776,7 @@
         "recipient": "",
         "pay_c": 600,
         "risk": "low",
-        "pitch": "Two bales off the lighter on the Entrepot quay, in at our door. Quick about it.",
+        "pitch": "Two sacks off the lighter on the Entrepot quay, in at our door. Quick about it.",
         "items": 2,
         "cart": false,
         "task": {
@@ -2909,7 +2909,7 @@
         }
       },
       {
-        "title": "Cotton bales to the Entrepot",
+        "title": "Sacks to the Entrepot",
         "employer": "katoen",
         "task_type": "carry",
         "goods": "sacks",
@@ -2920,7 +2920,7 @@
         "recipient": "",
         "pay_c": 600,
         "risk": "low",
-        "pitch": "Two bales off the lighter on the Entrepot quay, in at our door. Quick about it.",
+        "pitch": "Two sacks off the lighter on the Entrepot quay, in at our door. Quick about it.",
         "items": 2,
         "cart": false,
         "task": {
@@ -3079,7 +3079,7 @@
         }
       },
       {
-        "title": "Cotton bales to the Entrepot",
+        "title": "Sacks to the Entrepot",
         "employer": "katoen",
         "task_type": "carry",
         "goods": "sacks",
@@ -3090,7 +3090,7 @@
         "recipient": "",
         "pay_c": 1500,
         "risk": "low",
-        "pitch": "Two bales off the lighter on the Entrepot quay, in at our door. Quick about it.",
+        "pitch": "Two sacks off the lighter on the Entrepot quay, in at our door. Quick about it.",
         "items": 2,
         "cart": false,
         "task": {
@@ -3223,7 +3223,7 @@
         }
       },
       {
-        "title": "Cotton bales to the Entrepot",
+        "title": "Sacks to the Entrepot",
         "employer": "katoen",
         "task_type": "carry",
         "goods": "sacks",
@@ -3234,7 +3234,7 @@
         "recipient": "",
         "pay_c": 1500,
         "risk": "low",
-        "pitch": "Two bales off the lighter on the Entrepot quay, in at our door. Quick about it.",
+        "pitch": "Two sacks off the lighter on the Entrepot quay, in at our door. Quick about it.",
         "items": 2,
         "cart": false,
         "task": {

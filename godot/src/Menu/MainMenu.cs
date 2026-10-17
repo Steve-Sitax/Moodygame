@@ -657,8 +657,11 @@ public partial class MainMenu : Node
             Kit.KeyFocus = false;
             if (mb.ButtonIndex == MouseButton.Left && Entered && quiet && !start.Visible && !Pause.Has("key") && Dialogs.Count == 0)
             {
+                // a paper the mouse works is up (the board, a talk): the click goes on and is the paper's too, so a
+                // job clicked on the board is taken (issue 152); over the town it only goes on
+                bool paper = Windows.Dialogs.I is { MouseFree: true };
                 Start();
-                GetViewport().SetInputAsHandled();
+                if (!paper) GetViewport().SetInputAsHandled();
             }
             return;
         }

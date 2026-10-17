@@ -45,6 +45,32 @@ public static class NativeArrivalPierProof
             finally { game.Cam.MakeCurrent(); capture.QueueFree(); }
         }
         async Task HoldTide(float level) { Scheldemist.World.Tide.Hold(level); await Until(() => MathF.Abs(Scheldemist.World.Tide.River - level) < .02f && MathF.Abs(Waters.Level - level) < .05f, 40); await Frames(4); }
+        // the stage's lanterns on their posts (#147): lit and drawn at night and in night fog, out by day; pictures of each
+        async Task Lanterns()
+        {
+            var api = ServerLink.I!.Api!; var boat = Scheldemist.Movers.BoatLamps.I; const float x = -249;
+            Check("the landing stage has its four lanterns", boat?.StageLanterns == 4);
+            Check("each stage lantern's glass is found in the stage's mesh", boat?.StageGlassMeasured == 4);
+            // the lantern pool hides lanterns past the fog from the player's own eye, so the player stands mid-pier
+            Jef.I.Place(x, -30, 0); await Frames(5);
+            foreach (var (name, hour, weather) in new[] { ("night", 22, "clear"), ("night-fog", 22, "fog"), ("rain", 13, "rain"), ("day", 13, "clear") })
+            {
+                GameState.I.Apply(await api.Post<JobsPayload>("api/dev/set", new { day = 1, hour, minute = 0, weather }));
+                Scheldemist.Movers.MoverClock.Hold(hour, 1); Daylight.I.SetTime(hour); Daylight.I.SetWeather(weather); Daylight.I.Settle();
+                // (the lanterns fade over a few seconds: wait for them to settle, however fast the frames come)
+                await Frames(30); await Until(() => hour == 22 ? boat?.LampLevel > .98f : boat?.LampLevel <= .005f, 30); await Frames(10); float w = Waters.Level;
+                await Shot($"lamps-{name}-quay", new(x + 1.4f, 2.4f, 4), new(x, w + 3, -30), 55);
+                await Shot($"lamps-{name}-shelter", new(x + 1.6f, w + 3.3f, -38), new(x - .9f, w + 3.6f, -44.6f), 60);
+                await Shot($"lamps-{name}-head", new(x - 1.2f, w + 3.4f, -52), new(x + 1.5f, w + 4.4f, -58.9f), 60);
+                await Shot($"lamps-{name}-post-quay", new(x + .6f, w + 4.4f, -12.5f), new(x - 1.55f, w + 4.5f, -8.5f), 40);
+                await Shot($"lamps-{name}-post-mid", new(x - 1.2f, w + 4.4f, -26), new(x + 1.55f, w + 4.5f, -30), 40);
+                notes.Add(new { mode = "lanterns", name, hour, weather, level = boat?.LampLevel, burning = boat?.StageBurning });
+                if (hour == 22) Check($"the stage's lanterns burn at {name}", boat?.LampLevel > .9f && boat.StageBurning > 0);
+                else Check($"the stage's lanterns are out at midday ({name})", boat?.StageBurning == 0);
+            }
+            GameState.I.Apply(await api.Post<JobsPayload>("api/dev/set", new { day = 1, hour = 12, minute = 0, weather = "clear" }));
+            Scheldemist.Movers.MoverClock.Hold(12, 1); Daylight.I.SetTime(12); Daylight.I.SetWeather("clear"); Daylight.I.Settle(); await Frames(30);
+        }
         Node3D? Find(string name) => BakedWorld.All(game.World).OfType<Node3D>().FirstOrDefault(n => n.Name.ToString() == name && n.IsVisibleInTree())
             ?? BakedWorld.All(game.View).OfType<Node3D>().FirstOrDefault(n => n.Name.ToString() == name && n.IsVisibleInTree());
         try
@@ -57,6 +83,8 @@ public static class NativeArrivalPierProof
                 catch (ApiException) when (attempt < 4) { await Frames(30); }
             GameState.I.Apply(await api.Post<JobsPayload>("api/dev/set", new { day = 1, hour = 12, minute = 0, weather = "clear" })); Scheldemist.Movers.MoverClock.Hold(12, 1);
             await HoldTide(-2.8f);
+            // (the lantern part places the player on the stage, which would end the opening: alone, or after it)
+            if (game.Arg("arrival-pier-only") == "lamps") { await Lanterns(); return; }
             var f = FerryArrival.I;
             await f.Ask(false);
             Check("the ferry opening starts", await Until(() => f.Stage == "waiting", 30));
@@ -121,6 +149,7 @@ public static class NativeArrivalPierProof
             await Until(() => f.Stage == "gone", 400);
             await Shot("after-pier-head", new(x - 3.5f, Waters.Level + 3f, -52), new(x, Waters.Level + 1.7f, -62), 62);
             await Shot("after-pier-quay", new(x + 4f, 2.4f, 3.5f), new(x, -.5f, -8), 56);
+            await Lanterns();
             Check("no gangway floats once the ferry has gone", Find("arrival_gangway") == null && Find("arrival_plank") == null || !(Brow()?.IsVisibleInTree() ?? false) || Brow()!.GlobalPosition.DistanceTo(new Vector3(x, Waters.Level + 1.8f, -60)) < 8);
         }
         catch (Exception ex) { error += ex.ToString(); GD.PushError("arrival pier proof: " + ex); }
