@@ -73,7 +73,8 @@ public enum Face
 
 /// <summary>
 /// A line or a key that can be clicked (game/cursor.ts: "ink-click"): the mouse over it tints it, a click sends the
-/// dialog on top the key it stands for, so the keys and the mouse do the same thing.
+/// dialog on top the key it stands for, so the keys and the mouse do the same thing. Only the left click is its own:
+/// the wheel goes on to the paper under it, which scrolls.
 /// </summary>
 public partial class InkClick : PanelContainer
 {
@@ -86,7 +87,7 @@ public partial class InkClick : PanelContainer
 
     public InkClick()
     {
-        MouseFilter = MouseFilterEnum.Stop;
+        MouseFilter = MouseFilterEnum.Pass;
         MouseDefaultCursorShape = CursorShape.PointingHand;
         box.SetCornerRadiusAll(3);
         box.SetExpandMarginAll(2);
@@ -215,6 +216,8 @@ public sealed class Sheet
 
     public readonly PanelContainer Card;
     public readonly VBoxContainer Body;
+    /// <summary>The paper's scroll, when it may be higher than the window (maxHeight); else null.</summary>
+    public readonly ScrollContainer? Scroll;
     /// <summary>The --ui scale the sheet was built for.</summary>
     public readonly float S;
     /// <summary>The ink, through the paper's filter.</summary>
@@ -260,7 +263,7 @@ public sealed class Sheet
         {
             // a page taller than the window lets its text scroll (the wheel, the bar)
             float room = maxHeight - Px(pad.T) - Px(pad.B);
-            var scroll = new ScrollContainer { HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled, MouseFilter = Control.MouseFilterEnum.Pass };
+            var scroll = Scroll = new ScrollContainer { HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled, MouseFilter = Control.MouseFilterEnum.Pass };
             scroll.AddChild(Body);
             Card.AddChild(scroll);
             void Fit() => scroll.CustomMinimumSize = new Vector2(0, MathF.Min(Body.GetCombinedMinimumSize().Y, room));

@@ -59,15 +59,29 @@ public sealed class Window : IDialog
         sheet = null;
     }
 
-    /// <summary>Write the paper again (its words changed).</summary>
+    /// <summary>Write the paper again (its words changed). A paper that was scrolled stays where it was read.</summary>
     public void Render()
     {
         if (!IsOpen || Dialogs.I is not { } d) return;
+        int read = sheet?.Scroll is { } was && GodotObject.IsInstanceValid(was) ? was.ScrollVertical : 0;
         Drop();
         sheet = write();
         if (sheet == null) return;
         d.Layer.AddChild(sheet.Card);
         sheet.Place();
+        if (read > 0 && sheet.Scroll is { } scroll)
+        {
+            // the bar knows its length once the new text is laid out
+            var bar = scroll.GetVScrollBar();
+            void Back()
+            {
+                if (!GodotObject.IsInstanceValid(scroll)) return;
+                scroll.ScrollVertical = read;
+                if (scroll.ScrollVertical == read) bar.Changed -= Back;
+            }
+            bar.Changed += Back;
+            Back();
+        }
     }
 
     public void OnKey(string code, string key) => onKey(code, key);
