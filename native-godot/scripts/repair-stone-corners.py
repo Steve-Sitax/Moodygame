@@ -108,6 +108,8 @@ def dress(p, face, margin=0.022, proud=0.003, step=0.0018):
     """A drafted margin round a face and a tooled field standing a little proud of it. face: a face or its normal."""
     if isinstance(face, Vector) or not face.is_valid: face = main_face(p, face if isinstance(face, Vector) else Vector())
     if face is None: return
+    # above 3 m a 3 mm step cannot be seen from the street: the shader's tooling carries it there
+    if min(v.co.y for v in face.verts) > 3.0: face[p.code] = 1; return
     face[p.code] = 4
     res = bmesh.ops.inset_individual(p.bm, faces=[face], thickness=margin, depth=0.0, use_even_offset=True)
     n = face.normal.copy()
@@ -247,20 +249,69 @@ def step(fr, s0, s1, y0, y1, d0, d1):
                 v.co.y -= (0.004 + 0.008 * p.wear) * (u * u * (3 - 2 * u)) * w  # (a poor house's step: worn deeper)
     chips(p, 1, (0.006, 0.014)); finish(p); pieces.append(p)
 
+def arch_stone(fr, poly, d0, d1, kind, arris=0.008, chip=1):
+    """A stone whose face is a polygon [(s, y)] in the wall, run from d0 (in the reveal) to d1 (its face)."""
+    p = Piece(kind); bm = p.bm
+    front = [bm.verts.new(fr.world(s, y, d1)) for s, y in poly]; back = [bm.verts.new(fr.world(s, y, d0)) for s, y in poly]
+    n = len(poly); sides = []
+    for i in range(n):
+        j = (i + 1) % n; f = bm.faces.new([front[i], front[j], back[j], back[i]]); f[p.code] = 4; sides.append(f)
+    ff = bm.faces.new(front); fb = bm.faces.new(list(reversed(back))); ff[p.code] = fb[p.code] = 4
+    bmesh.ops.recalc_face_normals(bm, faces=sides + [ff, fb])
+    p.hidden.add(fb)
+    bevel(p, visible_edges(p, [ff] + sides), arris * rng.uniform(0.8, 1.25), 2 if min(y for _, y in poly) < 2.2 else 1)
+    dress(p, fr.n.copy())
+    chips(p, chip)
+    finish(p); pieces.append(p); return p
+
+def circle_fit(pts):
+    """Least-squares circle through points [(s, y)]: centre and radius."""
+    import numpy as np
+    A = np.array([[2 * s, 2 * y, 1.0] for s, y in pts]); bb = np.array([s * s + y * y for s, y in pts])
+    (cx, cy, k), *_ = np.linalg.lstsq(A, bb, rcond=None)
+    return cx, cy, math.sqrt(max(k + cx * cx + cy * cy, 1e-9))
+
+def mortar_ring(fr, cx, cy, r0, r1, j0, j1, d0, d1):
+    """The mortar of one radial joint of an arch, set back from the stone faces."""
+    ring = [(cx + r0 * math.cos(j0), cy + r0 * math.sin(j0)), (cx + r0 * math.cos(j1), cy + r0 * math.sin(j1)),
+            (cx + r1 * math.cos(j1), cy + r1 * math.sin(j1)), (cx + r1 * math.cos(j0), cy + r1 * math.sin(j0))]
+    m = Piece('mortar'); bm = m.bm
+    fv = [bm.verts.new(fr.world(s, y, d1)) for s, y in ring]; bv = [bm.verts.new(fr.world(s, y, d0)) for s, y in ring]
+    fs = [bm.faces.new([fv[q], fv[(q + 1) % 4], bv[(q + 1) % 4], bv[q]]) for q in range(4)] + [bm.faces.new(fv), bm.faces.new(list(reversed(bv)))]
+    bmesh.ops.recalc_face_normals(bm, faces=fs)
+    for f in bm.faces: f[m.code] = 5
+    m.hidden.add(fs[-1]); finish(m); pieces.append(m)
+
 def door(fr, rows, idx):
-    """The jambs: through-stones (front and reveal), three a side on the brick beds, the arris worn at the hand."""
-    fronts_at = sorted({round(fr.local(Vector(rows[i + k][:3]))[0], 3) for i in idx for k in range(3)})
+    """A door's surround, flat or arched, single or double, or a coach gate's: jambs of through-stones (front and
+    reveal) on the brick beds, worn at the hand; over a flat door the lintel (a stone of its own), over an arched one
+    a ring of voussoirs that follows the curve, its soffit through the reveal, a key at the crown if there was one."""
     pts = [fr.local(Vector(rows[i + k][:3])) for i in idx for k in range(3)]
-    s0, s1 = min(p[0] for p in pts), max(p[0] for p in pts); ys = max(p[1] for p in pts); P = max(p[2] for p in pts); R = -min(p[2] for p in pts)
-    # the jambs' widths: the front faces at d = P
-    xs = sorted({round(p[0], 3) for p in pts if abs(p[2] - P) < 1e-3})
+    s0, s1 = min(p[0] for p in pts), max(p[0] for p in pts); R = -min(p[2] for p in pts)
+    # the surround's face: the commonest proud plane (a key stands further out)
+    faces = [round(p[2], 3) for p in pts if p[2] > 0.03]
+    P = max(set(faces), key=faces.count)
+    xs = sorted({round(p[0], 3) for p in pts if abs(p[2] - P) < 2e-3 and p[1] < 1.0})
     J = xs[1] - xs[0] if len(xs) >= 4 else 0.2
-    beds = [0.0, fr.bed(ys / 3), fr.bed(2 * ys / 3), ys]
+    # the opening's back edge: level over a flat door, a curve over an arched one
+    inner = [(p[0], p[1]) for p in pts if abs(p[2] + R) < 3e-3 and s0 + J + 0.01 < p[0] < s1 - J - 0.01 and p[1] > 1.2]
+    ys_flat = max((p[1] for p in pts if abs(p[0] - (s0 + J)) < 3e-3 and abs(p[2] + R) < 3e-3), default=max(p[1] for p in pts))
+    arched = len(inner) >= 3 and max(y for _, y in inner) - min(y for _, y in inner) > 0.05
+    if arched:
+        cx, cy, rin = circle_fit(inner)
+        dx = (s0 + J) - cx
+        spring = cy + math.sqrt(max(rin * rin - dx * dx, 0.0))
+        rout = rin + J
+        ys = spring
+    else:
+        ys = ys_flat
+    beds = [0.0] + [fr.bed(ys * k / 3) for k in (1, 2)] + [ys]
     # the inner faces stand 3 mm into the opening: the game's own doorway pieces lie in the old reveal's plane
     for a, b in ((s0, s0 + J + 0.003), (s1 - J - 0.003, s1)):
         inner_left = a > s0 + 1e-3
         for k, (y0, y1) in enumerate(zip(beds, beds[1:])):
-            p = dressed_block(fr, a, b, y0 + (0.005 if k else 0), y1 - (0.005 if k < 2 else 0), -R, P, 'door jamb', arris=0.009, top=True, under=k > 0, chip=1)
+            top = y1 - (0.005 if k < 2 or arched else 0)
+            p = dressed_block(fr, a, b, y0 + (0.005 if k else 0), top, -R, P, 'door jamb', arris=0.009, top=True, under=k > 0, chip=1)
             # hands and shoulders have rounded the arris by the opening between 0.8 and 1.7 m
             edge_s = a if inner_left else b
             for v in p.bm.verts:
@@ -268,12 +319,45 @@ def door(fr, rows, idx):
                 if 0.8 < y < 1.7 and abs(s - edge_s) < 0.03 and d > P - 0.03:
                     k2 = math.sin(math.pi * (y - 0.8) / 0.9) * (1 - abs(s - edge_s) / 0.03) * (1 - (P - d) / 0.03)
                     v.co -= fr.n * 0.004 * k2
-            if k < 2:
+            if k < 2 or arched:
                 m = Piece('mortar'); g = box(m, fr, a + 0.001, b - 0.001, y1 - 0.0055, y1 + 0.0055, -R + 0.003, P - 0.004)  # (in front of the old reveal plane)
                 m.hidden.update((g['back'], g['top'], g['bottom']))
                 for face in g.values(): face[m.code] = 5
                 finish(m); pieces.append(m)
-
+    if not arched: return 'flat'
+    # the ring: an odd number of voussoirs, each about a quarter metre round the middle of the ring, radial joints
+    t0 = math.atan2(spring - cy, (s0 + J) - cx); t1 = math.atan2(spring - cy, (s1 - J) - cx)
+    if t0 < t1: t0 += 2 * math.pi
+    span = t0 - t1; rmid = (rin + rout) / 2
+    count = max(5, int(round(span * rmid / 0.26)) | 1)
+    half = 0.005 / rmid
+    ri = rin - 0.003
+    # a segmental arch springs from skewbacks: the jamb's top stone cut to the ring's first radial joint
+    for side, t, sj, so in ((0, t0, s0 + J + 0.003, s0), (1, t1, s1 - J - 0.003, s1)):
+        ox, oy = cx + rout * math.cos(t), cy + rout * math.sin(t)
+        ix, iy = cx + ri * math.cos(t), cy + ri * math.sin(t)
+        if oy - spring < 0.02: continue
+        # (the inner corner is the jamb's own: the ring springs from there)
+        poly = [(so, spring + 0.005), (sj, spring + 0.005), (ox, oy), (so, oy)]
+        arch_stone(fr, poly, -R, P, 'skewback')
+    for i in range(count):
+        a0 = t0 - span * i / count - (half if i else 0); a1 = t0 - span * (i + 1) / count + (half if i < count - 1 else 0)
+        steps = 3
+        arc_in = [(cx + ri * math.cos(a0 + (a1 - a0) * k / steps), cy + ri * math.sin(a0 + (a1 - a0) * k / steps)) for k in range(steps + 1)]
+        arc_out = [(cx + rout * math.cos(a1 - (a1 - a0) * k / steps), cy + rout * math.sin(a1 - (a1 - a0) * k / steps)) for k in range(steps + 1)]
+        arch_stone(fr, arc_in + arc_out, -R, P, 'voussoir')
+        if i < count - 1:
+            mortar_ring(fr, cx, cy, rin - 0.001, rout - 0.004, a1 - half, a1 + half, -R + 0.003, P - 0.004)
+    # the key at the crown, where the old surround had one
+    key = [p for p in pts if p[2] > P + 0.03]
+    if key:
+        k0, k1 = min(p[0] for p in key), max(p[0] for p in key); ky0, ky1 = min(p[1] for p in key), max(p[1] for p in key); kd = max(p[2] for p in key)
+        kp = dressed_block(fr, k0, k1, ky0, ky1, -0.012, kd, 'keystone', under=True, arris=0.006)
+        mid = (k0 + k1) / 2
+        for v in kp.bm.verts:
+            s, y, d = fr.local(v.co); q = (y - ky0) / max(ky1 - ky0, 1e-6)
+            v.co = fr.world(mid + (s - mid) * (0.86 + 0.24 * q), y, d)
+    return 'arched'
 
 # ---------------------------------------------------------------- the chunk's walls
 records = [r for r in audit if r['node'] == chunk or r['node'].startswith(chunk + '_')]
@@ -461,12 +545,12 @@ def classify_and_build():
             elif 0.15 < wd < 0.45 and 0.25 < h < 0.4 and 0.06 < d1 < 0.1 and d0 > -0.02 and y0 > 0.3:
                 # half of a quoin course whose two halves were made as separate boxes: paired below
                 singles.append((fr, s0, s1, y0, y1, d1, idx, wear, pts)); continue
-            elif d0 < -0.15 and h > 2.0 and wd < 1.9 and 0.05 < d1 < 0.1 and y0 < 0.05:
-                ys_front = {round(fr.local(Vector(rows[i + k][:3]))[1], 2) for i in idx for k in range(3) if abs(fr.local(Vector(rows[i + k][:3]))[2] - d1) < 1e-3}
-                if len(ys_front) <= 6: door(fr, rows, idx); kind = 'door surround'
+            elif -0.3 < d0 < -0.15 and h > 2.0 and wd < 3.8 and 0.05 < d1 < 0.2 and y0 < 0.05:
+                # a door or a coach gate: flat or arched, single or double (a passage through the house goes deeper)
+                kind = 'door surround (' + door(fr, rows, idx) + ')'
             elif -0.25 < d0 < -0.15 and abs(d1) < 0.01 and 1.4 < h < 2.8 and 1.0 < wd < 2.8 and y0 > 0.4:
                 shops.append((fr, s0, s1, y0, y1, mesh, wear)); report['kept'].append(dict(item, kind='shop window reveal')); continue
-            elif d0 < -0.15 and h < 0.25 and y0 < 0.05 and wd < 1.8 and d1 < 0.15:
+            elif -0.3 < d0 < -0.15 and h < 0.25 and y0 < 0.05 and wd < 3.5 and d1 < 0.15:
                 step(fr, s0, s1, y0, y1, d0, d1); kind = 'door step'
             elif 0.25 < h < 0.35 and 0.07 < d1 < 0.11 and y0 > 2.0 and d0 > -0.02:
                 lintel(fr, s0, s1, y0, y1, d1); kind = 'door lintel'
