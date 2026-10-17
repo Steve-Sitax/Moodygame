@@ -1,6 +1,6 @@
 {
   "format": 2,
-  "version": "native-pack-2b25535a9e28c4ae3de01b3a4af770bd6462b2f65833a9fec35d856d0062fd66",
+  "version": "native-pack-7f947fa9664f3b91e7ca6244fb1ce398b2a980d7965926d5f9d0922acc78899e",
   "files": [
     {
       "file": "maps/dirt.json",
@@ -1798,9 +1798,9 @@
     },
     {
       "file": "services/native-rules.json",
-      "blob": "blobs/ed25b0f69136ce40c447cd67fd64f2e26dcc9e458a09096d22746cbfa50cddcf.bin",
-      "sha256": "ed25b0f69136ce40c447cd67fd64f2e26dcc9e458a09096d22746cbfa50cddcf",
-      "bytes": 108725
+      "blob": "blobs/3335b2670bc1f4293d1d86407413fcf37d319b36bd50e56a599093f69a4827b2.bin",
+      "sha256": "3335b2670bc1f4293d1d86407413fcf37d319b36bd50e56a599093f69a4827b2",
+      "bytes": 108648
     },
     {
       "file": "services/native-schema.sql",

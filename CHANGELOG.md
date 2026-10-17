@@ -11,6 +11,7 @@ Bugs and loose ends are tracked as [issues](https://github.com/Steve-Sitax/Moody
 
 ## [Unreleased]
 
+- The cotton house's job is now "Sacks to the Entrepot": it always was two sacks, and its title and words no longer call them bales.
 - Each open job on the hiring board now says how far away it starts: the goods to fetch, the post to watch or the first door.
 - The hiring board works with the mouse. Point at a job and the whole job lights up. Click anywhere on it to take it. The mouse wheel and the scroll bar scroll the list, and the list stays where you scrolled it when the board updates. Esc and the number keys work as before. If you had left the game window, one click on a job now goes on and takes the job.
 - The quest book (J) works with the mouse too. Click a job to follow it, or click the story to follow the story; the arrow and the glow go to the one you chose. Only the one you follow says "followed". The number keys and S still work.

@@ -68,6 +68,9 @@ public static class NativeWorkBoardProof
             Check("a whole job is one line to click",words!=null&&first.IsAncestorOf(words)&&first.GetGlobalRect().Size.Y>words!.GetGlobalRect().Size.Y,$"{rows.Count} jobs, first {first.GetGlobalRect().Size}");
             string Written(Node root)=>string.Join(" ",root.FindChildren("*","",true,false).Select(n=>n is Label l?l.Text:n is RichTextLabel r?r.Text:"").Where(t=>t!=""));
             Check("the footer says the mouse works",Written(Jobs.I.BoardPaper!.Card).Contains("Click a job"));
+            // a good keeps its name everywhere: no job on the board speaks of bales while its goods are sacks (issue 152)
+            var mixed=GameState.I.Jobs.Where(j=>JobTask.Of(j)?.Goods is {} g&&g!="bales"&&(j.Title+" "+j.Pitch).Contains("bale",StringComparison.OrdinalIgnoreCase)).Select(j=>j.Title).ToList();
+            Check("no job names other goods than it carries",mixed.Count==0,string.Join(", ",mixed));
             int far=Written(Jobs.I.BoardPaper!.Card).Split(" m away").Length-1;
             Check("every open job says how far away it starts",far>0&&far==GameState.I.Jobs.Count(j=>j.Status=="offered"&&Jobs.I.VisibleJobs().Contains(j)),$"{far} jobs with a distance");
 
