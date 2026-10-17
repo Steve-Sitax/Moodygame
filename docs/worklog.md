@@ -15,12 +15,14 @@ coordinator merges into main after checks and `test-icons.ps1 -Full`. Town chunk
 | 2 | F. Market, work board, warmth, benches (rules) | #150 #153 #162 #165 |
 | 2 | L. Routes | #139 #120 |
 | 3 | G. Street furniture models | #160 #149 #164, bench and board models |
-| 3 | H. Town fabric (one at a time) | #161, #171, #163, #170 with #91 |
+| 3 | H. Town fabric (one at a time) | #161, #171 with #173, #163, #170 with #91 |
+| 3 | M. Shop fronts, signs, shutters (after H, same files) | #174 #175 #176 |
 | 3 | I. Light and look | #97 #137 #28 (cheap fix) |
 | 3 | J. People kit | #82 #138 #140 |
 | 3 | K. Textures | #84 |
 | - | Parked by Steve (play first) | #141 |
 
+Helpers: Claude Opus 5.5 high for the work; Codex for generated pictures (textures) and picture checks (Steve 2026-10-18).
 Rules for helpers: one Godot window at a time, own `--db`/`--prefs`/`--author-root`/user data and port range,
 timing runs only while holding `D:/Code/_locks/PERF-LOCK`, `native-godot/override.cfg` (silent, right screen) in
 each worktree, never Steve's save or layouts.
