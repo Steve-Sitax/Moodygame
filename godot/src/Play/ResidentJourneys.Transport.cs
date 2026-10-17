@@ -2,6 +2,8 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using System.Threading;
+using System.Text.Json.Nodes;
 using Godot;
 using Scheldemist.Game;
 using Scheldemist.Movers;
@@ -39,6 +41,9 @@ public partial class ResidentJourneys
     private readonly HashSet<string> inUse=new(),missed=new(),completedErrands=new(),abandonedErrands=new();
     private readonly List<string> notes=new();
     private bool transportLoading;
+    private bool takingCart;
+    private double snapshotPoll;
+    private Dictionary<string,string> cartSnapshots=new();
     private double transportPoll;
     private int transportEpoch,lastTransportDay=-1;
     private static readonly JourneyRules.Stop[] TransportStops=OmnibusLines.Stops.Select(s=>new JourneyRules.Stop(s.Id,s.Line,s.X,s.Z)).ToArray();
@@ -62,7 +67,50 @@ public partial class ResidentJourneys
     }
     private bool Working(string id){var s=town.ActionPerson(id);if(s==null)return town.Hour>=7&&town.Hour<18.5;var act=Whereabouts.ActivityAt(s.R.Sched,town.Day,town.Hour).Act;return act=="work"||town.Hour>=7&&town.Hour<18.5&&act is not("home" or "church");}
     public bool ResidentVehicleActive(string owner,int kind)=>town.ActionPerson(owner)?.P?.NetworkVehicle==kind||Trips.Any(t=>t.Person.R.Id==owner&&(kind==1&&t.Mode=="velocipede"||kind==2&&t.Mode=="handcart"||kind==3&&t.Mode=="dray")&&t.Phase=="go");
-    private void ClearTransport(){transport=null;transportPoll=10;foreach(var p in parked.Values)p.Cart?.Dispose();parked.Clear();cartAt.Clear();inUse.Clear();missed.Clear();completedErrands.Clear();abandonedErrands.Clear();}
+    private void ClearTransport(){transport=null;transportPoll=10;foreach(var p in parked.Values)p.Cart?.Dispose();parked.Clear();cartAt.Clear();inUse.Clear();missed.Clear();completedErrands.Clear();abandonedErrands.Clear();Volatile.Write(ref cartSnapshots,new());}
+    // Only serialized data crosses to the service worker; scene objects remain on the main thread.
+    public JsonObject? CartSnapshot(string id)=>Volatile.Read(ref cartSnapshots).TryGetValue(id,out var json)?JsonNode.Parse(json)!.AsObject():null;
+    private void PublishCartSnapshots()
+    {
+        var snapshots=new Dictionary<string,string>();
+        foreach(var vehicle in transport?.Vehicles??new()){
+            if(vehicle.Kind!="handcart"||vehicle.Gone||!parked.TryGetValue(vehicle.Id,out var pk))continue;
+            var load=new JsonArray();
+            for(int i=0;i<pk.Items;i++){
+                string kind=pk.Goods==5?"sacks":pk.Goods==3&&i%3==0?"chair":pk.Goods!=2&&i%3==1?"sacks":"crates";
+                load.Add(new JsonObject{["kind"]=kind});
+            }
+            snapshots[vehicle.Id]=new JsonObject{["x"]=pk.At.X,["z"]=pk.At.Y,["yaw"]=pk.At.Z,["load"]=load,["in_use"]=inUse.Contains(vehicle.Id)||pk.Pushed||ResidentVehicleActive(vehicle.Owner,2)}.ToJsonString();
+        }
+        Volatile.Write(ref cartSnapshots,snapshots);
+    }
+    private Offers? ParkedCartKeys(float x,float z)
+    {
+        if(takingCart||transport==null||Player.Jef.I.Laden||Player.Jef.I.Riding||Player.Jef.I.Swimming||Player.Jef.I.Climbing||Handcarts.I.Held!=null)return null;
+        var offers=new Offers{Options=new()};
+        foreach(var vehicle in transport.Vehicles){
+            if(vehicle.Kind!="handcart"||vehicle.Gone||inUse.Contains(vehicle.Id)||!parked.TryGetValue(vehicle.Id,out var pk)||pk.Pushed||pk.Cart==null||ResidentVehicleActive(vehicle.Owner,2))continue;
+            float distance=new Vector2(pk.At.X-x,pk.At.Y-z).Length();if(distance>2.4f)continue;
+            string id=vehicle.Id;
+            offers.Options!.Add((distance,Act.At(Key.E,"steal "+vehicle.Label,new(pk.At.X,Player.Jef.I.Y+.7f,pk.At.Y),()=>_=TakeParkedCart(id))));
+        }
+        return offers.Options!.Count>0?offers:null;
+    }
+    private async Task TakeParkedCart(string id)
+    {
+        if(takingCart||Handcarts.I.Busy||Handcarts.I.Held!=null)return;
+        takingCart=true;
+        try{
+            PublishCartSnapshots();await Deeds.I.Take(id);
+            var view=await ServerLink.I!.Api!.Carts();
+            if(!view.List.Any(c=>c.Id==id&&c.Kind=="taken"))return;
+            if(transport!=null)transport=transport with{Vehicles=transport.Vehicles.Select(v=>v.Id==id?v with{Gone=true}:v).ToList()};
+            if(parked.TryGetValue(id,out var pk)){pk.Cart?.Dispose();pk.Cart=null;pk.Cargo.Clear();pk.Items=0;}
+            PublishCartSnapshots();
+            Handcarts.I.Apply(view);Goods.I.RefreshCartGoods();
+            if(Handcarts.I.Drawings.TryGetValue(id,out var drawn))await Handcarts.I.Grip(drawn);
+        }catch(ApiException ex){GameState.I.Say(ex.Message);}finally{takingCart=false;}
+    }
     private bool BeginTransport(Townspeople.Sim s,string previous)
     {
         if(s.ActionHeld||s.InTrip||s.MillRun||town.MaySimulate?.Invoke(s.R.Id)==false)return false;
@@ -94,6 +142,7 @@ public partial class ResidentJourneys
     {
         if((transportPoll-=dt)<=0){transportPoll=10;_=LoadTransport();}
         DrawParked();UpdateErrands();
+        if((snapshotPoll-=dt)<=0){snapshotPoll=.25;PublishCartSnapshots();}
     }
     private void DrawParked()
     {

@@ -1,3 +1,8 @@
 // Pure API/DTO contract proof: disable optional frame profiling; no Godot scene is instantiated.
-namespace Scheldemist.Dev;
+namespace Scheldemist.Dev {
 public static class FrameCost { private sealed class Empty:System.IDisposable {public void Dispose(){}} public static System.IDisposable Callback(System.Action action)=>new Empty(); }
+}
+// API reach reports use the current scene when one exists. This contract fixture has no scene.
+namespace Scheldemist.Game {
+public sealed class GameState { public static GameState? I=>null; public (float X,float Z) Pos=>default; }
+}

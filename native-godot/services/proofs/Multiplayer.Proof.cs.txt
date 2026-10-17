@@ -140,6 +140,33 @@ Check(B(arrested["night"],"pending")&&host.Rest.InCell(3)&&host.Clock.View().ToJ
 for(int i=0;i<24;i++){now+=301;await host.ServerTick();}
 Check(!host.Rest.InCell(3)&&N(host.Clock.View(),"hour")==6&&N(host.Clock.View(),"day")==2&&host.Context.PlayerState(3,"police")?["cell"]?["pending"]==null,"cell release waits for authoritative dawn and stores completed summary");
 mp.Stop();Check(closes.Any(c=>c.Code==1001),"server shutdown closes sockets and ephemeral transfer codes");
+
+// Issue 122: the host's parked cart report supplies its actual position and cargo, including furniture.
+host.Saves.EnsurePlayer(2,"Cart taker");host.Saves.EnsurePlayer(3,"Other cart taker");
+transport.TransportRecord=()=>new JsonObject{["vehicles"]=new JsonArray(new JsonObject{["id"]="cart:proof",["kind"]="handcart",["owner"]=residentId,["label"]="the family's handcart",["home"]=new JsonArray(10,10,0),["parks"]=new JsonObject{["home"]=new JsonArray(10,10,0)}})};
+var parkedReport=new JsonObject{["x"]=47,["z"]=12,["yaw"]=0,["in_use"]=true,["load"]=new JsonArray(new JsonObject{["kind"]="sacks"},new JsonObject{["kind"]="crates"},new JsonObject{["kind"]="chair"})};
+transport.ParkedCartSnapshot=_=>parkedReport.DeepClone().AsObject();
+async Task<bool> CartRefused(int player,object body){try{await host.Call("POST","/api/deed",JsonSerializer.Serialize(body),player);return false;}catch(NativeServiceException e){return e.Status==409;}}
+int deedsBefore=host.Context.Scalar<int>("SELECT COUNT(*) FROM deed");
+Check(await CartRefused(2,new{@ref="cart:proof",x=47,z=12,witnesses=Array.Empty<object>()})&&host.Context.Scalar<int>("SELECT COUNT(*) FROM deed")==deedsBefore,"a cart in resident use cannot be stolen and creates no deed");
+parkedReport["in_use"]=false;
+Check(await CartRefused(2,new{@ref="cart:proof",x=10,z=10,witnesses=Array.Empty<object>()}),"cart theft checks actual host position instead of stale scheduled parking");
+var cartDeed=JsonNode.Parse(await host.Call("POST","/api/deed",JsonSerializer.Serialize(new{@ref="cart:proof",x=47,z=12,witnesses=Array.Empty<object>()}),2))!;
+var takenCart=A(transport.CartView(2)["list"]).Single(c=>S(c,"id")=="cart:proof")!;
+var contents=A(takenCart["load"]);string sack=S(contents[0],"gid"),crate=S(contents[1],"gid");int chair=(int)N(contents[2],"piece");
+Check(N(takenCart,"x")==47&&N(takenCart,"z")==12&&contents.Count==3&&sack!=""&&crate!=""&&chair>0,"taking a parked cart retains actual pose, goods identities and chair");
+Check(S(goods.Get(sack)?["by"],"cart")=="hc:2:cart:proof"&&S(goods.Get(crate),"owner")==residentId,"stolen cart goods remain owned by the family and attached to the cart");
+Check(await CartRefused(3,new{@ref="cart:proof",x=47,z=12,witnesses=Array.Empty<object>()})&&!A(transport.CartView(3)["list"]).Any(c=>S(c,"id")=="cart:proof"),"a second player cannot duplicate a taken cart or its load");
+await host.Call("POST","/api/cart/proof/at","{\"x\":47,\"z\":12,\"yaw\":0,\"held\":false}",2);
+await host.Call("POST","/api/cart/proof/unload","{\"x\":47,\"z\":12,\"index\":1}",2);
+Check(N(goods.Get(crate)?["by"],"p")==2,"a stolen cart unloads the same original good into the player's hands");
+await host.Call("POST","/api/cart/proof/load",JsonSerializer.Serialize(new{x=47,z=12,item=new{kind="crates",gid=crate}}),2);
+Check(S(goods.Get(crate)?["by"],"cart")=="hc:2:cart:proof"&&A(A(transport.CartView(2)["list"]).Single(c=>S(c,"id")=="cart:proof")!["load"]).Count==3,"a stolen cart reloads the same good without duplicating cargo");
+await host.Call("POST","/api/cart/proof/hold","{\"x\":47,\"z\":12}",2);
+await host.Call("POST","/api/cart/proof/at","{\"x\":49,\"z\":12,\"yaw\":0,\"held\":false}",2);
+Check(N(A(transport.CartView(2)["list"]).Single(c=>S(c,"id")=="cart:proof"),"x")==49,"the stolen loaded cart can be moved and parked");
+deeds.Return(2,(int)N(cartDeed,"deed"));
+Check(!A(transport.CartView(2)["list"]).Any(c=>S(c,"id")=="cart:proof")&&goods.Get(sack)?["by"]==null&&host.Context.Scalar<string>("SELECT state FROM home_item WHERE id=$p0",chair)=="gone","returning a stolen cart removes it and leaves cargo on the ground without duplicating furniture");
 Console.WriteLine("PASS "+checks+" stateful multiplayer checks, "+sourceChecks+" original comparisons");
 
 

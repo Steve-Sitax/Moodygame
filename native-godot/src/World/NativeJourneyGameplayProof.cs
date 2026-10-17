@@ -60,12 +60,47 @@ public static class NativeJourneyGameplayProof
             foreach(var shape in shapes){if(shape.GetParent() is not CollisionObject3D body||body.CollisionLayer==0)continue;var centre=shape.GlobalPosition;using var ray=PhysicsRayQueryParameters3D.Create(centre+Vector3.Up*3,centre-Vector3.Up*2,Solid.Layer);var hit=space.IntersectRay(ray);if(hit.Count>0&&hit["collider"].AsGodotObject()==body)return true;}return false;}
         Dictionary<string,Quaternion> LegPose(Puppet person){var result=new Dictionary<string,Quaternion>();var skeleton=BakedWorld.All(person.Human.Root).OfType<Skeleton3D>().First();for(int bone=0;bone<skeleton.GetBoneCount();bone++){string name=skeleton.GetBoneName(bone);if(name.Contains("leg",StringComparison.OrdinalIgnoreCase)||name.Contains("thigh",StringComparison.OrdinalIgnoreCase)||name.Contains("shin",StringComparison.OrdinalIgnoreCase)||name.Contains("foot",StringComparison.OrdinalIgnoreCase))result[name]=skeleton.GetBonePoseRotation(bone);}return result;}
         try{
-            if(scope is not("full"or"cart-dray"))throw new ArgumentException("native-journey-scope is full or cart-dray");
+            if(scope is not("full"or"cart-dray"or"cart-theft"))throw new ArgumentException("native-journey-scope is full, cart-dray or cart-theft");
             Check("journey proof uses its own disposable database",Path.GetFullPath(Paths.Database).StartsWith(Path.GetFullPath(output)+Path.DirectorySeparatorChar,StringComparison.OrdinalIgnoreCase)&&Main.I.Flag("no-ai"));
             Check("native town and services become ready",await Until(()=>game.Loaded&&!Loading.Busy&&ServerLink.I?.Up==true&&GameState.I.Live&&game.GetNodeOrNull<Townspeople>("Townspeople")?.Sims.Count>500,100));
             var api=ServerLink.I!.Api!;MainMenu.I!.Start();Jef.I.TestInput=true;Pause.Clear();var town=game.GetNode<Townspeople>("Townspeople");var journeys=ResidentJourneys.I!;
             GameState.I.Apply(await api.Post<JobsPayload>("api/dev/set",new{day=1,hour=6,minute=0,weather="clear",money_c=1000}));Scheldemist.Movers.MoverClock.Hold(6,1);await Frames(20);await journeys.LoadTransport();await Velocipedes.I.Load();
             Check("source-authored vehicle and errand records reach native client",journeys.Transport is {} data&&data.Vehicles.Count>10&&data.Errands.Count>0);
+            if(scope=="cart-theft"){
+                var leftovers=BakedWorld.All(game.World).OfType<Node3D>().Where(n=>n.HasMeta("source_node_index")&&n.GetMeta("source_node_index").AsInt32() is 4854 or 4867).ToArray();
+                Check("both unowned quay snapshots stay preserved but hidden",leftovers.Length==2&&leftovers.All(n=>!n.IsVisibleInTree()));
+                Check("hidden quay snapshots have no live collision",leftovers.SelectMany(BakedWorld.All).OfType<CollisionShape3D>().All(s=>s.Disabled));
+                Scheldemist.Movers.MoverClock.Hold(8+8.5/60,1);await Frames(20);
+                var round=Scheldemist.Movers.GoodsDrays.I!.Rigs.Single(r=>r.Id=="casks");
+                Check("live Hessenatie dray has its carter and articulated horse",round.Man!=null&&round.Horse!=null&&round.Moving&&round.CartId=="dray:hessenatie");
+                float gait=round.Gait;await Frames(30);Check("live dray horse animates on its working round",Math.Abs(round.Gait-gait)>.001);
+                Scheldemist.Movers.MoverClock.Hold(6,1);
+                ResidentVehicle? candidate=null;Vector2 approach=default;
+                foreach(var vehicle in journeys.Transport!.Vehicles.Where(v=>v.Kind=="handcart"&&!v.Gone)){
+                    View(new((float)vehicle.Home[0],0,(float)vehicle.Home[1]));await Frames(12);
+                    if(journeys.CartSnapshot(vehicle.Id) is not {} snapshot||snapshot["in_use"]?.GetValue<bool>()==true)continue;
+                    double cx=snapshot["x"]!.GetValue<double>(),cz=snapshot["z"]!.GetValue<double>(),cyaw=snapshot["yaw"]!.GetValue<double>();
+                    var spot=NativeCartLoadingPoint.Select(new(cx,cz),cyaw,p=>town.Walk!.Free(p.X,p.Z)&&town.Walk.SupportsStep(p.X,p.Z,p.X,p.Z),_=>true);
+                    if(spot==null)continue;approach=new((float)spot.Value.At.X,(float)spot.Value.At.Z);
+                    if(Jef.I.Fly)Jef.I.ToggleFly();Jef.I.Place(approach.X,approach.Y,MathF.Atan2(approach.X-(float)cx,approach.Y-(float)cz),.15f);await Frames(12);
+                    if(Interact.I.Find().Any(a=>a.Text=="steal "+vehicle.Label)){candidate=vehicle;break;}
+                }
+                Check("parked family cart exposes an actual theft prompt",candidate!=null);var cartId=candidate!.Id;
+                Check("E takes the parked family handcart",Interact.I.Press(Key.E));
+                Check("theft hands control to the playable cart",await Until(()=>Handcarts.I.Held==cartId&&!Handcarts.I.Busy,15));
+                await journeys.LoadTransport();Check("taken cart is removed from its owner's transport",journeys.Transport!.Vehicles.Single(v=>v.Id==cartId).Gone);
+                var playable=Handcarts.I.Drawings[cartId];await Shot("stolen-family-cart",playable.Root.GlobalPosition,playable.Root);
+                if(Jef.I.Fly)Jef.I.ToggleFly();await Handcarts.I.Release(true,true);
+                var created=await api.Post<JsonElement>("api/dev/job",new{type="carry",goods="rope",items=1,cart=true});int jobId=created.GetProperty("id").GetInt32();
+                GameState.I.Apply(await api.Get<JobsPayload>("api/jobs"));await Jobs.I.TakeJob(GameState.I.Jobs.Single(j=>j.Id==jobId));Goods.I.RefreshCartGoods();
+                Check("real carry goods become available",await Until(()=>Goods.I.All.Values.Any(i=>i.JobId==jobId),10));
+                var goodsItem=Goods.I.All.Values.First(i=>i.JobId==jobId);Jef.I.Place(goodsItem.X+.7f,goodsItem.Z+.7f,0);await Frames(12);Goods.I.Lift(goodsItem);
+                Check("goods lifted into player's hands",await Until(()=>Goods.I.Carried?.Id==goodsItem.Id,10));
+                Jef.I.Place(playable.X+1.8f,playable.Z,MathF.PI/2,.1f);await Frames(12);await Handcarts.I.LoadGoods(playable,goodsItem);
+                Check("stolen handcart loads an original good",playable.Info.Load.Any(i=>i.Gid==goodsItem.Id)&&Goods.I.Carried==null);
+                await Handcarts.I.Unload(playable);Check("stolen handcart unloads the same good",Goods.I.Carried?.Id==goodsItem.Id&&!playable.Info.Load.Any(i=>i.Gid==goodsItem.Id));
+                stages.Add("quay snapshots, live dray, cart theft and cargo");return;
+            }
             var bike=journeys.Transport!.Vehicles.First(v=>v.Kind=="velocipede"&&!v.Gone&&town.ActionPerson(v.Owner) is {R.Age:>=15 and <60,ActionHeld:false}&&Velocipedes.I.Machines.ContainsKey(v.Id));
             var cyclist=town.ActionPerson(bike.Owner)!;var machine=Velocipedes.I.Machines[bike.Id];var start=new Vector3(machine.Info.X,0,machine.Info.Z);View(start,machine.Root);await Frames(30);
             var source=new Vector2(start.X,start.Z);Vector2 rideTo=default;List<Vector2>? rideWay=null;string rideLabel="";

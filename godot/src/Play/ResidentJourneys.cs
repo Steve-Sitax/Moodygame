@@ -20,7 +20,7 @@ public partial class ResidentJourneys:Node
     public readonly List<Trip> Trips=new();
     public int Boarded {get;private set;}public int Alighted {get;private set;}public int Finished {get;private set;}public int WalkFallbacks {get;private set;}
     private Townspeople town=null!;
-    public override void _Ready(){I=this;town=GetParent().GetNode<Townspeople>("Townspeople");Omnibus.I.ResidentOff+=Off;town.PopulationChanged+=Reset;if(Menu.MainMenu.I is {} m)m.WorldReplaced+=Replaced;Net.ServerLink.I?.WhenUp(()=>_=LoadTransport());}
+    public override void _Ready(){I=this;town=GetParent().GetNode<Townspeople>("Townspeople");Omnibus.I.ResidentOff+=Off;town.PopulationChanged+=Reset;if(Menu.MainMenu.I is {} m)m.WorldReplaced+=Replaced;Net.ServerLink.I?.WhenUp(()=>_=LoadTransport());Interact.I.AddProvider(ParkedCartKeys);}
     public override void _ExitTree(){Omnibus.I.ResidentOff-=Off;town.PopulationChanged-=Reset;if(Menu.MainMenu.I is {} m)m.WorldReplaced-=Replaced;Reset();I=null;}
     private void Replaced(string how,Net.ClientState? state)=>Reset();
     private void Reset(){transportEpoch++;while(Trips.Count>0)End(Trips[^1],false);ClearTransport();}

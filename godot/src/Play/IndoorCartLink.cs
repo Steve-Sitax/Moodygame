@@ -27,7 +27,7 @@ public partial class IndoorCartLink : Node
     }
     private void Changed(JsonElement state){Handcarts.I.Apply(state.Deserialize<CartView>(Api.Json)!);Sync();}
     private void CartAnswered(string action,CartReply reply){HomeFurniture.I.RefreshAfterCart();Sync();}
-    private void Taken(string id,bool again){_ = Handcarts.I.Load();HomeFurniture.I.RefreshAfterCart();}
+    private void Taken(string id,bool again){HomeFurniture.I.RefreshAfterCart();}
     private void Returned(){_ = Handcarts.I.Load();HomeFurniture.I.RefreshAfterCart();}
     private Offers? Keys(float x,float z)
     {

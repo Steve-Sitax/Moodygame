@@ -11,6 +11,8 @@ Bugs and loose ends are tracked as [issues](https://github.com/Steve-Sitax/Moody
 
 ## [Unreleased]
 
+- Parked family handcarts can be taken: walk up and press E. The owner's cart is gone from his round, and the cart keeps its load, which you can push, unload and load again; a second player cannot copy it. The frozen handcart and horse dray that stood all day on the Rijnkaai are gone; the real drays there have a carter and a walking horse.
+
 - The city wall, with its stairs, gates, guard huts, bastions and towers, and the street junction by the guardhouse are rebuilt with real detail. Stone and brick edges are rounded, stone blocks are dressed, paving fits the walls and steps, kerbs end and turn properly, gutters and downpipes lead the rain to drains, and damp, dirt and small plants sit where water and splash put them.
 
 - The lanterns on the Werf landing stage now burn at night and in night fog, and light its deck. They ride the tide with the stage and go out by day (#147).

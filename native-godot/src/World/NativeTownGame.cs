@@ -118,6 +118,7 @@ public partial class NativeTownGame : Scheldemist.Main
             transport.TransportRecord = populationLifecycle.Transport.Record;
             transport.TripPoints = populationLifecycle.Transport.TripPoints;
             transport.Errands = populationLifecycle.Transport.Errands;
+            transport.ParkedCartSnapshot = id => Scheldemist.Play.ResidentJourneys.I?.CartSnapshot(id);
             events.EventPeopleMax = populationLifecycle.EventPeopleMax;
             surprises.SaveVisitor = populationLifecycle.Visitors.SaveVisitor;
             var ideas = new NativeCoreIdeas(host) {

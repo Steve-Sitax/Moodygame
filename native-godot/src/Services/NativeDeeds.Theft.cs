@@ -17,6 +17,7 @@ public sealed partial class NativeDeeds
         else if(reference.StartsWith("lamp:",StringComparison.Ordinal)){target=(WorkLamps?.Invoke()??A(Assets?["lamps"])).FirstOrDefault(l=>S(l,"id")==reference)as JsonObject;thing="lantern";item="lantern";if(A(C.World("lamps_taken:"+Day)).Any(l=>l?.GetValue<string>()==reference))Refuse("it is gone");}
         else {target=A(Assets?["food"]).FirstOrDefault(f=>S(f,"id")==reference)as JsonObject;thing="food";item=S(target,"item");known=Resident(S(target,"keeper"))?["work"] as JsonObject;}
         if(target==null)Refuse("nothing like that here",404);owner=S(target,thing=="food"?"keeper":"owner");
+        if(thing=="handcart"&&B(target,"in_use"))Refuse("someone is using that cart");
         double reach=Distance(x,z,target);if(thing=="boat"){double yaw=N(target,"yaw"),half=N(target,"length")/2,along=Math.Clamp((x-N(target,"x"))*Math.Sin(yaw)+(z-N(target,"z"))*Math.Cos(yaw),-half,half);reach=NativeGoods.Distance(x,z,N(target,"x")+along*Math.Sin(yaw),N(target,"z")+along*Math.Cos(yaw));}if(reach>4.5)Refuse("too far away");
         if(thing=="food"){if(!host.Trade.AtWork(owner))Refuse("the table is put away");if(N(C.World("table_takes:"+Day),reference)>=3)Refuse("there is no more in reach");}
         if(thing=="velocipede") {

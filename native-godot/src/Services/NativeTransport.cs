@@ -17,6 +17,8 @@ public sealed partial class NativeTransport : INativeServiceModule
     public Func<JsonObject>? TransportRecord;
     public Func<string,JsonObject>? TripPoints;
     public Func<int,JsonArray>? Errands;
+    // Immutable reports from the host's resident simulation, never from a player's request.
+    public Func<string,JsonObject?>? ParkedCartSnapshot;
     public JsonObject Transport=>TransportRecord?.Invoke()??Data["transport"]!.AsObject();
     public Func<double,double,double,bool>? GroundOpen;
     public readonly List<Func<int,double,double,bool>> Guards = new();
