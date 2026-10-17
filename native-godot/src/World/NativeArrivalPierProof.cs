@@ -78,8 +78,8 @@ public static class NativeArrivalPierProof
             Check("pier proof uses its own disposable database", Path.GetFullPath(Paths.Database).StartsWith(Path.GetFullPath(output) + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase) && game.Flag("no-ai"));
             Check("native town and services become ready", await Until(() => game.Loaded && !Loading.Busy && ServerLink.I?.Up == true && GameState.I.Live, 900));
             var api = ServerLink.I!.Api!; MainMenu.I!.Start(); Jef.I.TestInput = true; Pause.Clear(); game.Ui.Visible = false;
-            for (int attempt = 1; ; attempt++)  // (a slow first answer on a busy machine is not the proof's business)
-                try { GameState.I.Apply(await api.NewGame()); break; }
+            for (int attempt = 1; ; attempt++)  // (a slow first answer on a busy machine is not the proof's business; 60 s as the menu waits)
+                try { GameState.I.Apply(await api.Post<JobsPayload>("api/new-game", null, 60_000)); break; }
                 catch (ApiException) when (attempt < 4) { await Frames(30); }
             GameState.I.Apply(await api.Post<JobsPayload>("api/dev/set", new { day = 1, hour = 12, minute = 0, weather = "clear" })); Scheldemist.Movers.MoverClock.Hold(12, 1);
             await HoldTide(-2.8f);
