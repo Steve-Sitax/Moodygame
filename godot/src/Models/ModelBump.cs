@@ -71,6 +71,36 @@ public static class ModelBump
     }
 
     private static readonly Dictionary<Texture2D, ImageTexture?> Heights = new();
+    private static readonly Dictionary<string, ImageTexture?> Drawn = new();
+
+    /// <summary>A material the browser's rules keep smooth on purpose (glass, paper, water, paint pictures).</summary>
+    public static bool IsSmooth(string label) => KindOf(label) == "none";
+
+    /// <summary>
+    /// A height map drawn with the model: assets/game-models/heights/&lt;model&gt;/&lt;material&gt;.png, 0.5 level, light high,
+    /// painted with the same strokes as the colour (art-source/tools/blender/build_ferry.py write_heights). It replaces the
+    /// map made from the picture's light, which cannot tell a grain line from a stain. Null when the model has none.
+    /// </summary>
+    public static Texture2D? Authored(string model, string material)
+    {
+        if (model == "" || material == "") return null;
+        string path = $"res://assets/game-models/heights/{model}/{material}.png";
+        if (Drawn.TryGetValue(path, out var done)) return done;
+        ImageTexture? made = null;
+        try
+        {
+            if (ResourceLoader.Exists(path) && ResourceLoader.Load<Texture2D>(path)?.GetImage() is { } image && image.GetWidth() > 0)
+            {
+                if (image.IsCompressed()) image.Decompress();
+                image.Convert(Image.Format.L8);
+                image.GenerateMipmaps();
+                made = ImageTexture.CreateFromImage(image);
+            }
+        }
+        catch (Exception e) { GD.PrintErr("model bump: a drawn height map was not read: " + path + ": " + e.Message); }
+        Drawn[path] = made;
+        return made;
+    }
 
     /// <summary>One height map per picture (bumpFromMap's cache); null when the picture cannot be read.</summary>
     public static Texture2D? HeightOf(Texture2D picture)

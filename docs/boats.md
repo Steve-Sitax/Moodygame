@@ -15,7 +15,7 @@ is `docs/plans/next-update.md` (W0); the names of the placed vessels are in `sha
 | `tools/blender/boats/tugs.py` | tug, paddle tug |
 | `tools/blender/boats/small.py` | rowboat, dinghy, ship's boat, gig, bumboat, old boat, punt, work boat, eel boat |
 | `tools/blender/boats/cranes.py` | portal crane and hand crane (in `boats.glb`, not boats) |
-| `tools/blender/build_ferry.py` | the ferry St. Anna and the landing stage, into `ferry.glb` |
+| `tools/blender/build_ferry.py` | the ferry St. Anna, the landing stage and its bridges, into `ferry.glb` (with `pier_kit.py`: bevelled timber and iron, the deck's painter; and `pier_parts.py`: the tidal bridge, its toe plate, the quay hinge, the ferry's gangway) |
 
 Run: `blender -b --factory-startup -P tools/blender/build_boats.py` (and `build_ferry.py`). `build_ferry`,
 `build_lock`, `build_bridges` and `build_wall` import `build_boats` as `bb`: the driver re-exports every
@@ -50,7 +50,7 @@ copy.
 | brig | 41.45 | 9.07 | -3.00 | 35.8 | 16,312 (B1) | 70k | `_far` 4,631 |
 | rhine_barge | 36.20 | 6.71 | -2.03 | 12.0 | 2,662 | 30k | 20% |
 | schooner | 29.57 | 6.66 | -2.60 | 21.4 | 11,330 (B1) | 45k | `_far` 3,259 |
-| ferry (`ferry.glb`) | 26.5 overall | 7.41 | -1.35 | 11.7 | 10,595 | 40k | 20% |
+| ferry (`ferry.glb`) | 26.5 overall | 7.41 | -1.35 | 11.7 | 27,877 (A1) | 40k | 20% |
 | hengst, hengst_sail | 23.35 | 5.97 | -2.25 | 17.5 | 2,672 / 2,616 | 25k | 20% |
 | tug | 21.06 | 5.06 | -2.16 | 9.2 | 1,632 | 30k | 20% |
 | paddle_tug | 21.06 | 6.51 | -2.10 | 9.2 | 1,148 | 30k | 20% |
@@ -72,6 +72,17 @@ schooner 1 m): the new hulls have more levels, so the stem and the knee of the h
 did not grow. Every reader takes `dims()` at load. `barque_grain` (the German grain barque) and `steamer_line` (the
 Belgian line steamer) are new kinds in `boats.glb`, not placed yet: `barque` is now the Norwegian timber barque and
 `steamer` the British collier; `barque_sail` is the grain barque under sail.
+
+A1 (2026-10-16, the arrival pier): `ferry.glb` is rebuilt with its pictures at 512 px (they were 128) and a drawn height
+map for each material with relief, in `native-godot/assets/game-models/heights/ferry/<material>.png`, which
+`ModelBump.Authored` lights in place of the map made from the picture. Every box and beam is bevelled. The stage's deck
+is one chamfered oak board to each 0.25 m. The model gains four nodes the game reads by name: `stage_bridge` (the tidal
+bridge), `bridge_lip` (its toe plate), `quay_hinge` and `gangway` (the ferry's brow). The bridge and the brow are rigid:
+`FerryArrival` only turns them, about the pin (`stage_bridge` extras `length`, `deck`, `wheel_r`, `wheel_z`, `lip_at`,
+`lip_length`; `gangway` `length`). The bridge's toe wheels stand on the stage's two rails at x = +-1.25, 4 cm over the
+boards, so the stage's rails and these extras move together. The brow is hauled up on the ferry's side when she leaves
+and goes with her. Replace the stored model with `scripts/replace-ferry.ps1`; `scripts/check-arrival-pier.ps1` plays the
+opening and keeps pictures and floor checks at three tides.
 
 Deck and seat heights are read by the game, so they move only together with their readers: the small
 boats' glTF extra `row` and `shared/smallBoats.ts HULLS` (the boat check compares them), the brig's

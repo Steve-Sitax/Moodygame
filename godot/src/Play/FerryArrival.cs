@@ -37,7 +37,13 @@ public partial class FerryArrival:Node
     private readonly Func<float,float,float,bool> waterFree;
     private Func<float,float,float,float>? oldFloor;
     private MeshDeck ferryDeck=null!,landingDeck=null!;
-    private Node3D ferry=null!,landing=null!,plank=null!,quayPlank=null!,passengers=null!;
+    private Node3D ferry=null!,landing=null!,gangway=null!,bridge=null!,lip=null!,hinge=null!,passengers=null!;
+    // The ferry's brow is hinged on her sill and rigid: laid to the stage head, hauled up on her side when she leaves.
+    // The tidal bridge is hinged on the quay (its pin 12 cm under the paving, 30 cm behind the wall) and rigid too: its toe
+    // wheels stand on the stage's rails, so the tide only turns it about the pin; the toe plate lies on the boards.
+    private const float PierX=-249,PinY=-.12f,PinZ=.3f,RailUp=.04f,BrowDeck=.06f,BridgeHalf=1.3f;
+    private float browLength=2,browModel=2,bridgeLength=7.7f,wheelDrop=.17f,wheelRadius=.12f,deckUp=.12f,lipAt=8.01f,lipLength=.9f;
+    private Vector3 bridgeHeel,lipHinge,lipTip;
     private Human? ferryman;
     private Vector2 ferrymanAt;
     private float side=2.304f,portZ=4.5f,deckY=1.35f,x=-244.5f,z=-63.25f,yaw=-MathF.PI/2,phaseT,speed;
@@ -58,9 +64,10 @@ public partial class FerryArrival:Node
         foreach(var n in BakedWorld.All(Main.I.World))if(n is Node3D n3&&(n3.Name.ToString() is "landing_stage" or "pontoon_section" or "pontoon_gangway"))n3.Visible=false;
         Movers.BoatLamps.I?.AddFerry(()=>ferry.GlobalTransform,()=>ferry.IsVisibleInTree());
         foreach(var f in Movers.Boats.I.Floats)if(f.Kind=="pontoon_section")f.Outer.Visible=false;
-        Material? wood=null,rope=null;foreach(var n in BakedWorld.All(model.Scene))if(n is MeshInstance3D{Mesh:not null} m)for(int i=0;i<m.Mesh.GetSurfaceCount();i++){var mat=m.Mesh.SurfaceGetMaterial(i);if(mat?.ResourceName=="wood"||mat?.ResourceName=="deck")wood=mat;if(mat?.ResourceName=="rope")rope=mat;}
-        var mesh=new BoxMesh{Size=new(1,.06f,1)};plank=MakePlank(wood,rope??wood);Main.I.View.AddChild(plank);
-        quayPlank=new Node3D{Name="arrival_quay_plank"};quayPlank.AddChild(new MeshInstance3D{Mesh=mesh,MaterialOverride=wood});Main.I.View.AddChild(quayPlank);
+        gangway=Piece(model,"gangway","arrival_gangway");bridge=Piece(model,"stage_bridge","arrival_bridge");lip=Piece(model,"bridge_lip","arrival_bridge_lip");hinge=Piece(model,"quay_hinge","arrival_quay_hinge");
+        float Extra(string node,string key,float fallback)=>ModelExtras.Get("ferry",node,key) is {ValueKind:System.Text.Json.JsonValueKind.Number} n?n.GetSingle():fallback;
+        browModel=Extra("gangway","length",browModel);bridgeLength=Extra("stage_bridge","length",bridgeLength);wheelDrop=-Extra("stage_bridge","wheel_z",-wheelDrop);wheelRadius=Extra("stage_bridge","wheel_r",wheelRadius);
+        deckUp=Extra("stage_bridge","deck",deckUp);lipAt=Extra("stage_bridge","lip_at",lipAt);lipLength=Extra("bridge_lip","length",lipLength);
         passengers=new Node3D{Name="arrival_passengers"};Main.I.View.AddChild(passengers);
         string[] kinds={"fishwife_a","old_man","docker_sack","tourist_lady","gentleman"};float[] ats={4.2f,6.4f,8.4f,10.6f,12.6f},speeds={1.05f,.9f,1.1f,.95f,1.1f};
         for(int i=0;i<people.Length;i++){var h=Humans.Make(kinds[i]);if(h!=null)passengers.AddChild(h.Root);people[i]=new(){Human=h,At=ats[i],Speed=speeds[i]};h?.SetPace(speeds[i]);}
@@ -70,6 +77,7 @@ public partial class FerryArrival:Node
         if(MainMenu.I is {} menu)menu.WorldReplaced+=Replaced;
         if(Main.I.Arg("ridetest")=="")ServerLink.I?.WhenUp(()=>_=Ask());
     }
+    private static Node3D Piece(ModelLibrary.Model model,string from,string name){var piece=model.Copy(from)!;piece.Name=name;Main.I.View.AddChild(piece);return piece;}
     private void Replaced(string how,ClientState? client){epoch++;Stop();if(Main.I.Arg("ridetest")=="")_=Ask();}
     public async Task Ask(bool creator=true)
     {
@@ -81,7 +89,7 @@ public partial class FerryArrival:Node
     private async Task Made(){try{var r=await ServerLink.I!.Api!.ArrivalMade();Answered?.Invoke("made",r);Start();}catch(ApiException ex){GameState.I.Say(ex.Message);}}
     public void Start()
     {
-        ShipWalk.I.Clear();Stage="waiting";Ashore=false;Time=phaseT=speed=0;nag=PassengersOff=MissingFootSamples=0;WorstFootError=0;guide=false;guideOnce=false;guideWay=null;guideAt=0;x=-244.5f;z=-63.25f;yaw=-MathF.PI/2;ferry.Visible=plank.Visible=passengers.Visible=true;
+        ShipWalk.I.Clear();Stage="waiting";Ashore=false;Time=phaseT=speed=0;nag=PassengersOff=MissingFootSamples=0;WorstFootError=0;guide=false;guideOnce=false;guideWay=null;guideAt=0;x=-244.5f;z=-63.25f;yaw=-MathF.PI/2;ferry.Visible=gangway.Visible=passengers.Visible=true;
         Vector2[] locals={new(-.6f,3.4f),new(.6f,6),new(-.9f,6.2f),new(-.3f,7.6f),new(.5f,8.4f)};UpdateModels(0);
         for(int i=0;i<people.Length;i++)
         {
@@ -93,7 +101,7 @@ public partial class FerryArrival:Node
     }
     // Passengers still on the pontoon when the ferry has gone walk on to the quay; frozen there they would block the way.
     private bool Walking(){if(passengers==null||!passengers.Visible)return false;foreach(var p in people)if(p.Step<p.Way.Length)return true;return false;}
-    private void Stop(){Stage="gone";Ashore=true;if(ferry!=null)ferry.Visible=plank.Visible=passengers.Visible=false;if(Jef.I.Drive==drive)Jef.I.Drive=null;}
+    private void Stop(){Stage="gone";Ashore=true;if(ferry!=null)ferry.Visible=gangway.Visible=passengers.Visible=false;if(Jef.I.Drive==drive)Jef.I.Drive=null;}
     private Vector2 PortPoint(float localX){var p=ferry.Transform*new Vector3(localX,deckY,portZ);return new(p.X,p.Z);}
     public Vector2 Port=>PortPoint(side-.3f);
     public List<Vector2> StagePath(Vector2 from,Vector2 to)
@@ -101,8 +109,8 @@ public partial class FerryArrival:Node
     public float Foot(float wx,float wz)
     {
         float water=Water.Level(-249,-30);
+        float span=BridgeFoot(wx,wz);if(float.IsFinite(span))return span;
         if(Math.Abs(wx+249)<1.5f&&wz>=0&&wz<4.5f)return 0;
-        if(wx>-249.8f&&wx<-248.2f&&wz>=-6.1f&&wz<=.1f)return Mathf.Lerp(water+1.8f,0,Math.Clamp((wz+6)/6,0,1));
         float land=landingDeck.Floor(wx+249,wz);if(landingDeck.Stand(wx+249,wz,.16f))return water+land;
         var port=PortPoint(side-.3f);if(Stage is "waiting" or "moored"&&Time>=3.4f&&Math.Abs(wx+249)<.8f&&wz>=Math.Min(port.Y,-59.53f)&&wz<=Math.Max(port.Y,-59.53f))
         {float t=Math.Clamp((wz-port.Y)/(-59.98f-port.Y),0,1);return Mathf.Lerp(Water.Level(x,z)+deckY,water+1.8f,t);}
@@ -129,24 +137,33 @@ public partial class FerryArrival:Node
         try{var r=await ServerLink.I!.Api!.ArrivalAshore();if(e!=epoch)return;Ashore=r.Stage=="ashore";Answered?.Invoke("ashore",r);if(Ashore)GameState.I.Say("Day work is given out at the Hessenatie's board on the Rijnkaai, along the quay past the Steen.");}
         catch(ApiException ex){GameState.I.Say(ex.Message);}finally{reporting=false;}
     }
-    private static Node3D MakePlank(Material? wood,Material? rope)
+    /// <summary>How far the brow is hauled up, 0 (lowered to the stage) to 1 (up on her side): it rides with her from then on.</summary>
+    private float BrowRaised=>Stage=="hauling"?Math.Clamp(phaseT/3.2f,0,1):Stage=="waiting"?1-Math.Clamp((Time-.6f)/2.8f,0,1):Stage is "leaving" or "gone"?1:0;
+    /// <summary>The surface of the tidal bridge at z, or no floor outside it: the deck from its heel to the toe plate's hinge, then that plate to its tip.</summary>
+    private float BridgeFoot(float wx,float wz)
     {
-        var root=new Node3D{Name="arrival_plank"};var boards=new SurfaceTool();boards.Begin(Mesh.PrimitiveType.Triangles);
-        void Box(Vector3 size,Vector3 at)=>boards.AppendFrom(new BoxMesh{Size=size},0,new Transform3D(Basis.Identity,at));
-        Box(new(1,.06f,1),Vector3.Zero);for(int i=1;i<8;i++)Box(new(.87f,.035f,.015f),new(0,.045f,-.5f+i/8f));
-        foreach(float side in new[]{-.46f,.46f}){Box(new(.06f,.1f,1),new(side,.035f,0));foreach(float z in new[]{-.45f,0,.45f})Box(new(.025f,.94f,.006f),new(side,.49f,z));}
-        root.AddChild(new MeshInstance3D{Mesh=boards.Commit(),MaterialOverride=wood});var rails=new SurfaceTool();rails.Begin(Mesh.PrimitiveType.Triangles);
-        var line=new CylinderMesh{TopRadius=.02f,BottomRadius=.02f,Height=.9f,RadialSegments=5};foreach(float side in new[]{-.46f,.46f})foreach(float height in new[]{.5f,.97f})rails.AppendFrom(line,0,new Transform3D(new Basis(Vector3.Right,MathF.PI/2),new(side,height,0)));
-        root.AddChild(new MeshInstance3D{Mesh=rails.Commit(),MaterialOverride=rope});return root;
+        if(Math.Abs(wx-PierX)>BridgeHalf||wz>bridgeHeel.Z||wz<lipTip.Z)return float.NegativeInfinity;
+        if(wz>=lipHinge.Z)return Mathf.Lerp(bridgeHeel.Y,lipHinge.Y,(bridgeHeel.Z-wz)/Math.Max(.001f,bridgeHeel.Z-lipHinge.Z));
+        return Mathf.Lerp(lipHinge.Y,lipTip.Y,(lipHinge.Z-wz)/Math.Max(.001f,lipHinge.Z-lipTip.Z));
     }
-    private static void Span(Node3D n,Vector3 a,Vector3 b,float width)
-    {var delta=b-a;var forward=delta.Normalized();var right=Vector3.Right;var up=forward.Cross(right).Normalized();Scheldemist.Render.NodeUpdates.Transform(n,new(new Basis(right*width,up,forward*delta.Length()),(a+b)/2));}
     private void UpdateModels(float dt)
     {
-        float water=Water.Level(x,z),landWater=Water.Level(-249,-30);Scheldemist.Render.NodeUpdates.Transform(ferry,new(new Basis(Vector3.Up,yaw),new(x,water,z)));Scheldemist.Render.NodeUpdates.Position(landing,new(-249,landWater,0));
+        float water=Water.Level(x,z),landWater=Water.Level(PierX,-30);Scheldemist.Render.NodeUpdates.Transform(ferry,new(new Basis(Vector3.Up,yaw),new(x,water,z)));Scheldemist.Render.NodeUpdates.Position(landing,new(PierX,landWater,0));
         if(ferryman!=null){Scheldemist.Render.NodeUpdates.Position(ferryman.Root,new(ferrymanAt.X,ferryDeck.Floor(ferrymanAt.X,ferrymanAt.Y),ferrymanAt.Y));}
-        var port=ferry.Transform*new Vector3(side-.3f,deckY,portZ);var end=new Vector3(-249,landWater+1.8f,-59.53f);float angle=Stage=="hauling"?Math.Clamp(phaseT/3.2f,0,1)*1.2f:Stage=="waiting"?(1-Math.Clamp((Time-.6f)/2.8f,0,1))*1.2f:Stage is "leaving" or "gone"?1.2f:0;
-        var offset=end-port;end=port+new Vector3(offset.X,offset.Y+MathF.Sin(angle)*offset.Length(),offset.Z*MathF.Cos(angle));Span(plank,port,end,1);Span(quayPlank,new(-249,landWater+1.8f,-6),new(-249,0,.1f),1.5f);
+        // the tidal bridge: the pitch at which the toe wheels (radius wheelRadius, their axle wheelDrop under the deck's pin) stand on the rails, whose tops are RailUp over the stage's boards
+        float rise=landWater+1.8f+RailUp+wheelRadius-PinY,reach=MathF.Sqrt(bridgeLength*bridgeLength+wheelDrop*wheelDrop),pitch=MathF.Atan2(wheelDrop,bridgeLength)+MathF.Asin(Math.Clamp(rise/reach,-.98f,.98f));
+        var pin=new Vector3(PierX,PinY,PinZ);var turn=new Transform3D(new Basis(Vector3.Right,pitch),pin);
+        Scheldemist.Render.NodeUpdates.Transform(bridge,turn);Scheldemist.Render.NodeUpdates.Transform(hinge,new Transform3D(Basis.Identity,pin));
+        bridgeHeel=turn*new Vector3(0,deckUp,0);lipHinge=turn*new Vector3(0,deckUp,-lipAt);
+        // the toe plate, hinged on the bridge, lies with its tip on the boards (its own thickness 3.5 cm): a fixed slope for the tide, not the bridge's
+        var plate=new Transform3D(new Basis(Vector3.Right,MathF.Asin(Math.Clamp((landWater+1.8f+.035f-lipHinge.Y)/lipLength,-.9f,.9f))),lipHinge);
+        Scheldemist.Render.NodeUpdates.Transform(lip,plate);lipTip=plate*new Vector3(0,0,-lipLength);
+        // the ferry's brow: pinned on her sill (its walking face 6 cm over the pin), laid to the stage head while she lies there, hauled up as one rigid piece
+        var port=ferry.Transform*new Vector3(side-.3f,deckY-BrowDeck,portZ);var end=new Vector3(PierX,landWater+1.8f-BrowDeck,-59.53f);
+        if(Stage is "waiting" or "moored" or "hauling")browLength=Math.Clamp(port.DistanceTo(end),1.2f,3.2f);
+        var outward=ferry.Transform.Basis*Vector3.Right;outward=new Vector3(outward.X,0,outward.Z).Normalized();var up=outward*MathF.Cos(1.35f)+Vector3.Up*MathF.Sin(1.35f);
+        var heading=(end-port).Normalized().Slerp(up.Normalized(),BrowRaised);var look=new Transform3D(Basis.Identity,port).LookingAt(port+heading,Vector3.Up);
+        Scheldemist.Render.NodeUpdates.Transform(gangway,new Transform3D(look.Basis*Basis.FromScale(new Vector3(1,1,browLength/browModel)),port));
     }
     public override void _Process(double delta)
     {
@@ -168,7 +185,7 @@ public partial class FerryArrival:Node
         if(Stage=="moored"&&Ashore&&PassengersOff==people.Length){Stage="hauling";phaseT=0;}
         else if(Stage=="hauling"&&phaseT>=4.2f){Stage="leaving";phaseT=0;}
         else if(Stage=="leaving")
-        {speed=Math.Min(2.4f,speed+.16f*dt);float t=Math.Clamp((phaseT-4)/30,0,1);yaw+=(-MathF.PI/2-.4f*t-yaw)*Math.Min(1,dt*.4f);x+=MathF.Sin(yaw)*speed*dt;z+=MathF.Cos(yaw)*speed*dt-.35f*dt*Math.Max(0,1-phaseT/8);if(new Vector2(Jef.I.X-x,Jef.I.Z-z).Length()>150||x<-420||phaseT>240){Stage="gone";ferry.Visible=plank.Visible=false;}}
+        {speed=Math.Min(2.4f,speed+.16f*dt);float t=Math.Clamp((phaseT-4)/30,0,1);yaw+=(-MathF.PI/2-.4f*t-yaw)*Math.Min(1,dt*.4f);x+=MathF.Sin(yaw)*speed*dt;z+=MathF.Cos(yaw)*speed*dt-.35f*dt*Math.Max(0,1-phaseT/8);if(new Vector2(Jef.I.X-x,Jef.I.Z-z).Length()>150||x<-420||phaseT>240){Stage="gone";ferry.Visible=gangway.Visible=false;}}
     }
     public override void _ExitTree(){Stop();Movers.Boats.I.PlayerWaterBlocks.Remove(waterFree);Jef.I.TransportFloor=oldFloor;if(MainMenu.I is {} menu)menu.WorldReplaced-=Replaced;}
 }
