@@ -1,0 +1,530 @@
+[
+  {
+    "id": "wall-stair-01-ruien",
+    "world": [
+      221.65902709960938,
+      -0.017000000923871994,
+      131.9983673095703
+    ],
+    "undergroundConnection": [
+      221.65902709960938,
+      -0.5670000314712524,
+      131.9983673095703
+    ],
+    "diameterMetres": 0.15,
+    "network": "Ruien",
+    "status": "inlet modelled; underground connection reserved"
+  },
+  {
+    "id": "wall-stair-02-ruien",
+    "world": [
+      220.7727813720703,
+      -0.017000000923871994,
+      242.91537475585938
+    ],
+    "undergroundConnection": [
+      220.7727813720703,
+      -0.5670000314712524,
+      242.91537475585938
+    ],
+    "diameterMetres": 0.15,
+    "network": "Ruien",
+    "status": "inlet modelled; underground connection reserved"
+  },
+  {
+    "id": "wall-stair-03-ruien",
+    "world": [
+      181.20802307128906,
+      -0.017000000923871994,
+      320.3415222167969
+    ],
+    "undergroundConnection": [
+      181.20802307128906,
+      -0.5670000314712524,
+      320.3415222167969
+    ],
+    "diameterMetres": 0.15,
+    "network": "Ruien",
+    "status": "inlet modelled; underground connection reserved"
+  },
+  {
+    "id": "wall-stair-04-ruien",
+    "world": [
+      54.094932556152344,
+      -0.017000000923871994,
+      344.41168212890625
+    ],
+    "undergroundConnection": [
+      54.094932556152344,
+      -0.5670000314712524,
+      344.41168212890625
+    ],
+    "diameterMetres": 0.15,
+    "network": "Ruien",
+    "status": "inlet modelled; underground connection reserved"
+  },
+  {
+    "id": "wall-stair-05-ruien",
+    "world": [
+      23.12624168395996,
+      -0.017000000923871994,
+      345.8035888671875
+    ],
+    "undergroundConnection": [
+      23.12624168395996,
+      -0.5670000314712524,
+      345.8035888671875
+    ],
+    "diameterMetres": 0.15,
+    "network": "Ruien",
+    "status": "inlet modelled; underground connection reserved"
+  },
+  {
+    "id": "wall-stair-06-ruien",
+    "world": [
+      -134.9783477783203,
+      -0.017000000923871994,
+      346.2981262207031
+    ],
+    "undergroundConnection": [
+      -134.9783477783203,
+      -0.5670000314712524,
+      346.2981262207031
+    ],
+    "diameterMetres": 0.15,
+    "network": "Ruien",
+    "status": "inlet modelled; underground connection reserved"
+  },
+  {
+    "id": "wall-stair-07-ruien",
+    "world": [
+      -166.94859313964844,
+      -0.017000000923871994,
+      344.9157409667969
+    ],
+    "undergroundConnection": [
+      -166.94859313964844,
+      -0.5670000314712524,
+      344.9157409667969
+    ],
+    "diameterMetres": 0.15,
+    "network": "Ruien",
+    "status": "inlet modelled; underground connection reserved"
+  },
+  {
+    "id": "wall-stair-08-ruien",
+    "world": [
+      -279.91650390625,
+      -0.017000000923871994,
+      330.77972412109375
+    ],
+    "undergroundConnection": [
+      -279.91650390625,
+      -0.5670000314712524,
+      330.77972412109375
+    ],
+    "diameterMetres": 0.15,
+    "network": "Ruien",
+    "status": "inlet modelled; underground connection reserved"
+  },
+  {
+    "id": "wall-stair-09-ruien",
+    "world": [
+      -353.612548828125,
+      -0.017000000923871994,
+      282.5225830078125
+    ],
+    "undergroundConnection": [
+      -353.612548828125,
+      -0.5670000314712524,
+      282.5225830078125
+    ],
+    "diameterMetres": 0.15,
+    "network": "Ruien",
+    "status": "inlet modelled; underground connection reserved"
+  },
+  {
+    "id": "wall-stair-10-ruien",
+    "world": [
+      -356.1732482910156,
+      -0.017000000923871994,
+      141.4539794921875
+    ],
+    "undergroundConnection": [
+      -356.1732482910156,
+      -0.5670000314712524,
+      141.4539794921875
+    ],
+    "diameterMetres": 0.15,
+    "network": "Ruien",
+    "status": "inlet modelled; underground connection reserved"
+  },
+  {
+    "id": "wall-stair-11-ruien",
+    "world": [
+      -351.06884765625,
+      -0.017000000923871994,
+      76.50010681152344
+    ],
+    "undergroundConnection": [
+      -351.06884765625,
+      -0.5670000314712524,
+      76.50010681152344
+    ],
+    "diameterMetres": 0.15,
+    "network": "Ruien",
+    "status": "inlet modelled; underground connection reserved"
+  },
+  {
+    "id": "wall-hut-01-ruien",
+    "world": [
+      234.0288543701172,
+      6.490000247955322,
+      173.14810180664062
+    ],
+    "undergroundConnection": [
+      234.0288543701172,
+      5.940000057220459,
+      173.14810180664062
+    ],
+    "diameterMetres": 0.15,
+    "network": "Ruien",
+    "status": "inlet modelled; underground connection reserved"
+  },
+  {
+    "id": "wall-hut-02-ruien",
+    "world": [
+      228.80404663085938,
+      6.490000247955322,
+      260.7912902832031
+    ],
+    "undergroundConnection": [
+      228.80404663085938,
+      5.940000057220459,
+      260.7912902832031
+    ],
+    "diameterMetres": 0.15,
+    "network": "Ruien",
+    "status": "inlet modelled; underground connection reserved"
+  },
+  {
+    "id": "wall-hut-03-ruien",
+    "world": [
+      168.44264221191406,
+      6.490000247955322,
+      335.2147521972656
+    ],
+    "undergroundConnection": [
+      168.44264221191406,
+      5.940000057220459,
+      335.2147521972656
+    ],
+    "diameterMetres": 0.15,
+    "network": "Ruien",
+    "status": "inlet modelled; underground connection reserved"
+  },
+  {
+    "id": "wall-hut-04-ruien",
+    "world": [
+      -3.1414825916290283,
+      6.490000247955322,
+      357.1636657714844
+    ],
+    "undergroundConnection": [
+      -3.1414825916290283,
+      5.940000057220459,
+      357.1636657714844
+    ],
+    "diameterMetres": 0.15,
+    "network": "Ruien",
+    "status": "inlet modelled; underground connection reserved"
+  },
+  {
+    "id": "wall-hut-05-ruien",
+    "world": [
+      -201.1068115234375,
+      6.490000247955322,
+      353.6188659667969
+    ],
+    "undergroundConnection": [
+      -201.1068115234375,
+      5.940000057220459,
+      353.6188659667969
+    ],
+    "diameterMetres": 0.15,
+    "network": "Ruien",
+    "status": "inlet modelled; underground connection reserved"
+  },
+  {
+    "id": "wall-hut-06-ruien",
+    "world": [
+      -303.6587219238281,
+      6.490000247955322,
+      334.3669738769531
+    ],
+    "undergroundConnection": [
+      -303.6587219238281,
+      5.940000057220459,
+      334.3669738769531
+    ],
+    "diameterMetres": 0.15,
+    "network": "Ruien",
+    "status": "inlet modelled; underground connection reserved"
+  },
+  {
+    "id": "wall-hut-07-ruien",
+    "world": [
+      -366.2311096191406,
+      6.490000247955322,
+      262.0989990234375
+    ],
+    "undergroundConnection": [
+      -366.2311096191406,
+      5.940000057220459,
+      262.0989990234375
+    ],
+    "diameterMetres": 0.15,
+    "network": "Ruien",
+    "status": "inlet modelled; underground connection reserved"
+  },
+  {
+    "id": "wall-hut-08-ruien",
+    "world": [
+      -358.9171142578125,
+      6.490000247955322,
+      48.97809600830078
+    ],
+    "undergroundConnection": [
+      -358.9171142578125,
+      5.940000057220459,
+      48.97809600830078
+    ],
+    "diameterMetres": 0.15,
+    "network": "Ruien",
+    "status": "inlet modelled; underground connection reserved"
+  },
+  {
+    "id": "wall-hut-09-ruien",
+    "world": [
+      239.7978515625,
+      6.490000247955322,
+      92.20323944091797
+    ],
+    "undergroundConnection": [
+      239.7978515625,
+      5.940000057220459,
+      92.20323944091797
+    ],
+    "diameterMetres": 0.15,
+    "network": "Ruien",
+    "status": "inlet modelled; underground connection reserved"
+  },
+  {
+    "id": "wall-hut-10-ruien",
+    "world": [
+      228.7099151611328,
+      6.490000247955322,
+      325.14532470703125
+    ],
+    "undergroundConnection": [
+      228.7099151611328,
+      5.940000057220459,
+      325.14532470703125
+    ],
+    "diameterMetres": 0.15,
+    "network": "Ruien",
+    "status": "inlet modelled; underground connection reserved"
+  },
+  {
+    "id": "wall-hut-11-ruien",
+    "world": [
+      -368.2426452636719,
+      6.490000247955322,
+      323.3046569824219
+    ],
+    "undergroundConnection": [
+      -368.2426452636719,
+      5.940000057220459,
+      323.3046569824219
+    ],
+    "diameterMetres": 0.15,
+    "network": "Ruien",
+    "status": "inlet modelled; underground connection reserved"
+  },
+  {
+    "id": "wall-hut-12-ruien",
+    "world": [
+      -381.7404479980469,
+      6.490000247955322,
+      213.962158203125
+    ],
+    "undergroundConnection": [
+      -381.7404479980469,
+      5.940000057220459,
+      213.962158203125
+    ],
+    "diameterMetres": 0.15,
+    "network": "Ruien",
+    "status": "inlet modelled; underground connection reserved"
+  },
+  {
+    "id": "wall-hut-13-ruien",
+    "world": [
+      216.72000122070312,
+      6.490000247955322,
+      -10.75
+    ],
+    "undergroundConnection": [
+      216.72000122070312,
+      5.940000057220459,
+      -10.75
+    ],
+    "diameterMetres": 0.15,
+    "network": "Ruien",
+    "status": "inlet modelled; underground connection reserved"
+  },
+  {
+    "id": "wall-hut-14-ruien",
+    "world": [
+      -356.7200012207031,
+      6.490000247955322,
+      -13.25
+    ],
+    "undergroundConnection": [
+      -356.7200012207031,
+      5.940000057220459,
+      -13.25
+    ],
+    "diameterMetres": 0.15,
+    "network": "Ruien",
+    "status": "inlet modelled; underground connection reserved"
+  },
+  {
+    "id": "rode_poort-left-roof-ruien",
+    "world": [
+      222.18316650390625,
+      -0.009999999776482582,
+      113.39035034179688
+    ],
+    "undergroundConnection": [
+      222.18316650390625,
+      -0.5600000023841858,
+      113.39035034179688
+    ],
+    "diameterMetres": 0.15,
+    "network": "Ruien",
+    "status": "inlet modelled; underground connection reserved"
+  },
+  {
+    "id": "rode_poort-right-roof-ruien",
+    "world": [
+      223.14328002929688,
+      -0.009999999776482582,
+      131.47325134277344
+    ],
+    "undergroundConnection": [
+      223.14328002929688,
+      -0.5600000023841858,
+      131.47325134277344
+    ],
+    "diameterMetres": 0.15,
+    "network": "Ruien",
+    "status": "inlet modelled; underground connection reserved"
+  },
+  {
+    "id": "keizerspoort-left-roof-ruien",
+    "world": [
+      72.59880828857422,
+      -0.009999999776482582,
+      345.08782958984375
+    ],
+    "undergroundConnection": [
+      72.59880828857422,
+      -0.5600000023841858,
+      345.08782958984375
+    ],
+    "diameterMetres": 0.15,
+    "network": "Ruien",
+    "status": "inlet modelled; underground connection reserved"
+  },
+  {
+    "id": "keizerspoort-right-roof-ruien",
+    "world": [
+      54.507164001464844,
+      -0.009999999776482582,
+      345.90093994140625
+    ],
+    "undergroundConnection": [
+      54.507164001464844,
+      -0.5600000023841858,
+      345.90093994140625
+    ],
+    "diameterMetres": 0.15,
+    "network": "Ruien",
+    "status": "inlet modelled; underground connection reserved"
+  },
+  {
+    "id": "kipdorppoort-left-roof-ruien",
+    "world": [
+      -135.5908660888672,
+      -0.009999999776482582,
+      347.780029296875
+    ],
+    "undergroundConnection": [
+      -135.5908660888672,
+      -0.5600000023841858,
+      347.780029296875
+    ],
+    "diameterMetres": 0.15,
+    "network": "Ruien",
+    "status": "inlet modelled; underground connection reserved"
+  },
+  {
+    "id": "kipdorppoort-right-roof-ruien",
+    "world": [
+      -153.6775665283203,
+      -0.009999999776482582,
+      346.99798583984375
+    ],
+    "undergroundConnection": [
+      -153.6775665283203,
+      -0.5600000023841858,
+      346.99798583984375
+    ],
+    "diameterMetres": 0.15,
+    "network": "Ruien",
+    "status": "inlet modelled; underground connection reserved"
+  },
+  {
+    "id": "sint_jorispoort-left-roof-ruien",
+    "world": [
+      -359.0108337402344,
+      -0.009999999776482582,
+      159.64846801757812
+    ],
+    "undergroundConnection": [
+      -359.0108337402344,
+      -0.5600000023841858,
+      159.64846801757812
+    ],
+    "diameterMetres": 0.15,
+    "network": "Ruien",
+    "status": "inlet modelled; underground connection reserved"
+  },
+  {
+    "id": "sint_jorispoort-right-roof-ruien",
+    "world": [
+      -357.6975402832031,
+      -0.009999999776482582,
+      141.592041015625
+    ],
+    "undergroundConnection": [
+      -357.6975402832031,
+      -0.5600000023841858,
+      141.592041015625
+    ],
+    "diameterMetres": 0.15,
+    "network": "Ruien",
+    "status": "inlet modelled; underground connection reserved"
+  }
+]

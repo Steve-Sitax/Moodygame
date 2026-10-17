@@ -14,5 +14,21 @@
   Keep UVs/height maps aligned and collision consistent. Resolve gaps and incorrect normals before tuning lighting;
   indirect light must follow the environment rather than making shaded surfaces glow at night.
 
-Apply this rule to new assets and to existing assets as they are converted to native Godot. Preserve authored placements,
+Apply this rule to every new, modified or reviewed environment asset, including texture-only work on existing native
+assets. Do not exempt visible geometric defects because they predate the current pass. Preserve authored placements,
 permanent object IDs and unsaved editor work during resource repairs.
+
+# Atmospheric city construction
+
+- Follow [the atmospheric city rules](docs/05-art-direction.md#atmospheric-city-construction-and-acceptance) for all
+  environment creation, conversion, repair and review. High detail is the default; fog, grain and dark lighting do not
+  excuse flat geometry, missing construction detail, blurry textures or visible repetition.
+- Review a connected piece of the city: roof/drainage, wall base, stairs, railings, pavement and kerb. Pavement must fit
+  foundations and steps; kerbs must terminate or turn correctly, never cut through walls. Fix intersections and gaps.
+- Weathering follows physical causes. Connect lower-wall grime and damp to splash, runoff and dirt on adjacent paving;
+  place moss and small plants in persistently damp joints, damaged mortar and neglected cracks, with restrained variation.
+- Verify appropriate gutters, downpipes, outlets and surface drainage in the native scene, including imported detail
+  meshes and visibility distances. Show where water goes; do not add pipes arbitrarily to every wall.
+- Reviewer scores and automated checks are evidence, not acceptance. A visible geometry, junction, drainage, material
+  alignment or wear defect blocks an overall environment pass. Record unresolved defects explicitly; never call a
+  texture-only improvement a finished high-detail asset or exempt known defects by narrowing the review after the fact.

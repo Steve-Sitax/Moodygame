@@ -1,0 +1,5 @@
+{
+  "tool": "built-in image_gen",
+  "prompt": "Use case: photorealistic-natural. Asset type: production game diffuse/albedo texture, orthographic top-down scan of 1.8 x 1.8 metres of compacted neglected urban earth beside a damp stone stair in 1873 Antwerp. Create a square 2048x2048 seamless tile, edge-to-edge detail, no border, no text, no perspective. Fine dark grey-brown silty earth with tiny 2–12 mm irregular embedded grit, sparse small flat stone chips, subtly compressed foot-worn patches and hairline dry cracks; very muted cool umber and grey mineral colours. Approximately 90 percent fine compact soil, 10 percent tiny gravel. Rich fine-scale detail, no large pebbles, no rounded blobs, no grass, no leaves, no object silhouettes, no recognizable repeating motifs. Uniform neutral diffuse lighting with absolutely no directional shadows, no highlights, no baked ambient occlusion or wet reflections. Keep broad-scale value variation very restrained so tiling will be inconspicuous. Crisp natural material grain, realistic scale.",
+  "file": "earth-v1.png"
+}

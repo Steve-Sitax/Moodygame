@@ -1,0 +1,60 @@
+I read the 8 images. I changed nothing.
+
+**Result: 4 groups PASS. 1 group FAILS. 2 groups need new proof.**
+
+| Group | Score | Result |
+|---|---|---|
+| Slate roof | 7.5 | **FAIL (just)** |
+| Clay tile roof | 8 | PASS |
+| Stone steps and stair wall | 8 | PASS |
+| Iron railing | 8 | PASS |
+| Debris: the 10 upgraded cells | 8.5 | PASS |
+| Debris: the old cells you kept | 5 | **FAIL if players see them** |
+| Chandler poster | 9 | PASS |
+
+**Slate roof (7.5, FAIL)**
+- Good: the slates look thin and lie flat. No dark baked bands. No red bleed.
+- Problem 1: the big warehouse roof repeats too much. It has one even grid and almost no change in colour from slate to slate.
+- Problem 2: a thin light line runs along the warehouse eave (the low edge of the roof). It can be flashing (metal edge strip) or a seam on the atlas (the shared texture sheet). Look at it close.
+- Problem 3: the rain shot looks the same as the day shot. I see no wet darkening and no shine. Make sure the rain wetness was on in the proof.
+
+**Clay tile roof (8, PASS)**
+- The tile laps and the colour changes look good.
+- The far orange roofs are now quieter.
+- One small point: lighter patches repeat in diagonal lines on the near roof.
+
+**Stone steps and stair wall (8, PASS)**
+- The treads and risers match, and their grain runs the correct way. I see no stretched risers.
+- The joints on the stair wall follow the slope well.
+- Problem: one bright horizontal line crosses the top of one upper step (near x 590–970, y 307 in `candidate-steps-close-day.png`). This can be a seam that is still open. Check it.
+- The step edges look too new. Some wear on the step fronts would help, but this is not a blocker.
+
+**Iron railing (8, PASS)**
+- Day: dark iron with a small amount of rust. It looks correct for 1873.
+- Night: the night shot is almost black. I cannot judge the bump or the wear in it. I need a new night shot with a lamp near the railing.
+
+**Debris atlas: the 10 upgraded cells (8.5, PASS)**
+- Wood, jute, rags, leaves, straw and dung look real and detailed.
+
+**Debris atlas: the old cells you kept (5, FAIL if players see them)**
+- Many old cells are blocky pixel art. Examples: row 1 cells 2, 4, 5, 6 and 8, and most of the small colour cells.
+- They sit next to the new realistic cells. In the game this mix will look wrong, and it breaks the "no PS1 look" rule.
+- I had no in-game shot of debris, so I cannot judge it in the game.
+
+**Chandler poster (9, PASS)**
+- The type, the engraving and the paper wear all suit the period. "WAER" is a correct old spelling.
+- I had no in-game shot. Check its size and the way it faces on the wall.
+
+**Separate from this material pass:** the grass field behind the city wall repeats in a clear tile pattern.
+
+**What you do now:**
+1. Fix the slate repetition and check the eave line. Then shoot the rain view again with wetness on.
+2. Look at the step seam at y 307.
+3. Shoot the railing at night again, with a lamp near it.
+4. Shoot the debris and the poster in the game.
+
+**You must decide: what to do with the old pixel debris cells.**
+- Option A: upgrade the cells that players can see. Keep the UV layout (the map of where each cell sits). This costs more work.
+- Option B: keep them now and open a GitHub issue. This is fast, but the mixed look stays in the game.
+
+I recommend **A** for any cell that a player sees up close.

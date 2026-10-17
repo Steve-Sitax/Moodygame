@@ -1,0 +1,29 @@
+I am done with the review. I looked at all 9 images and read `geometry-validation.json`. I changed no files. I could not search the repair script because the shell was blocked. That does not change the result: the images decide.
+
+## Result: PASS, 8/10
+
+I found no clear blocker in geometry, mapping, drainage or lighting. The validation file also passes:
+- 0 broken or very small triangles.
+- Stair treads are flat to 0.45 mm.
+- The guard grate is 25 mm clear of the wall.
+
+## What looks good
+
+- **Stone bevels:** they are small and real-sized, about 5–15 mm. You see them on the newel cap, the stair nosings and the coping mitres (`candidate-newel-day.png`, `candidate-railing-day.png`). They are not over-rounded.
+- **Ashlar plinth:** the courses are level, the joints are staggered, and the blocks are cut cleanly where the stair slopes (`candidate-junction-day.png`).
+- **Kerb, pavement and setts:** they sit flush and in line. Moss marks the pavement at the wall foot (`candidate-junction-day.png`, right of the newel).
+- **Eaves:** the gutter, end cap, swan neck and downpipe are built correctly. The slates overhang the gutter (`candidate-gutter-day.png`).
+- **House drain:** the shoe sits on a stone block and points down at a gully that is set in the setts (`candidate-house-drain-day.png`, near x 560–670, y 640–715).
+- **Night:** I see no light leak. The lantern lights the quoins, the door reveal and a pool on the setts. The shadow edges are correct, and the far wall stays dark (`candidate-guardhouse-night.png`).
+
+## Optional refinements (not blockers)
+
+1. **Rain is weak.** `candidate-railing-rain.png` is only a little darker than the day image. The coping, treads and rail show no wet shine and no puddles. I cannot tell if this is by design.
+2. **Guard downpipe goes through the grate.** In `candidate-guard-drain-day.png` (about x 700–750, y 580–600), the pipe enters a round hole in the grate. Water still drains. A real fitting would use a shoe over the grate or a side connection to the gully. I also see no bracket on the visible run in this narrow gap. **Uncertain:** the bracket may be on the hidden side.
+3. **Lower stair bar end.** In `candidate-newel-day.png` (about x 775, y 355), the second sloped bar stops on the newel cap, a short way from the post. It may be fixed into the stone. This one view cannot show that. **Uncertain.**
+4. **Wall-base grime.** The ashlar plinth stays clean at its foot, but the pavement next to it has moss (`candidate-railing-day.png`, about x 900–1200, y 600–750). A little damp darkening up the plinth would join wall and pavement better.
+5. **Shop-window grime.** On the left building in `candidate-house-drain-day.png` (about x 445–615, y 370–440), the dark grime band crosses the lower window frames. It should stop at the stone sill.
+
+## What you do now
+
+Nothing is needed to pass. If you want a higher score, fix items 1 and 2 first.

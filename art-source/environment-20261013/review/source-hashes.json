@@ -1,0 +1,92 @@
+[
+  {
+    "file": "brick-source.png",
+    "sha256": "7f7621f7ad8fc73fa1f33f191f48187de126baa4d50e1dd637a7cdd2b0c09929",
+    "bytes": 3924186
+  },
+  {
+    "file": "clay-v2.png",
+    "sha256": "f4fcc50d3c47894ea96ffcb6523c43c72135fe0111ac87fb6aaef4cfe15347ce",
+    "bytes": 2569236
+  },
+  {
+    "file": "debris-atlas-source.png",
+    "sha256": "ae8a4d2734c1da66f266087db55810383e6a0db3887f5bdc2542f689fbc8f1b2",
+    "bytes": 3308901
+  },
+  {
+    "file": "debris-original.png",
+    "sha256": "f677aefbcaf8d390bef455ba2be65ea2eb2ffbd5ce2bbcd5517a64755670bb57",
+    "bytes": 39515
+  },
+  {
+    "file": "debris-v2.png",
+    "sha256": "455df0e865dcf7cf82cf41cee2e50a59a000075a858b35272d293a71a4c0be5c",
+    "bytes": 2752614
+  },
+  {
+    "file": "iron-source.png",
+    "sha256": "3e57e586e17ab20c8c4e6ab507778beb484e273e33aecae05b6b8cbad2dd595b",
+    "bytes": 3806588
+  },
+  {
+    "file": "iron-v2.png",
+    "sha256": "21bb7a5e5ddf14ca8e6236801dd1c8a8c479f4da89d81211bbad6b08bf276306",
+    "bytes": 3280715
+  },
+  {
+    "file": "poster-source.png",
+    "sha256": "07f303e6ec68332861fdc30825a575ddbd648836fcf11af255bc9b8b13c00a49",
+    "bytes": 3503784
+  },
+  {
+    "file": "prompts-revisions.json",
+    "sha256": "a7c4bbf9b223b4eeb2197c1d22b3173ca59ccfa5b30d30289a9c88ff382cff7a",
+    "bytes": 3081
+  },
+  {
+    "file": "prompts.json",
+    "sha256": "81dc1022adec0458b4d29b6ebf3d54b339e804ab76dc9288c27980396c6fe9fd",
+    "bytes": 9669
+  },
+  {
+    "file": "roof-atlas-source.png",
+    "sha256": "5972aa780c19cd5025d97b433e114a1460ce263b0c19f1b7c97be5bae9e71ed5",
+    "bytes": 3646435
+  },
+  {
+    "file": "slate-source.png",
+    "sha256": "389f83889b85ad0d2b929080b4d89f9739ced539e406e98bb76738175c41fe12",
+    "bytes": 3776344
+  },
+  {
+    "file": "slate-v2.png",
+    "sha256": "b29885ddf5a5765b74d24f2295795b44ae3b8a1ab6f2404fd96051ab85223621",
+    "bytes": 3843554
+  },
+  {
+    "file": "slate-v3.png",
+    "sha256": "b20d3dd4cddb74fc52a036e2de19d0cd631efaa5990a3a66fe042c0df414f2a0",
+    "bytes": 2640615
+  },
+  {
+    "file": "stone.png",
+    "sha256": "9b0015a69ce8be4aed59644fd6d9d7877e2ce1bcbd5c9f7bf4bd42077757481e",
+    "bytes": 3884641
+  },
+  {
+    "file": "wall-brick-v2.png",
+    "sha256": "39c71b689b486aa0af2f75a2964979cef4aaf2560749f883071ca2a0557e7bcf",
+    "bytes": 3445633
+  },
+  {
+    "file": "wood-v3-prompt.json",
+    "sha256": "0ea90a1f8b955a6b3173c69354cb04ac3acb18fd1a70764288b9a56abda38b9d",
+    "bytes": 808
+  },
+  {
+    "file": "wood-v3.png",
+    "sha256": "dcfe36b11800297471dc5a780eb744377eb8e568a5dc3502f246d0573de44277",
+    "bytes": 3641393
+  }
+]

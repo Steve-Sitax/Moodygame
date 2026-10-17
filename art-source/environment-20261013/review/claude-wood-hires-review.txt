@@ -1,0 +1,17 @@
+**Score: 8 out of 10. It passes.** I made no edits.
+
+**What is good now**
+- The wood grain is sharp in both close shots. The old blur is gone.
+- The grain runs along the length of each board. I see no stretching on the top faces.
+- I see no clear repeating pattern across the long boards.
+- The cracks, knots and grey weathering look like real old planks.
+- Where the boards touch the ground, the dark band fades softly. It does not look like a hard dark box.
+
+**Small problems (they do not block a pass)**
+1. **No brown board shows.** All the boards in both pictures look the same grey. So I cannot confirm the brown board type. Take one shot with a brown board in it.
+2. **One sharp tip in `candidate-debris-day.png`.** It is at about x 740, y 340. The top board ends in a very thin dark spike, like a needle. This is a shape problem, not a texture problem. It is the first thing your eye goes to.
+3. **The thin side faces are hard to judge.** The board edges are only a few pixels wide in these views. A closer shot of one board edge would confirm the grain there.
+
+**What to do now**
+- To close this out, take one more day shot that shows a brown board. Use a low camera angle so a board edge is in view.
+- If you want a 9, make the spike tip blunter. That is a shape change, not a new texture.

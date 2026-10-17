@@ -1,0 +1,1956 @@
+{
+  "res://world/town/resources/r000610.res": [
+    {
+      "file": "r000610-0.bin",
+      "material": "res://world/town/resources/r000609.res",
+      "custom0": false,
+      "vertices": 20982,
+      "degenerateRemoved": 6
+    }
+  ],
+  "res://world/town/resources/r000616.res": [
+    {
+      "file": "r000616-0.bin",
+      "material": "res://world/town/resources/r000615.res",
+      "custom0": false,
+      "vertices": 276,
+      "degenerateRemoved": 0
+    }
+  ],
+  "res://world/town/resources/r000623.res": [
+    {
+      "file": "r000623-0.bin",
+      "material": "res://world/town/resources/r000609.res",
+      "custom0": false,
+      "vertices": 18318,
+      "degenerateRemoved": 2
+    }
+  ],
+  "res://world/town/resources/r000624.res": [
+    {
+      "file": "r000624-0.bin",
+      "material": "res://world/town/resources/r000615.res",
+      "custom0": false,
+      "vertices": 276,
+      "degenerateRemoved": 0
+    }
+  ],
+  "res://world/town/resources/r000631.res": [
+    {
+      "file": "r000631-0.bin",
+      "material": "res://world/town/resources/r000630.res",
+      "custom0": false,
+      "vertices": 1044,
+      "degenerateRemoved": 0
+    }
+  ],
+  "res://world/town/resources/r000637.res": [
+    {
+      "file": "r000637-0.bin",
+      "material": "res://world/town/resources/r000630.res",
+      "custom0": false,
+      "vertices": 186,
+      "degenerateRemoved": 0
+    },
+    {
+      "file": "r000637-relief.bin",
+      "material": "res://world/town/resources/r000636.res",
+      "custom0": false,
+      "vertices": 69000,
+      "degenerateRemoved": 0
+    }
+  ],
+  "res://world/town/resources/r000643.res": [
+    {
+      "file": "r000643-0.bin",
+      "material": "res://world/town/resources/r000648.res",
+      "custom0": false,
+      "vertices": 366,
+      "degenerateRemoved": 0
+    },
+    {
+      "file": "r000643-relief.bin",
+      "material": "res://world/town/resources/r000648.res",
+      "custom0": false,
+      "vertices": 312708,
+      "degenerateRemoved": 0
+    }
+  ],
+  "res://world/town/resources/r000649.res": [
+    {
+      "file": "r000649-0.bin",
+      "material": "res://world/town/resources/r000648.res",
+      "custom0": false,
+      "vertices": 8712,
+      "degenerateRemoved": 0
+    },
+    {
+      "file": "r000649-arch-ashlar.bin",
+      "material": "res://world/town/resources/r000648.res",
+      "custom0": false,
+      "vertices": 27600,
+      "degenerateRemoved": 0
+    }
+  ],
+  "res://world/town/resources/r000658.res": [
+    {
+      "file": "r000658-0.bin",
+      "material": "res://world/town/resources/r000657.res",
+      "custom0": false,
+      "vertices": 168,
+      "degenerateRemoved": 0
+    }
+  ],
+  "res://world/town/resources/r000665.res": [
+    {
+      "file": "r000665-0.bin",
+      "material": "res://world/town/resources/r000609.res",
+      "custom0": false,
+      "vertices": 4977,
+      "degenerateRemoved": 3
+    }
+  ],
+  "res://world/town/resources/r000666.res": [
+    {
+      "file": "r000666-0.bin",
+      "material": "res://world/town/resources/r000615.res",
+      "custom0": false,
+      "vertices": 172692,
+      "degenerateRemoved": 114
+    }
+  ],
+  "res://world/town/resources/r000672.res": [
+    {
+      "file": "r000672-0.bin",
+      "material": "res://world/town/resources/r000671.res",
+      "custom0": false,
+      "vertices": 48,
+      "degenerateRemoved": 0
+    }
+  ],
+  "res://world/town/resources/r000684.res": [
+    {
+      "file": "r000684-0.bin",
+      "material": "res://world/town/resources/r000630.res",
+      "custom0": false,
+      "vertices": 1044,
+      "degenerateRemoved": 0
+    }
+  ],
+  "res://world/town/resources/r000685.res": [
+    {
+      "file": "r000685-0.bin",
+      "material": "res://world/town/resources/r000630.res",
+      "custom0": false,
+      "vertices": 186,
+      "degenerateRemoved": 0
+    },
+    {
+      "file": "r000685-relief.bin",
+      "material": "res://world/town/resources/r000636.res",
+      "custom0": false,
+      "vertices": 69000,
+      "degenerateRemoved": 0
+    }
+  ],
+  "res://world/town/resources/r000686.res": [
+    {
+      "file": "r000686-0.bin",
+      "material": "res://world/town/resources/r000648.res",
+      "custom0": false,
+      "vertices": 366,
+      "degenerateRemoved": 0
+    },
+    {
+      "file": "r000686-relief.bin",
+      "material": "res://world/town/resources/r000648.res",
+      "custom0": false,
+      "vertices": 312708,
+      "degenerateRemoved": 0
+    }
+  ],
+  "res://world/town/resources/r000687.res": [
+    {
+      "file": "r000687-0.bin",
+      "material": "res://world/town/resources/r000648.res",
+      "custom0": false,
+      "vertices": 8814,
+      "degenerateRemoved": 0
+    },
+    {
+      "file": "r000687-arch-ashlar.bin",
+      "material": "res://world/town/resources/r000648.res",
+      "custom0": false,
+      "vertices": 27312,
+      "degenerateRemoved": 0
+    }
+  ],
+  "res://world/town/resources/r000688.res": [
+    {
+      "file": "r000688-0.bin",
+      "material": "res://world/town/resources/r000657.res",
+      "custom0": false,
+      "vertices": 168,
+      "degenerateRemoved": 0
+    }
+  ],
+  "res://world/town/resources/r000690.res": [
+    {
+      "file": "r000690-0.bin",
+      "material": "res://world/town/resources/r000609.res",
+      "custom0": false,
+      "vertices": 4938,
+      "degenerateRemoved": 0
+    }
+  ],
+  "res://world/town/resources/r000691.res": [
+    {
+      "file": "r000691-0.bin",
+      "material": "res://world/town/resources/r000615.res",
+      "custom0": false,
+      "vertices": 173298,
+      "degenerateRemoved": 69
+    }
+  ],
+  "res://world/town/resources/r000692.res": [
+    {
+      "file": "r000692-0.bin",
+      "material": "res://world/town/resources/r000671.res",
+      "custom0": false,
+      "vertices": 48,
+      "degenerateRemoved": 0
+    }
+  ],
+  "res://world/town/resources/r000695.res": [
+    {
+      "file": "r000695-0.bin",
+      "material": "res://world/town/resources/r000630.res",
+      "custom0": false,
+      "vertices": 1044,
+      "degenerateRemoved": 0
+    }
+  ],
+  "res://world/town/resources/r000696.res": [
+    {
+      "file": "r000696-0.bin",
+      "material": "res://world/town/resources/r000630.res",
+      "custom0": false,
+      "vertices": 186,
+      "degenerateRemoved": 0
+    },
+    {
+      "file": "r000696-relief.bin",
+      "material": "res://world/town/resources/r000636.res",
+      "custom0": false,
+      "vertices": 69000,
+      "degenerateRemoved": 0
+    }
+  ],
+  "res://world/town/resources/r000697.res": [
+    {
+      "file": "r000697-0.bin",
+      "material": "res://world/town/resources/r000648.res",
+      "custom0": false,
+      "vertices": 366,
+      "degenerateRemoved": 0
+    },
+    {
+      "file": "r000697-relief.bin",
+      "material": "res://world/town/resources/r000648.res",
+      "custom0": false,
+      "vertices": 312708,
+      "degenerateRemoved": 0
+    }
+  ],
+  "res://world/town/resources/r000698.res": [
+    {
+      "file": "r000698-0.bin",
+      "material": "res://world/town/resources/r000648.res",
+      "custom0": false,
+      "vertices": 8721,
+      "degenerateRemoved": 2
+    },
+    {
+      "file": "r000698-arch-ashlar.bin",
+      "material": "res://world/town/resources/r000648.res",
+      "custom0": false,
+      "vertices": 27600,
+      "degenerateRemoved": 0
+    }
+  ],
+  "res://world/town/resources/r000699.res": [
+    {
+      "file": "r000699-0.bin",
+      "material": "res://world/town/resources/r000657.res",
+      "custom0": false,
+      "vertices": 168,
+      "degenerateRemoved": 0
+    }
+  ],
+  "res://world/town/resources/r000701.res": [
+    {
+      "file": "r000701-0.bin",
+      "material": "res://world/town/resources/r000609.res",
+      "custom0": false,
+      "vertices": 4926,
+      "degenerateRemoved": 4
+    }
+  ],
+  "res://world/town/resources/r000702.res": [
+    {
+      "file": "r000702-0.bin",
+      "material": "res://world/town/resources/r000615.res",
+      "custom0": false,
+      "vertices": 172860,
+      "degenerateRemoved": 82
+    }
+  ],
+  "res://world/town/resources/r000703.res": [
+    {
+      "file": "r000703-0.bin",
+      "material": "res://world/town/resources/r000671.res",
+      "custom0": false,
+      "vertices": 48,
+      "degenerateRemoved": 0
+    }
+  ],
+  "res://world/town/resources/r000706.res": [
+    {
+      "file": "r000706-0.bin",
+      "material": "res://world/town/resources/r000630.res",
+      "custom0": false,
+      "vertices": 1044,
+      "degenerateRemoved": 0
+    }
+  ],
+  "res://world/town/resources/r000707.res": [
+    {
+      "file": "r000707-0.bin",
+      "material": "res://world/town/resources/r000630.res",
+      "custom0": false,
+      "vertices": 186,
+      "degenerateRemoved": 0
+    },
+    {
+      "file": "r000707-relief.bin",
+      "material": "res://world/town/resources/r000636.res",
+      "custom0": false,
+      "vertices": 69000,
+      "degenerateRemoved": 0
+    }
+  ],
+  "res://world/town/resources/r000708.res": [
+    {
+      "file": "r000708-0.bin",
+      "material": "res://world/town/resources/r000648.res",
+      "custom0": false,
+      "vertices": 366,
+      "degenerateRemoved": 0
+    },
+    {
+      "file": "r000708-relief.bin",
+      "material": "res://world/town/resources/r000648.res",
+      "custom0": false,
+      "vertices": 312708,
+      "degenerateRemoved": 0
+    }
+  ],
+  "res://world/town/resources/r000709.res": [
+    {
+      "file": "r000709-0.bin",
+      "material": "res://world/town/resources/r000648.res",
+      "custom0": false,
+      "vertices": 8739,
+      "degenerateRemoved": 2
+    },
+    {
+      "file": "r000709-arch-ashlar.bin",
+      "material": "res://world/town/resources/r000648.res",
+      "custom0": false,
+      "vertices": 27216,
+      "degenerateRemoved": 0
+    }
+  ],
+  "res://world/town/resources/r000710.res": [
+    {
+      "file": "r000710-0.bin",
+      "material": "res://world/town/resources/r000657.res",
+      "custom0": false,
+      "vertices": 168,
+      "degenerateRemoved": 0
+    }
+  ],
+  "res://world/town/resources/r000712.res": [
+    {
+      "file": "r000712-0.bin",
+      "material": "res://world/town/resources/r000609.res",
+      "custom0": false,
+      "vertices": 4902,
+      "degenerateRemoved": 1
+    }
+  ],
+  "res://world/town/resources/r000713.res": [
+    {
+      "file": "r000713-0.bin",
+      "material": "res://world/town/resources/r000615.res",
+      "custom0": false,
+      "vertices": 172377,
+      "degenerateRemoved": 126
+    }
+  ],
+  "res://world/town/resources/r000714.res": [
+    {
+      "file": "r000714-0.bin",
+      "material": "res://world/town/resources/r000671.res",
+      "custom0": false,
+      "vertices": 48,
+      "degenerateRemoved": 0
+    }
+  ],
+  "res://world/town/resources/r000717.res": [
+    {
+      "file": "r000717-0.bin",
+      "material": "res://world/town/resources/r000630.res",
+      "custom0": false,
+      "vertices": 414,
+      "degenerateRemoved": 0
+    }
+  ],
+  "res://world/town/resources/r000718.res": [
+    {
+      "file": "r000718-0.bin",
+      "material": "res://world/town/resources/r000630.res",
+      "custom0": false,
+      "vertices": 168,
+      "degenerateRemoved": 0
+    },
+    {
+      "file": "r000718-relief.bin",
+      "material": "res://world/town/resources/r000636.res",
+      "custom0": false,
+      "vertices": 44592,
+      "degenerateRemoved": 0
+    }
+  ],
+  "res://world/town/resources/r000719.res": [
+    {
+      "file": "r000719-0.bin",
+      "material": "res://world/town/resources/r000648.res",
+      "custom0": false,
+      "vertices": 504,
+      "degenerateRemoved": 0
+    },
+    {
+      "file": "r000719-relief.bin",
+      "material": "res://world/town/resources/r000648.res",
+      "custom0": false,
+      "vertices": 298404,
+      "degenerateRemoved": 0
+    }
+  ],
+  "res://world/town/resources/r000720.res": [
+    {
+      "file": "r000720-0.bin",
+      "material": "res://world/town/resources/r000648.res",
+      "custom0": false,
+      "vertices": 1923,
+      "degenerateRemoved": 0
+    }
+  ],
+  "res://world/town/resources/r000721.res": [
+    {
+      "file": "r000721-0.bin",
+      "material": "res://world/town/resources/r000657.res",
+      "custom0": false,
+      "vertices": 276,
+      "degenerateRemoved": 0
+    }
+  ],
+  "res://world/town/resources/r000723.res": [
+    {
+      "file": "r000723-0.bin",
+      "material": "res://world/town/resources/r000609.res",
+      "custom0": false,
+      "vertices": 408,
+      "degenerateRemoved": 0
+    }
+  ],
+  "res://world/town/resources/r000724.res": [
+    {
+      "file": "r000724-0.bin",
+      "material": "res://world/town/resources/r000615.res",
+      "custom0": false,
+      "vertices": 60840,
+      "degenerateRemoved": 43
+    }
+  ],
+  "res://world/town/resources/r000725.res": [
+    {
+      "file": "r000725-0.bin",
+      "material": "res://world/town/resources/r000671.res",
+      "custom0": false,
+      "vertices": 6,
+      "degenerateRemoved": 0
+    }
+  ],
+  "res://world/town/resources/r000736.res": [
+    {
+      "file": "r000736-0.bin",
+      "material": "res://world/town/resources/r000735.res",
+      "custom0": false,
+      "vertices": 31890,
+      "degenerateRemoved": 20
+    }
+  ],
+  "res://world/town/resources/r000737.res": [
+    {
+      "file": "r000737-0.bin",
+      "material": "res://world/town/resources/r000630.res",
+      "custom0": false,
+      "vertices": 723,
+      "degenerateRemoved": 0
+    }
+  ],
+  "res://world/town/resources/r000738.res": [
+    {
+      "file": "r000738-0.bin",
+      "material": "res://world/town/resources/r000630.res",
+      "custom0": false,
+      "vertices": 150,
+      "degenerateRemoved": 0
+    },
+    {
+      "file": "r000738-relief.bin",
+      "material": "res://world/town/resources/r000636.res",
+      "custom0": false,
+      "vertices": 39480,
+      "degenerateRemoved": 0
+    }
+  ],
+  "res://world/town/resources/r000739.res": [
+    {
+      "file": "r000739-0.bin",
+      "material": "res://world/town/resources/r000648.res",
+      "custom0": false,
+      "vertices": 1350,
+      "degenerateRemoved": 0
+    },
+    {
+      "file": "r000739-relief.bin",
+      "material": "res://world/town/resources/r000648.res",
+      "custom0": false,
+      "vertices": 489228,
+      "degenerateRemoved": 0
+    }
+  ],
+  "res://world/town/resources/r000740.res": [
+    {
+      "file": "r000740-0.bin",
+      "material": "res://world/town/resources/r000648.res",
+      "custom0": false,
+      "vertices": 14109,
+      "degenerateRemoved": 0
+    }
+  ],
+  "res://world/town/resources/r000741.res": [
+    {
+      "file": "r000741-0.bin",
+      "material": "res://world/town/resources/r000657.res",
+      "custom0": false,
+      "vertices": 771,
+      "degenerateRemoved": 0
+    }
+  ],
+  "res://world/town/resources/r000743.res": [
+    {
+      "file": "r000743-0.bin",
+      "material": "res://world/town/resources/r000609.res",
+      "custom0": false,
+      "vertices": 1248,
+      "degenerateRemoved": 0
+    }
+  ],
+  "res://world/town/resources/r000744.res": [
+    {
+      "file": "r000744-0.bin",
+      "material": "res://world/town/resources/r000615.res",
+      "custom0": false,
+      "vertices": 82710,
+      "degenerateRemoved": 38
+    }
+  ],
+  "res://world/town/resources/r000745.res": [
+    {
+      "file": "r000745-0.bin",
+      "material": "res://world/town/resources/r000671.res",
+      "custom0": false,
+      "vertices": 6,
+      "degenerateRemoved": 0
+    }
+  ],
+  "res://world/town/resources/r000748.res": [
+    {
+      "file": "r000748-0.bin",
+      "material": "res://world/town/resources/r000735.res",
+      "custom0": false,
+      "vertices": 101526,
+      "degenerateRemoved": 23
+    }
+  ],
+  "res://world/town/resources/r000749.res": [
+    {
+      "file": "r000749-0.bin",
+      "material": "res://world/town/resources/r000630.res",
+      "custom0": false,
+      "vertices": 570,
+      "degenerateRemoved": 0
+    }
+  ],
+  "res://world/town/resources/r000750.res": [
+    {
+      "file": "r000750-0.bin",
+      "material": "res://world/town/resources/r000630.res",
+      "custom0": false,
+      "vertices": 54,
+      "degenerateRemoved": 0
+    },
+    {
+      "file": "r000750-relief.bin",
+      "material": "res://world/town/resources/r000636.res",
+      "custom0": false,
+      "vertices": 12840,
+      "degenerateRemoved": 0
+    }
+  ],
+  "res://world/town/resources/r000751.res": [
+    {
+      "file": "r000751-0.bin",
+      "material": "res://world/town/resources/r000648.res",
+      "custom0": false,
+      "vertices": 1032,
+      "degenerateRemoved": 0
+    },
+    {
+      "file": "r000751-relief.bin",
+      "material": "res://world/town/resources/r000648.res",
+      "custom0": false,
+      "vertices": 360888,
+      "degenerateRemoved": 0
+    }
+  ],
+  "res://world/town/resources/r000752.res": [
+    {
+      "file": "r000752-0.bin",
+      "material": "res://world/town/resources/r000648.res",
+      "custom0": false,
+      "vertices": 13185,
+      "degenerateRemoved": 0
+    }
+  ],
+  "res://world/town/resources/r000753.res": [
+    {
+      "file": "r000753-0.bin",
+      "material": "res://world/town/resources/r000657.res",
+      "custom0": false,
+      "vertices": 636,
+      "degenerateRemoved": 10
+    }
+  ],
+  "res://world/town/resources/r000754.res": [
+    {
+      "file": "r000754-0.bin",
+      "material": "res://world/town/resources/r000609.res",
+      "custom0": false,
+      "vertices": 1386,
+      "degenerateRemoved": 0
+    }
+  ],
+  "res://world/town/resources/r000755.res": [
+    {
+      "file": "r000755-0.bin",
+      "material": "res://world/town/resources/r000615.res",
+      "custom0": false,
+      "vertices": 24162,
+      "degenerateRemoved": 6
+    }
+  ],
+  "res://world/town/resources/r000763.res": [
+    {
+      "file": "r000763-0.bin",
+      "material": "res://world/town/resources/r000735.res",
+      "custom0": false,
+      "vertices": 85206,
+      "degenerateRemoved": 30
+    }
+  ],
+  "res://world/town/resources/r000769.res": [
+    {
+      "file": "r000769-0.bin",
+      "material": "res://world/town/resources/r000630.res",
+      "custom0": false,
+      "vertices": 1983,
+      "degenerateRemoved": 0
+    }
+  ],
+  "res://world/town/resources/r000770.res": [
+    {
+      "file": "r000770-0.bin",
+      "material": "res://world/town/resources/r000630.res",
+      "custom0": false,
+      "vertices": 318,
+      "degenerateRemoved": 0
+    },
+    {
+      "file": "r000770-relief.bin",
+      "material": "res://world/town/resources/r000636.res",
+      "custom0": false,
+      "vertices": 91968,
+      "degenerateRemoved": 0
+    }
+  ],
+  "res://world/town/resources/r000771.res": [
+    {
+      "file": "r000771-0.bin",
+      "material": "res://world/town/resources/r000648.res",
+      "custom0": false,
+      "vertices": 1728,
+      "degenerateRemoved": 0
+    },
+    {
+      "file": "r000771-relief.bin",
+      "material": "res://world/town/resources/r000648.res",
+      "custom0": false,
+      "vertices": 539004,
+      "degenerateRemoved": 0
+    }
+  ],
+  "res://world/town/resources/r000772.res": [
+    {
+      "file": "r000772-0.bin",
+      "material": "res://world/town/resources/r000648.res",
+      "custom0": false,
+      "vertices": 18441,
+      "degenerateRemoved": 0
+    }
+  ],
+  "res://world/town/resources/r000773.res": [
+    {
+      "file": "r000773-0.bin",
+      "material": "res://world/town/resources/r000657.res",
+      "custom0": false,
+      "vertices": 1806,
+      "degenerateRemoved": 22
+    }
+  ],
+  "res://world/town/resources/r000775.res": [
+    {
+      "file": "r000775-0.bin",
+      "material": "res://world/town/resources/r000609.res",
+      "custom0": false,
+      "vertices": 822,
+      "degenerateRemoved": 0
+    }
+  ],
+  "res://world/town/resources/r000776.res": [
+    {
+      "file": "r000776-0.bin",
+      "material": "res://world/town/resources/r000615.res",
+      "custom0": false,
+      "vertices": 144711,
+      "degenerateRemoved": 48
+    }
+  ],
+  "res://world/town/resources/r000777.res": [
+    {
+      "file": "r000777-0.bin",
+      "material": "res://world/town/resources/r000671.res",
+      "custom0": false,
+      "vertices": 12,
+      "degenerateRemoved": 0
+    }
+  ],
+  "res://world/town/resources/r000781.res": [
+    {
+      "file": "r000781-0.bin",
+      "material": "res://world/town/resources/r000735.res",
+      "custom0": false,
+      "vertices": 115818,
+      "degenerateRemoved": 112
+    }
+  ],
+  "res://world/town/resources/r000783.res": [
+    {
+      "file": "r000783-0.bin",
+      "material": "res://world/town/resources/r000630.res",
+      "custom0": false,
+      "vertices": 1320,
+      "degenerateRemoved": 0
+    }
+  ],
+  "res://world/town/resources/r000784.res": [
+    {
+      "file": "r000784-0.bin",
+      "material": "res://world/town/resources/r000630.res",
+      "custom0": false,
+      "vertices": 264,
+      "degenerateRemoved": 0
+    },
+    {
+      "file": "r000784-relief.bin",
+      "material": "res://world/town/resources/r000636.res",
+      "custom0": false,
+      "vertices": 75096,
+      "degenerateRemoved": 0
+    }
+  ],
+  "res://world/town/resources/r000785.res": [
+    {
+      "file": "r000785-0.bin",
+      "material": "res://world/town/resources/r000648.res",
+      "custom0": false,
+      "vertices": 1476,
+      "degenerateRemoved": 0
+    },
+    {
+      "file": "r000785-relief.bin",
+      "material": "res://world/town/resources/r000648.res",
+      "custom0": false,
+      "vertices": 510648,
+      "degenerateRemoved": 0
+    }
+  ],
+  "res://world/town/resources/r000786.res": [
+    {
+      "file": "r000786-0.bin",
+      "material": "res://world/town/resources/r000648.res",
+      "custom0": false,
+      "vertices": 8556,
+      "degenerateRemoved": 0
+    }
+  ],
+  "res://world/town/resources/r000787.res": [
+    {
+      "file": "r000787-0.bin",
+      "material": "res://world/town/resources/r000657.res",
+      "custom0": false,
+      "vertices": 1908,
+      "degenerateRemoved": 13
+    }
+  ],
+  "res://world/town/resources/r000789.res": [
+    {
+      "file": "r000789-0.bin",
+      "material": "res://world/town/resources/r000609.res",
+      "custom0": false,
+      "vertices": 816,
+      "degenerateRemoved": 0
+    }
+  ],
+  "res://world/town/resources/r000790.res": [
+    {
+      "file": "r000790-0.bin",
+      "material": "res://world/town/resources/r000615.res",
+      "custom0": false,
+      "vertices": 146508,
+      "degenerateRemoved": 69
+    }
+  ],
+  "res://world/town/resources/r000791.res": [
+    {
+      "file": "r000791-0.bin",
+      "material": "res://world/town/resources/r000671.res",
+      "custom0": false,
+      "vertices": 12,
+      "degenerateRemoved": 0
+    }
+  ],
+  "res://world/town/resources/r000792.res": [
+    {
+      "file": "r000792-0.bin",
+      "material": "res://world/town/resources/r000761.res",
+      "custom0": false,
+      "vertices": 891,
+      "degenerateRemoved": 0
+    }
+  ],
+  "res://world/town/resources/r000799.res": [
+    {
+      "file": "r000799-0.bin",
+      "material": "res://world/town/resources/r000735.res",
+      "custom0": false,
+      "vertices": 113874,
+      "degenerateRemoved": 35
+    }
+  ],
+  "res://world/town/resources/r000801.res": [
+    {
+      "file": "r000801-0.bin",
+      "material": "res://world/town/resources/r000630.res",
+      "custom0": false,
+      "vertices": 567,
+      "degenerateRemoved": 0
+    }
+  ],
+  "res://world/town/resources/r000802.res": [
+    {
+      "file": "r000802-0.bin",
+      "material": "res://world/town/resources/r000630.res",
+      "custom0": false,
+      "vertices": 84,
+      "degenerateRemoved": 0
+    },
+    {
+      "file": "r000802-relief.bin",
+      "material": "res://world/town/resources/r000636.res",
+      "custom0": false,
+      "vertices": 23604,
+      "degenerateRemoved": 0
+    }
+  ],
+  "res://world/town/resources/r000803.res": [
+    {
+      "file": "r000803-0.bin",
+      "material": "res://world/town/resources/r000648.res",
+      "custom0": false,
+      "vertices": 1236,
+      "degenerateRemoved": 0
+    },
+    {
+      "file": "r000803-relief.bin",
+      "material": "res://world/town/resources/r000648.res",
+      "custom0": false,
+      "vertices": 494244,
+      "degenerateRemoved": 0
+    }
+  ],
+  "res://world/town/resources/r000804.res": [
+    {
+      "file": "r000804-0.bin",
+      "material": "res://world/town/resources/r000648.res",
+      "custom0": false,
+      "vertices": 13434,
+      "degenerateRemoved": 0
+    }
+  ],
+  "res://world/town/resources/r000805.res": [
+    {
+      "file": "r000805-0.bin",
+      "material": "res://world/town/resources/r000657.res",
+      "custom0": false,
+      "vertices": 810,
+      "degenerateRemoved": 3
+    }
+  ],
+  "res://world/town/resources/r000807.res": [
+    {
+      "file": "r000807-0.bin",
+      "material": "res://world/town/resources/r000609.res",
+      "custom0": false,
+      "vertices": 960,
+      "degenerateRemoved": 0
+    }
+  ],
+  "res://world/town/resources/r000808.res": [
+    {
+      "file": "r000808-0.bin",
+      "material": "res://world/town/resources/r000615.res",
+      "custom0": false,
+      "vertices": 37449,
+      "degenerateRemoved": 9
+    }
+  ],
+  "res://world/town/resources/r000809.res": [
+    {
+      "file": "r000809-0.bin",
+      "material": "res://world/town/resources/r000761.res",
+      "custom0": false,
+      "vertices": 0,
+      "degenerateRemoved": 0
+    }
+  ],
+  "res://world/town/resources/r000813.res": [
+    {
+      "file": "r000813-0.bin",
+      "material": "res://world/town/resources/r000735.res",
+      "custom0": false,
+      "vertices": 103113,
+      "degenerateRemoved": 45
+    }
+  ],
+  "res://world/town/resources/r000814.res": [
+    {
+      "file": "r000814-0.bin",
+      "material": "res://world/town/resources/r000630.res",
+      "custom0": false,
+      "vertices": 549,
+      "degenerateRemoved": 0
+    }
+  ],
+  "res://world/town/resources/r000815.res": [
+    {
+      "file": "r000815-0.bin",
+      "material": "res://world/town/resources/r000630.res",
+      "custom0": false,
+      "vertices": 102,
+      "degenerateRemoved": 0
+    },
+    {
+      "file": "r000815-relief.bin",
+      "material": "res://world/town/resources/r000636.res",
+      "custom0": false,
+      "vertices": 25632,
+      "degenerateRemoved": 0
+    }
+  ],
+  "res://world/town/resources/r000816.res": [
+    {
+      "file": "r000816-0.bin",
+      "material": "res://world/town/resources/r000648.res",
+      "custom0": false,
+      "vertices": 1068,
+      "degenerateRemoved": 0
+    },
+    {
+      "file": "r000816-relief.bin",
+      "material": "res://world/town/resources/r000648.res",
+      "custom0": false,
+      "vertices": 372960,
+      "degenerateRemoved": 0
+    }
+  ],
+  "res://world/town/resources/r000817.res": [
+    {
+      "file": "r000817-0.bin",
+      "material": "res://world/town/resources/r000648.res",
+      "custom0": false,
+      "vertices": 23226,
+      "degenerateRemoved": 0
+    }
+  ],
+  "res://world/town/resources/r000818.res": [
+    {
+      "file": "r000818-0.bin",
+      "material": "res://world/town/resources/r000657.res",
+      "custom0": false,
+      "vertices": 510,
+      "degenerateRemoved": 0
+    }
+  ],
+  "res://world/town/resources/r000820.res": [
+    {
+      "file": "r000820-0.bin",
+      "material": "res://world/town/resources/r000609.res",
+      "custom0": false,
+      "vertices": 2514,
+      "degenerateRemoved": 0
+    }
+  ],
+  "res://world/town/resources/r000821.res": [
+    {
+      "file": "r000821-0.bin",
+      "material": "res://world/town/resources/r000615.res",
+      "custom0": false,
+      "vertices": 71808,
+      "degenerateRemoved": 14
+    }
+  ],
+  "res://world/town/resources/r000822.res": [
+    {
+      "file": "r000822-0.bin",
+      "material": "res://world/town/resources/r000671.res",
+      "custom0": false,
+      "vertices": 6,
+      "degenerateRemoved": 0
+    }
+  ],
+  "res://world/town/resources/r000825.res": [
+    {
+      "file": "r000825-0.bin",
+      "material": "res://world/town/resources/r000735.res",
+      "custom0": false,
+      "vertices": 81270,
+      "degenerateRemoved": 14
+    }
+  ],
+  "res://world/town/resources/r000826.res": [
+    {
+      "file": "r000826-0.bin",
+      "material": "res://world/town/resources/r000630.res",
+      "custom0": false,
+      "vertices": 1416,
+      "degenerateRemoved": 0
+    }
+  ],
+  "res://world/town/resources/r000827.res": [
+    {
+      "file": "r000827-0.bin",
+      "material": "res://world/town/resources/r000630.res",
+      "custom0": false,
+      "vertices": 192,
+      "degenerateRemoved": 0
+    },
+    {
+      "file": "r000827-relief.bin",
+      "material": "res://world/town/resources/r000636.res",
+      "custom0": false,
+      "vertices": 50964,
+      "degenerateRemoved": 0
+    }
+  ],
+  "res://world/town/resources/r000828.res": [
+    {
+      "file": "r000828-0.bin",
+      "material": "res://world/town/resources/r000648.res",
+      "custom0": false,
+      "vertices": 1722,
+      "degenerateRemoved": 0
+    },
+    {
+      "file": "r000828-relief.bin",
+      "material": "res://world/town/resources/r000648.res",
+      "custom0": false,
+      "vertices": 559494,
+      "degenerateRemoved": 2
+    }
+  ],
+  "res://world/town/resources/r000829.res": [
+    {
+      "file": "r000829-0.bin",
+      "material": "res://world/town/resources/r000648.res",
+      "custom0": false,
+      "vertices": 10083,
+      "degenerateRemoved": 0
+    }
+  ],
+  "res://world/town/resources/r000830.res": [
+    {
+      "file": "r000830-0.bin",
+      "material": "res://world/town/resources/r000657.res",
+      "custom0": false,
+      "vertices": 1881,
+      "degenerateRemoved": 25
+    }
+  ],
+  "res://world/town/resources/r000832.res": [
+    {
+      "file": "r000832-0.bin",
+      "material": "res://world/town/resources/r000609.res",
+      "custom0": false,
+      "vertices": 8610,
+      "degenerateRemoved": 6
+    }
+  ],
+  "res://world/town/resources/r000833.res": [
+    {
+      "file": "r000833-0.bin",
+      "material": "res://world/town/resources/r000615.res",
+      "custom0": false,
+      "vertices": 90123,
+      "degenerateRemoved": 23
+    }
+  ],
+  "res://world/town/resources/r000834.res": [
+    {
+      "file": "r000834-0.bin",
+      "material": "res://world/town/resources/r000671.res",
+      "custom0": false,
+      "vertices": 18,
+      "degenerateRemoved": 0
+    }
+  ],
+  "res://world/town/resources/r000838.res": [
+    {
+      "file": "r000838-0.bin",
+      "material": "res://world/town/resources/r000735.res",
+      "custom0": false,
+      "vertices": 130854,
+      "degenerateRemoved": 54
+    }
+  ],
+  "res://world/town/resources/r000840.res": [
+    {
+      "file": "r000840-0.bin",
+      "material": "res://world/town/resources/r000630.res",
+      "custom0": false,
+      "vertices": 108,
+      "degenerateRemoved": 0
+    }
+  ],
+  "res://world/town/resources/r000841.res": [
+    {
+      "file": "r000841-0.bin",
+      "material": "res://world/town/resources/r000648.res",
+      "custom0": false,
+      "vertices": 930,
+      "degenerateRemoved": 0
+    }
+  ],
+  "res://world/town/resources/r000843.res": [
+    {
+      "file": "r000843-0.bin",
+      "material": "res://world/town/resources/r000615.res",
+      "custom0": false,
+      "vertices": 3684,
+      "degenerateRemoved": 0
+    }
+  ],
+  "res://world/town/resources/r000844.res": [
+    {
+      "file": "r000844-0.bin",
+      "material": "res://world/town/resources/r000630.res",
+      "custom0": false,
+      "vertices": 546,
+      "degenerateRemoved": 0
+    }
+  ],
+  "res://world/town/resources/r000845.res": [
+    {
+      "file": "r000845-0.bin",
+      "material": "res://world/town/resources/r000630.res",
+      "custom0": false,
+      "vertices": 84,
+      "degenerateRemoved": 0
+    },
+    {
+      "file": "r000845-relief.bin",
+      "material": "res://world/town/resources/r000636.res",
+      "custom0": false,
+      "vertices": 21120,
+      "degenerateRemoved": 0
+    }
+  ],
+  "res://world/town/resources/r000846.res": [
+    {
+      "file": "r000846-0.bin",
+      "material": "res://world/town/resources/r000648.res",
+      "custom0": false,
+      "vertices": 1044,
+      "degenerateRemoved": 0
+    },
+    {
+      "file": "r000846-relief.bin",
+      "material": "res://world/town/resources/r000648.res",
+      "custom0": false,
+      "vertices": 376920,
+      "degenerateRemoved": 0
+    }
+  ],
+  "res://world/town/resources/r000847.res": [
+    {
+      "file": "r000847-0.bin",
+      "material": "res://world/town/resources/r000648.res",
+      "custom0": false,
+      "vertices": 23082,
+      "degenerateRemoved": 0
+    }
+  ],
+  "res://world/town/resources/r000848.res": [
+    {
+      "file": "r000848-0.bin",
+      "material": "res://world/town/resources/r000657.res",
+      "custom0": false,
+      "vertices": 510,
+      "degenerateRemoved": 0
+    }
+  ],
+  "res://world/town/resources/r000849.res": [
+    {
+      "file": "r000849-0.bin",
+      "material": "res://world/town/resources/r000609.res",
+      "custom0": false,
+      "vertices": 1590,
+      "degenerateRemoved": 0
+    }
+  ],
+  "res://world/town/resources/r000850.res": [
+    {
+      "file": "r000850-0.bin",
+      "material": "res://world/town/resources/r000615.res",
+      "custom0": false,
+      "vertices": 28992,
+      "degenerateRemoved": 4
+    }
+  ],
+  "res://world/town/resources/r000851.res": [
+    {
+      "file": "r000851-0.bin",
+      "material": "res://world/town/resources/r000671.res",
+      "custom0": false,
+      "vertices": 6,
+      "degenerateRemoved": 0
+    }
+  ],
+  "res://world/town/resources/r000852.res": [
+    {
+      "file": "r000852-0.bin",
+      "material": "res://world/town/resources/r000735.res",
+      "custom0": false,
+      "vertices": 77061,
+      "degenerateRemoved": 3
+    }
+  ],
+  "res://world/town/resources/r000853.res": [
+    {
+      "file": "r000853-0.bin",
+      "material": "res://world/town/resources/r000630.res",
+      "custom0": false,
+      "vertices": 864,
+      "degenerateRemoved": 0
+    }
+  ],
+  "res://world/town/resources/r000854.res": [
+    {
+      "file": "r000854-0.bin",
+      "material": "res://world/town/resources/r000630.res",
+      "custom0": false,
+      "vertices": 150,
+      "degenerateRemoved": 0
+    },
+    {
+      "file": "r000854-relief.bin",
+      "material": "res://world/town/resources/r000636.res",
+      "custom0": false,
+      "vertices": 43440,
+      "degenerateRemoved": 0
+    }
+  ],
+  "res://world/town/resources/r000855.res": [
+    {
+      "file": "r000855-0.bin",
+      "material": "res://world/town/resources/r000648.res",
+      "custom0": false,
+      "vertices": 1470,
+      "degenerateRemoved": 0
+    },
+    {
+      "file": "r000855-relief.bin",
+      "material": "res://world/town/resources/r000648.res",
+      "custom0": false,
+      "vertices": 479892,
+      "degenerateRemoved": 0
+    }
+  ],
+  "res://world/town/resources/r000856.res": [
+    {
+      "file": "r000856-0.bin",
+      "material": "res://world/town/resources/r000648.res",
+      "custom0": false,
+      "vertices": 15219,
+      "degenerateRemoved": 0
+    }
+  ],
+  "res://world/town/resources/r000857.res": [
+    {
+      "file": "r000857-0.bin",
+      "material": "res://world/town/resources/r000657.res",
+      "custom0": false,
+      "vertices": 975,
+      "degenerateRemoved": 4
+    }
+  ],
+  "res://world/town/resources/r000859.res": [
+    {
+      "file": "r000859-0.bin",
+      "material": "res://world/town/resources/r000609.res",
+      "custom0": false,
+      "vertices": 3666,
+      "degenerateRemoved": 0
+    }
+  ],
+  "res://world/town/resources/r000860.res": [
+    {
+      "file": "r000860-0.bin",
+      "material": "res://world/town/resources/r000615.res",
+      "custom0": false,
+      "vertices": 85557,
+      "degenerateRemoved": 53
+    }
+  ],
+  "res://world/town/resources/r000861.res": [
+    {
+      "file": "r000861-0.bin",
+      "material": "res://world/town/resources/r000671.res",
+      "custom0": false,
+      "vertices": 6,
+      "degenerateRemoved": 0
+    }
+  ],
+  "res://world/town/resources/r000864.res": [
+    {
+      "file": "r000864-0.bin",
+      "material": "res://world/town/resources/r000735.res",
+      "custom0": false,
+      "vertices": 104691,
+      "degenerateRemoved": 40
+    }
+  ],
+  "res://world/town/resources/r000865.res": [
+    {
+      "file": "r000865-0.bin",
+      "material": "res://world/town/resources/r000630.res",
+      "custom0": false,
+      "vertices": 414,
+      "degenerateRemoved": 0
+    }
+  ],
+  "res://world/town/resources/r000866.res": [
+    {
+      "file": "r000866-0.bin",
+      "material": "res://world/town/resources/r000630.res",
+      "custom0": false,
+      "vertices": 168,
+      "degenerateRemoved": 0
+    },
+    {
+      "file": "r000866-relief.bin",
+      "material": "res://world/town/resources/r000636.res",
+      "custom0": false,
+      "vertices": 44592,
+      "degenerateRemoved": 0
+    }
+  ],
+  "res://world/town/resources/r000867.res": [
+    {
+      "file": "r000867-0.bin",
+      "material": "res://world/town/resources/r000648.res",
+      "custom0": false,
+      "vertices": 468,
+      "degenerateRemoved": 0
+    },
+    {
+      "file": "r000867-relief.bin",
+      "material": "res://world/town/resources/r000648.res",
+      "custom0": false,
+      "vertices": 295920,
+      "degenerateRemoved": 0
+    }
+  ],
+  "res://world/town/resources/r000868.res": [
+    {
+      "file": "r000868-0.bin",
+      "material": "res://world/town/resources/r000648.res",
+      "custom0": false,
+      "vertices": 1923,
+      "degenerateRemoved": 0
+    }
+  ],
+  "res://world/town/resources/r000869.res": [
+    {
+      "file": "r000869-0.bin",
+      "material": "res://world/town/resources/r000657.res",
+      "custom0": false,
+      "vertices": 276,
+      "degenerateRemoved": 0
+    }
+  ],
+  "res://world/town/resources/r000871.res": [
+    {
+      "file": "r000871-0.bin",
+      "material": "res://world/town/resources/r000609.res",
+      "custom0": false,
+      "vertices": 408,
+      "degenerateRemoved": 0
+    }
+  ],
+  "res://world/town/resources/r000872.res": [
+    {
+      "file": "r000872-0.bin",
+      "material": "res://world/town/resources/r000615.res",
+      "custom0": false,
+      "vertices": 61704,
+      "degenerateRemoved": 35
+    }
+  ],
+  "res://world/town/resources/r000873.res": [
+    {
+      "file": "r000873-0.bin",
+      "material": "res://world/town/resources/r000671.res",
+      "custom0": false,
+      "vertices": 6,
+      "degenerateRemoved": 0
+    }
+  ],
+  "res://world/town/resources/r000876.res": [
+    {
+      "file": "r000876-0.bin",
+      "material": "res://world/town/resources/r000735.res",
+      "custom0": false,
+      "vertices": 31797,
+      "degenerateRemoved": 15
+    }
+  ],
+  "res://world/town/resources/r000878.res": [
+    {
+      "file": "r000878-0.bin",
+      "material": "res://world/town/resources/r000630.res",
+      "custom0": false,
+      "vertices": 282,
+      "degenerateRemoved": 0
+    },
+    {
+      "file": "r000878-relief.bin",
+      "material": "res://world/town/resources/r000636.res",
+      "custom0": false,
+      "vertices": 77028,
+      "degenerateRemoved": 0
+    }
+  ],
+  "res://world/town/resources/r000879.res": [
+    {
+      "file": "r000879-0.bin",
+      "material": "res://world/town/resources/r000648.res",
+      "custom0": false,
+      "vertices": 1584,
+      "degenerateRemoved": 0
+    },
+    {
+      "file": "r000879-relief.bin",
+      "material": "res://world/town/resources/r000648.res",
+      "custom0": false,
+      "vertices": 548436,
+      "degenerateRemoved": 0
+    }
+  ],
+  "res://world/town/resources/r000880.res": [
+    {
+      "file": "r000880-0.bin",
+      "material": "res://world/town/resources/r000648.res",
+      "custom0": false,
+      "vertices": 23133,
+      "degenerateRemoved": 0
+    },
+    {
+      "file": "r000880-1.bin",
+      "material": "res://world/town/resources/r000648.res",
+      "custom0": false,
+      "vertices": 36708,
+      "degenerateRemoved": 0
+    },
+    {
+      "file": "r000880-2.bin",
+      "material": "res://world/town/resources/r000648.res",
+      "custom0": false,
+      "vertices": 336,
+      "degenerateRemoved": 0
+    },
+    {
+      "file": "r000880-construction.bin",
+      "material": "res://world/town/resources/r000648.res",
+      "custom0": false,
+      "vertices": 527160,
+      "degenerateRemoved": 0
+    },
+    {
+      "file": "rooted-plants.bin",
+      "material": "res://world/town/resources/r000648.res",
+      "custom0": false,
+      "vertices": 55308,
+      "degenerateRemoved": 0
+    }
+  ],
+  "res://world/town/resources/r000881.res": [
+    {
+      "file": "r000881-0.bin",
+      "material": "res://world/town/resources/r000657.res",
+      "custom0": false,
+      "vertices": 1965,
+      "degenerateRemoved": 0
+    }
+  ],
+  "res://world/town/resources/r000883.res": [
+    {
+      "file": "r000883-0.bin",
+      "material": "res://world/town/resources/r000609.res",
+      "custom0": false,
+      "vertices": 3870,
+      "degenerateRemoved": 0
+    },
+    {
+      "file": "r000883-construction.bin",
+      "material": "res://world/town/resources/r000609.res",
+      "custom0": false,
+      "vertices": 85560,
+      "degenerateRemoved": 0
+    }
+  ],
+  "res://world/town/resources/r000884.res": [
+    {
+      "file": "r000884-0.bin",
+      "material": "res://world/town/resources/r000615.res",
+      "custom0": false,
+      "vertices": 208782,
+      "degenerateRemoved": 0
+    },
+    {
+      "file": "r000884-1.bin",
+      "material": "res://world/town/resources/r000615.res",
+      "custom0": false,
+      "vertices": 46758,
+      "degenerateRemoved": 0
+    },
+    {
+      "file": "r000884-construction.bin",
+      "material": "res://world/town/resources/r000615.res",
+      "custom0": false,
+      "vertices": 792876,
+      "degenerateRemoved": 0
+    }
+  ],
+  "res://world/town/resources/r000885.res": [
+    {
+      "file": "r000885-0.bin",
+      "material": "res://world/town/resources/r000671.res",
+      "custom0": false,
+      "vertices": 12,
+      "degenerateRemoved": 0
+    }
+  ],
+  "res://world/town/resources/r000889.res": [
+    {
+      "file": "r000889-0.bin",
+      "material": "res://world/town/resources/r000735.res",
+      "custom0": false,
+      "vertices": 110739,
+      "degenerateRemoved": 71
+    }
+  ],
+  "res://world/town/resources/r000891.res": [
+    {
+      "file": "r000891-0.bin",
+      "material": "res://world/town/resources/r000630.res",
+      "custom0": false,
+      "vertices": 870,
+      "degenerateRemoved": 0
+    }
+  ],
+  "res://world/town/resources/r000892.res": [
+    {
+      "file": "r000892-0.bin",
+      "material": "res://world/town/resources/r000630.res",
+      "custom0": false,
+      "vertices": 186,
+      "degenerateRemoved": 0
+    },
+    {
+      "file": "r000892-relief.bin",
+      "material": "res://world/town/resources/r000636.res",
+      "custom0": false,
+      "vertices": 52320,
+      "degenerateRemoved": 0
+    }
+  ],
+  "res://world/town/resources/r000893.res": [
+    {
+      "file": "r000893-0.bin",
+      "material": "res://world/town/resources/r000648.res",
+      "custom0": false,
+      "vertices": 1218,
+      "degenerateRemoved": 0
+    },
+    {
+      "file": "r000893-relief.bin",
+      "material": "res://world/town/resources/r000648.res",
+      "custom0": false,
+      "vertices": 393180,
+      "degenerateRemoved": 0
+    }
+  ],
+  "res://world/town/resources/r000894.res": [
+    {
+      "file": "r000894-0.bin",
+      "material": "res://world/town/resources/r000648.res",
+      "custom0": false,
+      "vertices": 13695,
+      "degenerateRemoved": 0
+    }
+  ],
+  "res://world/town/resources/r000895.res": [
+    {
+      "file": "r000895-0.bin",
+      "material": "res://world/town/resources/r000657.res",
+      "custom0": false,
+      "vertices": 864,
+      "degenerateRemoved": 1
+    }
+  ],
+  "res://world/town/resources/r000897.res": [
+    {
+      "file": "r000897-0.bin",
+      "material": "res://world/town/resources/r000609.res",
+      "custom0": false,
+      "vertices": 4554,
+      "degenerateRemoved": 0
+    }
+  ],
+  "res://world/town/resources/r000898.res": [
+    {
+      "file": "r000898-0.bin",
+      "material": "res://world/town/resources/r000615.res",
+      "custom0": false,
+      "vertices": 88164,
+      "degenerateRemoved": 44
+    }
+  ],
+  "res://world/town/resources/r000899.res": [
+    {
+      "file": "r000899-0.bin",
+      "material": "res://world/town/resources/r000671.res",
+      "custom0": false,
+      "vertices": 6,
+      "degenerateRemoved": 0
+    }
+  ],
+  "res://world/town/resources/r000903.res": [
+    {
+      "file": "r000903-0.bin",
+      "material": "res://world/town/resources/r000735.res",
+      "custom0": false,
+      "vertices": 82770,
+      "degenerateRemoved": 40
+    }
+  ],
+  "res://world/town/resources/r000905.res": [
+    {
+      "file": "r000905-0.bin",
+      "material": "res://world/town/resources/r000630.res",
+      "custom0": false,
+      "vertices": 912,
+      "degenerateRemoved": 0
+    }
+  ],
+  "res://world/town/resources/r000906.res": [
+    {
+      "file": "r000906-0.bin",
+      "material": "res://world/town/resources/r000630.res",
+      "custom0": false,
+      "vertices": 186,
+      "degenerateRemoved": 0
+    },
+    {
+      "file": "r000906-relief.bin",
+      "material": "res://world/town/resources/r000636.res",
+      "custom0": false,
+      "vertices": 50556,
+      "degenerateRemoved": 0
+    }
+  ],
+  "res://world/town/resources/r000907.res": [
+    {
+      "file": "r000907-0.bin",
+      "material": "res://world/town/resources/r000648.res",
+      "custom0": false,
+      "vertices": 1416,
+      "degenerateRemoved": 0
+    },
+    {
+      "file": "r000907-relief.bin",
+      "material": "res://world/town/resources/r000648.res",
+      "custom0": false,
+      "vertices": 469356,
+      "degenerateRemoved": 0
+    }
+  ],
+  "res://world/town/resources/r000908.res": [
+    {
+      "file": "r000908-0.bin",
+      "material": "res://world/town/resources/r000648.res",
+      "custom0": false,
+      "vertices": 14955,
+      "degenerateRemoved": 0
+    }
+  ],
+  "res://world/town/resources/r000909.res": [
+    {
+      "file": "r000909-0.bin",
+      "material": "res://world/town/resources/r000657.res",
+      "custom0": false,
+      "vertices": 960,
+      "degenerateRemoved": 12
+    }
+  ],
+  "res://world/town/resources/r000911.res": [
+    {
+      "file": "r000911-0.bin",
+      "material": "res://world/town/resources/r000609.res",
+      "custom0": false,
+      "vertices": 1794,
+      "degenerateRemoved": 0
+    }
+  ],
+  "res://world/town/resources/r000912.res": [
+    {
+      "file": "r000912-0.bin",
+      "material": "res://world/town/resources/r000615.res",
+      "custom0": false,
+      "vertices": 82119,
+      "degenerateRemoved": 23
+    }
+  ],
+  "res://world/town/resources/r000913.res": [
+    {
+      "file": "r000913-0.bin",
+      "material": "res://world/town/resources/r000671.res",
+      "custom0": false,
+      "vertices": 6,
+      "degenerateRemoved": 0
+    }
+  ],
+  "res://world/town/resources/r000917.res": [
+    {
+      "file": "r000917-0.bin",
+      "material": "res://world/town/resources/r000735.res",
+      "custom0": false,
+      "vertices": 105867,
+      "degenerateRemoved": 81
+    }
+  ],
+  "res://world/town/resources/r000919.res": [
+    {
+      "file": "r000919-0.bin",
+      "material": "res://world/town/resources/r000630.res",
+      "custom0": false,
+      "vertices": 1101,
+      "degenerateRemoved": 0
+    }
+  ],
+  "res://world/town/resources/r000920.res": [
+    {
+      "file": "r000920-0.bin",
+      "material": "res://world/town/resources/r000630.res",
+      "custom0": false,
+      "vertices": 132,
+      "degenerateRemoved": 0
+    },
+    {
+      "file": "r000920-relief.bin",
+      "material": "res://world/town/resources/r000636.res",
+      "custom0": false,
+      "vertices": 35616,
+      "degenerateRemoved": 0
+    }
+  ],
+  "res://world/town/resources/r000921.res": [
+    {
+      "file": "r000921-0.bin",
+      "material": "res://world/town/resources/r000648.res",
+      "custom0": false,
+      "vertices": 1032,
+      "degenerateRemoved": 0
+    },
+    {
+      "file": "r000921-relief.bin",
+      "material": "res://world/town/resources/r000648.res",
+      "custom0": false,
+      "vertices": 322644,
+      "degenerateRemoved": 0
+    }
+  ],
+  "res://world/town/resources/r000922.res": [
+    {
+      "file": "r000922-0.bin",
+      "material": "res://world/town/resources/r000648.res",
+      "custom0": false,
+      "vertices": 9651,
+      "degenerateRemoved": 0
+    }
+  ],
+  "res://world/town/resources/r000923.res": [
+    {
+      "file": "r000923-0.bin",
+      "material": "res://world/town/resources/r000657.res",
+      "custom0": false,
+      "vertices": 1983,
+      "degenerateRemoved": 19
+    }
+  ],
+  "res://world/town/resources/r000925.res": [
+    {
+      "file": "r000925-0.bin",
+      "material": "res://world/town/resources/r000609.res",
+      "custom0": false,
+      "vertices": 25359,
+      "degenerateRemoved": 7
+    }
+  ],
+  "res://world/town/resources/r000926.res": [
+    {
+      "file": "r000926-0.bin",
+      "material": "res://world/town/resources/r000615.res",
+      "custom0": false,
+      "vertices": 89382,
+      "degenerateRemoved": 33
+    }
+  ],
+  "res://world/town/resources/r000927.res": [
+    {
+      "file": "r000927-0.bin",
+      "material": "res://world/town/resources/r000671.res",
+      "custom0": false,
+      "vertices": 24,
+      "degenerateRemoved": 0
+    }
+  ],
+  "res://world/town/resources/r000931.res": [
+    {
+      "file": "r000931-0.bin",
+      "material": "res://world/town/resources/r000735.res",
+      "custom0": false,
+      "vertices": 67902,
+      "degenerateRemoved": 8
+    }
+  ],
+  "res://world/town/resources/r000008.res": [
+    {
+      "file": "r000008-0.bin",
+      "material": "res://world/town/resources/r000007.res",
+      "custom0": false,
+      "vertices": 3276,
+      "degenerateRemoved": 0
+    }
+  ],
+  "res://world/town/resources/r000017.res": [
+    {
+      "file": "r000017-0.bin",
+      "material": "res://world/town/resources/r000016.res",
+      "custom0": false,
+      "vertices": 1311,
+      "degenerateRemoved": 0
+    }
+  ],
+  "res://world/town/resources/r000025.res": [
+    {
+      "file": "r000025-0.bin",
+      "material": "res://world/town/resources/r000024.res",
+      "custom0": false,
+      "vertices": 6126,
+      "degenerateRemoved": 0
+    }
+  ],
+  "res://world/town/resources/r000031.res": [
+    {
+      "file": "r000031-0.bin",
+      "material": "res://world/town/resources/r000030.res",
+      "custom0": false,
+      "vertices": 2454,
+      "degenerateRemoved": 0
+    }
+  ],
+  "res://world/town/resources/r000039.res": [
+    {
+      "file": "r000039-0.bin",
+      "material": "res://world/town/resources/r000038.res",
+      "custom0": false,
+      "vertices": 570,
+      "degenerateRemoved": 0
+    }
+  ],
+  "res://world/town/resources/r000046.res": [
+    {
+      "file": "r000046-0.bin",
+      "material": "res://world/town/resources/r000045.res",
+      "custom0": false,
+      "vertices": 28752,
+      "degenerateRemoved": 0
+    }
+  ]
+}

@@ -1,0 +1,51 @@
+{
+  "version": "V12",
+  "method": "Unaltered matching image-region mean RGB; lighting also differs, so this is visible response evidence rather than isolated material measurement.",
+  "regions": [
+    {
+      "region": "pond-wall",
+      "view": "seg-06-base-close",
+      "box": [
+        100,
+        100,
+        1000,
+        600
+      ],
+      "meanRGB": {
+        "day": 40.53918074074074,
+        "rain": 33.393825925925924
+      },
+      "rainDayRatio": 0.823742002570024
+    },
+    {
+      "region": "kerb",
+      "view": "kerb-seg04-end",
+      "box": [
+        360,
+        443,
+        690,
+        470
+      ],
+      "meanRGB": {
+        "day": 43.00647212869435,
+        "rain": 25.04897119341564
+      },
+      "rainDayRatio": 0.5824465470791945
+    },
+    {
+      "region": "stair00",
+      "view": "stair-00-treads",
+      "box": [
+        100,
+        540,
+        300,
+        650
+      ],
+      "meanRGB": {
+        "day": 84.63927272727273,
+        "rain": 46.16089393939394
+      },
+      "rainDayRatio": 0.545383867937228
+    }
+  ]
+}

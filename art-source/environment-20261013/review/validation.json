@@ -1,0 +1,9 @@
+{
+	"checks": 1094915,
+	"materials": 17,
+	"maxNormalVectorDelta": 0.000124773039715365,
+	"maxWeldMetres": 0.00149976811371744,
+	"meshes": 82,
+	"passed": true,
+	"scope": "Resource reload, material dimensions, shared external textures, poster V, roof layers/weather, retained topology/normals within packed tolerance, bounded welds and untouched non-wood triangles"
+}

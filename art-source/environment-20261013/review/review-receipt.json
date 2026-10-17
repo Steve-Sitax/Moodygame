@@ -1,0 +1,50 @@
+{
+  "date": "2026-10-13",
+  "scope": "17 selected environment materials; 81 wall UV/seam meshes and one wood debris mesh",
+  "claude": {
+    "wall": 8,
+    "iron": 8,
+    "wood": 8,
+    "slate": 8,
+    "clay": 8,
+    "poster": 8.5,
+    "stone": 8
+  },
+  "codex": {
+    "wall": 8.5,
+    "iron": 8.4,
+    "wood": 8.5,
+    "slate": 8.4,
+    "clay": 8.4,
+    "poster": 9,
+    "stone": 8.3
+  },
+  "validation": {
+    "checks": 1094915,
+    "materials": 17,
+    "maxNormalVectorDelta": 0.000124773039715365,
+    "maxWeldMetres": 0.00149976811371744,
+    "meshes": 82,
+    "passed": true,
+    "scope": "Resource reload, material dimensions, shared external textures, poster V, roof layers/weather, retained topology/normals within packed tolerance, bounded welds and untouched non-wood triangles"
+  },
+  "renderLogErrors": 0,
+  "trackedResourceChanges": 99,
+  "sceneFilesChanged": 0,
+  "charactersEdited": false,
+  "notes": "Reviewer scores are subjective. Views use isolated native scenery and fixed dry/wet/night lighting. Legacy specialised debris cells and unchanged architectural silhouettes remain outside approval.",
+  "userAcceptance": {
+    "status": "rejected-by-user-unfinished",
+    "date": "2026-10-13",
+    "reason": "Sharper textures did not satisfy high-detail environment requirements. Exposed architecture and rails remain sharp, wear and connected wall/ground weathering are insufficient, and a kerb/wall intersection is suspected.",
+    "required": [
+      "Real rounded and worn stone/metal edge geometry",
+      "Inspect and correct pavement, kerb, wall and stair junctions",
+      "Verify native gutter/downpipe presence, visibility and connected drainage",
+      "Coherent wall-foot grime, damp and corresponding pavement staining",
+      "Moss and small plants located by persistent wetness, cracks and neglect",
+      "Contextual native-game review under updated art-direction rules"
+    ],
+    "implementation": "Follow-up V9 junction corrections installed after independent Claude8.0/Codex8.1 reviews; see ../junction/installation-receipt.json. This historical texture-only acceptance remains rejected."
+  }
+}

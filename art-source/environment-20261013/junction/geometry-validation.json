@@ -1,0 +1,159 @@
+{
+  "checks": {
+    "r000008-repaired.json": {
+      "triangles": 948,
+      "nonFinite": 0,
+      "tinyTriangles": 0,
+      "maxNormalError": 4.6379122764506064e-10,
+      "minWindingAlignment": 1.0
+    },
+    "r000017-repaired.json": {
+      "triangles": 437,
+      "nonFinite": 0,
+      "tinyTriangles": 0,
+      "maxNormalError": 4.6379122764506064e-10,
+      "minWindingAlignment": 1.0
+    },
+    "r000025-repaired.json": {
+      "triangles": 1903,
+      "nonFinite": 0,
+      "tinyTriangles": 0,
+      "maxNormalError": 7.918089517389149e-09,
+      "minWindingAlignment": 1.0
+    },
+    "r000031-repaired.json": {
+      "triangles": 808,
+      "nonFinite": 0,
+      "tinyTriangles": 0,
+      "maxNormalError": 4.6379122764506064e-10,
+      "minWindingAlignment": 1.0
+    },
+    "r000046-repaired.json": {
+      "triangles": 9307,
+      "nonFinite": 0,
+      "tinyTriangles": 0,
+      "maxNormalError": 1.1325468984857423e-07,
+      "minWindingAlignment": 0.9995791139733327
+    },
+    "r000263-repaired.json": {
+      "triangles": 6162,
+      "nonFinite": 0,
+      "tinyTriangles": 0,
+      "maxNormalError": 7.918089517389149e-09,
+      "minWindingAlignment": 1.0
+    },
+    "r000264-repaired.json": {
+      "triangles": 76,
+      "nonFinite": 0,
+      "tinyTriangles": 0,
+      "maxNormalError": 4.61398497186849e-08,
+      "minWindingAlignment": 0.9999938715559931
+    },
+    "r000265-repaired.json": {
+      "triangles": 3632,
+      "nonFinite": 0,
+      "tinyTriangles": 0,
+      "maxNormalError": 5.47816940699164e-08,
+      "minWindingAlignment": 0.9932270604631352
+    },
+    "r000877-repaired.json": {
+      "triangles": 512,
+      "nonFinite": 0,
+      "tinyTriangles": 0,
+      "maxNormalError": 9.675472756320858e-08,
+      "minWindingAlignment": 0.9999999345973545
+    },
+    "r000878-repaired.json": {
+      "triangles": 94,
+      "nonFinite": 0,
+      "tinyTriangles": 0,
+      "maxNormalError": 9.904128450699545e-08,
+      "minWindingAlignment": 0.9999714748062924
+    },
+    "r000879-repaired.json": {
+      "triangles": 481,
+      "nonFinite": 0,
+      "tinyTriangles": 0,
+      "maxNormalError": 5.0212783486713874e-08,
+      "minWindingAlignment": 0.9999567572001347
+    },
+    "r000880-repaired.json": {
+      "triangles": 7711,
+      "nonFinite": 0,
+      "tinyTriangles": 0,
+      "maxNormalError": 1.1473671124306861e-07,
+      "minWindingAlignment": 0.999999923453861
+    },
+    "r000881-repaired.json": {
+      "triangles": 639,
+      "nonFinite": 0,
+      "tinyTriangles": 0,
+      "maxNormalError": 4.6379122764506064e-10,
+      "minWindingAlignment": 1.0
+    },
+    "r000884-repaired.json": {
+      "triangles": 69594,
+      "nonFinite": 0,
+      "tinyTriangles": 0,
+      "maxNormalError": 1.1593793569630861e-07,
+      "minWindingAlignment": 0.9999998603135316
+    },
+    "r000888-repaired.json": {
+      "triangles": 32,
+      "nonFinite": 0,
+      "tinyTriangles": 0,
+      "maxNormalError": 5.155267923662166e-08,
+      "minWindingAlignment": 0.9999910822571455
+    },
+    "ashlar-additions.json": {
+      "triangles": 26011,
+      "nonFinite": 0,
+      "tinyTriangles": 0,
+      "maxNormalError": 1.1280387002265968e-07,
+      "minWindingAlignment": 0.9999801119472932
+    },
+    "quoin-additions.json": {
+      "triangles": 25676,
+      "nonFinite": 0,
+      "tinyTriangles": 0,
+      "maxNormalError": 1.0166532260491579e-07,
+      "minWindingAlignment": 0.9999999282227712
+    },
+    "construction-stone.json": {
+      "triangles": 12236,
+      "nonFinite": 0,
+      "tinyTriangles": 0,
+      "maxNormalError": 1.1336768968028821e-07,
+      "minWindingAlignment": 0.9999999235753817
+    },
+    "construction-iron.json": {
+      "triangles": 15586,
+      "nonFinite": 0,
+      "tinyTriangles": 0,
+      "maxNormalError": 1.1306814262646014e-07,
+      "minWindingAlignment": 0.9999999173881785
+    },
+    "plants.json": {
+      "triangles": 112,
+      "nonFinite": 0,
+      "tinyTriangles": 0,
+      "maxNormalError": 1.1150118250924379e-07,
+      "minWindingAlignment": 0.9999999256349263
+    },
+    "window-joinery.json": {
+      "triangles": 7176,
+      "nonFinite": 0,
+      "tinyTriangles": 0,
+      "maxNormalError": 8.83711712695856e-08,
+      "minWindingAlignment": 0.999999949220084
+    },
+    "walkSupport": {
+      "sampledTreads": 72,
+      "maxHeightChangeMetres": 0.00045191283696399687
+    },
+    "roofEaveY": 10.166052071248105,
+    "guardGrateWallClearanceMetres": 0.0252977611529058
+  },
+  "failures": [],
+  "passed": true
+}

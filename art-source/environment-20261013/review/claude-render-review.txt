@@ -1,0 +1,36 @@
+## Wall candidate: 8/10, PASS
+
+I looked at all six screenshots and the slate picture. I did not edit any files.
+
+**Brick: good.** The old brick had heavy dark blotches. The new brick has even colour change from brick to brick, and the mortar lines are clean. It reads correctly from far away and up close. The bump is shallow, so the wall looks almost flat in low sun. That is acceptable.
+
+**Plinth stone: acceptable.** The fine speckle and thin joints are clean. The dirt that gets darker near the bottom looks good. It is a little plain and low in contrast in the wide shot. It looks more like grey granite than Belgian blue stone.
+
+**Stair stone: acceptable.** Each step is easy to see. The treads (the tops you walk on) are lighter than the risers (the front faces), which is correct. Three small faults:
+- `candidate-steps-close-day.png`: a thin white line goes across one far tread, near the top of the image. It is maybe a seam or a lighting edge.
+- The same shot: the bottom-left riser has vertical streaks.
+- The steps show no wear.
+
+**Iron: good, and the striping fault is gone.** The posts are dark and the rust streaks run down. In the close shot, the far rail looks flat rust-brown while the posts look black. Look at that colour difference once.
+
+**Thin dashed line.** `candidate-railing-day.png` shows a faint dashed line on the stringer face, near the left (the stringer is the slanted side wall of the stair). It is maybe a seam. It is small.
+
+**Rain:** it is only a little darker than day, and there is no visible wet shine. Your test holds the weather settings fixed, so this is a test limit, not a texture fault. Check rain again in the full game.
+
+**Night:** it is too dark to judge the textures, but nothing looks broken.
+
+**Not checked yet:** roofs, coping and towers. The tower brick now looks different from the new wall brick.
+
+No fault stops this wall candidate.
+
+## Slate v3: 7/10, NOT a pass yet
+
+- **Good:** the fine grain is now smooth and believable. Each tile has a small, natural change in colour.
+- **Blocker:** the slates look like flat wall tiles. Real roof slates overlap. Each slate needs a darker shadow band and some thickness at its bottom edge. Without this, the roof will read as tiled stone.
+- **Smaller faults:** the grid is too regular and the edges are too clean. A few chipped corners would help.
+
+## What to do now
+
+1. Ship the wall candidate (brick, plinth, stairs, iron).
+2. Fix the white tread line and the riser streaks when you have time.
+3. Add a lap shadow and slate thickness to the bottom edges. Then grade slate v4.

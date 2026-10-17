@@ -1,0 +1,22 @@
+I looked at both pictures. I made no changes.
+
+**Poster: 8.5 out of 10. PASS.**
+- It is upright now. All text reads correctly.
+- The print is sharp. The torn, uneven edges look good.
+- One small point: it lies totally flat on the wall. It has no small curl and no shadow at the edge. This does not block the pass.
+
+**Wood debris: 6.5 out of 10. FAIL.**
+
+What is good:
+- The grain runs along the length of each board. The UV is correct. (UV means how the texture is laid onto the model.)
+- The ends are uneven. The one dark end face (near the middle of the picture) reads well.
+
+Remaining blocker (this is the main one):
+- **The boards do not sit on the ground.** There is no dark contact shadow or AO directly under them. (AO means the soft dark shading where two surfaces touch.) There is a big dark patch to the right of the boards, but none under them. So the boards look pasted on top, or like they float.
+
+Smaller problems:
+- The two tan boards look like new, clean pine. They are too even in colour. Street wood from 1873 should be greyer, dirtier, and wet at the ends. The grey board at the back is closer to correct.
+- The silhouette is too straight and too thin. The boards look like flat strips, not thick planks. You cannot see the 1.5 mm bevel or the wear from this distance. The geometry is not the problem. The look is.
+- The light end face on the front board is not darker. Only one of the three ends shows the darker end face.
+
+**What you do now:** fix the contact shadow and AO under the boards first. Then make the tan wood dirtier and greyer. Then shoot the same view again. I expect it to pass after these fixes.

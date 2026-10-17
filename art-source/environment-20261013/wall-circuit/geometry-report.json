@@ -1,0 +1,644 @@
+{
+  "stairs": 11,
+  "hutDrainage": 14,
+  "gateTowerDrainage": 8,
+  "r000610": {
+    "bevel": 0.002,
+    "edges": 876
+  },
+  "r000616": {
+    "fittedPostSockets": 0,
+    "bevel": 0.0025,
+    "edges": 12
+  },
+  "r000623": {
+    "bevel": 0.002,
+    "edges": 780
+  },
+  "r000624": {
+    "fittedPostSockets": 0,
+    "bevel": 0.0025,
+    "edges": 12
+  },
+  "r000631": {
+    "seamVertices": 102,
+    "roundedVaultTriangles": 72,
+    "bevel": 0.006,
+    "edges": 0
+  },
+  "r000637": {
+    "blocks": 168
+  },
+  "r000643": {
+    "blocks": 1133
+  },
+  "r000649": {
+    "radialArchStones": 50,
+    "replacedStairFaces": 0,
+    "bevel": 0.012,
+    "edges": 249
+  },
+  "r000664": {
+    "foldedHipCovers": 8
+  },
+  "r000665": {
+    "bevel": 0.002,
+    "edges": 173
+  },
+  "r000666": {
+    "fittedPostSockets": 0,
+    "bevel": 0.0025,
+    "edges": 4445
+  },
+  "r000684": {
+    "seamVertices": 102,
+    "roundedVaultTriangles": 72,
+    "bevel": 0.006,
+    "edges": 0
+  },
+  "r000685": {
+    "blocks": 168
+  },
+  "r000686": {
+    "blocks": 1133
+  },
+  "r000687": {
+    "radialArchStones": 50,
+    "replacedStairFaces": 0,
+    "bevel": 0.012,
+    "edges": 251
+  },
+  "r000689": {
+    "foldedHipCovers": 8
+  },
+  "r000690": {
+    "bevel": 0.002,
+    "edges": 175
+  },
+  "r000691": {
+    "fittedPostSockets": 0,
+    "bevel": 0.0025,
+    "edges": 4458
+  },
+  "r000695": {
+    "seamVertices": 102,
+    "roundedVaultTriangles": 72,
+    "bevel": 0.006,
+    "edges": 0
+  },
+  "r000696": {
+    "blocks": 196
+  },
+  "r000697": {
+    "blocks": 1133
+  },
+  "r000698": {
+    "radialArchStones": 50,
+    "replacedStairFaces": 0,
+    "bevel": 0.012,
+    "edges": 249
+  },
+  "r000700": {
+    "foldedHipCovers": 8
+  },
+  "r000701": {
+    "bevel": 0.002,
+    "edges": 174
+  },
+  "r000702": {
+    "fittedPostSockets": 0,
+    "bevel": 0.0025,
+    "edges": 4447
+  },
+  "r000706": {
+    "seamVertices": 102,
+    "roundedVaultTriangles": 72,
+    "bevel": 0.006,
+    "edges": 0
+  },
+  "r000707": {
+    "blocks": 222
+  },
+  "r000708": {
+    "blocks": 1133
+  },
+  "r000709": {
+    "radialArchStones": 50,
+    "replacedStairFaces": 0,
+    "bevel": 0.012,
+    "edges": 249
+  },
+  "r000711": {
+    "foldedHipCovers": 8
+  },
+  "r000712": {
+    "bevel": 0.002,
+    "edges": 174
+  },
+  "r000713": {
+    "fittedPostSockets": 0,
+    "bevel": 0.0025,
+    "edges": 4417
+  },
+  "r000717": {
+    "seamVertices": 84,
+    "bevel": 0.006,
+    "edges": 5
+  },
+  "r000718": {
+    "blocks": 104
+  },
+  "r000719": {
+    "blocks": 1081
+  },
+  "r000720": {
+    "replacedStairFaces": 0,
+    "bevel": 0.012,
+    "edges": 73
+  },
+  "r000722": {
+    "foldedHipCovers": 4
+  },
+  "r000723": {
+    "bevel": 0.002,
+    "edges": 17
+  },
+  "r000724": {
+    "fittedPostSockets": 0,
+    "bevel": 0.0025,
+    "edges": 1744
+  },
+  "r000736": {
+    "openedSpouts": 3,
+    "bevel": 0.008,
+    "edges": 867
+  },
+  "r000737": {
+    "seamVertices": 60,
+    "bevel": 0.006,
+    "edges": 12
+  },
+  "r000738": {
+    "blocks": 95
+  },
+  "r000739": {
+    "blocks": 1771
+  },
+  "r000740": {
+    "replacedStairFaces": 46,
+    "bevel": 0.012,
+    "edges": 530
+  },
+  "r000742": {
+    "foldedHipCovers": 4
+  },
+  "r000743": {
+    "bevel": 0.002,
+    "edges": 53
+  },
+  "r000744": {
+    "fittedPostSockets": 15,
+    "bevel": 0.0025,
+    "edges": 2409
+  },
+  "r000748": {
+    "openedSpouts": 6,
+    "bevel": 0.008,
+    "edges": 2559
+  },
+  "r000749": {
+    "seamVertices": 24,
+    "bevel": 0.006,
+    "edges": 6
+  },
+  "r000750": {
+    "blocks": 46
+  },
+  "r000751": {
+    "blocks": 1306
+  },
+  "r000752": {
+    "replacedStairFaces": 46,
+    "bevel": 0.012,
+    "edges": 499
+  },
+  "r000754": {
+    "bevel": 0.002,
+    "edges": 60
+  },
+  "r000755": {
+    "fittedPostSockets": 15,
+    "bevel": 0.0025,
+    "edges": 876
+  },
+  "r000763": {
+    "openedSpouts": 5,
+    "bevel": 0.008,
+    "edges": 2197
+  },
+  "r000769": {
+    "seamVertices": 144,
+    "bevel": 0.006,
+    "edges": 57
+  },
+  "r000770": {
+    "blocks": 247
+  },
+  "r000771": {
+    "blocks": 1951
+  },
+  "r000772": {
+    "replacedStairFaces": 46,
+    "bevel": 0.012,
+    "edges": 652
+  },
+  "r000774": {
+    "foldedHipCovers": 14
+  },
+  "r000775": {
+    "bevel": 0.002,
+    "edges": 34
+  },
+  "r000776": {
+    "fittedPostSockets": 15,
+    "bevel": 0.0025,
+    "edges": 4002
+  },
+  "r000781": {
+    "openedSpouts": 8,
+    "bevel": 0.008,
+    "edges": 2921
+  },
+  "r000783": {
+    "seamVertices": 120,
+    "bevel": 0.006,
+    "edges": 29
+  },
+  "r000784": {
+    "blocks": 184
+  },
+  "r000785": {
+    "blocks": 1850
+  },
+  "r000786": {
+    "replacedStairFaces": 0,
+    "bevel": 0.012,
+    "edges": 278
+  },
+  "r000788": {
+    "foldedHipCovers": 14
+  },
+  "r000789": {
+    "bevel": 0.002,
+    "edges": 34
+  },
+  "r000790": {
+    "fittedPostSockets": 0,
+    "bevel": 0.0025,
+    "edges": 4006
+  },
+  "r000792": {
+    "physicalFerns": 39
+  },
+  "r000799": {
+    "openedSpouts": 9,
+    "bevel": 0.008,
+    "edges": 2842
+  },
+  "r000801": {
+    "seamVertices": 39,
+    "bevel": 0.006,
+    "edges": 6
+  },
+  "r000802": {
+    "blocks": 75
+  },
+  "r000803": {
+    "blocks": 1789
+  },
+  "r000804": {
+    "replacedStairFaces": 46,
+    "bevel": 0.012,
+    "edges": 507
+  },
+  "r000806": {
+    "foldedHipCovers": 1
+  },
+  "r000807": {
+    "bevel": 0.002,
+    "edges": 41
+  },
+  "r000808": {
+    "fittedPostSockets": 15,
+    "bevel": 0.0025,
+    "edges": 1223
+  },
+  "r000809": {
+    "physicalFerns": 5
+  },
+  "r000813": {
+    "openedSpouts": 7,
+    "bevel": 0.008,
+    "edges": 2605
+  },
+  "r000814": {
+    "seamVertices": 33,
+    "bevel": 0.006,
+    "edges": 6
+  },
+  "r000815": {
+    "blocks": 81
+  },
+  "r000816": {
+    "blocks": 1348
+  },
+  "r000817": {
+    "replacedStairFaces": 92,
+    "bevel": 0.012,
+    "edges": 876
+  },
+  "r000819": {
+    "foldedHipCovers": 1
+  },
+  "r000820": {
+    "bevel": 0.002,
+    "edges": 108
+  },
+  "r000821": {
+    "fittedPostSockets": 30,
+    "bevel": 0.0025,
+    "edges": 2216
+  },
+  "r000825": {
+    "openedSpouts": 4,
+    "bevel": 0.008,
+    "edges": 2008
+  },
+  "r000826": {
+    "seamVertices": 93,
+    "bevel": 0.006,
+    "edges": 24
+  },
+  "r000827": {
+    "blocks": 136
+  },
+  "r000828": {
+    "blocks": 2027
+  },
+  "r000829": {
+    "replacedStairFaces": 0,
+    "bevel": 0.012,
+    "edges": 356
+  },
+  "r000831": {
+    "foldedHipCovers": 104
+  },
+  "r000832": {
+    "bevel": 0.002,
+    "edges": 351
+  },
+  "r000833": {
+    "fittedPostSockets": 0,
+    "bevel": 0.0025,
+    "edges": 2556
+  },
+  "r000838": {
+    "openedSpouts": 9,
+    "bevel": 0.008,
+    "edges": 3329
+  },
+  "r000840": {
+    "seamVertices": 0,
+    "bevel": 0.006,
+    "edges": 4
+  },
+  "r000841": {
+    "replacedStairFaces": 0,
+    "bevel": 0.012,
+    "edges": 29
+  },
+  "r000842": {
+    "foldedHipCovers": 2
+  },
+  "r000843": {
+    "fittedPostSockets": 0,
+    "bevel": 0.0025,
+    "edges": 78
+  },
+  "r000844": {
+    "seamVertices": 27,
+    "bevel": 0.006,
+    "edges": 6
+  },
+  "r000845": {
+    "blocks": 69
+  },
+  "r000846": {
+    "blocks": 1362
+  },
+  "r000847": {
+    "replacedStairFaces": 92,
+    "bevel": 0.012,
+    "edges": 870
+  },
+  "r000849": {
+    "bevel": 0.002,
+    "edges": 68
+  },
+  "r000850": {
+    "fittedPostSockets": 30,
+    "bevel": 0.0025,
+    "edges": 1128
+  },
+  "r000852": {
+    "openedSpouts": 4,
+    "bevel": 0.008,
+    "edges": 2024
+  },
+  "r000853": {
+    "seamVertices": 60,
+    "bevel": 0.006,
+    "edges": 17
+  },
+  "r000854": {
+    "blocks": 121
+  },
+  "r000855": {
+    "blocks": 1737
+  },
+  "r000856": {
+    "replacedStairFaces": 46,
+    "bevel": 0.012,
+    "edges": 564
+  },
+  "r000858": {
+    "foldedHipCovers": 4
+  },
+  "r000859": {
+    "bevel": 0.002,
+    "edges": 158
+  },
+  "r000860": {
+    "fittedPostSockets": 15,
+    "bevel": 0.0025,
+    "edges": 2545
+  },
+  "r000864": {
+    "openedSpouts": 7,
+    "bevel": 0.008,
+    "edges": 2694
+  },
+  "r000865": {
+    "seamVertices": 84,
+    "bevel": 0.006,
+    "edges": 5
+  },
+  "r000866": {
+    "blocks": 104
+  },
+  "r000867": {
+    "blocks": 1072
+  },
+  "r000868": {
+    "replacedStairFaces": 0,
+    "bevel": 0.012,
+    "edges": 73
+  },
+  "r000870": {
+    "foldedHipCovers": 4
+  },
+  "r000871": {
+    "bevel": 0.002,
+    "edges": 17
+  },
+  "r000872": {
+    "fittedPostSockets": 0,
+    "bevel": 0.0025,
+    "edges": 1761
+  },
+  "r000876": {
+    "openedSpouts": 2,
+    "bevel": 0.008,
+    "edges": 867
+  },
+  "r000878": {
+    "blocks": 207
+  },
+  "r000879": {
+    "blocks": 1985
+  },
+  "r000882": {
+    "foldedHipCovers": 14
+  },
+  "r000883": {
+    "bevel": 0.002,
+    "edges": 166
+  },
+  "r000889": {
+    "openedSpouts": 7,
+    "bevel": 0.008,
+    "edges": 2881
+  },
+  "r000891": {
+    "seamVertices": 78,
+    "bevel": 0.006,
+    "edges": 18
+  },
+  "r000892": {
+    "blocks": 141
+  },
+  "r000893": {
+    "blocks": 1423
+  },
+  "r000894": {
+    "replacedStairFaces": 46,
+    "bevel": 0.012,
+    "edges": 504
+  },
+  "r000896": {
+    "foldedHipCovers": 4
+  },
+  "r000897": {
+    "bevel": 0.002,
+    "edges": 197
+  },
+  "r000898": {
+    "fittedPostSockets": 15,
+    "bevel": 0.0025,
+    "edges": 2592
+  },
+  "r000903": {
+    "openedSpouts": 6,
+    "bevel": 0.008,
+    "edges": 2194
+  },
+  "r000905": {
+    "seamVertices": 78,
+    "bevel": 0.006,
+    "edges": 18
+  },
+  "r000906": {
+    "blocks": 134
+  },
+  "r000907": {
+    "blocks": 1699
+  },
+  "r000908": {
+    "replacedStairFaces": 46,
+    "bevel": 0.012,
+    "edges": 556
+  },
+  "r000910": {
+    "foldedHipCovers": 4
+  },
+  "r000911": {
+    "bevel": 0.002,
+    "edges": 77
+  },
+  "r000912": {
+    "fittedPostSockets": 15,
+    "bevel": 0.0025,
+    "edges": 2428
+  },
+  "r000917": {
+    "openedSpouts": 6,
+    "bevel": 0.008,
+    "edges": 2742
+  },
+  "r000919": {
+    "seamVertices": 66,
+    "bevel": 0.006,
+    "edges": 17
+  },
+  "r000920": {
+    "blocks": 107
+  },
+  "r000921": {
+    "blocks": 1169
+  },
+  "r000922": {
+    "replacedStairFaces": 0,
+    "bevel": 0.012,
+    "edges": 333
+  },
+  "r000924": {
+    "foldedHipCovers": 108
+  },
+  "r000925": {
+    "bevel": 0.002,
+    "edges": 1031
+  },
+  "r000926": {
+    "fittedPostSockets": 0,
+    "bevel": 0.0025,
+    "edges": 2488
+  },
+  "r000931": {
+    "openedSpouts": 6,
+    "bevel": 0.008,
+    "edges": 1758
+  },
+  "r000046": {
+    "squareKerbEndCaps": 26
+  }
+}

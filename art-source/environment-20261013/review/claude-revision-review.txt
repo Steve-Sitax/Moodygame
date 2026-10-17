@@ -1,0 +1,32 @@
+**Result: 3 items pass, 2 items fail.** I only looked at the images. I changed nothing.
+
+**Slate roofs: 8/10, PASS (just)**
+- The red seam lines from the before picture are gone. That was the big fault.
+- Each tile has its own shade. The big tile pattern does not repeat in a way you can see.
+- The tile lines match the roof shape.
+- One weak point: up close, the roof looks a little like random noise. The tiles have almost no sense of depth. This is not enough to fail it.
+- The clay roof (front right) is also much better. Before, its tiles had a blobby bump look. Now it is clean.
+
+**Rain: PASS**
+- The slate roof is clearly darker in rain than in day. Wet darkening works.
+
+**Eave line and stair edge: confirmed**
+- The thin bright line at the eave is also in `before-houses-day.png`. So the new texture atlas (one big image that holds many textures) does not cause it. It comes from the geometry.
+
+**Railing at night: PASS**
+- The lamp lights the railing, the steps and the brick with warm light.
+- The railing reads as dark iron, with a bright edge on top.
+
+**Wood debris: 7/10, FAIL (narrow)**
+- The grain is good. The grey, weathered plank is the best one.
+- The two brown planks look like clean new wood boxes. They have sharp edges and flat ends. They show no end grain and no wear.
+- The planks do not sit firmly on the stones. Their shadows are weak, so they look pasted on.
+- Fix: bevel and wear the plank ends (cut them at an angle and rough them up), and give the planks a darker contact shadow.
+
+**Poster: art 9/10, FAIL as rendered**
+- The poster shows upside down. The text "KAARSEN / OLIE EN ZEEP" still reads left to right, but the letters stand on their heads. The candle flames point down.
+- This is a vertical flip, not a 180° turn. The texture coordinates (UV), or the cell's V axis in the atlas, are flipped.
+- The print art itself is very good.
+- Fix: flip V for this poster cell. Then take the screenshot again.
+
+**What you do now:** Have the helper fix the poster flip and the plank ends and shadows. Then shoot `candidate-poster-day.png` and `candidate-debris-day.png` again. The slate roofs can ship as they are.

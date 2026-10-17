@@ -1,0 +1,7 @@
+{
+  "passed": true,
+  "resources": 199,
+  "placementScenes": 2,
+  "failures": [],
+  "reviewStatus": "Installed at user request; final full V18 rendered regression deferred to user inspection"
+}

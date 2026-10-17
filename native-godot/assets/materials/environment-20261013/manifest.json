@@ -1,0 +1,106 @@
+[
+  {
+    "albedo": "res://assets/materials/environment-20261013/wall-brick.png",
+    "bumpScale": 0.035,
+    "height": "res://assets/materials/environment-20261013/wall-brick-height.png",
+    "material": "res://world/town/resources/r000630.res"
+  },
+  {
+    "albedo": "res://assets/materials/environment-20261013/iron.png",
+    "bumpScale": 0.0,
+    "height": "res://assets/materials/environment-20261013/iron-height.png",
+    "material": "res://world/town/resources/r000615.res"
+  },
+  {
+    "albedo": "res://assets/materials/environment-20261013/iron.png",
+    "bumpScale": 0.0,
+    "height": "res://assets/materials/environment-20261013/iron-height.png",
+    "material": "res://world/town/resources/r000996.res"
+  },
+  {
+    "albedo": "res://assets/materials/environment-20261013/iron.png",
+    "bumpScale": 0.0,
+    "height": "res://assets/materials/environment-20261013/iron-height.png",
+    "material": "res://world/town/resources/r001215.res"
+  },
+  {
+    "albedo": "res://assets/materials/environment-20261013/iron.png",
+    "bumpScale": 0.0,
+    "height": "res://assets/materials/environment-20261013/iron-height.png",
+    "material": "res://world/town/resources/r001315.res"
+  },
+  {
+    "albedo": "res://assets/materials/environment-20261013/iron.png",
+    "bumpScale": 0.0,
+    "height": "res://assets/materials/environment-20261013/iron-height.png",
+    "material": "res://world/town/resources/r004606.res"
+  },
+  {
+    "albedo": "res://assets/materials/environment-20261013/stair-stone.png",
+    "bumpScale": 0.0,
+    "height": "res://assets/materials/environment-20261013/stair-stone-height.png",
+    "material": "res://world/town/resources/r000648.res"
+  },
+  {
+    "albedo": "res://assets/materials/environment-20261013/stair-stone.png",
+    "bumpScale": 0.0,
+    "height": "res://assets/materials/environment-20261013/stair-stone-height.png",
+    "material": "res://world/town/resources/r009244.res"
+  },
+  {
+    "albedo": "res://assets/materials/environment-20261013/plinth.png",
+    "bumpScale": 0.018,
+    "height": "res://assets/materials/environment-20261013/plinth-height.png",
+    "material": "res://world/town/resources/r000642.res"
+  },
+  {
+    "albedo": "res://assets/materials/environment-20261013/chandler-poster.png",
+    "material": "res://world/town/resources/r007346.res",
+    "uvScale": [
+      1.0,
+      -1.0
+    ]
+  },
+  {
+    "albedo": "res://assets/materials/environment-20261013/slate.png",
+    "bumpScale": 0.012,
+    "height": "res://assets/materials/environment-20261013/slate-height.png",
+    "material": "res://world/town/resources/r000087.res"
+  },
+  {
+    "albedo": "res://assets/materials/environment-20261013/slate.png",
+    "bumpScale": 0.012,
+    "height": "res://assets/materials/environment-20261013/slate-height.png",
+    "material": "res://world/town/resources/r000663.res"
+  },
+  {
+    "albedo": "res://assets/materials/environment-20261013/slate.png",
+    "bumpScale": 0.012,
+    "height": "res://assets/materials/environment-20261013/slate-height.png",
+    "material": "res://world/town/resources/r000978.res"
+  },
+  {
+    "albedo": "res://assets/materials/environment-20261013/slate.png",
+    "bumpScale": 0.012,
+    "height": "res://assets/materials/environment-20261013/slate-height.png",
+    "material": "res://world/town/resources/r001203.res"
+  },
+  {
+    "albedo": "res://assets/materials/environment-20261013/slate.png",
+    "bumpScale": 0.012,
+    "height": "res://assets/materials/environment-20261013/slate-height.png",
+    "material": "res://world/town/resources/r001841.res"
+  },
+  {
+    "albedo": "res://assets/materials/environment-20261013/house-roofs.png",
+    "bumpScale": 0.012,
+    "height": "res://assets/materials/environment-20261013/house-roofs-height.png",
+    "material": "res://world/town/resources/r000202.res"
+  },
+  {
+    "albedo": "res://assets/materials/environment-20261013/debris.png",
+    "bumpScale": 0.0,
+    "height": "res://assets/materials/environment-20261013/stair-stone-height.png",
+    "material": "res://world/town/resources/r005570.res"
+  }
+]

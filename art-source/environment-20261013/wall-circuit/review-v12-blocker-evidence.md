@@ -1,0 +1,10 @@
+# V12 blocker verification
+
+The candidate is unchanged; this is additional evidence for the three findings in claude-review-v12.md, not a request to relax acceptance.
+
+1. Open brick-day-left-rain-right-and-day-base.png. Top left is the exact requested guard brick crop in day; top right is rain. Bottom is the requested lowest-course daylight crop enlarged 2x with nearest sampling. Photocraft only cropped/placed/resized; no brightness or colour adjustment.
+   Exact 620x630 region [0,60,620,690] mean RGB: day 69.0429, rain 40.2656 (ratio 0.5832). Lowest courses [0,600,620,690]: 34.1814 to 21.0432 (ratio 0.6156). Neighbor left brick [0,60,585,530]: 34.0585 to 28.2415 (ratio 0.8292). Lighting also changes, so these measure visible response rather than isolating albedo. They disprove unchanged rain pixels; assess whether the response looks credible.
+2. Reassess base dirt using the enlarged daylight crop. Contact treatment darkens and shifts the lowest courses/mortar toward green-brown; it connects to adjacent paving. Is a concrete defect still visible, or is stronger sediment a polish preference? Report your judgment independently.
+3. The overhead lamp oval is the native gas-lamp cap falloff, not the earlier proof-only cage shadow rings. Read source/r000630.gdshader lines 121-126 and 155-164: psx_lamp_cap limits upward light with smoothstep(0.5,0.8,up), retaining downward illumination. WallCircuitReview.cs uses this game's psx_spill function with original lights.json power/range/decay, without replacement shadow-casting Omni lamps at native fixtures. A metal-capped lamp should not light its ceiling as strongly as the wall below. Inspect whether the visible penumbra has an actual rendering fault, not merely an expected darker patch.
+
+Review these three points with the listed evidence, plus original full pictures if useful. Preserve a FAIL if a real blocker remains. State final PASS/FAIL and grade and distinguish optional polish from defects. Do not edit files. No characters.

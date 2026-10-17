@@ -1,0 +1,1149 @@
+{
+  "passed": true,
+  "meshResources": 179,
+  "triangles": 4727291,
+  "newRuienPorts": 33,
+  "failures": [],
+  "surfaces": {
+    "r000610-0.bin": {
+      "triangles": 6994,
+      "tinyTriangles": 0,
+      "minimumWinding": 0.9999999151777152
+    },
+    "r000616-0.bin": {
+      "triangles": 92,
+      "tinyTriangles": 0,
+      "minimumWinding": 0.9999999280077977
+    },
+    "r000623-0.bin": {
+      "triangles": 6106,
+      "tinyTriangles": 0,
+      "minimumWinding": 0.9999999164811204
+    },
+    "r000624-0.bin": {
+      "triangles": 92,
+      "tinyTriangles": 0,
+      "minimumWinding": 0.9999999246917185
+    },
+    "r000631-0.bin": {
+      "triangles": 348,
+      "tinyTriangles": 0,
+      "minimumWinding": 0.9999999308090748
+    },
+    "r000637-0.bin": {
+      "triangles": 62,
+      "tinyTriangles": 0,
+      "minimumWinding": 0.9999914349353916
+    },
+    "r000637-relief.bin": {
+      "triangles": 23000,
+      "tinyTriangles": 0,
+      "minimumWinding": 0.9999999286225653
+    },
+    "r000643-0.bin": {
+      "triangles": 122,
+      "tinyTriangles": 0,
+      "minimumWinding": 0.9999999752742788
+    },
+    "r000643-relief.bin": {
+      "triangles": 104236,
+      "tinyTriangles": 0,
+      "minimumWinding": 0.9931055648508179
+    },
+    "r000649-0.bin": {
+      "triangles": 2904,
+      "tinyTriangles": 0,
+      "minimumWinding": 0.9999999156462971
+    },
+    "r000649-arch-ashlar.bin": {
+      "triangles": 9200,
+      "tinyTriangles": 0,
+      "minimumWinding": 0.9975776763819949
+    },
+    "r000658-0.bin": {
+      "triangles": 56,
+      "tinyTriangles": 0,
+      "minimumWinding": 1.0
+    },
+    "r000665-0.bin": {
+      "triangles": 1659,
+      "tinyTriangles": 0,
+      "minimumWinding": 0.99999992419881
+    },
+    "r000666-0.bin": {
+      "triangles": 57564,
+      "tinyTriangles": 0,
+      "minimumWinding": 0.9999919277191547
+    },
+    "r000672-0.bin": {
+      "triangles": 16,
+      "tinyTriangles": 0,
+      "minimumWinding": 0.999991341577096
+    },
+    "r000684-0.bin": {
+      "triangles": 348,
+      "tinyTriangles": 0,
+      "minimumWinding": 0.999999928813013
+    },
+    "r000685-0.bin": {
+      "triangles": 62,
+      "tinyTriangles": 0,
+      "minimumWinding": 0.9999973269681659
+    },
+    "r000685-relief.bin": {
+      "triangles": 23000,
+      "tinyTriangles": 0,
+      "minimumWinding": 0.9999999225227691
+    },
+    "r000686-0.bin": {
+      "triangles": 122,
+      "tinyTriangles": 0,
+      "minimumWinding": 0.9999999720426191
+    },
+    "r000686-relief.bin": {
+      "triangles": 104236,
+      "tinyTriangles": 0,
+      "minimumWinding": 0.9958036573718947
+    },
+    "r000687-0.bin": {
+      "triangles": 2938,
+      "tinyTriangles": 0,
+      "minimumWinding": 0.9999999157526089
+    },
+    "r000687-arch-ashlar.bin": {
+      "triangles": 9104,
+      "tinyTriangles": 0,
+      "minimumWinding": 0.9149081115159979
+    },
+    "r000688-0.bin": {
+      "triangles": 56,
+      "tinyTriangles": 0,
+      "minimumWinding": 1.0
+    },
+    "r000690-0.bin": {
+      "triangles": 1646,
+      "tinyTriangles": 0,
+      "minimumWinding": 0.9999999290521592
+    },
+    "r000691-0.bin": {
+      "triangles": 57766,
+      "tinyTriangles": 0,
+      "minimumWinding": 0.9999284426220503
+    },
+    "r000692-0.bin": {
+      "triangles": 16,
+      "tinyTriangles": 0,
+      "minimumWinding": 0.9999957729971795
+    },
+    "r000695-0.bin": {
+      "triangles": 348,
+      "tinyTriangles": 0,
+      "minimumWinding": 0.9999999343524233
+    },
+    "r000696-0.bin": {
+      "triangles": 62,
+      "tinyTriangles": 0,
+      "minimumWinding": 0.9999930670850562
+    },
+    "r000696-relief.bin": {
+      "triangles": 23000,
+      "tinyTriangles": 0,
+      "minimumWinding": 0.9999999272026806
+    },
+    "r000697-0.bin": {
+      "triangles": 122,
+      "tinyTriangles": 0,
+      "minimumWinding": 0.9999999709892462
+    },
+    "r000697-relief.bin": {
+      "triangles": 104236,
+      "tinyTriangles": 0,
+      "minimumWinding": 0.9617349217301268
+    },
+    "r000698-0.bin": {
+      "triangles": 2907,
+      "tinyTriangles": 0,
+      "minimumWinding": 0.9999999169884526
+    },
+    "r000698-arch-ashlar.bin": {
+      "triangles": 9200,
+      "tinyTriangles": 0,
+      "minimumWinding": 0.9992408873825559
+    },
+    "r000699-0.bin": {
+      "triangles": 56,
+      "tinyTriangles": 0,
+      "minimumWinding": 1.0
+    },
+    "r000701-0.bin": {
+      "triangles": 1642,
+      "tinyTriangles": 0,
+      "minimumWinding": 0.9999999258769644
+    },
+    "r000702-0.bin": {
+      "triangles": 57620,
+      "tinyTriangles": 0,
+      "minimumWinding": 0.9992124248899072
+    },
+    "r000703-0.bin": {
+      "triangles": 16,
+      "tinyTriangles": 0,
+      "minimumWinding": 0.9999927166603073
+    },
+    "r000706-0.bin": {
+      "triangles": 348,
+      "tinyTriangles": 0,
+      "minimumWinding": 0.9999999342759125
+    },
+    "r000707-0.bin": {
+      "triangles": 62,
+      "tinyTriangles": 0,
+      "minimumWinding": 0.9999932132872891
+    },
+    "r000707-relief.bin": {
+      "triangles": 23000,
+      "tinyTriangles": 0,
+      "minimumWinding": 0.9999999171803251
+    },
+    "r000708-0.bin": {
+      "triangles": 122,
+      "tinyTriangles": 0,
+      "minimumWinding": 0.9999999734313934
+    },
+    "r000708-relief.bin": {
+      "triangles": 104236,
+      "tinyTriangles": 0,
+      "minimumWinding": 0.9756943688754809
+    },
+    "r000709-0.bin": {
+      "triangles": 2913,
+      "tinyTriangles": 0,
+      "minimumWinding": 0.9999999201799732
+    },
+    "r000709-arch-ashlar.bin": {
+      "triangles": 9072,
+      "tinyTriangles": 0,
+      "minimumWinding": 0.9964819422992214
+    },
+    "r000710-0.bin": {
+      "triangles": 56,
+      "tinyTriangles": 0,
+      "minimumWinding": 1.0
+    },
+    "r000712-0.bin": {
+      "triangles": 1634,
+      "tinyTriangles": 0,
+      "minimumWinding": 0.9999999280893763
+    },
+    "r000713-0.bin": {
+      "triangles": 57459,
+      "tinyTriangles": 0,
+      "minimumWinding": 0.999989863611517
+    },
+    "r000714-0.bin": {
+      "triangles": 16,
+      "tinyTriangles": 0,
+      "minimumWinding": 0.9999913817137529
+    },
+    "r000717-0.bin": {
+      "triangles": 138,
+      "tinyTriangles": 0,
+      "minimumWinding": 0.9999999284792493
+    },
+    "r000718-0.bin": {
+      "triangles": 56,
+      "tinyTriangles": 0,
+      "minimumWinding": 0.9999853326819312
+    },
+    "r000718-relief.bin": {
+      "triangles": 14864,
+      "tinyTriangles": 0,
+      "minimumWinding": 0.9999999257467429
+    },
+    "r000719-0.bin": {
+      "triangles": 168,
+      "tinyTriangles": 0,
+      "minimumWinding": 0.9999999733774209
+    },
+    "r000719-relief.bin": {
+      "triangles": 99468,
+      "tinyTriangles": 0,
+      "minimumWinding": 0.9676194595524723
+    },
+    "r000720-0.bin": {
+      "triangles": 641,
+      "tinyTriangles": 0,
+      "minimumWinding": 0.9999999166459839
+    },
+    "r000721-0.bin": {
+      "triangles": 92,
+      "tinyTriangles": 0,
+      "minimumWinding": 1.0
+    },
+    "r000723-0.bin": {
+      "triangles": 136,
+      "tinyTriangles": 0,
+      "minimumWinding": 0.999999972224632
+    },
+    "r000724-0.bin": {
+      "triangles": 20280,
+      "tinyTriangles": 0,
+      "minimumWinding": 0.9999999141881162
+    },
+    "r000725-0.bin": {
+      "triangles": 2,
+      "tinyTriangles": 0,
+      "minimumWinding": 1.0
+    },
+    "r000736-0.bin": {
+      "triangles": 10630,
+      "tinyTriangles": 0,
+      "minimumWinding": 0.9999999162109051
+    },
+    "r000737-0.bin": {
+      "triangles": 241,
+      "tinyTriangles": 0,
+      "minimumWinding": 0.9999999402130904
+    },
+    "r000738-0.bin": {
+      "triangles": 50,
+      "tinyTriangles": 0,
+      "minimumWinding": 0.9999711033367737
+    },
+    "r000738-relief.bin": {
+      "triangles": 13160,
+      "tinyTriangles": 0,
+      "minimumWinding": 0.9999999303344589
+    },
+    "r000739-0.bin": {
+      "triangles": 450,
+      "tinyTriangles": 0,
+      "minimumWinding": 0.999999943991535
+    },
+    "r000739-relief.bin": {
+      "triangles": 163076,
+      "tinyTriangles": 0,
+      "minimumWinding": 0.9995052994318205
+    },
+    "r000740-0.bin": {
+      "triangles": 4703,
+      "tinyTriangles": 0,
+      "minimumWinding": 0.999999919082393
+    },
+    "r000741-0.bin": {
+      "triangles": 257,
+      "tinyTriangles": 0,
+      "minimumWinding": 1.0
+    },
+    "r000743-0.bin": {
+      "triangles": 416,
+      "tinyTriangles": 0,
+      "minimumWinding": 0.9999999412925722
+    },
+    "r000744-0.bin": {
+      "triangles": 27570,
+      "tinyTriangles": 0,
+      "minimumWinding": 0.9999999149034767
+    },
+    "r000745-0.bin": {
+      "triangles": 2,
+      "tinyTriangles": 0,
+      "minimumWinding": 0.9999999839394739
+    },
+    "r000748-0.bin": {
+      "triangles": 33842,
+      "tinyTriangles": 0,
+      "minimumWinding": 0.9999999140955503
+    },
+    "r000749-0.bin": {
+      "triangles": 190,
+      "tinyTriangles": 0,
+      "minimumWinding": 0.9999999331023819
+    },
+    "r000750-0.bin": {
+      "triangles": 18,
+      "tinyTriangles": 0,
+      "minimumWinding": 0.9999858115545588
+    },
+    "r000750-relief.bin": {
+      "triangles": 4280,
+      "tinyTriangles": 0,
+      "minimumWinding": 0.9999999303152111
+    },
+    "r000751-0.bin": {
+      "triangles": 344,
+      "tinyTriangles": 0,
+      "minimumWinding": 0.9999999631803894
+    },
+    "r000751-relief.bin": {
+      "triangles": 120296,
+      "tinyTriangles": 0,
+      "minimumWinding": 0.999629634027243
+    },
+    "r000752-0.bin": {
+      "triangles": 4395,
+      "tinyTriangles": 0,
+      "minimumWinding": 0.999999926716452
+    },
+    "r000753-0.bin": {
+      "triangles": 212,
+      "tinyTriangles": 0,
+      "minimumWinding": 1.0
+    },
+    "r000754-0.bin": {
+      "triangles": 462,
+      "tinyTriangles": 0,
+      "minimumWinding": 0.9999999416304185
+    },
+    "r000755-0.bin": {
+      "triangles": 8054,
+      "tinyTriangles": 0,
+      "minimumWinding": 0.999999895865205
+    },
+    "r000763-0.bin": {
+      "triangles": 28402,
+      "tinyTriangles": 0,
+      "minimumWinding": 0.9999999145451832
+    },
+    "r000769-0.bin": {
+      "triangles": 661,
+      "tinyTriangles": 0,
+      "minimumWinding": 0.9999994293005837
+    },
+    "r000770-0.bin": {
+      "triangles": 106,
+      "tinyTriangles": 0,
+      "minimumWinding": 0.9999898887659269
+    },
+    "r000770-relief.bin": {
+      "triangles": 30656,
+      "tinyTriangles": 0,
+      "minimumWinding": 0.9999999186952969
+    },
+    "r000771-0.bin": {
+      "triangles": 576,
+      "tinyTriangles": 0,
+      "minimumWinding": 0.9999999460506909
+    },
+    "r000771-relief.bin": {
+      "triangles": 179668,
+      "tinyTriangles": 0,
+      "minimumWinding": 0.9839210563715833
+    },
+    "r000772-0.bin": {
+      "triangles": 6147,
+      "tinyTriangles": 0,
+      "minimumWinding": 0.9999998425841393
+    },
+    "r000773-0.bin": {
+      "triangles": 602,
+      "tinyTriangles": 0,
+      "minimumWinding": 1.0
+    },
+    "r000775-0.bin": {
+      "triangles": 274,
+      "tinyTriangles": 0,
+      "minimumWinding": 0.999999941782572
+    },
+    "r000776-0.bin": {
+      "triangles": 48237,
+      "tinyTriangles": 0,
+      "minimumWinding": 0.9999999142954018
+    },
+    "r000777-0.bin": {
+      "triangles": 4,
+      "tinyTriangles": 0,
+      "minimumWinding": 0.99999312807313
+    },
+    "r000781-0.bin": {
+      "triangles": 38606,
+      "tinyTriangles": 0,
+      "minimumWinding": 0.999999914461604
+    },
+    "r000783-0.bin": {
+      "triangles": 440,
+      "tinyTriangles": 0,
+      "minimumWinding": 0.9999999299919871
+    },
+    "r000784-0.bin": {
+      "triangles": 88,
+      "tinyTriangles": 0,
+      "minimumWinding": 0.9999756735437995
+    },
+    "r000784-relief.bin": {
+      "triangles": 25032,
+      "tinyTriangles": 0,
+      "minimumWinding": 0.999999926169138
+    },
+    "r000785-0.bin": {
+      "triangles": 492,
+      "tinyTriangles": 0,
+      "minimumWinding": 0.9999999443894241
+    },
+    "r000785-relief.bin": {
+      "triangles": 170216,
+      "tinyTriangles": 0,
+      "minimumWinding": 0.9998168313784822
+    },
+    "r000786-0.bin": {
+      "triangles": 2852,
+      "tinyTriangles": 0,
+      "minimumWinding": 0.9999999248514766
+    },
+    "r000787-0.bin": {
+      "triangles": 636,
+      "tinyTriangles": 0,
+      "minimumWinding": 1.0
+    },
+    "r000789-0.bin": {
+      "triangles": 272,
+      "tinyTriangles": 0,
+      "minimumWinding": 0.9999999402036938
+    },
+    "r000790-0.bin": {
+      "triangles": 48836,
+      "tinyTriangles": 0,
+      "minimumWinding": 0.9999999143843116
+    },
+    "r000791-0.bin": {
+      "triangles": 4,
+      "tinyTriangles": 0,
+      "minimumWinding": 0.9999973747575686
+    },
+    "r000792-0.bin": {
+      "triangles": 297,
+      "tinyTriangles": 0,
+      "minimumWinding": 1.0
+    },
+    "r000799-0.bin": {
+      "triangles": 37958,
+      "tinyTriangles": 0,
+      "minimumWinding": 0.9999999146537684
+    },
+    "r000801-0.bin": {
+      "triangles": 189,
+      "tinyTriangles": 0,
+      "minimumWinding": 0.9999999423655912
+    },
+    "r000802-0.bin": {
+      "triangles": 28,
+      "tinyTriangles": 0,
+      "minimumWinding": 0.9999970087008514
+    },
+    "r000802-relief.bin": {
+      "triangles": 7868,
+      "tinyTriangles": 0,
+      "minimumWinding": 0.9999999282032959
+    },
+    "r000803-0.bin": {
+      "triangles": 412,
+      "tinyTriangles": 0,
+      "minimumWinding": 0.9999999418336912
+    },
+    "r000803-relief.bin": {
+      "triangles": 164748,
+      "tinyTriangles": 0,
+      "minimumWinding": 0.9984499951674426
+    },
+    "r000804-0.bin": {
+      "triangles": 4478,
+      "tinyTriangles": 0,
+      "minimumWinding": 0.9999999261829287
+    },
+    "r000805-0.bin": {
+      "triangles": 270,
+      "tinyTriangles": 0,
+      "minimumWinding": 1.0
+    },
+    "r000807-0.bin": {
+      "triangles": 320,
+      "tinyTriangles": 0,
+      "minimumWinding": 0.9999999372383468
+    },
+    "r000808-0.bin": {
+      "triangles": 12483,
+      "tinyTriangles": 0,
+      "minimumWinding": 0.9999999151861431
+    },
+    "r000809-0.bin": {
+      "triangles": 0,
+      "tinyTriangles": 0,
+      "minimumWinding": 1
+    },
+    "r000813-0.bin": {
+      "triangles": 34371,
+      "tinyTriangles": 0,
+      "minimumWinding": 0.9999999143823215
+    },
+    "r000814-0.bin": {
+      "triangles": 183,
+      "tinyTriangles": 0,
+      "minimumWinding": 0.9999999406304785
+    },
+    "r000815-0.bin": {
+      "triangles": 34,
+      "tinyTriangles": 0,
+      "minimumWinding": 0.9999970294684832
+    },
+    "r000815-relief.bin": {
+      "triangles": 8544,
+      "tinyTriangles": 0,
+      "minimumWinding": 0.9999999298553852
+    },
+    "r000816-0.bin": {
+      "triangles": 356,
+      "tinyTriangles": 0,
+      "minimumWinding": 0.9999999700447887
+    },
+    "r000816-relief.bin": {
+      "triangles": 124320,
+      "tinyTriangles": 0,
+      "minimumWinding": 0.997675074316469
+    },
+    "r000817-0.bin": {
+      "triangles": 7742,
+      "tinyTriangles": 0,
+      "minimumWinding": 0.9999999237804044
+    },
+    "r000818-0.bin": {
+      "triangles": 170,
+      "tinyTriangles": 0,
+      "minimumWinding": 1.0
+    },
+    "r000820-0.bin": {
+      "triangles": 838,
+      "tinyTriangles": 0,
+      "minimumWinding": 0.9999999409199872
+    },
+    "r000821-0.bin": {
+      "triangles": 23936,
+      "tinyTriangles": 0,
+      "minimumWinding": 0.9999998816080338
+    },
+    "r000822-0.bin": {
+      "triangles": 2,
+      "tinyTriangles": 0,
+      "minimumWinding": 0.9999988187068501
+    },
+    "r000825-0.bin": {
+      "triangles": 27090,
+      "tinyTriangles": 0,
+      "minimumWinding": 0.9999999147462304
+    },
+    "r000826-0.bin": {
+      "triangles": 472,
+      "tinyTriangles": 0,
+      "minimumWinding": 0.999999926467431
+    },
+    "r000827-0.bin": {
+      "triangles": 64,
+      "tinyTriangles": 0,
+      "minimumWinding": 0.9999888934000227
+    },
+    "r000827-relief.bin": {
+      "triangles": 16988,
+      "tinyTriangles": 0,
+      "minimumWinding": 0.9999999248882415
+    },
+    "r000828-0.bin": {
+      "triangles": 574,
+      "tinyTriangles": 0,
+      "minimumWinding": 0.9999999457924114
+    },
+    "r000828-relief.bin": {
+      "triangles": 186498,
+      "tinyTriangles": 0,
+      "minimumWinding": 0.9989194041129013
+    },
+    "r000829-0.bin": {
+      "triangles": 3361,
+      "tinyTriangles": 0,
+      "minimumWinding": 0.9999999260471659
+    },
+    "r000830-0.bin": {
+      "triangles": 627,
+      "tinyTriangles": 0,
+      "minimumWinding": 1.0
+    },
+    "r000832-0.bin": {
+      "triangles": 2870,
+      "tinyTriangles": 0,
+      "minimumWinding": 0.9999999254525583
+    },
+    "r000833-0.bin": {
+      "triangles": 30041,
+      "tinyTriangles": 0,
+      "minimumWinding": 0.9999999142899181
+    },
+    "r000834-0.bin": {
+      "triangles": 6,
+      "tinyTriangles": 0,
+      "minimumWinding": 0.9999628746644279
+    },
+    "r000838-0.bin": {
+      "triangles": 43618,
+      "tinyTriangles": 0,
+      "minimumWinding": 0.9999981064096132
+    },
+    "r000840-0.bin": {
+      "triangles": 36,
+      "tinyTriangles": 0,
+      "minimumWinding": 0.9999999737869417
+    },
+    "r000841-0.bin": {
+      "triangles": 310,
+      "tinyTriangles": 0,
+      "minimumWinding": 0.9999999247520293
+    },
+    "r000843-0.bin": {
+      "triangles": 1228,
+      "tinyTriangles": 0,
+      "minimumWinding": 0.9999999155918573
+    },
+    "r000844-0.bin": {
+      "triangles": 182,
+      "tinyTriangles": 0,
+      "minimumWinding": 0.9999999409778726
+    },
+    "r000845-0.bin": {
+      "triangles": 28,
+      "tinyTriangles": 0,
+      "minimumWinding": 0.9999895721789409
+    },
+    "r000845-relief.bin": {
+      "triangles": 7040,
+      "tinyTriangles": 0,
+      "minimumWinding": 0.9999999307180982
+    },
+    "r000846-0.bin": {
+      "triangles": 348,
+      "tinyTriangles": 0,
+      "minimumWinding": 0.9999999512399862
+    },
+    "r000846-relief.bin": {
+      "triangles": 125640,
+      "tinyTriangles": 0,
+      "minimumWinding": 0.9969084948070286
+    },
+    "r000847-0.bin": {
+      "triangles": 7694,
+      "tinyTriangles": 0,
+      "minimumWinding": 0.9999999217226212
+    },
+    "r000848-0.bin": {
+      "triangles": 170,
+      "tinyTriangles": 0,
+      "minimumWinding": 1.0
+    },
+    "r000849-0.bin": {
+      "triangles": 530,
+      "tinyTriangles": 0,
+      "minimumWinding": 0.9999999406016663
+    },
+    "r000850-0.bin": {
+      "triangles": 9664,
+      "tinyTriangles": 0,
+      "minimumWinding": 0.9999999024079882
+    },
+    "r000851-0.bin": {
+      "triangles": 2,
+      "tinyTriangles": 0,
+      "minimumWinding": 0.9999912870573504
+    },
+    "r000852-0.bin": {
+      "triangles": 25687,
+      "tinyTriangles": 0,
+      "minimumWinding": 0.9997006967307396
+    },
+    "r000853-0.bin": {
+      "triangles": 288,
+      "tinyTriangles": 0,
+      "minimumWinding": 0.9999999372363039
+    },
+    "r000854-0.bin": {
+      "triangles": 50,
+      "tinyTriangles": 0,
+      "minimumWinding": 0.9999843640547126
+    },
+    "r000854-relief.bin": {
+      "triangles": 14480,
+      "tinyTriangles": 0,
+      "minimumWinding": 0.999999924179869
+    },
+    "r000855-0.bin": {
+      "triangles": 490,
+      "tinyTriangles": 0,
+      "minimumWinding": 0.999999967501717
+    },
+    "r000855-relief.bin": {
+      "triangles": 159964,
+      "tinyTriangles": 0,
+      "minimumWinding": 0.9969854528663471
+    },
+    "r000856-0.bin": {
+      "triangles": 5073,
+      "tinyTriangles": 0,
+      "minimumWinding": 0.9999992532640067
+    },
+    "r000857-0.bin": {
+      "triangles": 325,
+      "tinyTriangles": 0,
+      "minimumWinding": 1.0
+    },
+    "r000859-0.bin": {
+      "triangles": 1222,
+      "tinyTriangles": 0,
+      "minimumWinding": 0.9999999373068517
+    },
+    "r000860-0.bin": {
+      "triangles": 28519,
+      "tinyTriangles": 0,
+      "minimumWinding": 0.9999998973988864
+    },
+    "r000861-0.bin": {
+      "triangles": 2,
+      "tinyTriangles": 0,
+      "minimumWinding": 0.9999846314046457
+    },
+    "r000864-0.bin": {
+      "triangles": 34897,
+      "tinyTriangles": 0,
+      "minimumWinding": 0.9999998477658428
+    },
+    "r000865-0.bin": {
+      "triangles": 138,
+      "tinyTriangles": 0,
+      "minimumWinding": 0.9999999592000562
+    },
+    "r000866-0.bin": {
+      "triangles": 56,
+      "tinyTriangles": 0,
+      "minimumWinding": 0.999998658838169
+    },
+    "r000866-relief.bin": {
+      "triangles": 14864,
+      "tinyTriangles": 0,
+      "minimumWinding": 0.9999999276441116
+    },
+    "r000867-0.bin": {
+      "triangles": 156,
+      "tinyTriangles": 0,
+      "minimumWinding": 0.9999999732112036
+    },
+    "r000867-relief.bin": {
+      "triangles": 98640,
+      "tinyTriangles": 0,
+      "minimumWinding": 0.999977733884217
+    },
+    "r000868-0.bin": {
+      "triangles": 641,
+      "tinyTriangles": 0,
+      "minimumWinding": 0.9999999260630673
+    },
+    "r000869-0.bin": {
+      "triangles": 92,
+      "tinyTriangles": 0,
+      "minimumWinding": 1.0
+    },
+    "r000871-0.bin": {
+      "triangles": 136,
+      "tinyTriangles": 0,
+      "minimumWinding": 0.9999999717909158
+    },
+    "r000872-0.bin": {
+      "triangles": 20568,
+      "tinyTriangles": 0,
+      "minimumWinding": 0.9999999142098576
+    },
+    "r000873-0.bin": {
+      "triangles": 2,
+      "tinyTriangles": 0,
+      "minimumWinding": 1.0
+    },
+    "r000876-0.bin": {
+      "triangles": 10599,
+      "tinyTriangles": 0,
+      "minimumWinding": 0.9999999234333131
+    },
+    "r000878-0.bin": {
+      "triangles": 94,
+      "tinyTriangles": 0,
+      "minimumWinding": 0.9999714748062918
+    },
+    "r000878-relief.bin": {
+      "triangles": 25676,
+      "tinyTriangles": 0,
+      "minimumWinding": 0.9999999260217511
+    },
+    "r000879-0.bin": {
+      "triangles": 528,
+      "tinyTriangles": 0,
+      "minimumWinding": 0.9999999430458023
+    },
+    "r000879-relief.bin": {
+      "triangles": 182812,
+      "tinyTriangles": 0,
+      "minimumWinding": 0.9927906298586894
+    },
+    "r000880-0.bin": {
+      "triangles": 7711,
+      "tinyTriangles": 0,
+      "minimumWinding": 0.9999999108771978
+    },
+    "r000880-1.bin": {
+      "triangles": 12236,
+      "tinyTriangles": 0,
+      "minimumWinding": 0.9999999123407202
+    },
+    "r000880-2.bin": {
+      "triangles": 112,
+      "tinyTriangles": 0,
+      "minimumWinding": 0.9999999319712565
+    },
+    "r000880-construction.bin": {
+      "triangles": 175720,
+      "tinyTriangles": 0,
+      "minimumWinding": 0.9999999146338079
+    },
+    "rooted-plants.bin": {
+      "triangles": 18436,
+      "tinyTriangles": 0,
+      "minimumWinding": 0.9999999150537358
+    },
+    "r000881-0.bin": {
+      "triangles": 655,
+      "tinyTriangles": 0,
+      "minimumWinding": 1.0
+    },
+    "r000883-0.bin": {
+      "triangles": 1290,
+      "tinyTriangles": 0,
+      "minimumWinding": 0.9999999362295304
+    },
+    "r000883-construction.bin": {
+      "triangles": 28520,
+      "tinyTriangles": 0,
+      "minimumWinding": 0.9999999287005008
+    },
+    "r000884-0.bin": {
+      "triangles": 69594,
+      "tinyTriangles": 0,
+      "minimumWinding": 0.9999999093983944
+    },
+    "r000884-1.bin": {
+      "triangles": 15586,
+      "tinyTriangles": 0,
+      "minimumWinding": 0.9999999152116967
+    },
+    "r000884-construction.bin": {
+      "triangles": 264292,
+      "tinyTriangles": 0,
+      "minimumWinding": 0.9999998534384902
+    },
+    "r000885-0.bin": {
+      "triangles": 4,
+      "tinyTriangles": 0,
+      "minimumWinding": 0.9999899201051189
+    },
+    "r000889-0.bin": {
+      "triangles": 36913,
+      "tinyTriangles": 0,
+      "minimumWinding": 0.9999999141361083
+    },
+    "r000891-0.bin": {
+      "triangles": 290,
+      "tinyTriangles": 0,
+      "minimumWinding": 0.9999999303209671
+    },
+    "r000892-0.bin": {
+      "triangles": 62,
+      "tinyTriangles": 0,
+      "minimumWinding": 0.9999903292502726
+    },
+    "r000892-relief.bin": {
+      "triangles": 17440,
+      "tinyTriangles": 0,
+      "minimumWinding": 0.9999999276070175
+    },
+    "r000893-0.bin": {
+      "triangles": 406,
+      "tinyTriangles": 0,
+      "minimumWinding": 0.9999999493041002
+    },
+    "r000893-relief.bin": {
+      "triangles": 131060,
+      "tinyTriangles": 0,
+      "minimumWinding": 0.9993273518049378
+    },
+    "r000894-0.bin": {
+      "triangles": 4565,
+      "tinyTriangles": 0,
+      "minimumWinding": 0.999976820168532
+    },
+    "r000895-0.bin": {
+      "triangles": 288,
+      "tinyTriangles": 0,
+      "minimumWinding": 1.0
+    },
+    "r000897-0.bin": {
+      "triangles": 1518,
+      "tinyTriangles": 0,
+      "minimumWinding": 0.9999999421486532
+    },
+    "r000898-0.bin": {
+      "triangles": 29388,
+      "tinyTriangles": 0,
+      "minimumWinding": 0.9999999144201761
+    },
+    "r000899-0.bin": {
+      "triangles": 2,
+      "tinyTriangles": 0,
+      "minimumWinding": 0.9999953938690077
+    },
+    "r000903-0.bin": {
+      "triangles": 27590,
+      "tinyTriangles": 0,
+      "minimumWinding": 0.9999898799301286
+    },
+    "r000905-0.bin": {
+      "triangles": 304,
+      "tinyTriangles": 0,
+      "minimumWinding": 0.9999999376836728
+    },
+    "r000906-0.bin": {
+      "triangles": 62,
+      "tinyTriangles": 0,
+      "minimumWinding": 0.9999683083593719
+    },
+    "r000906-relief.bin": {
+      "triangles": 16852,
+      "tinyTriangles": 0,
+      "minimumWinding": 0.9999999199621841
+    },
+    "r000907-0.bin": {
+      "triangles": 472,
+      "tinyTriangles": 0,
+      "minimumWinding": 0.9999999523107885
+    },
+    "r000907-relief.bin": {
+      "triangles": 156452,
+      "tinyTriangles": 0,
+      "minimumWinding": 0.9992788738192688
+    },
+    "r000908-0.bin": {
+      "triangles": 4985,
+      "tinyTriangles": 0,
+      "minimumWinding": 0.9999999285041379
+    },
+    "r000909-0.bin": {
+      "triangles": 320,
+      "tinyTriangles": 0,
+      "minimumWinding": 1.0
+    },
+    "r000911-0.bin": {
+      "triangles": 598,
+      "tinyTriangles": 0,
+      "minimumWinding": 0.9999999405050264
+    },
+    "r000912-0.bin": {
+      "triangles": 27373,
+      "tinyTriangles": 0,
+      "minimumWinding": 0.9999998429675846
+    },
+    "r000913-0.bin": {
+      "triangles": 2,
+      "tinyTriangles": 0,
+      "minimumWinding": 0.9999998867962442
+    },
+    "r000917-0.bin": {
+      "triangles": 35289,
+      "tinyTriangles": 0,
+      "minimumWinding": 0.999999914928255
+    },
+    "r000919-0.bin": {
+      "triangles": 367,
+      "tinyTriangles": 0,
+      "minimumWinding": 0.9999999304386967
+    },
+    "r000920-0.bin": {
+      "triangles": 44,
+      "tinyTriangles": 0,
+      "minimumWinding": 0.9999794120483505
+    },
+    "r000920-relief.bin": {
+      "triangles": 11872,
+      "tinyTriangles": 0,
+      "minimumWinding": 0.9999999263072061
+    },
+    "r000921-0.bin": {
+      "triangles": 344,
+      "tinyTriangles": 0,
+      "minimumWinding": 0.9999999677788274
+    },
+    "r000921-relief.bin": {
+      "triangles": 107548,
+      "tinyTriangles": 0,
+      "minimumWinding": 0.9998665185246758
+    },
+    "r000922-0.bin": {
+      "triangles": 3217,
+      "tinyTriangles": 0,
+      "minimumWinding": 0.9999999247995606
+    },
+    "r000923-0.bin": {
+      "triangles": 661,
+      "tinyTriangles": 0,
+      "minimumWinding": 1.0
+    },
+    "r000925-0.bin": {
+      "triangles": 8453,
+      "tinyTriangles": 0,
+      "minimumWinding": 0.9999999136351772
+    },
+    "r000926-0.bin": {
+      "triangles": 29794,
+      "tinyTriangles": 0,
+      "minimumWinding": 0.9999999138324879
+    },
+    "r000927-0.bin": {
+      "triangles": 8,
+      "tinyTriangles": 0,
+      "minimumWinding": 0.9999840957456951
+    },
+    "r000931-0.bin": {
+      "triangles": 22634,
+      "tinyTriangles": 0,
+      "minimumWinding": 0.999999914364209
+    },
+    "r000008-0.bin": {
+      "triangles": 1092,
+      "tinyTriangles": 0,
+      "minimumWinding": 1.0
+    },
+    "r000017-0.bin": {
+      "triangles": 437,
+      "tinyTriangles": 0,
+      "minimumWinding": 1.0
+    },
+    "r000025-0.bin": {
+      "triangles": 2042,
+      "tinyTriangles": 0,
+      "minimumWinding": 1.0
+    },
+    "r000031-0.bin": {
+      "triangles": 818,
+      "tinyTriangles": 0,
+      "minimumWinding": 1.0
+    },
+    "r000039-0.bin": {
+      "triangles": 190,
+      "tinyTriangles": 0,
+      "minimumWinding": 1.0
+    },
+    "r000046-0.bin": {
+      "triangles": 9584,
+      "tinyTriangles": 0,
+      "minimumWinding": 0.9999999185095987
+    }
+  }
+}

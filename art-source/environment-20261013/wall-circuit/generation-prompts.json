@@ -1,0 +1,19 @@
+{
+  "crest": "Production game material, square 2048x2048 orthographic straight-on albedo texture of a weathered pale warm-grey bluestone heraldic panel on a historic Antwerp city gate. Full square stone panel fills image edge to edge, carved narrow rectangular border, central medieval shield shape occupying center 60%, shield contains ONE elegant historically styled lion rampant facing viewer's left, raised relief carving in same stone. Clear anatomically legible lion paws, curled tail, mane, no pixels no text no lettering no crown no modern icons. Small chipped corners, restrained fine pits and dark grime within carving recesses, aged limestone yellow grey, subdued. Entire panel on same plane, NO perspective NO scene NO surroundings. Even diffuse neutral illumination, no hard cast shadows, no vignette. High detailed handcrafted stone carving suitable close up. Keep background stone opaque.",
+  "grass": "Seamlessly tileable photorealistic ground albedo texture, square 2048x2048. Orthographic top-down scan of two metres of neglected short historic earthwork grass in damp northern Belgium. Tiny narrow muted olive grass blades and fine dead straw, irregular fine bare dark brown earth between tufts, very occasional tiny moss, NO broad leaves NO giant rocks NO flowers NO white clover. Small-scale dense natural variation, subdued desaturated olive ochre brown overall, no large distinct patches, no stripes no repeating motif no border no perspective no vignette, even diffuse overcast lighting without shadows, high micro-detail. Texture for an atmospheric historic city rampart, worn sparse ground cover not bright lawn. All four edges seamless.",
+  "tool": "image_gen.imagegen",
+  "date": "2026-10-13",
+  "output_size": [
+    1254,
+    1254
+  ],
+  "wood": "Existing reviewed wood-v3.png, copied unchanged.",
+  "brick_height_repair": {
+    "tool": "Photocraft CLI filter.blur.gaussianBlur",
+    "source": "native-godot/assets/materials/environment-20261013/wall-brick-height.png",
+    "output": "native-godot/assets/materials/environment-20261013/wall-brick-height-soft.png",
+    "radius_pixels": 2.4,
+    "reason": "Remove binary mortar salt-and-pepper normal aliasing while preserving albedo and UV alignment",
+    "shader": "4mm metric height; central UV differences, camera mip gradients"
+  }
+}

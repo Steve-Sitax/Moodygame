@@ -1,0 +1,46 @@
+Codex independent visual review - city junction V9
+Date: 2026-10-13
+Result: PASS, 8.1/10. Acceptance threshold: 8.0 with no concrete visible blocker.
+
+Evidence: immutable native-godot/proof/city-junction/v9/ candidate PNGs.
+Reviewed the connected junction and railing in daylight; junction and steps in rain;
+newel in daylight/night; opposite stairs in daylight/night; railing at night;
+guardhouse in daylight/night; guard drain in daylight/rain/night; house drain and
+window in daylight/rain; gutter and roof junction in daylight/rain. Supplementary
+clay junction and guardhouse images were also inspected. Characters were excluded.
+
+Construction and fitting: 8.1/10.
+The newel has visible geometric bevels, and its coping butt now meets the block.
+Stair noses, segmented coping, stone courses and fitted paving read as connected
+construction. Iron mounts and pipe brackets provide readable attachment details.
+The guard grate is now visibly clear of the parapet on its left side. The shoe
+terminates over the grate; the former wall intersection is resolved.
+
+Materials, scale and relief: 8.0/10.
+Brick, stone, slate, iron and soil fit the restrained historical setting. Relief
+is aligned with the material patterns and does not recreate the former inflated
+house bricks or quoin ribbing. The near shop window now has physical frame depth
+and clear joinery rather than enlarged blurred frame texels. Soil grain is finer.
+Long stone courses and repeated coping segments remain somewhat regular, but no
+visible UV orientation, scale discontinuity or conspicuous material defect blocks
+acceptance in these views.
+
+Drainage and weathering: 8.2/10.
+Gutters have trough form; elbows are curved; outlet shoes show open interiors.
+Wall-foot damp, joint vegetation and paving stains connect the adjoining surfaces.
+The soil fringe softens its meeting with the apron. Wet states darken materials
+and add a restrained response distinct from daylight, without hiding the fitting.
+The photographed visible inlets are accepted; the future underground Ruien network
+is not represented as completed by this review.
+
+Night and previous blockers: 8.2/10.
+The two guardhouse wall light leaks remain closed. The lantern illuminates nearby
+stone, brick and paving coherently. Close night views retain the appropriate dark
+faces and reveal edge highlights without an obvious glowing shaded surface.
+The earlier coarse soil, blurred near window, malformed elbow, roof penetration,
+sharp newel and grate/parapet intersection are resolved in the reviewed evidence.
+
+No concrete visible blocker remains in the reviewed local connected environment.
+This is a visual judgment of the staged V9 evidence, not a claim that screenshots
+independently verify collision, runtime performance or the entire town.
+Implementation was not edited; only this review evidence file was written.

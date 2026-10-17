@@ -1,0 +1,241 @@
+{
+  "resources": [
+    "res://world/town/resources/r000630.res",
+    "res://world/town/resources/r000642.res",
+    "res://world/town/resources/r000648.res",
+    "res://world/town/resources/r000615.res",
+    "res://world/town/resources/r000016.res",
+    "res://world/town/resources/r000024.res",
+    "res://world/town/resources/r000007.res",
+    "res://world/town/resources/r000045.res",
+    "res://world/town/resources/r000636.res",
+    "res://world/town/resources/r000735.res",
+    "res://world/town/resources/r000657.res",
+    "res://world/town/resources/r000195.res",
+    "res://world/town/resources/r000202.res",
+    "res://world/town/resources/r000877.res",
+    "res://world/town/resources/r000878.res",
+    "res://world/town/resources/r000879.res",
+    "res://world/town/resources/r000880.res",
+    "res://world/town/resources/r000881.res",
+    "res://world/town/resources/r000884.res",
+    "res://world/town/resources/r000888.res",
+    "res://world/town/resources/r000008.res",
+    "res://world/town/resources/r000017.res",
+    "res://world/town/resources/r000025.res",
+    "res://world/town/resources/r000031.res",
+    "res://world/town/resources/r000046.res",
+    "res://world/town/resources/r000263.res",
+    "res://world/town/resources/r000264.res",
+    "res://world/town/resources/r000265.res"
+  ],
+  "originalHashes": {
+    "res://world/town/resources/r000630.res": "218F8C572DD1E15C71000462FE5C0679DF08212F4EC99EA9E2F4ABCE0496F450",
+    "res://world/town/resources/r000642.res": "CDB04DB5A224269B671E34CC119C372CF92FE79F69066D109F6C34BFBF1012B4",
+    "res://world/town/resources/r000648.res": "538E9565DE43BCF6B3FF62EF9DB964ADD7A88197609F2A16A5CE82C682D31F53",
+    "res://world/town/resources/r000615.res": "F17358835F865A885B2F7904061C9BBF3D92D679F60C3995A8436BA7B44535E7",
+    "res://world/town/resources/r000016.res": "F37027A284841D54C806BB0FD36542FE11FA6ADA7FAA5CA7BBFB174C13A66205",
+    "res://world/town/resources/r000024.res": "A81C7AEE9084E5C220CEC743DD493AFE8D3BC76D10324880F9D1023A18B2386F",
+    "res://world/town/resources/r000007.res": "B8E785A4ECDA185AA3626FD01F0764DC8D87BAA3C30B224FE8BFAD056E4F390E",
+    "res://world/town/resources/r000045.res": "277C022DCC3E14F55E4382D52FD05A2F300C57ADA940650786F2A447B698397E",
+    "res://world/town/resources/r000636.res": "9300EF18BCFF25C16AF20963EA03669F8F747A826E4498D343B8F24B9DE1EDB9",
+    "res://world/town/resources/r000735.res": "86D337834E7890F61FEC8290A31D5D8C600F626E690907F9D7D24D0B61EBEACD",
+    "res://world/town/resources/r000657.res": "40B3E1BCC2633376B4D70E91C20CEFDB7933ACAF74B29FA587788F7990D3A8F5",
+    "res://world/town/resources/r000195.res": "57954841C299E610C8109CE911DD9EF0C8EB664DFE6171BE73DABB128139C2EE",
+    "res://world/town/resources/r000202.res": "95D2D32D4196267B1016E4EAC3A8422BD70A9B7E861B17350C4A69FC902EB1BD",
+    "res://world/town/resources/r000877.res": "5F450ECDCB69ACE2CA068D49967B0643B76655315A1C9074F28FAE8A83CE50F3",
+    "res://world/town/resources/r000878.res": "76055031B9EE42BCB931F1BAFD3003A4FC5334607B49DCA18566A7E7737CB438",
+    "res://world/town/resources/r000879.res": "EAC650AB6E760FD8B82BF48BABB5746EE4E9D33EBE40982EFF0DEE5DB8EEFE1D",
+    "res://world/town/resources/r000880.res": "B64F355145CA70E19B031477398CCFB953A474E78B765D61E31EE9B163858DC1",
+    "res://world/town/resources/r000881.res": "8263EC18ACE6C5CB343ADFDAFE15E7A61B289F165128788132F166689CE49A9F",
+    "res://world/town/resources/r000884.res": "F6750B615FE3F283ABFF8C06EF0C4B1E0054B3B73093A8E5F89B715BE5F32A80",
+    "res://world/town/resources/r000888.res": "98C1CD008055878738C64918348613D454AFA80BA0CAD5CAA94BE9D5BAEE5B32",
+    "res://world/town/resources/r000008.res": "476EE6AE75F2CFE05C0CA96894D9289A5BFA6691A3A77BDAFBA821E0F00BF3D6",
+    "res://world/town/resources/r000017.res": "75535F708B32081A701DFC8E626555846D4AFB58BDF5EF8B758C90C8A4E8A4C5",
+    "res://world/town/resources/r000025.res": "92D617FB839A78D80AD0B63B11327187F20A40087B1F2265C1FDA136C8A34F4A",
+    "res://world/town/resources/r000031.res": "E00B84D4CE9915E842BC56D98F12B3E57CEC534373095B9C8CAD0C6784C23EBF",
+    "res://world/town/resources/r000046.res": "021D7BD664CACE772A3AB00ACA87AD932A0CBA072DB3B0B409A91D83BD1CD287",
+    "res://world/town/resources/r000263.res": "0FBCDDFD84D8BE233E21AF6DD765C51B95555AF0420AD20D77007BEFCE6A0B81",
+    "res://world/town/resources/r000264.res": "040F812E190C7782299503A7F1A7A9AC702C32A1DD34FD1C7C2A1AAE7F315F7F",
+    "res://world/town/resources/r000265.res": "9424D5E741CAF3EC0CFE630D7E4D5BDED55919393B950DCEBB647C9CCA96A5C1"
+  },
+  "completed": true,
+  "installedHashes": {
+    "res://world/town/resources/r000630.res": "913284c923cd7aa5e8a4e0896c912bd67e77c97d3d85a2ba4e1033e02580aa95",
+    "res://world/town/resources/r000642.res": "15bac82f94d2d3a228bd29e4cb7ed2e756d06dffa4a1afde43db8ed5fcb42607",
+    "res://world/town/resources/r000648.res": "a3b640f9eeb8bc332a3b3cf3a595f29a78d88d68c602a47484b490d0f844a45a",
+    "res://world/town/resources/r000615.res": "6e7c7b74951f488a25eb0d44894b9e374495945396175c57e0d02567fe135a11",
+    "res://world/town/resources/r000016.res": "7fa56ff968e990be49ec17b19c2aac6f24281babd52a73794011ffaee9e61bf2",
+    "res://world/town/resources/r000024.res": "b3339b1cea90c90b3185659ea2619757997ae069dc0b9d749d30f68193773a8a",
+    "res://world/town/resources/r000007.res": "a2bc3db1bbe945a227670286e74510123e9097b4fc8c6c6ccd85b7b2991a2b25",
+    "res://world/town/resources/r000045.res": "5309c9e5aed0e26d3339be5cf2fa8b395d8dc41649e715e33d5f0f969943795d",
+    "res://world/town/resources/r000636.res": "8bede8cd29e869da1d07cd818e49ac0773422258888f15882d8aab91cab330e7",
+    "res://world/town/resources/r000735.res": "162161e2aa257f27d12c9d125603fda1693ce67babce07bb1afa77b61e93c1ba",
+    "res://world/town/resources/r000657.res": "9ddfc6b8b5d217ac58887e0aa8db1318162d2853d0ef336848dfad2588d2853a",
+    "res://world/town/resources/r000195.res": "a12365bed3f03ad140b7a98daec18a234b241bd6a3df2f49e63e46814d5d8896",
+    "res://world/town/resources/r000202.res": "259acdc01a59980ef45dcec1713971bf946607aae84f86653b5b5e89f05d5fd1",
+    "res://world/town/resources/r000877.res": "fda45bfe372a32ecc6e43311d214033afd2a1dc7b7449a28e9785178facdb5f2",
+    "res://world/town/resources/r000878.res": "86800512c7198178e9a1a8ca85ab840ab4427f7e9abd1228b0edddc4ddc832da",
+    "res://world/town/resources/r000879.res": "6b9c93ef48f764fd8fb57d2ea66a3717eeaeb64adf7af0456b75b842e88168d7",
+    "res://world/town/resources/r000880.res": "d26c929b7f0d16d17f2744fc36756cea2f16b5cb283f23189c1d349158ec5c7a",
+    "res://world/town/resources/r000881.res": "fe3165bbbe49ca0b9c925e769d68993580ad46e5e7e0f561897bf3419dbef41f",
+    "res://world/town/resources/r000884.res": "d73eb705b6ad39944a2a8503e722b0e5c575eb30bd283384d9dfc3040073b16d",
+    "res://world/town/resources/r000888.res": "a8c6252dab25feff87e3d13b70fb5553a2928bbbae937a6d17d4e717e730a9d0",
+    "res://world/town/resources/r000008.res": "90f45001062d647170edf76c3242db0ac47e6fdb4441106c40e8f9ed3cff043c",
+    "res://world/town/resources/r000017.res": "daebbdd5d0c0c5ae81ece4777d091191c6bd9f1b022928c4456c4023a0e2eb11",
+    "res://world/town/resources/r000025.res": "d6fd2071ebed487f66fb80a997d0e8effa14115fcc1d0d6b6c8a2a39d44ff3b0",
+    "res://world/town/resources/r000031.res": "6c1eef1ebb13cf2e00ffe3f715d1b60083b238aea8d3c2e19e6a8648d390860a",
+    "res://world/town/resources/r000046.res": "b467f407c83517f59d3b81e6a5d7e7b30d49d526590d888299dc3d90b4b4842f",
+    "res://world/town/resources/r000263.res": "49c4e7676306a2f26dc3a03c3660f15ce8ea6b9e215473312810fe4ce8fb3ac4",
+    "res://world/town/resources/r000264.res": "1e9ddb7b56ffd330926eec59180e6686990796d5675209e6a195b046a38f8d2c",
+    "res://world/town/resources/r000265.res": "d638515029aa9af23a2747d69072a3b6f72d2e61cddf95d6113598e1d3e40072"
+  },
+  "review": {
+    "claude": 8.0,
+    "codex": 8.1,
+    "version": "v9",
+    "passed": true
+  },
+  "freshLoadComparisons": [
+    {
+      "image": "installed-drain-context-day.png",
+      "meanAbsolutePixelDifference": 0.0,
+      "maximumDifference": 0.0
+    },
+    {
+      "image": "installed-drain-context-rain.png",
+      "meanAbsolutePixelDifference": 0.0,
+      "maximumDifference": 0.0
+    },
+    {
+      "image": "installed-guard-drain-day.png",
+      "meanAbsolutePixelDifference": 0.0,
+      "maximumDifference": 0.0
+    },
+    {
+      "image": "installed-guard-drain-night.png",
+      "meanAbsolutePixelDifference": 0.0,
+      "maximumDifference": 0.0
+    },
+    {
+      "image": "installed-guard-drain-rain.png",
+      "meanAbsolutePixelDifference": 0.0,
+      "maximumDifference": 0.0
+    },
+    {
+      "image": "installed-guardhouse-day.png",
+      "meanAbsolutePixelDifference": 0.0,
+      "maximumDifference": 0.0
+    },
+    {
+      "image": "installed-guardhouse-night.png",
+      "meanAbsolutePixelDifference": 0.0,
+      "maximumDifference": 0.0
+    },
+    {
+      "image": "installed-guardhouse-rain.png",
+      "meanAbsolutePixelDifference": 0.0,
+      "maximumDifference": 0.0
+    },
+    {
+      "image": "installed-gutter-day.png",
+      "meanAbsolutePixelDifference": 0.0,
+      "maximumDifference": 0.0
+    },
+    {
+      "image": "installed-gutter-rain.png",
+      "meanAbsolutePixelDifference": 0.0,
+      "maximumDifference": 0.0
+    },
+    {
+      "image": "installed-house-drain-day.png",
+      "meanAbsolutePixelDifference": 0.0,
+      "maximumDifference": 0.0
+    },
+    {
+      "image": "installed-house-drain-rain.png",
+      "meanAbsolutePixelDifference": 0.0,
+      "maximumDifference": 0.0
+    },
+    {
+      "image": "installed-junction-day.png",
+      "meanAbsolutePixelDifference": 0.0,
+      "maximumDifference": 0.0
+    },
+    {
+      "image": "installed-junction-night.png",
+      "meanAbsolutePixelDifference": 0.0,
+      "maximumDifference": 0.0
+    },
+    {
+      "image": "installed-junction-rain.png",
+      "meanAbsolutePixelDifference": 0.0,
+      "maximumDifference": 0.0
+    },
+    {
+      "image": "installed-newel-day.png",
+      "meanAbsolutePixelDifference": 0.0,
+      "maximumDifference": 0.0
+    },
+    {
+      "image": "installed-newel-night.png",
+      "meanAbsolutePixelDifference": 0.0,
+      "maximumDifference": 0.0
+    },
+    {
+      "image": "installed-newel-rain.png",
+      "meanAbsolutePixelDifference": 0.0,
+      "maximumDifference": 0.0
+    },
+    {
+      "image": "installed-opposite-day.png",
+      "meanAbsolutePixelDifference": 0.0,
+      "maximumDifference": 0.0
+    },
+    {
+      "image": "installed-opposite-night.png",
+      "meanAbsolutePixelDifference": 0.0,
+      "maximumDifference": 0.0
+    },
+    {
+      "image": "installed-opposite-rain.png",
+      "meanAbsolutePixelDifference": 0.0,
+      "maximumDifference": 0.0
+    },
+    {
+      "image": "installed-railing-day.png",
+      "meanAbsolutePixelDifference": 0.0,
+      "maximumDifference": 0.0
+    },
+    {
+      "image": "installed-railing-night.png",
+      "meanAbsolutePixelDifference": 0.0,
+      "maximumDifference": 0.0
+    },
+    {
+      "image": "installed-railing-rain.png",
+      "meanAbsolutePixelDifference": 0.0,
+      "maximumDifference": 0.0
+    },
+    {
+      "image": "installed-steps-day.png",
+      "meanAbsolutePixelDifference": 0.0,
+      "maximumDifference": 0.0
+    },
+    {
+      "image": "installed-steps-night.png",
+      "meanAbsolutePixelDifference": 0.0,
+      "maximumDifference": 0.0
+    },
+    {
+      "image": "installed-steps-rain.png",
+      "meanAbsolutePixelDifference": 0.0,
+      "maximumDifference": 0.0
+    }
+  ],
+  "renderErrors": [],
+  "charactersEdited": false,
+  "sceneFilesEdited": false,
+  "undergroundRuienBuilt": false,
+  "fogPreview": "Game fog colour/range with linear tonemapping; isolated scenery, fixed inspection lights, no actors or weather particles."
+}

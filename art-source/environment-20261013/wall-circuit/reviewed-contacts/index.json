@@ -1,0 +1,416 @@
+[
+  {
+    "sheet": "sheet-00.png",
+    "images": [
+      "bastion-mid-field-day.png",
+      "bastion-mid-top-day.png",
+      "bastion-n_bend-field-day.png",
+      "bastion-n_bend-top-day.png",
+      "bastion-ne-field-day.png",
+      "bastion-ne-top-day.png",
+      "bastion-nw-field-day.png",
+      "bastion-nw-top-day.png",
+      "bastion-s_bend-field-day.png",
+      "bastion-s_bend-top-day.png",
+      "bastion-se-field-day.png",
+      "bastion-se-top-day.png"
+    ]
+  },
+  {
+    "sheet": "sheet-01.png",
+    "images": [
+      "bastion-sw-field-day.png",
+      "bastion-sw-top-day.png",
+      "gate-keizerspoort-field-day.png",
+      "gate-keizerspoort-passage-day.png",
+      "gate-keizerspoort-roof-day.png",
+      "gate-keizerspoort-threshold-day.png",
+      "gate-keizerspoort-town-day.png",
+      "gate-kipdorppoort-field-day.png",
+      "gate-kipdorppoort-passage-day.png",
+      "gate-kipdorppoort-roof-day.png",
+      "gate-kipdorppoort-threshold-day.png",
+      "gate-kipdorppoort-town-day.png"
+    ]
+  },
+  {
+    "sheet": "sheet-02.png",
+    "images": [
+      "gate-rode_poort-field-day.png",
+      "gate-rode_poort-passage-day.png",
+      "gate-rode_poort-roof-day.png",
+      "gate-rode_poort-threshold-day.png",
+      "gate-rode_poort-town-day.png",
+      "gate-sint_jorispoort-field-day.png",
+      "gate-sint_jorispoort-passage-day.png",
+      "gate-sint_jorispoort-roof-day.png",
+      "gate-sint_jorispoort-threshold-day.png",
+      "gate-sint_jorispoort-town-day.png",
+      "guard-drain-return-day.png",
+      "guard-drain-return-low-day.png"
+    ]
+  },
+  {
+    "sheet": "sheet-03.png",
+    "images": [
+      "hut-00-back-day.png",
+      "hut-00-front-day.png",
+      "hut-01-back-day.png",
+      "hut-01-front-day.png",
+      "hut-02-back-day.png",
+      "hut-02-front-day.png",
+      "hut-03-back-day.png",
+      "hut-03-front-day.png",
+      "hut-04-back-day.png",
+      "hut-04-front-day.png",
+      "hut-05-back-day.png",
+      "hut-05-front-day.png"
+    ]
+  },
+  {
+    "sheet": "sheet-04.png",
+    "images": [
+      "hut-06-back-day.png",
+      "hut-06-front-day.png",
+      "hut-07-back-day.png",
+      "hut-07-front-day.png",
+      "hut-08-back-day.png",
+      "hut-08-front-day.png",
+      "hut-09-back-day.png",
+      "hut-09-front-day.png",
+      "hut-10-back-day.png",
+      "hut-10-front-day.png",
+      "hut-11-back-day.png",
+      "hut-11-front-day.png"
+    ]
+  },
+  {
+    "sheet": "sheet-05.png",
+    "images": [
+      "hut-12-back-day.png",
+      "hut-12-front-day.png",
+      "hut-13-back-day.png",
+      "hut-13-front-day.png",
+      "hut-14-back-day.png",
+      "hut-14-front-day.png",
+      "kerb-seg04-end-day.png",
+      "mill-0-close-day.png",
+      "mill-1-close-day.png",
+      "river-end-0-day.png",
+      "river-end-9-day.png",
+      "river-return-small-face-day.png"
+    ]
+  },
+  {
+    "sheet": "sheet-06.png",
+    "images": [
+      "seg-00-00-field-day.png",
+      "seg-00-00-town-day.png",
+      "seg-00-00-walk-day.png",
+      "seg-00-01-field-day.png",
+      "seg-00-01-town-day.png",
+      "seg-00-01-walk-day.png",
+      "seg-00-02-field-day.png",
+      "seg-00-02-town-day.png",
+      "seg-00-02-walk-day.png",
+      "seg-00-03-field-day.png",
+      "seg-00-03-town-day.png",
+      "seg-00-03-walk-day.png"
+    ]
+  },
+  {
+    "sheet": "sheet-07.png",
+    "images": [
+      "seg-00-base-close-day.png",
+      "seg-01-00-field-day.png",
+      "seg-01-00-town-day.png",
+      "seg-01-00-walk-day.png",
+      "seg-01-01-field-day.png",
+      "seg-01-01-town-day.png",
+      "seg-01-01-walk-day.png",
+      "seg-01-02-field-day.png",
+      "seg-01-02-town-day.png",
+      "seg-01-02-walk-day.png",
+      "seg-01-03-field-day.png",
+      "seg-01-03-town-day.png"
+    ]
+  },
+  {
+    "sheet": "sheet-08.png",
+    "images": [
+      "seg-01-03-walk-day.png",
+      "seg-01-04-field-day.png",
+      "seg-01-04-town-day.png",
+      "seg-01-04-walk-day.png",
+      "seg-01-base-close-day.png",
+      "seg-02-00-field-day.png",
+      "seg-02-00-town-day.png",
+      "seg-02-00-walk-day.png",
+      "seg-02-01-field-day.png",
+      "seg-02-01-town-day.png",
+      "seg-02-01-walk-day.png",
+      "seg-02-02-field-day.png"
+    ]
+  },
+  {
+    "sheet": "sheet-09.png",
+    "images": [
+      "seg-02-02-town-day.png",
+      "seg-02-02-walk-day.png",
+      "seg-02-03-field-day.png",
+      "seg-02-03-town-day.png",
+      "seg-02-03-walk-day.png",
+      "seg-02-04-field-day.png",
+      "seg-02-04-town-day.png",
+      "seg-02-04-walk-day.png",
+      "seg-02-base-close-day.png",
+      "seg-03-00-field-day.png",
+      "seg-03-00-town-day.png",
+      "seg-03-00-walk-day.png"
+    ]
+  },
+  {
+    "sheet": "sheet-10.png",
+    "images": [
+      "seg-03-01-field-day.png",
+      "seg-03-01-town-day.png",
+      "seg-03-01-walk-day.png",
+      "seg-03-02-field-day.png",
+      "seg-03-02-town-day.png",
+      "seg-03-02-walk-day.png",
+      "seg-03-03-field-day.png",
+      "seg-03-03-town-day.png",
+      "seg-03-03-walk-day.png",
+      "seg-03-04-field-day.png",
+      "seg-03-04-town-day.png",
+      "seg-03-04-walk-day.png"
+    ]
+  },
+  {
+    "sheet": "sheet-11.png",
+    "images": [
+      "seg-03-base-close-day.png",
+      "seg-04-00-field-day.png",
+      "seg-04-00-town-day.png",
+      "seg-04-00-walk-day.png",
+      "seg-04-01-field-day.png",
+      "seg-04-01-town-day.png",
+      "seg-04-01-walk-day.png",
+      "seg-04-02-field-day.png",
+      "seg-04-02-town-day.png",
+      "seg-04-02-walk-day.png",
+      "seg-04-03-field-day.png",
+      "seg-04-03-town-day.png"
+    ]
+  },
+  {
+    "sheet": "sheet-12.png",
+    "images": [
+      "seg-04-03-walk-day.png",
+      "seg-04-04-field-day.png",
+      "seg-04-04-town-day.png",
+      "seg-04-04-walk-day.png",
+      "seg-04-05-field-day.png",
+      "seg-04-05-town-day.png",
+      "seg-04-05-walk-day.png",
+      "seg-04-06-field-day.png",
+      "seg-04-06-town-day.png",
+      "seg-04-06-walk-day.png",
+      "seg-04-base-close-day.png",
+      "seg-05-00-field-day.png"
+    ]
+  },
+  {
+    "sheet": "sheet-13.png",
+    "images": [
+      "seg-05-00-town-day.png",
+      "seg-05-00-walk-day.png",
+      "seg-05-01-field-day.png",
+      "seg-05-01-town-day.png",
+      "seg-05-01-walk-day.png",
+      "seg-05-02-field-day.png",
+      "seg-05-02-town-day.png",
+      "seg-05-02-walk-day.png",
+      "seg-05-03-field-day.png",
+      "seg-05-03-town-day.png",
+      "seg-05-03-walk-day.png",
+      "seg-05-04-field-day.png"
+    ]
+  },
+  {
+    "sheet": "sheet-14.png",
+    "images": [
+      "seg-05-04-town-day.png",
+      "seg-05-04-walk-day.png",
+      "seg-05-05-field-day.png",
+      "seg-05-05-town-day.png",
+      "seg-05-05-walk-day.png",
+      "seg-05-06-field-day.png",
+      "seg-05-06-town-day.png",
+      "seg-05-06-walk-day.png",
+      "seg-05-07-field-day.png",
+      "seg-05-07-town-day.png",
+      "seg-05-07-walk-day.png",
+      "seg-05-base-close-day.png"
+    ]
+  },
+  {
+    "sheet": "sheet-15.png",
+    "images": [
+      "seg-06-00-field-day.png",
+      "seg-06-00-town-day.png",
+      "seg-06-00-walk-day.png",
+      "seg-06-01-field-day.png",
+      "seg-06-01-town-day.png",
+      "seg-06-01-walk-day.png",
+      "seg-06-02-field-day.png",
+      "seg-06-02-town-day.png",
+      "seg-06-02-walk-day.png",
+      "seg-06-03-field-day.png",
+      "seg-06-03-town-day.png",
+      "seg-06-03-walk-day.png"
+    ]
+  },
+  {
+    "sheet": "sheet-16.png",
+    "images": [
+      "seg-06-04-field-day.png",
+      "seg-06-04-town-day.png",
+      "seg-06-04-walk-day.png",
+      "seg-06-base-close-day.png",
+      "seg-07-00-field-day.png",
+      "seg-07-00-town-day.png",
+      "seg-07-00-walk-day.png",
+      "seg-07-01-field-day.png",
+      "seg-07-01-town-day.png",
+      "seg-07-01-walk-day.png",
+      "seg-07-02-field-day.png",
+      "seg-07-02-town-day.png"
+    ]
+  },
+  {
+    "sheet": "sheet-17.png",
+    "images": [
+      "seg-07-02-walk-day.png",
+      "seg-07-03-field-day.png",
+      "seg-07-03-town-day.png",
+      "seg-07-03-walk-day.png",
+      "seg-07-base-close-day.png",
+      "seg-08-00-field-day.png",
+      "seg-08-00-town-day.png",
+      "seg-08-00-walk-day.png",
+      "seg-08-01-field-day.png",
+      "seg-08-01-town-day.png",
+      "seg-08-01-walk-day.png",
+      "seg-08-02-field-day.png"
+    ]
+  },
+  {
+    "sheet": "sheet-18.png",
+    "images": [
+      "seg-08-02-town-day.png",
+      "seg-08-02-walk-day.png",
+      "seg-08-03-field-day.png",
+      "seg-08-03-town-day.png",
+      "seg-08-03-walk-day.png",
+      "seg-08-04-field-day.png",
+      "seg-08-04-town-day.png",
+      "seg-08-04-walk-day.png",
+      "seg-08-base-close-day.png",
+      "seg-09-00-field-day.png",
+      "seg-09-00-town-day.png",
+      "seg-09-00-walk-day.png"
+    ]
+  },
+  {
+    "sheet": "sheet-19.png",
+    "images": [
+      "seg-09-01-field-day.png",
+      "seg-09-01-town-day.png",
+      "seg-09-01-walk-day.png",
+      "seg-09-02-field-day.png",
+      "seg-09-02-town-day.png",
+      "seg-09-02-walk-day.png",
+      "seg-09-03-field-day.png",
+      "seg-09-03-town-day.png",
+      "seg-09-03-walk-day.png",
+      "seg-09-04-field-day.png",
+      "seg-09-04-town-day.png",
+      "seg-09-04-walk-day.png"
+    ]
+  },
+  {
+    "sheet": "sheet-20.png",
+    "images": [
+      "seg-09-base-close-day.png",
+      "stair-00-back-day.png",
+      "stair-00-foot-day.png",
+      "stair-00-treads-day.png",
+      "stair-00-wide-day.png",
+      "stair-01-back-day.png",
+      "stair-01-foot-day.png",
+      "stair-01-treads-day.png",
+      "stair-01-wide-day.png",
+      "stair-02-back-day.png",
+      "stair-02-foot-day.png",
+      "stair-02-treads-day.png"
+    ]
+  },
+  {
+    "sheet": "sheet-21.png",
+    "images": [
+      "stair-02-wide-day.png",
+      "stair-03-back-day.png",
+      "stair-03-foot-day.png",
+      "stair-03-treads-day.png",
+      "stair-03-wide-day.png",
+      "stair-04-back-day.png",
+      "stair-04-foot-day.png",
+      "stair-04-treads-day.png",
+      "stair-04-wide-day.png",
+      "stair-05-back-day.png",
+      "stair-05-foot-day.png",
+      "stair-05-treads-day.png"
+    ]
+  },
+  {
+    "sheet": "sheet-22.png",
+    "images": [
+      "stair-05-wide-day.png",
+      "stair-06-back-day.png",
+      "stair-06-foot-day.png",
+      "stair-06-treads-day.png",
+      "stair-06-wide-day.png",
+      "stair-07-back-day.png",
+      "stair-07-foot-day.png",
+      "stair-07-treads-day.png",
+      "stair-07-wide-day.png",
+      "stair-08-back-day.png",
+      "stair-08-foot-day.png",
+      "stair-08-treads-day.png"
+    ]
+  },
+  {
+    "sheet": "sheet-23.png",
+    "images": [
+      "stair-08-wide-day.png",
+      "stair-09-back-day.png",
+      "stair-09-foot-day.png",
+      "stair-09-treads-day.png",
+      "stair-09-wide-day.png",
+      "stair-10-back-day.png",
+      "stair-10-foot-day.png",
+      "stair-10-treads-day.png",
+      "stair-10-wide-day.png",
+      "stair-11-back-day.png",
+      "stair-11-foot-day.png",
+      "stair-11-treads-day.png"
+    ]
+  },
+  {
+    "sheet": "sheet-24.png",
+    "images": [
+      "stair-11-wide-day.png"
+    ]
+  }
+]

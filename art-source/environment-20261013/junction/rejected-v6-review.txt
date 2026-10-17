@@ -1,0 +1,59 @@
+**Result: REVISE.** The scenes are not ready yet.
+
+I read all 9 images. I made no edits.
+
+## Grades (out of 10)
+
+| Area | Grade |
+|---|---|
+| Geometry | 6.5 |
+| Materials | 6.5 |
+| Weathering (dirt, damp, moss) | 5 |
+| Drainage | 7 |
+| **Overall** | **6** |
+
+## Blockers
+
+1. **Sharp stone edges everywhere** (`candidate-railing-day.png`, `candidate-newel-day.png`, `candidate-junction-day.png`).
+   - The stair coping slabs, the newel block, the stair treads and the ashlar courses all have hard box edges. "Ashlar" means the dressed stone blocks.
+   - I see no rounded arris (the outside edge line of a stone) and no worn nosing on the steps.
+2. **Rain does not look wet** (`candidate-railing-rain.png`).
+   - The rain image is only a darker copy of the day image.
+   - I see no wet shine, no puddles in the paving joints and no water runs on the stone.
+3. **No connected dirt at the joins.**
+   - Where the walls meet the paving, the base is clean. I see this at the ashlar plinth (railing and junction images) and at the brick base (`candidate-guard-drain-day.png`, left block and right plinth).
+   - The green patches on the pavement are loose spots. They do not link to the wall base or to the kerb.
+4. **Dirt bed scale is wrong** (`candidate-newel-day.png` left half, `candidate-junction-day.png` bottom-left).
+   - The pebbles are too big.
+   - The white spots look like blobs, not stones.
+   - The bed meets the slabs in a hard straight line.
+5. **Grass repeats in a grid** (`candidate-guardhouse-day.png`, left field). You can clearly see the tile pattern.
+6. **Newel connections** (`candidate-newel-day.png`).
+   - The post goes into a dark square hole in the cap, with no lead fill.
+   - The handrail stops dead at the cap corner (about 770,355) with no end piece.
+   - The low end of the coping slab overlaps the newel face (about 760–800, 640–730). It does not butt against it.
+7. **Ashlar joints break** (`candidate-newel-day.png`, back wall). A diagonal edge runs from about 340,355 to 680,155. The block joints above and below it do not line up.
+8. **Quoins look like plates** (`candidate-guard-drain-day.png`, right side, about 870–1390, 0–360). Quoins are the corner stones. These are flat boxes stuck on top of the brick, with hard edges.
+9. **Grate goes into the wall** (`candidate-guard-drain-day.png`, about 620–650, 550–720). The left edge of the grate frame is under the brick block. There is a strange thin vertical sheet in the gap behind the pipe (about 815–860, 60–470).
+10. **House drain outlet is unclear** (`candidate-house-drain-day.png`, about 540–670, 640–710).
+    - The pipe shoe ends over the pale stone block, at the edge of the grate. It does not end clearly over the grate bars.
+    - There is a dark open slot in the cobbles (about 600–680, 585–605).
+11. **Downpipes have no brackets** (`candidate-house-drain-day.png`, `candidate-gutter-day.png`, `candidate-guard-drain-day.png`). The pipes stand free from the wall. Real pipes are held by brackets.
+12. **Railing posts have no fixing** (railing and junction images). The square bars go straight into the coping. There is no lead socket and no foot plate.
+13. **Surface faults** (`candidate-house-drain-day.png`).
+    - The leaf litter is a flat orange smear on the cobbles (about 450–850, 730–850).
+    - The window glass has white diagonal streak lines (right window, about 920–1020, 100–300).
+    - The window sill paint has a noisy speckle (about 840–1430, 440–560).
+    - The "day" image is dark overall. The shop windows look black.
+
+## What passes
+
+- The cobbles at the guardhouse have good relief, moss in the joints and leaves.
+- The gutter has a swan-neck and a stop end (`candidate-gutter-day.png`).
+- The guard downpipe outlet ends over its grate.
+- The kerb grate is in place at the junction.
+- The night lantern light falls off well on the cobbles.
+
+## What to do now
+
+Fix blockers 1–6 first. They show in the wide views. Then retake all 9 images from the same cameras.

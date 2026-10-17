@@ -1,0 +1,9 @@
+{
+  "inputTriangles": 3721,
+  "outputTriangles": 34341,
+  "bevelEdges": 3828,
+  "bevelMetres": 0.0015,
+  "edgeWearMetres": 0.0012,
+  "endWearMaxMetres": 0.012,
+  "boards": 273
+}

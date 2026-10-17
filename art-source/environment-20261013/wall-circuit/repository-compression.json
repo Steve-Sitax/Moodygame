@@ -1,0 +1,10 @@
+{
+  "date": "2026-10-17",
+  "reason": "The installed mesh was 41,937,929 bytes, over the repository's 25 MB commit limit. It was re-saved with Godot ResourceSaver.FLAG_COMPRESS before the first commit of this repair.",
+  "resource": "res://world/town/resources/r000884.res",
+  "installedSha256": "8bb5b1bcf382e4cf56e46e9945079930f26a217bb55c69055c28cffcd0d14fdf",
+  "committedSha256": "e5afba35521ef81c1f2f84ff9827b5694e64cb583dd0c0e04bb0098f1ba7ddc6",
+  "committedBytes": 12673345,
+  "check": "Godot 4.7.2 loaded both files; every stored property, every _surfaces entry (arrays, LODs, AABB, format) and every material path compared equal.",
+  "note": "verify-wall-circuit-install.py compares promotion.json hashes; for this one resource use committedSha256."
+}

@@ -1,0 +1,19 @@
+# Codex independent final V12 wall-circuit review
+
+**PASS — 8.1/10.** No confirmed visible construction, junction, drainage, UV/relief or wear blocker in the reviewed final evidence. This is a visual assessment; installed-game collision and performance checks are separate acceptance evidence.
+
+Reviewed the freshly rebuilt 24 contact sheets after `contacts-v12-final.log` confirmed 288 daylight screenshots. Coverage includes both sides and walks of the whole circuit, bastions, four gates, all 15 huts and foot/back/tread/wide views of all 12 stairs. Reopened the final neighboring facade in day/rain/night and the previously identified material deltas. Also inspected all 15 `candidate-atmosphere` images: guard return, pond base, neighboring facade, stair 00 wide and Keizerspoort threshold in day/rain/night. The full render log completed with 199 resources; I do not claim full-resolution inspection of every one of the 608 screenshots.
+
+The whole-circuit regression introduces no new visible gap, collision, failed kerb termination, unsupported apron, railing attachment fault or texture-scale discontinuity. Closed kerb ends, physical stone bevels and joints, fitted post sockets, roof edge/hip details and surface drainage remain legible. Lower-wall damp connects to the adjacent paving and soil, and the pond's olive algae band is tied to the waterline. Rain visibly darkens the affected surfaces. The former angular weather patches and low-angle brick bump dashes remain resolved.
+
+The neighboring building fix now passes in day, rain and the labelled night inspection capture: brick is readable down to the ground instead of disappearing into an almost solid black base. The established cause is stacked house `g_damp` and generic `psx_foot_dirt` on r195, not the reverted r221 decal hypothesis. The separate diagonal cast shadow remains credible. See `codex-review-v12-delta.md` for the corrected diagnostic history.
+
+The two pale segment 08 vertical marks follow physical stone arrises; they are edge highlights rather than a UV defect. Native lamp spill gives a coherent warm pool at the guard and gate. The gate vault is intact; the former large cage-shadow rings are gone. A soft cap shadow above the gate lamp remains consistent with its fixture.
+
+Atmospheric views preserve the local material and junction quality already established in clear inspection views. Fog appropriately reduces distant visibility. The normally unlit pond and neighboring facade are too dark at night to grade their fine geometry independently; their daylight and explicitly labelled inspection-lamp images supply that evidence. No added glow was required to make those native night surfaces readable, and no defect is excused by their darkness.
+
+Remaining quality ceiling: long masonry runs retain a regular architectural cadence and broad areas could receive more localized age variation for additional polish. That is not a demonstrated construction or material fault in this batch. Underground Ruien connections remain future work; reviewed inlets are surface drainage and connection reservations.
+
+Characters and wildlife were excluded. No implementation or asset edits were made by this reviewer; only review evidence was written.
+
+After reading `claude-review-v12.md`, I independently reassessed its three claimed blockers. The single soft-edged shadow immediately above the capped gate lamp is not the earlier multiple cage-shadow rings; no incorrect shadow cause has been demonstrated. Guard brick visibly darkens in rain, and the implementer's newly measured exact brick-region rain/day ratios (guard 0.583, neighboring-view left brick 0.829) directly address the measurement objection. The guard's lowest courses visibly darken towards ground contact while retaining readable mortar; their wear is not absent. These observations do not justify removing a native fixture shadow or forcing additional grime solely to meet another reviewer's score.

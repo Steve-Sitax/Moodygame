@@ -1,0 +1,724 @@
+{
+  "passed": true,
+  "meshResources": 179,
+  "triangles": 4727291,
+  "method": "Fresh saved meshes through gameplay Solid.FacesOf and ConcavePolygonShape3D roundtrip; no actor navigation simulation",
+  "meshes": [
+    {
+      "resource": "res://world/town/resources/r000610.res",
+      "triangles": 6994
+    },
+    {
+      "resource": "res://world/town/resources/r000616.res",
+      "triangles": 92
+    },
+    {
+      "resource": "res://world/town/resources/r000623.res",
+      "triangles": 6106
+    },
+    {
+      "resource": "res://world/town/resources/r000624.res",
+      "triangles": 92
+    },
+    {
+      "resource": "res://world/town/resources/r000631.res",
+      "triangles": 348
+    },
+    {
+      "resource": "res://world/town/resources/r000637.res",
+      "triangles": 23062
+    },
+    {
+      "resource": "res://world/town/resources/r000643.res",
+      "triangles": 104358
+    },
+    {
+      "resource": "res://world/town/resources/r000649.res",
+      "triangles": 12104
+    },
+    {
+      "resource": "res://world/town/resources/r000658.res",
+      "triangles": 56
+    },
+    {
+      "resource": "res://world/town/resources/r000665.res",
+      "triangles": 1659
+    },
+    {
+      "resource": "res://world/town/resources/r000666.res",
+      "triangles": 57564
+    },
+    {
+      "resource": "res://world/town/resources/r000672.res",
+      "triangles": 16
+    },
+    {
+      "resource": "res://world/town/resources/r000684.res",
+      "triangles": 348
+    },
+    {
+      "resource": "res://world/town/resources/r000685.res",
+      "triangles": 23062
+    },
+    {
+      "resource": "res://world/town/resources/r000686.res",
+      "triangles": 104358
+    },
+    {
+      "resource": "res://world/town/resources/r000687.res",
+      "triangles": 12042
+    },
+    {
+      "resource": "res://world/town/resources/r000688.res",
+      "triangles": 56
+    },
+    {
+      "resource": "res://world/town/resources/r000690.res",
+      "triangles": 1646
+    },
+    {
+      "resource": "res://world/town/resources/r000691.res",
+      "triangles": 57766
+    },
+    {
+      "resource": "res://world/town/resources/r000692.res",
+      "triangles": 16
+    },
+    {
+      "resource": "res://world/town/resources/r000695.res",
+      "triangles": 348
+    },
+    {
+      "resource": "res://world/town/resources/r000696.res",
+      "triangles": 23062
+    },
+    {
+      "resource": "res://world/town/resources/r000697.res",
+      "triangles": 104358
+    },
+    {
+      "resource": "res://world/town/resources/r000698.res",
+      "triangles": 12107
+    },
+    {
+      "resource": "res://world/town/resources/r000699.res",
+      "triangles": 56
+    },
+    {
+      "resource": "res://world/town/resources/r000701.res",
+      "triangles": 1642
+    },
+    {
+      "resource": "res://world/town/resources/r000702.res",
+      "triangles": 57620
+    },
+    {
+      "resource": "res://world/town/resources/r000703.res",
+      "triangles": 16
+    },
+    {
+      "resource": "res://world/town/resources/r000706.res",
+      "triangles": 348
+    },
+    {
+      "resource": "res://world/town/resources/r000707.res",
+      "triangles": 23062
+    },
+    {
+      "resource": "res://world/town/resources/r000708.res",
+      "triangles": 104358
+    },
+    {
+      "resource": "res://world/town/resources/r000709.res",
+      "triangles": 11985
+    },
+    {
+      "resource": "res://world/town/resources/r000710.res",
+      "triangles": 56
+    },
+    {
+      "resource": "res://world/town/resources/r000712.res",
+      "triangles": 1634
+    },
+    {
+      "resource": "res://world/town/resources/r000713.res",
+      "triangles": 57459
+    },
+    {
+      "resource": "res://world/town/resources/r000714.res",
+      "triangles": 16
+    },
+    {
+      "resource": "res://world/town/resources/r000717.res",
+      "triangles": 138
+    },
+    {
+      "resource": "res://world/town/resources/r000718.res",
+      "triangles": 14920
+    },
+    {
+      "resource": "res://world/town/resources/r000719.res",
+      "triangles": 99636
+    },
+    {
+      "resource": "res://world/town/resources/r000720.res",
+      "triangles": 641
+    },
+    {
+      "resource": "res://world/town/resources/r000721.res",
+      "triangles": 92
+    },
+    {
+      "resource": "res://world/town/resources/r000723.res",
+      "triangles": 136
+    },
+    {
+      "resource": "res://world/town/resources/r000724.res",
+      "triangles": 20280
+    },
+    {
+      "resource": "res://world/town/resources/r000725.res",
+      "triangles": 2
+    },
+    {
+      "resource": "res://world/town/resources/r000736.res",
+      "triangles": 10630
+    },
+    {
+      "resource": "res://world/town/resources/r000737.res",
+      "triangles": 241
+    },
+    {
+      "resource": "res://world/town/resources/r000738.res",
+      "triangles": 13210
+    },
+    {
+      "resource": "res://world/town/resources/r000739.res",
+      "triangles": 163526
+    },
+    {
+      "resource": "res://world/town/resources/r000740.res",
+      "triangles": 4703
+    },
+    {
+      "resource": "res://world/town/resources/r000741.res",
+      "triangles": 257
+    },
+    {
+      "resource": "res://world/town/resources/r000743.res",
+      "triangles": 416
+    },
+    {
+      "resource": "res://world/town/resources/r000744.res",
+      "triangles": 27570
+    },
+    {
+      "resource": "res://world/town/resources/r000745.res",
+      "triangles": 2
+    },
+    {
+      "resource": "res://world/town/resources/r000748.res",
+      "triangles": 33842
+    },
+    {
+      "resource": "res://world/town/resources/r000749.res",
+      "triangles": 190
+    },
+    {
+      "resource": "res://world/town/resources/r000750.res",
+      "triangles": 4298
+    },
+    {
+      "resource": "res://world/town/resources/r000751.res",
+      "triangles": 120640
+    },
+    {
+      "resource": "res://world/town/resources/r000752.res",
+      "triangles": 4395
+    },
+    {
+      "resource": "res://world/town/resources/r000753.res",
+      "triangles": 212
+    },
+    {
+      "resource": "res://world/town/resources/r000754.res",
+      "triangles": 462
+    },
+    {
+      "resource": "res://world/town/resources/r000755.res",
+      "triangles": 8054
+    },
+    {
+      "resource": "res://world/town/resources/r000763.res",
+      "triangles": 28402
+    },
+    {
+      "resource": "res://world/town/resources/r000769.res",
+      "triangles": 661
+    },
+    {
+      "resource": "res://world/town/resources/r000770.res",
+      "triangles": 30762
+    },
+    {
+      "resource": "res://world/town/resources/r000771.res",
+      "triangles": 180244
+    },
+    {
+      "resource": "res://world/town/resources/r000772.res",
+      "triangles": 6147
+    },
+    {
+      "resource": "res://world/town/resources/r000773.res",
+      "triangles": 602
+    },
+    {
+      "resource": "res://world/town/resources/r000775.res",
+      "triangles": 274
+    },
+    {
+      "resource": "res://world/town/resources/r000776.res",
+      "triangles": 48237
+    },
+    {
+      "resource": "res://world/town/resources/r000777.res",
+      "triangles": 4
+    },
+    {
+      "resource": "res://world/town/resources/r000781.res",
+      "triangles": 38606
+    },
+    {
+      "resource": "res://world/town/resources/r000783.res",
+      "triangles": 440
+    },
+    {
+      "resource": "res://world/town/resources/r000784.res",
+      "triangles": 25120
+    },
+    {
+      "resource": "res://world/town/resources/r000785.res",
+      "triangles": 170708
+    },
+    {
+      "resource": "res://world/town/resources/r000786.res",
+      "triangles": 2852
+    },
+    {
+      "resource": "res://world/town/resources/r000787.res",
+      "triangles": 636
+    },
+    {
+      "resource": "res://world/town/resources/r000789.res",
+      "triangles": 272
+    },
+    {
+      "resource": "res://world/town/resources/r000790.res",
+      "triangles": 48836
+    },
+    {
+      "resource": "res://world/town/resources/r000791.res",
+      "triangles": 4
+    },
+    {
+      "resource": "res://world/town/resources/r000792.res",
+      "triangles": 297
+    },
+    {
+      "resource": "res://world/town/resources/r000799.res",
+      "triangles": 37958
+    },
+    {
+      "resource": "res://world/town/resources/r000801.res",
+      "triangles": 189
+    },
+    {
+      "resource": "res://world/town/resources/r000802.res",
+      "triangles": 7896
+    },
+    {
+      "resource": "res://world/town/resources/r000803.res",
+      "triangles": 165160
+    },
+    {
+      "resource": "res://world/town/resources/r000804.res",
+      "triangles": 4478
+    },
+    {
+      "resource": "res://world/town/resources/r000805.res",
+      "triangles": 270
+    },
+    {
+      "resource": "res://world/town/resources/r000807.res",
+      "triangles": 320
+    },
+    {
+      "resource": "res://world/town/resources/r000808.res",
+      "triangles": 12483
+    },
+    {
+      "resource": "res://world/town/resources/r000809.res",
+      "triangles": 0
+    },
+    {
+      "resource": "res://world/town/resources/r000813.res",
+      "triangles": 34371
+    },
+    {
+      "resource": "res://world/town/resources/r000814.res",
+      "triangles": 183
+    },
+    {
+      "resource": "res://world/town/resources/r000815.res",
+      "triangles": 8578
+    },
+    {
+      "resource": "res://world/town/resources/r000816.res",
+      "triangles": 124676
+    },
+    {
+      "resource": "res://world/town/resources/r000817.res",
+      "triangles": 7742
+    },
+    {
+      "resource": "res://world/town/resources/r000818.res",
+      "triangles": 170
+    },
+    {
+      "resource": "res://world/town/resources/r000820.res",
+      "triangles": 838
+    },
+    {
+      "resource": "res://world/town/resources/r000821.res",
+      "triangles": 23936
+    },
+    {
+      "resource": "res://world/town/resources/r000822.res",
+      "triangles": 2
+    },
+    {
+      "resource": "res://world/town/resources/r000825.res",
+      "triangles": 27090
+    },
+    {
+      "resource": "res://world/town/resources/r000826.res",
+      "triangles": 472
+    },
+    {
+      "resource": "res://world/town/resources/r000827.res",
+      "triangles": 17052
+    },
+    {
+      "resource": "res://world/town/resources/r000828.res",
+      "triangles": 187072
+    },
+    {
+      "resource": "res://world/town/resources/r000829.res",
+      "triangles": 3361
+    },
+    {
+      "resource": "res://world/town/resources/r000830.res",
+      "triangles": 627
+    },
+    {
+      "resource": "res://world/town/resources/r000832.res",
+      "triangles": 2870
+    },
+    {
+      "resource": "res://world/town/resources/r000833.res",
+      "triangles": 30041
+    },
+    {
+      "resource": "res://world/town/resources/r000834.res",
+      "triangles": 6
+    },
+    {
+      "resource": "res://world/town/resources/r000838.res",
+      "triangles": 43618
+    },
+    {
+      "resource": "res://world/town/resources/r000840.res",
+      "triangles": 36
+    },
+    {
+      "resource": "res://world/town/resources/r000841.res",
+      "triangles": 310
+    },
+    {
+      "resource": "res://world/town/resources/r000843.res",
+      "triangles": 1228
+    },
+    {
+      "resource": "res://world/town/resources/r000844.res",
+      "triangles": 182
+    },
+    {
+      "resource": "res://world/town/resources/r000845.res",
+      "triangles": 7068
+    },
+    {
+      "resource": "res://world/town/resources/r000846.res",
+      "triangles": 125988
+    },
+    {
+      "resource": "res://world/town/resources/r000847.res",
+      "triangles": 7694
+    },
+    {
+      "resource": "res://world/town/resources/r000848.res",
+      "triangles": 170
+    },
+    {
+      "resource": "res://world/town/resources/r000849.res",
+      "triangles": 530
+    },
+    {
+      "resource": "res://world/town/resources/r000850.res",
+      "triangles": 9664
+    },
+    {
+      "resource": "res://world/town/resources/r000851.res",
+      "triangles": 2
+    },
+    {
+      "resource": "res://world/town/resources/r000852.res",
+      "triangles": 25687
+    },
+    {
+      "resource": "res://world/town/resources/r000853.res",
+      "triangles": 288
+    },
+    {
+      "resource": "res://world/town/resources/r000854.res",
+      "triangles": 14530
+    },
+    {
+      "resource": "res://world/town/resources/r000855.res",
+      "triangles": 160454
+    },
+    {
+      "resource": "res://world/town/resources/r000856.res",
+      "triangles": 5073
+    },
+    {
+      "resource": "res://world/town/resources/r000857.res",
+      "triangles": 325
+    },
+    {
+      "resource": "res://world/town/resources/r000859.res",
+      "triangles": 1222
+    },
+    {
+      "resource": "res://world/town/resources/r000860.res",
+      "triangles": 28519
+    },
+    {
+      "resource": "res://world/town/resources/r000861.res",
+      "triangles": 2
+    },
+    {
+      "resource": "res://world/town/resources/r000864.res",
+      "triangles": 34897
+    },
+    {
+      "resource": "res://world/town/resources/r000865.res",
+      "triangles": 138
+    },
+    {
+      "resource": "res://world/town/resources/r000866.res",
+      "triangles": 14920
+    },
+    {
+      "resource": "res://world/town/resources/r000867.res",
+      "triangles": 98796
+    },
+    {
+      "resource": "res://world/town/resources/r000868.res",
+      "triangles": 641
+    },
+    {
+      "resource": "res://world/town/resources/r000869.res",
+      "triangles": 92
+    },
+    {
+      "resource": "res://world/town/resources/r000871.res",
+      "triangles": 136
+    },
+    {
+      "resource": "res://world/town/resources/r000872.res",
+      "triangles": 20568
+    },
+    {
+      "resource": "res://world/town/resources/r000873.res",
+      "triangles": 2
+    },
+    {
+      "resource": "res://world/town/resources/r000876.res",
+      "triangles": 10599
+    },
+    {
+      "resource": "res://world/town/resources/r000878.res",
+      "triangles": 25770
+    },
+    {
+      "resource": "res://world/town/resources/r000879.res",
+      "triangles": 183340
+    },
+    {
+      "resource": "res://world/town/resources/r000880.res",
+      "triangles": 214215
+    },
+    {
+      "resource": "res://world/town/resources/r000881.res",
+      "triangles": 655
+    },
+    {
+      "resource": "res://world/town/resources/r000883.res",
+      "triangles": 29810
+    },
+    {
+      "resource": "res://world/town/resources/r000884.res",
+      "triangles": 349472
+    },
+    {
+      "resource": "res://world/town/resources/r000885.res",
+      "triangles": 4
+    },
+    {
+      "resource": "res://world/town/resources/r000889.res",
+      "triangles": 36913
+    },
+    {
+      "resource": "res://world/town/resources/r000891.res",
+      "triangles": 290
+    },
+    {
+      "resource": "res://world/town/resources/r000892.res",
+      "triangles": 17502
+    },
+    {
+      "resource": "res://world/town/resources/r000893.res",
+      "triangles": 131466
+    },
+    {
+      "resource": "res://world/town/resources/r000894.res",
+      "triangles": 4565
+    },
+    {
+      "resource": "res://world/town/resources/r000895.res",
+      "triangles": 288
+    },
+    {
+      "resource": "res://world/town/resources/r000897.res",
+      "triangles": 1518
+    },
+    {
+      "resource": "res://world/town/resources/r000898.res",
+      "triangles": 29388
+    },
+    {
+      "resource": "res://world/town/resources/r000899.res",
+      "triangles": 2
+    },
+    {
+      "resource": "res://world/town/resources/r000903.res",
+      "triangles": 27590
+    },
+    {
+      "resource": "res://world/town/resources/r000905.res",
+      "triangles": 304
+    },
+    {
+      "resource": "res://world/town/resources/r000906.res",
+      "triangles": 16914
+    },
+    {
+      "resource": "res://world/town/resources/r000907.res",
+      "triangles": 156924
+    },
+    {
+      "resource": "res://world/town/resources/r000908.res",
+      "triangles": 4985
+    },
+    {
+      "resource": "res://world/town/resources/r000909.res",
+      "triangles": 320
+    },
+    {
+      "resource": "res://world/town/resources/r000911.res",
+      "triangles": 598
+    },
+    {
+      "resource": "res://world/town/resources/r000912.res",
+      "triangles": 27373
+    },
+    {
+      "resource": "res://world/town/resources/r000913.res",
+      "triangles": 2
+    },
+    {
+      "resource": "res://world/town/resources/r000917.res",
+      "triangles": 35289
+    },
+    {
+      "resource": "res://world/town/resources/r000919.res",
+      "triangles": 367
+    },
+    {
+      "resource": "res://world/town/resources/r000920.res",
+      "triangles": 11916
+    },
+    {
+      "resource": "res://world/town/resources/r000921.res",
+      "triangles": 107892
+    },
+    {
+      "resource": "res://world/town/resources/r000922.res",
+      "triangles": 3217
+    },
+    {
+      "resource": "res://world/town/resources/r000923.res",
+      "triangles": 661
+    },
+    {
+      "resource": "res://world/town/resources/r000925.res",
+      "triangles": 8453
+    },
+    {
+      "resource": "res://world/town/resources/r000926.res",
+      "triangles": 29794
+    },
+    {
+      "resource": "res://world/town/resources/r000927.res",
+      "triangles": 8
+    },
+    {
+      "resource": "res://world/town/resources/r000931.res",
+      "triangles": 22634
+    },
+    {
+      "resource": "res://world/town/resources/r000008.res",
+      "triangles": 1092
+    },
+    {
+      "resource": "res://world/town/resources/r000017.res",
+      "triangles": 437
+    },
+    {
+      "resource": "res://world/town/resources/r000025.res",
+      "triangles": 2042
+    },
+    {
+      "resource": "res://world/town/resources/r000031.res",
+      "triangles": 818
+    },
+    {
+      "resource": "res://world/town/resources/r000039.res",
+      "triangles": 190
+    },
+    {
+      "resource": "res://world/town/resources/r000046.res",
+      "triangles": 9584
+    }
+  ]
+}
