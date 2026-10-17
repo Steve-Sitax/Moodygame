@@ -256,6 +256,7 @@ public partial class NativeTownGame : Scheldemist.Main
             if (Arg("antigoon-story-map") is { Length: > 0 } storyMap) _ = NativeAntigoonStoryMap.Run(this, Paths.Absolute(storyMap));
             if (Arg("story-proof") is { Length: > 0 } storyProof) _ = NativeStoryProof.Run(this, Paths.Absolute(storyProof));
             if (Arg("arrival-pier-proof") is { Length: > 0 } pierProof) _ = NativeArrivalPierProof.Run(this, Paths.Absolute(pierProof));
+            if (Arg("stone-corners-proof") is { Length: > 0 } stoneProof) _ = NativeStoneCornersProof.Run(this, Paths.Absolute(stoneProof));
         }
         catch (System.Exception error) { GD.PrintErr(error); GetTree().Quit(1); }
     }
