@@ -1,0 +1,27 @@
+{
+ "meshes": 73,
+ "built": {
+  "door hood": 106,
+  "door lintel": 2687,
+  "door surround (flat)": 563,
+  "door step": 882,
+  "door surround (arched)": 503,
+  "hood": 391,
+  "keystone": 2649,
+  "window sill": 5749,
+  "window head": 5610,
+  "frieze": 784,
+  "single quoin": 2298,
+  "quoin corner": 48,
+  "plinth": 1225,
+  "shop architrave": 43
+ },
+ "kept": {
+  "no front": 13832,
+  "no wall": 695,
+  "unclassified": 26766,
+  "shop window reveal": 43
+ },
+ "addedTriangles": 2168766,
+ "removedTriangles": 279429
+}
