@@ -23,11 +23,18 @@ smirk, laugh and angry. Root translation belongs to the gameplay brain.
 
 Combat: 120 health, 15 damage per player strike with a 0.8 second cooldown.
 Run speed: 4.8 m/s versus the player's 3.4. Walk: 1.8 m/s.
-Kick wind-up: 0.62 seconds; full attack: 1.35 seconds; range: 2.2 metres.
+Kick wind-up: 0.62 seconds; full attack: 1.35 seconds; range: 2.2 metres; 3 health.
+The kick is posed at runtime as a planar hip/knee/ankle swing (knee folds only
+forward): boot back, through at a man's chest, follow-through, stomp. He lunges to 1.9 m first.
+Boots are world-locked: each stays planted until it lifts; he turns by stepping.
+The trunk is measured and set upright (leaning into a stride with speed).
+A landed kick throws the player about 3 m with a red flash and view shake.
+Prey spotted from 7 m or more: he stops 1.6 s and stares (head first, then steps round), with a heavy breath.
 The host validates range, walls, light and target health at contact.
 Street lamps and working carried lanterns protect players. Rain/wet lantern
 rules use the existing native service. Daylight makes him return home.
-He crosses blocking light at 0.7 m/s with both hands shielding his head.
+He crosses blocking light at 0.7 m/s with both hands shielding his head,
+toward the nearest dark spot he can reach when his way is blocked.
 While shielding he cannot chase, attack or throw; pursuit resumes only
 after he is back in darkness and his brief recovery has ended.
 Unoccupied Antigoon keeps roaming, with breathing and glances during pauses.
@@ -36,7 +43,13 @@ Runtime pose reset and two-bone foot planting keep soles on sampled terrain.
 Native town: development-only encounter, selected through F8 > Events.
 Ordinary play, previous saves and subsequent nights never enable him.
 The development button stages the encounter at 22:00; F6 does not start it.
-The development stage requires a dark, connected back alley and giant clearance. Antigoon patrols connected street routes.
+Reachability map: every half-metre spot where he fits (0.65 m radius, 5.5 m
+crown, steps over 1.1 m), grouped into street areas. Kept areas: 1,500 m2 or
+more, lit by 3+ lamps, not open land at the map edge. Built once per world
+content (about 7 s) into <data>/antigoon-cache/reach.bin. He spawns, roams and
+routes only on it; a spot further than a kick from his area is safe.
+The development stage picks a random dark spot on his map near the player,
+an alley when one qualifies.
 He throws stones at burning lamps from darkness. A 0.7 s wind-up precedes
 flight; impact extinguishes the lamp until 20:00 the following night.
 Outages persist across midnight and saves; normal lamplighting cannot

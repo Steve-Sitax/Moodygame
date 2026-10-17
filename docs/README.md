@@ -12,6 +12,7 @@ Start with the [native game/editor instructions](../native-godot/README.md), [na
 | [Native checks](../native-godot/services/README.md) | Current rule, gameplay and multiplayer evidence; workshop checks are in the native project README |
 | [Native packages](release.md) | Current standalone Windows client/server export and relocation checks |
 | [01-game-design.md](01-game-design.md) | Setting, player, needs, jobs, trust, NPCs, events |
+| [Antigoon story and quests](antigoon-story.md) | Refined six-quest script, pacing, dialogue, failure rules and required gameplay support; [Opus and Astra review](antigoon-story-review.md) |
 | [02-tech-stack.md](02-tech-stack.md) | Engine, server, database, why each one |
 | [03-ai-design.md](03-ai-design.md) | Where Claude is called, prompts, schemas, memory, pacing, cost |
 | [04-data-model.md](04-data-model.md) | SQLite tables |

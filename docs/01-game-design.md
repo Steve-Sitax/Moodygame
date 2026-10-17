@@ -4,6 +4,9 @@
 You are Jef, a farm boy from the Kempen, new in Antwerp in October 1873.
 You have no money and no name. Work. Eat. Keep warm. Get known.
 
+The later horror direction and six proposed single-player quests are recorded in
+[Antigoon story and quests](antigoon-story.md), including agreed behaviour, multiplayer scope and open story choices.
+
 ## Why 1873
 - The Scheldt toll was bought out in 1863. The port explodes with trade.
 - The Red Star Line starts sailing to America in 1873. Emigrants fill the quays.

@@ -1,0 +1,5 @@
+{
+  "tool": "built-in image_gen",
+  "prompt": "Edit image 1, the isolated head and neck 3D reconstruction reference. Image 2 defines the approved updated identity colors and eyes. Keep image 1 exact straight front orthographic head position, facial proportions, long hooked nose, angular cheeks, long bare neck ending at the base, no torso, no clothes, no shoulders. Change only hair and eyebrow color to image 2's natural light golden blond, and eyes to image 2's noticeably large wide-open very pale light blue eyes. Same mature slender male horror giant Antigoon. Mouth closed with subtle sinister smirk, hair same ear-length parted bob silhouette. Neutral even studio lighting, detailed realistic skin. Entire head and neck fully visible centered with generous empty transparent margins, isolated cutout, no text. This is a texture and geometry input for the exact existing character.",
+  "reference": "head-blond-v02.png"
+}
