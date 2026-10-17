@@ -180,12 +180,15 @@ public partial class Jobs : Node
         // The story entry: taken up, its objective is followed; finished, the pointer goes back to the work.
         string status = p.Story?.Status ?? "";
         if (status != storyStatus) { if (status == "active") StoryFollowed = true; else if (status != "offered") StoryFollowed = false; storyStatus = status; }
-        if (board.IsOpen) board.Render();
+        if (board.IsOpen && BoardShows() != boardShown) board.Render();
         if (book.IsOpen) book.Render();
     }
 
     /// <summary>Where the pointer leads: the followed story's person or place, else the followed job's goal.</summary>
     private Vector3? PointerGoal() => StoryFollowed && Story.I?.Goal() is { } story ? story.At : active != null ? run?.Goal() : null;
+
+    /// <summary>The story has the pointer now (followed and not done): no job is the followed one.</summary>
+    private bool StoryLeads => StoryFollowed && Story.I?.View is { Status: not "done" };
 
     // ------------------------------------------------------------------ per frame
 
@@ -484,6 +487,7 @@ public partial class Jobs : Node
 
     private Sheet? WriteBoard()
     {
+        boardShown = BoardShows();
         var sh = BoardSheet();
         var p = GameState.I.Payload;
         if (p == null)
@@ -508,21 +512,44 @@ public partial class Jobs : Node
             bool playable = Playable(j);
             bool can = j.Status == "offered" && playable;
             string tag = j.Status == "taken" ? "yours" : j.Status == "done" ? "done" : j.Status == "failed" ? "failed" : !playable ? "not in this build yet" : "";
+            var job = j;
+            // how far the work starts from here (the goods to fetch, the post, the first door)
+            string away = j.Status == "offered" && StartOf(j) is { } at ? $" · {Metres(RunWords.Dist(at.X, at.Z, Jef.I.X, Jef.I.Z))} away" : "";
             JobRow(sh, i, j, can, can ? 1 : 0.45f,
-                $"{Css.Esc(j.EmployerName)} · {Css.Esc(Summary(j))} · risk {Css.Esc(j.Risk)}{(tag != "" ? $" · [b]{tag}[/b]" : "")}",
-                Css.Esc(j.Pitch));
+                $"{Css.Esc(j.EmployerName)} · {Css.Esc(Summary(j))}{away} · risk {Css.Esc(j.Risk)}{(tag != "" ? $" · [b]{tag}[/b]" : "")}",
+                new[] { Css.Esc(j.Pitch) }, () => _ = TakeJob(job));
         }
-        sh.Keys("Press a number to take a job · E or Esc to step back", Face.Hand, top: 8, bottom: 0);
+        sh.Keys("Click a job or press its number · E or Esc to step back", Face.Hand, top: 8, bottom: 0);
         return sh;
     }
 
-    /// <summary>One job on the board or in the book: the number, the title and the pay; who and what under it; a paragraph.</summary>
-    private static void JobRow(Sheet sh, int n, Job j, bool click, float opacity, string who, params string[] more)
+    /// <summary>What the board shows, in short: a new state from the server that leaves it the same does not write it again (the scroll and the mouse's line stay).</summary>
+    private string BoardShows()
+    {
+        var p = GameState.I.Payload;
+        if (p == null) return "";
+        return $"{p.Board.State}|{p.Jobs.Count(j => j.Status == "offered")}|" + string.Join(";", VisibleJobs().Select(j => $"{j.Id}:{j.Status}:{j.PayC}:{j.Title}:{Playable(j)}"));
+    }
+    private string boardShown = "";
+
+    /// <summary>The board's paper while it is up (the checks: its lines to click, its scroll).</summary>
+    public Sheet? BoardPaper => board.IsOpen ? board.Sheet : null;
+    /// <summary>The quest book's paper while it is up, the job followed now and where the pointer leads (the checks).</summary>
+    public Sheet? BookPaper => book.IsOpen ? book.Sheet : null;
+    public Job? Followed => StoryLeads ? null : active;
+    public Vector3? PointerAt => PointerGoal();
+
+    /// <summary>
+    /// One job on the board or in the book: the number, the title and the pay; who and what under it; a paragraph.
+    /// click: the whole job is one line to click (the mouse over it tints all of it, a click is its number key);
+    /// past 9, where no number key reaches, the click does pick.
+    /// </summary>
+    private static void JobRow(Sheet sh, int n, Job j, bool click, float opacity, string who, string[] more, Action? pick = null)
     {
         sh.Rule(top: 0, bottom: 0);
         var col = new VBoxContainer { MouseFilter = Control.MouseFilterEnum.Ignore, Modulate = new Color(1, 1, 1, opacity) };
         col.AddThemeConstantOverride("separation", 0);
-        sh.Row(n, Css.Esc(j.Title), $"{j.PayC} c", Face.Hand, 18, padY: 0, gap: 10, into: col, click: click);
+        sh.Row(n, Css.Esc(j.Title), $"{j.PayC} c", Face.Hand, 18, padY: 0, gap: 10, into: col, click: false);
         // .who and .pitch stand 22 px in, under the title
         float w = sh.Inner - sh.Sp(22);
         var under = new VBoxContainer { MouseFilter = Control.MouseFilterEnum.Ignore };
@@ -532,7 +559,14 @@ public partial class Jobs : Node
             if (text != "")
                 sh.Text(text, Face.Print, 15, lineHeight: 1.4f, width: w, into: under);
         col.AddChild(sh.Margin(under, 0, 0, 22));
-        sh.Add(sh.Margin(col, 7, 7));
+        Control job = col;
+        if (click && (n is >= 1 and <= 9 || pick != null))
+        {
+            var line = new InkClick { Code = n is >= 1 and <= 9 ? $"Digit{n}" : "", Act = n is >= 1 and <= 9 ? null : pick, SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
+            line.AddChild(col);
+            job = line;
+        }
+        sh.Add(sh.Margin(job, 7, 7));
     }
 
     private void BoardKey(string code, string key)
@@ -620,6 +654,13 @@ public partial class Jobs : Node
         return Folk.At(j.EmployerNpc) is { } at ? (Folk.NameOf(j.EmployerNpc, j.EmployerName), at.X, at.Z) : null;
     }
 
+    /// <summary>Where a job not yet taken starts: a carry or delivery at its goods, a watch at its post, the others at their first goal.</summary>
+    private static (string Label, float X, float Z)? StartOf(Job j)
+    {
+        if (JobTask.Of(j) is { } t && Spots.Get(t.Kind == "watch" ? t.Post : t.From) is { } s) return (s.Label, s.X, s.Z);
+        return GoalOf(j);
+    }
+
     private Sheet? WriteBook()
     {
         var sh = BoardSheet();
@@ -629,7 +670,7 @@ public partial class Jobs : Node
         {
             sh.Text("[b]Your book[/b]", Face.Hand, 26, bottom: 8);
             sh.Text("No work in hand. The hiring board on the Rijnkaai, or a word with someone who has work.", Face.Print, 16);
-            sh.Keys(story ? "S follows the story · J or Esc to close" : "J or Esc to close", Face.Hand, top: 8, bottom: 0);
+            sh.Keys(story ? "S: follow the story · J or Esc to close" : "J or Esc to close", Face.Hand, top: 8, bottom: 0);
             return sh;
         }
         sh.Text($"[b]Your book — {list.Count} of {MaxInHand} jobs[/b]", Face.Hand, 26, bottom: 8);
@@ -637,15 +678,15 @@ public partial class Jobs : Node
         {
             var j = list[i];
             var g = GoalOf(j);
-            bool followed = active?.Id == j.Id;
+            bool followed = active?.Id == j.Id && !StoryLeads;
             string where = g != null ? $" · to {Css.Esc(g.Value.Label)}, {Metres(RunWords.Dist(g.Value.X, g.Value.Z, Jef.I.X, Jef.I.Z))}" : "";
             string twist = JobTask.Of(j)?.Twist ?? "";
             JobRow(sh, i + 1, j, true, followed ? 1 : 0.45f,
                 $"{Css.Esc(j.EmployerName)} · {Css.Esc(Summary(j))}{where}{(followed ? " · [b]followed[/b]" : "")}",
-                KnownTwists.TryGetValue(twist, out var known) ? $"You know: {known}" : "",
-                giveUpAsk == j.Id ? $"[b]Give it up? G again: no pay, and {Css.Esc(j.EmployerName)} thinks less of you.[/b]" : "");
+                new[] { KnownTwists.TryGetValue(twist, out var known) ? $"You know: {known}" : "",
+                giveUpAsk == j.Id ? $"[b]Give it up? G again: no pay, and {Css.Esc(j.EmployerName)} thinks less of you.[/b]" : "" });
         }
-        sh.Keys($"A number follows that job{(story ? " · S the story" : "")} · G then G gives up the one asked · M the map · J or Esc to close", Face.Hand, top: 8, bottom: 0);
+        sh.Keys($"Click a job or press its number to follow it{(story ? " · S: follow the story" : "")} · G then G gives up the one asked · M the map · J or Esc to close", Face.Hand, top: 8, bottom: 0);
         return sh;
     }
 
@@ -656,10 +697,21 @@ public partial class Jobs : Node
     private bool WriteStory(Sheet sh)
     {
         if (Story.I?.View is not { } v) return false;
-        bool followed = StoryFollowed && v.Status != "done";
-        sh.Text($"[b]Story · chapter {v.Chapter}: {Css.Esc(v.Title)}[/b]{(followed ? " · followed" : "")}", Face.Hand, 22, followed || v.Status == "offered" ? 1 : 0.6f, bottom: 4);
+        bool followed = StoryLeads;
+        // the story's title and objective are one line to click: a click follows it, as S does
+        var col = new VBoxContainer { MouseFilter = Control.MouseFilterEnum.Ignore };
+        col.AddThemeConstantOverride("separation", 0);
+        float w = sh.Inner;
+        sh.Text($"[b]Story · chapter {v.Chapter}: {Css.Esc(v.Title)}[/b]{(followed ? " · [b]followed[/b]" : "")}", Face.Hand, 22, followed || v.Status == "offered" ? 1 : 0.6f, bottom: 4, into: col, width: w);
         string where = Story.I.Goal() is { } g ? $" · to {Css.Esc(g.Label)}, {Metres(RunWords.Dist(g.At.X, g.At.Z, Jef.I.X, Jef.I.Z))}" : "";
-        sh.Text(Css.Esc(v.Objective) + where, Face.Print, 15, bottom: 4);
+        sh.Text(Css.Esc(v.Objective) + where, Face.Print, 15, bottom: 4, into: col, width: w);
+        if (v.Status != "done")
+        {
+            var line = new InkClick { Code = "KeyS", SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
+            line.AddChild(col);
+            sh.Add(line);
+        }
+        else sh.Add(col);
         foreach (var step in v.Steps) sh.Text(step.Done ? $"[s]{Css.Esc(step.Text)}[/s]" : "· " + Css.Esc(step.Text), Face.Print, 14, step.Done ? 0.55f : 0.9f);
         if (v.Facts.Count > 0)
         {
