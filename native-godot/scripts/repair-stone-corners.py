@@ -121,7 +121,8 @@ def dress(p, face, margin=0.022, proud=0.003, step=0.0018):
     face[p.code] = 1
 
 def chips(p, count, size=(0.006, 0.016)):
-    """Broken arrises: a few corners knocked in, never the same on two stones."""
+    """Broken arrises: a few corners knocked in, never the same on two stones; more and bigger on a worn house."""
+    count = count + int(round(p.wear * 3 * rng.random())); size = (size[0] * (1 + 0.6 * p.wear), size[1] * (1 + 0.8 * p.wear))
     # only the arrises' own vertices move: a moved corner of a flat face would bend the whole face
     movable = [v for v in p.bm.verts if v.link_faces and all(f[p.bev] for f in v.link_faces)]
     corners = [v for v in movable if len(v.link_faces) >= 3]
@@ -243,7 +244,7 @@ def step(fr, s0, s1, y0, y1, d0, d1):
             s, y, d = fr.local(v.co)
             if y > y1 - 1e-4:
                 u = 1 - min(1, abs(s - mid) / ((s1 - s0) * 0.42)); w = 1 - min(1, abs(d - (d0 + d1) / 2) / ((d1 - d0) * 0.6))
-                v.co.y -= 0.006 * (u * u * (3 - 2 * u)) * w
+                v.co.y -= (0.004 + 0.008 * p.wear) * (u * u * (3 - 2 * u)) * w  # (a poor house's step: worn deeper)
     chips(p, 1, (0.006, 0.014)); finish(p); pieces.append(p)
 
 def door(fr, rows, idx):
@@ -404,7 +405,7 @@ def classify_and_build():
             pts = [Vector(rows[i + k][:3]) for i in idx for k in range(3)]
             lo = Vector((min(p.x for p in pts), min(p.y for p in pts), min(p.z for p in pts))); hi = Vector((max(p.x for p in pts), max(p.y for p in pts), max(p.z for p in pts)))
             c = (lo + hi) / 2; wear = rows[idx[0]][13]
-            item = {'mesh': mesh, 'at': [round(c.x, 2), round(c.y, 2), round(c.z, 2)], 'triangles': len(idx)}
+            item = {'mesh': mesh, 'at': [round(c.x, 2), round(c.y, 2), round(c.z, 2)], 'triangles': len(idx), 'wear': round(wear, 2)}
             ns = normals_of(rows, idx)
             # a quoin course: two faces at right angles, both outward, one course high, round one corner
             strong = [x for x in ns if x[1] > 0.02]

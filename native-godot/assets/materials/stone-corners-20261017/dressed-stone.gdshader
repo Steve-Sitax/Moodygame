@@ -466,40 +466,57 @@ void fragment() {
 		}
 	}
 	if (dz) {
-		// weathering that follows its causes: soot crusts where the rain never washes, runoff streaks on open faces,
-		// grit on the tops, splash and muck at the foot, the bake's own shadow in the joints
+		// weathering that follows its causes and the neighbourhood: the house's wear (its class: 0.05-0.25 on the
+		// fine squares, 0.75-1.0 in the poor streets and alleys) and the street's own muck (the dirt map) decide
+		// how black the soot, how high the damp, how thick the splash; the fine squares are kept washed
 		vec3 wn = normalize((INV_VIEW_MATRIX * vec4(NORMAL, 0.0)).xyz);
 		float rain = dressed.z, ao = COLOR.r, wear = COLOR.a;
 		vec2 sw = vec2(psx_along(world, wn), world.y);
 		float n1 = pud_val(sw * 9.0 + dressed.y * 31.0), n2 = pud_val(sw * 2.3 - 7.0);
 		float under = smoothstep(-0.2, -0.8, wn.y), up = smoothstep(0.6, 0.95, wn.y), vert = 1.0 - abs(wn.y);
-		// the town's coal smoke: a grey film everywhere, heavier where the rain never washes it off, black gypsum
-		// crusts under the ledges and the mouldings
-		c.rgb *= mix(1.0, 0.80 + 0.12 * n2, (0.45 + 0.55 * wear));
-		// and in soft clouds, as it settled over the years (larger than one stone, so the blocks share it)
-		float cloud = smoothstep(0.3, 0.78, pud_val(sw / 1.3 + 7.1) * 0.7 + pud_val(sw / 0.45 - 3.3) * 0.3);
-		c.rgb *= mix(vec3(1.0), vec3(0.66, 0.64, 0.60), cloud * (0.45 + 0.55 * wear) * (0.6 + 0.4 * (1.0 - rain)));
+		vec2 out2 = normalize(wn.xz + 1e-5) * 0.6;
+		float street = texture(psx_dirt, (world.xz + out2 - psx_dirt_box.xy) / psx_dirt_box.zw).r;
+		float fine = max(max(max(psx_fine(world.xz, vec2(-254.0, 94.0), 48.0), psx_fine(world.xz, vec2(-262.0, 132.0), 32.0)), max(psx_fine(world.xz, vec2(-262.0, 175.0), 50.0), psx_fine(world.xz, vec2(-116.0, 160.0), 30.0))), psx_fine(world.xz, vec2(-300.0, 318.0), 45.0));
+		float a = clamp(wear * (0.8 + 0.6 * street) * mix(1.0, 0.4, fine), 0.0, 1.2);
+		float poor = smoothstep(0.45, 1.0, a);
 		float shelter = 1.0 - rain;
-		// (the black crust belongs under ledges and mouldings; an upright face out of the rain only greys)
-		float crust = clamp(shelter * shelter * (0.25 + 0.55 * under) + 0.12 * shelter * vert, 0.0, 1.0) * (0.5 + 0.5 * wear);
-		c.rgb *= mix(vec3(1.0), vec3(0.42, 0.40, 0.37), crust * (0.6 + 0.4 * n1));
+		// the town's coal smoke: a film everywhere, thick on a neglected house, and in soft clouds larger than a stone
+		c.rgb *= mix(1.0, 0.80 + 0.1 * n2, 0.3 + 0.7 * a);
+		c.rgb *= mix(1.0, 0.56 + 0.1 * n2, poor);
+		float cloud = smoothstep(0.3, 0.78, pud_val(sw / 1.3 + 7.1) * 0.7 + pud_val(sw / 0.45 - 3.3) * 0.3);
+		c.rgb *= mix(vec3(1.0), vec3(0.62, 0.60, 0.56), cloud * (0.25 + 0.75 * a) * (0.6 + 0.4 * shelter));
+		// black gypsum crusts under ledges and mouldings where the rain never washes; an upright face out of the
+		// rain only greys
+		float crust = clamp(shelter * shelter * (0.25 + 0.55 * under) + (0.12 + 0.25 * poor) * shelter * vert, 0.0, 1.0) * (0.3 + 0.9 * a);
+		c.rgb *= mix(vec3(1.0), vec3(0.30, 0.29, 0.27), clamp(crust, 0.0, 1.0) * (0.6 + 0.4 * n1));
 		// what the rain does wash runs down the faces: paler washed bands with dark edges where the dirt settles
 		float band = pud_val(vec2(sw.x / 0.05, sw.y / 0.9) + dressed.y * 13.0);
 		float streak = smoothstep(0.5, 0.85, band) * rain * vert;
 		float edge = smoothstep(0.42, 0.5, band) * (1.0 - smoothstep(0.5, 0.58, band)) * rain * vert;
-		c.rgb *= (1.0 + 0.10 * streak) * (1.0 - 0.22 * edge * (0.5 + wear));
-		c.rgb *= mix(1.0, 0.68 + 0.2 * n2, up * (0.45 + 0.55 * shelter));
-		c.rgb *= 1.0 - smoothstep(4.5, 14.0, world.y) * 0.16 * wear;
+		c.rgb *= (1.0 + 0.10 * streak * (1.0 - poor)) * (1.0 - 0.28 * edge * (0.35 + a));
+		// tops gather grit and soot where water stands
+		c.rgb *= mix(1.0, 0.70 + 0.2 * n2 - 0.15 * poor, up * (0.45 + 0.55 * shelter));
+		c.rgb *= 1.0 - smoothstep(4.5, 14.0, world.y) * (0.1 + 0.2 * a);
 		float gy = world.y - 0.12;
-		if (gy < 0.9) {
-			float splash = (1.0 - smoothstep(0.05, 0.42 + 0.15 * n2, gy)) * smoothstep(0.62, 0.8, pud_val(sw * vec2(14.0, 11.0) + dressed.y * 5.0)) * (1.0 - up);
-			float muck = (1.0 - smoothstep(0.0, 0.09 + 0.06 * n1, gy)) * vert;
-			float damp = dblue ? 0.0 : (1.0 - smoothstep(0.16 + 0.14 * n2, 0.30 + 0.14 * n2, gy)) * vert;
-			c.rgb *= mix(vec3(1.0), vec3(0.55, 0.50, 0.42), splash * 0.75);
-			c.rgb *= mix(vec3(1.0), vec3(0.42, 0.38, 0.30), muck * 0.7);
-			c.rgb *= mix(vec3(1.0), vec3(0.62, 0.64, 0.56), damp * 0.55);
+		if (gy < 1.4) {
+			// splash and street muck at the foot, higher and thicker where the street is foul
+			float reach = 0.3 + 0.35 * a;
+			float splash = (1.0 - smoothstep(0.05, reach + 0.15 * n2, gy)) * smoothstep(0.62 - 0.12 * a, 0.8 - 0.1 * a, pud_val(sw * vec2(14.0, 11.0) + dressed.y * 5.0)) * (1.0 - up);
+			float muck = (1.0 - smoothstep(0.0, 0.08 + 0.12 * a + 0.06 * n1, gy)) * vert;
+			c.rgb *= mix(vec3(1.0), vec3(0.52, 0.47, 0.38), splash * (0.5 + 0.4 * a));
+			c.rgb *= mix(vec3(1.0), vec3(0.36, 0.32, 0.25), muck * (0.5 + 0.35 * a));
+			// rising damp: the porous light stone drinks from the ground, 0.2 m on a kept house, 0.9 m on a poor one,
+			// ragged, green-black, with the salts left as a pale line where it dries
+			float top = 0.16 + 0.95 * a + 0.16 * (n2 - 0.5) + 0.06 * (n1 - 0.5);
+			float damp = dblue ? 0.0 : (1.0 - smoothstep(top - 0.12, top, gy)) * vert;
+			float salts = dblue ? 0.0 : smoothstep(top - 0.06, top - 0.01, gy) * (1.0 - smoothstep(top, top + 0.04, gy)) * vert * a;
+			c.rgb *= mix(vec3(1.0), vec3(0.42, 0.47, 0.37), damp * (0.35 + 0.55 * a));
+			c.rgb = mix(c.rgb, c.rgb * 1.18 + vec3(0.02), salts * 0.6);
+			// algae where it stays wet: the shaded foot of a neglected wall, the blue stone too
+			float algae = (1.0 - smoothstep(0.0, 0.18 + 0.3 * a, gy)) * vert * poor * (0.4 + 0.6 * shelter) * smoothstep(0.35, 0.7, n2);
+			c.rgb = mix(c.rgb, c.rgb * vec3(0.55, 0.72, 0.42), algae * 0.6);
 			// the blue stone's lime bloom where the damp dries out
-			if (dblue) c.rgb = mix(c.rgb, vec3(0.22, 0.22, 0.205), 0.3 * smoothstep(0.62, 0.86, pud_val(sw * vec2(6.0, 18.0))) * (1.0 - smoothstep(0.08, 0.34, gy)) * vert);
+			if (dblue) c.rgb = mix(c.rgb, vec3(0.22, 0.22, 0.205), (0.2 + 0.25 * a) * smoothstep(0.62, 0.86, pud_val(sw * vec2(6.0, 18.0))) * (1.0 - smoothstep(0.08, 0.34, gy)) * vert);
 		}
 		c.rgb *= mix(0.6, 1.0, ao);
 		// wet stone darkens where the rain reaches it; the porous light stone more than the blue
