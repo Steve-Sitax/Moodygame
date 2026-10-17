@@ -79,25 +79,26 @@ public partial class BoatLamps : Node
         lit+=((Daylight.I?.LampsLit??0)-lit)*(float)Math.Min(1,MoverClock.Dt*2);
         if (lit<=.005f)
         {
-            if (burning) { draw.ZeroAll(); foreach (var l in lamps) l.Spill?.Invoke(Vector3.Down*999,0); draw.Commit(); }
+            if (burning) { draw.ZeroAll(); foreach (var l in lamps) l.Spill?.Invoke(Vector3.Down*999,0); draw.Commit(); StageGlassOff(); }
             UpdateWindows(0);
-            burning=false; MoverCost.End("boat_lamps"); return;
+            burning=false; StageBurning=0; MoverCost.End("boat_lamps"); return;
         }
         UpdateWindows(lit);
         burning=true;
-        var eye=Main.I.Cam.GlobalPosition; float far=(Daylight.I?.FogFar??200)+15;
+        var eye=Main.I.Cam.GlobalPosition; float far=(Daylight.I?.FogFar??200)+15; int stage=0;
         for (int i=0;i<lamps.Count;i++)
         {
             var l=lamps[i];
-            if(!l.Visible()) {draw.Zero(i);l.Spill?.Invoke(Vector3.Down*999,0);continue;}
+            if(!l.Visible()) {draw.Zero(i);l.Spill?.Invoke(Vector3.Down*999,0);if(OnStage(i))StageGlass(i,default,0);continue;}
             var xf=l.World();
             bool near=new Vector2(xf.Origin.X-eye.X,xf.Origin.Z-eye.Z).LengthSquared()<far*far;
-            if (!near || lit<=.005f) {draw.Zero(i); l.Spill?.Invoke(Vector3.Down*999,0); continue;}
+            if (!near || lit<=.005f) {draw.Zero(i); l.Spill?.Invoke(Vector3.Down*999,0); if(OnStage(i))StageGlass(i,default,0); continue;}
             var at=xf*l.Local;
             float flick=.9f+.1f*MathF.Sin((float)MoverClock.T*7.3f+l.Phase)*MathF.Sin((float)MoverClock.T*3.1f+l.Phase*2);
             draw.Set(i,new Transform3D(Basis.Identity,at)); draw.Tint(i,Colors[l.Kind]*(lit*flick));
             l.Spill?.Invoke(at,lit>.05f?1:0);
+            if(OnStage(i)){stage++;StageGlass(i,xf,lit*flick);}
         }
-        draw.Commit(); MoverCost.End("boat_lamps");
+        StageBurning=stage; draw.Commit(); stageGlass?.Commit(); MoverCost.End("boat_lamps");
     }
 }

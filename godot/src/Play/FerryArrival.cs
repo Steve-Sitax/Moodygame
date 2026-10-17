@@ -63,6 +63,7 @@ public partial class FerryArrival:Node
         Movers.Boats.I.NameCopy(ferry,"ferry","st_anna");
         foreach(var n in BakedWorld.All(Main.I.World))if(n is Node3D n3&&(n3.Name.ToString() is "landing_stage" or "pontoon_section" or "pontoon_gangway"))n3.Visible=false;
         Movers.BoatLamps.I?.AddFerry(()=>ferry.GlobalTransform,()=>ferry.IsVisibleInTree());
+        Movers.BoatLamps.I?.AddStage(landing,()=>landing.GlobalTransform,()=>landing.IsVisibleInTree());
         foreach(var f in Movers.Boats.I.Floats)if(f.Kind=="pontoon_section")f.Outer.Visible=false;
         gangway=Piece(model,"gangway","arrival_gangway");bridge=Piece(model,"stage_bridge","arrival_bridge");lip=Piece(model,"bridge_lip","arrival_bridge_lip");hinge=Piece(model,"quay_hinge","arrival_quay_hinge");
         float Extra(string node,string key,float fallback)=>ModelExtras.Get("ferry",node,key) is {ValueKind:System.Text.Json.JsonValueKind.Number} n?n.GetSingle():fallback;
