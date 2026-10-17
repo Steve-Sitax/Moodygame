@@ -44,8 +44,11 @@ public static class NativeStoneCornersProof
                 try { GameState.I.Apply(await api.NewGame()); break; }
                 catch (ApiException) when (attempt < 4) { await Frames(30); }
             if (Jef.I is { Fly: false } player) player.ToggleFly();
+            notes.Add(new { mode = "memory", stage = "before candidate", bufferMemMB = Performance.GetMonitor(Performance.Monitor.RenderBufferMemUsed) / 1048576.0, videoMemMB = Performance.GetMonitor(Performance.Monitor.RenderVideoMemUsed) / 1048576.0 });
             var swaps = candidateFolder == "" ? new List<(MeshInstance3D node, Mesh before, Mesh after)>() : Candidate(game, Paths.Absolute(candidateFolder), notes);
             if (candidateFolder != "") Check("candidate meshes found in the town", swaps.Count > 0);
+            await Frames(10);
+            notes.Add(new { mode = "memory", stage = "candidate built", bufferMemMB = Performance.GetMonitor(Performance.Monitor.RenderBufferMemUsed) / 1048576.0, videoMemMB = Performance.GetMonitor(Performance.Monitor.RenderVideoMemUsed) / 1048576.0 });
             void Use(bool candidate) { foreach (var s in swaps) s.node.Mesh = candidate ? s.after : s.before; }
             // the town is drawn in its own SubViewport; the window's viewport only shows that picture
             var viewport = game.World.GetViewport().GetViewportRid();
@@ -65,7 +68,7 @@ public static class NativeStoneCornersProof
                     primitives = Math.Max(primitives, (long)RenderingServer.GetRenderingInfo(RenderingServer.RenderingInfo.TotalPrimitivesInFrame));
                 }
                 double P95(List<double> v) { var s = v.OrderBy(x => x).ToArray(); return s[(int)(s.Length * .95)]; }
-                return new { state, gpuMean = gpu.Average(), gpuP95 = P95(gpu), cpuMean = cpu.Average(), processMean = frame.Average(), frameMean = interval.Average(), frameP95 = P95(interval), drawCalls = calls, primitives };
+                return new { state, videoMemMB = Performance.GetMonitor(Performance.Monitor.RenderVideoMemUsed) / 1048576.0, bufferMemMB = Performance.GetMonitor(Performance.Monitor.RenderBufferMemUsed) / 1048576.0, gpuMean = gpu.Average(), gpuP95 = P95(gpu), cpuMean = cpu.Average(), processMean = frame.Average(), frameMean = interval.Average(), frameP95 = P95(interval), drawCalls = calls, primitives };
             }
             Camera3D? capture = null;
             foreach (var weather in new[] { "day", "rain", "night" })
@@ -139,11 +142,14 @@ public static class NativeStoneCornersProof
             foreach (var instance in instances.Where(m => m.Mesh!.ResourcePath == entry.Name))
             {
                 var old = instance.Mesh!; var mesh = new ArrayMesh { ResourceName = old.ResourceName };
-                foreach (var surface in entry.Value.EnumerateArray())
+                // (an entry is the surface list, or an object with it under "surfaces")
+                var list = entry.Value.ValueKind == JsonValueKind.Object ? entry.Value.GetProperty("surfaces") : entry.Value;
+                foreach (var surface in list.EnumerateArray())
                 {
                     if (surface.GetProperty("vertices").GetInt32() == 0) continue;
                     bool custom = surface.TryGetProperty("custom0", out var c) && c.GetBoolean();
-                    var flags = custom ? (Mesh.ArrayFormat)((long)Mesh.ArrayCustomFormat.RgFloat << (int)Mesh.ArrayFormat.FormatCustom0Shift) : 0;
+                    // the same vertex format as the town's meshes and the promotion: compressed attributes
+                    var flags = (custom ? (Mesh.ArrayFormat)((long)Mesh.ArrayCustomFormat.RgFloat << (int)Mesh.ArrayFormat.FormatCustom0Shift) : 0) | Mesh.ArrayFormat.FlagCompressAttributes;
                     mesh.AddSurfaceFromArrays(Mesh.PrimitiveType.Triangles, Rows(Path.Combine(folder, surface.GetProperty("file").GetString()!), custom, instance.GlobalTransform), null, null, flags);
                     string materialPath = surface.GetProperty("material").GetString()!;
                     mesh.SurfaceSetMaterial(mesh.GetSurfaceCount() - 1, materials.TryGetValue(materialPath, out var made) ? made : ResourceLoader.Load<Material>(materialPath));

@@ -1,16 +1,24 @@
 extends SceneTree
 # Issue #157: export one city chunk's house meshes as world-space rows (16 floats per vertex, the wall-circuit
 # format) for the Blender corner-stone repair. Usage: godot --headless --path . -s scripts/audit-stone-corners.gd
-#   -- <absolute output folder> <chunk prefix, e.g. city_-2_0>. Reads only; writes nothing inside the project.
+#   -- <absolute output folder> <node prefix: city_-2_0 for one chunk, city_ for the town> [material,material,...]
+# Only meshes with one of the materials are written (default: house stone, brick/plaster fronts, grime decals).
+# Reads only; writes nothing inside the project.
 func _initialize(): call_deferred("run")
 func run():
 	var args=OS.get_cmdline_user_args();var out=args[0];var prefix=args[1]
+	var wanted=(args[2] if args.size()>2 else "r000209.res,r000195.res,r000221.res").split(",")
 	DirAccess.make_dir_recursive_absolute(out+"/source")
 	var records=[]
 	var scene=load("res://world/town/roots/node-00004.scn").instantiate()
 	root.add_child(scene)
 	for node in scene.find_children("*","MeshInstance3D",true,false):
-		if not node.mesh or not (str(node.name)==prefix or str(node.name).begins_with(prefix+"_")):continue
+		if not node.mesh or not (str(node.name)==prefix or str(node.name).begins_with(prefix if prefix.ends_with("_") else prefix+"_")):continue
+		var hit=false
+		for s in node.mesh.get_surface_count():
+			var m=node.get_active_material(s)
+			if m and m.resource_path.get_file() in wanted:hit=true
+		if not hit:continue
 		var record={"node":str(node.name),"mesh":node.mesh.resource_path,"meshHash":FileAccess.get_sha256(node.mesh.resource_path),"visibilityEnd":node.visibility_range_end,"surfaces":[]}
 		for s in node.mesh.get_surface_count():
 			var mat=node.get_active_material(s)

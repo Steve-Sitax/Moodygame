@@ -1,9 +1,11 @@
-"""Issue #157: dressed corner stones, door and window surrounds and plinths for one town house.
-Run with Blender:  blender -b -P scripts/repair-stone-corners.py -- <audit folder> <house spec json> <candidate folder>
-Input is the world-space export of audit-stone-corners.gd (16 floats per vertex). Output is a review candidate in
-the wall-circuit format (manifest.json + .bin rows); the game builds it in memory (NativeStoneCornersProof).
-Scene nodes, transforms, permanent ids and every other triangle stay as they are; only the house's old stone boxes
-are replaced. Stone joints sit on the house's brick bed joints.
+"""Issue #157: dressed corner stones, door and window surrounds, sills, heads and plinths for the town's houses.
+Run with Blender, one city chunk at a time:
+  blender -b -P scripts/repair-stone-corners.py -- <audit folder> <chunk, e.g. city_-2_0> <brick beds json> <candidate folder> [x0 x1 z0 z1]
+Input is the world-space export of audit-stone-corners.gd (16 floats per vertex). Output is a review candidate in the
+wall-circuit format (manifest-<chunk>.json + .bin rows); the game builds it in memory (NativeStoneCornersProof) and
+the promotion saves it. Scene nodes, transforms, permanent ids and every other triangle stay as they are: only the old
+stone boxes are replaced. Each stone finds its wall in the brick or plaster face behind it; on brick its joints sit on
+that wall's bed joints. The optional box limits the repair to one house (the first review: Steenplein 1).
 """
 import array, hashlib, json, math, pathlib, random, sys
 import bmesh
@@ -11,42 +13,42 @@ from mathutils import Vector
 from mathutils.bvhtree import BVHTree
 
 args = sys.argv[sys.argv.index('--') + 1:]
-audit_dir, spec_path, out_dir = pathlib.Path(args[0]), pathlib.Path(args[1]), pathlib.Path(args[2])
+audit_dir, chunk, beds_path, out_dir = pathlib.Path(args[0]), args[1], pathlib.Path(args[2]), pathlib.Path(args[3])
+limit = [float(x) for x in args[4:8]] if len(args) >= 8 else None
 out_dir.mkdir(parents=True, exist_ok=True)
-spec = json.loads(spec_path.read_text())
 audit = json.loads((audit_dir / 'audit.json').read_text())
+BEDS = {int(k): v for k, v in json.loads(beds_path.read_text()).items()}
 UP = Vector((0, 1, 0))
 DRESSED = 'candidate:dressed_stone'
-report = {'house': spec['house'], 'items': [], 'kept': [], 'removedTriangles': {}, 'addedTriangles': {}}
+STONE, FACADE, DECAL = 'res://world/town/resources/r000209.res', 'res://world/town/resources/r000195.res', 'res://world/town/resources/r000221.res'
+report = {'chunk': chunk, 'items': [], 'kept': [], 'removedTriangles': {}, 'addedTriangles': {}}
+rng = random.Random(int(hashlib.sha256(chunk.encode()).hexdigest()[:8], 16))
+CUR = {'wear': 0.26}
 
-# ---------------------------------------------------------------- the house's frame
 class Front:
-    def __init__(self, f):
-        self.name = f['name']; a = Vector((f['a'][0], 0, f['a'][1])); b = Vector((f['b'][0], 0, f['b'][1]))
-        self.a, self.length = a, (b - a).length
-        self.t = (b - a).normalized(); self.n = Vector((f['out'][0], 0, f['out'][1])).normalized()
+    """A wall's frame: s along it, y up, d out of it (d = 0 on the wall's face). layer: its wall picture."""
+    def __init__(self, origin, t, n, layer=-1):
+        self.a, self.t, self.n, self.layer = origin, t.normalized(), n.normalized(), layer
     def world(self, s, y, d): return self.a + self.t * s + UP * y + self.n * d
     def local(self, p): q = p - self.a; return q.dot(self.t), p.y, q.dot(self.n)
-fronts = [Front(f) for f in spec['fronts']]
-corner = Vector((spec['corner'][0], 0, spec['corner'][1]))
-bed0, course = spec['brickBed'], spec['brickCourse']
-def bed(y): return bed0 + round((y - bed0) / course) * course  # nearest brick bed joint
-house_wear = spec.get('wear', 0.26)
+    def bed(self, y):
+        """The nearest bed joint of this wall's brick; plaster and stone walls keep the height."""
+        b = BEDS.get(int(round(self.layer)))
+        if b is None or self.layer > 4.5: return y
+        return b['bed0'] + round((y - b['bed0']) / b['pitch']) * b['pitch']
 
-# ---------------------------------------------------------------- rows in and out
 def load(name):
     a = array.array('f'); a.frombytes((audit_dir / 'source' / name).read_bytes())
     return [list(a[i:i + 16]) for i in range(0, len(a), 16)]
 def write(name, rows):
     (out_dir / name).write_bytes(array.array('f', (x for r in rows for x in r)).tobytes())
 
-# ---------------------------------------------------------------- geometry kit
-rng = random.Random(spec.get('seed', 1873))
-GROUP = ['r000380']  # the mesh the next pieces go to: the near-only detail, or the base mesh for the door
+GROUP = ['']  # the mesh the next pieces go to: the near-only detail, or the base mesh for the door
 class Piece:
     """One stone being built: a bmesh in world space and the face codes the shader reads (UV2.x)."""
     def __init__(self, kind, blue=False):
-        self.bm = bmesh.new(); self.kind = kind; self.blue = blue; self.rand = rng.random(); self.rand2 = rng.random(); self.group = GROUP[0]
+        self.bm = bmesh.new(); self.kind = kind; self.blue = blue; self.rand = rng.random(); self.rand2 = rng.random()
+        self.group = GROUP[0]; self.wear = CUR['wear']
         self.code = self.bm.faces.layers.int.new('code'); self.bev = self.bm.faces.layers.int.new('bevel')
         self.hidden = Hidden(self)
 
@@ -60,6 +62,7 @@ class Hidden:
     def __iter__(self): return iter([f for f in self.p.bm.faces if f[self.layer]])
     def __contains__(self, f): return f.is_valid and bool(f[self.layer])
 
+# ---------------------------------------------------------------- geometry kit
 def box(p, front, s0, s1, y0, y1, d0, d1):
     """A closed block in a front's frame; returns its faces by name."""
     bm = p.bm
@@ -119,19 +122,23 @@ def dress(p, face, margin=0.022, proud=0.003, step=0.0018):
 
 def chips(p, count, size=(0.006, 0.016)):
     """Broken arrises: a few corners knocked in, never the same on two stones."""
-    verts = [v for v in p.bm.verts if len(v.link_faces) >= 3 and not any(f in p.hidden for f in v.link_faces)]
-    if not verts: return
+    # only the arrises' own vertices move: a moved corner of a flat face would bend the whole face
+    movable = [v for v in p.bm.verts if v.link_faces and all(f[p.bev] for f in v.link_faces)]
+    corners = [v for v in movable if len(v.link_faces) >= 3]
+    if not corners: return
     for _ in range(count):
-        c = rng.choice(verts).co.copy(); r = rng.uniform(*size)
+        c = rng.choice(corners).co.copy(); r = rng.uniform(*size)
         inward = sum((f.normal for f in p.bm.faces if not f in p.hidden and (f.calc_center_median() - c).length < 0.2), Vector()).normalized()
-        for v in p.bm.verts:
+        for v in movable:
             dist = (v.co - c).length
             if dist < r: v.co -= inward * (r - dist) * 0.55
 
 def finish(p, front_like=None):
+    # outward normals while the stone is still closed; once its hidden faces are gone it is open and the
+    # recalculation could turn a whole region inside out (a reveal face lit from behind, black)
+    bmesh.ops.recalc_face_normals(p.bm, faces=p.bm.faces)
     gone = list(p.hidden)
     if gone: bmesh.ops.delete(p.bm, geom=gone, context='FACES_ONLY')
-    bmesh.ops.recalc_face_normals(p.bm, faces=p.bm.faces)
 
 pieces = []
 
@@ -142,7 +149,8 @@ def dressed_block(front, s0, s1, y0, y1, d0, d1, kind, blue=False, arris=0.008, 
     if not ends: p.hidden.update((f['start'], f['end']))
     if not top: p.hidden.add(f['top'])
     for k, face in f.items(): face[p.code] = 4
-    bevel(p, visible_edges(p, [f['front'], f['top'], f['bottom'], f['start'], f['end']]), arris * rng.uniform(0.8, 1.25))
+    # rounded (two facets) within reach of hands and eyes, one chamfer facet higher up
+    bevel(p, visible_edges(p, [f['front'], f['top'], f['bottom'], f['start'], f['end']]), arris * rng.uniform(0.8, 1.25), 2 if y0 < 2.2 else 1)
     if margin: dress(p, front.n.copy())
     chips(p, chip)
     finish(p); pieces.append(p); return p
@@ -163,126 +171,6 @@ def profile_stone(front, s0, s1, prof, kind, blue=False, arris=0.006):
     chips(p, 1, (0.004, 0.01))
     finish(p); pieces.append(p); return p
 
-# ---------------------------------------------------------------- find the house's old stone
-def components(rows, keep):
-    """Triangles near the house's fronts, welded within 1 mm and split into connected pieces."""
-    parent = {}
-    def F(a):
-        while parent.setdefault(a, a) != a: a = parent[a]
-        return a
-    tris = [i for i in range(0, len(rows), 3) if keep(rows[i:i + 3])]
-    key = lambda r: (round(r[0] * 1000), round(r[1] * 1000), round(r[2] * 1000))
-    for i in tris:
-        ks = [key(r) for r in rows[i:i + 3]]
-        for k in ks[1:]: parent[F(k)] = F(ks[0])
-    groups = {}
-    for i in tris: groups.setdefault(F(key(rows[i])), []).append(i)
-    return list(groups.values())
-
-def near_house(tri):
-    c = sum((Vector(r[:3]) for r in tri), Vector()) / 3
-    x0, x1, z0, z1, ymax = spec['box']
-    if not (x0 < c.x < x1 and z0 < c.z < z1 and c.y < ymax): return False
-    return any(abs(fr.local(c)[2]) < 0.6 and -0.6 < fr.local(c)[0] < fr.length + 0.6 for fr in fronts)
-
-def local_box(rows, idx, fr):
-    pts = [fr.local(Vector(rows[i + k][:3])) for i in idx for k in range(3)]
-    return [min(p[0] for p in pts), max(p[0] for p in pts), min(p[1] for p in pts), max(p[1] for p in pts), min(p[2] for p in pts), max(p[2] for p in pts)]
-
-def front_of(rows, idx):
-    """The front a piece lies on: the one whose plane it stays closest to (a reveal's sides face the other front)."""
-    reach = {fr.name: max(abs(fr.local(Vector(rows[i + k][:3]))[2]) for i in idx for k in range(3)) for fr in fronts}
-    best = min(reach, key=reach.get)
-    return next(fr for fr in fronts if fr.name == best), reach
-
-# ---------------------------------------------------------------- rebuild
-removed = {}
-def take(mesh, rows, idx): removed.setdefault(mesh, set()).update(idx)
-
-def ell(la, lb, pr, e):
-    """The plan of one quoin course: the arris, along B's face, into the wall, the inner corner, out along A's face."""
-    fa, fb = fronts
-    pts = [corner + fa.n * pr + fb.n * pr, corner + fb.t * lb + fb.n * pr, corner + fb.t * lb - fb.n * e,
-           corner - fa.n * e - fb.n * e, corner + fa.t * la - fa.n * e, corner + fa.t * la + fa.n * pr]
-    out = [(w.x, w.z) for w in pts]
-    # counter-clockwise seen from above (+y): x right, z towards the viewer
-    area = sum(out[i][0] * out[(i + 1) % 6][1] - out[(i + 1) % 6][0] * out[i][1] for i in range(6))
-    return out if area < 0 else list(reversed(out))
-
-def quoins(rows, mesh, groups):
-    """The corner's courses: each an L of stone round the corner, long and short in turn, on the brick beds."""
-    fa, fb = fronts  # A runs away from the corner along its t, B likewise (both start at the corner)
-    courses = []
-    for idx in groups:
-        pts = [Vector(rows[i + k][:3]) for i in idx for k in range(3)]
-        if max((p - Vector((corner.x, p.y, corner.z))).length for p in pts) > 0.75: continue
-        y0 = min(p.y for p in pts); y1 = max(p.y for p in pts)
-        if not (0.2 < y1 - y0 < 0.45) or y0 < 0.4: continue
-        la = max(fa.local(p)[0] for p in pts); lb = max(fb.local(p)[0] for p in pts)
-        pr = max(max(fa.local(p)[2] for p in pts), max(fb.local(p)[2] for p in pts))
-        courses.append((y0, y1, la, lb, pr, idx))
-    courses.sort()
-    if not courses: return
-    pitch = round((courses[1][0] - courses[0][0]) / course) * course if len(courses) > 1 else 6 * course
-    yb = bed(courses[0][0]); joint = 0.010; e = 0.012
-    for k, (y0, y1, la, lb, pr, idx) in enumerate(courses):
-        take(mesh, rows, idx)
-        c0 = yb + k * pitch + joint / 2; c1 = yb + (k + 1) * pitch - joint / 2
-        p = Piece('quoin')
-        sides, top, bottom = prism(p, ell(la, lb, pr, e), c0, c1, [])
-        bm = p.bm
-        def facing(nv): return max(sides, key=lambda f: f.normal.dot(nv))
-        front_a, front_b = facing(fa.n), facing(fb.n)
-        inner = [f for f in sides if f.normal.dot(fa.n) < -0.9 or f.normal.dot(fb.n) < -0.9]
-        p.hidden.update(inner)
-        for f in bm.faces: f[p.code] = 4
-        bevel(p, visible_edges(p, sides + [top, bottom]), 0.009 * rng.uniform(0.8, 1.3))
-        dress(p, fa.n.copy()); dress(p, fb.n.copy())
-        # the lower courses at a street corner take the knocks of wheels and loads
-        chips(p, 3 if c0 < 1.6 else 1, (0.008, 0.022) if c0 < 1.6 else (0.005, 0.012))
-        finish(p); pieces.append(p)
-        # the mortar bed over this course, set back from the stone faces
-        if k + 1 < len(courses):
-            m = Piece('mortar')
-            ms, mt, mb = prism(m, ell(min(la, courses[k + 1][2]), min(lb, courses[k + 1][3]), pr - 0.008, e), c1 - 0.001, c1 + joint + 0.001, [])
-            m.hidden.update([mt, mb] + [f for f in ms if f.normal.dot(fa.n) < -0.9 or f.normal.dot(fb.n) < -0.9])
-            for f in m.bm.faces: f[m.code] = 5
-            finish(m); pieces.append(m)
-    report['items'].append({'kind': 'quoin courses', 'count': len(courses), 'pitchMetres': pitch, 'firstBed': yb})
-
-def classify_and_build():
-    for mesh in ('r000377', 'r000380'):
-        GROUP[0] = mesh
-        rows = load(mesh + '-0.bin'); groups = components(rows, near_house)
-        report['mesh_' + mesh] = len(groups)
-        quoins(rows, mesh, groups) if mesh == 'r000380' else None
-        for idx in groups:
-            if mesh in removed and idx[0] in removed[mesh]: continue
-            fr, score = front_of(rows, idx); s0, s1, y0, y1, d0, d1 = local_box(rows, idx, fr)
-            w, h, d = s1 - s0, y1 - y0, d1 - d0
-            item = {'mesh': mesh, 'front': fr.name, 'box': [round(x, 3) for x in (s0, s1, y0, y1, d0, d1)], 'triangles': len(idx)}
-            if mesh == 'r000380' and abs(y0 - 0.12) < 0.03 and 0.3 < h < 0.45 and d1 < 0.08:
-                plinth(fr, s0, s1, y0, y1, d1); item['kind'] = 'plinth'
-            elif mesh == 'r000380' and 0.12 < h < 0.18 and 0.08 < d1 < 0.12 and w > 0.8:
-                sill(fr, s0, s1, y0, y1, d1); item['kind'] = 'window sill'
-            elif mesh == 'r000380' and 0.15 < h < 0.25 and 0.06 < d1 < 0.09 and w > 0.8:
-                dressed_block(fr, s0 + 0.004, s1 - 0.004, y0, y1, -0.012, d1, 'window head', under=True, arris=0.007); item['kind'] = 'window head'
-            elif mesh == 'r000380' and 0.12 < w < 0.2 and 0.22 < h < 0.32 and 0.11 < d1 < 0.15:
-                keystone(fr, s0, s1, y0, y1, d1); item['kind'] = 'keystone'
-            elif mesh == 'r000377' and d0 < -0.15 and h > 2.0 and w < 1.8 and 0.05 < d1 < 0.09:
-                door(fr, rows, idx); item['kind'] = 'door surround'
-            elif mesh == 'r000377' and -0.25 < d0 < -0.15 and abs(d1) < 0.01 and 1.6 < h < 2.6 and 1.2 < w < 2.6 and y0 > 0.5:
-                shop_surround(fr, s0, s1, y0, y1); report['kept'].append(dict(item, kind='shop window reveal (kept, architrave added)')); continue
-            elif mesh == 'r000377' and d0 < -0.15 and h < 0.25 and y0 < 0.05 and w < 1.6 and d1 < 0.15:
-                step(fr, s0, s1, y0, y1, d0, d1); item['kind'] = 'door step'
-            elif mesh == 'r000377' and 0.25 < h < 0.35 and 0.07 < d1 < 0.1 and y0 > 2.0:
-                lintel(fr, s0, s1, y0, y1, d1); item['kind'] = 'door lintel'
-            elif mesh == 'r000377' and h < 0.1 and 0.15 < d1 < 0.2 and y0 > 2.0:
-                hood(fr, s0, s1, y0, y1, d1); item['kind'] = 'door hood'
-            else:
-                report['kept'].append(item); continue
-            take(mesh, rows, idx); report['items'].append(item)
-
 def shop_surround(fr, s0, s1, y0, y1):
     """The stone architrave round a shop window, over the painted one: jambs, a head on the brick beds, a sill."""
     W, P = 0.14, 0.035
@@ -291,13 +179,11 @@ def shop_surround(fr, s0, s1, y0, y1):
                   (P + 0.036, sill_top - 0.02), (P + 0.03, sill_top - 0.012), (0.0, sill_top), (-0.012, sill_top)], 'shop sill')
     for a, b in ((s0 - W, s0), (s1, s1 + W)):
         dressed_block(fr, a, b, sill_top + 0.004, head0 - 0.005, -0.03, P, 'shop jamb', arris=0.006, under=True, chip=1)
-    dressed_block(fr, s0 - W - 0.02, s1 + W + 0.02, head0 + 0.005, bed(head0 + 0.19), -0.03, P + 0.008, 'shop head', under=True, arris=0.007)
+    dressed_block(fr, s0 - W - 0.02, s1 + W + 0.02, head0 + 0.005, fr.bed(head0 + 0.19), -0.03, P + 0.008, 'shop head', under=True, arris=0.007)
 
 def plinth(fr, s0, s1, y0, y1, d1):
     """Blue stone plinth blocks on the pavement, a weathered top that sheds the rain, joints every 0.6-0.9 m."""
-    top = bed(y1)
-    # the corner: the first front's stone wraps round it, the second's butts against it (the old pieces left a gap)
-    if s0 < 0.1: s0 = -d1 if fr is fronts[0] else 0.0
+    top = fr.bed(y1)
     n = max(1, round((s1 - s0) / 0.75)); cuts = [s0] + sorted(s0 + (s1 - s0) * (i + rng.uniform(-0.12, 0.12)) / n for i in range(1, n)) + [s1]
     for a, b in zip(cuts, cuts[1:]):
         p = Piece('plinth', blue=True); f = box(p, fr, a + 0.005, b - 0.005, y0, top, -0.012, d1)
@@ -368,7 +254,7 @@ def door(fr, rows, idx):
     # the jambs' widths: the front faces at d = P
     xs = sorted({round(p[0], 3) for p in pts if abs(p[2] - P) < 1e-3})
     J = xs[1] - xs[0] if len(xs) >= 4 else 0.2
-    beds = [0.0, bed(ys / 3), bed(2 * ys / 3), ys]
+    beds = [0.0, fr.bed(ys / 3), fr.bed(2 * ys / 3), ys]
     for a, b in ((s0, s0 + J), (s1 - J, s1)):
         inner_left = a > s0 + 1e-3
         for k, (y0, y1) in enumerate(zip(beds, beds[1:])):
@@ -386,28 +272,283 @@ def door(fr, rows, idx):
                 for face in g.values(): face[m.code] = 5
                 finish(m); pieces.append(m)
 
+
+# ---------------------------------------------------------------- the chunk's walls
+records = [r for r in audit if r['node'] == chunk or r['node'].startswith(chunk + '_')]
+def surfaces_of(material):
+    return [(r, s) for r in records for s in r['surfaces'] if s['material'] == material]
+stone_meshes = [(pathlib.Path(r['mesh']).stem, s) for r, s in surfaces_of(STONE)]
+
+# every upright facade triangle, by 2 m cell, with its plane and its wall picture (CUSTOM0.x)
+walls, wall_tris = {}, []
+for r, s in surfaces_of(FACADE):
+    rows = load(s['file'])
+    for i in range(0, len(rows), 3):
+        tri = rows[i:i + 3]; a, b, c = (Vector(x[:3]) for x in tri)
+        wall_tris.append((a, b, c))
+        n = sum((Vector(x[3:6]) for x in tri), Vector())
+        if n.length < 1e-6 or abs(n.normalized().y) > 0.2: continue
+        n.y = 0; n.normalize()
+        lo = Vector((min(a.x, b.x, c.x), min(a.y, b.y, c.y), min(a.z, b.z, c.z))); hi = Vector((max(a.x, b.x, c.x), max(a.y, b.y, c.y), max(a.z, b.z, c.z)))
+        w = (n, (a + b + c).dot(n) / 3, lo, hi, tri[0][14])
+        for cx in range(math.floor((lo.x - 0.7) / 2), math.floor((hi.x + 0.7) / 2) + 1):
+            for cz in range(math.floor((lo.z - 0.7) / 2), math.floor((hi.z + 0.7) / 2) + 1):
+                walls.setdefault((cx, cz), []).append(w)
+
+def wall_at(p, n, reach=0.35):
+    """The facade plane facing n nearest behind or in front of point p: (offset along n, wall picture) or None."""
+    best = None
+    for wn, off, lo, hi, layer in walls.get((math.floor(p.x / 2), math.floor(p.z / 2)), []):
+        if wn.dot(n) < 0.995: continue
+        gap = p.dot(wn) - off
+        if abs(gap) > reach: continue
+        if not (lo.x - 0.7 < p.x < hi.x + 0.7 and lo.z - 0.7 < p.z < hi.z + 0.7 and lo.y - 1.5 < p.y < hi.y + 1.5): continue
+        if best is None or abs(gap) < abs(best[0]): best = (gap, off, layer, wn)
+    return None if best is None else (best[1], best[2], best[3])
+
+def front_for(n, off, layer):
+    return Front(n * off, Vector((-n.z, 0, n.x)), n, layer)
+
+def components(rows):
+    """The stone triangles welded within 1 mm and split into connected pieces (each old box or group of boxes)."""
+    parent = {}
+    def F(a):
+        while parent.setdefault(a, a) != a: a = parent[a]
+        return a
+    def inside(tri):
+        if limit is None: return True
+        c = sum((Vector(r[:3]) for r in tri), Vector()) / 3
+        return limit[0] < c.x < limit[1] and limit[2] < c.z < limit[3]
+    tris = [i for i in range(0, len(rows), 3) if inside(rows[i:i + 3])]
+    key = lambda r: (round(r[0] * 1000), round(r[1] * 1000), round(r[2] * 1000))
+    for i in tris:
+        ks = [key(r) for r in rows[i:i + 3]]
+        for k in ks[1:]: parent[F(k)] = F(ks[0])
+    groups = {}
+    for i in tris: groups.setdefault(F(key(rows[i])), []).append(i)
+    return list(groups.values())
+
+def normals_of(rows, idx):
+    """Area-weighted horizontal normals of a piece's upright faces, by direction."""
+    cl = {}
+    for i in idx:
+        a, b, c = (Vector(rows[i + k][:3]) for k in range(3)); area = (b - a).cross(c - a).length / 2
+        n = sum((Vector(rows[i + k][3:6]) for k in range(3)), Vector())
+        if area < 1e-9 or n.length < 1e-6: continue
+        n.normalize()
+        if abs(n.y) > 0.3: continue
+        n.y = 0; n.normalize(); k = (round(n.x, 1), round(n.z, 1))
+        e = cl.setdefault(k, [Vector(), 0.0]); e[0] += n * area; e[1] += area
+    return sorted(((v.normalized(), a) for v, a in cl.values()), key=lambda x: -x[1])
+
+def local_box(rows, idx, fr):
+    pts = [fr.local(Vector(rows[i + k][:3])) for i in idx for k in range(3)]
+    return [min(p[0] for p in pts), max(p[0] for p in pts), min(p[1] for p in pts), max(p[1] for p in pts), min(p[2] for p in pts), max(p[2] for p in pts)]
+
+removed = {}
+def take(mesh, idx): removed.setdefault(mesh, set()).update(idx)
+corners = []
+
+def ell(fa, fb, corner, la, lb, pr, e):
+    """The plan of one quoin course: the arris, along B's face, into the wall, the inner corner, out along A's face."""
+    pts = [corner + fa.n * pr + fb.n * pr, corner + fb.t * lb + fb.n * pr, corner + fb.t * lb - fb.n * e,
+           corner - fa.n * e - fb.n * e, corner + fa.t * la - fa.n * e, corner + fa.t * la + fa.n * pr]
+    out = [(w.x, w.z) for w in pts]
+    area = sum(out[i][0] * out[(i + 1) % 6][1] - out[(i + 1) % 6][0] * out[i][1] for i in range(6))
+    return out if area < 0 else list(reversed(out))
+
+def quoin_corner(fa, fb, corner, courses, mesh):
+    """One corner's courses: each an L of stone round the corner, long and short in turn, on the brick beds."""
+    joint, e = 0.010, 0.012
+    courses.sort(key=lambda c: c[0])
+    pitch_raw = (courses[1][0] - courses[0][0]) if len(courses) > 1 else courses[0][1] - courses[0][0] + 0.02
+    GROUP[0] = mesh
+    for k, (y0, y1, la, lb, pr, idx, wear) in enumerate(courses):
+        take(mesh, idx); CUR['wear'] = wear
+        c0 = fa.bed(y0) + joint / 2; c1 = fa.bed(y0 + pitch_raw) - joint / 2
+        if not 0.12 < c1 - c0 < 0.6: c0, c1 = y0, y1
+        p = Piece('quoin')
+        sides, top, bottom = prism(p, ell(fa, fb, corner, la, lb, pr, e), c0, c1, [])
+        p.hidden.update([f for f in sides if f.normal.dot(fa.n) < -0.9 or f.normal.dot(fb.n) < -0.9])
+        for f in p.bm.faces: f[p.code] = 4
+        bevel(p, visible_edges(p, sides + [top, bottom]), 0.009 * rng.uniform(0.8, 1.3), 2 if c0 < 2.2 else 1)
+        dress(p, fa.n.copy()); dress(p, fb.n.copy())
+        # the lower courses at a street corner take the knocks of wheels and loads
+        chips(p, 3 if c0 < 1.6 else 1, (0.008, 0.022) if c0 < 1.6 else (0.005, 0.012))
+        finish(p); pieces.append(p)
+        if k + 1 < len(courses):
+            m = Piece('mortar')
+            ms, mt, mb = prism(m, ell(fa, fb, corner, min(la, courses[k + 1][2]), min(lb, courses[k + 1][3]), pr - 0.008, e), c1 - 0.001, c1 + joint + 0.001, [])
+            m.hidden.update([mt, mb] + [f for f in ms if f.normal.dot(fa.n) < -0.9 or f.normal.dot(fb.n) < -0.9])
+            for f in m.bm.faces: f[m.code] = 5
+            finish(m); pieces.append(m)
+    report['items'].append({'kind': 'quoin corner', 'courses': len(courses), 'corner': [round(corner.x, 3), round(corner.z, 3)], 'layer': fa.layer,
+                            'n': [round((fa.n + fb.n).normalized().x, 3), round((fa.n + fb.n).normalized().z, 3)], 'top': round(courses[-1][1], 2)})
+
+def plane_corner(fa, fb):
+    """Where two wall faces meet (in plan)."""
+    det = fa.n.x * fb.n.z - fa.n.z * fb.n.x
+    o1, o2 = fa.a.dot(fa.n), fb.a.dot(fb.n)
+    return Vector(((o1 * fb.n.z - o2 * fa.n.z) / det, 0, (fa.n.x * o2 - fb.n.x * o1) / det))
+
+def classify_and_build():
+    plinths, shops, heads = [], [], []
+    for mesh, s in stone_meshes:
+        GROUP[0] = mesh
+        rows = load(s['file']); groups = components(rows)
+        report['pieces_' + mesh] = len(groups)
+        quoin_groups, singles = {}, []
+        for idx in groups:
+            GROUP[0] = mesh
+            pts = [Vector(rows[i + k][:3]) for i in idx for k in range(3)]
+            lo = Vector((min(p.x for p in pts), min(p.y for p in pts), min(p.z for p in pts))); hi = Vector((max(p.x for p in pts), max(p.y for p in pts), max(p.z for p in pts)))
+            c = (lo + hi) / 2; wear = rows[idx[0]][13]
+            item = {'mesh': mesh, 'at': [round(c.x, 2), round(c.y, 2), round(c.z, 2)], 'triangles': len(idx)}
+            ns = normals_of(rows, idx)
+            # a quoin course: two faces at right angles, both outward, one course high, round one corner
+            strong = [x for x in ns if x[1] > 0.02]
+            pair = next(((a, b) for i, a in enumerate(strong) for b in strong[i + 1:] if abs(a[0].dot(b[0])) < 0.05 and (a[0] + b[0]).length > 1.3), None)
+            if pair and 0.2 < hi.y - lo.y < 0.45 and (Vector((hi.x - lo.x, hi.z - lo.z))).length < 1.2 and lo.y > 0.3:
+                (na, _), (nb, _) = sorted(pair, key=lambda x: math.atan2(x[0].z, x[0].x))
+                if abs(math.atan2(na.z, na.x) - math.atan2(nb.z, nb.x)) > math.pi: na, nb = nb, na  # (the pair across the -x axis)
+                wa, wb = wall_at(c, na, 0.6), wall_at(c, nb, 0.6)
+                if wa and wb:
+                    na, nb = wa[2], wb[2]
+                    fa0 = Front(na * wa[0], Vector((-na.z, 0, na.x)), na, wa[1]); fb0 = Front(nb * wb[0], Vector((-nb.z, 0, nb.x)), nb, wb[1])
+                    corner = plane_corner(fa0, fb0)
+                    key = (round(corner.x * 20), round(corner.z * 20), round(na.x, 1), round(na.z, 1), round(nb.x, 1), round(nb.z, 1))
+                    fa = Front(corner, -nb, na, wa[1]); fb = Front(corner, -na, nb, wb[1])
+                    la = max(fa.local(p)[0] for p in pts); lb = max(fb.local(p)[0] for p in pts)
+                    pr = max(max(fa.local(p)[2] for p in pts), max(fb.local(p)[2] for p in pts))
+                    if 0.1 < la < 0.8 and 0.1 < lb < 0.8 and 0.03 < pr < 0.15:
+                        quoin_groups.setdefault(key, (fa, fb, corner, []))[3].append((lo.y, hi.y, la, lb, pr, idx, wear))
+                        continue
+            # the piece's front: the area-weighted outward normal of its upright faces
+            tot = sum((n * a for n, a in ns), Vector())
+            n = None
+            if tot.length > 1e-3: n = tot.normalized()
+            elif ns:
+                # a reveal: its sides cancel; its mouth lies in the wall it goes into
+                side = ns[0][0]
+                for cand in (Vector((side.z, 0, -side.x)), Vector((-side.z, 0, side.x))):
+                    w = wall_at(c, cand, 0.4)
+                    if w and -0.02 < max(p.dot(w[2]) for p in pts) - w[0] < 0.02 and min(p.dot(w[2]) for p in pts) - w[0] < -0.1: n = cand; break
+            if n is None: report['kept'].append(dict(item, kind='no front')); continue
+            w = wall_at(c, n, 0.45)
+            if not w and abs(abs(n.x) - abs(n.z)) > 0.3:
+                cand = Vector((round(n.x), 0, round(n.z))).normalized(); w = wall_at(c, cand, 0.45)
+            if not w: report['kept'].append(dict(item, kind='no wall')); continue
+            fr = front_for(w[2], w[0], w[1]); s0, s1, y0, y1, d0, d1 = local_box(rows, idx, fr)
+            wd, h = s1 - s0, y1 - y0
+            item.update(box=[round(x, 3) for x in (s0, s1, y0, y1, d0, d1)], layer=w[1], n=[round(fr.n.x, 3), round(fr.n.z, 3)])
+            CUR['wear'] = wear
+            kind = None
+            if abs(y0 - 0.12) < 0.05 and 0.3 < h < 0.45 and -0.02 < d0 and d1 < 0.08 and wd > 0.15:
+                plinths.append((fr, s0, s1, y0, y1, d1, mesh, idx, wear)); kind = 'plinth'
+            elif 0.12 < h < 0.19 and 0.08 < d1 < 0.12 and wd > 0.6 and d0 > -0.02:
+                sill(fr, s0, s1, y0, y1, d1); kind = 'window sill'
+            elif 0.15 < h < 0.25 and 0.06 < d1 < 0.09 and wd > 0.6 and d0 > -0.02:
+                dressed_block(fr, s0 + 0.004, s1 - 0.004, y0, y1, -0.012, d1, 'window head', under=True, arris=0.007); kind = 'window head'
+                heads.append((fr, s0, s1, y0))
+            elif 0.12 < wd < 0.2 and 0.22 < h < 0.38 and 0.11 < d1 < 0.15 and d0 > -0.02:
+                keystone(fr, s0, s1, y0, y1, d1); kind = 'keystone'
+            elif 0.12 < h < 0.16 and 0.06 < d1 < 0.09 and wd > 0.6 and d0 > -0.02:
+                dressed_block(fr, s0, s1, y0, y1, -0.012, d1, 'frieze', under=True, arris=0.006, margin=False); kind = 'frieze'
+            elif 0.08 < h < 0.12 and 0.13 < d1 < 0.17 and wd > 0.6 and d0 > -0.02 and y0 > 1.0:
+                hood(fr, s0, s1, y0, y1, d1); kind = 'hood'
+            elif 0.15 < wd < 0.45 and 0.25 < h < 0.4 and 0.06 < d1 < 0.1 and d0 > -0.02 and y0 > 0.3:
+                # half of a quoin course whose two halves were made as separate boxes: paired below
+                singles.append((fr, s0, s1, y0, y1, d1, idx, wear, pts)); continue
+            elif d0 < -0.15 and h > 2.0 and wd < 1.9 and 0.05 < d1 < 0.1 and y0 < 0.05:
+                ys_front = {round(fr.local(Vector(rows[i + k][:3]))[1], 2) for i in idx for k in range(3) if abs(fr.local(Vector(rows[i + k][:3]))[2] - d1) < 1e-3}
+                if len(ys_front) <= 6: door(fr, rows, idx); kind = 'door surround'
+            elif -0.25 < d0 < -0.15 and abs(d1) < 0.01 and 1.4 < h < 2.8 and 1.0 < wd < 2.8 and y0 > 0.4:
+                shops.append((fr, s0, s1, y0, y1, mesh, wear)); report['kept'].append(dict(item, kind='shop window reveal')); continue
+            elif d0 < -0.15 and h < 0.25 and y0 < 0.05 and wd < 1.8 and d1 < 0.15:
+                step(fr, s0, s1, y0, y1, d0, d1); kind = 'door step'
+            elif 0.25 < h < 0.35 and 0.07 < d1 < 0.11 and y0 > 2.0 and d0 > -0.02:
+                lintel(fr, s0, s1, y0, y1, d1); kind = 'door lintel'
+            elif h < 0.1 and 0.15 < d1 < 0.2 and y0 > 2.0 and d0 > -0.02:
+                hood(fr, s0, s1, y0, y1, d1); kind = 'door hood'
+            if kind is None: report['kept'].append(dict(item, kind='unclassified')); continue
+            if kind == 'plinth': continue  # (built, taken and reported with its corner below)
+            take(mesh, idx); item['kind'] = kind; report['items'].append(item)
+        # the halves of one course meet at a corner: one L stone round it, as on the welded corners
+        used = set()
+        for i, (fr, s0, s1, y0, y1, d1, idx, wear, pts) in enumerate(singles):
+            if i in used: continue
+            for j in range(i + 1, len(singles)):
+                fr2, t0, t1, z0, z1, e1, idx2, wear2, pts2 = singles[j]
+                if j in used or abs(fr.n.dot(fr2.n)) > 0.05 or abs(y0 - z0) > 0.02 or abs(y1 - z1) > 0.02: continue
+                corner = plane_corner(fr, fr2); sc, tc = fr.local(corner)[0], fr2.local(corner)[0]
+                if not (s0 - 0.12 < sc < s1 + 0.12 and t0 - 0.12 < tc < t1 + 0.12): continue
+                # A's face runs away from the corner, opposite B's outward normal, and the other way round
+                fa = Front(corner, -fr2.n, fr.n, fr.layer); fb = Front(corner, -fr.n, fr2.n, fr2.layer)
+                both = pts + pts2
+                la = max(fa.local(p)[0] for p in both); lb = max(fb.local(p)[0] for p in both)
+                pr = max(max(fa.local(p)[2] for p in both), max(fb.local(p)[2] for p in both))
+                if not (0.1 < la < 0.8 and 0.1 < lb < 0.8): continue
+                key = (round(corner.x * 20), round(corner.z * 20), round(fa.n.x, 1), round(fa.n.z, 1), round(fb.n.x, 1), round(fb.n.z, 1))
+                alt = (key[0], key[1], key[4], key[5], key[2], key[3])
+                if alt in quoin_groups:  # (the same corner seen the other way round)
+                    fa, fb = fb, fa; la, lb = lb, la; key = alt
+                quoin_groups.setdefault(key, (fa, fb, corner, []))[3].append((min(y0, z0), max(y1, z1), la, lb, pr, idx + idx2, wear))
+                used.update((i, j)); break
+        for i, (fr, s0, s1, y0, y1, d1, idx, wear, pts) in enumerate(singles):
+            if i in used: continue
+            # a quoin whose other face is no front: one dressed stone on the brick beds
+            CUR['wear'] = wear; a0, a1 = fr.bed(y0) + 0.005, fr.bed(y1 + 0.02) - 0.005
+            if not 0.15 < a1 - a0 < 0.5: a0, a1 = y0, y1
+            dressed_block(fr, s0, s1, a0, a1, -0.012, d1, 'quoin', arris=0.009, chip=2); take(mesh, idx)
+            report['items'].append({'mesh': mesh, 'kind': 'single quoin', 'at': [round(x, 2) for x in fr.world((s0 + s1) / 2, y0, 0)], 'n': [round(fr.n.x, 3), round(fr.n.z, 3)]})
+        for fa, fb, corner, courses in quoin_groups.values():
+            corners.append(corner); quoin_corner(fa, fb, corner, courses, mesh)
+    # plinths: at an outer corner one front's stone wraps round it and the other's butts against it
+    ends = {}
+    for k, (fr, s0, s1, *_a) in enumerate(plinths):
+        for j, (fr2, t0, t1, *_b) in enumerate(plinths):
+            if j <= k or k in ends or j in ends or abs(fr.n.dot(fr2.n)) > 0.05 or (fr.n + fr2.n).length < 1.3: continue
+            corner = plane_corner(fr, fr2); sc, tc = fr.local(corner)[0], fr2.local(corner)[0]
+            if min(abs(s0 - sc), abs(s1 - sc)) < 0.15 and min(abs(t0 - tc), abs(t1 - tc)) < 0.15 and abs(corner.x - (fr.world(sc, 0, 0)).x) < 0.01:
+                ends[k] = ('wrap', sc, 0 if abs(s0 - sc) < abs(s1 - sc) else 1); ends[j] = ('butt', tc, 0 if abs(t0 - tc) < abs(t1 - tc) else 1)
+    for k, (fr, s0, s1, y0, y1, d1, mesh, idx, wear) in enumerate(plinths):
+        GROUP[0] = mesh; CUR['wear'] = wear
+        if k in ends:
+            mode, sc, which = ends[k]
+            if which == 0: s0 = sc - (d1 if mode == 'wrap' else 0.0)
+            else: s1 = sc + (d1 if mode == 'wrap' else 0.0)
+        plinth(fr, s0, s1, y0, y1, d1); take(mesh, idx)
+        report['items'].append({'mesh': mesh, 'kind': 'plinth', 'corner': ends.get(k, [None])[0]})
+    # a shop window's painted surround gets a stone architrave, unless it already has a stone head
+    for fr, s0, s1, y0, y1, mesh, wear in shops:
+        if any(h[0].n.dot(fr.n) > 0.999 and abs(h[0].a.dot(fr.n) - fr.a.dot(fr.n)) < 0.05 and fr.local(h[0].world(h[1], 0, 0))[0] < s1 and fr.local(h[0].world(h[2], 0, 0))[0] > s0 and 0 < h[3] - y1 < 0.4 for h in heads): continue
+        GROUP[0] = mesh; CUR['wear'] = wear
+        shop_surround(fr, s0, s1, y0, y1)
+        report['items'].append({'kind': 'shop architrave', 'at': [round(x, 2) for x in fr.world((s0 + s1) / 2, y0, 0)]})
+
 classify_and_build()
 
 # ---------------------------------------------------------------- rows for the game
 for p in pieces: bmesh.ops.triangulate(p.bm, faces=p.bm.faces[:]); p.bm.normal_update(); p.bm.verts.index_update()
-# occluders for the bake: every new stone, the wall planes and the pavement
+# occluders for the bake: the new stone, the walls and the stone that stays (pavement aprons, cornices, steps)
 verts, polys = [], []
 for p in pieces:
     base = len(verts); verts += [v.co.copy() for v in p.bm.verts]
     polys += [[base + v.index for v in f.verts] for f in p.bm.faces]
-for fr in fronts:
-    base = len(verts); verts += [fr.world(-0.5, -0.1, -0.002), fr.world(fr.length + 0.5, -0.1, -0.002), fr.world(fr.length + 0.5, 12, -0.002), fr.world(-0.5, 12, -0.002)]
-    polys.append([base, base + 1, base + 2, base + 3])
-base = len(verts); x0, x1, z0, z1, _ = spec['box']
-verts += [Vector((x0 - 3, 0.119, z0 - 3)), Vector((x1 + 3, 0.119, z0 - 3)), Vector((x1 + 3, 0.119, z1 + 3)), Vector((x0 - 3, 0.119, z1 + 3))]
-polys.append([base, base + 1, base + 2, base + 3])
+for a, b, c in wall_tris:
+    base = len(verts); verts += [a, b, c]; polys.append([base, base + 1, base + 2])
+for mesh, s in stone_meshes:
+    rows = load(s['file']); gone = removed.get(mesh, set())
+    for i in range(0, len(rows), 3):
+        if i in gone: continue
+        base = len(verts); verts += [Vector(rows[i + k][:3]) for k in range(3)]; polys.append([base, base + 1, base + 2])
 tree = BVHTree.FromPolygons(verts, polys, epsilon=0.0)
 golden = math.pi * (3 - math.sqrt(5))
-dirs = [(lambda y, i: Vector((math.cos(golden * i) * math.sqrt(1 - y * y), y, math.sin(golden * i) * math.sqrt(1 - y * y))))(1 - 2 * (i + 0.5) / 96, i) for i in range(96)]
+dirs = [(lambda y, i: Vector((math.cos(golden * i) * math.sqrt(1 - y * y), y, math.sin(golden * i) * math.sqrt(1 - y * y))))(1 - 2 * (i + 0.5) / 64, i) for i in range(64)]
 cache = {}
 def occlusion(co, n):
     """(how open the point is to the sky's light within 0.3 m, how open it is to the falling rain within 2.5 m)"""
-    key = (round(co.x, 4), round(co.y, 4), round(co.z, 4), round(n.x, 2), round(n.y, 2), round(n.z, 2))
+    key = (round(co.x, 3), round(co.y, 3), round(co.z, 3), round(n.x, 1), round(n.y, 1), round(n.z, 1))
     if key in cache: return cache[key]
     o = co + n * 0.002; hit = tot = 0.0; rain = raintot = 0
     for d in dirs:
@@ -415,8 +556,8 @@ def occlusion(co, n):
         if c <= 0.05: continue
         tot += c
         # (the mason's 3 mm steps are not shade: only what stands more than 8 mm off counts)
-        hit_at = tree.ray_cast(o, d, 0.30)
-        if hit_at[0] is not None and hit_at[3] > 0.008: hit += c
+        at = tree.ray_cast(o, d, 0.30)
+        if at[0] is not None and at[3] > 0.008: hit += c
         if d.y > 0.64:  # rain falling within 50 degrees of the vertical
             raintot += 1
             if tree.ray_cast(o, d, 2.5)[0] is None: rain += 1
@@ -428,28 +569,27 @@ def bake_rows(group):
     the face code and the stone's dice in UV2, sky light in COLOR.rgb, the house's wear in COLOR.a, rain in CUSTOM0.x."""
     rows = []
     for p in (p for p in pieces if p.group == group):
-        bm = p.bm; loop_normal = {}
-        for f in bm.faces:
-            for l in f.loops:
-                if f[p.bev]:
-                    acc = Vector()
-                    for g in l.vert.link_faces:
-                        if g.normal.dot(f.normal) > math.cos(math.radians(50)): acc += g.normal * g.calc_area()
-                    loop_normal[l] = acc.normalized() if acc.length > 1e-12 else f.normal.copy()
-                else: loop_normal[l] = f.normal.copy()
+        bm = p.bm
+        def loop_normal(f, v):
+            """Flat on the stone's faces, rounded across a bevel's facets (and onto the faces they join)."""
+            if not f[p.bev]: return f.normal.copy()
+            acc = Vector()
+            for g in v.link_faces:
+                if g.normal.dot(f.normal) > math.cos(math.radians(50)): acc += g.normal * g.calc_area()
+            return acc.normalized() if acc.length > 1e-12 else f.normal.copy()
         ou, ov = p.rand * 0.731, p.rand2 * 0.613
         for f in bm.faces:
             n = f.normal; code = f[p.code]
             if p.kind == 'mortar': code = code if code in (5, 15) else 5
             elif p.blue: code += 10
             tri = []
-            for l in f.loops:
-                co, nn = l.vert.co, loop_normal[l]
+            for v in f.verts:
+                co, nn = v.co, loop_normal(f, v)
                 if abs(n.y) > 0.7: u, v = co.x / 1.2, co.z / 1.2
                 else:
                     across = Vector((n.z, 0, -n.x)).normalized(); u, v = co.dot(across) / 1.2, -co.y / 1.2
                 ao, rain = occlusion(co, nn)
-                tri.append([co.x, co.y, co.z, nn.x, nn.y, nn.z, u + ou, v + ov, float(code), p.rand, ao, ao, ao, house_wear, rain, p.rand2])
+                tri.append([co.x, co.y, co.z, nn.x, nn.y, nn.z, u + ou, v + ov, float(code), p.rand, ao, ao, ao, p.wear, rain, p.rand2])
             # Godot's front faces wind clockwise: (p2 - p0) x (p1 - p0) along the face normal
             if (Vector(tri[2][:3]) - Vector(tri[0][:3])).cross(Vector(tri[1][:3]) - Vector(tri[0][:3])).dot(n) < 0: tri[1], tri[2] = tri[2], tri[1]
             # integer tile offsets keep the picture's phase and the small faces' UVs precise
@@ -458,35 +598,45 @@ def bake_rows(group):
             rows += tri
     return rows
 
-new_rows = {g: bake_rows(g) for g in ('r000377', 'r000380')}
+new_rows = {mesh: bake_rows(mesh) for mesh, _ in stone_meshes}
 
 # ---------------------------------------------------------------- the manifest: whole meshes, old stone removed
-manifest = {'materials': {DRESSED: {'base': 'res://world/town/resources/r000209.res', 'shader': 'res://assets/materials/stone-corners-20261017/dressed-stone.gdshader',
-                                    'params': {'stone_tex': 'res://assets/materials/environment-20261013/stair-stone-texture.res'}}}}
-for rec in audit:
+manifest = {}
+for rec in records:
     mesh = pathlib.Path(rec['mesh']).stem
-    if mesh not in ('r000377', 'r000380', 'r000378'): continue
+    touched = mesh in new_rows or any(s['material'] == DECAL for s in rec['surfaces'])
+    if not touched: continue
     surfaces = []
     for s in rec['surfaces']:
         rows = load(s['file'])
-        gone = removed.get(mesh, set())
-        if mesh == 'r000378':
-            # the flat grime strips glued to the wall down the corner, behind the new quoins
+        gone = removed.get(mesh, set()) if s['material'] == STONE else set()
+        if s['material'] == DECAL:
+            # the flat grime strips glued down a wall corner, now inside or beside the new quoins
             def corner_strip(tri):
-                c = sum((Vector(r[:3]) for r in tri), Vector()) / 3; ymin = min(r[1] for r in tri)
-                return (Vector((c.x, 0, c.z)) - corner).length < 0.6 and ymin < 0.05
+                c = sum((Vector(r[:3]) for r in tri), Vector()) / 3
+                return min(r[1] for r in tri) < 0.05 and max(r[1] for r in tri) > 2.0 and any((Vector((c.x, 0, c.z)) - k).length < 0.6 for k in corners)
             gone = {i for i in range(0, len(rows), 3) if corner_strip(rows[i:i + 3])}
-            removed['r000378'] = gone
+        if not gone and s['material'] == DECAL: surfaces = None; break
         kept = [r for i in range(0, len(rows), 3) if i not in gone for r in rows[i:i + 3]]
         name = f'{mesh}-{s["index"]}.bin'; write(name, kept)
         surfaces.append({'file': name, 'material': s['material'], 'custom0': s['custom0'], 'vertices': len(kept)})
-        report['removedTriangles'][mesh] = len(gone)
-    if mesh in new_rows:
+        report['removedTriangles'][mesh] = report['removedTriangles'].get(mesh, 0) + len(gone)
+    if surfaces is None: continue
+    entry = {'surfaces': surfaces, 'sourceHash': rec['meshHash'], 'node': rec['node']}
+    if new_rows.get(mesh):
         write(f'{mesh}-dressed.bin', new_rows[mesh])
         surfaces.append({'file': f'{mesh}-dressed.bin', 'material': DRESSED, 'custom0': True, 'vertices': len(new_rows[mesh])})
         report['addedTriangles'][mesh] = len(new_rows[mesh]) // 3
-    manifest[rec['mesh']] = surfaces
-manifest['sourceHashes'] = {rec['mesh']: rec['meshHash'] for rec in audit}
-(out_dir / 'manifest.json').write_text(json.dumps(manifest, indent=1))
-(out_dir / 'geometry-report.json').write_text(json.dumps(report, indent=1))
-print('Stone corners candidate:', json.dumps({'items': len(report['items']), 'kept': len(report['kept']), 'added': report['addedTriangles'], 'removed': report['removedTriangles']}))
+        # collision keeps the simple boxes the dressed stones replaced (Solid: native_solid_skip / native_solid_stand_in)
+        old = load(next(s['file'] for r2, s in surfaces_of(STONE) if pathlib.Path(r2['mesh']).stem == mesh))
+        stand = array.array('f', (x for i in sorted(removed.get(mesh, ())) for k in range(3) for x in old[i + k][:3]))
+        (out_dir / f'{mesh}-standin.bin').write_bytes(stand.tobytes())
+        entry.update(standIn=f'{mesh}-standin.bin', skipSurface=len(surfaces) - 1)
+    manifest[rec['mesh']] = entry
+(out_dir / f'manifest-{chunk}.json').write_text(json.dumps(manifest, indent=1))
+from collections import Counter
+summary = {'chunk': chunk, 'built': dict(Counter(i.get('kind') for i in report['items'])), 'kept': dict(Counter(i.get('kind') for i in report['kept'])),
+           'added': report['addedTriangles'], 'removed': report['removedTriangles']}
+report['summary'] = summary
+(out_dir / f'report-{chunk}.json').write_text(json.dumps(report, indent=1))
+print('Stone corners candidate:', json.dumps(summary))

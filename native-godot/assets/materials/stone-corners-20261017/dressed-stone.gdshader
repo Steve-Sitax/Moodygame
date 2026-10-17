@@ -473,8 +473,9 @@ void fragment() {
 		float cloud = smoothstep(0.3, 0.78, pud_val(sw / 1.3 + 7.1) * 0.7 + pud_val(sw / 0.45 - 3.3) * 0.3);
 		c.rgb *= mix(vec3(1.0), vec3(0.66, 0.64, 0.60), cloud * (0.45 + 0.55 * wear) * (0.6 + 0.4 * (1.0 - rain)));
 		float shelter = 1.0 - rain;
-		float crust = clamp(shelter * shelter * (0.55 + 0.45 * under) + 0.25 * shelter * vert, 0.0, 1.0) * (0.5 + 0.5 * wear);
-		c.rgb *= mix(vec3(1.0), vec3(0.34, 0.32, 0.30), crust * (0.6 + 0.4 * n1));
+		// (the black crust belongs under ledges and mouldings; an upright face out of the rain only greys)
+		float crust = clamp(shelter * shelter * (0.25 + 0.55 * under) + 0.12 * shelter * vert, 0.0, 1.0) * (0.5 + 0.5 * wear);
+		c.rgb *= mix(vec3(1.0), vec3(0.42, 0.40, 0.37), crust * (0.6 + 0.4 * n1));
 		// what the rain does wash runs down the faces: paler washed bands with dark edges where the dirt settles
 		float band = pud_val(vec2(sw.x / 0.05, sw.y / 0.9) + dressed.y * 13.0);
 		float streak = smoothstep(0.5, 0.85, band) * rain * vert;
