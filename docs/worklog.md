@@ -1,5 +1,30 @@
 # Work log
 
+## All open issues, 2026-10-18 (coordinator thread, in progress)
+
+Steve asked to fix every open issue (50). Bundles touch the same parts; helpers work in their own worktrees, the
+coordinator merges into main after checks and `test-icons.ps1 -Full`. Town chunk files are edited by one bundle at a time.
+
+| Wave | Bundle | Issues |
+|---|---|---|
+| 1 | A. Checks that fail at random | #145 #146 #136 #124 #125 #106 #49 #47 |
+| 1 | B. Talk and doorways | #168 #158 |
+| 1 | C. Speed | #133 #135 #62 #32 |
+| 2 | D. Boats | #155 #87 #109 #167 #154 #156 |
+| 2 | E. Carried loads and work poses | #148 #130 #151 #131 #129 #169 #172 #128 #132 |
+| 2 | F. Market, work board, warmth, benches (rules) | #150 #153 #162 #165 |
+| 2 | L. Routes | #139 #120 |
+| 3 | G. Street furniture models | #160 #149 #164, bench and board models |
+| 3 | H. Town fabric (one at a time) | #161, #171, #163, #170 with #91 |
+| 3 | I. Light and look | #97 #137 #28 (cheap fix) |
+| 3 | J. People kit | #82 #138 #140 |
+| 3 | K. Textures | #84 |
+| - | Parked by Steve (play first) | #141 |
+
+Rules for helpers: one Godot window at a time, own `--db`/`--prefs`/`--author-root`/user data and port range,
+timing runs only while holding `D:/Code/_locks/PERF-LOCK`, `native-godot/override.cfg` (silent, right screen) in
+each worktree, never Steve's save or layouts.
+
 ## People and animals in high detail, 2026-10-13 (art3, in progress)
 
 - In art3 now: clothes pass 2 (#83 met), layered pictures (Texture2DArrays, 85 MB), the animals round 1 (dogs, cats, pigs;
