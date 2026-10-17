@@ -288,18 +288,23 @@ def door(fr, rows, idx):
     a ring of voussoirs that follows the curve, its soffit through the reveal, a key at the crown if there was one."""
     pts = [fr.local(Vector(rows[i + k][:3])) for i in idx for k in range(3)]
     s0, s1 = min(p[0] for p in pts), max(p[0] for p in pts); R = -min(p[2] for p in pts)
-    # the surround's face: the commonest proud plane (a key stands further out)
-    faces = [round(p[2], 3) for p in pts if p[2] > 0.03]
-    P = max(set(faces), key=faces.count)
-    xs = sorted({round(p[0], 3) for p in pts if abs(p[2] - P) < 2e-3 and p[1] < 1.0})
-    J = xs[1] - xs[0] if len(xs) >= 4 else 0.2
+    # the surround's face: the proud plane most of its points lie in, within 5 mm (a key stands further out)
+    proud = [p[2] for p in pts if p[2] > 0.03]
+    P = max(proud, key=lambda d: sum(1 for e in proud if abs(e - d) < 0.005))
+    P = sum(e for e in proud if abs(e - P) < 0.005) / sum(1 for e in proud if abs(e - P) < 0.005)
+    # the opening's own edges: the reveal's back corners low down; each jamb runs from the surround's edge to them
+    low = [p[0] for p in pts if abs(p[2] + R) < 0.006 and p[1] < 1.0]
+    o0, o1 = (min(low), max(low)) if len(low) >= 2 else (s0 + 0.2, s1 - 0.2)
+    JL, JR = o0 - s0, s1 - o1
+    if not (0.08 < JL < 0.5 and 0.08 < JR < 0.5): JL = JR = 0.2; o0, o1 = s0 + 0.2, s1 - 0.2
+    J = (JL + JR) / 2
     # the opening's back edge: level over a flat door, a curve over an arched one
-    inner = [(p[0], p[1]) for p in pts if abs(p[2] + R) < 3e-3 and s0 + J + 0.01 < p[0] < s1 - J - 0.01 and p[1] > 1.2]
-    ys_flat = max((p[1] for p in pts if abs(p[0] - (s0 + J)) < 3e-3 and abs(p[2] + R) < 3e-3), default=max(p[1] for p in pts))
+    inner = [(p[0], p[1]) for p in pts if abs(p[2] + R) < 0.006 and o0 + 0.01 < p[0] < o1 - 0.01 and p[1] > 1.2]
+    ys_flat = max((p[1] for p in pts if abs(p[0] - o0) < 0.006 and abs(p[2] + R) < 0.006), default=max(p[1] for p in pts))
     arched = len(inner) >= 3 and max(y for _, y in inner) - min(y for _, y in inner) > 0.05
     if arched:
         cx, cy, rin = circle_fit(inner)
-        dx = (s0 + J) - cx
+        dx = o0 - cx
         spring = cy + math.sqrt(max(rin * rin - dx * dx, 0.0))
         rout = rin + J
         ys = spring
@@ -307,7 +312,7 @@ def door(fr, rows, idx):
         ys = ys_flat
     beds = [0.0] + [fr.bed(ys * k / 3) for k in (1, 2)] + [ys]
     # the inner faces stand 3 mm into the opening: the game's own doorway pieces lie in the old reveal's plane
-    for a, b in ((s0, s0 + J + 0.003), (s1 - J - 0.003, s1)):
+    for a, b in ((s0, o0 + 0.003), (o1 - 0.003, s1)):
         inner_left = a > s0 + 1e-3
         for k, (y0, y1) in enumerate(zip(beds, beds[1:])):
             top = y1 - (0.005 if k < 2 or arched else 0)
@@ -326,14 +331,14 @@ def door(fr, rows, idx):
                 finish(m); pieces.append(m)
     if not arched: return 'flat'
     # the ring: an odd number of voussoirs, each about a quarter metre round the middle of the ring, radial joints
-    t0 = math.atan2(spring - cy, (s0 + J) - cx); t1 = math.atan2(spring - cy, (s1 - J) - cx)
+    t0 = math.atan2(spring - cy, o0 - cx); t1 = math.atan2(spring - cy, o1 - cx)
     if t0 < t1: t0 += 2 * math.pi
     span = t0 - t1; rmid = (rin + rout) / 2
     count = max(5, int(round(span * rmid / 0.26)) | 1)
     half = 0.005 / rmid
     ri = rin - 0.003
     # a segmental arch springs from skewbacks: the jamb's top stone cut to the ring's first radial joint
-    for side, t, sj, so in ((0, t0, s0 + J + 0.003, s0), (1, t1, s1 - J - 0.003, s1)):
+    for side, t, sj, so in ((0, t0, o0 + 0.003, s0), (1, t1, o1 - 0.003, s1)):
         ox, oy = cx + rout * math.cos(t), cy + rout * math.sin(t)
         ix, iy = cx + ri * math.cos(t), cy + ri * math.sin(t)
         if oy - spring < 0.02: continue
@@ -347,7 +352,8 @@ def door(fr, rows, idx):
         arc_out = [(cx + rout * math.cos(a1 - (a1 - a0) * k / steps), cy + rout * math.sin(a1 - (a1 - a0) * k / steps)) for k in range(steps + 1)]
         arch_stone(fr, arc_in + arc_out, -R, P, 'voussoir')
         if i < count - 1:
-            mortar_ring(fr, cx, cy, rin - 0.001, rout - 0.004, a1 - half, a1 + half, -R + 0.003, P - 0.004)
+            # (flush with the soffit, a hair behind the stones' faces: a fine joint, not a bright streak)
+            mortar_ring(fr, cx, cy, ri + 0.0015, rout - 0.004, a1 - half, a1 + half, -R + 0.003, P - 0.004)
     # the key at the crown, where the old surround had one
     key = [p for p in pts if p[2] > P + 0.03]
     if key:

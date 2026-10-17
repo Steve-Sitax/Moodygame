@@ -439,7 +439,7 @@ void fragment() {
 			// every stone from its own bed: tone and warmth vary; now and then a newer replacement stone
 			col *= mix(vec3(1.03, 1.0, 0.93), vec3(0.96, 0.99, 1.03), dressed.w) * (0.82 + 0.24 * dressed.y) * (dressed.w > 0.92 ? 1.1 : 1.0);
 		}
-		if (dregion > 4.5) col = vec3(0.36, 0.345, 0.30) * (0.8 + 2.0 * lum) * (dblue ? 0.85 : 1.0);
+		if (dregion > 4.5) col = vec3(0.30, 0.29, 0.255) * (0.8 + 2.0 * lum) * (dblue ? 0.85 : 1.0);
 		c = vec4(col * albedo.rgb, 1.0);
 	}
 	{
@@ -487,7 +487,7 @@ void fragment() {
 		c.rgb *= mix(vec3(1.0), vec3(0.62, 0.60, 0.56), cloud * (0.25 + 0.75 * a) * (0.6 + 0.4 * shelter));
 		// black gypsum crusts under ledges and mouldings where the rain never washes; an upright face out of the
 		// rain only greys
-		float crust = clamp(shelter * shelter * (0.25 + 0.55 * under) + (0.12 + 0.25 * poor) * shelter * vert, 0.0, 1.0) * (0.3 + 0.9 * a);
+		float crust = clamp(shelter * shelter * (0.25 + 0.3 * under) + (0.12 + 0.25 * poor) * shelter * vert, 0.0, 1.0) * (0.3 + 0.9 * a);
 		c.rgb *= mix(vec3(1.0), vec3(0.30, 0.29, 0.27), clamp(crust, 0.0, 1.0) * (0.6 + 0.4 * n1));
 		// what the rain does wash runs down the faces: paler washed bands with dark edges where the dirt settles
 		float band = pud_val(vec2(sw.x / 0.05, sw.y / 0.9) + dressed.y * 13.0);
@@ -518,7 +518,7 @@ void fragment() {
 			// the blue stone's lime bloom where the damp dries out
 			if (dblue) c.rgb = mix(c.rgb, vec3(0.22, 0.22, 0.205), (0.2 + 0.25 * a) * smoothstep(0.62, 0.86, pud_val(sw * vec2(6.0, 18.0))) * (1.0 - smoothstep(0.08, 0.34, gy)) * vert);
 		}
-		c.rgb *= mix(0.6, 1.0, ao);
+		c.rgb *= mix(mix(0.6, 0.78, under), 1.0, ao);
 		// wet stone darkens where the rain reaches it; the porous light stone more than the blue
 		c.rgb *= 1.0 - psx_wet * (dblue ? 0.32 : 0.48) * clamp(rain * 1.2 + 0.2 * vert, 0.0, 1.0);
 	} else {
