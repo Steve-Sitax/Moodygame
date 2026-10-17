@@ -217,7 +217,7 @@ def keystone(fr, s0, s1, y0, y1, d1):
 
 def lintel(fr, s0, s1, y0, y1, d1):
     # one stone over the door, through the reveal: its underside is the reveal's soffit
-    dressed_block(fr, s0, s1, y0, y1, -0.198, d1, 'door lintel', under=True, arris=0.009)
+    dressed_block(fr, s0, s1, y0 - 0.003, y1, -0.198, d1, 'door lintel', under=True, arris=0.009)
 
 def hood(fr, s0, s1, y0, y1, d1):
     """The drip moulding over the lintel: a sloped top, an ovolo, a throat under it."""
@@ -255,7 +255,8 @@ def door(fr, rows, idx):
     xs = sorted({round(p[0], 3) for p in pts if abs(p[2] - P) < 1e-3})
     J = xs[1] - xs[0] if len(xs) >= 4 else 0.2
     beds = [0.0, fr.bed(ys / 3), fr.bed(2 * ys / 3), ys]
-    for a, b in ((s0, s0 + J), (s1 - J, s1)):
+    # the inner faces stand 3 mm into the opening: the game's own doorway pieces lie in the old reveal's plane
+    for a, b in ((s0, s0 + J + 0.003), (s1 - J - 0.003, s1)):
         inner_left = a > s0 + 1e-3
         for k, (y0, y1) in enumerate(zip(beds, beds[1:])):
             p = dressed_block(fr, a, b, y0 + (0.005 if k else 0), y1 - (0.005 if k < 2 else 0), -R, P, 'door jamb', arris=0.009, top=True, under=k > 0, chip=1)
@@ -267,7 +268,7 @@ def door(fr, rows, idx):
                     k2 = math.sin(math.pi * (y - 0.8) / 0.9) * (1 - abs(s - edge_s) / 0.03) * (1 - (P - d) / 0.03)
                     v.co -= fr.n * 0.004 * k2
             if k < 2:
-                m = Piece('mortar'); g = box(m, fr, a + 0.003, b - 0.003, y1 - 0.0055, y1 + 0.0055, -R + 0.003, P - 0.004)
+                m = Piece('mortar'); g = box(m, fr, a + 0.001, b - 0.001, y1 - 0.0055, y1 + 0.0055, -R + 0.003, P - 0.004)  # (in front of the old reveal plane)
                 m.hidden.update((g['back'], g['top'], g['bottom']))
                 for face in g.values(): face[m.code] = 5
                 finish(m); pieces.append(m)

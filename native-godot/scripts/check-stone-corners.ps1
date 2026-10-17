@@ -1,4 +1,4 @@
-param([string]$Godot, [Parameter(Mandatory)][string]$Views, [string]$Candidate, [switch]$Measure, [string]$Output, [ValidateRange(9140,9239)][int]$Port=9233, [int]$LimitSeconds=1500)
+param([string]$Godot, [Parameter(Mandatory)][string]$Views, [string]$Candidate, [switch]$Measure, [switch]$Raw, [string]$Probe, [string]$Output, [ValidateRange(9140,9239)][int]$Port=9233, [int]$LimitSeconds=1500)
 # Issue #157: pictures (day, rain, night) and frame times of town-house corner stones and door surrounds in the real
 # native town (disposable save, no AI). -Candidate builds repaired meshes in memory; no resource file is written.
 $ErrorActionPreference='Stop'
@@ -19,6 +19,8 @@ try {
     $arguments=@('--rendering-method','forward_plus','--audio-driver','Dummy','--path',$project,'--log-file',(Join-Path $proof 'live.log'),'res://town.tscn','--','--no-ai','--port',"$Port",'--db',(Join-Path $proof 'game.sqlite'),'--prefs',(Join-Path $proof 'settings.json'),'--author-root',(Join-Path $proof 'layouts'),'--stone-corners-proof',$proof,'--stone-corners-views',[IO.Path]::GetFullPath($Views))
     if($Candidate){$arguments+=@('--stone-corners-candidate',[IO.Path]::GetFullPath($Candidate))}
     if($Measure){$arguments+='--stone-corners-measure'}
+    if($Raw){$arguments+='--stone-corners-raw'}
+    if($Probe){$arguments+=@('--stone-corners-probe',$Probe)}
     Invoke-WorkshopEngine -Engine $engine -Project $project -EngineArguments $arguments -Log (Join-Path $proof 'engine.log') -LimitSeconds $LimitSeconds
     if(Test-Path -LiteralPath (Join-Path $proof 'failure.txt')){throw ('Stone corners proof failed: '+(Get-Content -LiteralPath (Join-Path $proof 'failure.txt') -Raw))}
     Write-Output "PROOF: $proof"

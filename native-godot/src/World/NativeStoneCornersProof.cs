@@ -44,6 +44,14 @@ public static class NativeStoneCornersProof
                 try { GameState.I.Apply(await api.NewGame()); break; }
                 catch (ApiException) when (attempt < 4) { await Frames(30); }
             if (Jef.I is { Fly: false } player) player.ToggleFly();
+            // --stone-corners-probe x,y,z: every drawn thing whose box holds that point (what covers a stone?)
+            if (Option("stone-corners-probe") is { Length: > 0 } probe)
+            {
+                var q = probe.Split(',').Select(v => float.Parse(v, System.Globalization.CultureInfo.InvariantCulture)).ToArray(); var at = new Vector3(q[0], q[1], q[2]);
+                foreach (var g in BakedWorld.All(game.GetTree().Root).OfType<GeometryInstance3D>())
+                    if (g.IsVisibleInTree() && (g.GlobalTransform * g.GetAabb()).Grow(0.01f).HasPoint(at))
+                        notes.Add(new { mode = "probe", node = g.GetPath().ToString(), type = g.GetClass(), mesh = (g as MeshInstance3D)?.Mesh?.ResourcePath ?? "", size = (g.GlobalTransform * g.GetAabb()).Size.ToString() });
+            }
             notes.Add(new { mode = "memory", stage = "before candidate", bufferMemMB = Performance.GetMonitor(Performance.Monitor.RenderBufferMemUsed) / 1048576.0, videoMemMB = Performance.GetMonitor(Performance.Monitor.RenderVideoMemUsed) / 1048576.0 });
             var swaps = candidateFolder == "" ? new List<(MeshInstance3D node, Mesh before, Mesh after)>() : Candidate(game, Paths.Absolute(candidateFolder), notes);
             if (candidateFolder != "") Check("candidate meshes found in the town", swaps.Count > 0);
@@ -149,7 +157,7 @@ public static class NativeStoneCornersProof
                     if (surface.GetProperty("vertices").GetInt32() == 0) continue;
                     bool custom = surface.TryGetProperty("custom0", out var c) && c.GetBoolean();
                     // the same vertex format as the town's meshes and the promotion: compressed attributes
-                    var flags = (custom ? (Mesh.ArrayFormat)((long)Mesh.ArrayCustomFormat.RgFloat << (int)Mesh.ArrayFormat.FormatCustom0Shift) : 0) | Mesh.ArrayFormat.FlagCompressAttributes;
+                    var flags = (custom ? (Mesh.ArrayFormat)((long)Mesh.ArrayCustomFormat.RgFloat << (int)Mesh.ArrayFormat.FormatCustom0Shift) : 0) | (OS.GetCmdlineUserArgs().Contains("--stone-corners-raw") ? 0 : Mesh.ArrayFormat.FlagCompressAttributes);
                     mesh.AddSurfaceFromArrays(Mesh.PrimitiveType.Triangles, Rows(Path.Combine(folder, surface.GetProperty("file").GetString()!), custom, instance.GlobalTransform), null, null, flags);
                     string materialPath = surface.GetProperty("material").GetString()!;
                     mesh.SurfaceSetMaterial(mesh.GetSurfaceCount() - 1, materials.TryGetValue(materialPath, out var made) ? made : ResourceLoader.Load<Material>(materialPath));

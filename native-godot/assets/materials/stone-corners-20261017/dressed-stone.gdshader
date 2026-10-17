@@ -395,7 +395,14 @@ vec3 dressed_normal(vec3 position, vec3 normal, vec2 grad_uv, vec2 dx, vec2 dy) 
 	vec3 sx = dFdx(position), sy = dFdy(position), r1 = cross(sy, normal), r2 = cross(normal, sx);
 	float det = dot(sx, r1);
 	vec3 g = sign(det) * (dot(grad_uv, dx) * r1 + dot(grad_uv, dy) * r2);
-	return normalize(max(abs(det), 1e-12) * normal - g);
+	vec3 n = normalize(max(abs(det), 1e-12) * normal - g);
+	// seen edge-on the screen derivatives run away and the relief would turn the face over (a black reveal):
+	// fade it out at grazing angles and never tilt it more than about 35 degrees
+	float facing = abs(dot(normal, normalize(-position)));
+	n = normalize(mix(normal, n, smoothstep(0.06, 0.3, facing)));
+	float c = dot(n, normal);
+	if (c < 0.82) n = normalize(normal * 0.82 + normalize(n - normal * c) * 0.57);
+	return n;
 }
 float dressed_lum(vec2 uv) { return dot(texture(stone_tex, uv).rgb, vec3(0.3333)); }
 
