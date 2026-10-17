@@ -13,6 +13,8 @@ Bugs and loose ends are tracked as [issues](https://github.com/Steve-Sitax/Moody
 
 - Parked family handcarts can be taken: walk up and press E. The owner's cart is gone from his round, and the cart keeps its load, which you can push, unload and load again; a second player cannot copy it. The frozen handcart and horse dray that stood all day on the Rijnkaai are gone; the real drays there have a carter and a walking horse.
 
+- The town's houses have dressed stone now. Corner stones, door and window surrounds, sills, heads, keystones and plinths were plain sharp boxes with a smeared picture; each is now its own stone with worn, chamfered edges, a tooled face, mortar joints that line up with the brick courses, and a sharp stone picture. Arched doors and coach gates have a ring of wedge stones that follows the curve, double doors match their lintel, and shop windows have a real stone frame. Plinths and door steps are blue stone. Soot, rain streaks, splash and rising damp follow the neighbourhood: clean on the fine squares, black and green in the poor streets.
+
 - The city wall, with its stairs, gates, guard huts, bastions and towers, and the street junction by the guardhouse are rebuilt with real detail. Stone and brick edges are rounded, stone blocks are dressed, paving fits the walls and steps, kerbs end and turn properly, gutters and downpipes lead the rain to drains, and damp, dirt and small plants sit where water and splash put them.
 
 - The lanterns on the Werf landing stage now burn at night and in night fog, and light its deck. They ride the tide with the stage and go out by day (#147).

@@ -286,8 +286,13 @@ public partial class Solid : Node
     {
         if (faces.TryGetValue(mesh, out var f)) return f;
         var list = new List<Vector3>();
+        // A mesh may name surfaces whose fine detail is not worth its triangles here and give plain stand-in faces for
+        // them (issue #157: the dressed stones stay as solid as the simple stone boxes they replaced).
+        var skipSurfaces = mesh.HasMeta("native_solid_skip") ? mesh.GetMeta("native_solid_skip").AsInt32Array() : System.Array.Empty<int>();
+        if (mesh.HasMeta("native_solid_stand_in")) list.AddRange(mesh.GetMeta("native_solid_stand_in").AsVector3Array());
         for (int s = 0; s < mesh.GetSurfaceCount(); s++)
         {
+            if (System.Array.IndexOf(skipSurfaces, s) >= 0) continue;
             if (mesh is ArrayMesh am && am.SurfaceGetPrimitiveType(s) != Mesh.PrimitiveType.Triangles) continue;
             if (SeeThrough(mesh.SurfaceGetMaterial(s))) continue;
             var arr = mesh.SurfaceGetArrays(s);
