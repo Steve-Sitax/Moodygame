@@ -45,3 +45,4 @@ dist/
 # The animal pictures' presets (BPTC colour, RGTC normals, mipmaps): Animal.cs refuses pictures imported otherwise.
 !/assets/animal-pictures/*.png.import
 !/assets/horse-pictures/*.png.import
+.mcp/
