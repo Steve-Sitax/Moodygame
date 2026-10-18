@@ -8,7 +8,7 @@ using System.Text.Json;
 
 // Issues #176 #175: saves a reviewed town-fronts candidate (repair-shutters.py, repair-signs.py) into the town's
 // resources. Run in Forward+ (not headless):
-//   godot --rendering-method forward_plus --path . res://scripts/facades-promote.tscn -- --candidate <folder> --record <folder> --backup <folder>
+//   godot --rendering-method forward_plus --path . res://scripts/facades-promote.tscn -- --candidate <folder> --record <folder> --backup <folder> [--root streetlife]
 // Every mesh must still be the one the candidate was made from (its SHA-256). Originals are copied to --backup first and
 // never overwritten. Each mesh in the manifest is rebuilt from its rows (world space; the bake's flat shutters or plates
 // taken out), keeping the old mesh's metadata; "standInAdd" adds plain collision boxes (world space) to its stand-in.
@@ -40,7 +40,10 @@ public partial class FacadesPromote : Node
             if (Hash(e.Name) != e.Value.GetProperty("sourceHash").GetString()) throw new IOException("Changed since the candidate was made: " + e.Name);
             if (File.Exists(Path.Combine(backup, Path.GetFileName(e.Name)))) throw new IOException("A backup exists already (an earlier promotion?): " + e.Name);
         }
-        var city = ResourceLoader.Load<PackedScene>("res://world/town/roots/node-00004.scn").Instantiate<Node3D>(); AddChild(city);
+        // the root the meshes are in (--root, default city), by its name in the town's roots list
+        int ri = Array.IndexOf(args, "--root"); string rootName = ri >= 0 && ri + 1 < args.Length ? args[ri + 1] : "city";
+        string rootPath = JsonDocument.Parse(Godot.FileAccess.GetFileAsString("res://world/town/roots.json")).RootElement.EnumerateArray().First(r => r.GetProperty("godotName").GetString() == rootName).GetProperty("path").GetString()!;
+        var city = ResourceLoader.Load<PackedScene>(rootPath).Instantiate<Node3D>(); AddChild(city);
         var nodes = All(city).OfType<MeshInstance3D>().ToDictionary(m => m.Name.ToString());
         var made = new List<(string path, ArrayMesh mesh)>(); var counts = new Dictionary<string, object>();
         foreach (var e in entries)
@@ -61,6 +64,12 @@ public partial class FacadesPromote : Node
                 mesh.AddSurfaceFromArrays(Mesh.PrimitiveType.Triangles, arrays, null, null, flags);
                 mesh.SurfaceSetMaterial(mesh.GetSurfaceCount() - 1, ResourceLoader.Load<Material>(s.GetProperty("material").GetString()!));
                 triangles += t;
+                // a surface marked noCollision (a sign over head height) is skipped by Solid
+                if (s.TryGetProperty("noCollision", out var nc) && nc.GetBoolean())
+                {
+                    var skip = mesh.HasMeta("native_solid_skip") ? mesh.GetMeta("native_solid_skip").AsInt32Array() : Array.Empty<int>();
+                    mesh.SetMeta("native_solid_skip", skip.Append(mesh.GetSurfaceCount() - 1).Distinct().ToArray());
+                }
             }
             int standIn = 0;
             if (e.Value.TryGetProperty("standInAdd", out var add))

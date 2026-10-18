@@ -65,3 +65,35 @@ Checks (real town, disposable saves):
   term; the old boards on the wall shader did).
 - Timing with the PERF-LOCK held, but two other helpers' game windows were running, so frame times are not comparable
   (about 20 ms in both states): GPU +0.04 to +0.22 ms per view, draw calls +43 to +141 (shadow passes included).
+
+## #175 Street name plates and shop signs
+
+- The bake drew them from the street-life atlas (256 x 512, nearest-looking 5 x 7 pixel letters): a plate as a 16 mm box
+  with an 11-texel picture of its name, a shop board as a 50 mm box with two trims, lettering on plaster as one decal quad,
+  a bracket sign as a few boxes and tubes. Each is found by its front's atlas cell (the bake's streetlife meta,
+  `assets/game-models/streetlife.extras.json`), taken out with its box, and built again at the same place and size
+  (`scripts/repair-signs.py`): 244 plates, 245 boards, 24 painted letterings, 121 bracket signs in 74 street-life meshes.
+- Pictures (`scripts/sign_art.py`, 4096 x 4096 compressed, its height, and a 2048 x 1024 picture for the painted
+  lettering): every street and square name in Old Standard TT Bold on white enamel with a blue line, chipped to rust at
+  the rim and the screw holes; every board in its trade's colours with a fine line, the trade in Alfa Slab One and the
+  owner's or house's name in Old Standard, gilt letters shading down, a dark shadow to the lower right (sign-writer's
+  relief). Both fonts are SIL Open Font License fonts already in `native-godot/fonts`. Texts unchanged: trades in
+  English, names Dutch.
+- A plate: pressed enamelled iron, a rim rolled 8.5 mm proud with rounded corners, the face 5 mm off the wall, two domed
+  screws. A board: a lettered panel 60 mm off the wall, a cornice over it with a sloping top and a drip, a bead under it
+  (gilt on a gilt-lettered board), returned ends, in the board's own colour.
+- A bracket sign (`scripts/build_signs.py`): a flat wall plate with two bolts, a 22 mm square arm 1.04 m out with a gilt
+  ball, a round stay and two C-scrolls of flat bar, rings and chains, in the town's wall iron (rain glosses it); under
+  it the trade's sign, kind read from the old one's colours: pretzel (a gilt rope knot twisted once), key (bow, collars,
+  warded bit), lidded pewter tankard, boot (black, gilt band and welt), top hat with a red band, the barber's brass basin.
+- Materials: copies of the street-life materials (`streetlife_solid`, `streetlife_walldecal`) with the new pictures, the
+  wall iron for the brackets: same shaders, no new kind. The new surfaces are skipped by collision (all over head height).
+- Lit at night by the lamp spill like the rest of the street (a board over a wall lantern is lit, one far from a lamp
+  stays dark).
+- Triangles in the 74 meshes: 202,511 to 509,013 (the bracket signs are about 2,500 each, half of it iron: scrolls,
+  chains). `promotion-175.json` has every original and installed hash; `signs-175.json` lists every sign and place.
+
+Found, not changed: the plates use 9 of the 26 names (the browser's street index wrapped round): BRADERIJSTRAAT is on
+50 corners, ZAKSTRAAT on 54, KUIPERSSTRAAT on 47, MAALDERIJSTRAAT on 46; the names do not follow the real streets.
+
+Pictures: `175-plate-board-before-after-day.jpg`, `175-night-rain-before-after.jpg`, `175-hanging-signs-installed.jpg`.
