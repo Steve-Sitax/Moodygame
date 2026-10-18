@@ -235,7 +235,7 @@ public static class NativeLeftoversProof
                 Jef.I.Place(-104f, 24f, 0f); await Frames(200);
                 MultiMeshInstance3D? cod = null;
                 foreach (var mm in BakedWorld.All(game.GetTree().Root).OfType<MultiMeshInstance3D>())
-                    if (mm.Multimesh?.Mesh?.ResourceName.StartsWith("smallgoods_cod") == true && mm.Multimesh.VisibleInstanceCount > 0) { cod = mm; break; }
+                    if (mm.Multimesh?.Mesh?.ResourceName.StartsWith("smallgoods_cod") == true && Enumerable.Range(0, mm.Multimesh.VisibleInstanceCount).Any(i => MathF.Abs((mm.Multimesh.GetInstanceTransform(i).Basis * Vector3.Right).Normalized().Y) < .5f)) { cod = mm; break; }
                 int kinds = BakedWorld.All(game.GetTree().Root).OfType<MultiMeshInstance3D>().Where(mm => mm.Multimesh?.VisibleInstanceCount > 0).Select(mm => mm.Multimesh!.Mesh?.ResourceName ?? "")
                     .Count(n => n.StartsWith("smallgoods_cod") || n.StartsWith("smallgoods_plaice") || n.StartsWith("workgoods_held_fish"));
                 var drawn = BakedWorld.All(game.GetTree().Root).OfType<MultiMeshInstance3D>().Where(mm => (mm.Multimesh?.Mesh?.ResourceName ?? "").Contains("fish"))
@@ -244,7 +244,9 @@ public static class NativeLeftoversProof
                 Check(cod != null && Scheldemist.People.NativeMarket.FishTrianglesTaken > 0, $"the fish tables lay the cod, plaice and herring models ({kinds} fish batches; {Scheldemist.People.NativeMarket.FishTrianglesTaken} of the table's own fish triangles out)");
                 if (cod != null)
                 {
-                    var t = cod.GlobalTransform * cod.Multimesh!.GetInstanceTransform(0);
+                    // (a cod lying on a table: the dried cod hung on the fixed stalls' rails hang head down)
+                    int lying = Enumerable.Range(0, cod.Multimesh!.VisibleInstanceCount).FirstOrDefault(i => MathF.Abs((cod.Multimesh.GetInstanceTransform(i).Basis * Vector3.Right).Normalized().Y) < .5f);
+                    var t = cod.GlobalTransform * cod.Multimesh!.GetInstanceTransform(lying);
                     var at = t.Origin; var toward = (t.Basis * Vector3.Right).Normalized();
                     await Shot("fish-table-close", at + new Vector3(0, 0.9f, 0) - toward.Cross(Vector3.Up) * 0.9f, at);
                     await Shot("fish-table", at + new Vector3(0, 1.6f, 0) - toward.Cross(Vector3.Up) * 2.2f, at);
@@ -254,6 +256,43 @@ public static class NativeLeftoversProof
                         await Shot("fish-table-" + name, at + new Vector3(0, 1.6f, 0) - toward.Cross(Vector3.Up) * 2.2f, at);
                     }
                 }
+                // #190: every fish of the market is the herring or the cod model, and every heap of fish lies on the crushed ice
+                // (the crates, baskets, barrows, the fixed fish stalls and the carried fish box); pictures of each at 10:00 clear
+                GameState.I.Apply(await api.Post<JobsPayload>("api/dev/set", new { day = 1, hour = 10, minute = 0, weather = "clear" })); Daylight.I.Settle();
+                var market = Scheldemist.People.NativeMarket.I!;
+                var until = DateTime.UtcNow.AddSeconds(150);
+                while (DateTime.UtcNow < until && market.PitchState().Count(p => p!["level"]!.GetValue<int>() == 2) < 14) await Frames(15);
+                facts["catch"] = new { tradeFishCell = Scheldemist.People.MarketCatch.TradeCell, taken = Scheldemist.People.MarketCatch.Taken, wholeFish = Scheldemist.People.MarketCatch.WholeFish, heaps = Scheldemist.People.MarketCatch.Heaps,
+                    pitchesUp = market.PitchState().Count(p => p!["level"]!.GetValue<int>() == 2) };
+                Check(Scheldemist.People.MarketCatch.WholeFish > 0 && Scheldemist.People.MarketCatch.Heaps > 0, $"the stalls' painted fish are out: {Scheldemist.People.MarketCatch.WholeFish} whole fish became the herring or cod model, {Scheldemist.People.MarketCatch.Heaps} heaps the crushed ice with herring ({Scheldemist.People.MarketCatch.Taken} triangles out)");
+                int ice = BakedWorld.All(game.GetTree().Root).OfType<MultiMeshInstance3D>().Where(mm => mm.IsVisibleInTree() && (mm.Multimesh?.Mesh?.ResourceName ?? "").StartsWith("smallgoods_ice")).Sum(mm => mm.Multimesh!.VisibleInstanceCount);
+                Check(ice > 0, $"the market's fish lie on the crushed ice ({ice} beds drawn)");
+                var shown = new HashSet<string>();
+                foreach (var it in market.LaidOut.Where(i => i.Goods == "fish").OrderBy(i => i.Pitch < 0 ? 1 : 0))
+                {
+                    string kind = it.Kind is "fishtable" ? "crates" : it.Kind;
+                    if (!shown.Add(kind)) continue;
+                    var mid = new Vector3((float)it.X, (float)people.Walk!.BaseAt(it.X, it.Z), (float)it.Z);
+                    var front = new Vector3((float)it.Front.X, mid.Y, (float)it.Front.Z); var toward = (front - mid) with { Y = 0 };
+                    if (toward.LengthSquared() < .01f) toward = Vector3.Forward;
+                    // (a fish table's crates stand behind it: look at them from the seller's side)
+                    if (kind == "crates") { var back = mid - toward.Normalized() * 1.0f; await Shot("catch-crates", back - toward.Normalized() * 1.4f + Vector3.Up * 1.5f, back + Vector3.Up * .3f); }
+                    else await Shot("catch-" + kind, mid + toward.Normalized() * 1.1f + Vector3.Up * 2.0f, mid + Vector3.Up * .4f);
+                }
+                facts["catchShots"] = shown.ToArray();
+                if (Scheldemist.People.MarketStalls.I?.List.FirstOrDefault(st => st.Sells("fish")) is { } fixedStall)
+                {
+                    var mid = new Vector3((float)fixedStall.X, 0, (float)fixedStall.Z); var face = new Vector3(MathF.Sin((float)fixedStall.Yaw), 0, MathF.Cos((float)fixedStall.Yaw));
+                    await Shot("catch-fixed-stall", mid + face * 1.8f + Vector3.Up * 1.6f, mid + Vector3.Up * .8f);
+                    await Shot("catch-fixed-stall-b", mid - face * 1.8f + Vector3.Up * 1.6f, mid + Vector3.Up * .8f);
+                }
+                if (Scheldemist.People.Carried.Load("fishbox", 1) is { } box)
+                {
+                    var at = new Vector3(Jef.I.X + 2, 0, Jef.I.Z + 2); at.Y = (float)people.Walk!.BaseAt(at.X, at.Z); box.Position = at;
+                    Main.I.View.AddChild(box); await Frames(5);
+                    await Shot("catch-fishbox", at + new Vector3(.9f, 1.1f, .9f), at + Vector3.Up * .1f);
+                    box.QueueFree();
+                }
                 GameState.I.Apply(await api.Post<JobsPayload>("api/dev/set", new { day = 1, hour = 13, minute = 0, weather = "clear" })); Daylight.I.Settle();
             }
             if (Stage("fireplace"))
@@ -262,6 +301,9 @@ public static class NativeLeftoversProof
                 Doors.I.Held = true; foreach (var d in Doors.I.All) Doors.I.Force(d, true);
                 var places = BakedWorld.All(game.World).OfType<Scheldemist.Native.Interiors.FurnitureVisual>().Where(v => v.ModelScene != "").ToArray();
                 Check(places.Length == 3 && places.All(v => v.KitFit == "model"), $"the three taverns' fireplaces draw the fittings' model ({places.Count(v => v.KitFit == "model")} of {places.Length})");
+                // #190: the room hearths draw no sparks (3.5 cm discs that hung in the fireplaces as pale dots); the fires outdoors keep theirs
+                var sparks = Fires.I!.SparkCount; facts["fireSparks"] = new { sparks.roomFires, sparks.roomSparks, sparks.outdoorFires, sparks.outdoorSparks };
+                Check(sparks.roomFires > 0 && sparks.roomSparks == 0 && sparks.outdoorSparks > 0, $"no spark dots in the room hearths ({sparks.roomSparks} spark points in {sparks.roomFires} room fires; {sparks.outdoorSparks} in {sparks.outdoorFires} outdoors)");
                 foreach (int hour in new[] { 13, 20 })
                 {
                     GameState.I.Apply(await api.Post<JobsPayload>("api/dev/set", new { day = 1, hour, minute = 0, weather = "clear" })); Daylight.I.Settle(); await Frames(60);

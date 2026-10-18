@@ -51,7 +51,7 @@ public partial class NativeMarket
     /// <summary>The seller's side of the fish table's top in the table's own frame.</summary>
     internal static double FishTableNear()=>FishTableBox()?.Position.Z??-.46;
     /// <summary>Every market item laid out now (the proofs).</summary>
-    internal IEnumerable<NativeMarketItem> LaidOut=>fields.SelectMany(f=>f.Items);
+    public IEnumerable<NativeMarketItem> LaidOut=>fields.SelectMany(f=>f.Items);
     /// <summary>One place's market items in their order of going up (the proofs).</summary>
     internal IReadOnlyList<NativeMarketItem> ItemsAt(string place)=>fields.FirstOrDefault(f=>f.Place==place)?.Items??new List<NativeMarketItem>();
 

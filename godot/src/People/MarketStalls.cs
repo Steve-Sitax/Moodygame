@@ -24,6 +24,8 @@ public partial class MarketStalls : Node
         public double X, Z, Yaw, Scale = 1;
         public bool Open;
         internal string[] Always = Array.Empty<string>(), Day = Array.Empty<string>(), Night = Array.Empty<string>();
+        /// <summary>The stall lays out these goods by day (the checks).</summary>
+        public bool Sells(string goods) => Day.Contains("stall_goods_" + goods);
     }
     public static MarketStalls? I { get; private set; }
     public readonly List<Stall> List = new();
@@ -72,12 +74,15 @@ public partial class MarketStalls : Node
         var found = new List<Part>(); parts[name] = found;
         string use = model!.Roots.ContainsKey(name + "_bare") ? name + "_bare" : name;
         if (!model.Roots.TryGetValue(use, out var proto)) return found;
+        // (#190) without the fish painted into the model: the fish models and the crushed ice lie in their place
+        var spots = new List<MarketCatch.Spot>();
         void Read(Node n, Transform3D at)
         {
-            if (n is MeshInstance3D mi && mi.Mesh != null) found.Add(new Part(mi.Mesh, at));
+            if (n is MeshInstance3D mi && mi.Mesh != null) found.Add(new Part(WithoutFish(mi, at, use, spots), at));
             foreach (var child in n.GetChildren()) Read(child, child is Node3D spatial ? at * spatial.Transform : at);
         }
         Read(proto, new Transform3D(Basis.Identity.Scaled(proto.Scale), Vector3.Zero));
+        foreach (var spot in spots) foreach (var (mesh, local) in MarketCatch.Meshes(spot.Model, Look)) found.Add(new Part(mesh, spot.At * local));
         // The one common sack in each Blender socket, rather than the old sacks duplicated into every model.
         if (sockets != null && sockets.RootElement.TryGetProperty(name, out var rows)) foreach (var row in rows.EnumerateArray())
         {
@@ -92,11 +97,29 @@ public partial class MarketStalls : Node
         }
         return found;
     }
+    private static readonly ModelLibrary.Look Look = new(TwoSided: true, Affine: 0.6, VertexColor: true);
+
+    /// <summary>A stall model's mesh without its painted fish (MarketCatch.Take), or the mesh itself when it has none.</summary>
+    private static Mesh WithoutFish(MeshInstance3D mi, Transform3D at, string root, List<MarketCatch.Spot> spots)
+    {
+        var mesh = mi.Mesh; var surfaces = new Godot.Collections.Array[mesh.GetSurfaceCount()]; bool changed = false;
+        for (int i = 0; i < surfaces.Length; i++)
+        {
+            var arrays = mesh.SurfaceGetArrays(i);
+            surfaces[i] = MarketCatch.Take("stalls", root, arrays, at, mi.GetActiveMaterial(i)?.ResourceName ?? "", spots);
+            changed |= !ReferenceEquals(surfaces[i], arrays);
+        }
+        if (!changed) return mesh;
+        var copy = new ArrayMesh { ResourceName = mesh.ResourceName + "_no_fish" };
+        for (int i = 0; i < surfaces.Length; i++) { copy.AddSurfaceFromArrays(Mesh.PrimitiveType.Triangles, surfaces[i]); copy.SurfaceSetMaterial(i, mesh.SurfaceGetMaterial(i) ?? mi.GetActiveMaterial(i)); }
+        return copy;
+    }
+
     private JsonDocument? sockets;
     private void Load()
     {
         loaded = true;
-        model = ModelLibrary.Get("stalls", new ModelLibrary.Look(TwoSided: true, Affine: 0.6, VertexColor: true));
+        model = ModelLibrary.Get("stalls", Look);
         if (model == null) return;
         string shared = Path.GetDirectoryName(Water.CityJson())!;
         string socketFile = Paths.NativeDataRoot != null ? Paths.Public("models/stalls_sack_sockets.json") : Path.GetFullPath(Path.Combine(shared, "..", "client", "src", "game", "stalls_sack_sockets.json"));
