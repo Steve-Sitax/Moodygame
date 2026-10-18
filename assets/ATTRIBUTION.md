@@ -668,3 +668,61 @@ with iron straps, t06 rusted iron, t07 sandstone, t08 brick with lime crust, t09
 the seamless and derived maps, and every SHA-256 are in that folder's `NOTES.md`. The concept pictures in
 `docs/plans/ruien/concepts/` are Codex pictures too. Steve's reference photo of the real Ruien is third-party and is not
 kept in the repository.
+
+## Plan 84 texture-picture handoff (2026-10-18)
+
+Original photographic-style pictures generated with the built-in imagegen tool, without third-party references. Exact prompts: `art-source/plan-84/generated/prompts.json`. Lossless map files, scales and target native material names: `native-godot/assets/textures/plan-84/manifest.json`. This is a picture handoff; native installation and contextual acceptance remain outstanding.
+
+| Retained source | Origin / author | Licence | SHA-256 |
+|---|---|---|---|
+| `art-source/plan-84/generated/bark.png` | OpenAI built-in imagegen, project prompts | Original generated project artwork | `b0d6930ae129b3db8302f7716dd57dd0425c42ce4d876cb055a536d8b0282d64` |
+| `art-source/plan-84/generated/bronze.png` | OpenAI built-in imagegen, project prompts | Original generated project artwork | `0c155bbf826e4beac432a3547029e168db28c58384d5288b18dfc4752a111ad8` |
+| `art-source/plan-84/generated/lead.png` | OpenAI built-in imagegen, project prompts | Original generated project artwork | `e37dfd3d94d8bd795c1e58d9c5bcd09e196d7464da3ed87bb268516131fa597d` |
+| `art-source/plan-84/generated/leaves.png` | OpenAI built-in imagegen, project prompts | Original generated project artwork | `fd146aedf750b452bee9745ff65b88de3d2cd028e46909f9272fb36d52d0587e` |
+| `art-source/plan-84/generated/litter-v2.png` | OpenAI built-in imagegen, correction of our retained litter source | Original generated project artwork | `c1d69bb0c4add02b4782d02394ca845f253fbea15ae686e4a3d1e5eb3b059c81` |
+| `art-source/plan-84/generated/litter.png` | OpenAI built-in imagegen, project prompts | Original generated project artwork | `564ba6279c6c276357a29e25fb707e82bac5e00f3a14ef6d3f5c17d76e2fa673` |
+| `art-source/plan-84/generated/park.png` | OpenAI built-in imagegen, project prompts | Original generated project artwork | `9058930dfb5a6ebc92285743c1ecbe68e70b912c642596611f5c2269420dc67a` |
+| `art-source/plan-84/generated/sandstone.png` | OpenAI built-in imagegen, project prompts | Original generated project artwork | `eb064e6d8f34c65a195cfb1229a3874e984d6c77c0aeeee0a1d642cff46b0801` |
+
+The iron and prop colour/height PNGs in `art-source/plan-84/reused/` are reused verbatim from commits `042db687` and `73a5fb50`; row 13 JSON recipes from `4997474b` are references only. Full per-file SHA-256 and provenance for retained pictures and current-native pixel snapshots: `art-source/plan-84/SOURCES.json`. No retired GLBs, materials, scenes or builders were installed. Rejected repeating sources: the numbered sign and circular mud boundary; the latter contributes only a central continuous soil crop.
+
+| Download / retained original | Item URL | Author | Licence | Downloaded | SHA-256 as downloaded |
+|---|---|---|---|---|---|
+| `art-source/third_party/ambientcg-bark012/Bark012_1K-PNG.zip` | https://ambientcg.com/view?id=Bark012 | ambientCG / Lennart Demes | CC0 1.0 | 2026-10-18 | `9b7c6f949b179b132593364990d900d7dd50ffb8ccda9b14131491f47c34af3d` |
+
+Licence checked on the item page itself: its “Are the assets really free for any purpose?” section states the CC0 licence. The page is retained as `item-page.html`; `SOURCES.json` records the exact download URL. Only PNG colour/displacement/roughness data were extracted; no bundled script, Blender file or material was executed. The fissured-bark half is graded to a subdued period palette and registered with the plane-bark half; all maps use the same crop and scale.
+
+## Issue 84 round 2 photographic donors (2026-10-18)
+
+Own-page CC0 evidence and immutable originals: `art-source/third_party/plan84-round2/<item>/`. Every downloaded map and archive has its own SHA-256 in each `SOURCES.json`; the table identifies the original archive or first downloaded albedo. No downloaded code was executed.
+
+| Item / use | Item page | Author | Licence | Downloaded | Original SHA-256 |
+|---|---|---|---|---|---|
+| Bricks085: English-bond red brick, wall/church/prison/atlas cells | [Bricks085](https://ambientcg.com/view?id=Bricks085) | Lennart Demes / ambientCG | CC0-1.0 | 2026-10-18 | `229b61d0810209f2e80267f1f6792d42bd27011e2a1c2f9c0a5b8d3a1efa0c98` (Bricks085_1K-PNG.zip) |
+| Rock041: Dark/pale mineral skin and coping; Belgian stone colour proxy | [Rock041](https://ambientcg.com/view?id=Rock041) | Lennart Demes / ambientCG | CC0-1.0 | 2026-10-18 | `5cf2de9e9b5ebdccd1de996396d4deef77fd3a79d1e6256d7f69486a90985c4a` (Rock041_1K-PNG.zip) |
+| Metal063: Zinc skin; bronze casting microrelief donor | [Metal063](https://ambientcg.com/view?id=Metal063) | Lennart Demes / ambientCG | CC0-1.0 | 2026-10-18 | `3fbad87604d0bd51d766dc503a7ff929a92c9ca0260563c27b8ff7b2a506cc39` (Metal063_1K-PNG.zip) |
+| roof_slates_03: Grey-blue Ardennes-colour roof slates | [roof_slates_03](https://polyhaven.com/a/roof_slates_03) | Rob Tuytel | CC0-1.0 | 2026-10-18 | `0d13854daaf3ce812a529c708b881e179d5fb33157031a2136fccd22aedb2cfb` (roof_slates_03_diff_1k.png) |
+| white_sandstone_blocks_02: Pale and blue-grey ashlar; quarry identity not claimed | [white_sandstone_blocks_02](https://polyhaven.com/a/white_sandstone_blocks_02) | Rob Tuytel | CC0-1.0 | 2026-10-18 | `139b484158e112b3a6e620f9204f9ab4fbd4f46560e2dc0407ad79560f44838a` (white_sandstone_blocks_02_diff_1k.png) |
+| japanese_sycamore: Exfoliating plane-family bark | [japanese_sycamore](https://polyhaven.com/a/japanese_sycamore) | Charlotte Baglioni | CC0-1.0 | 2026-10-18 | `b013222323381e0e2a79ed93d650dde8b9b62059885a11efbe95aba98505d2d1` (japanese_sycamore_diff_1k.png) |
+| jolcham_oak_bark_01: Fissured trunk proxy; not a certified lime specimen | [jolcham_oak_bark_01](https://polyhaven.com/a/jolcham_oak_bark_01) | Charlotte Baglioni | CC0-1.0 | 2026-10-18 | `81aa2de68497e471516ae6c64331638f57e44eba73387772ba486fd62c2b6ba5` (jolcham_oak_bark_01_diff_1k.png) |
+| dark_wooden_planks: Weathered timber boards and continuous beam skin | [dark_wooden_planks](https://polyhaven.com/a/dark_wooden_planks) | Amal Kumar | CC0-1.0 | 2026-10-18 | `faeff107a658ebfc57523daa8b6bee734445fc0ffed99746a9086fd464f87389` (dark_wooden_planks_diff_1k.png) |
+| wooden_barrel: Cask staves and hoops | [wooden_barrel](https://polyhaven.com/a/wooden_barrel) | Dimitrios Savva | CC0-1.0 | 2026-10-18 | `cf3b969bf5d36da9befcfcd9d3657ba1087b3e60f3abd42250c1535909cf4035` (wooden_barrel_diff_1k.png) |
+| brown_leather: Brown leather | [brown_leather](https://polyhaven.com/a/brown_leather) | Rob Tuytel | CC0-1.0 | 2026-10-18 | `24f8bf54ee3b436f3077eacefb710ab77f62772fb75c5298e862854b597cd664` (brown_leather_albedo_1k.png) |
+| hessian_230: Jute sackcloth | [hessian_230](https://polyhaven.com/a/hessian_230) | colormass, Rico Cilliers | CC0-1.0 | 2026-10-18 | `9c3d6c6d308edeb4c37463c658a7edb11ccd8c6d76032ed5f4c2d8aede77b032` (hessian_230_diff_1k.png) |
+| rough_linen: Canvas/awning micro-weave | [rough_linen](https://polyhaven.com/a/rough_linen) | colormass, Rico Cilliers | CC0-1.0 | 2026-10-18 | `47444b9ef76fa32e0bfd20484fa63071336eba21e2e2bcb5e3957542bafaeaee` (rough_linen_diff_1k.png) |
+| brown_mud: Bare earth and isolated muck | [brown_mud](https://polyhaven.com/a/brown_mud) | Rob Tuytel | CC0-1.0 | 2026-10-18 | `16de209f01d4b4f44e4b86a5131f1484a3d058c5b61d8f7f9cba0c03ac5ace28` (brown_mud_diff_1k.png) |
+| dry_decay_leaves: Fallen leaf marks | [dry_decay_leaves](https://polyhaven.com/a/dry_decay_leaves) | Amal Kumar | CC0-1.0 | 2026-10-18 | `e0f1c110318239a2f7fa2cceac280dd082120a3973879e5a622473901fd41bb8` (dry_decay_leaves_diff_1k.png) |
+
+Exact per-map donors, physical scales and native material targets: `native-godot/assets/textures/plan-84/manifest.json`. These are picture inputs; native integration and material/species review are separate.
+
+Original generated supplements (built-in image_gen, project LICENSE; **not** CC0 field scans):
+
+| Original | SHA-256 | Use |
+|---|---|---|
+| `art-source/plan-84/round2-generated/bronze-patina.png` | `6b0e713b96326d6159288c667f979601fdb1ea0045cc741ecf0ebd4fc0158130` | Bronze albedo, with explicitly reconstructed/scanned casting microrelief |
+| `art-source/plan-84/round2-generated/fibres.png` | `a27e98c84f5b917b180e6ceb6629b7eb35ad99b397d14a01edfbc21fd6d78305` | Photographic coat, wicker, straw and fibre samples |
+| `art-source/plan-84/round2-generated/goods.png` | `918bfbd2d03e06dde65dbc9868126b1122b781fbcafcdcd3a4388561b37a6d07` | Photographic goods/food/paper albedo samples |
+| `art-source/plan-84/round2-generated/prints.png` | `fe696898b2bb94330591c87aa015c9c3011db25c53c61129c76bf9fc4590cdd9` | Devotional lithograph display, 8 columns x 4 rows |
+| `art-source/plan-84/round2-generated/special.png` | `1e836dda08113b770b2a73226dd8de58c56717172dd9e66f5836168d4ec366df` | Ceramic, petal, grain, tar, casting, ash and intrinsic flame/ember samples |
+
+Exact generation prompts: `art-source/plan-84/round2-generated/prompts.json`. Original iron, lead and thin botanical cards retain the round 1/art2 provenance above. Serif sign letters are rasterized original game wording; no system font file is redistributed.

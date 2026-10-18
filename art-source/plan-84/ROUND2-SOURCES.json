@@ -1,0 +1,792 @@
+{
+  "Bricks085": {
+    "item": "Bricks085",
+    "url": "https://ambientcg.com/view?id=Bricks085",
+    "licence": "CC0-1.0",
+    "authors": {
+      "Lennart Demes / ambientCG": "Asset"
+    },
+    "download_date": "2026-10-18",
+    "technique": "Surface photogrammetry",
+    "source_dimensions_mm": [
+      2400,
+      1200
+    ],
+    "files": [
+      {
+        "path": "art-source/third_party/plan84-round2/Bricks085/Bricks085_1K-PNG.zip",
+        "sha256": "229b61d0810209f2e80267f1f6792d42bd27011e2a1c2f9c0a5b8d3a1efa0c98",
+        "bytes": 9222370,
+        "download_url": "https://ambientcg.com/get?file=Bricks085_1K-PNG.zip"
+      },
+      {
+        "path": "art-source/third_party/plan84-round2/Bricks085/Bricks085_1K-PNG_Color.png",
+        "sha256": "ce71019546110ef285f7e031921bfee3d5daba2407de4620ef6bfde2e5f6be68",
+        "bytes": 930121,
+        "download_url": "https://ambientcg.com/view?id=Bricks085"
+      },
+      {
+        "path": "art-source/third_party/plan84-round2/Bricks085/Bricks085_1K-PNG_Displacement.png",
+        "sha256": "4b318add4329680d4589f93d7707d46e2f93b786289db5c3f7cb9023b2ebd19b",
+        "bytes": 812410,
+        "download_url": "https://ambientcg.com/view?id=Bricks085"
+      },
+      {
+        "path": "art-source/third_party/plan84-round2/Bricks085/Bricks085_1K-PNG_NormalGL.png",
+        "sha256": "a4025924b9eebf1784b9572b8a31c6b12bd484e8a95915cf11b32d683a05d178",
+        "bytes": 2704817,
+        "download_url": "https://ambientcg.com/view?id=Bricks085"
+      },
+      {
+        "path": "art-source/third_party/plan84-round2/Bricks085/Bricks085_1K-PNG_Roughness.png",
+        "sha256": "df0cfee9773bdeadab40e3396ca7c3db9c57a213bb6988b84395f398dd299262",
+        "bytes": 244676,
+        "download_url": "https://ambientcg.com/view?id=Bricks085"
+      },
+      {
+        "path": "art-source/third_party/plan84-round2/Bricks085/item-page.html",
+        "sha256": "49227c8862916c4bc8b8fbeb9f41238a59f14d55ffb19591013073a4bf02b8c5",
+        "bytes": 31491,
+        "download_url": "https://ambientcg.com/view?id=Bricks085"
+      }
+    ]
+  },
+  "Rock041": {
+    "item": "Rock041",
+    "url": "https://ambientcg.com/view?id=Rock041",
+    "licence": "CC0-1.0",
+    "authors": {
+      "Lennart Demes / ambientCG": "Asset"
+    },
+    "download_date": "2026-10-18",
+    "technique": "Surface photogrammetry",
+    "source_dimensions_mm": null,
+    "files": [
+      {
+        "path": "art-source/third_party/plan84-round2/Rock041/Rock041_1K-PNG.zip",
+        "sha256": "5cf2de9e9b5ebdccd1de996396d4deef77fd3a79d1e6256d7f69486a90985c4a",
+        "bytes": 9504089,
+        "download_url": "https://ambientcg.com/get?file=Rock041_1K-PNG.zip"
+      },
+      {
+        "path": "art-source/third_party/plan84-round2/Rock041/Rock041_1K-PNG_Color.png",
+        "sha256": "2510b01cc19e5bc264e49b13bf3bf6f609f58fbc1d0948dbc144abe82651f2d8",
+        "bytes": 1022779,
+        "download_url": "https://ambientcg.com/view?id=Rock041"
+      },
+      {
+        "path": "art-source/third_party/plan84-round2/Rock041/Rock041_1K-PNG_Displacement.png",
+        "sha256": "155f3e85a7850d19de96da77b53cdf9ca63ae30f84adf7e79c21b307ffaf9e79",
+        "bytes": 843406,
+        "download_url": "https://ambientcg.com/view?id=Rock041"
+      },
+      {
+        "path": "art-source/third_party/plan84-round2/Rock041/Rock041_1K-PNG_NormalGL.png",
+        "sha256": "d7052b19c71fcbee3200346154fac2c12fd4dc3128e64496ee841f26fd911803",
+        "bytes": 2770953,
+        "download_url": "https://ambientcg.com/view?id=Rock041"
+      },
+      {
+        "path": "art-source/third_party/plan84-round2/Rock041/Rock041_1K-PNG_Roughness.png",
+        "sha256": "50a78b8d326c54882b55acc9c2d95020e17d6cb84d8e6dfa30a5521595933a61",
+        "bytes": 347080,
+        "download_url": "https://ambientcg.com/view?id=Rock041"
+      },
+      {
+        "path": "art-source/third_party/plan84-round2/Rock041/item-page.html",
+        "sha256": "c7c205955f5c0861fa93124120e1e59c6d003e93fcb3def48d922a85b19b162a",
+        "bytes": 31071,
+        "download_url": "https://ambientcg.com/view?id=Rock041"
+      }
+    ]
+  },
+  "Metal063": {
+    "item": "Metal063",
+    "url": "https://ambientcg.com/view?id=Metal063",
+    "licence": "CC0-1.0",
+    "authors": {
+      "Lennart Demes / ambientCG": "Asset"
+    },
+    "download_date": "2026-10-18",
+    "technique": "Height field photogrammetry",
+    "source_dimensions_mm": null,
+    "files": [
+      {
+        "path": "art-source/third_party/plan84-round2/Metal063/Metal063_1K-PNG.zip",
+        "sha256": "3fbad87604d0bd51d766dc503a7ff929a92c9ca0260563c27b8ff7b2a506cc39",
+        "bytes": 13002816,
+        "download_url": "https://ambientcg.com/get?file=Metal063_1K-PNG.zip"
+      },
+      {
+        "path": "art-source/third_party/plan84-round2/Metal063/Metal063_1K-PNG_Color.png",
+        "sha256": "7f5d0b9de1c43a4469a977ccb7cf96e5a103477ce485009166f826eb522d3576",
+        "bytes": 1923008,
+        "download_url": "https://ambientcg.com/view?id=Metal063"
+      },
+      {
+        "path": "art-source/third_party/plan84-round2/Metal063/Metal063_1K-PNG_Displacement.png",
+        "sha256": "c3c364a8df365fdc3ad94b7d14d5c8695ad5695b28871ac4d2ba94d0eb090ab0",
+        "bytes": 1949507,
+        "download_url": "https://ambientcg.com/view?id=Metal063"
+      },
+      {
+        "path": "art-source/third_party/plan84-round2/Metal063/Metal063_1K-PNG_NormalGL.png",
+        "sha256": "a3f6411f62c874c4c8b2f78451af4a2e36846b87877b95e9bd8e0126f8776202",
+        "bytes": 3231463,
+        "download_url": "https://ambientcg.com/view?id=Metal063"
+      },
+      {
+        "path": "art-source/third_party/plan84-round2/Metal063/Metal063_1K-PNG_Roughness.png",
+        "sha256": "760f142cde10fac01a5f6f91bba58010964ed825a5b409ed2c9d473f04d9edf9",
+        "bytes": 714732,
+        "download_url": "https://ambientcg.com/view?id=Metal063"
+      },
+      {
+        "path": "art-source/third_party/plan84-round2/Metal063/item-page.html",
+        "sha256": "7d06c03ae4224812c2e5c06469ed3050df9fcab30a8ab607f2079e5e6a2d5c51",
+        "bytes": 28802,
+        "download_url": "https://ambientcg.com/view?id=Metal063"
+      }
+    ]
+  },
+  "roof_slates_03": {
+    "item": "roof_slates_03",
+    "url": "https://polyhaven.com/a/roof_slates_03",
+    "licence": "CC0-1.0",
+    "authors": {
+      "Rob Tuytel": "All"
+    },
+    "download_date": "2026-10-18",
+    "technique": "Photographed PBR surface",
+    "source_dimensions_mm": [
+      3000,
+      3000
+    ],
+    "files": [
+      {
+        "path": "art-source/third_party/plan84-round2/roof_slates_03/roof_slates_03_diff_1k.png",
+        "sha256": "0d13854daaf3ce812a529c708b881e179d5fb33157031a2136fccd22aedb2cfb",
+        "bytes": 6161549,
+        "download_url": "https://dl.polyhaven.org/file/ph-assets/Textures/png/1k/roof_slates_03/roof_slates_03_diff_1k.png"
+      },
+      {
+        "path": "art-source/third_party/plan84-round2/roof_slates_03/roof_slates_03_disp_1k.png",
+        "sha256": "15fbe6bb0f7e3514edc6d11b2f3f359d723507754c33f340dff8021cb3eef3c7",
+        "bytes": 1499366,
+        "download_url": "https://dl.polyhaven.org/file/ph-assets/Textures/png/1k/roof_slates_03/roof_slates_03_disp_1k.png"
+      },
+      {
+        "path": "art-source/third_party/plan84-round2/roof_slates_03/roof_slates_03_nor_gl_1k.png",
+        "sha256": "0cb0e3539bcf0a9285f0f2395285e83d49384c7ebd4d08c0ee955f90b093c9d2",
+        "bytes": 5328166,
+        "download_url": "https://dl.polyhaven.org/file/ph-assets/Textures/png/1k/roof_slates_03/roof_slates_03_nor_gl_1k.png"
+      },
+      {
+        "path": "art-source/third_party/plan84-round2/roof_slates_03/roof_slates_03_rough_1k.png",
+        "sha256": "da15d7b5ed6444d6c85160dfe243a7afbc1d31cf7f5554e815db938ec7bf4f20",
+        "bytes": 4330,
+        "download_url": "https://dl.polyhaven.org/file/ph-assets/Textures/png/1k/roof_slates_03/roof_slates_03_rough_1k.png"
+      },
+      {
+        "path": "art-source/third_party/plan84-round2/roof_slates_03/info.json",
+        "sha256": "3d41c0b7bd8a7c5d371b513050f3eedad774236f1416a669bcf6a39369503a6b",
+        "bytes": 980,
+        "download_url": "https://polyhaven.com/a/roof_slates_03"
+      },
+      {
+        "path": "art-source/third_party/plan84-round2/roof_slates_03/files.json",
+        "sha256": "8a9f8265877b0dec5a12d4f209a42c1b98c38cb6452b4084bda533f94ff45ef8",
+        "bytes": 26490,
+        "download_url": "https://polyhaven.com/a/roof_slates_03"
+      },
+      {
+        "path": "art-source/third_party/plan84-round2/roof_slates_03/item-page.html",
+        "sha256": "1ef1ce6768720de607c24c6aa4653485999eed9b6bd12ea501e4bb313729ca1d",
+        "bytes": 195558,
+        "download_url": "https://polyhaven.com/a/roof_slates_03"
+      }
+    ]
+  },
+  "white_sandstone_blocks_02": {
+    "item": "white_sandstone_blocks_02",
+    "url": "https://polyhaven.com/a/white_sandstone_blocks_02",
+    "licence": "CC0-1.0",
+    "authors": {
+      "Rob Tuytel": "All"
+    },
+    "download_date": "2026-10-18",
+    "technique": "Photographed PBR surface",
+    "source_dimensions_mm": [
+      2000,
+      2000
+    ],
+    "files": [
+      {
+        "path": "art-source/third_party/plan84-round2/white_sandstone_blocks_02/white_sandstone_blocks_02_diff_1k.png",
+        "sha256": "139b484158e112b3a6e620f9204f9ab4fbd4f46560e2dc0407ad79560f44838a",
+        "bytes": 2055031,
+        "download_url": "https://dl.polyhaven.org/file/ph-assets/Textures/png/1k/white_sandstone_blocks_02/white_sandstone_blocks_02_diff_1k.png"
+      },
+      {
+        "path": "art-source/third_party/plan84-round2/white_sandstone_blocks_02/white_sandstone_blocks_02_disp_1k.png",
+        "sha256": "a4bb21f4d175b332135e59d09215af2abff495d96bfcafeef9b84c43e2906c1a",
+        "bytes": 1628666,
+        "download_url": "https://dl.polyhaven.org/file/ph-assets/Textures/png/1k/white_sandstone_blocks_02/white_sandstone_blocks_02_disp_1k.png"
+      },
+      {
+        "path": "art-source/third_party/plan84-round2/white_sandstone_blocks_02/white_sandstone_blocks_02_nor_gl_1k.png",
+        "sha256": "35bb805bb2e5df91ee16e1207b9c098c5857c0804268ce45ef0961c233b558e1",
+        "bytes": 1879695,
+        "download_url": "https://dl.polyhaven.org/file/ph-assets/Textures/png/1k/white_sandstone_blocks_02/white_sandstone_blocks_02_nor_gl_1k.png"
+      },
+      {
+        "path": "art-source/third_party/plan84-round2/white_sandstone_blocks_02/white_sandstone_blocks_02_rough_1k.png",
+        "sha256": "c85b2389f862f617c7e1ebd71e9e73a7fb1d558ce31d3802cada7c3882cb220c",
+        "bytes": 661138,
+        "download_url": "https://dl.polyhaven.org/file/ph-assets/Textures/png/1k/white_sandstone_blocks_02/white_sandstone_blocks_02_rough_1k.png"
+      },
+      {
+        "path": "art-source/third_party/plan84-round2/white_sandstone_blocks_02/info.json",
+        "sha256": "6f295950b68f875d2eb22a62b2a49995c25d2044582818d848839d67eb4fb4e6",
+        "bytes": 977,
+        "download_url": "https://polyhaven.com/a/white_sandstone_blocks_02"
+      },
+      {
+        "path": "art-source/third_party/plan84-round2/white_sandstone_blocks_02/files.json",
+        "sha256": "9369eec22c2d6cac224a223df2237d12ec66547b0605e681e9f61cf2a3d92982",
+        "bytes": 34932,
+        "download_url": "https://polyhaven.com/a/white_sandstone_blocks_02"
+      },
+      {
+        "path": "art-source/third_party/plan84-round2/white_sandstone_blocks_02/item-page.html",
+        "sha256": "a1f291387473a07addcfe3201c7b659a9e915e14486581ed746398c8455b0854",
+        "bytes": 209041,
+        "download_url": "https://polyhaven.com/a/white_sandstone_blocks_02"
+      }
+    ]
+  },
+  "japanese_sycamore": {
+    "item": "japanese_sycamore",
+    "url": "https://polyhaven.com/a/japanese_sycamore",
+    "licence": "CC0-1.0",
+    "authors": {
+      "Charlotte Baglioni": "All"
+    },
+    "download_date": "2026-10-18",
+    "technique": "Photographed PBR surface",
+    "source_dimensions_mm": [
+      1099.9999046325684,
+      2199.9998092651367
+    ],
+    "files": [
+      {
+        "path": "art-source/third_party/plan84-round2/japanese_sycamore/japanese_sycamore_diff_1k.png",
+        "sha256": "b013222323381e0e2a79ed93d650dde8b9b62059885a11efbe95aba98505d2d1",
+        "bytes": 11272554,
+        "download_url": "https://dl.polyhaven.org/file/ph-assets/Textures/png/1k/japanese_sycamore/japanese_sycamore_diff_1k.png"
+      },
+      {
+        "path": "art-source/third_party/plan84-round2/japanese_sycamore/japanese_sycamore_disp_1k.png",
+        "sha256": "9f1269481520a3f1bf60c9d66c641b558ef7d218ca89143793307fb920d005e5",
+        "bytes": 3086401,
+        "download_url": "https://dl.polyhaven.org/file/ph-assets/Textures/png/1k/japanese_sycamore/japanese_sycamore_disp_1k.png"
+      },
+      {
+        "path": "art-source/third_party/plan84-round2/japanese_sycamore/japanese_sycamore_nor_gl_1k.png",
+        "sha256": "577655743db53469472fa40cf138539d3d41262692f6e073d0e906b058ac3c42",
+        "bytes": 10618060,
+        "download_url": "https://dl.polyhaven.org/file/ph-assets/Textures/png/1k/japanese_sycamore/japanese_sycamore_nor_gl_1k.png"
+      },
+      {
+        "path": "art-source/third_party/plan84-round2/japanese_sycamore/japanese_sycamore_rough_1k.png",
+        "sha256": "723485ce3e3d7b9d834a36594626506d530f10e3d8c184f8e5dd21c91002934c",
+        "bytes": 4726734,
+        "download_url": "https://dl.polyhaven.org/file/ph-assets/Textures/png/1k/japanese_sycamore/japanese_sycamore_rough_1k.png"
+      },
+      {
+        "path": "art-source/third_party/plan84-round2/japanese_sycamore/info.json",
+        "sha256": "d541be636bc7abe4ed6762902626f6baaca2786dec92cc3b83a46c5c57ae7541",
+        "bytes": 936,
+        "download_url": "https://polyhaven.com/a/japanese_sycamore"
+      },
+      {
+        "path": "art-source/third_party/plan84-round2/japanese_sycamore/files.json",
+        "sha256": "9075318d0d29f13443e500f1a0acb6017034dd7349658d816e4f8d2baa026ca3",
+        "bytes": 27589,
+        "download_url": "https://polyhaven.com/a/japanese_sycamore"
+      },
+      {
+        "path": "art-source/third_party/plan84-round2/japanese_sycamore/item-page.html",
+        "sha256": "44c781414b3b5bd1e3a17302326a1bd8d3f464825f5f30c37b237a3513b56473",
+        "bytes": 196539,
+        "download_url": "https://polyhaven.com/a/japanese_sycamore"
+      }
+    ]
+  },
+  "jolcham_oak_bark_01": {
+    "item": "jolcham_oak_bark_01",
+    "url": "https://polyhaven.com/a/jolcham_oak_bark_01",
+    "licence": "CC0-1.0",
+    "authors": {
+      "Charlotte Baglioni": "All"
+    },
+    "download_date": "2026-10-18",
+    "technique": "Photographed PBR surface",
+    "source_dimensions_mm": [
+      1000,
+      2000
+    ],
+    "files": [
+      {
+        "path": "art-source/third_party/plan84-round2/jolcham_oak_bark_01/jolcham_oak_bark_01_diff_1k.png",
+        "sha256": "81aa2de68497e471516ae6c64331638f57e44eba73387772ba486fd62c2b6ba5",
+        "bytes": 11573509,
+        "download_url": "https://dl.polyhaven.org/file/ph-assets/Textures/png/1k/jolcham_oak_bark_01/jolcham_oak_bark_01_diff_1k.png"
+      },
+      {
+        "path": "art-source/third_party/plan84-round2/jolcham_oak_bark_01/jolcham_oak_bark_01_disp_1k.png",
+        "sha256": "4bcd2c3a36b68a020beb25f4034c4eabf41033433212ca19de0f3bd92a1dada3",
+        "bytes": 3467899,
+        "download_url": "https://dl.polyhaven.org/file/ph-assets/Textures/png/1k/jolcham_oak_bark_01/jolcham_oak_bark_01_disp_1k.png"
+      },
+      {
+        "path": "art-source/third_party/plan84-round2/jolcham_oak_bark_01/jolcham_oak_bark_01_nor_gl_1k.png",
+        "sha256": "0b054cfd8db2cf6a4821877587ac79868e149fa0a0d3731c9208b6fd8188633e",
+        "bytes": 12010462,
+        "download_url": "https://dl.polyhaven.org/file/ph-assets/Textures/png/1k/jolcham_oak_bark_01/jolcham_oak_bark_01_nor_gl_1k.png"
+      },
+      {
+        "path": "art-source/third_party/plan84-round2/jolcham_oak_bark_01/jolcham_oak_bark_01_rough_1k.png",
+        "sha256": "3c57119f21d218613bbc122ecf61567c6a0f29f3d5f9a1468ac71527558bba96",
+        "bytes": 3416259,
+        "download_url": "https://dl.polyhaven.org/file/ph-assets/Textures/png/1k/jolcham_oak_bark_01/jolcham_oak_bark_01_rough_1k.png"
+      },
+      {
+        "path": "art-source/third_party/plan84-round2/jolcham_oak_bark_01/info.json",
+        "sha256": "6589f4e4e49533bbcb81d5610a4971a3d2b85d562fd8fadd38f2ec44dbec59a0",
+        "bytes": 1000,
+        "download_url": "https://polyhaven.com/a/jolcham_oak_bark_01"
+      },
+      {
+        "path": "art-source/third_party/plan84-round2/jolcham_oak_bark_01/files.json",
+        "sha256": "da22d84f5c1f4a19ab0a547466ed23b7bfae98fb17dcddfb39e6a97639394acf",
+        "bytes": 28273,
+        "download_url": "https://polyhaven.com/a/jolcham_oak_bark_01"
+      },
+      {
+        "path": "art-source/third_party/plan84-round2/jolcham_oak_bark_01/item-page.html",
+        "sha256": "1eb3d7a9cf08fa902f9740420a7f8020dc2e2dae6183ffe06587bb5064b81d95",
+        "bytes": 199049,
+        "download_url": "https://polyhaven.com/a/jolcham_oak_bark_01"
+      }
+    ]
+  },
+  "dark_wooden_planks": {
+    "item": "dark_wooden_planks",
+    "url": "https://polyhaven.com/a/dark_wooden_planks",
+    "licence": "CC0-1.0",
+    "authors": {
+      "Amal Kumar": "All"
+    },
+    "download_date": "2026-10-18",
+    "technique": "Photographed PBR surface",
+    "source_dimensions_mm": [
+      2000,
+      2000
+    ],
+    "files": [
+      {
+        "path": "art-source/third_party/plan84-round2/dark_wooden_planks/dark_wooden_planks_diff_1k.png",
+        "sha256": "faeff107a658ebfc57523daa8b6bee734445fc0ffed99746a9086fd464f87389",
+        "bytes": 6232438,
+        "download_url": "https://dl.polyhaven.org/file/ph-assets/Textures/png/1k/dark_wooden_planks/dark_wooden_planks_diff_1k.png"
+      },
+      {
+        "path": "art-source/third_party/plan84-round2/dark_wooden_planks/dark_wooden_planks_disp_1k.png",
+        "sha256": "6aeb969a8021a2c72c1a955a82f759bd9c9518a53915a416867594a59f2fd0c9",
+        "bytes": 1394483,
+        "download_url": "https://dl.polyhaven.org/file/ph-assets/Textures/png/1k/dark_wooden_planks/dark_wooden_planks_disp_1k.png"
+      },
+      {
+        "path": "art-source/third_party/plan84-round2/dark_wooden_planks/dark_wooden_planks_nor_gl_1k.png",
+        "sha256": "d55c58e05b066b499fc90f520666733716e4f86ac5594144587f2cb273c7f597",
+        "bytes": 5832926,
+        "download_url": "https://dl.polyhaven.org/file/ph-assets/Textures/png/1k/dark_wooden_planks/dark_wooden_planks_nor_gl_1k.png"
+      },
+      {
+        "path": "art-source/third_party/plan84-round2/dark_wooden_planks/dark_wooden_planks_rough_1k.png",
+        "sha256": "e3f040e61d9c27f7f9dd4081e8cb23a572ed2f23fc41fec91fec630e177bcf92",
+        "bytes": 1873302,
+        "download_url": "https://dl.polyhaven.org/file/ph-assets/Textures/png/1k/dark_wooden_planks/dark_wooden_planks_rough_1k.png"
+      },
+      {
+        "path": "art-source/third_party/plan84-round2/dark_wooden_planks/info.json",
+        "sha256": "14822e5eba8c3b6601430a2321c8dd1e24e9b6c962d90841ba2186a9d253120e",
+        "bytes": 1010,
+        "download_url": "https://polyhaven.com/a/dark_wooden_planks"
+      },
+      {
+        "path": "art-source/third_party/plan84-round2/dark_wooden_planks/files.json",
+        "sha256": "a5fb427004afc699140d09827f92e4496972f5607620df73577c06ece5fe42dc",
+        "bytes": 27886,
+        "download_url": "https://polyhaven.com/a/dark_wooden_planks"
+      },
+      {
+        "path": "art-source/third_party/plan84-round2/dark_wooden_planks/item-page.html",
+        "sha256": "e2a6d17d200e3c06a7867060bd67ccf598c750247a8619d2c4c2e7369ed307da",
+        "bytes": 198746,
+        "download_url": "https://polyhaven.com/a/dark_wooden_planks"
+      }
+    ]
+  },
+  "wooden_barrel": {
+    "item": "wooden_barrel",
+    "url": "https://polyhaven.com/a/wooden_barrel",
+    "licence": "CC0-1.0",
+    "authors": {
+      "Dimitrios Savva": "All"
+    },
+    "download_date": "2026-10-18",
+    "technique": "Photographed PBR surface",
+    "source_dimensions_mm": [
+      1289.9999618530273,
+      1289.9999618530273
+    ],
+    "files": [
+      {
+        "path": "art-source/third_party/plan84-round2/wooden_barrel/wooden_barrel_diff_1k.png",
+        "sha256": "cf3b969bf5d36da9befcfcd9d3657ba1087b3e60f3abd42250c1535909cf4035",
+        "bytes": 5545536,
+        "download_url": "https://dl.polyhaven.org/file/ph-assets/Textures/png/1k/wooden_barrel/wooden_barrel_diff_1k.png"
+      },
+      {
+        "path": "art-source/third_party/plan84-round2/wooden_barrel/wooden_barrel_disp_1k.png",
+        "sha256": "782f00c69f7a75786fa3b8640654e8e3ca3a3af9d236cf5b40a721fce52fe832",
+        "bytes": 1295023,
+        "download_url": "https://dl.polyhaven.org/file/ph-assets/Textures/png/1k/wooden_barrel/wooden_barrel_disp_1k.png"
+      },
+      {
+        "path": "art-source/third_party/plan84-round2/wooden_barrel/wooden_barrel_nor_gl_1k.png",
+        "sha256": "9440afb37c1a4d8ccd75a04484b6892b0cb906280573a8c29db4ee82f127ea5e",
+        "bytes": 5338734,
+        "download_url": "https://dl.polyhaven.org/file/ph-assets/Textures/png/1k/wooden_barrel/wooden_barrel_nor_gl_1k.png"
+      },
+      {
+        "path": "art-source/third_party/plan84-round2/wooden_barrel/wooden_barrel_rough_1k.png",
+        "sha256": "3aab3a3eefdc00b806fd7485d26654aa2599fec4c5c184f9b10d60326c3145ca",
+        "bytes": 1954048,
+        "download_url": "https://dl.polyhaven.org/file/ph-assets/Textures/png/1k/wooden_barrel/wooden_barrel_rough_1k.png"
+      },
+      {
+        "path": "art-source/third_party/plan84-round2/wooden_barrel/info.json",
+        "sha256": "2ca89e8a4a54d21652d1ef06cc93e225703aab71b5b77fa742ca00c59373b3fd",
+        "bytes": 959,
+        "download_url": "https://polyhaven.com/a/wooden_barrel"
+      },
+      {
+        "path": "art-source/third_party/plan84-round2/wooden_barrel/files.json",
+        "sha256": "16b0380493dc1bde678431f8c3c7d442efdd960aab79a568fcc51b3633117b49",
+        "bytes": 26208,
+        "download_url": "https://polyhaven.com/a/wooden_barrel"
+      },
+      {
+        "path": "art-source/third_party/plan84-round2/wooden_barrel/item-page.html",
+        "sha256": "76a70090db785d38908bad20e45c1bd9c2c11b567e2b3050a130ae93208f86a1",
+        "bytes": 195264,
+        "download_url": "https://polyhaven.com/a/wooden_barrel"
+      }
+    ]
+  },
+  "brown_leather": {
+    "item": "brown_leather",
+    "url": "https://polyhaven.com/a/brown_leather",
+    "licence": "CC0-1.0",
+    "authors": {
+      "Rob Tuytel": "All"
+    },
+    "download_date": "2026-10-18",
+    "technique": "Photographed PBR surface",
+    "source_dimensions_mm": [
+      400.0000059604645,
+      400.00003576278687
+    ],
+    "files": [
+      {
+        "path": "art-source/third_party/plan84-round2/brown_leather/brown_leather_albedo_1k.png",
+        "sha256": "24f8bf54ee3b436f3077eacefb710ab77f62772fb75c5298e862854b597cd664",
+        "bytes": 1819288,
+        "download_url": "https://dl.polyhaven.org/file/ph-assets/Textures/png/1k/brown_leather/brown_leather_albedo_1k.png"
+      },
+      {
+        "path": "art-source/third_party/plan84-round2/brown_leather/brown_leather_disp_1k.png",
+        "sha256": "3da0d0926efdc124a09961b966b83f42607c1e8a834e9ed5981456d663696c59",
+        "bytes": 2033575,
+        "download_url": "https://dl.polyhaven.org/file/ph-assets/Textures/png/1k/brown_leather/brown_leather_disp_1k.png"
+      },
+      {
+        "path": "art-source/third_party/plan84-round2/brown_leather/brown_leather_nor_gl_1k.png",
+        "sha256": "6354daff40330a2fcd6c1061912876ddc79889c960975adba336b013db5edcd5",
+        "bytes": 1925895,
+        "download_url": "https://dl.polyhaven.org/file/ph-assets/Textures/png/1k/brown_leather/brown_leather_nor_gl_1k.png"
+      },
+      {
+        "path": "art-source/third_party/plan84-round2/brown_leather/brown_leather_rough_1k.png",
+        "sha256": "80f3b3b886e2ca6deb1b54559457fc50945745df021c7773e39e1bebc9d8daa1",
+        "bytes": 959330,
+        "download_url": "https://dl.polyhaven.org/file/ph-assets/Textures/png/1k/brown_leather/brown_leather_rough_1k.png"
+      },
+      {
+        "path": "art-source/third_party/plan84-round2/brown_leather/info.json",
+        "sha256": "f99daa1aba9f6a3495f7aa1c819fd933b96c42e96806b49ab2d2af8ee47dbce9",
+        "bytes": 920,
+        "download_url": "https://polyhaven.com/a/brown_leather"
+      },
+      {
+        "path": "art-source/third_party/plan84-round2/brown_leather/files.json",
+        "sha256": "c988de9b099cc47ac170a2fdb55622684be5df102323a447bdc511a5525a6baa",
+        "bytes": 26283,
+        "download_url": "https://polyhaven.com/a/brown_leather"
+      },
+      {
+        "path": "art-source/third_party/plan84-round2/brown_leather/item-page.html",
+        "sha256": "466491762b20fe59c79971b172d0c8ec81daa0a71c7408493d055fc80cf85ac3",
+        "bytes": 195139,
+        "download_url": "https://polyhaven.com/a/brown_leather"
+      }
+    ]
+  },
+  "hessian_230": {
+    "item": "hessian_230",
+    "url": "https://polyhaven.com/a/hessian_230",
+    "licence": "CC0-1.0",
+    "authors": {
+      "colormass": "Photography",
+      "Rico Cilliers": "Processing"
+    },
+    "download_date": "2026-10-18",
+    "technique": "Photographed PBR surface",
+    "source_dimensions_mm": [
+      268.7538661074732,
+      267.1999931335449
+    ],
+    "files": [
+      {
+        "path": "art-source/third_party/plan84-round2/hessian_230/hessian_230_diff_1k.png",
+        "sha256": "9c3d6c6d308edeb4c37463c658a7edb11ccd8c6d76032ed5f4c2d8aede77b032",
+        "bytes": 5753027,
+        "download_url": "https://dl.polyhaven.org/file/ph-assets/Textures/png/1k/hessian_230/hessian_230_diff_1k.png"
+      },
+      {
+        "path": "art-source/third_party/plan84-round2/hessian_230/hessian_230_disp_1k.png",
+        "sha256": "fe615da3e6619b121e7758fb86a0f3d8994363922b9da7b87edabbf45e5ecc1e",
+        "bytes": 1898834,
+        "download_url": "https://dl.polyhaven.org/file/ph-assets/Textures/png/1k/hessian_230/hessian_230_disp_1k.png"
+      },
+      {
+        "path": "art-source/third_party/plan84-round2/hessian_230/hessian_230_nor_gl_1k.png",
+        "sha256": "dba6482c9b0edcfd0610e865b18236cccd35d2e15021db7a0ec54892f84249cc",
+        "bytes": 5598680,
+        "download_url": "https://dl.polyhaven.org/file/ph-assets/Textures/png/1k/hessian_230/hessian_230_nor_gl_1k.png"
+      },
+      {
+        "path": "art-source/third_party/plan84-round2/hessian_230/hessian_230_rough_1k.png",
+        "sha256": "535093cfb0d9b70d878d8ccd567c45355b7fd03f7f8d1f85d3a0d95d05fe184a",
+        "bytes": 1965459,
+        "download_url": "https://dl.polyhaven.org/file/ph-assets/Textures/png/1k/hessian_230/hessian_230_rough_1k.png"
+      },
+      {
+        "path": "art-source/third_party/plan84-round2/hessian_230/info.json",
+        "sha256": "272fec5eb86bbffb1323a54bd0a358ac0837a6077fb1b289fbd2a987b95b7411",
+        "bytes": 971,
+        "download_url": "https://polyhaven.com/a/hessian_230"
+      },
+      {
+        "path": "art-source/third_party/plan84-round2/hessian_230/files.json",
+        "sha256": "e3ae175e1ea48b897b8804e9c73d29f5acb8ee79cbc303a756500c6b1dd605a5",
+        "bytes": 45176,
+        "download_url": "https://polyhaven.com/a/hessian_230"
+      },
+      {
+        "path": "art-source/third_party/plan84-round2/hessian_230/item-page.html",
+        "sha256": "6cd991036a7bead12797192d17490154d2f06fd5075bdf9d31cb92e066c61492",
+        "bytes": 226574,
+        "download_url": "https://polyhaven.com/a/hessian_230"
+      }
+    ]
+  },
+  "rough_linen": {
+    "item": "rough_linen",
+    "url": "https://polyhaven.com/a/rough_linen",
+    "licence": "CC0-1.0",
+    "authors": {
+      "colormass": "Photography",
+      "Rico Cilliers": "Processing"
+    },
+    "download_date": "2026-10-18",
+    "technique": "Photographed PBR surface",
+    "source_dimensions_mm": [
+      270.7081392676629,
+      271.29998803138733
+    ],
+    "files": [
+      {
+        "path": "art-source/third_party/plan84-round2/rough_linen/rough_linen_diff_1k.png",
+        "sha256": "47444b9ef76fa32e0bfd20484fa63071336eba21e2e2bcb5e3957542bafaeaee",
+        "bytes": 5812140,
+        "download_url": "https://dl.polyhaven.org/file/ph-assets/Textures/png/1k/rough_linen/rough_linen_diff_1k.png"
+      },
+      {
+        "path": "art-source/third_party/plan84-round2/rough_linen/rough_linen_disp_1k.png",
+        "sha256": "78b56241190055fce94238d587bc71504b155c5785ace241b455b256166c24a2",
+        "bytes": 1983815,
+        "download_url": "https://dl.polyhaven.org/file/ph-assets/Textures/png/1k/rough_linen/rough_linen_disp_1k.png"
+      },
+      {
+        "path": "art-source/third_party/plan84-round2/rough_linen/rough_linen_nor_gl_1k.png",
+        "sha256": "ebafddfe30e304f9479e1005c800c4b0b2280fd8de9eeb1a96f92f57b999ea72",
+        "bytes": 5653944,
+        "download_url": "https://dl.polyhaven.org/file/ph-assets/Textures/png/1k/rough_linen/rough_linen_nor_gl_1k.png"
+      },
+      {
+        "path": "art-source/third_party/plan84-round2/rough_linen/rough_linen_rough_1k.png",
+        "sha256": "040eeef8041e3c619e5a17a76bb5f376416ce17f1ac42a04003a67952cc206a3",
+        "bytes": 2045070,
+        "download_url": "https://dl.polyhaven.org/file/ph-assets/Textures/png/1k/rough_linen/rough_linen_rough_1k.png"
+      },
+      {
+        "path": "art-source/third_party/plan84-round2/rough_linen/info.json",
+        "sha256": "091d8c5903c22987bcfa629167deb22791d290d6ced711967651f8bb8cefc059",
+        "bytes": 942,
+        "download_url": "https://polyhaven.com/a/rough_linen"
+      },
+      {
+        "path": "art-source/third_party/plan84-round2/rough_linen/files.json",
+        "sha256": "14d222418e4dbe1a0fc3e6bbf9776694474cac43fd531b5f77f8da819616cd49",
+        "bytes": 45157,
+        "download_url": "https://polyhaven.com/a/rough_linen"
+      },
+      {
+        "path": "art-source/third_party/plan84-round2/rough_linen/item-page.html",
+        "sha256": "cef837052b8aeabe7ce7ffb7e1947e53c0c24f9e399fd33dea88f6e068ca02d4",
+        "bytes": 227094,
+        "download_url": "https://polyhaven.com/a/rough_linen"
+      }
+    ]
+  },
+  "brown_mud": {
+    "item": "brown_mud",
+    "url": "https://polyhaven.com/a/brown_mud",
+    "licence": "CC0-1.0",
+    "authors": {
+      "Rob Tuytel": "All"
+    },
+    "download_date": "2026-10-18",
+    "technique": "Photographed PBR surface",
+    "source_dimensions_mm": [
+      1299.996018409729,
+      1299.996018409729
+    ],
+    "files": [
+      {
+        "path": "art-source/third_party/plan84-round2/brown_mud/brown_mud_diff_1k.png",
+        "sha256": "16de209f01d4b4f44e4b86a5131f1484a3d058c5b61d8f7f9cba0c03ac5ace28",
+        "bytes": 1773675,
+        "download_url": "https://dl.polyhaven.org/file/ph-assets/Textures/png/1k/brown_mud/brown_mud_diff_1k.png"
+      },
+      {
+        "path": "art-source/third_party/plan84-round2/brown_mud/brown_mud_disp_1k.png",
+        "sha256": "7f46370448ce670cd2bcb9f2f19832dccb8e13180448030f2a0eede2596b52f0",
+        "bytes": 666247,
+        "download_url": "https://dl.polyhaven.org/file/ph-assets/Textures/png/1k/brown_mud/brown_mud_disp_1k.png"
+      },
+      {
+        "path": "art-source/third_party/plan84-round2/brown_mud/brown_mud_nor_gl_1k.png",
+        "sha256": "58fd36c8e5bc2c5722f5e1a53bc7f56858a163b85775447e3bb16531d4d35916",
+        "bytes": 2449515,
+        "download_url": "https://dl.polyhaven.org/file/ph-assets/Textures/png/1k/brown_mud/brown_mud_nor_gl_1k.png"
+      },
+      {
+        "path": "art-source/third_party/plan84-round2/brown_mud/brown_mud_rough_1k.png",
+        "sha256": "171cefe98225a95efede2245c74e789c96458e61f62cd125241107da1d8cecef",
+        "bytes": 603673,
+        "download_url": "https://dl.polyhaven.org/file/ph-assets/Textures/png/1k/brown_mud/brown_mud_rough_1k.png"
+      },
+      {
+        "path": "art-source/third_party/plan84-round2/brown_mud/info.json",
+        "sha256": "64d1c2d73ac4ab596bee9300ae707e1a17a41226ed4bc92559f47854b65adbd3",
+        "bytes": 986,
+        "download_url": "https://polyhaven.com/a/brown_mud"
+      },
+      {
+        "path": "art-source/third_party/plan84-round2/brown_mud/files.json",
+        "sha256": "f89091cedb274665e7258766b45ba4f0ec3bd449ed4e0463f1d6ab372608825d",
+        "bytes": 28775,
+        "download_url": "https://polyhaven.com/a/brown_mud"
+      },
+      {
+        "path": "art-source/third_party/plan84-round2/brown_mud/item-page.html",
+        "sha256": "006cbe6d4453610edbe208fce4dab41d1f096106f840829366564c2d48b62898",
+        "bytes": 201058,
+        "download_url": "https://polyhaven.com/a/brown_mud"
+      }
+    ]
+  },
+  "dry_decay_leaves": {
+    "item": "dry_decay_leaves",
+    "url": "https://polyhaven.com/a/dry_decay_leaves",
+    "licence": "CC0-1.0",
+    "authors": {
+      "Amal Kumar": "All"
+    },
+    "download_date": "2026-10-18",
+    "technique": "Photographed PBR surface",
+    "source_dimensions_mm": [
+      2000,
+      2000
+    ],
+    "files": [
+      {
+        "path": "art-source/third_party/plan84-round2/dry_decay_leaves/dry_decay_leaves_diff_1k.png",
+        "sha256": "e0f1c110318239a2f7fa2cceac280dd082120a3973879e5a622473901fd41bb8",
+        "bytes": 6227360,
+        "download_url": "https://dl.polyhaven.org/file/ph-assets/Textures/png/1k/dry_decay_leaves/dry_decay_leaves_diff_1k.png"
+      },
+      {
+        "path": "art-source/third_party/plan84-round2/dry_decay_leaves/dry_decay_leaves_disp_1k.png",
+        "sha256": "2509dab4c800f37c29dce8d728cbe33b197e7b77b54acfc1da3190eae78c0115",
+        "bytes": 1682223,
+        "download_url": "https://dl.polyhaven.org/file/ph-assets/Textures/png/1k/dry_decay_leaves/dry_decay_leaves_disp_1k.png"
+      },
+      {
+        "path": "art-source/third_party/plan84-round2/dry_decay_leaves/dry_decay_leaves_nor_gl_1k.png",
+        "sha256": "58829d98f8d4eea2ef1be96a4c6a37660af1cf1a425037f4ac68565b954b3ace",
+        "bytes": 6529494,
+        "download_url": "https://dl.polyhaven.org/file/ph-assets/Textures/png/1k/dry_decay_leaves/dry_decay_leaves_nor_gl_1k.png"
+      },
+      {
+        "path": "art-source/third_party/plan84-round2/dry_decay_leaves/dry_decay_leaves_rough_1k.png",
+        "sha256": "5688b86fd45f489e8b37645ea71089bbbae31fd2ab40897b59aa916fb7a622dd",
+        "bytes": 1794204,
+        "download_url": "https://dl.polyhaven.org/file/ph-assets/Textures/png/1k/dry_decay_leaves/dry_decay_leaves_rough_1k.png"
+      },
+      {
+        "path": "art-source/third_party/plan84-round2/dry_decay_leaves/info.json",
+        "sha256": "8170e6e84eca1564e36f955333f4c4cb52ba8bbfa95d3b6b12768396fb1826b9",
+        "bytes": 934,
+        "download_url": "https://polyhaven.com/a/dry_decay_leaves"
+      },
+      {
+        "path": "art-source/third_party/plan84-round2/dry_decay_leaves/files.json",
+        "sha256": "8284eac8569196fa54a27b19890f9d51b205feb4ae1977229ba3040b0b664c05",
+        "bytes": 34144,
+        "download_url": "https://polyhaven.com/a/dry_decay_leaves"
+      },
+      {
+        "path": "art-source/third_party/plan84-round2/dry_decay_leaves/item-page.html",
+        "sha256": "8300be4b0f9351f49fc54c2ddffb2842cd95986f60093fc5e5c18cb4dceff760",
+        "bytes": 203890,
+        "download_url": "https://polyhaven.com/a/dry_decay_leaves"
+      }
+    ]
+  }
+}

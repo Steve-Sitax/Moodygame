@@ -1,0 +1,59 @@
+{
+  "item": "rough_linen",
+  "url": "https://polyhaven.com/a/rough_linen",
+  "licence": "CC0-1.0",
+  "authors": {
+    "colormass": "Photography",
+    "Rico Cilliers": "Processing"
+  },
+  "download_date": "2026-10-18",
+  "technique": "Photographed PBR surface",
+  "source_dimensions_mm": [
+    270.7081392676629,
+    271.29998803138733
+  ],
+  "files": [
+    {
+      "path": "art-source/third_party/plan84-round2/rough_linen/rough_linen_diff_1k.png",
+      "sha256": "47444b9ef76fa32e0bfd20484fa63071336eba21e2e2bcb5e3957542bafaeaee",
+      "bytes": 5812140,
+      "download_url": "https://dl.polyhaven.org/file/ph-assets/Textures/png/1k/rough_linen/rough_linen_diff_1k.png"
+    },
+    {
+      "path": "art-source/third_party/plan84-round2/rough_linen/rough_linen_disp_1k.png",
+      "sha256": "78b56241190055fce94238d587bc71504b155c5785ace241b455b256166c24a2",
+      "bytes": 1983815,
+      "download_url": "https://dl.polyhaven.org/file/ph-assets/Textures/png/1k/rough_linen/rough_linen_disp_1k.png"
+    },
+    {
+      "path": "art-source/third_party/plan84-round2/rough_linen/rough_linen_nor_gl_1k.png",
+      "sha256": "ebafddfe30e304f9479e1005c800c4b0b2280fd8de9eeb1a96f92f57b999ea72",
+      "bytes": 5653944,
+      "download_url": "https://dl.polyhaven.org/file/ph-assets/Textures/png/1k/rough_linen/rough_linen_nor_gl_1k.png"
+    },
+    {
+      "path": "art-source/third_party/plan84-round2/rough_linen/rough_linen_rough_1k.png",
+      "sha256": "040eeef8041e3c619e5a17a76bb5f376416ce17f1ac42a04003a67952cc206a3",
+      "bytes": 2045070,
+      "download_url": "https://dl.polyhaven.org/file/ph-assets/Textures/png/1k/rough_linen/rough_linen_rough_1k.png"
+    },
+    {
+      "path": "art-source/third_party/plan84-round2/rough_linen/info.json",
+      "sha256": "091d8c5903c22987bcfa629167deb22791d290d6ced711967651f8bb8cefc059",
+      "bytes": 942,
+      "download_url": "https://polyhaven.com/a/rough_linen"
+    },
+    {
+      "path": "art-source/third_party/plan84-round2/rough_linen/files.json",
+      "sha256": "14d222418e4dbe1a0fc3e6bbf9776694474cac43fd531b5f77f8da819616cd49",
+      "bytes": 45157,
+      "download_url": "https://polyhaven.com/a/rough_linen"
+    },
+    {
+      "path": "art-source/third_party/plan84-round2/rough_linen/item-page.html",
+      "sha256": "cef837052b8aeabe7ce7ffb7e1947e53c0c24f9e399fd33dea88f6e068ca02d4",
+      "bytes": 227094,
+      "download_url": "https://polyhaven.com/a/rough_linen"
+    }
+  ]
+}

@@ -1,0 +1,58 @@
+{
+  "item": "wooden_barrel",
+  "url": "https://polyhaven.com/a/wooden_barrel",
+  "licence": "CC0-1.0",
+  "authors": {
+    "Dimitrios Savva": "All"
+  },
+  "download_date": "2026-10-18",
+  "technique": "Photographed PBR surface",
+  "source_dimensions_mm": [
+    1289.9999618530273,
+    1289.9999618530273
+  ],
+  "files": [
+    {
+      "path": "art-source/third_party/plan84-round2/wooden_barrel/wooden_barrel_diff_1k.png",
+      "sha256": "cf3b969bf5d36da9befcfcd9d3657ba1087b3e60f3abd42250c1535909cf4035",
+      "bytes": 5545536,
+      "download_url": "https://dl.polyhaven.org/file/ph-assets/Textures/png/1k/wooden_barrel/wooden_barrel_diff_1k.png"
+    },
+    {
+      "path": "art-source/third_party/plan84-round2/wooden_barrel/wooden_barrel_disp_1k.png",
+      "sha256": "782f00c69f7a75786fa3b8640654e8e3ca3a3af9d236cf5b40a721fce52fe832",
+      "bytes": 1295023,
+      "download_url": "https://dl.polyhaven.org/file/ph-assets/Textures/png/1k/wooden_barrel/wooden_barrel_disp_1k.png"
+    },
+    {
+      "path": "art-source/third_party/plan84-round2/wooden_barrel/wooden_barrel_nor_gl_1k.png",
+      "sha256": "9440afb37c1a4d8ccd75a04484b6892b0cb906280573a8c29db4ee82f127ea5e",
+      "bytes": 5338734,
+      "download_url": "https://dl.polyhaven.org/file/ph-assets/Textures/png/1k/wooden_barrel/wooden_barrel_nor_gl_1k.png"
+    },
+    {
+      "path": "art-source/third_party/plan84-round2/wooden_barrel/wooden_barrel_rough_1k.png",
+      "sha256": "3aab3a3eefdc00b806fd7485d26654aa2599fec4c5c184f9b10d60326c3145ca",
+      "bytes": 1954048,
+      "download_url": "https://dl.polyhaven.org/file/ph-assets/Textures/png/1k/wooden_barrel/wooden_barrel_rough_1k.png"
+    },
+    {
+      "path": "art-source/third_party/plan84-round2/wooden_barrel/info.json",
+      "sha256": "2ca89e8a4a54d21652d1ef06cc93e225703aab71b5b77fa742ca00c59373b3fd",
+      "bytes": 959,
+      "download_url": "https://polyhaven.com/a/wooden_barrel"
+    },
+    {
+      "path": "art-source/third_party/plan84-round2/wooden_barrel/files.json",
+      "sha256": "16b0380493dc1bde678431f8c3c7d442efdd960aab79a568fcc51b3633117b49",
+      "bytes": 26208,
+      "download_url": "https://polyhaven.com/a/wooden_barrel"
+    },
+    {
+      "path": "art-source/third_party/plan84-round2/wooden_barrel/item-page.html",
+      "sha256": "76a70090db785d38908bad20e45c1bd9c2c11b567e2b3050a130ae93208f86a1",
+      "bytes": 195264,
+      "download_url": "https://polyhaven.com/a/wooden_barrel"
+    }
+  ]
+}

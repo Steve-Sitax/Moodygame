@@ -1,0 +1,58 @@
+{
+  "item": "roof_slates_03",
+  "url": "https://polyhaven.com/a/roof_slates_03",
+  "licence": "CC0-1.0",
+  "authors": {
+    "Rob Tuytel": "All"
+  },
+  "download_date": "2026-10-18",
+  "technique": "Photographed PBR surface",
+  "source_dimensions_mm": [
+    3000,
+    3000
+  ],
+  "files": [
+    {
+      "path": "art-source/third_party/plan84-round2/roof_slates_03/roof_slates_03_diff_1k.png",
+      "sha256": "0d13854daaf3ce812a529c708b881e179d5fb33157031a2136fccd22aedb2cfb",
+      "bytes": 6161549,
+      "download_url": "https://dl.polyhaven.org/file/ph-assets/Textures/png/1k/roof_slates_03/roof_slates_03_diff_1k.png"
+    },
+    {
+      "path": "art-source/third_party/plan84-round2/roof_slates_03/roof_slates_03_disp_1k.png",
+      "sha256": "15fbe6bb0f7e3514edc6d11b2f3f359d723507754c33f340dff8021cb3eef3c7",
+      "bytes": 1499366,
+      "download_url": "https://dl.polyhaven.org/file/ph-assets/Textures/png/1k/roof_slates_03/roof_slates_03_disp_1k.png"
+    },
+    {
+      "path": "art-source/third_party/plan84-round2/roof_slates_03/roof_slates_03_nor_gl_1k.png",
+      "sha256": "0cb0e3539bcf0a9285f0f2395285e83d49384c7ebd4d08c0ee955f90b093c9d2",
+      "bytes": 5328166,
+      "download_url": "https://dl.polyhaven.org/file/ph-assets/Textures/png/1k/roof_slates_03/roof_slates_03_nor_gl_1k.png"
+    },
+    {
+      "path": "art-source/third_party/plan84-round2/roof_slates_03/roof_slates_03_rough_1k.png",
+      "sha256": "da15d7b5ed6444d6c85160dfe243a7afbc1d31cf7f5554e815db938ec7bf4f20",
+      "bytes": 4330,
+      "download_url": "https://dl.polyhaven.org/file/ph-assets/Textures/png/1k/roof_slates_03/roof_slates_03_rough_1k.png"
+    },
+    {
+      "path": "art-source/third_party/plan84-round2/roof_slates_03/info.json",
+      "sha256": "3d41c0b7bd8a7c5d371b513050f3eedad774236f1416a669bcf6a39369503a6b",
+      "bytes": 980,
+      "download_url": "https://polyhaven.com/a/roof_slates_03"
+    },
+    {
+      "path": "art-source/third_party/plan84-round2/roof_slates_03/files.json",
+      "sha256": "8a9f8265877b0dec5a12d4f209a42c1b98c38cb6452b4084bda533f94ff45ef8",
+      "bytes": 26490,
+      "download_url": "https://polyhaven.com/a/roof_slates_03"
+    },
+    {
+      "path": "art-source/third_party/plan84-round2/roof_slates_03/item-page.html",
+      "sha256": "1ef1ce6768720de607c24c6aa4653485999eed9b6bd12ea501e4bb313729ca1d",
+      "bytes": 195558,
+      "download_url": "https://polyhaven.com/a/roof_slates_03"
+    }
+  ]
+}

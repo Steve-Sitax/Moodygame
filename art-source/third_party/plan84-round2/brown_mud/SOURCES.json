@@ -1,0 +1,58 @@
+{
+  "item": "brown_mud",
+  "url": "https://polyhaven.com/a/brown_mud",
+  "licence": "CC0-1.0",
+  "authors": {
+    "Rob Tuytel": "All"
+  },
+  "download_date": "2026-10-18",
+  "technique": "Photographed PBR surface",
+  "source_dimensions_mm": [
+    1299.996018409729,
+    1299.996018409729
+  ],
+  "files": [
+    {
+      "path": "art-source/third_party/plan84-round2/brown_mud/brown_mud_diff_1k.png",
+      "sha256": "16de209f01d4b4f44e4b86a5131f1484a3d058c5b61d8f7f9cba0c03ac5ace28",
+      "bytes": 1773675,
+      "download_url": "https://dl.polyhaven.org/file/ph-assets/Textures/png/1k/brown_mud/brown_mud_diff_1k.png"
+    },
+    {
+      "path": "art-source/third_party/plan84-round2/brown_mud/brown_mud_disp_1k.png",
+      "sha256": "7f46370448ce670cd2bcb9f2f19832dccb8e13180448030f2a0eede2596b52f0",
+      "bytes": 666247,
+      "download_url": "https://dl.polyhaven.org/file/ph-assets/Textures/png/1k/brown_mud/brown_mud_disp_1k.png"
+    },
+    {
+      "path": "art-source/third_party/plan84-round2/brown_mud/brown_mud_nor_gl_1k.png",
+      "sha256": "58fd36c8e5bc2c5722f5e1a53bc7f56858a163b85775447e3bb16531d4d35916",
+      "bytes": 2449515,
+      "download_url": "https://dl.polyhaven.org/file/ph-assets/Textures/png/1k/brown_mud/brown_mud_nor_gl_1k.png"
+    },
+    {
+      "path": "art-source/third_party/plan84-round2/brown_mud/brown_mud_rough_1k.png",
+      "sha256": "171cefe98225a95efede2245c74e789c96458e61f62cd125241107da1d8cecef",
+      "bytes": 603673,
+      "download_url": "https://dl.polyhaven.org/file/ph-assets/Textures/png/1k/brown_mud/brown_mud_rough_1k.png"
+    },
+    {
+      "path": "art-source/third_party/plan84-round2/brown_mud/info.json",
+      "sha256": "64d1c2d73ac4ab596bee9300ae707e1a17a41226ed4bc92559f47854b65adbd3",
+      "bytes": 986,
+      "download_url": "https://polyhaven.com/a/brown_mud"
+    },
+    {
+      "path": "art-source/third_party/plan84-round2/brown_mud/files.json",
+      "sha256": "f89091cedb274665e7258766b45ba4f0ec3bd449ed4e0463f1d6ab372608825d",
+      "bytes": 28775,
+      "download_url": "https://polyhaven.com/a/brown_mud"
+    },
+    {
+      "path": "art-source/third_party/plan84-round2/brown_mud/item-page.html",
+      "sha256": "006cbe6d4453610edbe208fce4dab41d1f096106f840829366564c2d48b62898",
+      "bytes": 201058,
+      "download_url": "https://polyhaven.com/a/brown_mud"
+    }
+  ]
+}

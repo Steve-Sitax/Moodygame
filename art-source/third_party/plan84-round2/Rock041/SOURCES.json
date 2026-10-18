@@ -1,0 +1,49 @@
+{
+  "item": "Rock041",
+  "url": "https://ambientcg.com/view?id=Rock041",
+  "licence": "CC0-1.0",
+  "authors": {
+    "Lennart Demes / ambientCG": "Asset"
+  },
+  "download_date": "2026-10-18",
+  "technique": "Surface photogrammetry",
+  "source_dimensions_mm": null,
+  "files": [
+    {
+      "path": "art-source/third_party/plan84-round2/Rock041/Rock041_1K-PNG.zip",
+      "sha256": "5cf2de9e9b5ebdccd1de996396d4deef77fd3a79d1e6256d7f69486a90985c4a",
+      "bytes": 9504089,
+      "download_url": "https://ambientcg.com/get?file=Rock041_1K-PNG.zip"
+    },
+    {
+      "path": "art-source/third_party/plan84-round2/Rock041/Rock041_1K-PNG_Color.png",
+      "sha256": "2510b01cc19e5bc264e49b13bf3bf6f609f58fbc1d0948dbc144abe82651f2d8",
+      "bytes": 1022779,
+      "download_url": "https://ambientcg.com/view?id=Rock041"
+    },
+    {
+      "path": "art-source/third_party/plan84-round2/Rock041/Rock041_1K-PNG_Displacement.png",
+      "sha256": "155f3e85a7850d19de96da77b53cdf9ca63ae30f84adf7e79c21b307ffaf9e79",
+      "bytes": 843406,
+      "download_url": "https://ambientcg.com/view?id=Rock041"
+    },
+    {
+      "path": "art-source/third_party/plan84-round2/Rock041/Rock041_1K-PNG_NormalGL.png",
+      "sha256": "d7052b19c71fcbee3200346154fac2c12fd4dc3128e64496ee841f26fd911803",
+      "bytes": 2770953,
+      "download_url": "https://ambientcg.com/view?id=Rock041"
+    },
+    {
+      "path": "art-source/third_party/plan84-round2/Rock041/Rock041_1K-PNG_Roughness.png",
+      "sha256": "50a78b8d326c54882b55acc9c2d95020e17d6cb84d8e6dfa30a5521595933a61",
+      "bytes": 347080,
+      "download_url": "https://ambientcg.com/view?id=Rock041"
+    },
+    {
+      "path": "art-source/third_party/plan84-round2/Rock041/item-page.html",
+      "sha256": "c7c205955f5c0861fa93124120e1e59c6d003e93fcb3def48d922a85b19b162a",
+      "bytes": 31071,
+      "download_url": "https://ambientcg.com/view?id=Rock041"
+    }
+  ]
+}

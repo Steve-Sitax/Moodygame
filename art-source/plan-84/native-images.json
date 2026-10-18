@@ -1,0 +1,722 @@
+[
+  {
+    "owner": "wall",
+    "name": "wall_brick_tex",
+    "resource": "native-godot/assets/game-models/resources/r001431.res",
+    "size": [
+      224,
+      192
+    ],
+    "sha256": "0c7fb5fa05eba37209b789e54e3694dfaad587a59587ae00cff206482c86911d"
+  },
+  {
+    "owner": "wall",
+    "name": "wall_quoin_tex",
+    "resource": "native-godot/assets/game-models/resources/r001434.res",
+    "size": [
+      146,
+      192
+    ],
+    "sha256": "c4a22bbf47c41d38e22133ce5fd4aaec59a5156643b50df3417552b51747a089"
+  },
+  {
+    "owner": "wall",
+    "name": "wall_plinth_tex",
+    "resource": "native-godot/assets/game-models/resources/r001437.res",
+    "size": [
+      64,
+      64
+    ],
+    "sha256": "38c3c7816eb4420a739eab548114be853d90c192fc1dc9e3565b7c82911eb94b"
+  },
+  {
+    "owner": "wall",
+    "name": "wall_stone_tex",
+    "resource": "native-godot/assets/game-models/resources/r001440.res",
+    "size": [
+      64,
+      64
+    ],
+    "sha256": "5622e26bf48a2709e99c5be4a0c8bde747afa2103cd45e4b9968b4fd6da23347"
+  },
+  {
+    "owner": "wall",
+    "name": "wall_cobble_tex",
+    "resource": "native-godot/assets/game-models/resources/r001443.res",
+    "size": [
+      64,
+      64
+    ],
+    "sha256": "3b55b783294f0fc5068c7fce9ae6a4cd061af375cba02d8bb685cc117fba9ffd"
+  },
+  {
+    "owner": "wall",
+    "name": "wall_slate_tex",
+    "resource": "native-godot/assets/game-models/resources/r001446.res",
+    "size": [
+      64,
+      64
+    ],
+    "sha256": "3836662eb592c3c9aa81a06346054f93efa6bcd944512bd63d719f4e1ea5fd94"
+  },
+  {
+    "owner": "wall",
+    "name": "wall_wood_tex",
+    "resource": "native-godot/assets/game-models/resources/r001449.res",
+    "size": [
+      64,
+      64
+    ],
+    "sha256": "aeaf36f733f4da2a88cbe7e8550f3e4300bbfbff9a77ddf9236549a250aca4a4"
+  },
+  {
+    "owner": "wall",
+    "name": "wall_iron_tex",
+    "resource": "native-godot/assets/game-models/resources/r001452.res",
+    "size": [
+      16,
+      16
+    ],
+    "sha256": "87e1f39467312c8b846f7a69cc9459afef768f294166ef04bd7f8c41cc5dbd97"
+  },
+  {
+    "owner": "wall",
+    "name": "wall_window_tex",
+    "resource": "native-godot/assets/game-models/resources/r001455.res",
+    "size": [
+      32,
+      32
+    ],
+    "sha256": "6bbc3c19e7afe89b41caf3ae63b60b3067a3cbf90f6c7273d452d5e07d966998"
+  },
+  {
+    "owner": "wall",
+    "name": "wall_arms_tex",
+    "resource": "native-godot/assets/game-models/resources/r001458.res",
+    "size": [
+      64,
+      64
+    ],
+    "sha256": "8c4dc56f94ced24da53abcd2c7b30d6811958dd7e0f68e4cec4431fcafefe9bf"
+  },
+  {
+    "owner": "wall",
+    "name": "wall_lamp_glow_tex",
+    "resource": "native-godot/assets/game-models/resources/r001461.res",
+    "size": [
+      128,
+      128
+    ],
+    "sha256": "b76495a1b04942583f6291ffdfa451ffaf45c692a7a2e05d91b785d1dfd3d236"
+  },
+  {
+    "owner": "wall",
+    "name": "wall_canvas_tex",
+    "resource": "native-godot/assets/game-models/resources/r001468.res",
+    "size": [
+      32,
+      64
+    ],
+    "sha256": "1acd912030a16bba00a0a5e825144814cb6538e97d32935411a98c36b96a7888"
+  },
+  {
+    "owner": "wall",
+    "name": "wall_room_glow_tex",
+    "resource": "native-godot/assets/game-models/resources/r001473.res",
+    "size": [
+      16,
+      16
+    ],
+    "sha256": "af40cbb2e2804077ad988764b6d28c35b9e7ad15ffc4d460fd7565cb6ecc8d46"
+  },
+  {
+    "owner": "wall",
+    "name": "wall_coping_tex",
+    "resource": "native-godot/assets/game-models/resources/r001476.res",
+    "size": [
+      512,
+      64
+    ],
+    "sha256": "e6c5898b6cd8b9f3647aaaaa971809cbf61288f763b35c8a2494502e11dcd7ed"
+  },
+  {
+    "owner": "wall",
+    "name": "wall_grass_tex",
+    "resource": "native-godot/assets/game-models/resources/r001481.res",
+    "size": [
+      64,
+      64
+    ],
+    "sha256": "3d8eae1ee9aa19d2f5e035d3f758d4dc09e901dc9e6b597a1d8b19d7c7612da2"
+  },
+  {
+    "owner": "wall",
+    "name": "wall_lawn_decal_tex",
+    "resource": "native-godot/assets/game-models/resources/r001484.res",
+    "size": [
+      128,
+      128
+    ],
+    "sha256": "c84e4888b7187dd48712350f59fa5dd69eae6b9e4f50306a137a51bc84dc8105"
+  },
+  {
+    "owner": "wall",
+    "name": "wall_moss_decal_tex",
+    "resource": "native-godot/assets/game-models/resources/r001489.res",
+    "size": [
+      1172,
+      112
+    ],
+    "sha256": "7e3242a4c58da20f2ff3e57e631cdaa9f956138917e2f45d07ee9db7298a8148"
+  },
+  {
+    "owner": "wall",
+    "name": "wall_props_tex",
+    "resource": "native-godot/assets/game-models/resources/r001505.res",
+    "size": [
+      256,
+      64
+    ],
+    "sha256": "3417a0f3023d44b2363a1fcbe6f6cc245d77c505ca1151bdf9709b447720aa03"
+  },
+  {
+    "owner": "churches",
+    "name": "church_stone_tex",
+    "resource": "native-godot/assets/game-models/resources/r000510.res",
+    "size": [
+      128,
+      128
+    ],
+    "sha256": "281b709cda033be175fe500706091a269d937a368903aea9e9a299646005e56e"
+  },
+  {
+    "owner": "churches",
+    "name": "church_brick_tex",
+    "resource": "native-godot/assets/game-models/resources/r000513.res",
+    "size": [
+      128,
+      96
+    ],
+    "sha256": "1a3a408c939d5729a0202dd0f863fbba82f1942b787713dc344608bdb7084331"
+  },
+  {
+    "owner": "churches",
+    "name": "church_slate_tex",
+    "resource": "native-godot/assets/game-models/resources/r000516.res",
+    "size": [
+      64,
+      64
+    ],
+    "sha256": "10abac01340d4edb0e067b5f7624a63a458c8292a52e2e88fabbadc687c11d34"
+  },
+  {
+    "owner": "churches",
+    "name": "church_lead_tex",
+    "resource": "native-godot/assets/game-models/resources/r000519.res",
+    "size": [
+      32,
+      32
+    ],
+    "sha256": "e4efade1df9914f96b94f5bf2e453bba4c4f1513cf9c76e97f0a26d5e16253b0"
+  },
+  {
+    "owner": "churches",
+    "name": "church_atlas_tex",
+    "resource": "native-godot/assets/game-models/resources/r000522.res",
+    "size": [
+      256,
+      256
+    ],
+    "sha256": "c5d3c2a5e86b66d5fd2eaa0c3bdfa13bcdc3e1e8559c245fbcb09b49003c302d"
+  },
+  {
+    "owner": "churches",
+    "name": "park_iron_tex",
+    "resource": "native-godot/assets/game-models/resources/r000525.res",
+    "size": [
+      16,
+      16
+    ],
+    "sha256": "98a9636dcdc58d29d082ae12888d349976651e17d2a54bcf5d0eaf091cc06e26"
+  },
+  {
+    "owner": "churches",
+    "name": "carolus_sand_tex",
+    "resource": "native-godot/assets/game-models/resources/r000528.res",
+    "size": [
+      128,
+      128
+    ],
+    "sha256": "343c7a07f4ab65d48082f6fa8d339afd111baba47124d4f3f668a6007f0f1958"
+  },
+  {
+    "owner": "churches",
+    "name": "carolus_blue_tex",
+    "resource": "native-godot/assets/game-models/resources/r000531.res",
+    "size": [
+      128,
+      128
+    ],
+    "sha256": "a2e25fb43b281b5ad698109104583c193b903fe5d506f0956bc5bf0ced2cab65"
+  },
+  {
+    "owner": "churches",
+    "name": "carolus_art_tex",
+    "resource": "native-godot/assets/game-models/resources/r000534.res",
+    "size": [
+      512,
+      512
+    ],
+    "sha256": "e4eb6f8b115fb225cb51b13b29bf56698e9972771b03231ca0f6677c69aadf3f"
+  },
+  {
+    "owner": "churches",
+    "name": "church_gilt_tex",
+    "resource": "native-godot/assets/game-models/resources/r000537.res",
+    "size": [
+      32,
+      32
+    ],
+    "sha256": "ac1e4907b94ea830a68c5994f106b9406179d7a050ba15fc7b58e262c83c28a6"
+  },
+  {
+    "owner": "churches",
+    "name": "carolus_pale_tex",
+    "resource": "native-godot/assets/game-models/resources/r000540.res",
+    "size": [
+      64,
+      64
+    ],
+    "sha256": "12aebaa5d3f860c472035edb67a0fb210c4fd8973815c11ef9559dc174840789"
+  },
+  {
+    "owner": "churches",
+    "name": "pj_white_tex",
+    "resource": "native-godot/assets/game-models/resources/r000547.res",
+    "size": [
+      128,
+      128
+    ],
+    "sha256": "508cce802822cfed0199de013d58c5431aa3914172c21aced96f6e28a2a0a1b6"
+  },
+  {
+    "owner": "churches",
+    "name": "pj_brabant_tex",
+    "resource": "native-godot/assets/game-models/resources/r000550.res",
+    "size": [
+      128,
+      128
+    ],
+    "sha256": "95278ea3e629e85c77970d75531c92426098e85a8082156ac64caa06a2c66949"
+  },
+  {
+    "owner": "churches",
+    "name": "park_wood_tex",
+    "resource": "native-godot/assets/game-models/resources/r000556.res",
+    "size": [
+      64,
+      64
+    ],
+    "sha256": "a01308af934b0b0281be3a10e3f8ce5107cc0e9259fed01d555d4066c1969af6"
+  },
+  {
+    "owner": "churches",
+    "name": "pj_brick_tex",
+    "resource": "native-godot/assets/game-models/resources/r000559.res",
+    "size": [
+      128,
+      96
+    ],
+    "sha256": "5d76d1c3d19fb123987e9745e324ef0e6afc43b184d2b9824c94444261cd2040"
+  },
+  {
+    "owner": "churches",
+    "name": "park_stone_tex",
+    "resource": "native-godot/assets/game-models/resources/r000565.res",
+    "size": [
+      64,
+      64
+    ],
+    "sha256": "0869a14e28e3a8663f79707ca2422432e8f48eb9fc89b6558b621621e41c7d20"
+  },
+  {
+    "owner": "churches",
+    "name": "park_water_tex",
+    "resource": "native-godot/assets/game-models/resources/r000568.res",
+    "size": [
+      32,
+      32
+    ],
+    "sha256": "37bddbda7379cc7212923794e591c7071af098e56f56ca311c1140ffee54d34e"
+  },
+  {
+    "owner": "churches",
+    "name": "park_lamp_glow_tex",
+    "resource": "native-godot/assets/game-models/resources/r000571.res",
+    "size": [
+      128,
+      128
+    ],
+    "sha256": "490b36cfed720214f75f92287df0a60673574ec3fb5a7b151a1c38c2be323a13"
+  },
+  {
+    "owner": "churches",
+    "name": "park_bank_tex",
+    "resource": "native-godot/assets/game-models/resources/r000574.res",
+    "size": [
+      64,
+      64
+    ],
+    "sha256": "494dd4b3d35f9de77f6143c061891be9f848bb38eabcc6abc11506915a6f0c16"
+  },
+  {
+    "owner": "churches",
+    "name": "park_rock_tex",
+    "resource": "native-godot/assets/game-models/resources/r000577.res",
+    "size": [
+      64,
+      64
+    ],
+    "sha256": "ac19ef487b9abee31d07a44cfaf7dcdb078f34c0aa2ac6985bb077878b4a9fc4"
+  },
+  {
+    "owner": "churches",
+    "name": "park_iron_white_tex",
+    "resource": "native-godot/assets/game-models/resources/r000580.res",
+    "size": [
+      32,
+      32
+    ],
+    "sha256": "3650eefa52b855e6a1c157fc4f94b357bac174005d44be9e9bf2902e041b59d9"
+  },
+  {
+    "owner": "prison",
+    "name": "pr_brick_tex",
+    "resource": "native-godot/assets/game-models/resources/r000968.res",
+    "size": [
+      128,
+      96
+    ],
+    "sha256": "01594269ca4c4350d708afcfff7ebd1126c019770e77734e71ceb9aca1bbecb2"
+  },
+  {
+    "owner": "prison",
+    "name": "pr_blue_tex",
+    "resource": "native-godot/assets/game-models/resources/r000971.res",
+    "size": [
+      128,
+      128
+    ],
+    "sha256": "516d3236181b276ce328296cfb1b82e51e16713b9760d17fc65181137773e7b1"
+  },
+  {
+    "owner": "prison",
+    "name": "pr_slate_tex",
+    "resource": "native-godot/assets/game-models/resources/r000974.res",
+    "size": [
+      64,
+      64
+    ],
+    "sha256": "85b4ba107e36c1040bb5aef300874996c6a158e5080d5f95470992afa04fa686"
+  },
+  {
+    "owner": "prison",
+    "name": "pr_lead_tex",
+    "resource": "native-godot/assets/game-models/resources/r000977.res",
+    "size": [
+      32,
+      32
+    ],
+    "sha256": "b64243fb65c914cc1981c5efea3ae3efa70e8e181a3e1f1545dbc4d8e39ce68b"
+  },
+  {
+    "owner": "prison",
+    "name": "pr_iron_tex",
+    "resource": "native-godot/assets/game-models/resources/r000980.res",
+    "size": [
+      16,
+      16
+    ],
+    "sha256": "a9ff7b287495465b2d04812f8860403b9bf6872cdeed93fd9dcfc7835c3c04f7"
+  },
+  {
+    "owner": "prison",
+    "name": "pr_atlas_tex",
+    "resource": "native-godot/assets/game-models/resources/r000984.res",
+    "size": [
+      512,
+      512
+    ],
+    "sha256": "85e9b2c3cb63787f3182d8d438f0cff903ac3e74efd1c93cfb7243be7631ca01"
+  },
+  {
+    "owner": "prison",
+    "name": "pr_glow_tex",
+    "resource": "native-godot/assets/game-models/resources/r000987.res",
+    "size": [
+      128,
+      128
+    ],
+    "sha256": "600b62b83c3552b05340e2c53aec473ec4baffc698edc968eb03b0f9154840cf"
+  },
+  {
+    "owner": "prison",
+    "name": "pr_wood_tex",
+    "resource": "native-godot/assets/game-models/resources/r000991.res",
+    "size": [
+      64,
+      64
+    ],
+    "sha256": "fd8eda24bbbd4676b2955b62e9862f10bcdc7aa638d57d274b3acde12d401ed4"
+  },
+  {
+    "owner": "prison",
+    "name": "pr_flags_tex",
+    "resource": "native-godot/assets/game-models/resources/r000998.res",
+    "size": [
+      128,
+      128
+    ],
+    "sha256": "2a0b254f14daff3389dc8987108cf926eedc9f183d9ca385f925a12d6baa5e8d"
+  },
+  {
+    "owner": "places",
+    "name": "pl_iron_tex",
+    "resource": "native-godot/assets/game-models/resources/r000937.res",
+    "size": [
+      16,
+      16
+    ],
+    "sha256": "10dcff4fe48c616b212bbb14cf4d348fd738d4297e3714cecc4549aab702c5b2"
+  },
+  {
+    "owner": "places",
+    "name": "pl_wood_tex",
+    "resource": "native-godot/assets/game-models/resources/r000940.res",
+    "size": [
+      32,
+      32
+    ],
+    "sha256": "c5eb81ea3b00707fb239c198a0a3325f44da04309e8b53af091593252b142fc6"
+  },
+  {
+    "owner": "places",
+    "name": "pl_atlas_tex",
+    "resource": "native-godot/assets/game-models/resources/r000944.res",
+    "size": [
+      256,
+      256
+    ],
+    "sha256": "43996fc578519f156e96baee4bd83ff79bd2d681ad4886331fb40103926eb0c7"
+  },
+  {
+    "owner": "places",
+    "name": "pl_earth_tex",
+    "resource": "native-godot/assets/game-models/resources/r000947.res",
+    "size": [
+      32,
+      32
+    ],
+    "sha256": "22e9f176a5f720964e6db7eef81d6c18d2d30e72894dc728d8f344c05d563e35"
+  },
+  {
+    "owner": "places",
+    "name": "pl_stone_tex",
+    "resource": "native-godot/assets/game-models/resources/r000951.res",
+    "size": [
+      64,
+      64
+    ],
+    "sha256": "79e0eb46c40f13f83f9a4f5162459843df4c6a8464d094d5fd1aeb69a24f5a35"
+  },
+  {
+    "owner": "places",
+    "name": "pl_bronze_tex",
+    "resource": "native-godot/assets/game-models/resources/r000954.res",
+    "size": [
+      32,
+      32
+    ],
+    "sha256": "b4ddef552f9a392f26e99cd1bc43c3c840ba0c97b0940c31d4530c0c177cda02"
+  },
+  {
+    "owner": "places",
+    "name": "pl_water_tex",
+    "resource": "native-godot/assets/game-models/resources/r000957.res",
+    "size": [
+      32,
+      32
+    ],
+    "sha256": "00f6cd2139d03395dd2aa68339e5a316944d71817eeb8c42be2c52db19600aa1"
+  },
+  {
+    "owner": "places",
+    "name": "pl_zinc_tex",
+    "resource": "native-godot/assets/game-models/resources/r000961.res",
+    "size": [
+      16,
+      16
+    ],
+    "sha256": "362ae8db5950b4187316e5d7890d38e65a4eb21ed5f7fc54011c8641f3c5755d"
+  },
+  {
+    "owner": "trees",
+    "name": "tree_bark_tex",
+    "resource": "native-godot/assets/game-models/resources/r001380.res",
+    "size": [
+      128,
+      128
+    ],
+    "sha256": "c24221f161d02c16e613687c35a42fe016cad5d7a74587bfdf6e0670233f555e"
+  },
+  {
+    "owner": "trees",
+    "name": "tree_leaves_tex",
+    "resource": "native-godot/assets/game-models/resources/r001383.res",
+    "size": [
+      256,
+      128
+    ],
+    "sha256": "3c7af74f071779c2874ff8c71717e06085301e126ae58c051623ac3f2e6cf501"
+  },
+  {
+    "owner": "park_plants",
+    "name": "tree_leaves_tex",
+    "resource": "native-godot/assets/game-models/resources/r000909.res",
+    "size": [
+      256,
+      320
+    ],
+    "sha256": "63664324e5694a32ed1a094adec5b7f84f791ecf55a0c09cb7d85067e969d6d6"
+  },
+  {
+    "owner": "park_plants",
+    "name": "tree_bark_tex",
+    "resource": "native-godot/assets/game-models/resources/r000913.res",
+    "size": [
+      128,
+      128
+    ],
+    "sha256": "bddd609025b6245102e7c2681c3d009ca0d8fdad2ac5007bbf526a19b62a67b1"
+  },
+  {
+    "owner": "litter",
+    "name": "lt_solid_tex",
+    "resource": "native-godot/assets/game-models/resources/r000777.res",
+    "size": [
+      256,
+      128
+    ],
+    "sha256": "3f233b159c90caf45bddb1f41bc01c14c9ebde0cc9a2e6df1de1f4af7457ee27"
+  },
+  {
+    "owner": "litter",
+    "name": "lt_decal_tex",
+    "resource": "native-godot/assets/game-models/resources/r000789.res",
+    "size": [
+      1024,
+      1024
+    ],
+    "sha256": "42ac12d573af2245de2098457100be014838b3dfa7a19f0e6fccb25e6d110c4a"
+  },
+  {
+    "owner": "omnibus",
+    "name": "omnibus_tex",
+    "resource": "native-godot/assets/game-models/resources/r000876.res",
+    "size": [
+      256,
+      256
+    ],
+    "sha256": "a4760a195f81f6ed91363fc5ef748927513827d2a854b218faad52c03595d830"
+  },
+  {
+    "owner": "wagons",
+    "name": "wagons_tex",
+    "resource": "native-godot/assets/game-models/resources/r001418.res",
+    "size": [
+      256,
+      256
+    ],
+    "sha256": "b04a3198278f2ea9c539e5e592fdc3ef8ad8467481187edea1b08d625896601f"
+  },
+  {
+    "owner": "trades",
+    "name": "tr_solid_tex",
+    "resource": "native-godot/assets/game-models/resources/r001347.res",
+    "size": [
+      256,
+      256
+    ],
+    "sha256": "68455e60909a7e620a7c17d7c7d70f2dcc77901912c22de910ae8ac135dcf7ec"
+  },
+  {
+    "owner": "trades",
+    "name": "tr_decal_tex",
+    "resource": "native-godot/assets/game-models/resources/r001363.res",
+    "size": [
+      128,
+      32
+    ],
+    "sha256": "56a2f0c82b9546614269aa8cdea81f970b80192c0327bd98a39074a5a566c3d7"
+  },
+  {
+    "owner": "quayfurniture",
+    "name": "qf_solid_tex",
+    "resource": "native-godot/assets/game-models/resources/r001002.res",
+    "size": [
+      2048,
+      2048
+    ],
+    "sha256": "5efa1319071fdaf80b0c628a775f221c0c8708aec6f5feaf8a9b3d60bdef95a9"
+  },
+  {
+    "owner": "quayfurniture",
+    "name": "qf_decal_tex",
+    "resource": "native-godot/assets/game-models/resources/r001005.res",
+    "size": [
+      1024,
+      1024
+    ],
+    "sha256": "73f4260db64fbe009cbfb993ae9efc2586370b03f5f8c7dbc458c2356d074559"
+  },
+  {
+    "owner": "clutter",
+    "name": "version",
+    "resource": "native-godot/assets/game-models/clutter.scn",
+    "size": [
+      256,
+      128
+    ],
+    "sha256": "858ffcfa821eb85fa6f8b346b36fbad82f2db221e49b73d014deb576319e4cba"
+  },
+  {
+    "owner": "lively",
+    "name": "version",
+    "resource": "native-godot/assets/game-models/lively.scn",
+    "size": [
+      256,
+      128
+    ],
+    "sha256": "ba0e8df61e3aa4a8577be6df01d1bc0d489a1f9de70a33b3da99397b629ee0a7"
+  },
+  {
+    "owner": "streetlife",
+    "name": "sl_solid_tex",
+    "resource": "native-godot/assets/game-models/resources/r001216.res",
+    "size": [
+      256,
+      512
+    ],
+    "sha256": "60f5cc62841e5ea7e32e3ee75cf101d33abe1bfa89d0d54786d34b584958097b"
+  },
+  {
+    "owner": "streetlife",
+    "name": "sl_decal_tex",
+    "resource": "native-godot/assets/game-models/resources/r001262.res",
+    "size": [
+      256,
+      512
+    ],
+    "sha256": "ae461c345b91e8ad9a500d23b527beb6b3ef6bb766e92d93d7bee0a8bc6af560"
+  }
+]

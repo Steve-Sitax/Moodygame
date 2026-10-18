@@ -11,6 +11,10 @@ Bugs and loose ends are tracked as [issues](https://github.com/Steve-Sitax/Moody
 
 ## [Unreleased]
 
+- Reworked the #84 texture handoff with CC0 photographed brick, slate, bark, stone, wood, cloth and soil maps, photographic goods/print samples and crisp sign lettering. Native installation and scene review remain pending.
+
+- Prepared photographic town-wall, church, prison, bronze, bark, foliage and litter pictures, plus shared prop and atlas surfaces (#84). These are a texture handoff for native integration; the installed town is unchanged.
+
 - Room furniture keeps its shape (#183). The bar stools that were one stool stretched 3.8 m along the bar are a row of five stools; a long counter is two counter sections; tables pushed together are two tables; casks, barrels and wall clocks come in their own size instead of being pulled out of shape. A piece that fits nothing keeps its own old model. The stretched shelf behind De Vliet's bar is gone; the bottle shelves show.
 - The Sint-Jansplein is open again: townspeople walk across it and can reach its four benches (#187).
 - The Steen's sailor no longer sits frozen on a bench by the Steen; the benches are for the town's live people (#187).

@@ -1,5 +1,18 @@
 # Textures at the quay wall's detail (plan, 2026-10-12)
 
+## Native picture handoff, 2026-10-18 (#84)
+
+The round 2 picture bundle is `native-godot/assets/textures/plan-84/`: 71 colour/height/normal/roughness sets,
+with per-row READMEs, updated metre scales, licences and exact native town material targets in `manifest.json`.
+CC0 photographed PBR donors replace the weak material pictures. Useful original iron, lead and thin leaf cards remain.
+Row 13 now also includes photographic goods, fibres and devotional prints, plus repainted serif sign lettering.
+Remaining special cells are listed individually; the atlases and geological/botanical proxies still require review.
+Litter is supplied as separate named high-resolution marks, with the original atlas metadata retained for integration.
+Round 2 sources and prompts are indexed by `art-source/plan-84/ROUND2-SOURCES.json`; original downloads and own-page
+licence evidence are under `art-source/third_party/plan84-round2/`. Rebuild with `art-source/plan-84/build_round2.py`.
+No town scene, material, geometry, placement or ID was changed. Native wiring and connected geometry/lighting
+acceptance remain outstanding. The browser commands and sizes below are historical, not a native installation workflow.
+
 Steve, 2026-10-11: "The texture detail is good and high; I want all textures with the same detail." The reference
 is the quay wall (`client/public/textures/quay_wall.jpg`: 1024 px for 4 m, 2.56 px a cm, a photographic Codex picture).
 Done in fx-tex: the bluestone flags (squares, pavements, door steps) and the kerbs, laid from Codex pictures by

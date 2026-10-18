@@ -1,0 +1,2377 @@
+{
+  "native_size": [
+    256,
+    512
+  ],
+  "output_size": [
+    1024,
+    2048
+  ],
+  "cells": [
+    {
+      "name": "iron",
+      "native_cell": [
+        64,
+        0,
+        32,
+        32
+      ],
+      "output_cell": [
+        256,
+        0,
+        128,
+        128
+      ],
+      "source_set": "iron_painted",
+      "metres_per_tile": [
+        0.5,
+        0.5
+      ],
+      "relief_range_metres": 0.03
+    },
+    {
+      "name": "bluestone",
+      "native_cell": [
+        96,
+        0,
+        32,
+        32
+      ],
+      "output_cell": [
+        384,
+        0,
+        128,
+        128
+      ],
+      "source_set": "stone_petit_granit",
+      "metres_per_tile": [
+        1,
+        1
+      ],
+      "relief_range_metres": 0.03
+    },
+    {
+      "name": "whitestone",
+      "native_cell": [
+        128,
+        0,
+        32,
+        32
+      ],
+      "output_cell": [
+        512,
+        0,
+        128,
+        128
+      ],
+      "source_set": "sandstone_plain",
+      "metres_per_tile": [
+        1,
+        1
+      ],
+      "relief_range_metres": 0.03
+    },
+    {
+      "name": "plaster",
+      "native_cell": [
+        160,
+        0,
+        32,
+        32
+      ],
+      "output_cell": [
+        640,
+        0,
+        128,
+        128
+      ],
+      "source_set": "sandstone_plain",
+      "metres_per_tile": [
+        1,
+        1
+      ],
+      "relief_range_metres": 0.03
+    },
+    {
+      "name": "wood",
+      "native_cell": [
+        192,
+        0,
+        32,
+        32
+      ],
+      "output_cell": [
+        768,
+        0,
+        128,
+        128
+      ],
+      "source_set": "wood_single",
+      "metres_per_tile": [
+        2,
+        0.1171875
+      ],
+      "relief_range_metres": 0.03
+    },
+    {
+      "name": "wood_dark",
+      "native_cell": [
+        224,
+        0,
+        32,
+        32
+      ],
+      "output_cell": [
+        896,
+        0,
+        128,
+        128
+      ],
+      "source_set": "wood_single",
+      "metres_per_tile": [
+        2,
+        0.1171875
+      ],
+      "relief_range_metres": 0.03
+    },
+    {
+      "name": "stripes_0",
+      "native_cell": [
+        0,
+        64,
+        32,
+        32
+      ],
+      "output_cell": [
+        0,
+        256,
+        128,
+        128
+      ],
+      "source_set": "awning_red",
+      "metres_per_tile": [
+        1,
+        1
+      ],
+      "relief_range_metres": 0.03
+    },
+    {
+      "name": "stripes_1",
+      "native_cell": [
+        32,
+        64,
+        32,
+        32
+      ],
+      "output_cell": [
+        128,
+        256,
+        128,
+        128
+      ],
+      "source_set": "awning_blue",
+      "metres_per_tile": [
+        1,
+        1
+      ],
+      "relief_range_metres": 0.03
+    },
+    {
+      "name": "stripes_2",
+      "native_cell": [
+        64,
+        64,
+        32,
+        32
+      ],
+      "output_cell": [
+        256,
+        256,
+        128,
+        128
+      ],
+      "source_set": "awning_blue",
+      "metres_per_tile": [
+        1,
+        1
+      ],
+      "relief_range_metres": 0.03
+    },
+    {
+      "name": "ticking",
+      "native_cell": [
+        128,
+        64,
+        32,
+        32
+      ],
+      "output_cell": [
+        512,
+        256,
+        128,
+        128
+      ],
+      "source_set": "tarpaulin",
+      "metres_per_tile": [
+        1,
+        1
+      ],
+      "relief_range_metres": 0.03
+    },
+    {
+      "name": "iron_green",
+      "native_cell": [
+        209,
+        96,
+        16,
+        16
+      ],
+      "output_cell": [
+        836,
+        384,
+        64,
+        64
+      ],
+      "source_set": "iron_painted",
+      "metres_per_tile": [
+        0.5,
+        0.5
+      ],
+      "relief_range_metres": 0.03
+    },
+    {
+      "name": "pewter",
+      "native_cell": [
+        16,
+        116,
+        16,
+        16
+      ],
+      "output_cell": [
+        64,
+        464,
+        64,
+        64
+      ],
+      "source_set": "zinc_sheet",
+      "metres_per_tile": [
+        0.5,
+        0.5
+      ],
+      "relief_range_metres": 0.03
+    },
+    {
+      "name": "slate",
+      "native_cell": [
+        160,
+        116,
+        16,
+        16
+      ],
+      "output_cell": [
+        640,
+        464,
+        64,
+        64
+      ],
+      "source_set": "slate_ardennes",
+      "metres_per_tile": [
+        3,
+        3
+      ],
+      "relief_range_metres": 0.03
+    },
+    {
+      "name": "linen_white",
+      "native_cell": [
+        176,
+        116,
+        16,
+        16
+      ],
+      "output_cell": [
+        704,
+        464,
+        64,
+        64
+      ],
+      "source_set": "tarpaulin",
+      "metres_per_tile": [
+        1,
+        1
+      ],
+      "relief_range_metres": 0.03
+    },
+    {
+      "name": "linen_cream",
+      "native_cell": [
+        192,
+        116,
+        16,
+        16
+      ],
+      "output_cell": [
+        768,
+        464,
+        64,
+        64
+      ],
+      "source_set": "tarpaulin",
+      "metres_per_tile": [
+        1,
+        1
+      ],
+      "relief_range_metres": 0.03
+    },
+    {
+      "name": "cloth_blue",
+      "native_cell": [
+        208,
+        116,
+        16,
+        16
+      ],
+      "output_cell": [
+        832,
+        464,
+        64,
+        64
+      ],
+      "source_set": "tarpaulin",
+      "metres_per_tile": [
+        1,
+        1
+      ],
+      "relief_range_metres": 0.03
+    },
+    {
+      "name": "cloth_red",
+      "native_cell": [
+        224,
+        116,
+        16,
+        16
+      ],
+      "output_cell": [
+        896,
+        464,
+        64,
+        64
+      ],
+      "source_set": "tarpaulin",
+      "metres_per_tile": [
+        1,
+        1
+      ],
+      "relief_range_metres": 0.03
+    },
+    {
+      "name": "cloth_grey",
+      "native_cell": [
+        240,
+        116,
+        16,
+        16
+      ],
+      "output_cell": [
+        960,
+        464,
+        64,
+        64
+      ],
+      "source_set": "tarpaulin",
+      "metres_per_tile": [
+        1,
+        1
+      ],
+      "relief_range_metres": 0.03
+    },
+    {
+      "name": "cloth_brown",
+      "native_cell": [
+        0,
+        132,
+        16,
+        16
+      ],
+      "output_cell": [
+        0,
+        528,
+        64,
+        64
+      ],
+      "source_set": "tarpaulin",
+      "metres_per_tile": [
+        1,
+        1
+      ],
+      "relief_range_metres": 0.03
+    },
+    {
+      "name": "stripes_3",
+      "native_cell": [
+        96,
+        64,
+        32,
+        32
+      ],
+      "output_cell": [
+        384,
+        256,
+        128,
+        128
+      ],
+      "source_set": "atlas-specific photograph",
+      "metres_per_tile": [
+        1,
+        1
+      ],
+      "relief_range_metres": 0.03,
+      "sources": [
+        "rough_linen",
+        "art-source/plan-84/reused/prop_awning_blue_c.png"
+      ],
+      "notes": "Photographic substrate; original pigment and lettering meaning retained. Crisp serif lettering is painted pigment, not raised geometry."
+    },
+    {
+      "name": "board_chandler",
+      "native_cell": [
+        160,
+        64,
+        85,
+        20
+      ],
+      "output_cell": [
+        640,
+        256,
+        340,
+        80
+      ],
+      "source_set": "atlas-specific photograph",
+      "metres_per_tile": [
+        2,
+        0.1171875
+      ],
+      "relief_range_metres": 0.03,
+      "sources": [
+        "dark_wooden_planks"
+      ],
+      "notes": "Photographic substrate; original pigment and lettering meaning retained. Crisp serif lettering is painted pigment, not raised geometry."
+    },
+    {
+      "name": "board_ropemaker",
+      "native_cell": [
+        0,
+        96,
+        77,
+        20
+      ],
+      "output_cell": [
+        0,
+        384,
+        308,
+        80
+      ],
+      "source_set": "atlas-specific photograph",
+      "metres_per_tile": [
+        2,
+        0.1171875
+      ],
+      "relief_range_metres": 0.03,
+      "sources": [
+        "dark_wooden_planks"
+      ],
+      "notes": "Photographic substrate; original pigment and lettering meaning retained. Crisp serif lettering is painted pigment, not raised geometry."
+    },
+    {
+      "name": "board_grocer",
+      "native_cell": [
+        77,
+        96,
+        69,
+        20
+      ],
+      "output_cell": [
+        308,
+        384,
+        276,
+        80
+      ],
+      "source_set": "atlas-specific photograph",
+      "metres_per_tile": [
+        2,
+        0.1171875
+      ],
+      "relief_range_metres": 0.03,
+      "sources": [
+        "dark_wooden_planks"
+      ],
+      "notes": "Photographic substrate; original pigment and lettering meaning retained. Crisp serif lettering is painted pigment, not raised geometry."
+    },
+    {
+      "name": "board_hatter",
+      "native_cell": [
+        146,
+        96,
+        63,
+        20
+      ],
+      "output_cell": [
+        584,
+        384,
+        252,
+        80
+      ],
+      "source_set": "atlas-specific photograph",
+      "metres_per_tile": [
+        2,
+        0.1171875
+      ],
+      "relief_range_metres": 0.03,
+      "sources": [
+        "dark_wooden_planks"
+      ],
+      "notes": "Photographic substrate; original pigment and lettering meaning retained. Crisp serif lettering is painted pigment, not raised geometry."
+    },
+    {
+      "name": "gold",
+      "native_cell": [
+        225,
+        96,
+        16,
+        16
+      ],
+      "output_cell": [
+        900,
+        384,
+        64,
+        64
+      ],
+      "source_set": "atlas-specific photograph",
+      "metres_per_tile": [
+        0.5,
+        0.5
+      ],
+      "relief_range_metres": 0.03,
+      "sources": [
+        "Metal063",
+        "art-source/plan-84/round2-generated/bronze-patina.png"
+      ],
+      "notes": "Photographic substrate; original pigment and lettering meaning retained. Crisp serif lettering is painted pigment, not raised geometry."
+    },
+    {
+      "name": "brass",
+      "native_cell": [
+        0,
+        116,
+        16,
+        16
+      ],
+      "output_cell": [
+        0,
+        464,
+        64,
+        64
+      ],
+      "source_set": "atlas-specific photograph",
+      "metres_per_tile": [
+        0.5,
+        0.5
+      ],
+      "relief_range_metres": 0.03,
+      "sources": [
+        "Metal063",
+        "art-source/plan-84/round2-generated/bronze-patina.png"
+      ],
+      "notes": "Photographic substrate; original pigment and lettering meaning retained. Crisp serif lettering is painted pigment, not raised geometry."
+    },
+    {
+      "name": "robe_blue",
+      "native_cell": [
+        32,
+        116,
+        16,
+        16
+      ],
+      "output_cell": [
+        128,
+        464,
+        64,
+        64
+      ],
+      "source_set": "atlas-specific photograph",
+      "metres_per_tile": [
+        1,
+        1
+      ],
+      "relief_range_metres": 0.03,
+      "sources": [
+        "rough_linen",
+        "art-source/plan-84/reused/prop_tarpaulin_c.png"
+      ],
+      "notes": "Photographic substrate; original pigment and lettering meaning retained. Crisp serif lettering is painted pigment, not raised geometry."
+    },
+    {
+      "name": "robe_white",
+      "native_cell": [
+        48,
+        116,
+        16,
+        16
+      ],
+      "output_cell": [
+        192,
+        464,
+        64,
+        64
+      ],
+      "source_set": "atlas-specific photograph",
+      "metres_per_tile": [
+        1,
+        1
+      ],
+      "relief_range_metres": 0.03,
+      "sources": [
+        "rough_linen",
+        "art-source/plan-84/reused/prop_tarpaulin_c.png"
+      ],
+      "notes": "Photographic substrate; original pigment and lettering meaning retained. Crisp serif lettering is painted pigment, not raised geometry."
+    },
+    {
+      "name": "skin",
+      "native_cell": [
+        64,
+        116,
+        16,
+        16
+      ],
+      "output_cell": [
+        256,
+        464,
+        64,
+        64
+      ],
+      "source_set": "atlas-specific photograph",
+      "metres_per_tile": [
+        0.4,
+        0.4
+      ],
+      "relief_range_metres": 0.03,
+      "sources": [
+        "brown_leather"
+      ],
+      "notes": "Photographic substrate; original pigment and lettering meaning retained. Crisp serif lettering is painted pigment, not raised geometry."
+    },
+    {
+      "name": "red_paint",
+      "native_cell": [
+        96,
+        116,
+        16,
+        16
+      ],
+      "output_cell": [
+        384,
+        464,
+        64,
+        64
+      ],
+      "source_set": "atlas-specific photograph",
+      "metres_per_tile": [
+        2,
+        0.1171875
+      ],
+      "relief_range_metres": 0.03,
+      "sources": [
+        "dark_wooden_planks"
+      ],
+      "notes": "Photographic substrate; original pigment and lettering meaning retained. Crisp serif lettering is painted pigment, not raised geometry."
+    },
+    {
+      "name": "green_paint",
+      "native_cell": [
+        112,
+        116,
+        16,
+        16
+      ],
+      "output_cell": [
+        448,
+        464,
+        64,
+        64
+      ],
+      "source_set": "atlas-specific photograph",
+      "metres_per_tile": [
+        2,
+        0.1171875
+      ],
+      "relief_range_metres": 0.03,
+      "sources": [
+        "dark_wooden_planks"
+      ],
+      "notes": "Photographic substrate; original pigment and lettering meaning retained. Crisp serif lettering is painted pigment, not raised geometry."
+    },
+    {
+      "name": "rope",
+      "native_cell": [
+        144,
+        116,
+        16,
+        16
+      ],
+      "output_cell": [
+        576,
+        464,
+        64,
+        64
+      ],
+      "source_set": "atlas-specific photograph",
+      "metres_per_tile": [
+        0.25,
+        0.25
+      ],
+      "relief_range_metres": 0.03,
+      "sources": [
+        "art-source/plan-84/round2-generated/fibres.png"
+      ],
+      "notes": "Original generated photographic sample with bounded submillimetre grain reconstruction. Broad pigment, hair/feather volume and food silhouettes remain geometry; measured PBR relief is not claimed."
+    },
+    {
+      "name": "canopy_blue",
+      "native_cell": [
+        16,
+        132,
+        16,
+        16
+      ],
+      "output_cell": [
+        64,
+        528,
+        64,
+        64
+      ],
+      "source_set": "atlas-specific photograph",
+      "metres_per_tile": [
+        1,
+        1
+      ],
+      "relief_range_metres": 0.03,
+      "sources": [
+        "rough_linen",
+        "art-source/plan-84/reused/prop_tarpaulin_c.png"
+      ],
+      "notes": "Photographic substrate; original pigment and lettering meaning retained. Crisp serif lettering is painted pigment, not raised geometry."
+    },
+    {
+      "name": "flower_red",
+      "native_cell": [
+        32,
+        132,
+        16,
+        16
+      ],
+      "output_cell": [
+        128,
+        528,
+        64,
+        64
+      ],
+      "source_set": "atlas-specific photograph",
+      "metres_per_tile": [
+        0.25,
+        0.25
+      ],
+      "relief_range_metres": 0.03,
+      "sources": [
+        "art-source/plan-84/round2-generated/special.png"
+      ],
+      "notes": "Original generated photographic surface. Ceramic/flower pigment and self-luminous flame/ember pictures stay flat; native shape/emission still owns the result. The axle-cover inset has explicitly reconstructed concentric relief; exposed edges remain geometry."
+    },
+    {
+      "name": "flower_white",
+      "native_cell": [
+        48,
+        132,
+        16,
+        16
+      ],
+      "output_cell": [
+        192,
+        528,
+        64,
+        64
+      ],
+      "source_set": "atlas-specific photograph",
+      "metres_per_tile": [
+        0.25,
+        0.25
+      ],
+      "relief_range_metres": 0.03,
+      "sources": [
+        "art-source/plan-84/round2-generated/special.png"
+      ],
+      "notes": "Original generated photographic surface. Ceramic/flower pigment and self-luminous flame/ember pictures stay flat; native shape/emission still owns the result. The axle-cover inset has explicitly reconstructed concentric relief; exposed edges remain geometry."
+    },
+    {
+      "name": "leaf",
+      "native_cell": [
+        64,
+        132,
+        16,
+        16
+      ],
+      "output_cell": [
+        256,
+        528,
+        64,
+        64
+      ],
+      "source_set": "atlas-specific photograph",
+      "metres_per_tile": [
+        0.25,
+        0.25
+      ],
+      "relief_range_metres": 0.03,
+      "sources": [
+        "art-source/plan-84/round2-generated/goods.png"
+      ],
+      "notes": "Original generated photographic sample with bounded submillimetre grain reconstruction. Broad pigment, hair/feather volume and food silhouettes remain geometry; measured PBR relief is not claimed."
+    },
+    {
+      "name": "bronze",
+      "native_cell": [
+        80,
+        132,
+        16,
+        16
+      ],
+      "output_cell": [
+        320,
+        528,
+        64,
+        64
+      ],
+      "source_set": "atlas-specific photograph",
+      "metres_per_tile": [
+        0.5,
+        0.5
+      ],
+      "relief_range_metres": 0.03,
+      "sources": [
+        "Metal063",
+        "art-source/plan-84/round2-generated/bronze-patina.png"
+      ],
+      "notes": "Photographic substrate; original pigment and lettering meaning retained. Crisp serif lettering is painted pigment, not raised geometry."
+    },
+    {
+      "name": "polychrome",
+      "native_cell": [
+        96,
+        132,
+        16,
+        16
+      ],
+      "output_cell": [
+        384,
+        528,
+        64,
+        64
+      ],
+      "source_set": "atlas-specific photograph",
+      "metres_per_tile": [
+        2,
+        0.1171875
+      ],
+      "relief_range_metres": 0.03,
+      "sources": [
+        "dark_wooden_planks"
+      ],
+      "notes": "Photographic substrate; original pigment and lettering meaning retained. Crisp serif lettering is painted pigment, not raised geometry."
+    },
+    {
+      "name": "board_wine",
+      "native_cell": [
+        112,
+        132,
+        101,
+        11
+      ],
+      "output_cell": [
+        448,
+        528,
+        404,
+        44
+      ],
+      "source_set": "atlas-specific photograph",
+      "metres_per_tile": [
+        2,
+        0.1171875
+      ],
+      "relief_range_metres": 0.03,
+      "sources": [
+        "dark_wooden_planks"
+      ],
+      "notes": "Photographic substrate; original pigment and lettering meaning retained. Crisp serif lettering is painted pigment, not raised geometry."
+    },
+    {
+      "name": "plate_17",
+      "native_cell": [
+        0,
+        148,
+        97,
+        11
+      ],
+      "output_cell": [
+        0,
+        592,
+        388,
+        44
+      ],
+      "source_set": "atlas-specific photograph",
+      "metres_per_tile": [
+        2,
+        0.1171875
+      ],
+      "relief_range_metres": 0.03,
+      "sources": [
+        "dark_wooden_planks"
+      ],
+      "notes": "Photographic substrate; original pigment and lettering meaning retained. Crisp serif lettering is painted pigment, not raised geometry."
+    },
+    {
+      "name": "plate_18",
+      "native_cell": [
+        97,
+        148,
+        97,
+        11
+      ],
+      "output_cell": [
+        388,
+        592,
+        388,
+        44
+      ],
+      "source_set": "atlas-specific photograph",
+      "metres_per_tile": [
+        2,
+        0.1171875
+      ],
+      "relief_range_metres": 0.03,
+      "sources": [
+        "dark_wooden_planks"
+      ],
+      "notes": "Photographic substrate; original pigment and lettering meaning retained. Crisp serif lettering is painted pigment, not raised geometry."
+    },
+    {
+      "name": "plate_23",
+      "native_cell": [
+        0,
+        159,
+        97,
+        11
+      ],
+      "output_cell": [
+        0,
+        636,
+        388,
+        44
+      ],
+      "source_set": "atlas-specific photograph",
+      "metres_per_tile": [
+        2,
+        0.1171875
+      ],
+      "relief_range_metres": 0.03,
+      "sources": [
+        "dark_wooden_planks"
+      ],
+      "notes": "Photographic substrate; original pigment and lettering meaning retained. Crisp serif lettering is painted pigment, not raised geometry."
+    },
+    {
+      "name": "board_draper",
+      "native_cell": [
+        97,
+        159,
+        95,
+        11
+      ],
+      "output_cell": [
+        388,
+        636,
+        380,
+        44
+      ],
+      "source_set": "atlas-specific photograph",
+      "metres_per_tile": [
+        2,
+        0.1171875
+      ],
+      "relief_range_metres": 0.03,
+      "sources": [
+        "dark_wooden_planks"
+      ],
+      "notes": "Photographic substrate; original pigment and lettering meaning retained. Crisp serif lettering is painted pigment, not raised geometry."
+    },
+    {
+      "name": "plate_9",
+      "native_cell": [
+        0,
+        170,
+        91,
+        11
+      ],
+      "output_cell": [
+        0,
+        680,
+        364,
+        44
+      ],
+      "source_set": "atlas-specific photograph",
+      "metres_per_tile": [
+        2,
+        0.1171875
+      ],
+      "relief_range_metres": 0.03,
+      "sources": [
+        "dark_wooden_planks"
+      ],
+      "notes": "Photographic substrate; original pigment and lettering meaning retained. Crisp serif lettering is painted pigment, not raised geometry."
+    },
+    {
+      "name": "plate_6",
+      "native_cell": [
+        91,
+        170,
+        85,
+        11
+      ],
+      "output_cell": [
+        364,
+        680,
+        340,
+        44
+      ],
+      "source_set": "atlas-specific photograph",
+      "metres_per_tile": [
+        2,
+        0.1171875
+      ],
+      "relief_range_metres": 0.03,
+      "sources": [
+        "dark_wooden_planks"
+      ],
+      "notes": "Photographic substrate; original pigment and lettering meaning retained. Crisp serif lettering is painted pigment, not raised geometry."
+    },
+    {
+      "name": "plate_13",
+      "native_cell": [
+        0,
+        181,
+        85,
+        11
+      ],
+      "output_cell": [
+        0,
+        724,
+        340,
+        44
+      ],
+      "source_set": "atlas-specific photograph",
+      "metres_per_tile": [
+        2,
+        0.1171875
+      ],
+      "relief_range_metres": 0.03,
+      "sources": [
+        "dark_wooden_planks"
+      ],
+      "notes": "Photographic substrate; original pigment and lettering meaning retained. Crisp serif lettering is painted pigment, not raised geometry."
+    },
+    {
+      "name": "plate_19",
+      "native_cell": [
+        85,
+        181,
+        85,
+        11
+      ],
+      "output_cell": [
+        340,
+        724,
+        340,
+        44
+      ],
+      "source_set": "atlas-specific photograph",
+      "metres_per_tile": [
+        2,
+        0.1171875
+      ],
+      "relief_range_metres": 0.03,
+      "sources": [
+        "dark_wooden_planks"
+      ],
+      "notes": "Photographic substrate; original pigment and lettering meaning retained. Crisp serif lettering is painted pigment, not raised geometry."
+    },
+    {
+      "name": "board_corn",
+      "native_cell": [
+        170,
+        181,
+        83,
+        11
+      ],
+      "output_cell": [
+        680,
+        724,
+        332,
+        44
+      ],
+      "source_set": "atlas-specific photograph",
+      "metres_per_tile": [
+        2,
+        0.1171875
+      ],
+      "relief_range_metres": 0.03,
+      "sources": [
+        "dark_wooden_planks"
+      ],
+      "notes": "Photographic substrate; original pigment and lettering meaning retained. Crisp serif lettering is painted pigment, not raised geometry."
+    },
+    {
+      "name": "plate_10",
+      "native_cell": [
+        0,
+        192,
+        79,
+        11
+      ],
+      "output_cell": [
+        0,
+        768,
+        316,
+        44
+      ],
+      "source_set": "atlas-specific photograph",
+      "metres_per_tile": [
+        2,
+        0.1171875
+      ],
+      "relief_range_metres": 0.03,
+      "sources": [
+        "dark_wooden_planks"
+      ],
+      "notes": "Photographic substrate; original pigment and lettering meaning retained. Crisp serif lettering is painted pigment, not raised geometry."
+    },
+    {
+      "name": "plate_15",
+      "native_cell": [
+        79,
+        192,
+        79,
+        11
+      ],
+      "output_cell": [
+        316,
+        768,
+        316,
+        44
+      ],
+      "source_set": "atlas-specific photograph",
+      "metres_per_tile": [
+        2,
+        0.1171875
+      ],
+      "relief_range_metres": 0.03,
+      "sources": [
+        "dark_wooden_planks"
+      ],
+      "notes": "Photographic substrate; original pigment and lettering meaning retained. Crisp serif lettering is painted pigment, not raised geometry."
+    },
+    {
+      "name": "board_tavern_schip",
+      "native_cell": [
+        158,
+        192,
+        77,
+        11
+      ],
+      "output_cell": [
+        632,
+        768,
+        308,
+        44
+      ],
+      "source_set": "atlas-specific photograph",
+      "metres_per_tile": [
+        2,
+        0.1171875
+      ],
+      "relief_range_metres": 0.03,
+      "sources": [
+        "dark_wooden_planks"
+      ],
+      "notes": "Photographic substrate; original pigment and lettering meaning retained. Crisp serif lettering is painted pigment, not raised geometry."
+    },
+    {
+      "name": "board_coffee",
+      "native_cell": [
+        0,
+        203,
+        75,
+        11
+      ],
+      "output_cell": [
+        0,
+        812,
+        300,
+        44
+      ],
+      "source_set": "atlas-specific photograph",
+      "metres_per_tile": [
+        2,
+        0.1171875
+      ],
+      "relief_range_metres": 0.03,
+      "sources": [
+        "dark_wooden_planks"
+      ],
+      "notes": "Photographic substrate; original pigment and lettering meaning retained. Crisp serif lettering is painted pigment, not raised geometry."
+    },
+    {
+      "name": "plate_11",
+      "native_cell": [
+        75,
+        203,
+        73,
+        11
+      ],
+      "output_cell": [
+        300,
+        812,
+        292,
+        44
+      ],
+      "source_set": "atlas-specific photograph",
+      "metres_per_tile": [
+        2,
+        0.1171875
+      ],
+      "relief_range_metres": 0.03,
+      "sources": [
+        "dark_wooden_planks"
+      ],
+      "notes": "Photographic substrate; original pigment and lettering meaning retained. Crisp serif lettering is painted pigment, not raised geometry."
+    },
+    {
+      "name": "plate_12",
+      "native_cell": [
+        148,
+        203,
+        73,
+        11
+      ],
+      "output_cell": [
+        592,
+        812,
+        292,
+        44
+      ],
+      "source_set": "atlas-specific photograph",
+      "metres_per_tile": [
+        2,
+        0.1171875
+      ],
+      "relief_range_metres": 0.03,
+      "sources": [
+        "dark_wooden_planks"
+      ],
+      "notes": "Photographic substrate; original pigment and lettering meaning retained. Crisp serif lettering is painted pigment, not raised geometry."
+    },
+    {
+      "name": "board_tavern_zwaan",
+      "native_cell": [
+        0,
+        214,
+        71,
+        11
+      ],
+      "output_cell": [
+        0,
+        856,
+        284,
+        44
+      ],
+      "source_set": "atlas-specific photograph",
+      "metres_per_tile": [
+        2,
+        0.1171875
+      ],
+      "relief_range_metres": 0.03,
+      "sources": [
+        "dark_wooden_planks"
+      ],
+      "notes": "Photographic substrate; original pigment and lettering meaning retained. Crisp serif lettering is painted pigment, not raised geometry."
+    },
+    {
+      "name": "plate_20",
+      "native_cell": [
+        71,
+        214,
+        71,
+        11
+      ],
+      "output_cell": [
+        284,
+        856,
+        284,
+        44
+      ],
+      "source_set": "atlas-specific photograph",
+      "metres_per_tile": [
+        2,
+        0.1171875
+      ],
+      "relief_range_metres": 0.03,
+      "sources": [
+        "dark_wooden_planks"
+      ],
+      "notes": "Photographic substrate; original pigment and lettering meaning retained. Crisp serif lettering is painted pigment, not raised geometry."
+    },
+    {
+      "name": "board_fish",
+      "native_cell": [
+        142,
+        214,
+        69,
+        11
+      ],
+      "output_cell": [
+        568,
+        856,
+        276,
+        44
+      ],
+      "source_set": "atlas-specific photograph",
+      "metres_per_tile": [
+        2,
+        0.1171875
+      ],
+      "relief_range_metres": 0.03,
+      "sources": [
+        "dark_wooden_planks"
+      ],
+      "notes": "Photographic substrate; original pigment and lettering meaning retained. Crisp serif lettering is painted pigment, not raised geometry."
+    },
+    {
+      "name": "board_clockmaker",
+      "native_cell": [
+        0,
+        225,
+        69,
+        11
+      ],
+      "output_cell": [
+        0,
+        900,
+        276,
+        44
+      ],
+      "source_set": "atlas-specific photograph",
+      "metres_per_tile": [
+        2,
+        0.1171875
+      ],
+      "relief_range_metres": 0.03,
+      "sources": [
+        "dark_wooden_planks"
+      ],
+      "notes": "Photographic substrate; original pigment and lettering meaning retained. Crisp serif lettering is painted pigment, not raised geometry."
+    },
+    {
+      "name": "plate_4",
+      "native_cell": [
+        69,
+        225,
+        67,
+        11
+      ],
+      "output_cell": [
+        276,
+        900,
+        268,
+        44
+      ],
+      "source_set": "atlas-specific photograph",
+      "metres_per_tile": [
+        2,
+        0.1171875
+      ],
+      "relief_range_metres": 0.03,
+      "sources": [
+        "dark_wooden_planks"
+      ],
+      "notes": "Photographic substrate; original pigment and lettering meaning retained. Crisp serif lettering is painted pigment, not raised geometry."
+    },
+    {
+      "name": "plate_7",
+      "native_cell": [
+        136,
+        225,
+        67,
+        11
+      ],
+      "output_cell": [
+        544,
+        900,
+        268,
+        44
+      ],
+      "source_set": "atlas-specific photograph",
+      "metres_per_tile": [
+        2,
+        0.1171875
+      ],
+      "relief_range_metres": 0.03,
+      "sources": [
+        "dark_wooden_planks"
+      ],
+      "notes": "Photographic substrate; original pigment and lettering meaning retained. Crisp serif lettering is painted pigment, not raised geometry."
+    },
+    {
+      "name": "plate_8",
+      "native_cell": [
+        0,
+        236,
+        67,
+        11
+      ],
+      "output_cell": [
+        0,
+        944,
+        268,
+        44
+      ],
+      "source_set": "atlas-specific photograph",
+      "metres_per_tile": [
+        2,
+        0.1171875
+      ],
+      "relief_range_metres": 0.03,
+      "sources": [
+        "dark_wooden_planks"
+      ],
+      "notes": "Photographic substrate; original pigment and lettering meaning retained. Crisp serif lettering is painted pigment, not raised geometry."
+    },
+    {
+      "name": "plate_14",
+      "native_cell": [
+        67,
+        236,
+        67,
+        11
+      ],
+      "output_cell": [
+        268,
+        944,
+        268,
+        44
+      ],
+      "source_set": "atlas-specific photograph",
+      "metres_per_tile": [
+        2,
+        0.1171875
+      ],
+      "relief_range_metres": 0.03,
+      "sources": [
+        "dark_wooden_planks"
+      ],
+      "notes": "Photographic substrate; original pigment and lettering meaning retained. Crisp serif lettering is painted pigment, not raised geometry."
+    },
+    {
+      "name": "plate_16",
+      "native_cell": [
+        134,
+        236,
+        67,
+        11
+      ],
+      "output_cell": [
+        536,
+        944,
+        268,
+        44
+      ],
+      "source_set": "atlas-specific photograph",
+      "metres_per_tile": [
+        2,
+        0.1171875
+      ],
+      "relief_range_metres": 0.03,
+      "sources": [
+        "dark_wooden_planks"
+      ],
+      "notes": "Photographic substrate; original pigment and lettering meaning retained. Crisp serif lettering is painted pigment, not raised geometry."
+    },
+    {
+      "name": "plate_22",
+      "native_cell": [
+        0,
+        247,
+        67,
+        11
+      ],
+      "output_cell": [
+        0,
+        988,
+        268,
+        44
+      ],
+      "source_set": "atlas-specific photograph",
+      "metres_per_tile": [
+        2,
+        0.1171875
+      ],
+      "relief_range_metres": 0.03,
+      "sources": [
+        "dark_wooden_planks"
+      ],
+      "notes": "Photographic substrate; original pigment and lettering meaning retained. Crisp serif lettering is painted pigment, not raised geometry."
+    },
+    {
+      "name": "plate_0",
+      "native_cell": [
+        67,
+        247,
+        65,
+        11
+      ],
+      "output_cell": [
+        268,
+        988,
+        260,
+        44
+      ],
+      "source_set": "atlas-specific photograph",
+      "metres_per_tile": [
+        2,
+        0.1171875
+      ],
+      "relief_range_metres": 0.03,
+      "sources": [
+        "dark_wooden_planks"
+      ],
+      "notes": "Photographic substrate; original pigment and lettering meaning retained. Crisp serif lettering is painted pigment, not raised geometry."
+    },
+    {
+      "name": "board_bootmaker",
+      "native_cell": [
+        132,
+        247,
+        63,
+        11
+      ],
+      "output_cell": [
+        528,
+        988,
+        252,
+        44
+      ],
+      "source_set": "atlas-specific photograph",
+      "metres_per_tile": [
+        2,
+        0.1171875
+      ],
+      "relief_range_metres": 0.03,
+      "sources": [
+        "dark_wooden_planks"
+      ],
+      "notes": "Photographic substrate; original pigment and lettering meaning retained. Crisp serif lettering is painted pigment, not raised geometry."
+    },
+    {
+      "name": "board_locksmith",
+      "native_cell": [
+        0,
+        258,
+        63,
+        11
+      ],
+      "output_cell": [
+        0,
+        1032,
+        252,
+        44
+      ],
+      "source_set": "atlas-specific photograph",
+      "metres_per_tile": [
+        2,
+        0.1171875
+      ],
+      "relief_range_metres": 0.03,
+      "sources": [
+        "dark_wooden_planks"
+      ],
+      "notes": "Photographic substrate; original pigment and lettering meaning retained. Crisp serif lettering is painted pigment, not raised geometry."
+    },
+    {
+      "name": "plate_1",
+      "native_cell": [
+        63,
+        258,
+        61,
+        11
+      ],
+      "output_cell": [
+        252,
+        1032,
+        244,
+        44
+      ],
+      "source_set": "atlas-specific photograph",
+      "metres_per_tile": [
+        2,
+        0.1171875
+      ],
+      "relief_range_metres": 0.03,
+      "sources": [
+        "dark_wooden_planks"
+      ],
+      "notes": "Photographic substrate; original pigment and lettering meaning retained. Crisp serif lettering is painted pigment, not raised geometry."
+    },
+    {
+      "name": "plate_3",
+      "native_cell": [
+        124,
+        258,
+        61,
+        11
+      ],
+      "output_cell": [
+        496,
+        1032,
+        244,
+        44
+      ],
+      "source_set": "atlas-specific photograph",
+      "metres_per_tile": [
+        2,
+        0.1171875
+      ],
+      "relief_range_metres": 0.03,
+      "sources": [
+        "dark_wooden_planks"
+      ],
+      "notes": "Photographic substrate; original pigment and lettering meaning retained. Crisp serif lettering is painted pigment, not raised geometry."
+    },
+    {
+      "name": "plate_5",
+      "native_cell": [
+        185,
+        258,
+        61,
+        11
+      ],
+      "output_cell": [
+        740,
+        1032,
+        244,
+        44
+      ],
+      "source_set": "atlas-specific photograph",
+      "metres_per_tile": [
+        2,
+        0.1171875
+      ],
+      "relief_range_metres": 0.03,
+      "sources": [
+        "dark_wooden_planks"
+      ],
+      "notes": "Photographic substrate; original pigment and lettering meaning retained. Crisp serif lettering is painted pigment, not raised geometry."
+    },
+    {
+      "name": "board_bakery",
+      "native_cell": [
+        0,
+        269,
+        56,
+        11
+      ],
+      "output_cell": [
+        0,
+        1076,
+        224,
+        44
+      ],
+      "source_set": "atlas-specific photograph",
+      "metres_per_tile": [
+        2,
+        0.1171875
+      ],
+      "relief_range_metres": 0.03,
+      "sources": [
+        "dark_wooden_planks"
+      ],
+      "notes": "Photographic substrate; original pigment and lettering meaning retained. Crisp serif lettering is painted pigment, not raised geometry."
+    },
+    {
+      "name": "board_butcher",
+      "native_cell": [
+        56,
+        269,
+        56,
+        11
+      ],
+      "output_cell": [
+        224,
+        1076,
+        224,
+        44
+      ],
+      "source_set": "atlas-specific photograph",
+      "metres_per_tile": [
+        2,
+        0.1171875
+      ],
+      "relief_range_metres": 0.03,
+      "sources": [
+        "dark_wooden_planks"
+      ],
+      "notes": "Photographic substrate; original pigment and lettering meaning retained. Crisp serif lettering is painted pigment, not raised geometry."
+    },
+    {
+      "name": "board_tobacco",
+      "native_cell": [
+        112,
+        269,
+        56,
+        11
+      ],
+      "output_cell": [
+        448,
+        1076,
+        224,
+        44
+      ],
+      "source_set": "atlas-specific photograph",
+      "metres_per_tile": [
+        2,
+        0.1171875
+      ],
+      "relief_range_metres": 0.03,
+      "sources": [
+        "dark_wooden_planks"
+      ],
+      "notes": "Photographic substrate; original pigment and lettering meaning retained. Crisp serif lettering is painted pigment, not raised geometry."
+    },
+    {
+      "name": "board_cooper",
+      "native_cell": [
+        168,
+        269,
+        56,
+        11
+      ],
+      "output_cell": [
+        672,
+        1076,
+        224,
+        44
+      ],
+      "source_set": "atlas-specific photograph",
+      "metres_per_tile": [
+        2,
+        0.1171875
+      ],
+      "relief_range_metres": 0.03,
+      "sources": [
+        "dark_wooden_planks"
+      ],
+      "notes": "Photographic substrate; original pigment and lettering meaning retained. Crisp serif lettering is painted pigment, not raised geometry."
+    },
+    {
+      "name": "board_chemist",
+      "native_cell": [
+        0,
+        280,
+        56,
+        11
+      ],
+      "output_cell": [
+        0,
+        1120,
+        224,
+        44
+      ],
+      "source_set": "atlas-specific photograph",
+      "metres_per_tile": [
+        2,
+        0.1171875
+      ],
+      "relief_range_metres": 0.03,
+      "sources": [
+        "dark_wooden_planks"
+      ],
+      "notes": "Photographic substrate; original pigment and lettering meaning retained. Crisp serif lettering is painted pigment, not raised geometry."
+    },
+    {
+      "name": "plate_21",
+      "native_cell": [
+        56,
+        280,
+        55,
+        11
+      ],
+      "output_cell": [
+        224,
+        1120,
+        220,
+        44
+      ],
+      "source_set": "atlas-specific photograph",
+      "metres_per_tile": [
+        2,
+        0.1171875
+      ],
+      "relief_range_metres": 0.03,
+      "sources": [
+        "dark_wooden_planks"
+      ],
+      "notes": "Photographic substrate; original pigment and lettering meaning retained. Crisp serif lettering is painted pigment, not raised geometry."
+    },
+    {
+      "name": "plate_24",
+      "native_cell": [
+        111,
+        280,
+        55,
+        11
+      ],
+      "output_cell": [
+        444,
+        1120,
+        220,
+        44
+      ],
+      "source_set": "atlas-specific photograph",
+      "metres_per_tile": [
+        2,
+        0.1171875
+      ],
+      "relief_range_metres": 0.03,
+      "sources": [
+        "dark_wooden_planks"
+      ],
+      "notes": "Photographic substrate; original pigment and lettering meaning retained. Crisp serif lettering is painted pigment, not raised geometry."
+    },
+    {
+      "name": "plate_2",
+      "native_cell": [
+        166,
+        280,
+        49,
+        11
+      ],
+      "output_cell": [
+        664,
+        1120,
+        196,
+        44
+      ],
+      "source_set": "atlas-specific photograph",
+      "metres_per_tile": [
+        2,
+        0.1171875
+      ],
+      "relief_range_metres": 0.03,
+      "sources": [
+        "dark_wooden_planks"
+      ],
+      "notes": "Photographic substrate; original pigment and lettering meaning retained. Crisp serif lettering is painted pigment, not raised geometry."
+    },
+    {
+      "name": "plate_25",
+      "native_cell": [
+        215,
+        280,
+        31,
+        11
+      ],
+      "output_cell": [
+        860,
+        1120,
+        124,
+        44
+      ],
+      "source_set": "atlas-specific photograph",
+      "metres_per_tile": [
+        2,
+        0.1171875
+      ],
+      "relief_range_metres": 0.03,
+      "sources": [
+        "dark_wooden_planks"
+      ],
+      "notes": "Photographic substrate; original pigment and lettering meaning retained. Crisp serif lettering is painted pigment, not raised geometry."
+    },
+    {
+      "name": "number_3",
+      "native_cell": [
+        0,
+        291,
+        17,
+        11
+      ],
+      "output_cell": [
+        0,
+        1164,
+        68,
+        44
+      ],
+      "source_set": "atlas-specific photograph",
+      "metres_per_tile": [
+        2,
+        0.1171875
+      ],
+      "relief_range_metres": 0.03,
+      "sources": [
+        "dark_wooden_planks"
+      ],
+      "notes": "Photographic substrate; original pigment and lettering meaning retained. Crisp serif lettering is painted pigment, not raised geometry."
+    },
+    {
+      "name": "number_4",
+      "native_cell": [
+        17,
+        291,
+        17,
+        11
+      ],
+      "output_cell": [
+        68,
+        1164,
+        68,
+        44
+      ],
+      "source_set": "atlas-specific photograph",
+      "metres_per_tile": [
+        2,
+        0.1171875
+      ],
+      "relief_range_metres": 0.03,
+      "sources": [
+        "dark_wooden_planks"
+      ],
+      "notes": "Photographic substrate; original pigment and lettering meaning retained. Crisp serif lettering is painted pigment, not raised geometry."
+    },
+    {
+      "name": "number_5",
+      "native_cell": [
+        34,
+        291,
+        17,
+        11
+      ],
+      "output_cell": [
+        136,
+        1164,
+        68,
+        44
+      ],
+      "source_set": "atlas-specific photograph",
+      "metres_per_tile": [
+        2,
+        0.1171875
+      ],
+      "relief_range_metres": 0.03,
+      "sources": [
+        "dark_wooden_planks"
+      ],
+      "notes": "Photographic substrate; original pigment and lettering meaning retained. Crisp serif lettering is painted pigment, not raised geometry."
+    },
+    {
+      "name": "number_6",
+      "native_cell": [
+        51,
+        291,
+        17,
+        11
+      ],
+      "output_cell": [
+        204,
+        1164,
+        68,
+        44
+      ],
+      "source_set": "atlas-specific photograph",
+      "metres_per_tile": [
+        2,
+        0.1171875
+      ],
+      "relief_range_metres": 0.03,
+      "sources": [
+        "dark_wooden_planks"
+      ],
+      "notes": "Photographic substrate; original pigment and lettering meaning retained. Crisp serif lettering is painted pigment, not raised geometry."
+    },
+    {
+      "name": "number_7",
+      "native_cell": [
+        68,
+        291,
+        17,
+        11
+      ],
+      "output_cell": [
+        272,
+        1164,
+        68,
+        44
+      ],
+      "source_set": "atlas-specific photograph",
+      "metres_per_tile": [
+        2,
+        0.1171875
+      ],
+      "relief_range_metres": 0.03,
+      "sources": [
+        "dark_wooden_planks"
+      ],
+      "notes": "Photographic substrate; original pigment and lettering meaning retained. Crisp serif lettering is painted pigment, not raised geometry."
+    },
+    {
+      "name": "number_8",
+      "native_cell": [
+        85,
+        291,
+        17,
+        11
+      ],
+      "output_cell": [
+        340,
+        1164,
+        68,
+        44
+      ],
+      "source_set": "atlas-specific photograph",
+      "metres_per_tile": [
+        2,
+        0.1171875
+      ],
+      "relief_range_metres": 0.03,
+      "sources": [
+        "dark_wooden_planks"
+      ],
+      "notes": "Photographic substrate; original pigment and lettering meaning retained. Crisp serif lettering is painted pigment, not raised geometry."
+    },
+    {
+      "name": "number_9",
+      "native_cell": [
+        102,
+        291,
+        17,
+        11
+      ],
+      "output_cell": [
+        408,
+        1164,
+        68,
+        44
+      ],
+      "source_set": "atlas-specific photograph",
+      "metres_per_tile": [
+        2,
+        0.1171875
+      ],
+      "relief_range_metres": 0.03,
+      "sources": [
+        "dark_wooden_planks"
+      ],
+      "notes": "Photographic substrate; original pigment and lettering meaning retained. Crisp serif lettering is painted pigment, not raised geometry."
+    },
+    {
+      "name": "number_10",
+      "native_cell": [
+        119,
+        291,
+        17,
+        11
+      ],
+      "output_cell": [
+        476,
+        1164,
+        68,
+        44
+      ],
+      "source_set": "atlas-specific photograph",
+      "metres_per_tile": [
+        2,
+        0.1171875
+      ],
+      "relief_range_metres": 0.03,
+      "sources": [
+        "dark_wooden_planks"
+      ],
+      "notes": "Photographic substrate; original pigment and lettering meaning retained. Crisp serif lettering is painted pigment, not raised geometry."
+    },
+    {
+      "name": "number_11",
+      "native_cell": [
+        136,
+        291,
+        17,
+        11
+      ],
+      "output_cell": [
+        544,
+        1164,
+        68,
+        44
+      ],
+      "source_set": "atlas-specific photograph",
+      "metres_per_tile": [
+        2,
+        0.1171875
+      ],
+      "relief_range_metres": 0.03,
+      "sources": [
+        "dark_wooden_planks"
+      ],
+      "notes": "Photographic substrate; original pigment and lettering meaning retained. Crisp serif lettering is painted pigment, not raised geometry."
+    },
+    {
+      "name": "number_12",
+      "native_cell": [
+        153,
+        291,
+        17,
+        11
+      ],
+      "output_cell": [
+        612,
+        1164,
+        68,
+        44
+      ],
+      "source_set": "atlas-specific photograph",
+      "metres_per_tile": [
+        2,
+        0.1171875
+      ],
+      "relief_range_metres": 0.03,
+      "sources": [
+        "dark_wooden_planks"
+      ],
+      "notes": "Photographic substrate; original pigment and lettering meaning retained. Crisp serif lettering is painted pigment, not raised geometry."
+    },
+    {
+      "name": "number_13",
+      "native_cell": [
+        170,
+        291,
+        17,
+        11
+      ],
+      "output_cell": [
+        680,
+        1164,
+        68,
+        44
+      ],
+      "source_set": "atlas-specific photograph",
+      "metres_per_tile": [
+        2,
+        0.1171875
+      ],
+      "relief_range_metres": 0.03,
+      "sources": [
+        "dark_wooden_planks"
+      ],
+      "notes": "Photographic substrate; original pigment and lettering meaning retained. Crisp serif lettering is painted pigment, not raised geometry."
+    },
+    {
+      "name": "number_0",
+      "native_cell": [
+        187,
+        291,
+        11,
+        11
+      ],
+      "output_cell": [
+        748,
+        1164,
+        44,
+        44
+      ],
+      "source_set": "atlas-specific photograph",
+      "metres_per_tile": [
+        2,
+        0.1171875
+      ],
+      "relief_range_metres": 0.03,
+      "sources": [
+        "dark_wooden_planks"
+      ],
+      "notes": "Photographic substrate; original pigment and lettering meaning retained. Crisp serif lettering is painted pigment, not raised geometry."
+    },
+    {
+      "name": "number_1",
+      "native_cell": [
+        198,
+        291,
+        11,
+        11
+      ],
+      "output_cell": [
+        792,
+        1164,
+        44,
+        44
+      ],
+      "source_set": "atlas-specific photograph",
+      "metres_per_tile": [
+        2,
+        0.1171875
+      ],
+      "relief_range_metres": 0.03,
+      "sources": [
+        "dark_wooden_planks"
+      ],
+      "notes": "Photographic substrate; original pigment and lettering meaning retained. Crisp serif lettering is painted pigment, not raised geometry."
+    },
+    {
+      "name": "number_2",
+      "native_cell": [
+        209,
+        291,
+        11,
+        11
+      ],
+      "output_cell": [
+        836,
+        1164,
+        44,
+        44
+      ],
+      "source_set": "atlas-specific photograph",
+      "metres_per_tile": [
+        2,
+        0.1171875
+      ],
+      "relief_range_metres": 0.03,
+      "sources": [
+        "dark_wooden_planks"
+      ],
+      "notes": "Photographic substrate; original pigment and lettering meaning retained. Crisp serif lettering is painted pigment, not raised geometry."
+    },
+    {
+      "name": "valance_0",
+      "native_cell": [
+        220,
+        291,
+        32,
+        10
+      ],
+      "output_cell": [
+        880,
+        1164,
+        128,
+        40
+      ],
+      "source_set": "atlas-specific photograph",
+      "metres_per_tile": [
+        1,
+        1
+      ],
+      "relief_range_metres": 0.03,
+      "sources": [
+        "rough_linen",
+        "art-source/plan-84/reused/prop_awning_red_c.png"
+      ],
+      "notes": "Photographic substrate; original pigment and lettering meaning retained. Crisp serif lettering is painted pigment, not raised geometry."
+    },
+    {
+      "name": "valance_1",
+      "native_cell": [
+        0,
+        302,
+        32,
+        10
+      ],
+      "output_cell": [
+        0,
+        1208,
+        128,
+        40
+      ],
+      "source_set": "atlas-specific photograph",
+      "metres_per_tile": [
+        1,
+        1
+      ],
+      "relief_range_metres": 0.03,
+      "sources": [
+        "rough_linen",
+        "art-source/plan-84/reused/prop_awning_blue_c.png"
+      ],
+      "notes": "Photographic substrate; original pigment and lettering meaning retained. Crisp serif lettering is painted pigment, not raised geometry."
+    },
+    {
+      "name": "valance_2",
+      "native_cell": [
+        32,
+        302,
+        32,
+        10
+      ],
+      "output_cell": [
+        128,
+        1208,
+        128,
+        40
+      ],
+      "source_set": "atlas-specific photograph",
+      "metres_per_tile": [
+        1,
+        1
+      ],
+      "relief_range_metres": 0.03,
+      "sources": [
+        "rough_linen",
+        "art-source/plan-84/reused/prop_awning_red_c.png"
+      ],
+      "notes": "Photographic substrate; original pigment and lettering meaning retained. Crisp serif lettering is painted pigment, not raised geometry."
+    },
+    {
+      "name": "valance_3",
+      "native_cell": [
+        64,
+        302,
+        32,
+        10
+      ],
+      "output_cell": [
+        256,
+        1208,
+        128,
+        40
+      ],
+      "source_set": "atlas-specific photograph",
+      "metres_per_tile": [
+        1,
+        1
+      ],
+      "relief_range_metres": 0.03,
+      "sources": [
+        "rough_linen",
+        "art-source/plan-84/reused/prop_awning_blue_c.png"
+      ],
+      "notes": "Photographic substrate; original pigment and lettering meaning retained. Crisp serif lettering is painted pigment, not raised geometry."
+    }
+  ],
+  "preserved_cells": [
+    "glass",
+    "black",
+    "water_dark"
+  ]
+}

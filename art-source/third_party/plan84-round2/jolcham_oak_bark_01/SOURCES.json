@@ -1,0 +1,58 @@
+{
+  "item": "jolcham_oak_bark_01",
+  "url": "https://polyhaven.com/a/jolcham_oak_bark_01",
+  "licence": "CC0-1.0",
+  "authors": {
+    "Charlotte Baglioni": "All"
+  },
+  "download_date": "2026-10-18",
+  "technique": "Photographed PBR surface",
+  "source_dimensions_mm": [
+    1000,
+    2000
+  ],
+  "files": [
+    {
+      "path": "art-source/third_party/plan84-round2/jolcham_oak_bark_01/jolcham_oak_bark_01_diff_1k.png",
+      "sha256": "81aa2de68497e471516ae6c64331638f57e44eba73387772ba486fd62c2b6ba5",
+      "bytes": 11573509,
+      "download_url": "https://dl.polyhaven.org/file/ph-assets/Textures/png/1k/jolcham_oak_bark_01/jolcham_oak_bark_01_diff_1k.png"
+    },
+    {
+      "path": "art-source/third_party/plan84-round2/jolcham_oak_bark_01/jolcham_oak_bark_01_disp_1k.png",
+      "sha256": "4bcd2c3a36b68a020beb25f4034c4eabf41033433212ca19de0f3bd92a1dada3",
+      "bytes": 3467899,
+      "download_url": "https://dl.polyhaven.org/file/ph-assets/Textures/png/1k/jolcham_oak_bark_01/jolcham_oak_bark_01_disp_1k.png"
+    },
+    {
+      "path": "art-source/third_party/plan84-round2/jolcham_oak_bark_01/jolcham_oak_bark_01_nor_gl_1k.png",
+      "sha256": "0b054cfd8db2cf6a4821877587ac79868e149fa0a0d3731c9208b6fd8188633e",
+      "bytes": 12010462,
+      "download_url": "https://dl.polyhaven.org/file/ph-assets/Textures/png/1k/jolcham_oak_bark_01/jolcham_oak_bark_01_nor_gl_1k.png"
+    },
+    {
+      "path": "art-source/third_party/plan84-round2/jolcham_oak_bark_01/jolcham_oak_bark_01_rough_1k.png",
+      "sha256": "3c57119f21d218613bbc122ecf61567c6a0f29f3d5f9a1468ac71527558bba96",
+      "bytes": 3416259,
+      "download_url": "https://dl.polyhaven.org/file/ph-assets/Textures/png/1k/jolcham_oak_bark_01/jolcham_oak_bark_01_rough_1k.png"
+    },
+    {
+      "path": "art-source/third_party/plan84-round2/jolcham_oak_bark_01/info.json",
+      "sha256": "6589f4e4e49533bbcb81d5610a4971a3d2b85d562fd8fadd38f2ec44dbec59a0",
+      "bytes": 1000,
+      "download_url": "https://polyhaven.com/a/jolcham_oak_bark_01"
+    },
+    {
+      "path": "art-source/third_party/plan84-round2/jolcham_oak_bark_01/files.json",
+      "sha256": "da22d84f5c1f4a19ab0a547466ed23b7bfae98fb17dcddfb39e6a97639394acf",
+      "bytes": 28273,
+      "download_url": "https://polyhaven.com/a/jolcham_oak_bark_01"
+    },
+    {
+      "path": "art-source/third_party/plan84-round2/jolcham_oak_bark_01/item-page.html",
+      "sha256": "1eb3d7a9cf08fa902f9740420a7f8020dc2e2dae6183ffe06587bb5064b81d95",
+      "bytes": 199049,
+      "download_url": "https://polyhaven.com/a/jolcham_oak_bark_01"
+    }
+  ]
+}

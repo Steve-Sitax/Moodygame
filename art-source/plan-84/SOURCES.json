@@ -1,0 +1,320 @@
+{
+  "sources": [
+    {
+      "path": "art-source/plan-84/generated/bark.png",
+      "sha256": "b0d6930ae129b3db8302f7716dd57dd0425c42ce4d876cb055a536d8b0282d64",
+      "licence": "Project original generated artwork",
+      "origin": "Built-in image_gen; original project prompts in generated/prompts.json",
+      "date": "2026-10-18"
+    },
+    {
+      "path": "art-source/plan-84/generated/bronze.png",
+      "sha256": "0c155bbf826e4beac432a3547029e168db28c58384d5288b18dfc4752a111ad8",
+      "licence": "Project original generated artwork",
+      "origin": "Built-in image_gen; original project prompts in generated/prompts.json",
+      "date": "2026-10-18"
+    },
+    {
+      "path": "art-source/plan-84/generated/lead.png",
+      "sha256": "e37dfd3d94d8bd795c1e58d9c5bcd09e196d7464da3ed87bb268516131fa597d",
+      "licence": "Project original generated artwork",
+      "origin": "Built-in image_gen; original project prompts in generated/prompts.json",
+      "date": "2026-10-18"
+    },
+    {
+      "path": "art-source/plan-84/generated/leaves.png",
+      "sha256": "fd146aedf750b452bee9745ff65b88de3d2cd028e46909f9272fb36d52d0587e",
+      "licence": "Project original generated artwork",
+      "origin": "Built-in image_gen; original project prompts in generated/prompts.json",
+      "date": "2026-10-18"
+    },
+    {
+      "path": "art-source/plan-84/generated/litter-v2.png",
+      "sha256": "c1d69bb0c4add02b4782d02394ca845f253fbea15ae686e4a3d1e5eb3b059c81",
+      "licence": "Project original generated artwork",
+      "origin": "Built-in image_gen; original project prompts in generated/prompts.json",
+      "date": "2026-10-18"
+    },
+    {
+      "path": "art-source/plan-84/generated/litter.png",
+      "sha256": "564ba6279c6c276357a29e25fb707e82bac5e00f3a14ef6d3f5c17d76e2fa673",
+      "licence": "Project original generated artwork",
+      "origin": "Built-in image_gen; original project prompts in generated/prompts.json",
+      "date": "2026-10-18"
+    },
+    {
+      "path": "art-source/plan-84/generated/park.png",
+      "sha256": "9058930dfb5a6ebc92285743c1ecbe68e70b912c642596611f5c2269420dc67a",
+      "licence": "Project original generated artwork",
+      "origin": "Built-in image_gen; original project prompts in generated/prompts.json",
+      "date": "2026-10-18"
+    },
+    {
+      "path": "art-source/plan-84/generated/prompts.json",
+      "sha256": "2d50bd1015bfea92f432b970c5dfcbc7005c25dd6b32afbac272523464db2a32",
+      "licence": "Project original generated artwork",
+      "origin": "Built-in image_gen; original project prompts in generated/prompts.json",
+      "date": "2026-10-18"
+    },
+    {
+      "path": "art-source/plan-84/generated/sandstone.png",
+      "sha256": "eb064e6d8f34c65a195cfb1229a3874e984d6c77c0aeeee0a1d642cff46b0801",
+      "licence": "Project original generated artwork",
+      "origin": "Built-in image_gen; original project prompts in generated/prompts.json",
+      "date": "2026-10-18"
+    },
+    {
+      "path": "art-source/plan-84/native-originals/clutter.png",
+      "sha256": "d7f55a346ac2013d848d106edf38c5156a62a01622d1dbcb5ac7ddecc0db39a1",
+      "licence": "Project original artwork",
+      "origin": "Read-only RGB(A) pixel decode from the current native resource; native-images.json keeps resource path and SHA-256",
+      "date": "2026-10-18"
+    },
+    {
+      "path": "art-source/plan-84/native-originals/lively.png",
+      "sha256": "2ad5684a849070e586919509549e41619ccb36aef6553e1024d34e85d6da3392",
+      "licence": "Project original artwork",
+      "origin": "Read-only RGB(A) pixel decode from the current native resource; native-images.json keeps resource path and SHA-256",
+      "date": "2026-10-18"
+    },
+    {
+      "path": "art-source/plan-84/native-originals/omnibus.png",
+      "sha256": "3542aa8a48511f8c251d365be8b5d79bb8a3b7e41ce4ea8e13070d05dca80e9e",
+      "licence": "Project original artwork",
+      "origin": "Read-only RGB(A) pixel decode from the current native resource; native-images.json keeps resource path and SHA-256",
+      "date": "2026-10-18"
+    },
+    {
+      "path": "art-source/plan-84/native-originals/quayfurniture.png",
+      "sha256": "13b9ad6a7eb93b674b58da2d34dd3c543999daf479e2be8e1db8abfbb1dd4be9",
+      "licence": "Project original artwork",
+      "origin": "Read-only RGB(A) pixel decode from the current native resource; native-images.json keeps resource path and SHA-256",
+      "date": "2026-10-18"
+    },
+    {
+      "path": "art-source/plan-84/native-originals/streetlife.png",
+      "sha256": "ab567aa6cd016f1c461d4bc87a820d6f793ac143afc3dfa5bdf6faff613e5335",
+      "licence": "Project original artwork",
+      "origin": "Read-only RGB(A) pixel decode from the current native resource; native-images.json keeps resource path and SHA-256",
+      "date": "2026-10-18"
+    },
+    {
+      "path": "art-source/plan-84/native-originals/trades.png",
+      "sha256": "ab06bbfa8ff00a6d42fe4c9651597f9a9178c6ab280a1ab803a3b73af2876291",
+      "licence": "Project original artwork",
+      "origin": "Read-only RGB(A) pixel decode from the current native resource; native-images.json keeps resource path and SHA-256",
+      "date": "2026-10-18"
+    },
+    {
+      "path": "art-source/plan-84/native-originals/wagons.png",
+      "sha256": "fdbd1d4f90f1af50b415b05487daa803c870133e9201c09f42f039b0ebc5a399",
+      "licence": "Project original artwork",
+      "origin": "Read-only RGB(A) pixel decode from the current native resource; native-images.json keeps resource path and SHA-256",
+      "date": "2026-10-18"
+    },
+    {
+      "path": "art-source/plan-84/reused/clutter_maps.json",
+      "sha256": "062bf352e72f6fc46bb818332e8f4392be2e01171fea982ffd1f8f0feab47be1",
+      "licence": "Project original generated artwork/derived maps",
+      "origin": "Git 042db687 (iron), 73a5fb50 (props), 4997474b (row 13 layout reference); pictures only",
+      "date": "2026-10-18"
+    },
+    {
+      "path": "art-source/plan-84/reused/lively_maps.json",
+      "sha256": "2e6dff3dd0bfdf6a9f6e14a4bb52f704a244ec46f831d167bf8b4ca666c2f09e",
+      "licence": "Project original generated artwork/derived maps",
+      "origin": "Git 042db687 (iron), 73a5fb50 (props), 4997474b (row 13 layout reference); pictures only",
+      "date": "2026-10-18"
+    },
+    {
+      "path": "art-source/plan-84/reused/prop_awning_blue_c.png",
+      "sha256": "e3007fa5343d515febd8af39be10022976b2cfc09fecba86a21dafa4fb8b8753",
+      "licence": "Project original generated artwork/derived maps",
+      "origin": "Git 042db687 (iron), 73a5fb50 (props), 4997474b (row 13 layout reference); pictures only",
+      "date": "2026-10-18"
+    },
+    {
+      "path": "art-source/plan-84/reused/prop_awning_blue_h.png",
+      "sha256": "b33a9277e21f51ba648f58837690857b28c72c0c9c274e57989c0e2afefa656c",
+      "licence": "Project original generated artwork/derived maps",
+      "origin": "Git 042db687 (iron), 73a5fb50 (props), 4997474b (row 13 layout reference); pictures only",
+      "date": "2026-10-18"
+    },
+    {
+      "path": "art-source/plan-84/reused/prop_awning_red_c.png",
+      "sha256": "6fac5a1d95f54d34d7fbec9485a78cf806af685eddfaf4b52ef50095f99e6677",
+      "licence": "Project original generated artwork/derived maps",
+      "origin": "Git 042db687 (iron), 73a5fb50 (props), 4997474b (row 13 layout reference); pictures only",
+      "date": "2026-10-18"
+    },
+    {
+      "path": "art-source/plan-84/reused/prop_awning_red_h.png",
+      "sha256": "93c79ef84208f219276e3520257e46cfc4040f8f808c7e90a6ab3fedffb6f2f5",
+      "licence": "Project original generated artwork/derived maps",
+      "origin": "Git 042db687 (iron), 73a5fb50 (props), 4997474b (row 13 layout reference); pictures only",
+      "date": "2026-10-18"
+    },
+    {
+      "path": "art-source/plan-84/reused/prop_barrel_c.png",
+      "sha256": "5faf5dbc45aba2508baa4fbb65d866e7244d4b38b5cc4646f65523c17b77b97f",
+      "licence": "Project original generated artwork/derived maps",
+      "origin": "Git 042db687 (iron), 73a5fb50 (props), 4997474b (row 13 layout reference); pictures only",
+      "date": "2026-10-18"
+    },
+    {
+      "path": "art-source/plan-84/reused/prop_barrel_h.png",
+      "sha256": "1ba013dfa93fadcb1dd41d08008507c0330258b934436cc1bbba76637f1cfc04",
+      "licence": "Project original generated artwork/derived maps",
+      "origin": "Git 042db687 (iron), 73a5fb50 (props), 4997474b (row 13 layout reference); pictures only",
+      "date": "2026-10-18"
+    },
+    {
+      "path": "art-source/plan-84/reused/prop_canvas_patched_c.png",
+      "sha256": "f1db479c0df96822ad6793f3cd55ab9eebb866d0303618b5018fb501a654e2bd",
+      "licence": "Project original generated artwork/derived maps",
+      "origin": "Git 042db687 (iron), 73a5fb50 (props), 4997474b (row 13 layout reference); pictures only",
+      "date": "2026-10-18"
+    },
+    {
+      "path": "art-source/plan-84/reused/prop_canvas_patched_h.png",
+      "sha256": "7e524c55623904937aeea96ef43a6caaf82314535ca52dcdb2857e519ce7549f",
+      "licence": "Project original generated artwork/derived maps",
+      "origin": "Git 042db687 (iron), 73a5fb50 (props), 4997474b (row 13 layout reference); pictures only",
+      "date": "2026-10-18"
+    },
+    {
+      "path": "art-source/plan-84/reused/prop_leather_c.png",
+      "sha256": "711312d8f5d11b09d0f80a7c4f0370cf57d4ebd3275025ef25dd537a241782c7",
+      "licence": "Project original generated artwork/derived maps",
+      "origin": "Git 042db687 (iron), 73a5fb50 (props), 4997474b (row 13 layout reference); pictures only",
+      "date": "2026-10-18"
+    },
+    {
+      "path": "art-source/plan-84/reused/prop_leather_h.png",
+      "sha256": "1d572fb9f582dc4acd2d19116fb884d0cf04c962edc9d3fb29a64d9c06b660fa",
+      "licence": "Project original generated artwork/derived maps",
+      "origin": "Git 042db687 (iron), 73a5fb50 (props), 4997474b (row 13 layout reference); pictures only",
+      "date": "2026-10-18"
+    },
+    {
+      "path": "art-source/plan-84/reused/prop_market_mud_c.png",
+      "sha256": "0ff8e319b16dbd6e645759e07644c80f2231844ac0368b3fbd140ddf992533fa",
+      "licence": "Project original generated artwork/derived maps",
+      "origin": "Git 042db687 (iron), 73a5fb50 (props), 4997474b (row 13 layout reference); pictures only",
+      "date": "2026-10-18"
+    },
+    {
+      "path": "art-source/plan-84/reused/prop_market_mud_h.png",
+      "sha256": "7e21435c2f78afe57fe71cc3e5784ba307a297de4bf24bbbac401ce11f87ef47",
+      "licence": "Project original generated artwork/derived maps",
+      "origin": "Git 042db687 (iron), 73a5fb50 (props), 4997474b (row 13 layout reference); pictures only",
+      "date": "2026-10-18"
+    },
+    {
+      "path": "art-source/plan-84/reused/prop_sackcloth_c.png",
+      "sha256": "b144c4ab09484ec46cb66c214c3f360e93d79b8b86a97f47b471fce63c02a04d",
+      "licence": "Project original generated artwork/derived maps",
+      "origin": "Git 042db687 (iron), 73a5fb50 (props), 4997474b (row 13 layout reference); pictures only",
+      "date": "2026-10-18"
+    },
+    {
+      "path": "art-source/plan-84/reused/prop_sackcloth_h.png",
+      "sha256": "24a689ea74deff04a08584947788781ff6612e752507a1c8c3d7651ccc33b9f5",
+      "licence": "Project original generated artwork/derived maps",
+      "origin": "Git 042db687 (iron), 73a5fb50 (props), 4997474b (row 13 layout reference); pictures only",
+      "date": "2026-10-18"
+    },
+    {
+      "path": "art-source/plan-84/reused/prop_stall_sign_c.png",
+      "sha256": "c7b4f0d57ca401ac54d605a0e3b64c1a3c9efd3b19ce2468c860a4dafdde9dcc",
+      "licence": "Project original generated artwork/derived maps",
+      "origin": "Git 042db687 (iron), 73a5fb50 (props), 4997474b (row 13 layout reference); pictures only",
+      "date": "2026-10-18"
+    },
+    {
+      "path": "art-source/plan-84/reused/prop_stall_sign_h.png",
+      "sha256": "0c117d7d3ec3b85a6009629673aa90f241908507105e929eae875af02e07a24a",
+      "licence": "Project original generated artwork/derived maps",
+      "origin": "Git 042db687 (iron), 73a5fb50 (props), 4997474b (row 13 layout reference); pictures only",
+      "date": "2026-10-18"
+    },
+    {
+      "path": "art-source/plan-84/reused/prop_tarpaulin_c.png",
+      "sha256": "92da56a53c90524fe593632682b0e699899b7c5724e17fc0fec322e821a05eaf",
+      "licence": "Project original generated artwork/derived maps",
+      "origin": "Git 042db687 (iron), 73a5fb50 (props), 4997474b (row 13 layout reference); pictures only",
+      "date": "2026-10-18"
+    },
+    {
+      "path": "art-source/plan-84/reused/prop_tarpaulin_h.png",
+      "sha256": "81dfad917bf24a202612d958dcbd1a2075e8b9644a32d33b35ea19418480c712",
+      "licence": "Project original generated artwork/derived maps",
+      "origin": "Git 042db687 (iron), 73a5fb50 (props), 4997474b (row 13 layout reference); pictures only",
+      "date": "2026-10-18"
+    },
+    {
+      "path": "art-source/plan-84/reused/prop_wood_dark_c.png",
+      "sha256": "6022af133c8ab0c9b6dde31764ab7ddf62bd9d6d26ce2ccd6edf693020d2247e",
+      "licence": "Project original generated artwork/derived maps",
+      "origin": "Git 042db687 (iron), 73a5fb50 (props), 4997474b (row 13 layout reference); pictures only",
+      "date": "2026-10-18"
+    },
+    {
+      "path": "art-source/plan-84/reused/prop_wood_dark_h.png",
+      "sha256": "4060796282e15b2fb42697fbd3d8acef22a7dda83f14e735d993327e61644086",
+      "licence": "Project original generated artwork/derived maps",
+      "origin": "Git 042db687 (iron), 73a5fb50 (props), 4997474b (row 13 layout reference); pictures only",
+      "date": "2026-10-18"
+    },
+    {
+      "path": "art-source/plan-84/reused/quayfurniture_maps.json",
+      "sha256": "cd1c74e881394191d583d539e435c6b432949bd0fcd46a0f924546c74521e47b",
+      "licence": "Project original generated artwork/derived maps",
+      "origin": "Git 042db687 (iron), 73a5fb50 (props), 4997474b (row 13 layout reference); pictures only",
+      "date": "2026-10-18"
+    },
+    {
+      "path": "art-source/plan-84/reused/streetlife_maps.json",
+      "sha256": "993cf7ac003cce6a8d7451c574abfd2c7c25450057605c5601eb5487a013408b",
+      "licence": "Project original generated artwork/derived maps",
+      "origin": "Git 042db687 (iron), 73a5fb50 (props), 4997474b (row 13 layout reference); pictures only",
+      "date": "2026-10-18"
+    },
+    {
+      "path": "art-source/plan-84/reused/trades_maps.json",
+      "sha256": "13f52f76515755d91ceff020ad5304bf95e943063c5f9523c1f4c3fa85745bad",
+      "licence": "Project original generated artwork/derived maps",
+      "origin": "Git 042db687 (iron), 73a5fb50 (props), 4997474b (row 13 layout reference); pictures only",
+      "date": "2026-10-18"
+    },
+    {
+      "path": "art-source/plan-84/reused/wrought_iron_c.png",
+      "sha256": "30147c39264513aaf58cb30487a53a5bb2035fcdf24fcaddce911b4fb28b6fee",
+      "licence": "Project original generated artwork/derived maps",
+      "origin": "Git 042db687 (iron), 73a5fb50 (props), 4997474b (row 13 layout reference); pictures only",
+      "date": "2026-10-18"
+    },
+    {
+      "path": "art-source/plan-84/reused/wrought_iron_h.png",
+      "sha256": "538ec4984fb78410adac23896982e828a38250022c53f16ab5c45cc04ce4db0f",
+      "licence": "Project original generated artwork/derived maps",
+      "origin": "Git 042db687 (iron), 73a5fb50 (props), 4997474b (row 13 layout reference); pictures only",
+      "date": "2026-10-18"
+    },
+    {
+      "path": "art-source/plan-84/town-material-targets.json",
+      "sha256": "91662717f406a7ee2a6af8802ac08cd358048351001d599b561e203d4f574e73",
+      "licence": "Project source",
+      "origin": "Original picture-bundle metadata",
+      "date": "2026-10-18"
+    }
+  ],
+  "cc0": [
+    "art-source/third_party/ambientcg-bark012/SOURCES.json"
+  ],
+  "reuse_rejected": [
+    "prop_stall_sign: numbered sign is not a tileable surface",
+    "prop_market_mud: circular outer boundary excluded; only central continuous soil crop used"
+  ],
+  "native_preservation": "No native scenes/materials/resources/IDs/placements were written."
+}

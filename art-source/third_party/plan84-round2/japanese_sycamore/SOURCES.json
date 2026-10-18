@@ -1,0 +1,58 @@
+{
+  "item": "japanese_sycamore",
+  "url": "https://polyhaven.com/a/japanese_sycamore",
+  "licence": "CC0-1.0",
+  "authors": {
+    "Charlotte Baglioni": "All"
+  },
+  "download_date": "2026-10-18",
+  "technique": "Photographed PBR surface",
+  "source_dimensions_mm": [
+    1099.9999046325684,
+    2199.9998092651367
+  ],
+  "files": [
+    {
+      "path": "art-source/third_party/plan84-round2/japanese_sycamore/japanese_sycamore_diff_1k.png",
+      "sha256": "b013222323381e0e2a79ed93d650dde8b9b62059885a11efbe95aba98505d2d1",
+      "bytes": 11272554,
+      "download_url": "https://dl.polyhaven.org/file/ph-assets/Textures/png/1k/japanese_sycamore/japanese_sycamore_diff_1k.png"
+    },
+    {
+      "path": "art-source/third_party/plan84-round2/japanese_sycamore/japanese_sycamore_disp_1k.png",
+      "sha256": "9f1269481520a3f1bf60c9d66c641b558ef7d218ca89143793307fb920d005e5",
+      "bytes": 3086401,
+      "download_url": "https://dl.polyhaven.org/file/ph-assets/Textures/png/1k/japanese_sycamore/japanese_sycamore_disp_1k.png"
+    },
+    {
+      "path": "art-source/third_party/plan84-round2/japanese_sycamore/japanese_sycamore_nor_gl_1k.png",
+      "sha256": "577655743db53469472fa40cf138539d3d41262692f6e073d0e906b058ac3c42",
+      "bytes": 10618060,
+      "download_url": "https://dl.polyhaven.org/file/ph-assets/Textures/png/1k/japanese_sycamore/japanese_sycamore_nor_gl_1k.png"
+    },
+    {
+      "path": "art-source/third_party/plan84-round2/japanese_sycamore/japanese_sycamore_rough_1k.png",
+      "sha256": "723485ce3e3d7b9d834a36594626506d530f10e3d8c184f8e5dd21c91002934c",
+      "bytes": 4726734,
+      "download_url": "https://dl.polyhaven.org/file/ph-assets/Textures/png/1k/japanese_sycamore/japanese_sycamore_rough_1k.png"
+    },
+    {
+      "path": "art-source/third_party/plan84-round2/japanese_sycamore/info.json",
+      "sha256": "d541be636bc7abe4ed6762902626f6baaca2786dec92cc3b83a46c5c57ae7541",
+      "bytes": 936,
+      "download_url": "https://polyhaven.com/a/japanese_sycamore"
+    },
+    {
+      "path": "art-source/third_party/plan84-round2/japanese_sycamore/files.json",
+      "sha256": "9075318d0d29f13443e500f1a0acb6017034dd7349658d816e4f8d2baa026ca3",
+      "bytes": 27589,
+      "download_url": "https://polyhaven.com/a/japanese_sycamore"
+    },
+    {
+      "path": "art-source/third_party/plan84-round2/japanese_sycamore/item-page.html",
+      "sha256": "44c781414b3b5bd1e3a17302326a1bd8d3f464825f5f30c37b237a3513b56473",
+      "bytes": 196539,
+      "download_url": "https://polyhaven.com/a/japanese_sycamore"
+    }
+  ]
+}

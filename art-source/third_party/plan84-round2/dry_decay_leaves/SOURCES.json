@@ -1,0 +1,58 @@
+{
+  "item": "dry_decay_leaves",
+  "url": "https://polyhaven.com/a/dry_decay_leaves",
+  "licence": "CC0-1.0",
+  "authors": {
+    "Amal Kumar": "All"
+  },
+  "download_date": "2026-10-18",
+  "technique": "Photographed PBR surface",
+  "source_dimensions_mm": [
+    2000,
+    2000
+  ],
+  "files": [
+    {
+      "path": "art-source/third_party/plan84-round2/dry_decay_leaves/dry_decay_leaves_diff_1k.png",
+      "sha256": "e0f1c110318239a2f7fa2cceac280dd082120a3973879e5a622473901fd41bb8",
+      "bytes": 6227360,
+      "download_url": "https://dl.polyhaven.org/file/ph-assets/Textures/png/1k/dry_decay_leaves/dry_decay_leaves_diff_1k.png"
+    },
+    {
+      "path": "art-source/third_party/plan84-round2/dry_decay_leaves/dry_decay_leaves_disp_1k.png",
+      "sha256": "2509dab4c800f37c29dce8d728cbe33b197e7b77b54acfc1da3190eae78c0115",
+      "bytes": 1682223,
+      "download_url": "https://dl.polyhaven.org/file/ph-assets/Textures/png/1k/dry_decay_leaves/dry_decay_leaves_disp_1k.png"
+    },
+    {
+      "path": "art-source/third_party/plan84-round2/dry_decay_leaves/dry_decay_leaves_nor_gl_1k.png",
+      "sha256": "58829d98f8d4eea2ef1be96a4c6a37660af1cf1a425037f4ac68565b954b3ace",
+      "bytes": 6529494,
+      "download_url": "https://dl.polyhaven.org/file/ph-assets/Textures/png/1k/dry_decay_leaves/dry_decay_leaves_nor_gl_1k.png"
+    },
+    {
+      "path": "art-source/third_party/plan84-round2/dry_decay_leaves/dry_decay_leaves_rough_1k.png",
+      "sha256": "5688b86fd45f489e8b37645ea71089bbbae31fd2ab40897b59aa916fb7a622dd",
+      "bytes": 1794204,
+      "download_url": "https://dl.polyhaven.org/file/ph-assets/Textures/png/1k/dry_decay_leaves/dry_decay_leaves_rough_1k.png"
+    },
+    {
+      "path": "art-source/third_party/plan84-round2/dry_decay_leaves/info.json",
+      "sha256": "8170e6e84eca1564e36f955333f4c4cb52ba8bbfa95d3b6b12768396fb1826b9",
+      "bytes": 934,
+      "download_url": "https://polyhaven.com/a/dry_decay_leaves"
+    },
+    {
+      "path": "art-source/third_party/plan84-round2/dry_decay_leaves/files.json",
+      "sha256": "8284eac8569196fa54a27b19890f9d51b205feb4ae1977229ba3040b0b664c05",
+      "bytes": 34144,
+      "download_url": "https://polyhaven.com/a/dry_decay_leaves"
+    },
+    {
+      "path": "art-source/third_party/plan84-round2/dry_decay_leaves/item-page.html",
+      "sha256": "8300be4b0f9351f49fc54c2ddffb2842cd95986f60093fc5e5c18cb4dceff760",
+      "bytes": 203890,
+      "download_url": "https://polyhaven.com/a/dry_decay_leaves"
+    }
+  ]
+}

@@ -1,0 +1,1383 @@
+{
+  "native_size": [
+    256,
+    256
+  ],
+  "output_size": [
+    2048,
+    2048
+  ],
+  "cells": [
+    {
+      "name": "roof_planks",
+      "native_cell": [
+        0,
+        0,
+        32,
+        64
+      ],
+      "output_cell": [
+        0,
+        0,
+        256,
+        512
+      ],
+      "source_set": "wood_dark",
+      "metres_per_tile": [
+        2,
+        2
+      ],
+      "relief_range_metres": 0.03
+    },
+    {
+      "name": "iron_rust",
+      "native_cell": [
+        32,
+        0,
+        32,
+        32
+      ],
+      "output_cell": [
+        256,
+        0,
+        256,
+        256
+      ],
+      "source_set": "iron_painted",
+      "metres_per_tile": [
+        0.5,
+        0.5
+      ],
+      "relief_range_metres": 0.03
+    },
+    {
+      "name": "wood",
+      "native_cell": [
+        64,
+        0,
+        32,
+        32
+      ],
+      "output_cell": [
+        512,
+        0,
+        256,
+        256
+      ],
+      "source_set": "wood_single",
+      "metres_per_tile": [
+        2,
+        0.1171875
+      ],
+      "relief_range_metres": 0.03
+    },
+    {
+      "name": "wood_dark",
+      "native_cell": [
+        96,
+        0,
+        32,
+        32
+      ],
+      "output_cell": [
+        768,
+        0,
+        256,
+        256
+      ],
+      "source_set": "wood_single",
+      "metres_per_tile": [
+        2,
+        0.1171875
+      ],
+      "relief_range_metres": 0.03
+    },
+    {
+      "name": "wood_grey",
+      "native_cell": [
+        128,
+        0,
+        32,
+        32
+      ],
+      "output_cell": [
+        1024,
+        0,
+        256,
+        256
+      ],
+      "source_set": "wood_single",
+      "metres_per_tile": [
+        2,
+        0.1171875
+      ],
+      "relief_range_metres": 0.03
+    },
+    {
+      "name": "oak",
+      "native_cell": [
+        160,
+        0,
+        32,
+        32
+      ],
+      "output_cell": [
+        1280,
+        0,
+        256,
+        256
+      ],
+      "source_set": "wood_single",
+      "metres_per_tile": [
+        2,
+        0.1171875
+      ],
+      "relief_range_metres": 0.03
+    },
+    {
+      "name": "new_wood",
+      "native_cell": [
+        192,
+        0,
+        32,
+        32
+      ],
+      "output_cell": [
+        1536,
+        0,
+        256,
+        256
+      ],
+      "source_set": "wood_single",
+      "metres_per_tile": [
+        2,
+        0.1171875
+      ],
+      "relief_range_metres": 0.03
+    },
+    {
+      "name": "jute",
+      "native_cell": [
+        32,
+        64,
+        32,
+        32
+      ],
+      "output_cell": [
+        256,
+        512,
+        256,
+        256
+      ],
+      "source_set": "sackcloth",
+      "metres_per_tile": [
+        0.269,
+        0.267
+      ],
+      "relief_range_metres": 0.03
+    },
+    {
+      "name": "brick",
+      "native_cell": [
+        192,
+        64,
+        32,
+        32
+      ],
+      "output_cell": [
+        1536,
+        512,
+        256,
+        256
+      ],
+      "source_set": "brick_english",
+      "metres_per_tile": [
+        2.4,
+        1.2
+      ],
+      "relief_range_metres": 0.03
+    },
+    {
+      "name": "hull_side",
+      "native_cell": [
+        224,
+        64,
+        32,
+        32
+      ],
+      "output_cell": [
+        1792,
+        512,
+        256,
+        256
+      ],
+      "source_set": "wood_dark",
+      "metres_per_tile": [
+        2,
+        2
+      ],
+      "relief_range_metres": 0.03
+    },
+    {
+      "name": "hull_in",
+      "native_cell": [
+        0,
+        96,
+        32,
+        32
+      ],
+      "output_cell": [
+        0,
+        768,
+        256,
+        256
+      ],
+      "source_set": "wood_dark",
+      "metres_per_tile": [
+        2,
+        2
+      ],
+      "relief_range_metres": 0.03
+    },
+    {
+      "name": "hull_tar",
+      "native_cell": [
+        32,
+        96,
+        32,
+        32
+      ],
+      "output_cell": [
+        256,
+        768,
+        256,
+        256
+      ],
+      "source_set": "wood_dark",
+      "metres_per_tile": [
+        2,
+        2
+      ],
+      "relief_range_metres": 0.03
+    },
+    {
+      "name": "canvas_seams",
+      "native_cell": [
+        96,
+        96,
+        32,
+        32
+      ],
+      "output_cell": [
+        768,
+        768,
+        256,
+        256
+      ],
+      "source_set": "tarpaulin",
+      "metres_per_tile": [
+        1,
+        1
+      ],
+      "relief_range_metres": 0.03
+    },
+    {
+      "name": "shoes",
+      "native_cell": [
+        116,
+        150,
+        32,
+        16
+      ],
+      "output_cell": [
+        928,
+        1200,
+        256,
+        128
+      ],
+      "source_set": "leather",
+      "metres_per_tile": [
+        0.4,
+        0.4
+      ],
+      "relief_range_metres": 0.03
+    },
+    {
+      "name": "iron",
+      "native_cell": [
+        148,
+        150,
+        16,
+        16
+      ],
+      "output_cell": [
+        1184,
+        1200,
+        128,
+        128
+      ],
+      "source_set": "iron_painted",
+      "metres_per_tile": [
+        0.5,
+        0.5
+      ],
+      "relief_range_metres": 0.03
+    },
+    {
+      "name": "iron_light",
+      "native_cell": [
+        164,
+        150,
+        16,
+        16
+      ],
+      "output_cell": [
+        1312,
+        1200,
+        128,
+        128
+      ],
+      "source_set": "iron_painted",
+      "metres_per_tile": [
+        0.5,
+        0.5
+      ],
+      "relief_range_metres": 0.03
+    },
+    {
+      "name": "cloth_red",
+      "native_cell": [
+        16,
+        172,
+        16,
+        16
+      ],
+      "output_cell": [
+        128,
+        1376,
+        128,
+        128
+      ],
+      "source_set": "tarpaulin",
+      "metres_per_tile": [
+        1,
+        1
+      ],
+      "relief_range_metres": 0.03
+    },
+    {
+      "name": "cloth_blue",
+      "native_cell": [
+        32,
+        172,
+        16,
+        16
+      ],
+      "output_cell": [
+        256,
+        1376,
+        128,
+        128
+      ],
+      "source_set": "tarpaulin",
+      "metres_per_tile": [
+        1,
+        1
+      ],
+      "relief_range_metres": 0.03
+    },
+    {
+      "name": "leather",
+      "native_cell": [
+        64,
+        172,
+        16,
+        16
+      ],
+      "output_cell": [
+        512,
+        1376,
+        128,
+        128
+      ],
+      "source_set": "leather",
+      "metres_per_tile": [
+        0.4,
+        0.4
+      ],
+      "relief_range_metres": 0.03
+    },
+    {
+      "name": "stone",
+      "native_cell": [
+        96,
+        172,
+        16,
+        16
+      ],
+      "output_cell": [
+        768,
+        1376,
+        128,
+        128
+      ],
+      "source_set": "stone_petit_granit",
+      "metres_per_tile": [
+        1,
+        1
+      ],
+      "relief_range_metres": 0.03
+    },
+    {
+      "name": "bluestone",
+      "native_cell": [
+        112,
+        172,
+        16,
+        16
+      ],
+      "output_cell": [
+        896,
+        1376,
+        128,
+        128
+      ],
+      "source_set": "stone_petit_granit",
+      "metres_per_tile": [
+        1,
+        1
+      ],
+      "relief_range_metres": 0.03
+    },
+    {
+      "name": "canvas",
+      "native_cell": [
+        240,
+        172,
+        16,
+        16
+      ],
+      "output_cell": [
+        1920,
+        1376,
+        128,
+        128
+      ],
+      "source_set": "tarpaulin",
+      "metres_per_tile": [
+        1,
+        1
+      ],
+      "relief_range_metres": 0.03
+    },
+    {
+      "name": "wicker",
+      "native_cell": [
+        224,
+        0,
+        32,
+        32
+      ],
+      "output_cell": [
+        1792,
+        0,
+        256,
+        256
+      ],
+      "source_set": "atlas-specific photograph",
+      "metres_per_tile": [
+        0.25,
+        0.25
+      ],
+      "relief_range_metres": 0.03,
+      "sources": [
+        "art-source/plan-84/round2-generated/fibres.png"
+      ],
+      "notes": "Original generated photographic sample with bounded submillimetre grain reconstruction. Broad pigment, hair/feather volume and food silhouettes remain geometry; measured PBR relief is not claimed."
+    },
+    {
+      "name": "wicker_dark",
+      "native_cell": [
+        0,
+        64,
+        32,
+        32
+      ],
+      "output_cell": [
+        0,
+        512,
+        256,
+        256
+      ],
+      "source_set": "atlas-specific photograph",
+      "metres_per_tile": [
+        0.25,
+        0.25
+      ],
+      "relief_range_metres": 0.03,
+      "sources": [
+        "art-source/plan-84/round2-generated/fibres.png"
+      ],
+      "notes": "Original generated photographic sample with bounded submillimetre grain reconstruction. Broad pigment, hair/feather volume and food silhouettes remain geometry; measured PBR relief is not claimed."
+    },
+    {
+      "name": "fish",
+      "native_cell": [
+        64,
+        64,
+        32,
+        32
+      ],
+      "output_cell": [
+        512,
+        512,
+        256,
+        256
+      ],
+      "source_set": "atlas-specific photograph",
+      "metres_per_tile": [
+        0.25,
+        0.25
+      ],
+      "relief_range_metres": 0.03,
+      "sources": [
+        "art-source/plan-84/round2-generated/goods.png"
+      ],
+      "notes": "Original generated photographic sample with bounded submillimetre grain reconstruction. Broad pigment, hair/feather volume and food silhouettes remain geometry; measured PBR relief is not claimed."
+    },
+    {
+      "name": "potato",
+      "native_cell": [
+        96,
+        64,
+        32,
+        32
+      ],
+      "output_cell": [
+        768,
+        512,
+        256,
+        256
+      ],
+      "source_set": "atlas-specific photograph",
+      "metres_per_tile": [
+        0.25,
+        0.25
+      ],
+      "relief_range_metres": 0.03,
+      "sources": [
+        "art-source/plan-84/round2-generated/goods.png"
+      ],
+      "notes": "Original generated photographic sample with bounded submillimetre grain reconstruction. Broad pigment, hair/feather volume and food silhouettes remain geometry; measured PBR relief is not claimed."
+    },
+    {
+      "name": "apple",
+      "native_cell": [
+        128,
+        64,
+        32,
+        32
+      ],
+      "output_cell": [
+        1024,
+        512,
+        256,
+        256
+      ],
+      "source_set": "atlas-specific photograph",
+      "metres_per_tile": [
+        0.25,
+        0.25
+      ],
+      "relief_range_metres": 0.03,
+      "sources": [
+        "art-source/plan-84/round2-generated/goods.png"
+      ],
+      "notes": "Original generated photographic sample with bounded submillimetre grain reconstruction. Broad pigment, hair/feather volume and food silhouettes remain geometry; measured PBR relief is not claimed."
+    },
+    {
+      "name": "cabbage",
+      "native_cell": [
+        160,
+        64,
+        32,
+        32
+      ],
+      "output_cell": [
+        1280,
+        512,
+        256,
+        256
+      ],
+      "source_set": "atlas-specific photograph",
+      "metres_per_tile": [
+        0.25,
+        0.25
+      ],
+      "relief_range_metres": 0.03,
+      "sources": [
+        "art-source/plan-84/round2-generated/goods.png"
+      ],
+      "notes": "Original generated photographic sample with bounded submillimetre grain reconstruction. Broad pigment, hair/feather volume and food silhouettes remain geometry; measured PBR relief is not claimed."
+    },
+    {
+      "name": "horse",
+      "native_cell": [
+        64,
+        96,
+        32,
+        32
+      ],
+      "output_cell": [
+        512,
+        768,
+        256,
+        256
+      ],
+      "source_set": "atlas-specific photograph",
+      "metres_per_tile": [
+        0.25,
+        0.25
+      ],
+      "relief_range_metres": 0.03,
+      "sources": [
+        "art-source/plan-84/round2-generated/fibres.png"
+      ],
+      "notes": "Original generated photographic sample with bounded submillimetre grain reconstruction. Broad pigment, hair/feather volume and food silhouettes remain geometry; measured PBR relief is not claimed."
+    },
+    {
+      "name": "sign_boatyard",
+      "native_cell": [
+        128,
+        96,
+        89,
+        22
+      ],
+      "output_cell": [
+        1024,
+        768,
+        712,
+        176
+      ],
+      "source_set": "atlas-specific photograph",
+      "metres_per_tile": [
+        2,
+        0.1171875
+      ],
+      "relief_range_metres": 0.03,
+      "sources": [
+        "dark_wooden_planks"
+      ],
+      "notes": "Photographic substrate; original pigment and lettering meaning retained. Crisp serif lettering is painted pigment, not raised geometry."
+    },
+    {
+      "name": "sign_ropewalk",
+      "native_cell": [
+        0,
+        128,
+        73,
+        22
+      ],
+      "output_cell": [
+        0,
+        1024,
+        584,
+        176
+      ],
+      "source_set": "atlas-specific photograph",
+      "metres_per_tile": [
+        2,
+        0.1171875
+      ],
+      "relief_range_metres": 0.03,
+      "sources": [
+        "dark_wooden_planks"
+      ],
+      "notes": "Photographic substrate; original pigment and lettering meaning retained. Crisp serif lettering is painted pigment, not raised geometry."
+    },
+    {
+      "name": "sign_nets",
+      "native_cell": [
+        73,
+        128,
+        71,
+        22
+      ],
+      "output_cell": [
+        584,
+        1024,
+        568,
+        176
+      ],
+      "source_set": "atlas-specific photograph",
+      "metres_per_tile": [
+        2,
+        0.1171875
+      ],
+      "relief_range_metres": 0.03,
+      "sources": [
+        "dark_wooden_planks"
+      ],
+      "notes": "Photographic substrate; original pigment and lettering meaning retained. Crisp serif lettering is painted pigment, not raised geometry."
+    },
+    {
+      "name": "sign_farrier",
+      "native_cell": [
+        144,
+        128,
+        61,
+        22
+      ],
+      "output_cell": [
+        1152,
+        1024,
+        488,
+        176
+      ],
+      "source_set": "atlas-specific photograph",
+      "metres_per_tile": [
+        2,
+        0.1171875
+      ],
+      "relief_range_metres": 0.03,
+      "sources": [
+        "dark_wooden_planks"
+      ],
+      "notes": "Photographic substrate; original pigment and lettering meaning retained. Crisp serif lettering is painted pigment, not raised geometry."
+    },
+    {
+      "name": "sign_sailmaker",
+      "native_cell": [
+        0,
+        150,
+        61,
+        22
+      ],
+      "output_cell": [
+        0,
+        1200,
+        488,
+        176
+      ],
+      "source_set": "atlas-specific photograph",
+      "metres_per_tile": [
+        2,
+        0.1171875
+      ],
+      "relief_range_metres": 0.03,
+      "sources": [
+        "dark_wooden_planks"
+      ],
+      "notes": "Photographic substrate; original pigment and lettering meaning retained. Crisp serif lettering is painted pigment, not raised geometry."
+    },
+    {
+      "name": "sign_cooper",
+      "native_cell": [
+        61,
+        150,
+        55,
+        22
+      ],
+      "output_cell": [
+        488,
+        1200,
+        440,
+        176
+      ],
+      "source_set": "atlas-specific photograph",
+      "metres_per_tile": [
+        2,
+        0.1171875
+      ],
+      "relief_range_metres": 0.03,
+      "sources": [
+        "dark_wooden_planks"
+      ],
+      "notes": "Photographic substrate; original pigment and lettering meaning retained. Crisp serif lettering is painted pigment, not raised geometry."
+    },
+    {
+      "name": "tar",
+      "native_cell": [
+        196,
+        150,
+        16,
+        16
+      ],
+      "output_cell": [
+        1568,
+        1200,
+        128,
+        128
+      ],
+      "source_set": "atlas-specific photograph",
+      "metres_per_tile": [
+        0.25,
+        0.25
+      ],
+      "relief_range_metres": 0.03,
+      "sources": [
+        "art-source/plan-84/round2-generated/special.png"
+      ],
+      "notes": "Original generated photographic surface. Ceramic/flower pigment and self-luminous flame/ember pictures stay flat; native shape/emission still owns the result. The axle-cover inset has explicitly reconstructed concentric relief; exposed edges remain geometry."
+    },
+    {
+      "name": "ash",
+      "native_cell": [
+        212,
+        150,
+        16,
+        16
+      ],
+      "output_cell": [
+        1696,
+        1200,
+        128,
+        128
+      ],
+      "source_set": "atlas-specific photograph",
+      "metres_per_tile": [
+        0.25,
+        0.25
+      ],
+      "relief_range_metres": 0.03,
+      "sources": [
+        "art-source/plan-84/round2-generated/special.png"
+      ],
+      "notes": "Original generated photographic surface. Ceramic/flower pigment and self-luminous flame/ember pictures stay flat; native shape/emission still owns the result. The axle-cover inset has explicitly reconstructed concentric relief; exposed edges remain geometry."
+    },
+    {
+      "name": "paper",
+      "native_cell": [
+        0,
+        172,
+        16,
+        16
+      ],
+      "output_cell": [
+        0,
+        1376,
+        128,
+        128
+      ],
+      "source_set": "atlas-specific photograph",
+      "metres_per_tile": [
+        0.25,
+        0.25
+      ],
+      "relief_range_metres": 0.03,
+      "sources": [
+        "art-source/plan-84/round2-generated/goods.png"
+      ],
+      "notes": "Original generated photographic sample with bounded submillimetre grain reconstruction. Broad pigment, hair/feather volume and food silhouettes remain geometry; measured PBR relief is not claimed."
+    },
+    {
+      "name": "cloth_white",
+      "native_cell": [
+        48,
+        172,
+        16,
+        16
+      ],
+      "output_cell": [
+        384,
+        1376,
+        128,
+        128
+      ],
+      "source_set": "atlas-specific photograph",
+      "metres_per_tile": [
+        1,
+        1
+      ],
+      "relief_range_metres": 0.03,
+      "sources": [
+        "rough_linen",
+        "art-source/plan-84/reused/prop_tarpaulin_c.png"
+      ],
+      "notes": "Photographic substrate; original pigment and lettering meaning retained. Crisp serif lettering is painted pigment, not raised geometry."
+    },
+    {
+      "name": "copper",
+      "native_cell": [
+        80,
+        172,
+        16,
+        16
+      ],
+      "output_cell": [
+        640,
+        1376,
+        128,
+        128
+      ],
+      "source_set": "atlas-specific photograph",
+      "metres_per_tile": [
+        0.5,
+        0.5
+      ],
+      "relief_range_metres": 0.03,
+      "sources": [
+        "Metal063",
+        "art-source/plan-84/round2-generated/bronze-patina.png"
+      ],
+      "notes": "Photographic substrate; original pigment and lettering meaning retained. Crisp serif lettering is painted pigment, not raised geometry."
+    },
+    {
+      "name": "gull",
+      "native_cell": [
+        128,
+        172,
+        16,
+        16
+      ],
+      "output_cell": [
+        1024,
+        1376,
+        128,
+        128
+      ],
+      "source_set": "atlas-specific photograph",
+      "metres_per_tile": [
+        1,
+        1
+      ],
+      "relief_range_metres": 0.03,
+      "sources": [
+        "rough_linen",
+        "art-source/plan-84/reused/prop_tarpaulin_c.png"
+      ],
+      "notes": "Photographic substrate; original pigment and lettering meaning retained. Crisp serif lettering is painted pigment, not raised geometry."
+    },
+    {
+      "name": "gull_grey",
+      "native_cell": [
+        144,
+        172,
+        16,
+        16
+      ],
+      "output_cell": [
+        1152,
+        1376,
+        128,
+        128
+      ],
+      "source_set": "atlas-specific photograph",
+      "metres_per_tile": [
+        1,
+        1
+      ],
+      "relief_range_metres": 0.03,
+      "sources": [
+        "rough_linen",
+        "art-source/plan-84/reused/prop_tarpaulin_c.png"
+      ],
+      "notes": "Photographic substrate; original pigment and lettering meaning retained. Crisp serif lettering is painted pigment, not raised geometry."
+    },
+    {
+      "name": "beak",
+      "native_cell": [
+        160,
+        172,
+        16,
+        16
+      ],
+      "output_cell": [
+        1280,
+        1376,
+        128,
+        128
+      ],
+      "source_set": "atlas-specific photograph",
+      "metres_per_tile": [
+        0.25,
+        0.25
+      ],
+      "relief_range_metres": 0.03,
+      "sources": [
+        "art-source/plan-84/round2-generated/fibres.png"
+      ],
+      "notes": "Original generated photographic sample with bounded submillimetre grain reconstruction. Broad pigment, hair/feather volume and food silhouettes remain geometry; measured PBR relief is not claimed."
+    },
+    {
+      "name": "hoof",
+      "native_cell": [
+        176,
+        172,
+        16,
+        16
+      ],
+      "output_cell": [
+        1408,
+        1376,
+        128,
+        128
+      ],
+      "source_set": "atlas-specific photograph",
+      "metres_per_tile": [
+        0.25,
+        0.25
+      ],
+      "relief_range_metres": 0.03,
+      "sources": [
+        "art-source/plan-84/round2-generated/fibres.png"
+      ],
+      "notes": "Original generated photographic sample with bounded submillimetre grain reconstruction. Broad pigment, hair/feather volume and food silhouettes remain geometry; measured PBR relief is not claimed."
+    },
+    {
+      "name": "mane",
+      "native_cell": [
+        192,
+        172,
+        16,
+        16
+      ],
+      "output_cell": [
+        1536,
+        1376,
+        128,
+        128
+      ],
+      "source_set": "atlas-specific photograph",
+      "metres_per_tile": [
+        0.25,
+        0.25
+      ],
+      "relief_range_metres": 0.03,
+      "sources": [
+        "art-source/plan-84/round2-generated/fibres.png"
+      ],
+      "notes": "Original generated photographic sample with bounded submillimetre grain reconstruction. Broad pigment, hair/feather volume and food silhouettes remain geometry; measured PBR relief is not claimed."
+    },
+    {
+      "name": "carrot",
+      "native_cell": [
+        208,
+        172,
+        16,
+        16
+      ],
+      "output_cell": [
+        1664,
+        1376,
+        128,
+        128
+      ],
+      "source_set": "atlas-specific photograph",
+      "metres_per_tile": [
+        0.25,
+        0.25
+      ],
+      "relief_range_metres": 0.03,
+      "sources": [
+        "art-source/plan-84/round2-generated/goods.png"
+      ],
+      "notes": "Original generated photographic sample with bounded submillimetre grain reconstruction. Broad pigment, hair/feather volume and food silhouettes remain geometry; measured PBR relief is not claimed."
+    },
+    {
+      "name": "bread",
+      "native_cell": [
+        224,
+        172,
+        16,
+        16
+      ],
+      "output_cell": [
+        1792,
+        1376,
+        128,
+        128
+      ],
+      "source_set": "atlas-specific photograph",
+      "metres_per_tile": [
+        0.25,
+        0.25
+      ],
+      "relief_range_metres": 0.03,
+      "sources": [
+        "art-source/plan-84/round2-generated/goods.png"
+      ],
+      "notes": "Original generated photographic sample with bounded submillimetre grain reconstruction. Broad pigment, hair/feather volume and food silhouettes remain geometry; measured PBR relief is not claimed."
+    },
+    {
+      "name": "sail_tan",
+      "native_cell": [
+        0,
+        188,
+        16,
+        16
+      ],
+      "output_cell": [
+        0,
+        1504,
+        128,
+        128
+      ],
+      "source_set": "atlas-specific photograph",
+      "metres_per_tile": [
+        1,
+        1
+      ],
+      "relief_range_metres": 0.03,
+      "sources": [
+        "rough_linen",
+        "art-source/plan-84/reused/prop_tarpaulin_c.png"
+      ],
+      "notes": "Photographic substrate; original pigment and lettering meaning retained. Crisp serif lettering is painted pigment, not raised geometry."
+    },
+    {
+      "name": "hemp",
+      "native_cell": [
+        16,
+        188,
+        16,
+        16
+      ],
+      "output_cell": [
+        128,
+        1504,
+        128,
+        128
+      ],
+      "source_set": "atlas-specific photograph",
+      "metres_per_tile": [
+        0.25,
+        0.25
+      ],
+      "relief_range_metres": 0.03,
+      "sources": [
+        "art-source/plan-84/round2-generated/fibres.png"
+      ],
+      "notes": "Original generated photographic sample with bounded submillimetre grain reconstruction. Broad pigment, hair/feather volume and food silhouettes remain geometry; measured PBR relief is not claimed."
+    },
+    {
+      "name": "oakum",
+      "native_cell": [
+        32,
+        188,
+        16,
+        16
+      ],
+      "output_cell": [
+        256,
+        1504,
+        128,
+        128
+      ],
+      "source_set": "atlas-specific photograph",
+      "metres_per_tile": [
+        0.25,
+        0.25
+      ],
+      "relief_range_metres": 0.03,
+      "sources": [
+        "art-source/plan-84/round2-generated/fibres.png"
+      ],
+      "notes": "Original generated photographic sample with bounded submillimetre grain reconstruction. Broad pigment, hair/feather volume and food silhouettes remain geometry; measured PBR relief is not claimed."
+    },
+    {
+      "name": "shavings",
+      "native_cell": [
+        48,
+        188,
+        16,
+        16
+      ],
+      "output_cell": [
+        384,
+        1504,
+        128,
+        128
+      ],
+      "source_set": "atlas-specific photograph",
+      "metres_per_tile": [
+        2,
+        0.1171875
+      ],
+      "relief_range_metres": 0.03,
+      "sources": [
+        "dark_wooden_planks"
+      ],
+      "notes": "Photographic substrate; original pigment and lettering meaning retained. Crisp serif lettering is painted pigment, not raised geometry."
+    },
+    {
+      "name": "endgrain",
+      "native_cell": [
+        64,
+        188,
+        16,
+        16
+      ],
+      "output_cell": [
+        512,
+        1504,
+        128,
+        128
+      ],
+      "source_set": "atlas-specific photograph",
+      "metres_per_tile": [
+        0.25,
+        0.25
+      ],
+      "relief_range_metres": 0.03,
+      "sources": [
+        "art-source/plan-84/round2-generated/fibres.png"
+      ],
+      "notes": "Original generated photographic sample with bounded submillimetre grain reconstruction. Broad pigment, hair/feather volume and food silhouettes remain geometry; measured PBR relief is not claimed."
+    },
+    {
+      "name": "rope",
+      "native_cell": [
+        80,
+        188,
+        16,
+        16
+      ],
+      "output_cell": [
+        640,
+        1504,
+        128,
+        128
+      ],
+      "source_set": "atlas-specific photograph",
+      "metres_per_tile": [
+        0.25,
+        0.25
+      ],
+      "relief_range_metres": 0.03,
+      "sources": [
+        "art-source/plan-84/round2-generated/fibres.png"
+      ],
+      "notes": "Original generated photographic sample with bounded submillimetre grain reconstruction. Broad pigment, hair/feather volume and food silhouettes remain geometry; measured PBR relief is not claimed."
+    },
+    {
+      "name": "yarn",
+      "native_cell": [
+        96,
+        188,
+        16,
+        16
+      ],
+      "output_cell": [
+        768,
+        1504,
+        128,
+        128
+      ],
+      "source_set": "atlas-specific photograph",
+      "metres_per_tile": [
+        0.269,
+        0.267
+      ],
+      "relief_range_metres": 0.03,
+      "sources": [
+        "hessian_230"
+      ],
+      "notes": "Photographic substrate; original pigment and lettering meaning retained. Crisp serif lettering is painted pigment, not raised geometry."
+    },
+    {
+      "name": "cheese",
+      "native_cell": [
+        112,
+        188,
+        16,
+        16
+      ],
+      "output_cell": [
+        896,
+        1504,
+        128,
+        128
+      ],
+      "source_set": "atlas-specific photograph",
+      "metres_per_tile": [
+        0.25,
+        0.25
+      ],
+      "relief_range_metres": 0.03,
+      "sources": [
+        "art-source/plan-84/round2-generated/goods.png"
+      ],
+      "notes": "Original generated photographic sample with bounded submillimetre grain reconstruction. Broad pigment, hair/feather volume and food silhouettes remain geometry; measured PBR relief is not claimed."
+    },
+    {
+      "name": "cheese_rind",
+      "native_cell": [
+        128,
+        188,
+        16,
+        16
+      ],
+      "output_cell": [
+        1024,
+        1504,
+        128,
+        128
+      ],
+      "source_set": "atlas-specific photograph",
+      "metres_per_tile": [
+        0.25,
+        0.25
+      ],
+      "relief_range_metres": 0.03,
+      "sources": [
+        "art-source/plan-84/round2-generated/goods.png"
+      ],
+      "notes": "Original generated photographic sample with bounded submillimetre grain reconstruction. Broad pigment, hair/feather volume and food silhouettes remain geometry; measured PBR relief is not claimed."
+    },
+    {
+      "name": "coal_glow",
+      "native_cell": [
+        144,
+        188,
+        16,
+        16
+      ],
+      "output_cell": [
+        1152,
+        1504,
+        128,
+        128
+      ],
+      "source_set": "atlas-specific photograph",
+      "metres_per_tile": [
+        0.25,
+        0.25
+      ],
+      "relief_range_metres": 0.03,
+      "sources": [
+        "art-source/plan-84/round2-generated/special.png"
+      ],
+      "notes": "Original generated photographic surface. Ceramic/flower pigment and self-luminous flame/ember pictures stay flat; native shape/emission still owns the result. The axle-cover inset has explicitly reconstructed concentric relief; exposed edges remain geometry."
+    },
+    {
+      "name": "fire",
+      "native_cell": [
+        160,
+        188,
+        8,
+        16
+      ],
+      "output_cell": [
+        1280,
+        1504,
+        64,
+        128
+      ],
+      "source_set": "atlas-specific photograph",
+      "metres_per_tile": [
+        0.25,
+        0.25
+      ],
+      "relief_range_metres": 0.03,
+      "sources": [
+        "art-source/plan-84/round2-generated/special.png"
+      ],
+      "notes": "Original generated photographic surface. Ceramic/flower pigment and self-luminous flame/ember pictures stay flat; native shape/emission still owns the result. The axle-cover inset has explicitly reconstructed concentric relief; exposed edges remain geometry."
+    }
+  ],
+  "preserved_cells": [
+    "black",
+    "water"
+  ]
+}
