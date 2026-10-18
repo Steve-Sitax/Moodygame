@@ -115,7 +115,8 @@ public partial class MoveTest
         var only = Main.I.Arg("boatkinds").Split(',', StringSplitOptions.RemoveEmptyEntries);
         foreach (var g in groups.Where(g => only.Length == 0 || only.Contains(g.Key.Kind)))
         {
-            var d = g.Where(x => Water.In(x.World().Origin.X, x.World().Origin.Z)).OrderBy(x => new Vector2(x.World().Origin.X + 60, x.World().Origin.Z).Length()).FirstOrDefault();
+            // (shown now: the lock changes which boat lies in her chamber, and a hidden one is no floor to drop on)
+            var d = g.Where(x => x.Visible() && Water.In(x.World().Origin.X, x.World().Origin.Z)).OrderBy(x => new Vector2(x.World().Origin.X + 60, x.World().Origin.Z).Length()).FirstOrDefault();
             if (d == null) { rows.Add(new { label = $"{g.Key.Kind} ({g.Key.Owner})", skipped = "none on the water of the map" }); continue; }
             var middle = d.Mesh.Nearest(Vector2.Zero);
             var r = await Drop(d, middle, $"{g.Key.Kind} ({g.Key.Owner})");
