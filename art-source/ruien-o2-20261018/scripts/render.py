@@ -12,7 +12,7 @@ ap.add_argument('--views', default='v1_outlet,v2_gate,v3_shaft,v4_hall,v5_close,
 ap.add_argument('--modes', default='mood,check')
 ap.add_argument('--scale', type=int, default=100)
 ap.add_argument('--samples', type=int, default=0)
-ap.add_argument('--out', default=os.path.join(ROOT, 'renders', 'round-7'))
+ap.add_argument('--out', default=os.path.join(ROOT, 'renders', 'round-9'))
 ap.add_argument('--suffix', default='')
 a = ap.parse_args(argv)
 a.out = os.path.abspath(a.out) if os.path.isabs(a.out) else os.path.join(ROOT, a.out)

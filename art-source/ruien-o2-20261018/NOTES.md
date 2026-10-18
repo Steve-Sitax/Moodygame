@@ -416,3 +416,39 @@ Remaining defects:
 2. The groin ridge in v4 still reads as a hanging triangle; it needs to be built from the two vault faces,
    not from a plan-space strip.
 3. v5 left edge still washes out from the close lantern in the mist.
+
+## Round 8 (2026-10-18), last Blender round before the game
+
+Renders: `renders/round-8/` (v1 to v8, `curtain_test.jpg`). Size 27.7 MB (over the 25 MB target).
+
+- Groin curtains rebuilt from the two vault faces (`wax.host_groin_faces`): the deposit follows the groin arris
+  from the haunch to the pier, with its two halves lying on the x face and the z face. Gallery wall curtains are
+  thin, low-relief crusts laid onto the wall (1 to 2.5 cm, relief at 35 percent); measured offset from the wall
+  stays under 10 cm everywhere, so there is no sag.
+- Lime halo (`wax.apply_halo`): every masonry vertex within 1 m of a deposit gets lime wash and efflorescence
+  bloom, strongest at the deposit edge, fading over 0.3 to 1 m; the masonry shader puts bloom in the joints first.
+- Run-off story (`wax.build_runoff`): from the lower edge of each deposit to where its host surface ends:
+  2 to 4 runnels per deposit following wavy drip paths, each with a pale lime runnel (crusty ridge on the
+  strongest), a wider dark wet trail, and on about one in four a brown iron streak; lime splash crusts where they
+  land on pier caps and walkways. The masonry under every run-off path also gets damp trails and lime stain.
+
+Remaining defects (for the game conversion):
+1. All render-time detail (displacement, run-off decals) must be baked for Godot.
+2. The groin deposits read best in the check light; in mood light they are still pale triangles from the v4 angle.
+3. Run-off decals are thin strips; their alpha is noise based and can look striped close up.
+4. Earlier open items: collision, groin cut-brick bond, hatch ironwork, figures, .blend over 25 MB.
+
+## Round 9 (2026-10-18)
+
+Renders: `renders/round-9/` (v1 to v8, `curtain_test.jpg`). Checked on full-resolution crops of the v3 and v4 mood renders.
+
+- Lime halo: its own attribute `wxH` (from `wax.apply_halo`, reach 0.3 to 1 m, mottled) and its own shader layer
+  after the wet darkening: solid white mortar near the deposit edge, mottled white wash on the brick faces,
+  grading out; drier and less glossy there.
+- Deposit colour pale grey-white with grey-brown streaks; the edge (`wxF.G`) thins to a translucent white crust.
+- Runnels: flat matte stains 4 to 10 cm wide with branches and a crust bump only (no raised strip). The masonry
+  relief under each path is flattened to 20 percent (lime fills the joints), so the stain lies on the wall.
+- Voussoir grid marks: caused by mortar-driven lime crust mixed into the stone zones; the stone now takes only a
+  mortar-free lime crust.
+
+Remaining: render-time detail must be baked for Godot; collision; .blend 27.7 MB (over 25 MB).

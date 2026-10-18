@@ -363,7 +363,7 @@ def masonry(name, wet_base=0.12, slime_global=0.0, tint=(1, 1, 1), sand_ok=True,
     if stone:
         stc = nb.mixc(nb.math('MULTIPLY', nb.maprange(nbig, 0.3, 0.75, 0.0, 0.5), grime), stcol, (0.05, 0.048, 0.045, 1))
         stc = nb.mixc(nb.math('MULTIPLY', runoff, 0.5), stc, nb.mixc(1.0, stc, (0.45, 0.45, 0.42, 1), 'MULTIPLY'))
-        stc = nb.mixc(nb.math('MULTIPLY', lime_c, 0.8), stc, crust)
+        stc = nb.mixc(nb.math('MULTIPLY', nb.ramp(nb.math('MULTIPLY', lime_a, nb.maprange(nmid, 0.35, 0.65, 0.5, 1.4)), 0.5, 0.9), 0.6), stc, crust)
         col = nb.mixc(smask, col, stc)
         col = nb.mixc(nb.math('MULTIPLY', sgroove, 0.85), col, (0.05, 0.045, 0.04, 1))
     # ---- wetness and roughness
@@ -380,6 +380,16 @@ def masonry(name, wet_base=0.12, slime_global=0.0, tint=(1, 1, 1), sand_ok=True,
     col = nb.mixc(miss, col, back)
     col = nb.mixc(nb.math('MULTIPLY', halfb, nb.math('MULTIPLY', 0.6, nb.math('SUBTRACT', 1.0, nb.math('MULTIPLY', slime, 0.7)))), col, nb.mixc(0.5, col, (0.11, 0.065, 0.04, 1)))
     col = nb.mixc(nb.math('MULTIPLY', puddle, 0.7), col, nb.mixc(1.0, col, (0.35, 0.35, 0.35, 1), 'MULTIPLY'))
+    # lime halo round every deposit (wxH from wax.apply_halo): solid white in the joints near the edge,
+    # mottled white wash over the brick faces, grading out to normal brick
+    hal = nb.sep(nb.attr('wxH').outputs['Color'])[0]
+    hal = nb.math('MULTIPLY', hal, nb.maprange(nb.noise(pos, 5.0, 4, 0.6).outputs[0], 0.3, 0.7, 0.55, 1.35), clamp=True)
+    notstone = nb.math('SUBTRACT', 1.0, smask)
+    wash = nb.ramp(nb.math('MULTIPLY', hal, nb.maprange(nb.noise(pos, 22.0, 3, 0.6).outputs[0], 0.3, 0.7, 0.35, 1.5)), 0.2, 0.7)
+    washc = nb.mixc(nb.noise(pos, 40.0, 3).outputs[0], (0.44, 0.43, 0.39, 1), (0.6, 0.58, 0.53, 1))
+    col = nb.mixc(nb.math('MULTIPLY', wash, 0.8), col, washc)
+    wmort = nb.math('MULTIPLY', nb.math('MULTIPLY', nb.ramp(hal, 0.1, 0.45), mortar), notstone)
+    col = nb.mixc(wmort, col, (0.7, 0.68, 0.63, 1))
     rough_dry = nb.mixf(mortar, 0.86, 0.95)
     rough_dry = nb.mixf(bloom, rough_dry, 0.98)
     rough = nb.mixf(wet, rough_dry, 0.34)
@@ -388,8 +398,10 @@ def masonry(name, wet_base=0.12, slime_global=0.0, tint=(1, 1, 1), sand_ok=True,
     rough = nb.mixf(silt, rough, 0.5)
     rough = nb.mixf(miss, rough, 0.9)
     rough = nb.mixf(puddle, rough, 0.03)
+    rough = nb.mixf(nb.math('MULTIPLY', hal, 0.7), rough, 0.8)
     coat = nb.math('MULTIPLY', nb.math('MAXIMUM', nb.math('MULTIPLY', tide, 0.6), nb.math('MULTIPLY', runoff, 0.35)), nb.math('SUBTRACT', 1.0, miss))
     coat = nb.math('MAXIMUM', coat, puddle)
+    coat = nb.math('MULTIPLY', coat, nb.math('SUBTRACT', 1.0, nb.math('MULTIPLY', hal, 0.7)))
     # ---- height
     hb = nb.madd(Hb, spec.BRICK_HMAX - spec.BRICK_HMIN, spec.BRICK_HMIN)
     hs = nb.madd(Sh, 0.04, -0.028)
@@ -818,9 +830,8 @@ def fog_beam(name, density=0.12):
 
 
 def calcite(name):
-    """Flowstone after Steve's photo: matte and rough with fine vertical striations, yellow-grey to ochre,
-    darker brown wet bands running down, satin only where water runs, thin translucent young edges.
-    Relief from t09 in the sheet UVs (flutes run down) plus striations, faded at the outline by wxF."""
+    """Flowstone after Steve's photo: pale grey-white, matte, fine vertical striations, grey-brown wet streaks
+    running down. The edge (wxF.G) thins to a translucent white crust that merges into the lime halo."""
     m = new_mat(name)
     m.displacement_method = 'BOTH'
     nb = NB(m)
@@ -829,33 +840,78 @@ def calcite(name):
     uv = nb.vmath('ADD', nb.vmath('MULTIPLY', uvn, (1 / 1.8, 1 / 2.6, 1)), nb.vmath('MULTIPLY', oi.outputs['Random'], (3.3, 7.1, 0)))
     C = nb.tex(img('t09-flowstone_seamless.png'), uv).outputs[0]
     Hh = nb.tex(img('t09-flowstone_height.png', True), uv, 'Cubic').outputs[0]
-    Fm = nb.sep(nb.attr('wxF').outputs['Color'])[0]
+    Fa = nb.sep(nb.attr('wxF').outputs['Color'])
+    Fm, Fe = Fa[0], Fa[1]
     stri = nb.noise(nb.vmath('MULTIPLY', uvn, (60.0, 1.2, 1)), 1.0, 5, 0.6).outputs[0]
     fib = nb.noise(nb.vmath('MULTIPLY', uvn, (220.0, 5.0, 1)), 1.0, 3, 0.5).outputs[0]
     L = nb.sepxyz(C)
     grey = nb.math('ADD', nb.math('MULTIPLY', L[0], 0.3), nb.math('ADD', nb.math('MULTIPLY', L[1], 0.55), nb.math('MULTIPLY', L[2], 0.15)))
-    gv = nb.math('ADD', 0.55, grey)
+    gv = nb.math('ADD', 0.6, nb.math('MULTIPLY', grey, 0.6))
     tintn = nb.noise(nb.vmath('MULTIPLY', uvn, (2.0, 0.6, 1)), 1.0, 3).outputs[0]
-    base = nb.mixc(tintn, (0.26, 0.24, 0.17, 1), (0.34, 0.27, 0.13, 1))
+    base = nb.mixc(tintn, (0.5, 0.49, 0.46, 1), (0.6, 0.59, 0.55, 1))
     c = nb.mixc(1.0, base, nb.comb(gv, gv, gv), 'MULTIPLY')
-    c = nb.mixc(nb.math('MULTIPLY', nb.math('MAXIMUM', nb.math('SUBTRACT', stri, 0.45), 0.0), 1.4), c, (0.1, 0.085, 0.06, 1))
-    band = nb.ramp(nb.noise(nb.vmath('MULTIPLY', uvn, (9.0, 0.3, 1)), 1.0, 4, 0.6).outputs[0], 0.48, 0.62)
-    c = nb.mixc(nb.math('MULTIPLY', band, 0.85), c, (0.06, 0.045, 0.028, 1))
-    stain = nb.ramp(nb.noise(nb.vmath('MULTIPLY', uvn, (5.0, 0.7, 1)), 1.3, 3).outputs[0], 0.58, 0.72)
-    c = nb.mixc(nb.math('MULTIPLY', stain, 0.5), c, (0.22, 0.12, 0.05, 1))
+    c = nb.mixc(nb.math('MULTIPLY', nb.math('MAXIMUM', nb.math('SUBTRACT', stri, 0.45), 0.0), 1.2), c, (0.33, 0.31, 0.28, 1))
+    band = nb.ramp(nb.noise(nb.vmath('MULTIPLY', uvn, (9.0, 0.3, 1)), 1.0, 4, 0.6).outputs[0], 0.5, 0.64)
+    c = nb.mixc(nb.math('MULTIPLY', band, 0.6), c, (0.2, 0.18, 0.15, 1))
+    stain = nb.ramp(nb.noise(nb.vmath('MULTIPLY', uvn, (5.0, 0.7, 1)), 1.3, 3).outputs[0], 0.6, 0.74)
+    c = nb.mixc(nb.math('MULTIPLY', stain, 0.4), c, (0.3, 0.26, 0.21, 1))
+    edge = nb.math('SUBTRACT', 1.0, nb.ramp(Fe, 0.0, 0.5))
+    c = nb.mixc(nb.math('MULTIPLY', edge, 0.7), c, (0.62, 0.6, 0.55, 1))
     z = world_z(nb)
     c = nb.mixc(nb.math('MULTIPLY', nb.ramp(nb.math('SUBTRACT', -3.8, z), 0.0, 0.5), 0.8), c, (0.04, 0.045, 0.025, 1))
-    rough = nb.mixf(band, 0.78, 0.4)
+    rough = nb.mixf(band, 0.8, 0.45)
     b = nb.principled(**{'Base Color': c, 'Roughness': rough, 'Subsurface Weight': 0.3, 'Subsurface Radius': (0.02, 0.016, 0.01),
-                         'Coat Weight': nb.math('MULTIPLY', band, 0.35), 'Coat Roughness': 0.2,
+                         'Coat Weight': nb.math('MULTIPLY', band, 0.25), 'Coat Roughness': 0.2,
                          'Normal': nb.bump(nb.math('ADD', nb.math('MULTIPLY', stri, 0.6), nb.math('MULTIPLY', fib, 0.25)), 0.35, 0.002)})
-    tr = nb.node('ShaderNodeBsdfTranslucent', {'Color': (0.5, 0.42, 0.3, 1)})
+    tr = nb.node('ShaderNodeBsdfTransparent')
     mix = nb.node('ShaderNodeMixShader')
-    nb._set(mix, 0, nb.math('MULTIPLY', nb.math('SUBTRACT', 1.0, nb.ramp(Fm, 0.0, 0.3)), 0.45))
+    nb._set(mix, 0, nb.math('MULTIPLY', edge, 0.8))
     nb.nt.links.new(b.outputs[0], mix.inputs[1])
     nb.nt.links.new(tr.outputs[0], mix.inputs[2])
     hgt = nb.math('ADD', nb.math('MULTIPLY', nb.math('SUBTRACT', Hh, 0.45), 0.006), nb.math('MULTIPLY', nb.math('SUBTRACT', stri, 0.5), 0.004))
     hgt = nb.math('MULTIPLY', hgt, Fm)
     d = nb.node('ShaderNodeDisplacement', {'Height': hgt, 'Midlevel': 0.0, 'Scale': 1.0}, space='OBJECT')
     nb.out(mix.outputs[0], d.outputs[0])
+    return m
+
+
+def _decal(nb, shader_out, alpha):
+    tr = nb.node('ShaderNodeBsdfTransparent')
+    mix = nb.node('ShaderNodeMixShader')
+    nb._set(mix, 0, alpha)
+    nb.nt.links.new(tr.outputs[0], mix.inputs[1])
+    nb.nt.links.new(shader_out, mix.inputs[2])
+    return mix.outputs[0]
+
+def runoff_mat(name, kind):
+    """Run-off decals on the masonry: 'lime' pale runnel (crusty, matte), 'wet' dark glossy trail,
+    'iron' brown streak, 'splash' lime crust where drips land. Alpha falls off across and with noise."""
+    m = new_mat(name)
+    nb = NB(m)
+    uvn = nb.node('ShaderNodeUVMap', uv_map='UVMap').outputs[0]
+    u = nb.sepxyz(uvn)
+    wp = nb.geo().outputs['Position']
+    n1 = nb.noise(nb.vmath('MULTIPLY', wp, (3, 3, 0.6)), 4.0, 4, 0.6).outputs[0]
+    across = nb.math('SUBTRACT', 1.0, nb.math('POWER', nb.math('ABSOLUTE', u[0]), 2.0))
+    if kind == 'splash':
+        across = nb.math('SUBTRACT', 1.0, u[0])
+    alpha = nb.math('MULTIPLY', across, nb.maprange(n1, 0.3, 0.7, 0.4, 1.2), clamp=True)
+    if kind == 'lime':
+        c = nb.mixc(nb.noise(wp, 60, 3).outputs[0], (0.46, 0.45, 0.41, 1), (0.6, 0.58, 0.54, 1))
+        crust = nb.ramp(nb.noise(wp, 30, 4, 0.6).outputs[0], 0.4, 0.7)
+        b = nb.principled(**{'Base Color': c, 'Roughness': 0.8, 'Normal': nb.bump(nb.math('ADD', crust, nb.math('MULTIPLY', across, 0.6)), 0.5, 0.004)})
+        alpha = nb.math('MULTIPLY', alpha, nb.maprange(nb.noise(wp, 14.0, 3).outputs[0], 0.3, 0.65, 0.15, 0.6))
+        alpha = nb.math('MULTIPLY', alpha, nb.maprange(crust, 0.0, 1.0, 0.6, 1.0))
+    elif kind == 'wet':
+        b = nb.principled(**{'Base Color': (0.02, 0.017, 0.012, 1), 'Roughness': 0.15, 'Coat Weight': 0.6, 'Coat Roughness': 0.06})
+        alpha = nb.math('MULTIPLY', alpha, 0.6)
+    elif kind == 'iron':
+        b = nb.principled(**{'Base Color': (0.13, 0.055, 0.02, 1), 'Roughness': 0.5})
+        alpha = nb.math('MULTIPLY', alpha, 0.55)
+    else:
+        c = nb.mixc(nb.noise(wp, 30, 3).outputs[0], (0.3, 0.28, 0.22, 1), (0.45, 0.43, 0.36, 1))
+        b = nb.principled(**{'Base Color': c, 'Roughness': 0.55, 'Coat Weight': 0.4, 'Coat Roughness': 0.1,
+                             'Normal': nb.bump(nb.noise(wp, 80, 3).outputs[0], 0.5, 0.002)})
+        alpha = nb.math('MULTIPLY', alpha, nb.ramp(nb.noise(wp, 9, 3).outputs[0], 0.3, 0.55))
+    nb.out(shadow_pass(nb, _decal(nb, b.outputs[0], alpha), 1.0))
     return m

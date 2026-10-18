@@ -1,6 +1,6 @@
 # More materials and the full material set used by the build.
 import spec
-from .mats import NB, new_mat, img, world_z, calcite, masonry, daylight_factor, bluestone, iron, oak, wood_debris, silt, water, water_film, water_vol, drip_ring, \
+from .mats import NB, new_mat, img, world_z, calcite, masonry, daylight_factor, runoff_mat, bluestone, iron, oak, wood_debris, silt, water, water_film, water_vol, drip_ring, \
     simple, lime_crust, burlap, glass_lamp, flame, paving
 
 def brick_loose(name):
@@ -106,6 +106,10 @@ def make_all():
         brick_rib_side=masonry('Brick_rib_side', wet_base=0.1, bond='header', flecks=0.5, stone='rib_side'),
         brick_pier=masonry('Brick_pier', wet_base=0.12, bond='flemish', stone='pier'),
         calcite=calcite('Calcite_flowstone'),
+        lime_runnel=runoff_mat('Runoff_lime', 'lime'),
+        wet_trail=runoff_mat('Runoff_wet', 'wet'),
+        iron_trail=runoff_mat('Runoff_iron', 'iron'),
+        lime_splash=runoff_mat('Runoff_splash', 'splash'),
         brick_loose=brick_loose('Brick_loose'),
         bluestone=bluestone('Bluestone', wet_line=W, slime_top=-3.82),
         bluestone_quoin=bluestone('Bluestone_quoin', wet_line=W, slime_top=-3.75, darken=0.36),
