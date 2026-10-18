@@ -1,10 +1,11 @@
-[gd_resource type="Resource" script_class="AuthorCatalog" load_steps=7 format=3]
+[gd_resource type="Resource" script_class="AuthorCatalog" load_steps=8 format=3]
 [ext_resource type="Resource" path="res://assets/library/bench-worn.tres" id="90_bench"]
 [ext_resource type="Resource" path="res://assets/library/park-bench-iron-worn.tres" id="91_bench"]
+[ext_resource type="Resource" path="res://assets/library/hiring-board.tres" id="95_board"]
 [ext_resource type="Script" path="res://src/Authoring/AuthorCatalog.cs" id="1"]
 [ext_resource type="Resource" path="res://assets/library/bench.tres" id="2"]
 [ext_resource type="Resource" path="res://assets/library/crate.tres" id="3"]
 [ext_resource type="Resource" path="res://assets/library/lamp.tres" id="4"]
 [resource]
 script = ExtResource("1")
-Assets = Array[Resource]([ExtResource("2"), ExtResource("3"), ExtResource("4"), ExtResource("90_bench"), ExtResource("91_bench")])
+Assets = Array[Resource]([ExtResource("2"), ExtResource("3"), ExtResource("4"), ExtResource("90_bench"), ExtResource("91_bench"), ExtResource("95_board")])

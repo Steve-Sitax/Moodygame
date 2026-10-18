@@ -52,6 +52,8 @@ internal partial class MarketProof : Node
                         case "keepers": await Keepers(); break;
                         case "vleeshuis": await Vleeshuis(); break;
                         case "warmth": await Warmth(); break;
+                        case "board": await Board(); break;
+                        case "boardsurvey": await BoardSurvey(); break;
                         case "benches": await Benches(); break;
                         case "benchplan": await BenchPlan(); break;
                         case "benchsurvey": await BenchSurvey(); break;
@@ -593,6 +595,93 @@ internal partial class MarketProof : Node
                     await Shot("bench-" + weather + hour + "-" + id.Replace(':', '-'), b.At * new Vector3(1.1f, 1.15f, 2.0f), b.At * new Vector3(0, .45f, 0), 25);
         }
         await Dev.Kit.I.Light(13, "clear");
+    }
+
+    // ------------------------------------------------------------------ the hiring board (#153): what stands there now
+    private async Task BoardSurvey()
+    {
+        await Dev.Kit.I.Light(13, "clear");
+        var (bx, bz) = Spots.Board;
+        var at = new Vector3(bx, 0, bz);
+        var meshes = BakedWorld.All(Main.I.World).OfType<MeshInstance3D>().Where(m => m.Mesh != null && m.IsVisibleInTree())
+            .Select(m => (m, box: m.GlobalTransform * m.GetAabb())).Where(p => p.box.Intersects(new Aabb(at - new Vector3(1.6f, 0, 1.6f), new Vector3(3.2f, 2.8f, 3.2f)))).ToList();
+        facts["boardMeshes"] = meshes.Select(p => new { path = p.m.GetPath().ToString().Split("/town/").Last(), size = F(p.box.Size), centre = F(p.box.GetCenter()), tris = p.m.Mesh!.GetFaces().Length / 3 }).ToArray();
+        facts["boardSpot"] = F(at);
+        await Shot("board-front", at + new Vector3(0, 1.6f, -3.2f), at + Vector3.Up * 1.5f, 30);
+        await Shot("board-back", at + new Vector3(1.5f, 1.6f, 3.0f), at + Vector3.Up * 1.4f, 20);
+        Check("board surveyed", true);
+    }
+
+    // ------------------------------------------------------------------ the hiring board (#153): model, notes, places, taking by a note
+    private async Task Board()
+    {
+        await Dev.Kit.I.Light(13, "clear");
+        Game.GameState.I.Apply(await Api.Jobs());
+        await Frames(30);
+        var board = WorkBoard.I ?? throw new InvalidOperationException("no work board part");
+        var frame = board.Frame;
+        // the bake's plain board is gone; the new one stands where it stood
+        var (bx, bz) = Spots.Board;
+        var oldShown = BakedWorld.All(Main.I.World).OfType<MeshInstance3D>().Where(m => m.IsVisibleInTree() && m.Mesh != null && m.GetParent() is Node3D g && g.GetParent()?.Name.ToString() == "town")
+            .Select(m => (m, box: m.GlobalTransform * m.GetAabb())).Where(p => p.box.Size.Length() < 2.6f && new Vector2(p.box.GetCenter().X - bx, p.box.GetCenter().Z - bz).Length() < 1.2f).Select(p => p.m.Name.ToString()).ToArray();
+        Check("the old plain board is not drawn", oldShown.Length == 0, oldShown);
+        var model = BakedWorld.All(Main.I.World).OfType<Node3D>().FirstOrDefault(n => n.Get("ObjectId").VariantType == Variant.Type.String && n.Get("ObjectId").AsString() == "hiring-board");
+        Check("the new hiring board stands by the Hessenatie", model != null && BakedWorld.All(model).OfType<GeometryInstance3D>().Any(g => g.IsVisibleInTree()) && new Vector2(model.GlobalPosition.X - bx, model.GlobalPosition.Z - bz).Length() < .3f);
+        int Offered() => Game.GameState.I.Jobs.Count(j => j.Status == "offered" && j.Source is not ("night" or "emigrant"));
+        var slots = Game.GameState.I.BoardSlots;
+        Check("the engine gives each open job on the board a place, eight at most", slots != null && slots.Count == Math.Min(8, Offered()) && slots.Values.Distinct().Count() == slots.Count && slots.Values.All(v => v is >= 0 and < 8), slots);
+        Check("one note hangs for each open job on the board", board.Notes.Count == (slots?.Count ?? -1), board.Notes.Count);
+        Check("every note says what the work is, who gives it and the pay", board.Notes.All(n => n.Title.Text == n.Job.Title && n.Giver.Text.Length > 5 && n.Pay.Text.Contains(n.Job.PayC.ToString())));
+        // readable from a metre: the title's letters at least 2.5 cm high
+        Check("a note's letters are big enough to read from a metre", board.Notes.All(n => n.Title.FontSize * n.Title.PixelSize >= .028f && n.Giver.FontSize * n.Giver.PixelSize >= .022f));
+        await Shot("board-13-front", frame * new Vector3(0, 1.62f, 2.6f), frame * new Vector3(0, 1.5f, .09f), 30);
+        await Shot("board-13-metre", frame * new Vector3(-.3f, 1.62f, 1.0f), frame * new Vector3(-.43f, 1.56f, .09f), 20);
+        // fill the board: more open jobs than places; the newest wait off the board
+        string[] employers = { "peeters", "sooi", "tuur", "mertens", "van_aken" };
+        for (int i = 0; Offered() < 11 && i < 12; i++)
+        {
+            await Api.Post<JsonElement>("api/dev/job", new Dictionary<string, object> { ["type"] = "carry", ["items"] = 1 + i % 2, ["goods"] = "crates", ["employer"] = employers[i % employers.Length] });
+            Game.GameState.I.Apply(await Api.Jobs());
+        }
+        await Frames(30);
+        slots = Game.GameState.I.BoardSlots;
+        var waiting = Game.GameState.I.Jobs.Where(j => j.Status == "offered" && j.Source is not ("night" or "emigrant") && slots?.ContainsKey(j.Id.ToString()) != true).ToList();
+        Check("a full board holds eight notes and no more", board.Notes.Count == 8 && slots?.Count == 8, new { notes = board.Notes.Count, offered = Offered() });
+        Check("the jobs that do not fit wait off the board and off its list", waiting.Count > 0 && Jobs.I.VisibleJobs().All(j => !waiting.Contains(j)), waiting.Count);
+        await Shot("board-13-full", frame * new Vector3(0, 1.62f, 2.4f), frame * new Vector3(0, 1.5f, .09f), 30);
+        await Shot("board-13-full-metre", frame * new Vector3(.25f, 1.6f, .95f), frame * new Vector3(.43f, 1.56f, .09f), 20);
+        // take a job by looking at its note and pressing E
+        var note = board.Notes.FirstOrDefault(n => n.Job.Playable && n.Job.Source == "dev") ?? board.Notes.First(n => n.Job.Playable);
+        int place = note.Place, taken = note.Job.Id;
+        var at = note.At;
+        var stand = frame * new Vector3(WorkBoard.Places[place].X, 0, 1.05f);
+        if (Player.Jef.I.Fly) Player.Jef.I.ToggleFly();
+        Main.I.Cam.SetProcess(true);
+        float yaw = MathF.Atan2(stand.X - at.X, stand.Z - at.Z);
+        Player.Jef.I.Place(stand.X, stand.Z, yaw, -.05f, 0);
+        await Frames(40);
+        Interact.I.RepeatPrompt();
+        string prompt = Interact.I.Text;
+        Check("looking at a note, E offers to take that job", prompt.Contains("take the job: " + note.Job.Title), prompt);
+        bool pressed = Interact.I.Press(Key.E);
+        for (int i = 0; i < 240 && Game.GameState.I.Jobs.FirstOrDefault(j => j.Id == taken)?.Status != "taken"; i++) await Frame();
+        Game.GameState.I.Apply(await Api.Jobs());
+        await Frames(30);
+        slots = Game.GameState.I.BoardSlots;
+        Check("E on the note takes the job", pressed && Game.GameState.I.Jobs.FirstOrDefault(j => j.Id == taken)?.Status == "taken");
+        Check("the taken job's note comes down", board.Notes.All(n => n.Job.Id != taken));
+        Check("a waiting job goes up in the freed place", board.Notes.Count == 8 && board.Notes.Any(n => n.Place == place && waiting.Any(w => w.Id == n.Job.Id)), board.Notes.Select(n => new { n.Place, n.Job.Id }).ToArray());
+        Main.I.Cam.SetProcess(false);
+        if (!Player.Jef.I.Fly) Player.Jef.I.ToggleFly();
+        foreach (var (weather, hour) in new[] { ("rain", 13), ("clear", 21) })
+        {
+            await Dev.Kit.I.Light(hour, weather);
+            await Frames(30);
+            await Shot($"board-{weather}{hour}", frame * new Vector3(.8f, 1.65f, 2.4f), frame * new Vector3(0, 1.5f, .09f), 25);
+        }
+        await Dev.Kit.I.Light(13, "clear");
+        await Shot("board-13-side", frame * new Vector3(2.0f, 1.5f, 1.2f), frame * new Vector3(0, 1.6f, 0), 20);
+        await Shot("board-13-back", frame * new Vector3(-1.0f, 1.6f, -2.2f), frame * new Vector3(0, 1.5f, 0), 20);
     }
 
     // ------------------------------------------------------------------ what is there (a survey for the work)

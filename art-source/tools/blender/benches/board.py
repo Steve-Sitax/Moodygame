@@ -109,7 +109,7 @@ def build(A, region):
             x0 = -0.90 + i * bw
             kit.cbox(m, (x0 + 0.0008, 0.95, 0.055), (x0 + bw - 0.0008, 2.08, FACE_Z), Box(C["plank"], grain=1, rng=rng), c=0.0025, thr=32.0)
         # the tongues: a dark strip behind the joints
-        kit.cbox(m, (-0.90, 0.95, 0.052), (0.90, 2.08, 0.060), Box(C["frame"], grain=0, ends=C["end"]), c=0.0, shade=0.35, thr=32.0)
+        kit.cbox(m, (-0.90, 0.95, 0.060), (0.90, 2.08, 0.066), Box(C["frame"], grain=0, ends=C["end"]), c=0.0, shade=0.35, thr=32.0)
         # battens behind
         for y in (1.12, 1.90):
             kit.cbox(m, (-0.92, y - 0.04, 0.025), (0.92, y + 0.04, 0.055), Box(C["frame"], grain=0, ends=C["end"]), c=0.003, thr=32.0)
@@ -120,7 +120,8 @@ def build(A, region):
         for x in (-0.935, 0.935):
             kit.cbox(m, (x - 0.035, 0.98, fz0), (x + 0.035, 2.04, fz1), Box(C["frame"], grain=1, ends=C["end"]), c=0.006, thr=32.0)
         # the header with the name
-        kit.cbox(m, (-1.03, 2.112, 0.055), (1.03, 2.35, 0.09), Box(C["header"], grain=0, ends=C["end"]), c=0.005, thr=32.0)
+        kit.cbox(m, (-1.03, 2.112, 0.055), (1.03, 2.35, 0.09), Box(C["header"], grain=0, ends=C["end"]), c=0.005, thr=32.0,
+                 face_skins={(2, -1): Box(C["frame"], grain=0, ends=C["end"])})  # the name on the face only
         # the pent roof: boards falling toward the front, a drip board along its edge
         tilt = math.radians(9.0)
         d = (math.cos(tilt), -math.sin(tilt))  # (z, y) toward the front, falling

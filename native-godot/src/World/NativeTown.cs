@@ -154,6 +154,8 @@ public partial class NativeTown : BakedWorld
             GD.Print($"benches: swapped in {benchClock.ElapsedMilliseconds} ms");
             Report["benchesSwapped"] = benches.Swapped; Report["benchTrianglesCut"] = benches.Triangles;
         }
+        // The bake's plain hiring board gives way to the authored one, where the notes hang (#153).
+        Report["oldHiringBoards"] = NativeWorkBoard.Retire(town);
         // The baked quay ladders ran through the coping and into the stone (issue 85): the native ladder replaces them.
         var ladders = Scheldemist.Native.World.NativeQuayLadders.Install(town);
         quayLadders = ladders.Ladders;

@@ -96,6 +96,8 @@ public sealed record BoardState
     public string State { get; init; } = "ready";
     public string? Source { get; init; }
     public string? Error { get; init; }
+    /// <summary>#153: the board's eight places, { "job id": place 0..7 }; a job not in it waits off the board.</summary>
+    public Dictionary<string, int>? Slots { get; init; }
 }
 
 public sealed record RentState

@@ -150,7 +150,10 @@ the new models and listed for sleeping, a person can stand in front of each and 
 is drawn; E sleeps and F sits at five benches of each kind, the engine accepts the sleep; day, rain and night pictures),
 `benchsurvey` (before/after pictures of the old benches: add `--keep-old-benches --bench-cams <bench-cams.json>` for
 the before), `benchplan` (`--bench-plan <json>`: tries planned new bench places for free level ground, room in front
-and a route), `facts` (a survey: fire spots, benches, rooms, the town's places).
+and a route), `board` (the old plain board gone, the new one by the Hessenatie, one note per open job in the
+engine's eight places with title, giver and pay big enough for a metre; a full board waits the rest off its list; E on a
+note takes its job, its note comes down and a waiting job goes up in that place; day, rain and night pictures),
+`boardsurvey`, `facts` (a survey: fire spots, benches, rooms, the town's places). Decisions: `docs/town-life-decisions.md`.
 Exit 1 on a failed check.
 
 ## Conversations and indoor entrances

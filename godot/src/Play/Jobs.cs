@@ -449,6 +449,8 @@ public partial class Jobs : Node
     {
         // an emigrant family's errand is asked in talk, and the night's work in a low voice: not chalked on the board
         var all = GameState.I.Jobs.Where(j => (j.Source != "emigrant" && j.Source != "night") || j.Status == "taken").ToList();
+        // #153: open work is on the board only while it has a place there (a full board posts no more)
+        if (GameState.I.BoardSlots is { } slots) all.RemoveAll(j => j.Status == "offered" && j.Source != "night" && j.Source != "emigrant" && !slots.ContainsKey(j.Id.ToString()));
         var finished = all.Where(j => j.Status is "done" or "failed").TakeLast(2).ToList();
         return all.Where(j => j.Status is "offered" or "taken" || finished.Contains(j)).ToList();
     }

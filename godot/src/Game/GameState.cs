@@ -71,6 +71,8 @@ public partial class GameState : Node
     public int RentPrice => Payload?.Rent.PriceC ?? 0;
     public IReadOnlyList<PocketItem> Pockets => Payload?.Pockets ?? (IReadOnlyList<PocketItem>)Array.Empty<PocketItem>();
     public IReadOnlyList<Job> Jobs => Payload?.Jobs ?? (IReadOnlyList<Job>)Array.Empty<Job>();
+    /// <summary>#153: the hiring board's places for today's open jobs (null before the server says).</summary>
+    public IReadOnlyDictionary<string, int>? BoardSlots => Payload?.Board?.Slots;
     public Ending? Ending => Payload?.Ending;
     /// <summary>Where the server believes Jef is (the cold): null before the first tick.</summary>
     public WhereNow? WhereNow { get; private set; }
