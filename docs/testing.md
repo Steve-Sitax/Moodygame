@@ -209,7 +209,8 @@ Build/import the native project first. `pwsh -File native-godot/scripts/check-co
 runs the real game with isolated saves, preferences and layouts, seed 1873 and no AI. It audits every native
 shop/tavern room against the actual physics geometry and player body, reserves an entrance-to-counter lane,
 checks standing allocations, walks Jef into De Vliet, and captures its doorway/interior at 13:00 clear and 20:00.
-It also checks live conversation holds, facing, clock progress, release, working employers and native bicycle,
+It also checks live conversation holds, facing, clock progress, a passer-by sent through the held talker (he must not be
+shoved off his spot; #185, `talk-passer.json`, and `talk-trail.json` with the talker's place every frame), release, working employers and native bicycle,
 handcart and horse-dray components. Inspect `conversation.json`, `rooms.json`, `cafe-walk.json` and the PNGs.
 
 Add `-Multiplayer` with another fresh output directory to run the existing `MpTest` host/guest harness in its
