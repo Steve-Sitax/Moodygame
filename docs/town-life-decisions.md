@@ -69,5 +69,7 @@ the numbers live in the engine files named here.
 - What they sell (F) is from the town's own goods: cheese; vegetables an apple (as the Vismarkt's vegetable seller);
   cloth a shawl or a wool vest; pottery a plant in its pot; second-hand goods a scarf or a pipe; the brazier a bowl of soup.
   Prices are the shops' own. None of these is counted stock (as the Vismarkt's vegetables).
-- A pushed handcart that cannot reach its place gives up after 90 s plus 2.5 s for every metre of the straight way
-  (it was 90 s for any way: a seller living round the town hall's block parked her cart in the street).
+- A pushed handcart that cannot reach its place gives up after 90 s plus 4 s for every metre of the straight way
+  (it was 90 s for any way: a seller living round the town hall's block parked her cart in the street). The Grote Markt's
+  sellers go home in four groups some seven minutes apart (twenty carts leaving at once met in the narrow streets west of
+  the square), and their carts stand at least 1.4 m from any seller's place.

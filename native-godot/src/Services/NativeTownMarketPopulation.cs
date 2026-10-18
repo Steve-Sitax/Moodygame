@@ -91,7 +91,10 @@ public sealed class NativeTownMarketPopulation : INativeServiceModule
             // part is the hour she is at it: she sets off early by her walk (about 2 m a game minute, the way half as
             // long again as the straight line), so the walk home is added to the packed hour.
             double walk = Math.Sqrt(Math.Pow(N(home["sx"]) - sx, 2) + Math.Pow(N(home["sz"]) - sz, 2)) * 1.5 / 2.0 / 60;
-            var day = new JsonArray(Seg(Math.Round((N(rules["setup"]) + k.Rng() * .25) * 12) / 12, Math.Round((N(rules["packed"]) + walk + .05 + k.Rng() * .15) * 12) / 12, "work"));
+            // (#192) away from the Grote Markt in four groups some seven minutes apart: twenty carts leaving at once met in the
+            // narrow streets west of the square (the Vismarkt's keep their hours)
+            double stagger = place == "vismarkt" ? 0 : number % 4 * .12;
+            var day = new JsonArray(Seg(Math.Round((N(rules["setup"]) + k.Rng() * .25) * 12) / 12, Math.Round((N(rules["packed"]) + walk + .05 + k.Rng() * .15 + stagger) * 12) / 12, "work"));
             var sunday = new JsonArray(Seg(k.J(8.75), k.J(11), "church", "church"));
             var work = new JsonObject
             {

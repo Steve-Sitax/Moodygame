@@ -676,7 +676,7 @@ internal partial class MarketProof : Node
         bool pushed = false, cartShot = false;
         var phases = new List<string>();
         var keys = new List<string>();
-        for (int i = 0; i < 60 * 300; i++)
+        for (int i = 0; i < 60 * 420; i++)
         {
             await Frame();
             var s = town.ActionPerson(first.Id);
@@ -867,6 +867,8 @@ internal partial class MarketProof : Node
         }
         // the carts' places: 2.3 m by 1.1 m on open ground, clear of every stall, seller and other cart
         var carts = new List<(double x, double z, double yaw)?>();
+        // (#192: on the Grote Markt a cart keeps 1.4 m from any seller's place: one pulled out across a neighbour standing at hers)
+        double clear = place == "vismarkt" ? .9 : 1.4;
         bool CartFits(double x, double z, double yaw)
         {
             double fx = Math.Sin(yaw), fz = Math.Cos(yaw);
@@ -875,7 +877,7 @@ internal partial class MarketProof : Node
                 {
                     double px = x + fx * a - fz * b, pz = z + fz * a + fx * b;
                     if (!town.Walk!.Free(px, pz) || InStall(px, pz, .2)) return false;
-                    if (sellers.Any(q => Math.Sqrt(Math.Pow(q.x - px, 2) + Math.Pow(q.z - pz, 2)) < .9)) return false;
+                    if (sellers.Any(q => Math.Sqrt(Math.Pow(q.x - px, 2) + Math.Pow(q.z - pz, 2)) < clear)) return false;
                     if (carts.Any(q => q is { } o && Math.Abs(px - o.x) < 1.6 && Math.Abs(pz - o.z) < 1.6)) return false;
                 }
             return true;
