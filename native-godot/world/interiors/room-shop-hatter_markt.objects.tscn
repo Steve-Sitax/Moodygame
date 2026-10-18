@@ -19,7 +19,7 @@
 [node name="Objects" type="Node3D" unique_id=2143573104]
 
 [node name="object_counter" type="Node3D" parent="." unique_id=642768011]
-transform = Transform3D(-4.371139e-08, 0, 1, 0, 1, 0, -1, 0, -4.371139e-08, -300.65, 0.18, 97.14)
+transform = Transform3D(-4.371139e-08, 0, 1, 0, 1, 0, -1, 0, -4.371139e-08, -300.65, 0.18, 96.84)
 script = ExtResource("1_nvw3d")
 ObjectId = "room-shop-hatter_markt-counter"
 Asset = ExtResource("2_4vpd7")

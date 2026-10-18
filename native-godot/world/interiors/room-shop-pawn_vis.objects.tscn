@@ -22,7 +22,7 @@
 [node name="Objects" type="Node3D" unique_id=1377195950]
 
 [node name="object_counter" type="Node3D" parent="." unique_id=1881164367]
-transform = Transform3D(-4.371139e-08, 0, 1, 0, 1, 0, -1, 0, -4.371139e-08, -129.65, 0.18, 78.53)
+transform = Transform3D(-4.371139e-08, 0, 1, 0, 1, 0, -1, 0, -4.371139e-08, -129.65, 0.18, 78.23)
 script = ExtResource("1_pfkcf")
 ObjectId = "room-shop-pawn_vis-counter"
 Asset = ExtResource("2_nth0k")

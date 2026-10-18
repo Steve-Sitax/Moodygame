@@ -68,19 +68,19 @@ ObjectId = "room-tavern-zwarte_kat-seat-10"
 Asset = ExtResource("7_nv5gh")
 
 [node name="object_seat-12" type="Node3D" parent="." unique_id=1201836412]
-transform = Transform3D(-0.1821906, 0, 0.98326325, 0, 1, 0, -0.98326325, 0, -0.1821906, -59.229282, 0.18, 264.4454)
+transform = Transform3D(-0.1821906, 0, 0.98326325, 0, 1, 0, -0.98326325, 0, -0.1821906, -59.9153, 0.18, 264.5714)
 script = ExtResource("1_330ae")
 ObjectId = "room-tavern-zwarte_kat-seat-12"
 Asset = ExtResource("8_i83rt")
 
 [node name="object_seat-13" type="Node3D" parent="." unique_id=1793838342]
-transform = Transform3D(-0.1821906, 0, 0.98326325, 0, 1, 0, -0.98326325, 0, -0.1821906, -58.992435, 0.18, 265.72366)
+transform = Transform3D(-0.1821906, 0, 0.98326325, 0, 1, 0, -0.98326325, 0, -0.1821906, -59.6784, 0.18, 265.8497)
 script = ExtResource("1_330ae")
 ObjectId = "room-tavern-zwarte_kat-seat-13"
 Asset = ExtResource("9_bbplf")
 
 [node name="object_seat-14" type="Node3D" parent="." unique_id=1166271136]
-transform = Transform3D(-0.1821906, 0, 0.98326325, 0, 1, 0, -0.98326325, 0, -0.1821906, -58.75559, 0.18, 267.0019)
+transform = Transform3D(-0.1821906, 0, 0.98326325, 0, 1, 0, -0.98326325, 0, -0.1821906, -59.4416, 0.18, 267.1279)
 script = ExtResource("1_330ae")
 ObjectId = "room-tavern-zwarte_kat-seat-14"
 Asset = ExtResource("10_8ogtj")
@@ -104,7 +104,7 @@ ObjectId = "room-tavern-zwarte_kat-table-2"
 Asset = ExtResource("13_cdtw8")
 
 [node name="object_counter" type="Node3D" parent="." unique_id=1333637810]
-transform = Transform3D(0.98326325, 0, 0.1821906, 0, 1, 0, -0.1821906, 0, 0.98326325, -58.377895, 0.18, 265.60977)
+transform = Transform3D(0.98326325, 0, 0.1821906, 0, 1, 0, -0.1821906, 0, 0.98326325, -59.0639, 0.18, 265.7358)
 script = ExtResource("1_330ae")
 ObjectId = "room-tavern-zwarte_kat-counter"
 Asset = ExtResource("14_smuyo")

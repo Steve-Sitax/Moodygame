@@ -361,6 +361,7 @@ public partial class Hud : Node
         ShowTask();
         money.Text = $"{st.Money} c";
         needs.SetNeeds(st.Food, st.Warmth, st.Sleep, st.Health);
+        needs.SetWarming(st.WhereNow?.Warming ?? 0);
         var pockets = st.Pockets;
         for (int i = 0; i < Slots; i++)
         {

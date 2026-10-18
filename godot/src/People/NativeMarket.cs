@@ -49,23 +49,29 @@ public partial class NativeMarket : Node
         public readonly List<Puppet> Shoppers=new();
         public int Low=-1,High=-1;
         public bool On;
+        /// <summary>Pitched (#150): each stall is its own seller's, up as far as she has set it up (Level per rank: -1 down, 0 frame, 1 cover, 2 goods).</summary>
+        public bool Pitched;
+        public int[] Level=Array.Empty<int>(),Shown=Array.Empty<int>();
     }
     private sealed class SellerDrawn {public Puppet Body=null!;public double Talk;public bool Fled;}
-    private sealed class Batch {public MultiMesh Mesh=null!;public MultiMeshInstance3D Node=null!;public readonly List<(int Rank,Transform3D Transform,Color Tint)> Rows=new();}
+    private sealed class Batch {public MultiMesh Mesh=null!;public MultiMeshInstance3D Node=null!;public readonly List<(int Rank,Transform3D Transform,Color Tint,int Stage)> Rows=new();}
     private sealed class Target : NativeMarketTarget {public Field? Field;public NativeMarketItem? Item;}
     private sealed class Browser : NativeMarketBrowser {}
     public int Items=>fields.Sum(f=>f.Items.Count);
-    public int Up=>fields.Sum(f=>Math.Max(0,f.High-f.Low));
+    public int Up=>fields.Sum(UpOf);
+    private static int UpOf(Field f)=>f.Pitched?f.Level.Count(l=>l>=2):Math.Max(0,f.High-f.Low);
+    /// <summary>This stall stands with its goods out: in the share window, or (pitched) set up by its seller.</summary>
+    private static bool Out(Field f,NativeMarketItem it)=>f.Pitched?it.Rank<f.Level.Length&&f.Level[it.Rank]>=2:it.Rank>=f.Low&&it.Rank<f.High;
     public int Shoppers=>fields.Sum(f=>f.Shoppers.Count);
     public int Sellers=>fields.Sum(f=>f.Sellers.Count);
     public JsonArray Inspect()=>new(fields.Select(f=>(JsonNode?)new JsonObject{
-        ["place"]=f.Place,["items"]=f.Items.Count,["up"]=Math.Max(0,f.High-f.Low),["on"]=f.On,["sellers"]=f.Sellers.Count,["shoppers"]=f.Shoppers.Count,["meshes"]=f.Batches.Count,
-        ["emptyShelf"]=emptyShelves.Contains(f.Place),["soldOutAt"]=soldOut.TryGetValue(f.Place+":"+town.Day,out var soldAt)?JsonValue.Create(soldAt):null,
+        ["place"]=f.Place,["items"]=f.Items.Count,["up"]=UpOf(f),["on"]=f.On,["sellers"]=f.Sellers.Count,["shoppers"]=f.Shoppers.Count,["meshes"]=f.Batches.Count,
+        ["emptyShelf"]=emptyShelves.Contains(f.Place),["pitched"]=f.Pitched,["levels"]=new JsonArray(f.Level.Select(l=>(JsonNode)JsonValue.Create(l)).ToArray()),["soldOutAt"]=soldOut.TryGetValue(f.Place+":"+town.Day,out var soldAt)?JsonValue.Create(soldAt):null,
         ["colliders"]=f.Bodies.Values.SelectMany(b=>b).Count(b=>b.CollisionLayer!=0),
         ["people"]=new JsonArray(f.Shoppers.Select(p=>(JsonNode?)new JsonObject{["id"]=p.Group.GetInstanceId().ToString(),["kind"]=p.Kind,["x"]=p.X,["z"]=p.Z,["phase"]=browsing.GetValueOrDefault(p)?.Phase,["motion"]=p.Human.Motion,["bought"]=p.Bought}).ToArray()),
-        ["fronts"]=new JsonArray(f.Items.Where(i=>i.Rank>=f.Low&&i.Rank<f.High).Select(i=>(JsonNode?)new JsonObject{["kind"]=i.Kind,["goods"]=i.Goods,["x"]=i.Front.X,["z"]=i.Front.Z,["yaw"]=i.Yaw}).ToArray())
+        ["fronts"]=new JsonArray(f.Items.Where(i=>Out(f,i)).Select(i=>(JsonNode?)new JsonObject{["kind"]=i.Kind,["goods"]=i.Goods,["x"]=i.Front.X,["z"]=i.Front.Z,["yaw"]=i.Yaw}).ToArray())
     }).ToArray());
-    public override void _Ready(){I=this;town=Main.I.GetNode<Townspeople>("Townspeople");town.PopulationChanged+=Reset;town.MarketBrowse=Browse;town.MarketForget=Forget;PrepareMaterials();}
+    public override void _Ready(){I=this;town=Main.I.GetNode<Townspeople>("Townspeople");town.PopulationChanged+=Reset;town.MarketBrowse=Browse;town.MarketForget=Forget;town.StandMotion=SellerMotion;PrepareMaterials();}
     private static double N(JsonNode? n)=>n?.GetValue<double>()??0;
     private static string S(JsonNode? n)=>n?.GetValue<string>()??"";
     private static double Distance(double x,double z,double a,double b)=>Math.Sqrt(Math.Pow(x-a,2)+Math.Pow(z-b,2));
@@ -90,9 +96,9 @@ public partial class NativeMarket : Node
         foreach(var f in fields){
             string soldKey=f.Place+":"+town.Day;if(now&&!soldOut.ContainsKey(soldKey)&&emptyShelves.Contains(f.Place)&&Share(f.Place,town.Day,town.Hour)>0)soldOut[soldKey]=town.Hour;
             double share=Share(f.Place,town.Day,town.Hour,soldOut.GetValueOrDefault(soldKey,double.NaN));int count=f.Items.Count;bool rising=town.Hour<12;
-            int high=share>0?(rising?(int)Math.Floor(share*count+1e-6):count):0,low=share>0?(rising?0:count-(int)Math.Floor(share*count+1e-6)):0;Window(f,low,Math.Max(low,high));
+            int high=share>0?(rising?(int)Math.Floor(share*count+1e-6):count):0,low=share>0?(rising?0:count-(int)Math.Floor(share*count+1e-6)):0;if(f.Pitched){if(now)PitchLevels(f);Show(f,f.Level);}else Window(f,low,Math.Max(low,high));
             double distance=Distance(me.X,me.Z,f.Centre.X,f.Centre.Z);f.Group.Visible=distance<140;f.On=Share(f.Place,town.Day,town.Hour)>=.25&&town.StormLevel<=.3;
-            if(now){DrawSellers(f,distance,me);MakeShoppers(f,distance,me);}StepSellers(f,dt);
+            if(now){if(f.Pitched)TendSellers(f);else DrawSellers(f,distance,me);MakeShoppers(f,distance,me);}if(!f.Pitched)StepSellers(f,dt);
         }
         foreach(var pair in browsing.ToArray()){if(!town.Crowd.Alive(pair.Key)){browsing.Remove(pair.Key);continue;}if(pair.Value.Own)StepBrowser(pair.Key,pair.Value,dt);}
     }
@@ -102,5 +108,5 @@ public partial class NativeMarket : Node
         try{var data=await api.Get<JsonElement>("api/trade");if(at!=revision||dead)return;emptyShelves.Clear();if(data.TryGetProperty("posts",out var posts))foreach(var p in posts.EnumerateArray())if(p.TryGetProperty("id",out var id)&&p.GetProperty("stock").GetDouble()<=p.GetProperty("floor").GetDouble())emptyShelves.Add(id.GetString()!);}
         catch(ApiException){}finally{if(at==revision)polling=false;}
     }
-    public override void _ExitTree(){dead=true;Reset();town.PopulationChanged-=Reset;if(town.MarketBrowse==Browse)town.MarketBrowse=null;if(town.MarketForget==Forget)town.MarketForget=null;NativeExtras.I?.OffAdopt("x:ms:");foreach(var mesh in parts.Values.SelectMany(p=>p).Select(p=>p.Mesh).Distinct())mesh.Dispose();foreach(var m in coloured.Values)m.Dispose();if(I==this)I=null;}
+    public override void _ExitTree(){dead=true;Reset();town.PopulationChanged-=Reset;if(town.MarketBrowse==Browse)town.MarketBrowse=null;if(town.MarketForget==Forget)town.MarketForget=null;if(town.StandMotion==SellerMotion)town.StandMotion=null;NativeExtras.I?.OffAdopt("x:ms:");foreach(var mesh in parts.Values.SelectMany(p=>p).Select(p=>p.Mesh).Distinct())mesh.Dispose();foreach(var m in coloured.Values)m.Dispose();if(I==this)I=null;}
 }

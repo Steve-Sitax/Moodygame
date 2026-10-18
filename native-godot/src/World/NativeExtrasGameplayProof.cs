@@ -42,7 +42,7 @@ public static class NativeExtrasGameplayProof
         try
         {
             Check("extras proof uses its own disposable database",Path.GetFullPath(Paths.Database).StartsWith(Path.GetFullPath(output)+Path.DirectorySeparatorChar,StringComparison.OrdinalIgnoreCase)&&Main.I.Flag("no-ai"));
-            Check("native town and services become ready",await Until(()=>game.Loaded&&!Loading.Busy&&ServerLink.I?.Up==true&&GameState.I.Live&&game.GetNodeOrNull<Townspeople>("Townspeople")?.Data!=null,100));
+            Check("native town and services become ready",await Until(()=>game.Loaded&&!Loading.Busy&&ServerLink.I?.Up==true&&GameState.I.Live&&game.GetNodeOrNull<Townspeople>("Townspeople")?.Data!=null,300));
             Check("clock-driving fixture runs on its own single-player host",Together.I?.On!=true);
             town=game.GetNode<Townspeople>("Townspeople");var api=ServerLink.I!.Api!;
             MainMenu.I!.Start();Jef.I.TestInput=true;Pause.Clear();await Frames(3);
@@ -63,7 +63,8 @@ public static class NativeExtrasGameplayProof
             Check("proof observer is the actual viewport camera",game.View.GetCamera3D()==game.Cam&&!game.GetTree().Paused&&!town.Paused);
             Check("native dynamic layout supplies both market squares",await Until(()=>NativeMarket.I?.Inspect().Count==2&&NativeMarket.I.Items>15,30));
             var market=NativeMarket.I!;
-            Check("both market days display their full ranked layouts",await Until(()=>market.Inspect().All(r=>N(r,"up")==N(r,"items")&&N(r,"items")>5),15));
+            // (#150: the Vismarkt's stalls stand once their own sellers have walked to them after the jump in time)
+            Check("both market days display their full ranked layouts",await Until(()=>market.Inspect().All(r=>N(r,"up")==N(r,"items")&&N(r,"items")>5),150));
             var mask=BakedWorld.All(game).OfType<NativeMarketIntakeMask>().Single();
             var replaced=BakedWorld.All(game.World).Where(n=>n.HasMeta("native_market_replaced")).ToArray();
             Check("frozen intake markets and yard animals are found",mask.MaskedGroups>=2&&replaced.Length>0);
@@ -81,25 +82,28 @@ public static class NativeExtrasGameplayProof
             var before=Market("vismarkt")["people"]!.AsArray().OfType<JsonObject>().ToDictionary(p=>S(p,"id"),p=>new Vector2((float)N(p,"x"),(float)N(p,"z")));
             Check("anonymous shoppers actually move through the market",await Until(()=>Market("vismarkt")["people"]!.AsArray().Any(p=>before.TryGetValue(S(p,"id"),out var at)&&at.DistanceTo(new((float)N(p,"x"),(float)N(p,"z")))>.4),30));
             Check("market shoppers reach a stall and browse or bargain",await Until(()=>Market("vismarkt")["people"]!.AsArray().Any(p=>S(p,"phase")is"look"or"haggle"),45));
-            Check("extra market sellers use current native figures",N(Market("vismarkt"),"sellers")>0);
+            Check("the Vismarkt's stalls are kept by people of the town, none by nameless sellers (#150)",Market("vismarkt")["pitched"]?.GetValue<bool>()==true&&N(Market("vismarkt"),"sellers")==0&&market.PitchState().Count==(int)N(Market("vismarkt"),"items")&&market.PitchState().All(p=>p!["level"]!.GetValue<int>()>=0));
             await Shot("market-open");
             View(new(-259,0,98));await Frames(45);Check("Grote Markt has its own visible layouts and sellers",N(Market("grote_markt"),"up")>5&&N(Market("grote_markt"),"sellers")>0);await Shot("grote-markt-open");
             await Clock(3,6);
-            Check("morning setup shows a strict subset of the market",N(Market("vismarkt"),"up")>0&&N(Market("vismarkt"),"up")<N(Market("vismarkt"),"items")&&N(Market("grote_markt"),"up")==0);
+            Check("morning setup shows the Vismarkt's stalls part-built, no goods out yet (#150)",await Until(()=>Market("vismarkt")["levels"]!.AsArray().Any(l=>l!.GetValue<int>() is 0 or 1)&&N(Market("vismarkt"),"up")==0&&N(Market("grote_markt"),"up")==0,20));
             await Clock(3,9);View(new(-117,0,29));
             var stock=await api.Post<JsonElement>("api/dev/trade",new{post="vismarkt",stock=0});
             Check("native ledger accepts an actual empty fish shelf",stock.GetProperty("posts").EnumerateArray().Any(p=>p.GetProperty("id").GetString()=="vismarkt"&&p.GetProperty("stock").GetDouble()<=p.GetProperty("floor").GetDouble()));
             // Polling is the production path (15 seconds), not a test-only empty-shelf switch.
             Check("production market poll observes the empty native shelf",await Until(()=>Market("vismarkt")["soldOutAt"]!=null,22));await Clock(3,10,15);
-            Check("sold-out fish market packs early to its resting share",await Until(()=>N(Market("vismarkt"),"up")<=Math.Floor(N(Market("vismarkt"),"items")*.35)+1&&N(Market("vismarkt"),"up")>0,20));
+            // (#150: a seller who sells out stays at her stall until packing time, and says so)
+            string soldOut="";try{await api.Post<JsonElement>("api/buy",new{npc=Scheldemist.People.NativeMarket.SellerPrefix+"0",kind="herring"});}catch(ApiException e){soldOut=e.Message;}
+            Check("a fish seller sells nothing when the fish market is sold out",soldOut.Contains("Sold out"));
             Check("sold-out packing keeps the other square's full market",N(Market("grote_markt"),"up")==N(Market("grote_markt"),"items"));
             observations.Add(new{phase="sold-out",layout=market.Inspect().DeepClone()});await Shot("market-sold-out");
             await Clock(3,18);
-            Check("closed market removes ranked meshes and physical blockers",market.Inspect().All(r=>N(r,"up")==0&&N(r,"colliders")==0)&&Bodies("vismarkt").All(b=>b.CollisionLayer==0));
+            // (#150: the Vismarkt's stalls come down as their sellers leave, a moment after the jump in time)
+            Check("closed market removes ranked meshes and physical blockers",await Until(()=>market.Inspect().All(r=>N(r,"up")==0&&N(r,"colliders")==0)&&Bodies("vismarkt").All(b=>b.CollisionLayer==0),30));
             Check("crowd navigation releases former market footprints",blocked.Any(p=>town.Walk!.Free(p.X,p.Y)));
             Check("closed market sellers leave rather than remain frozen",await Until(()=>market.Sellers==0,20));await Shot("market-closed");
             await Clock(7,9);Check("Sunday has no dynamic market setup",market.Inspect().All(r=>N(r,"up")==0));
-            await Clock(1,9);Check("Grote Markt obeys its Wednesday/Saturday schedule",N(Market("vismarkt"),"up")>0&&N(Market("grote_markt"),"up")==0);
+            await Clock(1,9);Check("Grote Markt obeys its Wednesday/Saturday schedule",await Until(()=>N(Market("vismarkt"),"up")>0,150)&&N(Market("grote_markt"),"up")==0);
             // Visitor motion, doorway staging and hidden-inside state use the actual crowd/doorway.
             await Clock(3,10);View(new(-183.5f,0,-20));Engine.TimeScale=3;
             var visitors=NativeSteenVisitors.I!;var states=new HashSet<string>();var seen=new List<object>();

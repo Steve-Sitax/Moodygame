@@ -144,17 +144,30 @@ public partial class NativeTown : BakedWorld
         foreach (var note in razed.Notes) GD.Print("razed houses: " + note);
         // The corner they leave gets a lime and a bench (only when the cut happened, so a re-baked town shows no tree in a house).
         var dressing = razed.Houses > 0 ? NativeRazedHouses.Dress(town) : Array.Empty<string>();
+        // The bake's plain benches give way to the new bench models, turned and placed as they stood (#165).
+        // (dev: --keep-old-benches leaves them, for a before-and-after)
+        if (!Scheldemist.Main.I.Flag("keep-old-benches"))
+        {
+            var benchClock = System.Diagnostics.Stopwatch.StartNew();
+            var benches = NativeBenches.Swap(town, System.IO.Path.Combine(Scheldemist.Paths.NativeDataRoot ?? "", "services", "native-rules.json"));
+            foreach (var note in benches.Notes) GD.Print("benches: " + note);
+            GD.Print($"benches: swapped in {benchClock.ElapsedMilliseconds} ms");
+            Report["benchesSwapped"] = benches.Swapped; Report["benchTrianglesCut"] = benches.Triangles;
+        }
+        // The bake's plain hiring board gives way to the authored one, where the notes hang (#153).
+        Report["oldHiringBoards"] = NativeWorkBoard.Retire(town);
         // The baked quay ladders ran through the coping and into the stone (issue 85): the native ladder replaces them.
         var ladders = Scheldemist.Native.World.NativeQuayLadders.Install(town);
         quayLadders = ladders.Ladders;
         foreach (var note in ladders.Notes) GD.Print("quay ladders: " + note);
         AddChild(town);
-        // Static room portraits are source snapshots, never a second resident model.
+        // Static room portraits are source snapshots, never a second resident model. The Vleeshuis's
+        // recovered figures (old kit, #178) give way to its live hall workers (HallPeople, people2).
         int roomPeople=0;
         foreach(var skeleton in All(town).OfType<Skeleton3D>())
         {
             bool room=false;for(Node? n=skeleton.GetParent();n!=null;n=n.GetParent())
-                if(n.Name.ToString().StartsWith("ROOM_tavern_")||n.Name.ToString().StartsWith("ROOM_shop_")){room=true;break;}
+                if(n.Name.ToString().StartsWith("ROOM_tavern_")||n.Name.ToString().StartsWith("ROOM_shop_")||n.Name.ToString()=="ROOM_vleeshuis"){room=true;break;}
             if(!room||skeleton.GetParent() is not Node3D model)continue;
             model.Visible=false;roomPeople++;
             foreach(var player in All(model).OfType<AnimationPlayer>()){player.Autoplay="";player.Stop();}
@@ -225,6 +238,8 @@ public partial class NativeTown : BakedWorld
         Solid.Leave.Add(n => n.HasMeta("native_replaced_event_snapshot"));
         Solid.Leave.Add(n => n.HasMeta(Scheldemist.Native.World.NativeQuayLadders.LeaveMeta));
         Solid.Leave.Add(n => n.HasMeta(NativeRazedHouses.DressingMeta));
+        Solid.Leave.Add(n => n.HasMeta(NativeBenches.SwapMeta));
+        Report["benches"] = NativeBenches.Index(town);
         BuildLights();
     }
     private void BuildLights()

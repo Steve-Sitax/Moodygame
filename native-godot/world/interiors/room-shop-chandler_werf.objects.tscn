@@ -28,7 +28,7 @@
 [node name="Objects" type="Node3D" unique_id=273973225]
 
 [node name="object_counter" type="Node3D" parent="." unique_id=1983407612]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -284.13998, 0.18, 17.35)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -283.84, 0.18, 17.35)
 script = ExtResource("1_s2kv5")
 ObjectId = "room-shop-chandler_werf-counter"
 Asset = ExtResource("2_47jug")

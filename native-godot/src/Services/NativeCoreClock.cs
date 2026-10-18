@@ -65,7 +65,9 @@ public sealed partial class NativeCoreClock : INativeServiceModule
         var outside = new JsonObject { ["shelter"] = "outside", ["place"] = null, ["label"] = "outside", ["lantern"] = false };
         if (!reports.TryGetValue(id, out var report) || C.Now - report.ms > 25000 || C.Now < report.ms - 1000) return outside;
         var room = report.at == null ? null : host.ResolveRoom?.Invoke(id, report.at);
-        if (room != null) { room["lantern"] = false; return room; }
+        int hourNow = Number(View(), "hour");
+        if (room != null) { room["lantern"] = false; room["warming"] = Warming(id); room["fires"] = BasketsLit(hourNow); return room; }
+        outside["warming"] = Warming(id); outside["fires"] = BasketsLit(hourNow);
         string weather = View()["weather"]!.GetValue<string>();
         int? swam = C.PlayerState(id, "swam_at")?.GetValue<int>();
         bool wet = weather is "rain" or "storm" || swam != null && MinuteNow() - swam < 120;
@@ -85,8 +87,10 @@ public sealed partial class NativeCoreClock : INativeServiceModule
         (int? chill, int? gain, int cap) rule = host.TransportWarmth?.Invoke(id, cold) ??
             (shelter == "heated" ? (null, 2, 7) : shelter == "sheltered" ? (cold ? 6 : 10, null, 10) :
              at["lantern"]!.GetValue<bool>() ? (cold ? 4 : 6, null, 10) : (cold ? 3 : 5, null, 10));
-        if (rule.chill != null && hour % rule.chill == 0) warmth--;
+        var (heatGain, noChill) = TakeHeat(id);
+        if (rule.chill != null && hour % rule.chill == 0 && !noChill) warmth--;
         if (rule.gain != null && hour % rule.gain == 0 && warmth < rule.cap) warmth++;
+        else if (heatGain > 0 && warmth < HeatCap) warmth += heatGain;
         food = Math.Clamp(food, 0, 10); warmth = Math.Clamp(warmth, 0, 10); sleep = Math.Clamp(sleep, 0, 10);
         if (food == 0 || warmth == 0 || sleep == 0) { if (hour % 3 == 0) health--; }
         else if (food >= 4 && warmth >= 4 && sleep >= 4 && hour % 4 == 0) health++;
@@ -153,6 +157,7 @@ public sealed partial class NativeCoreClock : INativeServiceModule
         string? at = where?["at"] is JsonValue value && value.TryGetValue<string>(out var text) && text.Length <= 80 && Regex.IsMatch(text, "^[a-z0-9_:-]+$", RegexOptions.IgnoreCase) ? text : null;
         reports[id] = (at, where?["lantern"]is JsonValue lamp&&lamp.TryGetValue<bool>(out bool on)&&on, C.Now);
         host.Rest.ReportPosition(id, request.Body["pos"]);
+        AddHeat(id);
         foreach(var hook in host.PresenceHooks)hook(request);
     }
     public JsonObject CollapseSleep(int id)

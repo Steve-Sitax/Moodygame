@@ -52,6 +52,8 @@ public partial class NativeMarket
     internal static double FishTableNear()=>FishTableBox()?.Position.Z??-.46;
     /// <summary>Every market item laid out now (the proofs).</summary>
     internal IEnumerable<NativeMarketItem> LaidOut=>fields.SelectMany(f=>f.Items);
+    /// <summary>One place's market items in their order of going up (the proofs).</summary>
+    internal IReadOnlyList<NativeMarketItem> ItemsAt(string place)=>fields.FirstOrDefault(f=>f.Place==place)?.Items??new List<NativeMarketItem>();
 
     private void DrawSellers(Field f,double distance,Vector3 me)
     {
@@ -67,7 +69,8 @@ public partial class NativeMarket
     }
     private void Gesture(Target target,double x,double z,double seconds)
     {
-        if(target.Item!=null&&target.Field?.Sellers.TryGetValue(target.Item,out var draw)==true){double yaw=Math.Atan2(x-draw.Body.X,z-draw.Body.Z);if(target.Item.Sits)town.Crowd!.PuppetSit(draw.Body,yaw);else town.Crowd!.PuppetStand(draw.Body,"talk",yaw);draw.Talk=seconds;}
+        if(target.Item is{Pitch:>=0} pitched&&town.ActionPerson(SellerId(pitched.Pitch))?.P is{} own&&own.State!="walk"){town.Crowd!.PuppetStand(own,"talk",Math.Atan2(x-own.X,z-own.Z));}
+        else if(target.Item!=null&&target.Field?.Sellers.TryGetValue(target.Item,out var draw)==true){double yaw=Math.Atan2(x-draw.Body.X,z-draw.Body.Z);if(target.Item.Sits)town.Crowd!.PuppetSit(draw.Body,yaw);else town.Crowd!.PuppetStand(draw.Body,"talk",yaw);draw.Talk=seconds;}
         else if(target.Keeper!=""&&town.ActionPerson(target.Keeper)?.P is{} p&&NativeStreet.I?.Owns(target.Keeper)!=false)town.Crowd!.PuppetStand(p,"talk",Math.Atan2(x-p.X,z-p.Z));
     }
     private void MakeShoppers(Field f,double distance,Vector3 me)
@@ -88,7 +91,7 @@ public partial class NativeMarket
     }
     private List<Target> Targets(string place)
     {
-        var result=new List<Target>();var f=fields.FirstOrDefault(f=>f.Place==place);if(f!=null)foreach(var it in f.Items)if(it.Rank>=f.Low&&it.Rank<f.High)result.Add(new(){X=it.Front.X,Z=it.Front.Z,Yaw=it.Yaw+Math.PI,Goods=it.Goods,Item=it,Field=f});
+        var result=new List<Target>();var f=fields.FirstOrDefault(f=>f.Place==place);if(f!=null)foreach(var it in f.Items)if(Out(f,it)&&(!f.Pitched||Selling(f)))result.Add(new(){X=it.Front.X,Z=it.Front.Z,Yaw=it.Yaw+Math.PI,Goods=it.Goods,Item=it,Field=f});
         foreach(var s in town.Data!.Stalls)if(s.Place==place&&s.Keeper!=null&&openKeepers.Contains(s.Keeper))result.Add(new(){X=s.X+s.Face.X*1.45,Z=s.Z+s.Face.Z*1.45,Yaw=Math.Atan2(-s.Face.X,-s.Face.Z),Goods=s.Goods,Keeper=s.Keeper});return result;
     }
     private bool Browse(Puppet p,string place,double dt)

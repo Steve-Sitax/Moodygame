@@ -197,6 +197,9 @@ public partial class Rooms : Node, Dev.IInteriorAuditSource
         }
     }
 
+    /// <summary>The server's last word on a shop's or tavern's room: open, shut, or not known yet.</summary>
+    public bool? IsOpen(string id) => byId.TryGetValue(id, out var r) ? r.Open : null;
+
     /// <summary>The shops' and taverns' part says a room is open (its lamps lit after dark) or shut.</summary>
     public void SetOpen(string id, bool open)
     {

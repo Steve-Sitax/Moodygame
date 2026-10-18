@@ -2,6 +2,8 @@
 
 [ext_resource type="Script" path="res://src/Authoring/AuthoredObject.cs" id="1_obj"]
 [ext_resource type="Resource" path="res://recovered/street-props-20261015/props/pissoir.tres" id="2_sp15"]
+[ext_resource type="Resource" path="res://assets/library/bench-worn.tres" id="63_bench"]
+[ext_resource type="Resource" path="res://recovered/street-props-20261015/props/park-bench-iron.tres" id="60_bench"]
 
 [node name="Objects" type="Node3D" unique_id=1115818774]
 
@@ -10,3 +12,38 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -170, 0, -14.2)
 script = ExtResource("1_obj")
 ObjectId = "steenplein-pissoir"
 Asset = ExtResource("2_sp15")
+
+[node name="object_bench-tavern-schipke" type="Node3D" parent="." unique_id=1023500112]
+transform = Transform3D(-1, 0, -0.000007, 0, 1, 0, 0.000007, 0, -1, -236, 0, 12.68)
+script = ExtResource("1_obj")
+ObjectId = "bench-tavern-schipke"
+Asset = ExtResource("63_bench")
+metadata/bench_label = "the bench before Het Schipke"
+
+[node name="object_bench-townhall" type="Node3D" parent="." unique_id=259347046]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -266, 0, 63.42)
+script = ExtResource("1_obj")
+ObjectId = "bench-townhall"
+Asset = ExtResource("60_bench")
+metadata/bench_label = "a bench before the town hall"
+
+[node name="object_bench-steenplein-1" type="Node3D" parent="." unique_id=1160181162]
+transform = Transform3D(-1, 0, -0.000007, 0, 1, 0, 0.000007, 0, -1, -172, 0, 10.85)
+script = ExtResource("1_obj")
+ObjectId = "bench-steenplein-1"
+Asset = ExtResource("63_bench")
+metadata/bench_label = "a bench on the Steenplein"
+
+[node name="object_bench-steenplein-2" type="Node3D" parent="." unique_id=602480909]
+transform = Transform3D(-1, 0, -0.000007, 0, 1, 0, 0.000007, 0, -1, -192, 0, 10.85)
+script = ExtResource("1_obj")
+ObjectId = "bench-steenplein-2"
+Asset = ExtResource("63_bench")
+metadata/bench_label = "a bench on the Steenplein"
+
+[node name="object_bench-werf" type="Node3D" parent="." unique_id=477611630]
+transform = Transform3D(-1, 0, -0.000007, 0, 1, 0, 0.000007, 0, -1, -260, 0, 10.85)
+script = ExtResource("1_obj")
+ObjectId = "bench-werf"
+Asset = ExtResource("63_bench")
+metadata/bench_label = "a bench on the Werf"

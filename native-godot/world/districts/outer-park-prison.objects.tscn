@@ -16,3 +16,17 @@ transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -321.2, 0, 320.5)
 script = ExtResource("1_obj")
 ObjectId = "stadspark-bench-west-2"
 Asset = ExtResource("2_sp15")
+
+[node name="object_bench-groenplaats-1" type="Node3D" parent="." unique_id=1574123418]
+transform = Transform3D(-0.000004, 0, 1, 0, 1, 0, -1, 0, -0.000004, -310.94, 0, 187.06)
+script = ExtResource("1_obj")
+ObjectId = "bench-groenplaats-1"
+Asset = ExtResource("2_sp15")
+metadata/bench_label = "a bench on the Groenplaats"
+
+[node name="object_bench-groenplaats-2" type="Node3D" parent="." unique_id=372509031]
+transform = Transform3D(-0.000004, 0, 1, 0, 1, 0, -1, 0, -0.000004, -310.5, 0, 200.5)
+script = ExtResource("1_obj")
+ObjectId = "bench-groenplaats-2"
+Asset = ExtResource("2_sp15")
+metadata/bench_label = "a bench on the Groenplaats"

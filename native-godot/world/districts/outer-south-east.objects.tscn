@@ -1,3 +1,36 @@
 [gd_scene format=3]
 
+[ext_resource type="Script" path="res://src/Authoring/AuthoredObject.cs" id="1_obj"]
+[ext_resource type="Resource" path="res://assets/library/bench.tres" id="62_bench"]
+[ext_resource type="Resource" path="res://assets/library/bench-worn.tres" id="63_bench"]
+[ext_resource type="Resource" path="res://recovered/street-props-20261015/props/park-bench-iron.tres" id="60_bench"]
+
 [node name="Objects" type="Node3D" unique_id=1156026198]
+
+[node name="object_bench-tavern-linde" type="Node3D" parent="." unique_id=243699472]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -182.4, 0, 206.32)
+script = ExtResource("1_obj")
+ObjectId = "bench-tavern-linde"
+Asset = ExtResource("62_bench")
+metadata/bench_label = "the bench before In de Linde"
+
+[node name="object_bench-tavern-zwarte-kat" type="Node3D" parent="." unique_id=1548353511]
+transform = Transform3D(-0.983539, 0, -0.180695, 0, 1, 0, 0.180695, 0, -0.983539, -57.9, 0, 259.9)
+script = ExtResource("1_obj")
+ObjectId = "bench-tavern-zwarte-kat"
+Asset = ExtResource("63_bench")
+metadata/bench_label = "the bench before De Zwarte Kat"
+
+[node name="object_bench-conscienceplein" type="Node3D" parent="." unique_id=995416115]
+transform = Transform3D(-0.991615, 0, -0.12923, 0, 1, 0, 0.12923, 0, -0.991615, -121.3, 0, 165)
+script = ExtResource("1_obj")
+ObjectId = "bench-conscienceplein"
+Asset = ExtResource("60_bench")
+metadata/bench_label = "a bench on the Conscienceplein"
+
+[node name="object_bench-sint-paulus" type="Node3D" parent="." unique_id=1813689893]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 47, 0, 261.9)
+script = ExtResource("1_obj")
+ObjectId = "bench-sint-paulus"
+Asset = ExtResource("62_bench")
+metadata/bench_label = "a bench by Sint-Paulus"

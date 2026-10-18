@@ -58,19 +58,32 @@ public sealed partial class Indoors
         var cells=new List<Vector3>();
         for(float x=room.Bounds.Position.X+.5f;x<room.Bounds.End.X-.5f;x+=.5f)
             for(float z=room.Bounds.Position.Y+.5f;z<room.Bounds.End.Y-.5f;z+=.5f)cells.Add(room.Frame*new Vector3(x,0,z));
-        if(counter!=null)
-        {
-            Add(counter.KeeperAt);
-            // Some recovered counters meet the back wall: the old keeper anchor lies
-            // inside the bar. Serve beside its nearest free end instead of inside a chair.
-            if(spots.Count==0)foreach(var p in cells.OrderBy(p=>p.DistanceSquaredTo(counter.KeeperAt)))
-            {Add(p);if(spots.Count>0)break;}
-        }
+        h.Serve=null;
+        if(counter!=null && KeeperSpot(h,counter) is {} keeper){spots.Add(new(keeper.X,keeper.Z));var serve=counter.StandAt;h.Serve=new(serve.X,serve.Z);}
         // Standing allocations never use chair centres. TavernSeats places actual seated
         // occupants on their authored seats independently, with the same entry-lane guard.
         foreach(var p in cells.OrderByDescending(p=>p.DistanceSquaredTo(room.Frame.Origin)))if(spots.Count<PerHouse)Add(p);
         return spots;
     }
+    /// <summary>The keeper's place: on the serving side of the counter, the anchor or the nearest free point along
+    /// the bar (a standing body of KeeperRadius between the bar and the back shelves), never on the customers' side.
+    /// Null when the bar has no free floor behind it; the room's layout must then give the bar its serving gap.</summary>
+    public Vector3? KeeperSpot(House h,InteriorFurniture counter)
+    {
+        float toward=Math.Sign(counter.Stand.X-counter.Keeper.X),half=Math.Max(.2f,counter.Size.Z*.5f-.3f);
+        Vector3? best=null;float bestDistance=float.MaxValue;
+        foreach(float dx in new[]{0f,.05f,-.05f,.1f})
+            for(float dz=0;dz<=half;dz+=.1f)
+                foreach(float sign in dz==0?new[]{1f}:new[]{1f,-1f})
+                {
+                    var local=counter.Keeper+new Vector3(toward*dx,0,sign*dz);float distance=new Vector2(dx,dz).Length();
+                    if(distance>=bestDistance)continue;
+                    var at=counter.Node.ToGlobal(local);
+                    if(FloorFree(h,at,KeeperRadius)){best=at;bestDistance=distance;}
+                }
+        return best;
+    }
+    private const float KeeperRadius=.24f;
     private void Yield(House h,Figure f,double dt,Vector3 eye)
     {
         if(Math.Abs(eye.Y-FloorY(h,new(eye.X,eye.Z))-1.6)>1.5)return;

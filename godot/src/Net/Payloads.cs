@@ -96,6 +96,8 @@ public sealed record BoardState
     public string State { get; init; } = "ready";
     public string? Source { get; init; }
     public string? Error { get; init; }
+    /// <summary>#153: the board's eight places, { "job id": place 0..7 }; a job not in it waits off the board.</summary>
+    public Dictionary<string, int>? Slots { get; init; }
 }
 
 public sealed record RentState
@@ -311,6 +313,10 @@ public sealed record WhereNow
     public string? Place { get; init; }
     public string Label { get; init; } = "";
     public bool Lantern { get; init; }
+    /// <summary>#162: 0 no fire, 1 in a lit tavern or near a burning fire basket, 2 close to the fire.</summary>
+    public int Warming { get; init; }
+    /// <summary>#162: the fire baskets burn now (the engine's hours).</summary>
+    public bool? Fires { get; init; }
 }
 
 public sealed record TickReply : JobsPayload

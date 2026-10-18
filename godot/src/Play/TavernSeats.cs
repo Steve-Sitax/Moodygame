@@ -76,10 +76,25 @@ public partial class TavernSeats : Node
         Interact.I.AddProvider(SeatedKeys);
         if (Scheldemist.Menu.MainMenu.I is { } menu) menu.WorldReplaced += Reset;
     }
+    private Room? street;
+    /// <summary>What a street bench offers while Jef sits on it (Day: sleep on it).</summary>
+    public Func<Act?>? StreetAction { get; set; }
+    /// <summary>Sits Jef on a street bench (#165): the seat's ground point under him, the way it faces, its height.</summary>
+    public bool SitOnStreet(Vector3 ground, float facing, float height)
+    {
+        if (Sitting != null) return false;
+        if (street == null) { street = new Room { Id = "street", Open = true, Bounds = new(-100000, -100000, 200000, 200000) }; Rooms.Add(street); }
+        var seat = new Seat { Room = street, At = ground, Approach = ground + new Vector3(MathF.Sin(facing), 0, MathF.Cos(facing)) * .6f, Height = height, Yaw = facing, Table = -2 };
+        street.Seats.Clear(); street.Seats.Add(seat);
+        Sit(seat);
+        return Sitting == seat;
+    }
+    public bool OnStreetBench => Sitting != null && Sitting.Room == street;
     private Offers? SeatedKeys(float x, float z)
     {
         if (Sitting == null) return null;
         var only = seatedOffers.Only!; only.Clear(); only.Add(standAction);
+        if (OnStreetBench && StreetAction?.Invoke() is { } bench) only.Add(bench);
         if (mate != null) only.Add(diceAction);
         if (GuestAction?.Invoke() is { } guest) only.Add(guest);else if(mate!=null)only.Add(talkAction);
         return seatedOffers;
@@ -87,7 +102,7 @@ public partial class TavernSeats : Node
     private void Reset(string how, ClientState? state) { generation++;tableLines=null;talkingRoom=null;TableLinesShown=0;chatClock=20; Stand(); foreach (var r in Rooms) { r.Open=!r.Id.StartsWith("tavern:"); foreach(var s in r.Seats)s.Occupant=null; } poll=0; }
     private static Vector3 World(Room r, float x, float z) => r.Origin + new Vector3(x*MathF.Cos(r.Yaw)+z*MathF.Sin(r.Yaw),0,-x*MathF.Sin(r.Yaw)+z*MathF.Cos(r.Yaw));
     private static uint Hash(string id) { uint h=2166136261; foreach(char c in id) h=unchecked((h^c)*16777619); return h; }
-    public void Sit(Seat seat) { if (seat.Occupant!=null || Sitting!=null || !seat.Room.Open) return; returnAt=new(Jef.I.X,Jef.I.Y,Jef.I.Z); Sitting=seat; Jef.I.X=seat.At.X; Jef.I.Z=seat.At.Z; yaw=seat.Yaw+MathF.PI; pitch=0; Jef.I.Frozen=true; FindMate();if(seat.Table!=9)_ = Overhear(true); }
+    public void Sit(Seat seat) { if (seat.Occupant!=null || Sitting!=null || !seat.Room.Open) return; returnAt=new(Jef.I.X,Jef.I.Y,Jef.I.Z); Sitting=seat; Jef.I.X=seat.At.X; Jef.I.Z=seat.At.Z; yaw=seat.Yaw+MathF.PI; pitch=0; Jef.I.Frozen=true; FindMate();if(seat.Table!=9&&seat.Room!=street)_ = Overhear(true); }
     public void Stand() { if(Sitting==null)return; Sitting=null; mate=null; Dice.I?.Close(); Jef.I.Frozen=false; Jef.I.Place(returnAt.X,returnAt.Z,yaw,pitch,returnAt.Y); }
     private void FindMate() { var previous=mate; mate=null; if(Sitting is not {} s)return; float best=2.6f; foreach(var q in s.Room.Seats) if(q.Occupant is {} who && HasFigure(s.Room.Id,who.Id)) { float d=q.Table==s.Table?0:new Vector2(q.At.X-s.At.X,q.At.Z-s.At.Z).Length(); if(d<best){best=d;mate=who;} } if(mate!=previous && mate!=null)diceAction.Text="play pitjesbak with "+mate.First; }
     private bool HasFigure(string room,string id) { if(town?.Indoors is not {} indoors)return false; foreach(var h in indoors.Houses)if(h.Id==room)return h.Figures.ContainsKey(id);return false; }

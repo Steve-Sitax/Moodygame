@@ -96,7 +96,9 @@ public static class WorkshopProof
                 s.Camera.Position = new(bench.Position.X, 0.02f, bench.Position.Z + 3);
                 s.Camera.ProofDrive = Vector3.Forward;
                 await Frames(s, 90); s.Camera.ProofDrive = null;
-                Check(s.Camera.Position.Z > bench.Position.Z + 0.55f && s.Camera.Position.Z < bench.Position.Z + 1.1f,
+                // (the bench's own front edge, from its asset's footprint: the walker stops a body's width before it)
+                float benchFront = bench.Asset is { } benchAsset ? benchAsset.FootprintOffset.Z + benchAsset.Footprint.Z * .5f : .4f;
+                Check(s.Camera.Position.Z > bench.Position.Z + benchFront + 0.15f && s.Camera.Position.Z < bench.Position.Z + benchFront + 0.7f,
                     "walking capsule stops at the placed bench");
                 s.SetEditing(true);
 

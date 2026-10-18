@@ -162,6 +162,32 @@ camp), `clips`. Morning work keeps its own clock; the pictures' light is set to 
 check. The work goods are built with `native-godot/scripts/build-workgoods.ps1` and stored with
 `replace-workgoods.ps1`.
 
+## Market, work board, warmth, benches and room keepers
+
+`--market-proof <dir>` (with `--no-ai --no-mainmenu --dev`, its own `--db`, `--prefs`, `--author-root`, port and
+`SCHELDEMIST_USER_DATA`) stages these fixes in the real town and writes `market.json` and pictures
+(`Play/MarketProof.cs`). `--market-proof-only` picks stages: `keepers` (every tavern and shop keeper stands behind
+the counter, customers still reach it; De Vliet at 13:00 and 20:00), `vleeshuis` (no old-kit figure shows or blocks
+in the Vleeshuis, its workers are people2 and out of the doorways), `warmth` (real clock ticks with Jef's own place:
+warmth rises by a burning fire basket at night and by an open tavern's hearth, not ten metres away, not by day, not
+by a shut tavern's cold hearth; the fires burn or go out to match), `benches` (every bench of the town placed with
+the new models and listed for sleeping, a person can stand in front of each and walk on, its collider is where its seat
+is drawn; E sleeps and F sits at five benches of each kind, the engine accepts the sleep; day, rain and night pictures),
+`benchsurvey` (before/after pictures of the old benches: add `--keep-old-benches --bench-cams <bench-cams.json>` for
+the before), `benchplan` (`--bench-plan <json>`: tries planned new bench places for free level ground, room in front
+and a route), `board` (the old plain board gone, the new one by the Hessenatie, one note per open job in the
+engine's eight places with title, giver and pay big enough for a metre; a full board waits the rest off its list; E on a
+note takes its job, its note comes down and a waiting job goes up in that place; day, rain and night pictures),
+`boardsurvey`, `market` (the Vismarkt's sixteen pitches, each with its own seller, home, hours and handcart, a
+walking route from her door, no one else's cart on a pitch; one seller pushes her cart from her door with the clock
+running; at 6:15 the stalls part-built and no sales ("not open yet"), at 9:00 every stall up with its seller at it, the
+fishwives gutting, E and F at a stall, a sale taking one off the fish stock; at 12:45 packing and no sales; all gone
+when the last seller's day ends; no market on Sunday; pictures 5:15-13:00), `pitchspots` (with every stall up: an open
+place for each seller behind her stall and a place for her cart; writes the corrected pitch list), `pitchplan` and
+`marketsurvey` (the old random layout, to choose pitches from), `facts` (a survey: fire spots, benches, rooms, the
+town's places). Decisions: `docs/town-life-decisions.md`.
+Exit 1 on a failed check.
+
 ## Conversations and indoor entrances
 
 Build/import the native project first. `pwsh -File native-godot/scripts/check-conversations.ps1 -Output <fresh-directory> -Port 8925`

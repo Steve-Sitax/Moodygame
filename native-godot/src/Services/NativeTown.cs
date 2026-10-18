@@ -111,7 +111,7 @@ public sealed class NativeTown : INativeServiceModule
         if (found == null) return null;
         var keeper = Residents.Values.FirstOrDefault(r => S(r["work"], "place") == place && S(r["work"], "kind") is "shop" or "tavern");
         if (keeper == null || !AtWork(S(keeper, "id"))) return null;
-        return new JsonObject { ["shelter"] = true, ["place"] = place, ["label"] = found["label"]?.DeepClone() };
+        return new JsonObject { ["shelter"] = "sheltered", ["place"] = place, ["label"] = found["label"]?.DeepClone() };
     }
     private JsonArray? FindWay(string key)
     {

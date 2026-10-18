@@ -15,6 +15,7 @@ public partial class NeedsCard : Control
     private static readonly Color LowSafe = new("9b4d18"); // #b34700: colour-safe markers (the menu's Accessibility)
     private float s = 1;
     private double food = 10, warmth = 10, sleep = 10, health = 10;
+    private int warming;
 
     public override void _EnterTree() => Access.Changed += QueueRedraw;
     public override void _ExitTree() => Access.Changed -= QueueRedraw;
@@ -30,7 +31,16 @@ public partial class NeedsCard : Control
     {
         if (food == this.food && warmth == this.warmth && sleep == this.sleep && health == this.health) return;
         (this.food, this.warmth, this.sleep, this.health) = (food, warmth, sleep, health);
-        TooltipText = $"food {food}/10, warmth {warmth}/10, sleep {sleep}/10, health {health}/10";
+        TooltipText = $"food {food}/10, warmth {warmth}/10{(warming > 0 ? " and rising by the fire" : "")}, sleep {sleep}/10, health {health}/10";
+        QueueRedraw();
+    }
+
+    /// <summary>#162: warmth is rising at a fire (1, 2 close by): small rising marks after the flames.</summary>
+    public void SetWarming(int level)
+    {
+        level = Math.Clamp(level, 0, 2);
+        if (level == warming) return;
+        warming = level;
         QueueRedraw();
     }
 
@@ -63,6 +73,16 @@ public partial class NeedsCard : Control
                 rows[r].Draw(pen, 76 + i * 17, y);
                 if (rows[r].V >= (i + 1) * 2) pen.Fill();
                 else pen.Stroke();
+            }
+            if (r == 1 && warming > 0)
+            {
+                // a small rising mark per level, after the five flames
+                var up = new Pen(this, col) { LineWidth = 1.6f };
+                for (int k = 0; k < warming; k++)
+                {
+                    float x = 163 + k * 9, top = y - 4;
+                    up.BeginPath(); up.MoveTo(x, top + 6); up.LineTo(x + 3.5f, top); up.LineTo(x + 7, top + 6); up.Stroke();
+                }
             }
         }
     }

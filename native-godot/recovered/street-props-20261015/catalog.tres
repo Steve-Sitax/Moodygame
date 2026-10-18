@@ -12,8 +12,10 @@
 [ext_resource type="Resource" path="res://recovered/street-props-20261015/props/post-box-pillar.tres" id="10_hubmk"]
 [ext_resource type="Resource" path="res://recovered/street-props-20261015/props/street-pump-iron.tres" id="11_al87u"]
 [ext_resource type="Resource" path="res://recovered/street-props-20261015/props/wheel-guard-stone.tres" id="12_7jm01"]
+[ext_resource type="Resource" path="res://assets/library/bench-worn.tres" id="90_bench"]
+[ext_resource type="Resource" path="res://assets/library/park-bench-iron-worn.tres" id="91_bench"]
 [ext_resource type="Script" path="res://src/Authoring/AuthorCatalog.cs" id="13_et8i1"]
 
 [resource]
 script = ExtResource("13_et8i1")
-Assets = Array[ExtResource("1_nqv76")]([ExtResource("2_f1lao"), ExtResource("3_klnob"), ExtResource("4_sk3vr"), ExtResource("5_68c53"), ExtResource("6_syxua"), ExtResource("7_vgk7j"), ExtResource("8_o8203"), ExtResource("9_61onm"), ExtResource("10_hubmk"), ExtResource("11_al87u"), ExtResource("12_7jm01")])
+Assets = Array[ExtResource("1_nqv76")]([ExtResource("2_f1lao"), ExtResource("3_klnob"), ExtResource("4_sk3vr"), ExtResource("5_68c53"), ExtResource("6_syxua"), ExtResource("7_vgk7j"), ExtResource("8_o8203"), ExtResource("9_61onm"), ExtResource("10_hubmk"), ExtResource("11_al87u"), ExtResource("12_7jm01"), ExtResource("90_bench"), ExtResource("91_bench")])

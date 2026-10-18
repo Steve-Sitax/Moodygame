@@ -26,7 +26,7 @@
 [node name="Objects" type="Node3D" unique_id=186489589]
 
 [node name="object_counter" type="Node3D" parent="." unique_id=1433304069]
-transform = Transform3D(-0.9877633, 0, -0.15596063, 0, 1, 0, 0.15596063, 0, -0.9877633, -29.58448, 0.18, 101.95026)
+transform = Transform3D(-0.9877633, 0, -0.15596063, 0, 1, 0, 0.15596063, 0, -0.9877633, -29.8815, 0.18, 101.9983)
 script = ExtResource("1_4rfib")
 ObjectId = "room-shop-roaster_canal-counter"
 Asset = ExtResource("2_850vk")

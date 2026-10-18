@@ -33,6 +33,8 @@ public partial class Jobs : Node
 
     private const float ReachBoard = 2.6f;
     private const float ReachTalk = 2.6f;
+    /// <summary>How much further a market seller is in reach, across her stall (#150).</summary>
+    private const float AcrossStall = .9f;
     private const float OwnerSees = 12;
     private const double NoteSeconds = 11;
     private const int MaxInHand = 3;
@@ -248,12 +250,16 @@ public partial class Jobs : Node
             o.Options.Add((RunWords.Dist(item.X, item.Z, x, z), Act.At(Key.E, $"lift the {GoodsRules.Of(item.Kind).One}", goods.Middle(item), () => Lift(item))));
         // E goes to a person Jef looks at: the talk window is the talk part's
         if (Scheldemist.Talks.Talk.I is { } talk)
-            foreach (var who in Folk.Near(x, z, ReachTalk))
+            foreach (var who in Folk.Near(x, z, ReachTalk + AcrossStall))
             {
+                // a market seller is talked to across her stall (#150): the stall's depth further off than anyone else
+                if (who.Dist > ReachTalk && !who.Id.StartsWith(Scheldemist.People.NativeMarket.SellerPrefix, StringComparison.Ordinal)) continue;
                 var chest = who.At + new Vector3(0, 1.3f, 0);
                 var p = who;
                 o.Options.Add((who.Dist + (who.Fixed ? 0 : 0.05f), Act.At(Key.E, $"talk to {who.Name}", chest, () => talk.Open(p.Id, p.Name, p.Title))));
-                if (talk.Sells(who.Id)) o.Extra.Add(Act.At(Key.F, $"buy from {who.Name}", chest, () => talk.Open(p.Id, p.Name, p.Title, true)));
+                // a market seller outside her hours says so (#150): not open yet, packing up, no market on Sunday
+                if (Scheldemist.People.NativeMarket.I?.NotOpen(who.Id) is { } shut) o.Extra.Add(Act.At(Key.F, $"{who.Name}: {shut}", chest, () => Toast($"{who.Name}'s stall: {shut}.")));
+                else if (talk.Sells(who.Id)) o.Extra.Add(Act.At(Key.F, $"buy from {who.Name}", chest, () => talk.Open(p.Id, p.Name, p.Title, true)));
             }
         var (bx, bz) = Spots.Board;
         float boardD = RunWords.Dist(bx, bz, x, z);
@@ -449,6 +455,8 @@ public partial class Jobs : Node
     {
         // an emigrant family's errand is asked in talk, and the night's work in a low voice: not chalked on the board
         var all = GameState.I.Jobs.Where(j => (j.Source != "emigrant" && j.Source != "night") || j.Status == "taken").ToList();
+        // #153: open work is on the board only while it has a place there (a full board posts no more)
+        if (GameState.I.BoardSlots is { } slots) all.RemoveAll(j => j.Status == "offered" && j.Source != "night" && j.Source != "emigrant" && !slots.ContainsKey(j.Id.ToString()));
         var finished = all.Where(j => j.Status is "done" or "failed").TakeLast(2).ToList();
         return all.Where(j => j.Status is "offered" or "taken" || finished.Contains(j)).ToList();
     }

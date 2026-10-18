@@ -22,7 +22,7 @@ public sealed partial class NativeCoreJobs
     private bool boardAgain;
     private int generation;
     private readonly List<Task> outcomes=new();
-    public JsonObject BoardState()=>boardState.DeepClone().AsObject();
+    public JsonObject BoardState(){var state=boardState.DeepClone().AsObject();state["slots"]=Slots();return state;}
     public void EnsureStartup(){if(!startupNeeded)return;startupNeeded=false;if(RawList(1).Count==0)MakeBoard();}
     public static (int Min,int Max,int SchemaMin) BoardSize(double players){int n=(int)Math.Clamp(Math.Floor(double.IsFinite(players)?players:1),1,6);return(4+2*(n-1),7+2*(n-1),3);}
     public int Tier(int who=1){int best=C.Scalar<int>("SELECT MAX(trust) FROM faction_trust WHERE player_id=$p0",who),tier=0;int[] thresholds={0,3,5,7,9};for(int i=0;i<thresholds.Length;i++)if(best>=thresholds[i])tier=i;return tier;}

@@ -177,19 +177,19 @@ ObjectId = "room-tavern-vliet-seat-17"
 Asset = ExtResource("19_jp2hp")
 
 [node name="object_seat-18" type="Node3D" parent="." unique_id=538888400]
-transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -114.52, 0.18, 52.9)
+transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -114.27, 0.18, 52.9)
 script = ExtResource("1_fclby")
 ObjectId = "room-tavern-vliet-seat-18"
 Asset = ExtResource("20_whvyv")
 
 [node name="object_seat-19" type="Node3D" parent="." unique_id=1175325645]
-transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -114.52, 0.18, 54.2)
+transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -114.27, 0.18, 54.2)
 script = ExtResource("1_fclby")
 ObjectId = "room-tavern-vliet-seat-19"
 Asset = ExtResource("21_u8wch")
 
 [node name="object_seat-20" type="Node3D" parent="." unique_id=757340884]
-transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -114.52, 0.18, 55.5)
+transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -114.27, 0.18, 55.5)
 script = ExtResource("1_fclby")
 ObjectId = "room-tavern-vliet-seat-20"
 Asset = ExtResource("22_2j7uk")
@@ -249,7 +249,7 @@ ObjectId = "room-tavern-vliet-table-8"
 Asset = ExtResource("31_6jnkv")
 
 [node name="object_counter" type="Node3D" parent="." unique_id=1915035096]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -115.145, 0.18, 54.2)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -114.895, 0.18, 54.2)
 script = ExtResource("1_fclby")
 ObjectId = "room-tavern-vliet-counter"
 Asset = ExtResource("32_2sq7g")

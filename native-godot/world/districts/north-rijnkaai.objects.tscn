@@ -1,3 +1,34 @@
 [gd_scene format=3]
 
+[ext_resource type="Script" path="res://src/Authoring/AuthoredObject.cs" id="1_obj"]
+[ext_resource type="Resource" path="res://assets/library/bench-worn.tres" id="63_bench"]
+[ext_resource type="Resource" path="res://assets/library/hiring-board.tres" id="70_board"]
+
 [node name="Objects" type="Node3D" unique_id=529344314]
+
+[node name="object_bench-tavern-ankere" type="Node3D" parent="." unique_id=136131432]
+transform = Transform3D(-1, 0, -0.000007, 0, 1, 0, 0.000007, 0, -1, -52.6, 0, 44.3)
+script = ExtResource("1_obj")
+ObjectId = "bench-tavern-ankere"
+Asset = ExtResource("63_bench")
+metadata/bench_label = "the bench before In de Ankere"
+
+[node name="object_bench-rijnkaai-1" type="Node3D" parent="." unique_id=232674013]
+transform = Transform3D(-1, 0, -0.000007, 0, 1, 0, 0.000007, 0, -1, -8, 0.01, 10.85)
+script = ExtResource("1_obj")
+ObjectId = "bench-rijnkaai-1"
+Asset = ExtResource("63_bench")
+metadata/bench_label = "a bench on the Rijnkaai"
+
+[node name="object_bench-rijnkaai-2" type="Node3D" parent="." unique_id=1641358827]
+transform = Transform3D(-1, 0, -0.000007, 0, 1, 0, 0.000007, 0, -1, 58, 0, 10.85)
+script = ExtResource("1_obj")
+ObjectId = "bench-rijnkaai-2"
+Asset = ExtResource("63_bench")
+metadata/bench_label = "a bench on the Rijnkaai"
+
+[node name="object_hiring-board" type="Node3D" parent="." unique_id=153153153]
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 20.13, 0, 42.8)
+script = ExtResource("1_obj")
+ObjectId = "hiring-board"
+Asset = ExtResource("70_board")

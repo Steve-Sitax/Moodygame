@@ -53,6 +53,20 @@ public partial class NativeTownGame : Scheldemist.Main
                 definition["fire"]=furniture.Any(p=>p.Room==room.District.RoomId&&p.Kind=="stove");
             }
         }
+        // #162: the fires that warm, from the scene: tavern hearths and stoves, and the outdoor fire baskets.
+        var heat=new System.Collections.Generic.List<NativeHeatSource>();
+        foreach(var (at,size,room) in Scheldemist.World.Fires.BakedSpots(World))
+            if(room!=null||Scheldemist.World.Fires.IsBasket(size,room,at))heat.Add(new((room??"basket")+"@"+heat.Count,room,at.X,at.Y,at.Z));
+        foreach(var stove in ((NativeTown)World).NativeFurniture!.Where(p=>p.Kind=="stove"&&p.Room.StartsWith("tavern:")))
+        {var at=stove.Node.GlobalPosition;heat.Add(new(stove.Id,stove.Room,at.X,at.Y,at.Z));}
+        host.Clock.HeatSources=heat;
+        GD.Print($"warmth: {heat.Count(h=>h.Place!=null)} tavern fires, {heat.Count(h=>h.Place==null)} fire baskets");
+        // #165: the benches authored in the districts join the engine's sleep benches (the old ones keep their ids).
+        int newBenches=0;
+        foreach(var place in Scheldemist.Play.BenchPlaces.All)
+            if(host.Rest.Bench(place.Id)==null)
+            {var seat=place.At*new Vector3(0,0,.02f);host.Rest.RegisterBench(new JsonObject{["id"]=place.Id,["label"]=place.Label,["x"]=(double)seat.X,["z"]=(double)seat.Z,["y"]=(double)place.At.Origin.Y,["fine"]=place.Fine});newBenches++;}
+        GD.Print($"benches: {Scheldemist.Play.BenchPlaces.All.Count} placed, {newBenches} new to the sleep list");
         try
         {
             var town = new Services.NativeTown(host); host.AddModule(town);
@@ -166,7 +180,8 @@ public partial class NativeTownGame : Scheldemist.Main
             host.Night.EndCallsFor = prefix => { actions.EndCallsFor(prefix); };
             // Navigation and people are initialized before the backend is exposed. Replanning edited lamps
             // and fresh-world lifecycle registration need no scene-node calls or render-thread blocking.
-            await Task.Run(() => host.WithState(_ => { host.AddModule(populationLifecycle); return true; }));
+            // (#150: the Vismarkt's market-day sellers and their carts, added after the original fresh town)
+            await Task.Run(() => host.WithState(_ => { host.AddModule(populationLifecycle); host.AddModule(new NativeTownMarketPopulation(population, populationLifecycle.Transport)); return true; }));
             host.AddModule(new NativeLampJobs(host));
             var story = new NativeStory(host) {
                 Resident = town.Resident, Doing = id => town.Activity(id).Act,

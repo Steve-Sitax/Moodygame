@@ -48,6 +48,12 @@ public partial class Omnibus
         new("ramparts",new(-90.2f,349.7f),new(-92.12f,350.05f,3.098f)),new("keizerspoort",new(64.3f,329.9f),new(64.84f,331.78f,-1.527f)),
         new("sint_paulus",new(49.9f,261.9f),null),new("keizerstraat",new(-42.1f,178.4f),null),new("conscienceplein",new(-123.2f,158.6f),new(-121.26f,158.82f,-3.012f))
     };
+    /// <summary>The way a stop's bench faces (its sitter's yaw), for the bench standing at about this place; null when none.</summary>
+    public static float? StopBenchYaw(float x, float z)
+    {
+        foreach (var p in Posts) if (p.Bench is { } b && new Vector2(b.X - x, b.Y - z).Length() < .6f) return b.Z;
+        return null;
+    }
     private sealed class Waiter
     {
         public Post Post=null!;

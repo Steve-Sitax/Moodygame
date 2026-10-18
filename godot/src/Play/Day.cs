@@ -23,8 +23,8 @@ namespace Scheldemist.Play;
 ///
 /// The browser has no pump to drink from (its pumps are the washerwomen's, the fire engine's and a map icon), so
 /// none is here. Benches: the Sint-Jansplein, the greens, the Steen and the Stadspark (shared/townplaces.json,
-/// client/public/models/park.json); the benches at omnibus stops, on the wall walk and by house doors come with
-/// the parts that place them (Day.I.AddBench).
+/// client/public/models/park.json); the omnibus stops', the wall walk's and the districts' new benches come from
+/// BenchPlaces, where the town puts every bench as it loads (#165). E sleeps on a bench, F sits on it.
 /// </summary>
 [GamePart(330)]
 public partial class Day : Node
@@ -185,9 +185,28 @@ public partial class Day : Node
                 }
             }
         }
+        // #165: every other bench of the town (the stops', the wall walk's, the new ones in the districts), as the town
+        // has placed them (BenchPlaces); the engine lists the same ids.
+        foreach (var place in BenchPlaces.All)
+        {
+            if (benches.Any(b => b.Id == place.Id)) continue;
+            var seat = place.At * new Vector3(0, 0, .02f);
+            benches.Add(new Bench(place.Id, place.Label, seat.X, seat.Z, place.At.Origin.Y, place.Fine));
+        }
     }
 
     // ------------------------------------------------------------------ the keys
+
+    private Bench? sittingOn;
+    private Act? sleepHereAct;
+    /// <summary>Sitting on a bench: F lies down to sleep on it.</summary>
+    private Act sleepHere => sleepHereAct ??= Act.Me(Key.F, "sleep on the bench", () =>
+    {
+        if (sittingOn is not { } b) return;
+        Main.I.GetNodeOrNull<TavernSeats>("TavernSeats")?.Stand();
+        sittingOn = null;
+        Choose(new Place("bench", b.Label, b.Id));
+    });
 
     private Offers? Keys(float x, float z)
     {
@@ -212,6 +231,16 @@ public partial class Day : Node
                 if (taken) Toast("Someone is on that bench already.");
                 else Choose(new Place("bench", b.Label, b.Id));
             })));
+            // #165: sit down on it (the nearer of its two places); E stands up again, F sleeps on it
+            if (!taken && BenchPlaces.Get(b.Id) is { } place && Main.I.GetNodeOrNull<TavernSeats>("TavernSeats") is { } seats)
+            {
+                var spot = new[] { place.Sit(0), place.Sit(1) }.OrderBy(p => RunWords.Dist(p.X, p.Z, x, z)).First();
+                o.Extra.Add(Act.At(Key.F, "sit on the bench", spot + Vector3.Up * .05f, () =>
+                {
+                    var ground = spot with { Y = place.At.Origin.Y };
+                    if (seats.SitOnStreet(ground, place.Facing, place.SeatY - place.At.Origin.Y)) { sittingOn = b; seats.StreetAction = () => sittingOn == null ? null : sleepHere; }
+                }));
+            }
         }
         // the doss house bed, paid by the week, at any hour and for as long as he chooses
         var (dx, dz) = Spots.Doss;

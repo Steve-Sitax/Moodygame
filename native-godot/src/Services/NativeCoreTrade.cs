@@ -52,6 +52,7 @@ public sealed class NativeCoreTrade : INativeServiceModule
     {
         if(C.Rules["wares"]?[npc] is JsonArray fixedWares)return fixedWares.DeepClone().AsArray();var record=C.Scalar<string>("SELECT data_json FROM resident WHERE id=$p0",npc);if(record==null)return new JsonArray();var r=JsonNode.Parse(record)!;var work=r["work"]!;JsonNode? found;
         if(work["stall"]!=null){int slot=(int)Value(work["stall"]);var stalls=C.World("town")?["stalls"] as JsonArray;string goods=slot>=0&&slot<stalls?.Count?stalls[slot]?["goods"]?.GetValue<string>()??"":"";found=wareRules["stallWares"]?[goods];}
+        else if(work["pitch"]!=null&&work["goods"] is JsonValue pitchGoods&&pitchGoods.TryGetValue<string>(out var sells))found=wareRules["stallWares"]?[sells];
         else if(work["shop"] is JsonValue shopValue&&shopValue.TryGetValue<string>(out var shop)&&shop.Length>0){string own=wareRules["shopTrades"]?[shop]?.GetValue<string>()??"";found=wareRules["tradeWares"]?[own];if(found==null){var keeper=(C.World("town")?["shops"] as JsonArray??new()).FirstOrDefault(s=>s?["id"]?.GetValue<string>()==shop)?["keeper"]?.GetValue<string>();string? head=keeper==null?null:C.Scalar<string>("SELECT data_json FROM resident WHERE id=$p0",keeper);string trade=(head==null?r:JsonNode.Parse(head))?["trade"]?.GetValue<string>()??r["trade"]!.GetValue<string>();found=wareRules["tradeWares"]?[trade];}}
         else found=wareRules["tradeWares"]?[r["trade"]!.GetValue<string>()];return found?.DeepClone().AsArray()??new JsonArray();
     }

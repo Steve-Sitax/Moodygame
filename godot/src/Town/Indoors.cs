@@ -30,6 +30,8 @@ public sealed partial class Indoors
         /// <summary>Where the town sends those who go in (the place's point, a shop's door step).</summary>
         public Pt Goal;
         public Resident? Keeper;
+        /// <summary>Where the keeper behind the counter looks when not talking: the customers' side of the bar.</summary>
+        public Pt? Serve;
         internal List<Pt>? Spots;
         internal readonly Dictionary<string, Figure> Figures = new();
         internal readonly List<Townspeople.Sim> Wanted = new(PerHouse);
@@ -47,6 +49,8 @@ public sealed partial class Indoors
     private const int PerHouse = 10, MostFigures = 28;
 
     public readonly List<House> Houses = new();
+    /// <summary>A drawn indoor figure's node and its standing place (for checks).</summary>
+    public (Node3D Group,int Spot)? FigureNode(House h,string id)=>h.Figures.TryGetValue(id,out var f)?(f.Group,f.Spot):null;
     public (Vector3 At,string Motion)? FigureAt(string room,string id)
     {
         var house=Houses.FirstOrDefault(h=>h.Id==room);
@@ -173,7 +177,7 @@ public sealed partial class Indoors
                     var s = want[i];
                     if (h.Figures.ContainsKey(s.R.Id) || total >= MostFigures) continue;
                     // the keeper at the back; the others on the spots nobody has yet
-                    int spot = 0;
+                    int spot = h.Serve != null && s.R != h.Keeper ? 1 : 0;
                     for (; spot < spots.Count; spot++)
                     {
                         bool taken = false;
@@ -191,7 +195,8 @@ public sealed partial class Indoors
                     human.SetIndoor(true);
                     human.SetIdentity(s.R.Id);
                     human.Start();
-                    double yaw = Math.Atan2(h.Door.X - at.X, h.Door.Z - at.Z);
+                    var look = spot == 0 && h.Serve is { } serve ? serve : h.Door;
+                    double yaw = Math.Atan2(look.X - at.X, look.Z - at.Z);
                     g.Position = new Vector3((float)at.X, FloorY(h,at), (float)at.Z);
                     g.Rotation = new Vector3(0, (float)yaw, 0);
                     h.Figures[s.R.Id] = new Figure { Human = human, Group = g, Yaw = yaw, Want = yaw, Spot = spot, Wait = rng.NextDouble() * 4 };
@@ -221,7 +226,8 @@ public sealed partial class Indoors
                         if (gap < distance) { other = candidate; distance = gap; }
                     }
                     bool talk = other != null && rng.NextDouble() < 0.5;
-                    f.Want = other != null && rng.NextDouble() < 0.8 ? Math.Atan2(other.Group.Position.X - p.X, other.Group.Position.Z - p.Z) : Math.Atan2(h.Door.X - p.X, h.Door.Z - p.Z);
+                    var look = f.Spot == 0 && h.Serve is { } serve ? serve : h.Door;
+                    f.Want = other != null && rng.NextDouble() < 0.8 ? Math.Atan2(other.Group.Position.X - p.X, other.Group.Position.Z - p.Z) : Math.Atan2(look.X - p.X, look.Z - p.Z);
                     f.Human.Play(talk ? "talk" : f.Human.Woman || rng.NextDouble() < 0.5 ? "idle" : "fold", 0.4f);
                     f.Wait = talk ? 2.5 + rng.NextDouble() * 3 : 4 + rng.NextDouble() * 7;
                 }
