@@ -12,6 +12,7 @@ Bugs and loose ends are tracked as [issues](https://github.com/Steve-Sitax/Moody
 ## [Unreleased]
 
 - The Grote Markt's sellers are people of the town, as on the Vismarkt: twenty stalls in fixed places, each kept by her own seller with a name, a home and a handcart. She sets up from half past five, sells from seven to half past twelve (E talks, F buys: cheese, apples, shawls, a potted plant, a scarf or a pipe, soup at the brazier), packs up and goes home; no market on Sunday (#192).
+- Handcarts and the knife grinder's barrow no longer roll over people. A cart waits for whoever stands in its way, waits for a passing cart instead of shuffling to and fro, and a cart swinging round a corner nudges people aside. A parked cart is not set down on top of anyone. The Grote Markt's sellers go home two at a time, three minutes apart (#192).
 - The cathedral's organ loft has a way up: an oak stair in the south aisle and a short gallery into the loft. You can climb it, and the organist walks up it to his organ; the confessor walks to his confessional and steps in (#192).
 - The market's fish are real fish everywhere: the crates, baskets, buckets and barrows, the fixed fish stalls and the porters' fish boxes hold the herring (and the stalls the cod) on crushed ice, and the fish tables' big blurry fish picture is crushed ice too. The stalls' dried cod hang from the rail by the tail (#190).
 - No more pale dots floating in the tavern fireplaces: a room's hearth burns without the outdoor fires' sparks (#190).

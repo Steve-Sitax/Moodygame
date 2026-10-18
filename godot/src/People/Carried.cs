@@ -490,6 +490,8 @@ public sealed class PushCart
     }
 
     public (double x, double z) Axle => (ax, az);
+    /// <summary>How far out along its heading the axle hangs from the grips now (it follows the tilt).</summary>
+    public double Reach => GripReach();
     public double Yaw => dir;
     public Node3D LoadFrame => pivot;
 

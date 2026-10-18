@@ -311,6 +311,10 @@ public static class NativeLeftoversProof
                 await Shot("cathedral-west-high", new Vector3(hx + 3f, floor + 9f, hz + 16f), new Vector3(hx, floor + 7f, hz + 4f));
                 await Shot("cathedral-west-side", new Vector3(hx + 8f, floor + 2f, hz + 12f), new Vector3(hx - 2f, floor + 6f, hz + 4f));
                 await Shot("cathedral-confessional", new Vector3(hx + 19f, floor + 1.7f, hz + 43f), new Vector3(hx + 24.25f, floor + 1f, hz + 40.55f));
+                // what stands round the confessional at a body's height (the four brown figures before it): built pieces and people
+                facts["confessional"] = BakedWorld.All(game.GetTree().Root).OfType<MeshInstance3D>().Where(m => m.Mesh != null && m.IsVisibleInTree()).Select(m => (m, box: m.GlobalTransform * m.GetAabb()))
+                    .Where(q => q.box.Size.Length() < 90 && q.box.End.X > hx + 21.5f && q.box.Position.X < hx + 27f && q.box.End.Z > hz + 38.5f && q.box.Position.Z < hz + 43f && q.box.Position.Y < floor + 2.2f && q.box.End.Y > floor + .5f)
+                    .Select(q => new { path = Names(q.m), min = new[] { MathF.Round(q.box.Position.X - hx, 2), MathF.Round(q.box.Position.Y - floor, 2), MathF.Round(q.box.Position.Z - hz, 2) }, size = new[] { MathF.Round(q.box.Size.X, 2), MathF.Round(q.box.Size.Y, 2), MathF.Round(q.box.Size.Z, 2) } }).Take(80).ToArray();
                 Jef.I.Place(hx, hz + 6f, MathF.PI, 0, floor); await Frames(40);
                 facts["underLoft"] = new { ground = Jef.I.GroundAt(hx, hz + 6f, floor + 9f), at7 = Jef.I.GroundAt(hx, hz + 9.25f, floor + 7.6f) };
                 // the loft's floor: its top at every half metre (hall frame), from 8.2 m down
