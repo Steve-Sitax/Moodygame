@@ -1,6 +1,6 @@
 {
   "format": 2,
-  "version": "native-pack-e9774ff030cbed9b86a375af4623392576b74b8d720a5467c5a2c76b1df6f1b7",
+  "version": "native-pack-38c0b5ec1ba9990db220c66db50098f4c4e8b349bcb1f8365f2864f9fd3a2139",
   "files": [
     {
       "file": "maps/dirt.json",
@@ -1870,9 +1870,9 @@
     },
     {
       "file": "shared/faceTypes.json",
-      "blob": "blobs/58682d07604e6f57f7ce1030b27c8a1bb947e3a16e195955e1d912222d23e8b3.bin",
-      "sha256": "58682d07604e6f57f7ce1030b27c8a1bb947e3a16e195955e1d912222d23e8b3",
-      "bytes": 74755
+      "blob": "blobs/44e61c8dc25d07bd7ac3f0c5089eecc9c030b293d83a89d9b8e33af44ed41b98.bin",
+      "sha256": "44e61c8dc25d07bd7ac3f0c5089eecc9c030b293d83a89d9b8e33af44ed41b98",
+      "bytes": 74754
     },
     {
       "file": "shared/fleet.json",
@@ -1906,9 +1906,9 @@
     },
     {
       "file": "shared/peopleRig.json",
-      "blob": "blobs/5205b84a7cb720349cf68631e1646a446ac11ffab79b257604f70f0fe48f8d4b.bin",
-      "sha256": "5205b84a7cb720349cf68631e1646a446ac11ffab79b257604f70f0fe48f8d4b",
-      "bytes": 1104517
+      "blob": "blobs/2909dbbf6bdcbd23d5e3cfc7500ffeb6bf0e9f3f98626cf4d5c86234f33f5129.bin",
+      "sha256": "2909dbbf6bdcbd23d5e3cfc7500ffeb6bf0e9f3f98626cf4d5c86234f33f5129",
+      "bytes": 1104877
     },
     {
       "file": "shared/peopleSliders.json",
