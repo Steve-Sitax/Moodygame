@@ -1,7 +1,7 @@
 {
   "sourceCommit": "249f8613",
   "scope": "Native town, default people2, no AI, fresh seed 1873; first processed frame after game parts are attached",
-  "reason": "Reviewed signature inventory after the native materials, clothing, furniture, pier and dressed-stone merges. Kind identity is checked, rather than a historical count. 2026-10-18 (#161, #171): three kinds changed code in place and keep their place: the dressed stone (old stone colour, damp line), the town houses' walls (foot damp follows the house's wear) and the rooms' window glass (follows the sky's light).",
+  "reason": "Reviewed signature inventory after the native materials, clothing, furniture, pier and dressed-stone merges. Kind identity is checked, rather than a historical count. 2026-10-18 (#161, #171): three kinds changed code in place and keep their place: the dressed stone (old stone colour, damp line), the town houses' walls (foot damp follows the house's wear) and the rooms' window glass (follows the sky's light). 2026-10-18 (#97): the sky dome's kind changed code in place and keeps its place (a clear day's blue between the clouds).",
   "firstKinds": [
     "shader:03DB7241DFC388D2",
     "shader:06ECECA2573809AB",
@@ -129,7 +129,7 @@
     "shader:DA186D750A38DBEF",
     "shader:DB5675F7FEB0D9A6",
     "shader:DCB629BEF3F25B14",
-    "shader:DE84E5AB17757AAB",
+    "shader:3F5C1A7ECC663ABC",
     "shader:DF5BA2AEFD3F6AEB",
     "shader:E015E1CF4FBF7508",
     "shader:E2C22237C9AA2E72",

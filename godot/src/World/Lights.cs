@@ -164,6 +164,13 @@ public partial class Lights : Node
     /// <summary>The gas lamps by id and where they stand (the lamplighter's round).</summary>
     public IEnumerable<(string id, Vector3 at)> Lamps => lamps.Select(l => (l.Id, l.At));
 
+    /// <summary>
+    /// The night is lit (#184): the clock's dark has come and every gas lamp that should burn has caught. A night picture
+    /// waits for it; it never comes in a paused game (the lamps do not move then).
+    /// </summary>
+    public bool NightReady => Daylight.I is { LampsLit: > 0.99f } && lamps.Count > 0
+        && lamps.All(l => l.Want < 0.5f || eventExtinguished.Contains(l.Id) || l.Lit > 0.95f) && lamps.Any(l => l.B > 0.05f);
+
     /// <summary>The gas lamps by number, for a part that looks at them every frame (no list made): how many.</summary>
     public int LampCount => lamps.Count;
     /// <summary>Gas lamp i: its flame, and how bright it burns now (0 out .. 1, the gas's catch and the dark).</summary>

@@ -111,6 +111,22 @@ Steve: "Lighting during day is flat, is it realistic to have more shadow play?" 
 
 Measured: no frame cost above the noise (Grote Markt, 3 runs each, on 38.5 ms, off 39.7 ms on a busy PC).
 
+## A clear day, and rooms by the clock (Godot, 2026-10-18, #97, #137)
+
+- **A clear day reads as clear** (`World/Daylight.cs ClearDay`): 0 in mist, fog, rain, storm and at night, up to 1 on a
+  clear day by day. It moves the air toward a light haze (`ClearHaze`), puts the fog 1.5 times further off, makes the
+  sun 1.6 times and the sky light 1.25 times stronger. The sky (`World/Sky.cs`, uniform `blue`) is blue between the
+  clouds, deeper overhead and the haze low down, with less cloud. Mist, rain, fog and night give the same numbers as
+  before (the `daylight:` log line).
+- **Sun shadows**: the one sun (`DirectionalLight3D`) casts a shadow map on a clear day only (`ClearDay` over 0.1),
+  2 splits to 70 m, its opacity the clear day's weight; the houses' shadows further off stay the sky map's
+  (`psxSunShadow`). The setting **Shadows** (`shadows`, off on Low) turns it off. No light comes or goes.
+- **Rooms by the clock** (`World/Rooms.cs`): the bake gave every room the same lights by day and by night. Now, outside
+  the halls, a room's lamps are out by day and lit with the dark (`Daylight.Night`); a stove's or hearth's light (orange,
+  `Lamp.Fire`) burns whenever the room is open. By day the room keeps 55 % of its warm fill and takes the sky's light
+  by the windows (`RoomWindowShare` of the street's sky, cold); after dark its fill drops to 22 % and its lamps fall
+  off with the square of the distance (decay 2.4, 1.5 times as strong), so they light it in pools. Halls keep their own.
+
 ## Frame time
 The frame budget, where the time goes, the rules for new models, textures, materials, mirrors and every-frame logic,
 and how to prove a speed change: [performance.md](performance.md).
