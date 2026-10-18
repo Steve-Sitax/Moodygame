@@ -11,6 +11,7 @@ Bugs and loose ends are tracked as [issues](https://github.com/Steve-Sitax/Moody
 
 ## [Unreleased]
 
+- The Vleeshuis has its steep slate roof again: one wine keg stretched over the whole building hid it as a dark blob. The same fault drew a giant keg over the Oostershuis and a giant clock over the prison. The rooms' leaded windows no longer glow grey at night; they are dark and catch the sky by day (#161).
 - Workers carry one load at a time, with both hands on it whatever they do; a box no longer floats beside a worker with hanging arms, and a body reused for another person no longer brings the last owner's crate (#148).
 - The dockers' sack piles are real sacks now: a docker lifts the top sack, the pile shrinks, and it is filled again while nobody looks and at dawn. The sack on his shoulder is the pile's own sack, with its mark (#130).
 - The emigrants on the Rijnkaai have real luggage: a painted trunk with iron corners and straps, a checked cloth bundle, a striped featherbed and a lidded basket. Jobs' trunks, hides and parcels and the carts' tubs, baskets and chairs are real models too (#151).

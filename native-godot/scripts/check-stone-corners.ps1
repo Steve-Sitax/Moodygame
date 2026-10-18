@@ -1,4 +1,4 @@
-param([string]$Godot, [Parameter(Mandatory)][string]$Views, [string]$Candidate, [switch]$Measure, [switch]$Raw, [string]$Probe, [string]$Output, [ValidateRange(9140,9239)][int]$Port=9233, [int]$LimitSeconds=1500)
+param([string]$Godot, [Parameter(Mandatory)][string]$Views, [string]$Candidate, [switch]$Measure, [switch]$Raw, [string]$Probe, [string]$Hide, [string]$Pick, [string]$Output, [ValidateRange(8900,9239)][int]$Port=9233, [int]$LimitSeconds=1500)
 # Issue #157: pictures (day, rain, night) and frame times of town-house corner stones and door surrounds in the real
 # native town (disposable save, no AI). -Candidate builds repaired meshes in memory; no resource file is written.
 $ErrorActionPreference='Stop'
@@ -21,6 +21,8 @@ try {
     if($Measure){$arguments+='--stone-corners-measure'}
     if($Raw){$arguments+='--stone-corners-raw'}
     if($Probe){$arguments+=@('--stone-corners-probe',$Probe)}
+    if($Hide){$arguments+=@('--stone-corners-hide',$Hide)}
+    if($Pick){$arguments+=@('--stone-corners-pick',$Pick)}
     Invoke-WorkshopEngine -Engine $engine -Project $project -EngineArguments $arguments -Log (Join-Path $proof 'engine.log') -LimitSeconds $LimitSeconds
     if(Test-Path -LiteralPath (Join-Path $proof 'failure.txt')){throw ('Stone corners proof failed: '+(Get-Content -LiteralPath (Join-Path $proof 'failure.txt') -Raw))}
     Write-Output "PROOF: $proof"
