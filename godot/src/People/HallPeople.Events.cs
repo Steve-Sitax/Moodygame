@@ -13,7 +13,8 @@ public partial class HallPeople
     private readonly List<string> ceremonyGone = new(24);
     public int CeremonyEntered { get; private set; }
     public int CeremonyExited { get; private set; }
-    private static bool CeremonyRole(string role) => role is "audience" or "prompter" or "requiem_priest" or "bearer0" or "bearer1" or "bearer2" or "bearer3" or "widow" or "mourner" or "groom" or "bride" or "guest" or "wedding_priest" or "worshipper" or "faithful" or "preacher" or "c_guest" or "c_groom" or "c_bride";
+    // (#192: the cathedral's organist climbs to his loft, the confessor walks to his box and steps in)
+    private static bool CeremonyRole(string role) => role is "organist" or "confessor" or "audience" or "prompter" or "requiem_priest" or "bearer0" or "bearer1" or "bearer2" or "bearer3" or "widow" or "mourner" or "groom" or "bride" or "guest" or "wedding_priest" or "worshipper" or "faithful" or "preacher" or "c_guest" or "c_groom" or "c_bride";
     private static bool EventRoleForWalk(string role) => role is "requiem_priest" or "bearer0" or "bearer1" or "bearer2" or "bearer3" or "widow" or "mourner" or "groom" or "bride" or "guest" or "wedding_priest";
     private static Vector3 DoorAt(Hall h) => h.Plan.GetProperty("marks").TryGetProperty("door", out var door) ? World(h, door) : h.Origin;
     private static bool EyeInside(Hall h)
@@ -224,6 +225,20 @@ public partial class HallPeople
             result.Add(cells[far]); here = cells[far]; k = far + 1;
         }
         return result;
+    }
+    /// <summary>For the checks (#192): a role's walk in from the hall's door to its place: the way's points (by the stair when it
+    /// is upstairs; -1 none) and the last step from the way's end onto the place itself (into a box, onto a seat).</summary>
+    public (int Points, float StepIn) WalkIn(string id, string role)
+    {
+        foreach (var h in Halls)
+        {
+            if (h.Id != id || !h.Roles.TryGetProperty(role, out var spec) || !spec.TryGetProperty("at", out var at) || !EventMark(h, at.GetString()!, out var mark)) continue;
+            var rest = World(h, mark); var entry = OpenCeremonyPoint(h, DoorAt(h));
+            if (rest.Y - h.Origin.Y >= 2) return (StairRoute(h, entry, rest)?.Count ?? -1, 0);
+            var approach = OpenCeremonyPoint(h, rest); var way = Route(h, entry, approach);
+            return (way.Count, new Vector2(rest.X - approach.X, rest.Z - approach.Z).Length());
+        }
+        return (-1, -1);
     }
     public Vector3? DoorOf(string id) { foreach (var h in Halls) if (h.Id == id) return DoorAt(h); return null; }
     public int StairWayLength(string id, Vector3 from, Vector3 to) { foreach (var h in Halls) if (h.Id == id) return StairRoute(h, from, to)?.Count ?? -1; return -1; }

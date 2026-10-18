@@ -53,6 +53,38 @@ public static class Carried
             ?? MeshOf(ModelLibrary.Get("quaygoods", new ModelLibrary.Look(TwoSided: true, Affine: 0, VertexColor: true)), "keg");
     }
 
+    private static List<(Mesh Mesh, Transform3D At)>? marketBox;
+
+    /// <summary>(#190) The open fish box of the market (trades mk_fishbox) with its herring on crushed ice, carried when
+    /// the bake has no fish box of its own (the native town has none: it was a crate with a glass stencil).</summary>
+    private static Node3D? MarketFishBox()
+    {
+        marketBox ??= MarketCatch.Clean("trades", "mk_fishbox", Scheldemist.Play.WorkGoods.Look);
+        if (marketBox.Count == 0) return null;
+        var box = new Node3D { Name = "fishbox" };
+        foreach (var (mesh, at) in marketBox) box.AddChild(new MeshInstance3D { Mesh = mesh, Transform = at, CastShadow = GeometryInstance3D.ShadowCastingSetting.Off });
+        return box;
+    }
+
+    private static List<(Mesh Mesh, Transform3D At)>? boxFill;
+
+    /// <summary>The fish box's catch: crushed ice over the inside of its boards and herring on it (MarketCatch.Box).</summary>
+    private static Node3D? BoxFill()
+    {
+        if (boxBoards == null) return null;
+        if (boxFill == null)
+        {
+            var b = boxBoards.GetAabb();
+            // inside the boards (2 cm thick), the fill's top just under their rim
+            var inside = new Aabb(b.Position + new Vector3(.02f, 0, .02f), b.Size - new Vector3(.04f, .02f, .04f));
+            boxFill = new();
+            foreach (var spot in MarketCatch.Box(inside)) foreach (var (mesh, local) in MarketCatch.Meshes(spot.Model, Scheldemist.Play.WorkGoods.Look)) boxFill.Add((mesh, spot.At * local));
+        }
+        var fill = new Node3D { Name = "fish" };
+        foreach (var (mesh, at) in boxFill) fill.AddChild(new MeshInstance3D { Mesh = mesh, Transform = at, CastShadow = GeometryInstance3D.ShadowCastingSetting.Off });
+        return fill;
+    }
+
     private static Mesh? MeshOf(ModelLibrary.Model? m, string node) =>
         m != null && m.Roots.TryGetValue(node, out var n) ? (n as MeshInstance3D)?.Mesh ?? n.GetChildren().OfType<MeshInstance3D>().FirstOrDefault()?.Mesh : null;
 
@@ -88,9 +120,11 @@ public static class Carried
             case "fishbox":
             {
                 // a box of fish from the Vliet, held low before him in both arms
-                var boards = Inst(boxBoards, "fishbox");
+                var boards = Inst(boxBoards, "fishbox") ?? MarketFishBox();
                 if (boards == null) return Load("crate", k);
-                var fish = Inst(boxFish, "fish");
+                // (#190) the fish in it are the herring of the market on its crushed ice (one model per fish), not the
+                // box's own painted fish
+                var fish = boxBoards == null ? null : BoxFill();
                 if (fish != null) boards.AddChild(fish);
                 boards.Position = new Vector3(0, 0.72f * k, 0.32f * k);
                 return boards;
@@ -527,6 +561,8 @@ public sealed class PushCart
     }
 
     public (double x, double z) Axle => (ax, az);
+    /// <summary>How far out along its heading the axle hangs from the grips now (it follows the tilt).</summary>
+    public double Reach => GripReach();
     public double Yaw => dir;
     public Node3D LoadFrame => pivot;
 

@@ -235,7 +235,7 @@ public static class NativeLeftoversProof
                 Jef.I.Place(-104f, 24f, 0f); await Frames(200);
                 MultiMeshInstance3D? cod = null;
                 foreach (var mm in BakedWorld.All(game.GetTree().Root).OfType<MultiMeshInstance3D>())
-                    if (mm.Multimesh?.Mesh?.ResourceName.StartsWith("smallgoods_cod") == true && mm.Multimesh.VisibleInstanceCount > 0) { cod = mm; break; }
+                    if (mm.Multimesh?.Mesh?.ResourceName.StartsWith("smallgoods_cod") == true && Enumerable.Range(0, mm.Multimesh.VisibleInstanceCount).Any(i => MathF.Abs((mm.Multimesh.GetInstanceTransform(i).Basis * Vector3.Right).Normalized().Y) < .5f)) { cod = mm; break; }
                 int kinds = BakedWorld.All(game.GetTree().Root).OfType<MultiMeshInstance3D>().Where(mm => mm.Multimesh?.VisibleInstanceCount > 0).Select(mm => mm.Multimesh!.Mesh?.ResourceName ?? "")
                     .Count(n => n.StartsWith("smallgoods_cod") || n.StartsWith("smallgoods_plaice") || n.StartsWith("workgoods_held_fish"));
                 var drawn = BakedWorld.All(game.GetTree().Root).OfType<MultiMeshInstance3D>().Where(mm => (mm.Multimesh?.Mesh?.ResourceName ?? "").Contains("fish"))
@@ -244,7 +244,9 @@ public static class NativeLeftoversProof
                 Check(cod != null && Scheldemist.People.NativeMarket.FishTrianglesTaken > 0, $"the fish tables lay the cod, plaice and herring models ({kinds} fish batches; {Scheldemist.People.NativeMarket.FishTrianglesTaken} of the table's own fish triangles out)");
                 if (cod != null)
                 {
-                    var t = cod.GlobalTransform * cod.Multimesh!.GetInstanceTransform(0);
+                    // (a cod lying on a table: the dried cod hung on the fixed stalls' rails hang head down)
+                    int lying = Enumerable.Range(0, cod.Multimesh!.VisibleInstanceCount).FirstOrDefault(i => MathF.Abs((cod.Multimesh.GetInstanceTransform(i).Basis * Vector3.Right).Normalized().Y) < .5f);
+                    var t = cod.GlobalTransform * cod.Multimesh!.GetInstanceTransform(lying);
                     var at = t.Origin; var toward = (t.Basis * Vector3.Right).Normalized();
                     await Shot("fish-table-close", at + new Vector3(0, 0.9f, 0) - toward.Cross(Vector3.Up) * 0.9f, at);
                     await Shot("fish-table", at + new Vector3(0, 1.6f, 0) - toward.Cross(Vector3.Up) * 2.2f, at);
@@ -254,6 +256,108 @@ public static class NativeLeftoversProof
                         await Shot("fish-table-" + name, at + new Vector3(0, 1.6f, 0) - toward.Cross(Vector3.Up) * 2.2f, at);
                     }
                 }
+                // #190: every fish of the market is the herring or the cod model, and every heap of fish lies on the crushed ice
+                // (the crates, baskets, barrows, the fixed fish stalls and the carried fish box); pictures of each at 10:00 clear
+                GameState.I.Apply(await api.Post<JobsPayload>("api/dev/set", new { day = 1, hour = 10, minute = 0, weather = "clear" })); Daylight.I.Settle();
+                var market = Scheldemist.People.NativeMarket.I!;
+                var until = DateTime.UtcNow.AddSeconds(150);
+                while (DateTime.UtcNow < until && market.PitchState().Count(p => p!["level"]!.GetValue<int>() == 2) < 14) await Frames(15);
+                facts["catch"] = new { tradeFishCell = Scheldemist.People.MarketCatch.TradeCell, taken = Scheldemist.People.MarketCatch.Taken, wholeFish = Scheldemist.People.MarketCatch.WholeFish, heaps = Scheldemist.People.MarketCatch.Heaps,
+                    pitchesUp = market.PitchState().Count(p => p!["level"]!.GetValue<int>() == 2) };
+                Check(Scheldemist.People.MarketCatch.WholeFish > 0 && Scheldemist.People.MarketCatch.Heaps > 0, $"the stalls' painted fish are out: {Scheldemist.People.MarketCatch.WholeFish} whole fish became the herring or cod model, {Scheldemist.People.MarketCatch.Heaps} heaps the crushed ice with herring ({Scheldemist.People.MarketCatch.Taken} triangles out)");
+                int ice = BakedWorld.All(game.GetTree().Root).OfType<MultiMeshInstance3D>().Where(mm => mm.IsVisibleInTree() && (mm.Multimesh?.Mesh?.ResourceName ?? "").StartsWith("smallgoods_ice")).Sum(mm => mm.Multimesh!.VisibleInstanceCount);
+                Check(ice > 0, $"the market's fish lie on the crushed ice ({ice} beds drawn)");
+                var shown = new HashSet<string>();
+                foreach (var it in market.LaidOut.Where(i => i.Goods == "fish").OrderBy(i => i.Pitch < 0 ? 1 : 0))
+                {
+                    string kind = it.Kind is "fishtable" ? "crates" : it.Kind;
+                    if (!shown.Add(kind)) continue;
+                    var mid = new Vector3((float)it.X, (float)people.Walk!.BaseAt(it.X, it.Z), (float)it.Z);
+                    var front = new Vector3((float)it.Front.X, mid.Y, (float)it.Front.Z); var toward = (front - mid) with { Y = 0 };
+                    if (toward.LengthSquared() < .01f) toward = Vector3.Forward;
+                    // (a fish table's crates stand behind it: look at them from the seller's side)
+                    if (kind == "crates") { var back = mid - toward.Normalized() * 1.0f; await Shot("catch-crates", back - toward.Normalized() * 1.4f + Vector3.Up * 1.5f, back + Vector3.Up * .3f); }
+                    else await Shot("catch-" + kind, mid + toward.Normalized() * 1.1f + Vector3.Up * 2.0f, mid + Vector3.Up * .4f);
+                }
+                facts["catchShots"] = shown.ToArray();
+                if (Scheldemist.People.MarketStalls.I?.List.FirstOrDefault(st => st.Sells("fish")) is { } fixedStall)
+                {
+                    var mid = new Vector3((float)fixedStall.X, 0, (float)fixedStall.Z); var face = new Vector3(MathF.Sin((float)fixedStall.Yaw), 0, MathF.Cos((float)fixedStall.Yaw));
+                    await Shot("catch-fixed-stall", mid + face * 1.8f + Vector3.Up * 1.6f, mid + Vector3.Up * .8f);
+                    await Shot("catch-fixed-stall-b", mid - face * 1.8f + Vector3.Up * 1.6f, mid + Vector3.Up * .8f);
+                }
+                if (Scheldemist.People.Carried.Load("fishbox", 1) is { } box)
+                {
+                    var at = new Vector3(Jef.I.X + 2, 0, Jef.I.Z + 2); at.Y = (float)people.Walk!.BaseAt(at.X, at.Z); box.Position = at;
+                    Main.I.View.AddChild(box); await Frames(5);
+                    await Shot("catch-fishbox", at + new Vector3(.9f, 1.1f, .9f), at + Vector3.Up * .1f);
+                    box.QueueFree();
+                }
+                GameState.I.Apply(await api.Post<JobsPayload>("api/dev/set", new { day = 1, hour = 13, minute = 0, weather = "clear" })); Daylight.I.Settle();
+            }
+            if (Stage("cathedral"))
+            {
+                // #192: the cathedral's west end, where the organist sits at 7.25 m (hall plan origin -262, 145.53, yaw 0, floor 0.3),
+                // and the confessional in the south aisle: pictures and what is built there
+                Doors.I.Held = true; foreach (var d in Doors.I.All) Doors.I.Force(d, true);
+                float hx = -262f, hz = 145.53f, floor = .3f;
+                if (Jef.I.Fly) Jef.I.ToggleFly();
+                Jef.I.Place(hx, hz + 24f, MathF.PI, 0, floor); await Frames(60);
+                string Names(Node n) { var chain = new List<string>(); for (Node? q = n; q != null && q != game.World; q = q.GetParent()) chain.Add(q.Name.ToString()); chain.Reverse(); return string.Join("/", chain.TakeLast(5)); }
+                facts["westEnd"] = BakedWorld.All(game.GetTree().Root).OfType<MeshInstance3D>().Where(m => m.Mesh != null && m.IsVisibleInTree()).Select(m => (m, box: m.GlobalTransform * m.GetAabb()))
+                    .Where(q => q.box.Size.Length() < 80 && q.box.End.X > hx - 9 && q.box.Position.X < hx + 9 && q.box.Position.Z < hz + 16 && q.box.End.Z > hz - 1 && q.box.End.Y > floor + 3 && q.box.Position.Y < floor + 13)
+                    .Select(q => new { path = Names(q.m), min = new[] { MathF.Round(q.box.Position.X - hx, 2), MathF.Round(q.box.Position.Y - floor, 2), MathF.Round(q.box.Position.Z - hz, 2) }, size = new[] { MathF.Round(q.box.Size.X, 2), MathF.Round(q.box.Size.Y, 2), MathF.Round(q.box.Size.Z, 2) } }).Take(120).ToArray();
+                await Shot("cathedral-west-nave", new Vector3(hx, floor + 1.7f, hz + 24f), new Vector3(hx, floor + 6.5f, hz + 4f));
+                await Shot("cathedral-west-high", new Vector3(hx + 3f, floor + 9f, hz + 16f), new Vector3(hx, floor + 7f, hz + 4f));
+                await Shot("cathedral-west-side", new Vector3(hx + 8f, floor + 2f, hz + 12f), new Vector3(hx - 2f, floor + 6f, hz + 4f));
+                await Shot("cathedral-confessional", new Vector3(hx + 19f, floor + 1.7f, hz + 43f), new Vector3(hx + 24.25f, floor + 1f, hz + 40.55f));
+                // what stands round the confessional at a body's height (the four brown figures before it): built pieces and people
+                facts["confessional"] = BakedWorld.All(game.GetTree().Root).OfType<MeshInstance3D>().Where(m => m.Mesh != null && m.IsVisibleInTree()).Select(m => (m, box: m.GlobalTransform * m.GetAabb()))
+                    .Where(q => q.box.Size.Length() < 90 && q.box.End.X > hx + 21.5f && q.box.Position.X < hx + 27f && q.box.End.Z > hz + 38.5f && q.box.Position.Z < hz + 43f && q.box.Position.Y < floor + 2.2f && q.box.End.Y > floor + .5f)
+                    .Select(q => new { path = Names(q.m), min = new[] { MathF.Round(q.box.Position.X - hx, 2), MathF.Round(q.box.Position.Y - floor, 2), MathF.Round(q.box.Position.Z - hz, 2) }, size = new[] { MathF.Round(q.box.Size.X, 2), MathF.Round(q.box.Size.Y, 2), MathF.Round(q.box.Size.Z, 2) } }).Take(80).ToArray();
+                Jef.I.Place(hx, hz + 6f, MathF.PI, 0, floor); await Frames(40);
+                facts["underLoft"] = new { ground = Jef.I.GroundAt(hx, hz + 6f, floor + 9f), at7 = Jef.I.GroundAt(hx, hz + 9.25f, floor + 7.6f) };
+                // the loft's floor: its top at every half metre (hall frame), from 8.2 m down
+                var loft = new System.Text.StringBuilder();
+                for (float lz = 0f; lz <= 11.5f; lz += .5f) { loft.Append($"{lz,5:0.0}"); for (float lx = -8f; lx <= 12f; lx += .5f) { Solid.I.Ensure(new Vector3(hx + lx, floor + 7, hz + lz), 4); float g = Jef.I.GroundAt(hx + lx, hz + lz, floor + 7.9f) - floor; loft.Append(g > 6.8f && g < 7.9f ? ((int)MathF.Round((g - 7f) * 10)).ToString()[^1] : g > 0.6f ? '+' : '.'); } loft.AppendLine(); }
+                File.WriteAllText(Path.Combine(output, "cathedral-loft-floor.txt"), loft.ToString());
+                // what holds a body standing at 7.2 m (hall frame x from -8 to 12, z 0 to 22): '#' held, '.' free
+                var room = new System.Text.StringBuilder();
+                foreach (float h in new[] { 7.25f, 4.0f })
+                {
+                    room.AppendLine($"feet at {h} m");
+                    for (float lz = 0f; lz <= 22f; lz += .5f) { room.Append($"{lz,5:0.0}"); for (float lx = -8f; lx <= 12f; lx += .5f) { Solid.I.Ensure(new Vector3(hx + lx, floor + h, hz + lz), 4); room.Append(Jef.I.BodyFree(hx + lx, floor + h, hz + lz) ? '.' : '#'); } room.AppendLine(); }
+                }
+                File.WriteAllText(Path.Combine(output, "cathedral-body.txt"), room.ToString());
+                // the loft's stair (#192): its model stands in the south aisle; Jef climbs it from its foot with his own body and walks
+                // the gallery into the loft to the organist's chair
+                bool stairDrawn = BakedWorld.All(game.GetTree().Root).OfType<Node3D>().Any(n => n.Name == "cathedral_loft_stair" && n.IsVisibleInTree());
+                Check(stairDrawn, "the cathedral's loft stair and gallery stand in the south aisle");
+                if (Jef.I.Fly) Jef.I.ToggleFly();
+                Jef.I.Place(hx + 10f, hz + 21.8f, 0, 0, floor); await Frames(30);
+                var climb = new List<float[]>(); float top = Jef.I.Y - floor; Jef.I.SetKey(Key.W, true);
+                var until = DateTime.UtcNow.AddSeconds(30);
+                while (DateTime.UtcNow < until && Jef.I.Z > hz + 8.75f) { Jef.I.Yaw = 0; await Frames(1); top = MathF.Max(top, Jef.I.Y - floor); if (climb.Count == 0 || MathF.Abs(climb[^1][2] - Jef.I.Z) > .5f) climb.Add(new[] { Jef.I.X, Jef.I.Y, Jef.I.Z }); }
+                until = DateTime.UtcNow.AddSeconds(20);
+                while (DateTime.UtcNow < until && Jef.I.X > hx + 1.2f) { Jef.I.Yaw = MathF.PI / 2; await Frames(1); if (MathF.Abs(climb[^1][0] - Jef.I.X) > .5f) climb.Add(new[] { Jef.I.X, Jef.I.Y, Jef.I.Z }); }
+                Jef.I.ClearKeys(); await Frames(10);
+                var end = new Vector3(Jef.I.X - hx, Jef.I.Y - floor, Jef.I.Z - hz);
+                facts["loftClimb"] = new { top, end = new[] { end.X, end.Y, end.Z }, climb };
+                Check(top > 7.1f && end.Y > 7.1f && end.X < 1.5f, $"Jef climbs the loft stair and walks the gallery into the organ loft (reached {top:0.00} m of 7.3, stands at x {end.X:0.0} on the loft at {end.Y:0.00} m)");
+                await Shot("cathedral-loft-from-gallery", new Vector3(hx + 7.5f, floor + 7.3f + 1.6f, hz + 8.8f), new Vector3(hx - 1f, floor + 7.6f, hz + 9f));
+                await Shot("cathedral-loft-stair-aisle", new Vector3(hx + 8.6f, floor + 1.7f, hz + 25f), new Vector3(hx + 10f, floor + 4f, hz + 12f));
+                await Shot("cathedral-loft-stair-nave", new Vector3(hx - 1f, floor + 2.2f, hz + 19f), new Vector3(hx + 9f, floor + 5f, hz + 11f));
+                await Shot("cathedral-loft-stair-foot", new Vector3(hx + 8.7f, floor + 1.6f, hz + 23.5f), new Vector3(hx + 10f, floor + 1f, hz + 20f));
+                // the organist's walk in from the door, up the stair, to his chair; the confessor's to his box's door, and his step in
+                var organist = Scheldemist.People.HallPeople.I!.WalkIn("cathedral", "organist");
+                var confessor = Scheldemist.People.HallPeople.I.WalkIn("cathedral", "confessor");
+                facts["walkIn"] = new { organist = organist.Points, confessor = confessor.Points, confessorStep = confessor.StepIn, note = Scheldemist.People.HallPeople.StairNote };
+                Check(organist.Points > 0, $"the organist walks in from the door and up the loft stair to his chair ({organist.Points} points)");
+                Check(confessor.Points > 0 && confessor.StepIn < 1.6f, $"the confessor walks in from the door to his box and steps in ({confessor.Points} points, a last step of {confessor.StepIn:0.00} m)");
+                GameState.I.Apply(await api.Post<JobsPayload>("api/dev/set", new { day = 1, hour = 21, minute = 0, weather = "clear" })); Daylight.I.Settle(); await Frames(60);
+                await Shot("cathedral-loft-stair-aisle-night", new Vector3(hx + 8.6f, floor + 1.7f, hz + 25f), new Vector3(hx + 10f, floor + 4f, hz + 12f));
+                GameState.I.Apply(await api.Post<JobsPayload>("api/dev/set", new { day = 1, hour = 13, minute = 0, weather = "rain" })); Daylight.I.Settle(); await Frames(60);
+                await Shot("cathedral-loft-stair-aisle-rain", new Vector3(hx + 8.6f, floor + 1.7f, hz + 25f), new Vector3(hx + 10f, floor + 4f, hz + 12f));
                 GameState.I.Apply(await api.Post<JobsPayload>("api/dev/set", new { day = 1, hour = 13, minute = 0, weather = "clear" })); Daylight.I.Settle();
             }
             if (Stage("fireplace"))
@@ -262,6 +366,9 @@ public static class NativeLeftoversProof
                 Doors.I.Held = true; foreach (var d in Doors.I.All) Doors.I.Force(d, true);
                 var places = BakedWorld.All(game.World).OfType<Scheldemist.Native.Interiors.FurnitureVisual>().Where(v => v.ModelScene != "").ToArray();
                 Check(places.Length == 3 && places.All(v => v.KitFit == "model"), $"the three taverns' fireplaces draw the fittings' model ({places.Count(v => v.KitFit == "model")} of {places.Length})");
+                // #190: the room hearths draw no sparks (3.5 cm discs that hung in the fireplaces as pale dots); the fires outdoors keep theirs
+                var sparks = Fires.I!.SparkCount; facts["fireSparks"] = new { sparks.roomFires, sparks.roomSparks, sparks.outdoorFires, sparks.outdoorSparks };
+                Check(sparks.roomFires > 0 && sparks.roomSparks == 0 && sparks.outdoorSparks > 0, $"no spark dots in the room hearths ({sparks.roomSparks} spark points in {sparks.roomFires} room fires; {sparks.outdoorSparks} in {sparks.outdoorFires} outdoors)");
                 foreach (int hour in new[] { 13, 20 })
                 {
                     GameState.I.Apply(await api.Post<JobsPayload>("api/dev/set", new { day = 1, hour, minute = 0, weather = "clear" })); Daylight.I.Settle(); await Frames(60);

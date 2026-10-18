@@ -66,6 +66,7 @@ public partial class HallFloors : Node
                 }
                 foreach (var box in unseen) body.AddChild(new CollisionShape3D { Shape = new BoxShape3D { Size = box.size }, Position = box.position });
                 if (own && plan.GetProperty("id").GetString() == "vleeshuis") VleeshuisStair(root, body);
+                if (own && plan.GetProperty("id").GetString() == "cathedral") CathedralLoftStair(root, body);
             }
     }
     /// <summary>
@@ -89,6 +90,37 @@ public partial class HallFloors : Node
             float x = 26f - 15f * k / 5, top = 0.06f + slope * (foot - x) - 0.36f;
             body.AddChild(new CollisionShape3D { Name = "stair_post", Shape = new BoxShape3D { Size = new Vector3(0.18f, top, 0.18f) }, Position = new Vector3(x, top / 2, z) });
         }
+    }
+    /// <summary>
+    /// #192: the cathedral's organ loft (7.3 m over the nave, the organ and the organist's chair on it) had no way up. The
+    /// fittings' oak stair in the south aisle (build_fittings.py cathedral_loft_stair, the plan's stair: its treads are made
+    /// above) and its gallery from the stair's head into the loft, in the hall's own frame; the gallery's boards carry feet,
+    /// its railings, the stair's balustrades and the posts under them are solid.
+    /// </summary>
+    private static void CathedralLoftStair(Node3D root, StaticBody3D body)
+    {
+        if (Scheldemist.Models.ModelLibrary.Get("fittings", new Scheldemist.Models.ModelLibrary.Look(TwoSided: true, Affine: 0, VertexColor: true))?.Copy("cathedral_loft_stair") is not { } stair) return;
+        stair.Name = "cathedral_loft_stair"; root.AddChild(stair);
+        const float x0 = 9.45f, x1 = 10.55f, foot = 21f, head = 9.6f, rise = 7.3f, land = 7.9f, gallery = 5.7f;
+        void Box(string name, Vector3 min, Vector3 max) => body.AddChild(new CollisionShape3D { Name = name, Shape = new BoxShape3D { Size = max - min }, Position = (min + max) / 2 });
+        // the gallery's boards (over the loft's own floor for its last 0.3 m)
+        Box("loft_gallery", new Vector3(gallery, rise - 0.22f, land), new Vector3(x1, rise, head));
+        // its railings: the south edge, the landing's east end, the north edge from the loft to the stair's opening
+        Box("loft_gallery_rail_s", new Vector3(gallery + 0.33f, rise, land), new Vector3(x1, rise + 0.95f, land + 0.06f));
+        Box("loft_gallery_rail_e", new Vector3(x1 - 0.06f, rise, land), new Vector3(x1, rise + 0.95f, head));
+        Box("loft_gallery_rail_n", new Vector3(gallery + 0.33f, rise, head - 0.06f), new Vector3(x0, rise + 0.95f, head));
+        // the flight's balustrades: a slab along each side from the nosings up to the handrail
+        float slope = rise / (foot - head), length = MathF.Sqrt((foot - head) * (foot - head) + rise * rise), mz = (foot + head) / 2, my = 0.06f + slope * (foot + 0.05f - mz) + 0.42f;
+        foreach (float x in new[] { x0 + 0.03f, x1 - 0.03f })
+            body.AddChild(new CollisionShape3D { Name = "loft_stair_balustrade", Shape = new BoxShape3D { Size = new Vector3(0.06f, 0.95f, length) }, Transform = new Transform3D(new Basis(Vector3.Right, MathF.Atan(slope)), new Vector3(x, my, mz)) });
+        // the posts under both strings and under the gallery
+        for (int k = 1; k < 5; k++)
+        {
+            float z = foot - (foot - head) * k / 5, top = 0.06f + slope * (foot + 0.05f - z) - 0.36f;
+            foreach (float x in new[] { x0 + 0.03f, x1 - 0.03f }) Box("loft_stair_post", new Vector3(x - 0.09f, 0, z - 0.09f), new Vector3(x + 0.09f, top, z + 0.09f));
+        }
+        foreach (var (x, z) in new[] { (7.4f, land + 0.1f), (7.4f, head - 0.1f), (x1 - 0.1f, land + 0.1f) })
+            Box("loft_gallery_post", new Vector3(x - 0.1f, 0, z - 0.1f), new Vector3(x + 0.1f, rise - 0.25f, z + 0.1f));
     }
     public override void _ExitTree() { foreach (var root in roots) root.QueueFree(); }
 }

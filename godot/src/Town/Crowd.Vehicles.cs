@@ -23,6 +23,8 @@ internal sealed class NativePersonVehicle
     public bool InitialHeading;
     public Func<double,double,double,double,bool>? ClearSpoke;
     public Func<double,double,bool>? ClearGrip;
+    /// <summary>Where a pushed handcart's grips were last pushed from, ahead of and across from its man (his own frame).</summary>
+    public double GripAlong=.45,GripAcross;
 }
 
 public sealed partial class Crowd
@@ -180,6 +182,99 @@ public sealed partial class Crowd
         surface.SetMaterial(CartWood); return CargoWoodMeshes[size]=surface.Commit();
     }
 
+    /// <summary>How long a pushed handcart waits for someone in its way before its pusher looks for another way (seconds).</summary>
+    private const double CartPatience = 6;
+    /// <summary>How deep a body of radius r at (x, z) is in a pushed handcart whose axle is at (ax, az), heading dir: its cart box
+    /// and its shafts back to the grips, the boxes of PuppetVehicle's cart_solid and shafts_solid in PushCart's frame (turned
+    /// half round: the shafts point back along +z). 0 when it is clear of both.</summary>
+    private static double CartDepth(double ax,double az,double dir,double x,double z,double r)
+    {
+        double wx=x-ax,wz=z-az,s=Math.Sin(dir),c=Math.Cos(dir),lx=Math.Abs(-wx*c+wz*s),lz=-wx*s-wz*c;
+        double body=Math.Min(.72+r-lx,Math.Min(lz+.9+r,1.0+r-lz)),shafts=Math.Min(.42+r-lx,Math.Min(lz-.98+r,2.18+r-lz));
+        return Math.Max(0,Math.Max(body,shafts));
+    }
+    /// <summary>The room a pushed handcart keeps from a body (the stuck check's body is 0.25 m round; a little more).</summary>
+    private const double CartRoom=.32;
+    /// <summary>How deep a body of radius r at (x, z) is in the knife grinder's barrow pushed out before him (StreetTrades: its box
+    /// from 0.4 m to 2.0 m ahead of him, 0.7 m wide) when he stands at (px, pz) facing yaw.</summary>
+    private static double BarrowDepth(double px,double pz,double yaw,double x,double z,double r)
+    {
+        double wx=x-px,wz=z-pz,s=Math.Sin(yaw),c=Math.Cos(yaw),along=wx*s+wz*c,across=Math.Abs(wx*c-wz*s);
+        return Math.Max(0,Math.Min(.35+r-across,Math.Min(along-.4+r,2.0+r-along)));
+    }
+    /// <summary>Would what this body pushes (a handcart, the grinder's barrow), moved by (dx, dz) (as it stands, and swung round to
+    /// yaw), come onto someone, or further onto him? (#192: a handcart rolled on over a seller, a standing man and a child who had
+    /// no room to step out of its lane; the grinder's barrow over a woman pushing her cart.)</summary>
+    private bool CartOnSomeone(Puppet p,double dx,double dz,double yaw)
+    {
+        var v=p.Vehicle;var cart=v?.Cart;
+        if(cart==null&&!p.Barrow)return false;
+        // a handcart hangs from its grips and comes round behind its man's turn (PushCart.Push): its axle swings about his hands,
+        // so every heading on the way from the cart's own to his new one is looked at, about every 0.15 rad, from where his hands
+        // will be (and where it stands now, moved with him)
+        var (ax,az)=cart?.Axle??(0,0);double dir=cart?.Yaw??0,reach=cart?.Reach??0,turn=Math.Atan2(Math.Sin(yaw-dir),Math.Cos(yaw-dir));
+        double sy=Math.Sin(yaw),cy=Math.Cos(yaw),along=v?.GripAlong??0,across=v?.GripAcross??0;
+        double hx=p.X+dx+sy*along+cy*across,hz=p.Z+dz+cy*along-sy*across;int turns=cart==null?0:Math.Max(1,(int)Math.Ceiling(Math.Abs(turn)/.15));
+        foreach(var q in people){
+            if(q==p||Math.Abs(q.X-p.X)>5||Math.Abs(q.Z-p.Z)>5)continue;
+            double now=cart!=null?CartDepth(ax,az,dir,q.X,q.Z,CartRoom):BarrowDepth(p.X,p.Z,p.Yaw,q.X,q.Z,CartRoom),after;
+            if(cart==null)after=BarrowDepth(p.X+dx,p.Z+dz,yaw,q.X,q.Z,CartRoom);
+            else{
+                after=CartDepth(ax+dx,az+dz,dir,q.X,q.Z,CartRoom);
+                for(int i=0;i<=turns;i++){double h=dir+turn*i/turns;after=Math.Max(after,CartDepth(hx+Math.Sin(h)*reach,hz+Math.Cos(h)*reach,h,q.X,q.Z,CartRoom));}
+            }
+            if(after>0&&after>now-1e-6)return true;
+        }
+        return false;
+    }
+    /// <summary>Does someone stand where a handcart parked with its axle at (x, z), heading yaw, would stand? 0 nobody, 1 someone,
+    /// 2 someone pushing a cart or barrow (who cannot be set aside: what he pushes would jump with him). Its drawing waits (#192).</summary>
+    public int SomeoneOnParkedCart(double x,double z,double yaw)
+    {
+        int on=0;
+        foreach(var q in people)if(Math.Abs(q.X-x)<4&&Math.Abs(q.Z-z)<4&&CartDepth(x,z,yaw,q.X,q.Z,CartRoom)>0){if(q.Vehicle!=null||q.Barrow)return 2;on=1;}
+        return on;
+    }
+    /// <summary>Is (x, z) clear of this body's own barrow set down (the knife grinder's)? Everyone else, and the grinder pushing it, is.</summary>
+    private bool OwnClear(Puppet p,double x,double z)=>!p.Grinder||p.Barrow||map.ClearOfOwn(p,x,z);
+    /// <summary>Would this pusher's step be clear but for something passing: the ground, the parked and standing bodies (not the
+    /// vehicles going by) let the step and his cart's nose through?</summary>
+    private bool PassingHolds(Puppet p,double ux,double uz,double step)
+    {
+        double nx=p.X+ux*step,nz=p.Z+uz*step;var nose=p.Nose>0?NosePoint(p,nx,nz,ux,uz):(x:nx,z:nz);
+        return map.PathFree(nx,nz)&&map.PathFree(nose.x,nose.z)&&map.SupportsStep(p.X,p.Z,nx,nz)&&(p.NativeRouting||grid.IsOpen(nx,nz));
+    }
+    /// <summary>Would a step of this pusher to (x, z), heading yaw, bring what he pushes onto someone? False for everyone else.</summary>
+    private bool PushedOnSomeone(Puppet p,double x,double z,double yaw)=>(p.Vehicle?.Cart!=null||p.Barrow)&&Hyp(x-p.X,z-p.Z)>1e-6&&CartOnSomeone(p,x-p.X,z-p.Z,yaw);
+    /// <summary>Whoever a pushed handcart or barrow has come onto after all (a cart swings round behind its man's turn and comes up to
+    /// his hands when he takes hold; the barrow turns with him) is shoved out of it, across it or off its end, onto free ground.</summary>
+    private void CartShove(Puppet p)
+    {
+        var cart=p.Vehicle?.Cart;
+        if(cart==null&&!p.Barrow||p.Remote)return;
+        // the thing's frame: an origin, its heading (local z) and across (local x)
+        var (ox,oz)=cart?.Axle??(p.X,p.Z);double h=cart?.Yaw??p.Yaw,s=Math.Sin(h),c=Math.Cos(h);
+        // (the walk map's margin round a body is 0.3 m: out to beyond it)
+        const double r=.31,clear=.38;
+        double Depth(double x,double z)=>cart!=null?CartDepth(ox,oz,h,x,z,r):BarrowDepth(ox,oz,h,x,z,r);
+        foreach(var q in people){
+            if(q==p||q.Remote||q.Vehicle!=null||q.State=="sit"||Math.Abs(q.X-p.X)>5||Math.Abs(q.Z-p.Z)>5||Depth(q.X,q.Z)<=0)continue;
+            double wx=q.X-ox,wz=q.Z-oz,across=wx*c-wz*s,along=wx*s+wz*c;
+            // the ways out: to either side (a cart's shafts are narrower than its box), or off the far end; (a cart's frame is
+            // turned half round: its far end is towards -heading)
+            double half=cart==null?.35:-along>.98?.42:.72,side=across>=0?1:-1,end=cart==null?2.0+clear:.9+clear;
+            Span<(double a,double l)> outs=stackalloc (double,double)[]{(side*(half+clear),along),(-side*(half+clear),along),(across,end)};
+            (double x,double z)? best=null;double bestD=double.MaxValue;
+            foreach(var o in outs){
+                double x=ox+o.a*c+o.l*s,z=oz-o.a*s+o.l*c,d=Hyp(x-q.X,z-q.Z);
+                if(d<bestD&&Depth(x,z)<=0&&map.FreeFor(q,x,z)&&!Bridges.OnRaised(x,z)){best=(x,z);bestD=d;}
+            }
+            if(best==null)continue;
+            if(MoveOutLog.Count<200)MoveOutLog.Add($"puppet {q.Id} {q.State} shoved by puppet {p.Id}'s {(cart!=null?"handcart":"barrow")} from {q.X:0.00},{q.Z:0.00} to {best.Value.x:0.00},{best.Value.z:0.00}");
+            q.X=best.Value.x;q.Z=best.Value.z;
+        }
+    }
+
     private void MoveVehicle(Puppet p,double dt,bool shown,double ground)
     {
         var v=p.Vehicle!; double step=Hyp(p.X-v.X,p.Z-v.Z);v.X=p.X;v.Z=p.Z;v.Distance+=step;
@@ -201,6 +296,7 @@ public sealed partial class Crowd
             p.Human.Play(p.Conversing?"talk":going?(p.Kind is "carter" or "porter"?"walk":"push"):"idle",.25f);
             if(p.Conversing){v.Cart.Root.Visible=shown;return;}
             var hands=Carters.Hands(p.Human,p.Group,new((float)p.X,(float)p.Z),(float)p.Yaw);
+            if(going){double hx=hands.X-p.X,hz=hands.Z-p.Z,sy=Math.Sin(p.Yaw),cy=Math.Cos(p.Yaw);v.GripAlong=hx*sy+hz*cy;v.GripAcross=hx*cy-hz*sy;}
             v.Cart.Push(dt,hands.X,hands.Z,hands.Y-ground,p.Yaw,going?1:0,ground);v.Cart.Root.Visible=shown;
         } else if(v.Dray!=null) {
             bool going=p.State=="walk"&&v.Speed>.1;

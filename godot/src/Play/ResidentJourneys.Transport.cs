@@ -31,13 +31,15 @@ public partial class ResidentJourneys
         public List<Carrier> Helpers=new();
         public Carrier Own=new(){Step=1},OffStep=new();
         public FamilyBoat? BoatTrip;
+        /// <summary>The nearest a drawn pusher has come to where he takes his vehicle, and since when (town clock seconds) he has gained no ground.</summary>
+        public double BestLeft=double.MaxValue,NoGain;
     }
     public sealed class Carrier {public string Id="";public int Step;public double Go,Wait,Time;}
     public sealed class FamilyBoat {public string Kind="rowboat";public List<string> Crew=new();public JourneyRules.Point[] Path=Array.Empty<JourneyRules.Point>();public Vector2 To,ToTop,FromTop;public bool Home;
         /// <summary>Where she comes alongside the landing to put her people ashore when her own berth (her home along the wall, or a place
         /// further along) is out of their reach (#182); she is taken on to it once nobody is near.</summary>
         public Vector2? Land;public float LandYaw;}
-    private sealed class ParkedCart {public Vector3 At;public int Items,Goods;public Handcart? Cart;public readonly List<Node3D> Cargo=new();public bool Pushed;}
+    private sealed class ParkedCart {public Vector3 At;public double Waited;public int Items,Goods;public Handcart? Cart;public readonly List<Node3D> Cargo=new();public bool Pushed;}
     private ResidentTransport? transport;
     private readonly Dictionary<string,ParkedCart> parked=new();
     private readonly Dictionary<string,string> cartAt=new();
@@ -144,10 +146,10 @@ public partial class ResidentJourneys
     private void TransportUpdate(double dt)
     {
         if((transportPoll-=dt)<=0){transportPoll=10;_=LoadTransport();}
-        DrawParked();UpdateErrands();TakeOn();
+        DrawParked(dt);UpdateErrands();TakeOn();
         if((snapshotPoll-=dt)<=0){snapshotPoll=.25;PublishCartSnapshots();}
     }
-    private void DrawParked()
+    private void DrawParked(double dt)
     {
         if(transport==null||!Scheldemist.People.PushCart.Has)return;
         foreach(var vehicle in transport.Vehicles.Where(v=>v.Kind=="handcart")) {
@@ -156,7 +158,11 @@ public partial class ResidentJourneys
             if(!usingCart&&!inUse.Contains(vehicle.Id)){var next=Pose(vehicle.Parks.GetValueOrDefault(cartAt.GetValueOrDefault(vehicle.Id,vehicle.At),vehicle.Home));if(next!=pk.At){pk.Cart?.Dispose();pk.Cart=null;pk.Cargo.Clear();pk.At=next;}}
             if(usingCart){pk.Cart?.Dispose();pk.Cart=null;pk.Cargo.Clear();continue;}
             var eye=Main.I.Cam.GlobalPosition;bool near=new Vector2(pk.At.X-eye.X,pk.At.Y-eye.Z).Length()<60;
-            if(near&&pk.Cart==null){pk.Cart=new Handcart(Main.I.View,false);float gx=pk.At.X-MathF.Sin(pk.At.Z)*2.15f,gz=pk.At.Y-MathF.Cos(pk.At.Z)*2.15f;pk.Cart.Push(.5,gx,gz,.9,pk.At.Z,0,town.Walk?.BaseAt(gx,gz)??0);var box=new Aabb(new(-.72f,0,-.9f),new(1.44f,1.3f,1.9f));var solid=Mv.BoxBody(pk.Cart.Root,box,"parked_cart_solid");WalkMap.RegisterBody(solid,box);var cartBox=pk.Cart.Root.GlobalTransform*box;box=new Aabb(new(-.42f,.25f,.98f),new(.84f,.75f,1.2f));solid=Mv.BoxBody(pk.Cart.Root,box,"parked_shafts_solid");WalkMap.RegisterBody(solid,box);town.Crowd?.MoveOutOf(cartBox);town.Crowd?.MoveOutOf(pk.Cart.Root.GlobalTransform*box);Crowd.CartCargo(pk.Cart,pk.Cargo,pk.Items,pk.Goods,vehicle.Household);}
+            // (not drawn down onto someone: it waits for him to pass, up to ten seconds, and then eases him out; never onto someone
+            // pushing a cart, who could not be eased out of it, #192)
+            int on=near&&pk.Cart==null?town.Crowd?.SomeoneOnParkedCart(pk.At.X,pk.At.Y,pk.At.Z)??0:0;
+            if(on==0)pk.Waited=0;else pk.Waited+=dt;
+            if(near&&pk.Cart==null&&(on==0||on==1&&pk.Waited>10)){pk.Cart=new Handcart(Main.I.View,false);float gx=pk.At.X-MathF.Sin(pk.At.Z)*2.15f,gz=pk.At.Y-MathF.Cos(pk.At.Z)*2.15f;pk.Cart.Push(.5,gx,gz,.9,pk.At.Z,0,town.Walk?.BaseAt(gx,gz)??0);var box=new Aabb(new(-.72f,0,-.9f),new(1.44f,1.3f,1.9f));var solid=Mv.BoxBody(pk.Cart.Root,box,"parked_cart_solid");WalkMap.RegisterBody(solid,box);var cartBox=pk.Cart.Root.GlobalTransform*box;box=new Aabb(new(-.42f,.25f,.98f),new(.84f,.75f,1.2f));solid=Mv.BoxBody(pk.Cart.Root,box,"parked_shafts_solid");WalkMap.RegisterBody(solid,box);town.Crowd?.MoveOutOf(cartBox);town.Crowd?.MoveOutOf(pk.Cart.Root.GlobalTransform*box);Crowd.CartCargo(pk.Cart,pk.Cargo,pk.Items,pk.Goods,vehicle.Household);}
             else if(!near&&pk.Cart!=null){pk.Cart.Dispose();pk.Cart=null;pk.Cargo.Clear();}
         }
     }
@@ -169,7 +175,7 @@ public partial class ResidentJourneys
     private void TakeVehicle(Trip t)
     {
         if(t.Phase=="load")t.LoadingFinishedAt=t.Time;
-        t.Phase="go";t.Time=t.Go=0;
+        t.Phase="go";t.Time=t.Go=0;t.BestLeft=double.MaxValue;t.NoGain=0;
         if(t.Mode=="handcart"&&t.Vehicle!=null&&parked.TryGetValue(t.Vehicle.Id,out var pk)){pk.Pushed=true;pk.Cart?.Dispose();pk.Cart=null;pk.Cargo.Clear();}
         if(t.Person.P is {} p){if(t.Fetch!=null)p.Yaw=t.Fetch[2];town.Crowd!.PuppetLoad(p,false);town.Crowd.PuppetVehicle(p,t.Mode=="velocipede"?1:t.Mode=="handcart"?2:3,t.Mode=="dray"?(t.Unload>0?1:0):t.Loaded,CargoCode(t.Load?.What));}
     }
@@ -184,7 +190,14 @@ public partial class ResidentJourneys
         if(t.Phase=="go") {
             if(p!=null&&p.NetworkVehicle==0)town.Crowd!.PuppetVehicle(p,t.Mode=="velocipede"?1:t.Mode=="handcart"?2:3,t.Mode=="dray"?(t.Unload>0?1:0):t.Loaded,CargoCode(t.Load?.What));
             var to=t.Park==null?t.To:V(t.Park);double radius=t.Mode=="velocipede"?1.6:t.Mode=="dray"?3.5:3;
-            if(Near(t,to,p==null?.6:radius)||p!=null&&t.Time>90)ArriveTransport(t);else Go(t,to,dt,t.Mode=="velocipede"?4:t.Mode=="dray"?1.15:.95);return;
+            // (a drawn trip that cannot get there in time stops where it is: in 90 s and 4 s a metre of its straight way (a cart
+            // goes about a metre a second, the way round up to twice the straight line), #192 a Grote Markt seller's cart from
+            // a home round the town hall's block)
+            // (out of the player's sight and over 12 m off, a handcart that gains no ground for four seconds, in a street too narrow for it to turn or
+            // going to and fro between two ways round, is taken on to its place at once, #192)
+            // (counted on the town's clock, 120 s a game hour: the stuck check runs the crowd faster than this node's frames)
+            if(p!=null){double left=new Vector2((float)p.X,(float)p.Z).DistanceTo(to),clock=(town.Day*24+town.Hour)*120;if(left<t.BestLeft-1||t.NoGain<=0){t.BestLeft=Math.Min(left,t.BestLeft);t.NoGain=clock;}}
+            if(Near(t,to,p==null?.6:radius)||p!=null&&t.Time>90+4*t.Door.DistanceTo(to)||p is {Shown:false}&&t.Mode=="handcart"&&(town.Day*24+town.Hour)*120-t.NoGain>4&&new Vector2((float)p.X-Main.I.Cam.GlobalPosition.X,(float)p.Z-Main.I.Cam.GlobalPosition.Z).Length()>12)ArriveTransport(t);else Go(t,to,dt,t.Mode=="velocipede"?4:t.Mode=="dray"?1.15:.95);return;
         }
         if(t.Phase=="unload"){if(p==null){if(t.Time>t.Unload*9*.7/(6/1.3)){t.Unload=0;CartItems(t,0);UnloadFinished(t);}}else Unloading(t,dt);return;}
         if(t.Phase=="walkon"){if(Near(t,t.To,1.6))End(t,true);else Go(t,t.To,dt);}
