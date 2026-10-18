@@ -1,0 +1,58 @@
+{
+  "item": "brown_leather",
+  "url": "https://polyhaven.com/a/brown_leather",
+  "licence": "CC0-1.0",
+  "authors": {
+    "Rob Tuytel": "All"
+  },
+  "download_date": "2026-10-18",
+  "technique": "Photographed PBR surface",
+  "source_dimensions_mm": [
+    400.0000059604645,
+    400.00003576278687
+  ],
+  "files": [
+    {
+      "path": "art-source/third_party/plan84-round2/brown_leather/brown_leather_albedo_1k.png",
+      "sha256": "24f8bf54ee3b436f3077eacefb710ab77f62772fb75c5298e862854b597cd664",
+      "bytes": 1819288,
+      "download_url": "https://dl.polyhaven.org/file/ph-assets/Textures/png/1k/brown_leather/brown_leather_albedo_1k.png"
+    },
+    {
+      "path": "art-source/third_party/plan84-round2/brown_leather/brown_leather_disp_1k.png",
+      "sha256": "3da0d0926efdc124a09961b966b83f42607c1e8a834e9ed5981456d663696c59",
+      "bytes": 2033575,
+      "download_url": "https://dl.polyhaven.org/file/ph-assets/Textures/png/1k/brown_leather/brown_leather_disp_1k.png"
+    },
+    {
+      "path": "art-source/third_party/plan84-round2/brown_leather/brown_leather_nor_gl_1k.png",
+      "sha256": "6354daff40330a2fcd6c1061912876ddc79889c960975adba336b013db5edcd5",
+      "bytes": 1925895,
+      "download_url": "https://dl.polyhaven.org/file/ph-assets/Textures/png/1k/brown_leather/brown_leather_nor_gl_1k.png"
+    },
+    {
+      "path": "art-source/third_party/plan84-round2/brown_leather/brown_leather_rough_1k.png",
+      "sha256": "80f3b3b886e2ca6deb1b54559457fc50945745df021c7773e39e1bebc9d8daa1",
+      "bytes": 959330,
+      "download_url": "https://dl.polyhaven.org/file/ph-assets/Textures/png/1k/brown_leather/brown_leather_rough_1k.png"
+    },
+    {
+      "path": "art-source/third_party/plan84-round2/brown_leather/info.json",
+      "sha256": "f99daa1aba9f6a3495f7aa1c819fd933b96c42e96806b49ab2d2af8ee47dbce9",
+      "bytes": 920,
+      "download_url": "https://polyhaven.com/a/brown_leather"
+    },
+    {
+      "path": "art-source/third_party/plan84-round2/brown_leather/files.json",
+      "sha256": "c988de9b099cc47ac170a2fdb55622684be5df102323a447bdc511a5525a6baa",
+      "bytes": 26283,
+      "download_url": "https://polyhaven.com/a/brown_leather"
+    },
+    {
+      "path": "art-source/third_party/plan84-round2/brown_leather/item-page.html",
+      "sha256": "466491762b20fe59c79971b172d0c8ec81daa0a71c7408493d055fc80cf85ac3",
+      "bytes": 195139,
+      "download_url": "https://polyhaven.com/a/brown_leather"
+    }
+  ]
+}

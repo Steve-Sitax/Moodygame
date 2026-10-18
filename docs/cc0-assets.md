@@ -69,3 +69,26 @@ The list comes from the awesome-cc0 collection (an "awesome list" of CC0 asset s
 ## Issue 84 bark donor (2026-10-18)
 
 [Bark 012, ambientCG](https://ambientcg.com/view?id=Bark012): CC0 1.0 confirmed on its own item page before download. The oak/fissured-bark colour, displacement and roughness are adapted together for row 9; the plane-tree half is original generated artwork. Original archive, saved item page and download/checksum ledger: `art-source/third_party/ambientcg-bark012/`. Archive SHA-256: `9b7c6f949b179b132593364990d900d7dd50ffb8ccda9b14131491f47c34af3d`. No bundled code was run. Per-file source and native material mappings are in `art-source/plan-84/SOURCES.json` and `native-godot/assets/textures/plan-84/manifest.json`.
+
+## Issue 84 round 2 photographic donors (2026-10-18)
+
+Every item was checked for CC0 on its own item page before use. Originals, saved item pages and per-file SHA-256 receipts are in `art-source/third_party/plan84-round2/`; complete credit/download details are in `assets/ATTRIBUTION.md`. Downloaded archives were decoded as images only.
+
+| Item | Author | Licence | Adaptation |
+|---|---|---|---|
+| [Bricks085](https://ambientcg.com/view?id=Bricks085) | Lennart Demes / ambientCG | CC0-1.0 | English-bond red brick, wall/church/prison/atlas cells |
+| [Rock041](https://ambientcg.com/view?id=Rock041) | Lennart Demes / ambientCG | CC0-1.0 | Dark/pale mineral skin and coping; Belgian stone colour proxy |
+| [Metal063](https://ambientcg.com/view?id=Metal063) | Lennart Demes / ambientCG | CC0-1.0 | Zinc skin; bronze casting microrelief donor |
+| [roof_slates_03](https://polyhaven.com/a/roof_slates_03) | Rob Tuytel | CC0-1.0 | Grey-blue Ardennes-colour roof slates |
+| [white_sandstone_blocks_02](https://polyhaven.com/a/white_sandstone_blocks_02) | Rob Tuytel | CC0-1.0 | Pale and blue-grey ashlar; quarry identity not claimed |
+| [japanese_sycamore](https://polyhaven.com/a/japanese_sycamore) | Charlotte Baglioni | CC0-1.0 | Exfoliating plane-family bark |
+| [jolcham_oak_bark_01](https://polyhaven.com/a/jolcham_oak_bark_01) | Charlotte Baglioni | CC0-1.0 | Fissured trunk proxy; not a certified lime specimen |
+| [dark_wooden_planks](https://polyhaven.com/a/dark_wooden_planks) | Amal Kumar | CC0-1.0 | Weathered timber boards and continuous beam skin |
+| [wooden_barrel](https://polyhaven.com/a/wooden_barrel) | Dimitrios Savva | CC0-1.0 | Cask staves and hoops |
+| [brown_leather](https://polyhaven.com/a/brown_leather) | Rob Tuytel | CC0-1.0 | Brown leather |
+| [hessian_230](https://polyhaven.com/a/hessian_230) | colormass, Rico Cilliers | CC0-1.0 | Jute sackcloth |
+| [rough_linen](https://polyhaven.com/a/rough_linen) | colormass, Rico Cilliers | CC0-1.0 | Canvas/awning micro-weave |
+| [brown_mud](https://polyhaven.com/a/brown_mud) | Rob Tuytel | CC0-1.0 | Bare earth and isolated muck |
+| [dry_decay_leaves](https://polyhaven.com/a/dry_decay_leaves) | Amal Kumar | CC0-1.0 | Fallen leaf marks |
+
+`build_round2.py` uses these photographed PBR maps without running their contents. Generated supplements are original project artwork, not CC0 photogrammetry. Geological/botanical proxies and reconstructed relief are identified per set; no native environment pass is claimed.

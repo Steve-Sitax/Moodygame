@@ -1,0 +1,52 @@
+{
+  "item": "Bricks085",
+  "url": "https://ambientcg.com/view?id=Bricks085",
+  "licence": "CC0-1.0",
+  "authors": {
+    "Lennart Demes / ambientCG": "Asset"
+  },
+  "download_date": "2026-10-18",
+  "technique": "Surface photogrammetry",
+  "source_dimensions_mm": [
+    2400,
+    1200
+  ],
+  "files": [
+    {
+      "path": "art-source/third_party/plan84-round2/Bricks085/Bricks085_1K-PNG.zip",
+      "sha256": "229b61d0810209f2e80267f1f6792d42bd27011e2a1c2f9c0a5b8d3a1efa0c98",
+      "bytes": 9222370,
+      "download_url": "https://ambientcg.com/get?file=Bricks085_1K-PNG.zip"
+    },
+    {
+      "path": "art-source/third_party/plan84-round2/Bricks085/Bricks085_1K-PNG_Color.png",
+      "sha256": "ce71019546110ef285f7e031921bfee3d5daba2407de4620ef6bfde2e5f6be68",
+      "bytes": 930121,
+      "download_url": "https://ambientcg.com/view?id=Bricks085"
+    },
+    {
+      "path": "art-source/third_party/plan84-round2/Bricks085/Bricks085_1K-PNG_Displacement.png",
+      "sha256": "4b318add4329680d4589f93d7707d46e2f93b786289db5c3f7cb9023b2ebd19b",
+      "bytes": 812410,
+      "download_url": "https://ambientcg.com/view?id=Bricks085"
+    },
+    {
+      "path": "art-source/third_party/plan84-round2/Bricks085/Bricks085_1K-PNG_NormalGL.png",
+      "sha256": "a4025924b9eebf1784b9572b8a31c6b12bd484e8a95915cf11b32d683a05d178",
+      "bytes": 2704817,
+      "download_url": "https://ambientcg.com/view?id=Bricks085"
+    },
+    {
+      "path": "art-source/third_party/plan84-round2/Bricks085/Bricks085_1K-PNG_Roughness.png",
+      "sha256": "df0cfee9773bdeadab40e3396ca7c3db9c57a213bb6988b84395f398dd299262",
+      "bytes": 244676,
+      "download_url": "https://ambientcg.com/view?id=Bricks085"
+    },
+    {
+      "path": "art-source/third_party/plan84-round2/Bricks085/item-page.html",
+      "sha256": "49227c8862916c4bc8b8fbeb9f41238a59f14d55ffb19591013073a4bf02b8c5",
+      "bytes": 31491,
+      "download_url": "https://ambientcg.com/view?id=Bricks085"
+    }
+  ]
+}

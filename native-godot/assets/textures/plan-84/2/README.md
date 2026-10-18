@@ -1,20 +1,19 @@
-# Issue 84, row 2: picture handoff
+# Issue 84, row 2: round 2 pictures
 
-Original/derived photographic maps, prepared 2026-10-18. No native scene, material, geometry, placement or ID was changed.
-Native installation and connected-scene inspection in dry daylight, rain and darkness remain required. This is not environment acceptance.
+Picture-only handoff. Native materials, scenes, geometry, placement and IDs are untouched.
+Native integration and close/grazing day, rain and night inspection remain required; this is not environment acceptance.
 
-`*_colour.png`: sRGB RGB/RGBA. `*_height.png`: linear R, white high. `*_normal.png`: linear RGB tangent OpenGL (+Y).
-`*_roughness.png`: linear R, white rough. Separate maps, no ORM/alpha channel packing. Mipmaps and linear/aniso filtering on.
-Use the same UV transform for every map. Do not import normal/height/roughness as sRGB. Normal Y must not be inverted.
-Source file licences/checksums: `../manifest.json`; full provenance: `assets/ATTRIBUTION.md`, `art-source/plan-84/SOURCES.json`.
+Separate PNGs: colour = sRGB RGB/RGBA; height = linear R, white high; normal = linear RGB OpenGL +Y; roughness = linear R, white rough.
+No ORM packing. Preserve common UV transforms, enable mipmaps and linear/aniso filtering; never import data maps as sRGB.
 
-| Prefix: four PNG maps (colour, height, normal, roughness) | Pixels | Metres per tile/card | Target native scene::material | 3x3 test under K-textures proof folder |
+Source/item licences, author and exact checksums: `art-source/plan-84/ROUND2-SOURCES.json` and `art-source/third_party/plan84-round2/`.
+
+| Set | Pixels | Metres per tile/card | Target material | Decision |
 |---|---|---|---|---|
-| `wrought_iron_*` | 512 x 512 | 0.5 x 0.5 | `props::iron`, `stalls::iron`, `wall::wall_iron` | `tiles/2/wrought_iron_3x3.jpg` |
+| `wrought_iron` | 512 x 512 | [0.5, 0.5] | props::iron, stalls::iron, wall::wall_iron | retained |
 
-Sources and integration notes:
-- `wrought_iron`: art-source/plan-84/reused/wrought_iron_c.png; art-source/plan-84/reused/wrought_iron_h.png. Licence: Original project artwork (generated/derived; project LICENSE). Photographic original from 042db687, matching height retained. Surface rust has no ground collision.
-  Native town: `wall_iron` (`native-godot/world/town/resources/r000615.res`), `iron` (`native-godot/world/town/resources/r002509.res`), `iron` (`native-godot/world/town/resources/r004606.res`), `iron` (`native-godot/world/town/resources/r009272.res`).
+Per-set depth range, exact town resource targets, donor IDs and notes are in `../manifest.json`.
+Comparisons: `D:/Code/_tmp_verify/K2-textures/comparisons/<row>/<set>.jpg`.
+Four-map repeats: `D:/Code/_tmp_verify/K2-textures/tiles/<row>/<set>_3x3.jpg`.
 
-Exposed stone, wood and metal edges still require material-appropriate geometric radii. Maps cannot repair silhouettes, junctions, drainage or collision.
-Do not add opaque stain plates. Keep cast bodies/bases consistent. Check backs, tops, undersides, ends, mipmaps and low/grazing angles after wiring.
+Maps add surface detail only. Exposed bevels, real laps, connected drainage, underside normals and collision need native review.

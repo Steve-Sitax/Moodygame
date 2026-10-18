@@ -1,0 +1,59 @@
+{
+  "item": "hessian_230",
+  "url": "https://polyhaven.com/a/hessian_230",
+  "licence": "CC0-1.0",
+  "authors": {
+    "colormass": "Photography",
+    "Rico Cilliers": "Processing"
+  },
+  "download_date": "2026-10-18",
+  "technique": "Photographed PBR surface",
+  "source_dimensions_mm": [
+    268.7538661074732,
+    267.1999931335449
+  ],
+  "files": [
+    {
+      "path": "art-source/third_party/plan84-round2/hessian_230/hessian_230_diff_1k.png",
+      "sha256": "9c3d6c6d308edeb4c37463c658a7edb11ccd8c6d76032ed5f4c2d8aede77b032",
+      "bytes": 5753027,
+      "download_url": "https://dl.polyhaven.org/file/ph-assets/Textures/png/1k/hessian_230/hessian_230_diff_1k.png"
+    },
+    {
+      "path": "art-source/third_party/plan84-round2/hessian_230/hessian_230_disp_1k.png",
+      "sha256": "fe615da3e6619b121e7758fb86a0f3d8994363922b9da7b87edabbf45e5ecc1e",
+      "bytes": 1898834,
+      "download_url": "https://dl.polyhaven.org/file/ph-assets/Textures/png/1k/hessian_230/hessian_230_disp_1k.png"
+    },
+    {
+      "path": "art-source/third_party/plan84-round2/hessian_230/hessian_230_nor_gl_1k.png",
+      "sha256": "dba6482c9b0edcfd0610e865b18236cccd35d2e15021db7a0ec54892f84249cc",
+      "bytes": 5598680,
+      "download_url": "https://dl.polyhaven.org/file/ph-assets/Textures/png/1k/hessian_230/hessian_230_nor_gl_1k.png"
+    },
+    {
+      "path": "art-source/third_party/plan84-round2/hessian_230/hessian_230_rough_1k.png",
+      "sha256": "535093cfb0d9b70d878d8ccd567c45355b7fd03f7f8d1f85d3a0d95d05fe184a",
+      "bytes": 1965459,
+      "download_url": "https://dl.polyhaven.org/file/ph-assets/Textures/png/1k/hessian_230/hessian_230_rough_1k.png"
+    },
+    {
+      "path": "art-source/third_party/plan84-round2/hessian_230/info.json",
+      "sha256": "272fec5eb86bbffb1323a54bd0a358ac0837a6077fb1b289fbd2a987b95b7411",
+      "bytes": 971,
+      "download_url": "https://polyhaven.com/a/hessian_230"
+    },
+    {
+      "path": "art-source/third_party/plan84-round2/hessian_230/files.json",
+      "sha256": "e3ae175e1ea48b897b8804e9c73d29f5acb8ee79cbc303a756500c6b1dd605a5",
+      "bytes": 45176,
+      "download_url": "https://polyhaven.com/a/hessian_230"
+    },
+    {
+      "path": "art-source/third_party/plan84-round2/hessian_230/item-page.html",
+      "sha256": "6cd991036a7bead12797192d17490154d2f06fd5075bdf9d31cb92e066c61492",
+      "bytes": 226574,
+      "download_url": "https://polyhaven.com/a/hessian_230"
+    }
+  ]
+}

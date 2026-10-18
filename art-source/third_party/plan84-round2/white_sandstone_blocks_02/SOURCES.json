@@ -1,0 +1,58 @@
+{
+  "item": "white_sandstone_blocks_02",
+  "url": "https://polyhaven.com/a/white_sandstone_blocks_02",
+  "licence": "CC0-1.0",
+  "authors": {
+    "Rob Tuytel": "All"
+  },
+  "download_date": "2026-10-18",
+  "technique": "Photographed PBR surface",
+  "source_dimensions_mm": [
+    2000,
+    2000
+  ],
+  "files": [
+    {
+      "path": "art-source/third_party/plan84-round2/white_sandstone_blocks_02/white_sandstone_blocks_02_diff_1k.png",
+      "sha256": "139b484158e112b3a6e620f9204f9ab4fbd4f46560e2dc0407ad79560f44838a",
+      "bytes": 2055031,
+      "download_url": "https://dl.polyhaven.org/file/ph-assets/Textures/png/1k/white_sandstone_blocks_02/white_sandstone_blocks_02_diff_1k.png"
+    },
+    {
+      "path": "art-source/third_party/plan84-round2/white_sandstone_blocks_02/white_sandstone_blocks_02_disp_1k.png",
+      "sha256": "a4bb21f4d175b332135e59d09215af2abff495d96bfcafeef9b84c43e2906c1a",
+      "bytes": 1628666,
+      "download_url": "https://dl.polyhaven.org/file/ph-assets/Textures/png/1k/white_sandstone_blocks_02/white_sandstone_blocks_02_disp_1k.png"
+    },
+    {
+      "path": "art-source/third_party/plan84-round2/white_sandstone_blocks_02/white_sandstone_blocks_02_nor_gl_1k.png",
+      "sha256": "35bb805bb2e5df91ee16e1207b9c098c5857c0804268ce45ef0961c233b558e1",
+      "bytes": 1879695,
+      "download_url": "https://dl.polyhaven.org/file/ph-assets/Textures/png/1k/white_sandstone_blocks_02/white_sandstone_blocks_02_nor_gl_1k.png"
+    },
+    {
+      "path": "art-source/third_party/plan84-round2/white_sandstone_blocks_02/white_sandstone_blocks_02_rough_1k.png",
+      "sha256": "c85b2389f862f617c7e1ebd71e9e73a7fb1d558ce31d3802cada7c3882cb220c",
+      "bytes": 661138,
+      "download_url": "https://dl.polyhaven.org/file/ph-assets/Textures/png/1k/white_sandstone_blocks_02/white_sandstone_blocks_02_rough_1k.png"
+    },
+    {
+      "path": "art-source/third_party/plan84-round2/white_sandstone_blocks_02/info.json",
+      "sha256": "6f295950b68f875d2eb22a62b2a49995c25d2044582818d848839d67eb4fb4e6",
+      "bytes": 977,
+      "download_url": "https://polyhaven.com/a/white_sandstone_blocks_02"
+    },
+    {
+      "path": "art-source/third_party/plan84-round2/white_sandstone_blocks_02/files.json",
+      "sha256": "9369eec22c2d6cac224a223df2237d12ec66547b0605e681e9f61cf2a3d92982",
+      "bytes": 34932,
+      "download_url": "https://polyhaven.com/a/white_sandstone_blocks_02"
+    },
+    {
+      "path": "art-source/third_party/plan84-round2/white_sandstone_blocks_02/item-page.html",
+      "sha256": "a1f291387473a07addcfe3201c7b659a9e915e14486581ed746398c8455b0854",
+      "bytes": 209041,
+      "download_url": "https://polyhaven.com/a/white_sandstone_blocks_02"
+    }
+  ]
+}

@@ -2,13 +2,14 @@
 
 ## Native picture handoff, 2026-10-18 (#84)
 
-The new picture bundle is `native-godot/assets/textures/plan-84/`: 71 colour/height/normal/roughness sets,
-with per-row READMEs, metre scales, licences and exact native town material targets in `manifest.json`.
-Rows 3, 7, 8, 9 and 10 have new picture sets; rows 2 and 6 reuse the useful photographic originals.
-Row 13 is partial: seven native-layout atlases improve 128 material cells; their 230 retained cells are listed
-individually in the cell manifests. Signs, food, figurative art and decals still need their own picture review.
+The round 2 picture bundle is `native-godot/assets/textures/plan-84/`: 71 colour/height/normal/roughness sets,
+with per-row READMEs, updated metre scales, licences and exact native town material targets in `manifest.json`.
+CC0 photographed PBR donors replace the weak material pictures. Useful original iron, lead and thin leaf cards remain.
+Row 13 now also includes photographic goods, fibres and devotional prints, plus repainted serif sign lettering.
+Remaining special cells are listed individually; the atlases and geological/botanical proxies still require review.
 Litter is supplied as separate named high-resolution marks, with the original atlas metadata retained for integration.
-Originals, generation prompts, CC0 evidence and the offline picture builder are under `art-source/plan-84/`.
+Round 2 sources and prompts are indexed by `art-source/plan-84/ROUND2-SOURCES.json`; original downloads and own-page
+licence evidence are under `art-source/third_party/plan84-round2/`. Rebuild with `art-source/plan-84/build_round2.py`.
 No town scene, material, geometry, placement or ID was changed. Native wiring and connected geometry/lighting
 acceptance remain outstanding. The browser commands and sizes below are historical, not a native installation workflow.
 

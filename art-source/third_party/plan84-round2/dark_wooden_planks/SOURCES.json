@@ -1,0 +1,58 @@
+{
+  "item": "dark_wooden_planks",
+  "url": "https://polyhaven.com/a/dark_wooden_planks",
+  "licence": "CC0-1.0",
+  "authors": {
+    "Amal Kumar": "All"
+  },
+  "download_date": "2026-10-18",
+  "technique": "Photographed PBR surface",
+  "source_dimensions_mm": [
+    2000,
+    2000
+  ],
+  "files": [
+    {
+      "path": "art-source/third_party/plan84-round2/dark_wooden_planks/dark_wooden_planks_diff_1k.png",
+      "sha256": "faeff107a658ebfc57523daa8b6bee734445fc0ffed99746a9086fd464f87389",
+      "bytes": 6232438,
+      "download_url": "https://dl.polyhaven.org/file/ph-assets/Textures/png/1k/dark_wooden_planks/dark_wooden_planks_diff_1k.png"
+    },
+    {
+      "path": "art-source/third_party/plan84-round2/dark_wooden_planks/dark_wooden_planks_disp_1k.png",
+      "sha256": "6aeb969a8021a2c72c1a955a82f759bd9c9518a53915a416867594a59f2fd0c9",
+      "bytes": 1394483,
+      "download_url": "https://dl.polyhaven.org/file/ph-assets/Textures/png/1k/dark_wooden_planks/dark_wooden_planks_disp_1k.png"
+    },
+    {
+      "path": "art-source/third_party/plan84-round2/dark_wooden_planks/dark_wooden_planks_nor_gl_1k.png",
+      "sha256": "d55c58e05b066b499fc90f520666733716e4f86ac5594144587f2cb273c7f597",
+      "bytes": 5832926,
+      "download_url": "https://dl.polyhaven.org/file/ph-assets/Textures/png/1k/dark_wooden_planks/dark_wooden_planks_nor_gl_1k.png"
+    },
+    {
+      "path": "art-source/third_party/plan84-round2/dark_wooden_planks/dark_wooden_planks_rough_1k.png",
+      "sha256": "e3f040e61d9c27f7f9dd4081e8cb23a572ed2f23fc41fec91fec630e177bcf92",
+      "bytes": 1873302,
+      "download_url": "https://dl.polyhaven.org/file/ph-assets/Textures/png/1k/dark_wooden_planks/dark_wooden_planks_rough_1k.png"
+    },
+    {
+      "path": "art-source/third_party/plan84-round2/dark_wooden_planks/info.json",
+      "sha256": "14822e5eba8c3b6601430a2321c8dd1e24e9b6c962d90841ba2186a9d253120e",
+      "bytes": 1010,
+      "download_url": "https://polyhaven.com/a/dark_wooden_planks"
+    },
+    {
+      "path": "art-source/third_party/plan84-round2/dark_wooden_planks/files.json",
+      "sha256": "a5fb427004afc699140d09827f92e4496972f5607620df73577c06ece5fe42dc",
+      "bytes": 27886,
+      "download_url": "https://polyhaven.com/a/dark_wooden_planks"
+    },
+    {
+      "path": "art-source/third_party/plan84-round2/dark_wooden_planks/item-page.html",
+      "sha256": "e2a6d17d200e3c06a7867060bd67ccf598c750247a8619d2c4c2e7369ed307da",
+      "bytes": 198746,
+      "download_url": "https://polyhaven.com/a/dark_wooden_planks"
+    }
+  ]
+}

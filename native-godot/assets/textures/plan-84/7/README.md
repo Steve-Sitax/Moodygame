@@ -1,117 +1,50 @@
-# Issue 84, row 7: picture handoff
+# Issue 84, row 7: round 2 pictures
 
-Original/derived photographic maps, prepared 2026-10-18. No native scene, material, geometry, placement or ID was changed.
-Native installation and connected-scene inspection in dry daylight, rain and darkness remain required. This is not environment acceptance.
+Picture-only handoff. Native materials, scenes, geometry, placement and IDs are untouched.
+Native integration and close/grazing day, rain and night inspection remain required; this is not environment acceptance.
 
-`*_colour.png`: sRGB RGB/RGBA. `*_height.png`: linear R, white high. `*_normal.png`: linear RGB tangent OpenGL (+Y).
-`*_roughness.png`: linear R, white rough. Separate maps, no ORM/alpha channel packing. Mipmaps and linear/aniso filtering on.
-Use the same UV transform for every map. Do not import normal/height/roughness as sRGB. Normal Y must not be inverted.
-Source file licences/checksums: `../manifest.json`; full provenance: `assets/ATTRIBUTION.md`, `art-source/plan-84/SOURCES.json`.
+Separate PNGs: colour = sRGB RGB/RGBA; height = linear R, white high; normal = linear RGB OpenGL +Y; roughness = linear R, white rough.
+No ORM packing. Preserve common UV transforms, enable mipmaps and linear/aniso filtering; never import data maps as sRGB.
 
-| Prefix: four PNG maps (colour, height, normal, roughness) | Pixels | Metres per tile/card | Target native scene::material | 3x3 test under K-textures proof folder |
+Source/item licences, author and exact checksums: `art-source/plan-84/ROUND2-SOURCES.json` and `art-source/third_party/plan84-round2/`.
+
+| Set | Pixels | Metres per tile/card | Target material | Decision |
 |---|---|---|---|---|
-| `muck_0_*` | 512 x 512 | 1.6 x 1.3 | `litter::lt_decal` | `tiles/7/muck_0_3x3.jpg` |
-| `muck_1_*` | 512 x 512 | 2.2 x 1.4 | `litter::lt_decal` | `tiles/7/muck_1_3x3.jpg` |
-| `muck_2_*` | 512 x 512 | 1.1 x 1.0 | `litter::lt_decal` | `tiles/7/muck_2_3x3.jpg` |
-| `dungflat_0_*` | 512 x 512 | 0.45 x 0.4 | `litter::lt_decal` | `tiles/7/dungflat_0_3x3.jpg` |
-| `dungflat_1_*` | 512 x 512 | 0.6 x 0.45 | `litter::lt_decal` | `tiles/7/dungflat_1_3x3.jpg` |
-| `straw_0_*` | 512 x 512 | 0.8 x 0.8 | `litter::lt_decal` | `tiles/7/straw_0_3x3.jpg` |
-| `straw_1_*` | 512 x 512 | 1.1 x 0.7 | `litter::lt_decal` | `tiles/7/straw_1_3x3.jpg` |
-| `urine_0_*` | 512 x 512 | 0.9 x 1.3 | `litter::lt_decal` | `tiles/7/urine_0_3x3.jpg` |
-| `urine_wall_*` | 512 x 512 | 0.6 x 0.55 | `litter::lt_decal` | `tiles/7/urine_wall_3x3.jpg` |
-| `oil_0_*` | 512 x 512 | 1.4 x 1.1 | `litter::lt_decal` | `tiles/7/oil_0_3x3.jpg` |
-| `tar_0_*` | 512 x 512 | 1.0 x 0.8 | `litter::lt_decal` | `tiles/7/tar_0_3x3.jpg` |
-| `tar_1_*` | 512 x 512 | 0.7 x 0.7 | `litter::lt_decal` | `tiles/7/tar_1_3x3.jpg` |
-| `soot_0_*` | 512 x 512 | 1.6 x 1.4 | `litter::lt_decal` | `tiles/7/soot_0_3x3.jpg` |
-| `coaldust_0_*` | 512 x 512 | 3.0 x 2.4 | `litter::lt_decal` | `tiles/7/coaldust_0_3x3.jpg` |
-| `coaldust_1_*` | 512 x 512 | 1.4 x 1.1 | `litter::lt_decal` | `tiles/7/coaldust_1_3x3.jpg` |
-| `slop_0_*` | 512 x 512 | 1.5 x 1.7 | `litter::lt_decal` | `tiles/7/slop_0_3x3.jpg` |
-| `scales_0_*` | 512 x 512 | 0.9 x 0.8 | `litter::lt_decal` | `tiles/7/scales_0_3x3.jpg` |
-| `guts_0_*` | 512 x 512 | 0.35 x 0.3 | `litter::lt_decal` | `tiles/7/guts_0_3x3.jpg` |
-| `leafmush_0_*` | 512 x 512 | 0.7 x 0.6 | `litter::lt_decal` | `tiles/7/leafmush_0_3x3.jpg` |
-| `paper_0_*` | 512 x 512 | 0.38 x 0.5 | `litter::lt_decal` | `tiles/7/paper_0_3x3.jpg` |
-| `grain_0_*` | 512 x 512 | 1.2 x 0.9 | `litter::lt_decal` | `tiles/7/grain_0_3x3.jpg` |
-| `ash_0_*` | 512 x 512 | 0.9 x 0.8 | `litter::lt_decal` | `tiles/7/ash_0_3x3.jpg` |
-| `glass_0_*` | 512 x 512 | 0.45 x 0.45 | `litter::lt_decal` | `tiles/7/glass_0_3x3.jpg` |
-| `shells_0_*` | 512 x 512 | 0.8 x 0.7 | `litter::lt_decal` | `tiles/7/shells_0_3x3.jpg` |
-| `drain_*` | 512 x 512 | 0.5 x 0.5 | `litter::lt_decal` | `tiles/7/drain_3x3.jpg` |
-| `gutter_*` | 512 x 512 | 1.6 x 0.5 | `litter::lt_decal` | `tiles/7/gutter_3x3.jpg` |
-| `leafdrift_0_*` | 512 x 512 | 1.75 x 0.6 | `litter::lt_decal` | `tiles/7/leafdrift_0_3x3.jpg` |
-| `leafdrift_1_*` | 512 x 512 | 1.3 x 0.62 | `litter::lt_decal` | `tiles/7/leafdrift_1_3x3.jpg` |
-| `leafpatch_0_*` | 512 x 512 | 1.1 x 1.1 | `litter::lt_decal` | `tiles/7/leafpatch_0_3x3.jpg` |
-| `leafpatch_1_*` | 512 x 512 | 0.85 x 0.85 | `litter::lt_decal` | `tiles/7/leafpatch_1_3x3.jpg` |
-| `leafscatter_0_*` | 512 x 512 | 1.6 x 1.6 | `litter::lt_decal` | `tiles/7/leafscatter_0_3x3.jpg` |
-| `leafscatter_1_*` | 512 x 512 | 1.6 x 1.6 | `litter::lt_decal` | `tiles/7/leafscatter_1_3x3.jpg` |
+| `muck_0` | 512 x 512 | [1.6, 1.3] | litter::lt_decal | replaced |
+| `muck_1` | 512 x 512 | [2.2, 1.4] | litter::lt_decal | replaced |
+| `muck_2` | 512 x 512 | [1.1, 1.0] | litter::lt_decal | replaced |
+| `dungflat_0` | 512 x 512 | [0.45, 0.4] | litter::lt_decal | matte repaired / retained photograph |
+| `dungflat_1` | 512 x 512 | [0.6, 0.45] | litter::lt_decal | matte repaired / retained photograph |
+| `straw_0` | 512 x 512 | [0.8, 0.8] | litter::lt_decal | matte repaired / retained photograph |
+| `straw_1` | 512 x 512 | [1.1, 0.7] | litter::lt_decal | matte repaired / retained photograph |
+| `urine_0` | 512 x 512 | [0.9, 1.3] | litter::lt_decal | matte repaired / retained photograph |
+| `urine_wall` | 512 x 512 | [0.6, 0.55] | litter::lt_decal | matte repaired / retained photograph |
+| `oil_0` | 512 x 512 | [1.4, 1.1] | litter::lt_decal | matte repaired / retained photograph |
+| `tar_0` | 512 x 512 | [1.0, 0.8] | litter::lt_decal | matte repaired / retained photograph |
+| `tar_1` | 512 x 512 | [0.7, 0.7] | litter::lt_decal | matte repaired / retained photograph |
+| `soot_0` | 512 x 512 | [1.6, 1.4] | litter::lt_decal | matte repaired / retained photograph |
+| `coaldust_0` | 512 x 512 | [3.0, 2.4] | litter::lt_decal | matte repaired / retained photograph |
+| `coaldust_1` | 512 x 512 | [1.4, 1.1] | litter::lt_decal | matte repaired / retained photograph |
+| `slop_0` | 512 x 512 | [1.5, 1.7] | litter::lt_decal | matte repaired / retained photograph |
+| `scales_0` | 512 x 512 | [0.9, 0.8] | litter::lt_decal | matte repaired / retained photograph |
+| `guts_0` | 512 x 512 | [0.35, 0.3] | litter::lt_decal | matte repaired / retained photograph |
+| `leafmush_0` | 512 x 512 | [0.7, 0.6] | litter::lt_decal | replaced |
+| `paper_0` | 512 x 512 | [0.38, 0.5] | litter::lt_decal | matte repaired / retained photograph |
+| `grain_0` | 512 x 512 | [1.2, 0.9] | litter::lt_decal | matte repaired / retained photograph |
+| `ash_0` | 512 x 512 | [0.9, 0.8] | litter::lt_decal | matte repaired / retained photograph |
+| `glass_0` | 512 x 512 | [0.45, 0.45] | litter::lt_decal | matte repaired / retained photograph |
+| `shells_0` | 512 x 512 | [0.8, 0.7] | litter::lt_decal | matte repaired / retained photograph |
+| `drain` | 512 x 512 | [0.5, 0.5] | litter::lt_decal | matte repaired / retained photograph |
+| `gutter` | 512 x 512 | [1.6, 0.5] | litter::lt_decal | matte repaired / retained photograph |
+| `leafdrift_0` | 512 x 512 | [1.75, 0.6] | litter::lt_decal | replaced |
+| `leafdrift_1` | 512 x 512 | [1.3, 0.62] | litter::lt_decal | replaced |
+| `leafpatch_0` | 512 x 512 | [1.1, 1.1] | litter::lt_decal | replaced |
+| `leafpatch_1` | 512 x 512 | [0.85, 0.85] | litter::lt_decal | replaced |
+| `leafscatter_0` | 512 x 512 | [1.6, 1.6] | litter::lt_decal | replaced |
+| `leafscatter_1` | 512 x 512 | [1.6, 1.6] | litter::lt_decal | replaced |
 
-Sources and integration notes:
-- `muck_0`: art-source/plan-84/generated/litter-v2.png. Licence: Original project artwork (generated/derived; project LICENSE). Transparent isolated mark; 3x3 tests its empty boundary, not a continuous ground material. Leaves use 29 cm three-leaf cluster cuts; grain 10 cm patch cuts; grit/cinders 13-22 cm patch cuts. Stains have zero relief. Keep ground/collision and real drain bars in geometry.
-  Native town: `litter_flat` (`native-godot/world/town/resources/r005577.res`).
-- `muck_1`: art-source/plan-84/generated/litter-v2.png. Licence: Original project artwork (generated/derived; project LICENSE). Transparent isolated mark; 3x3 tests its empty boundary, not a continuous ground material. Leaves use 29 cm three-leaf cluster cuts; grain 10 cm patch cuts; grit/cinders 13-22 cm patch cuts. Stains have zero relief. Keep ground/collision and real drain bars in geometry.
-  Native town: `litter_flat` (`native-godot/world/town/resources/r005577.res`).
-- `muck_2`: art-source/plan-84/generated/litter-v2.png. Licence: Original project artwork (generated/derived; project LICENSE). Transparent isolated mark; 3x3 tests its empty boundary, not a continuous ground material. Leaves use 29 cm three-leaf cluster cuts; grain 10 cm patch cuts; grit/cinders 13-22 cm patch cuts. Stains have zero relief. Keep ground/collision and real drain bars in geometry.
-  Native town: `litter_flat` (`native-godot/world/town/resources/r005577.res`).
-- `dungflat_0`: art-source/plan-84/generated/litter-v2.png. Licence: Original project artwork (generated/derived; project LICENSE). Transparent isolated mark; 3x3 tests its empty boundary, not a continuous ground material. Leaves use 29 cm three-leaf cluster cuts; grain 10 cm patch cuts; grit/cinders 13-22 cm patch cuts. Stains have zero relief. Keep ground/collision and real drain bars in geometry.
-  Native town: `litter_flat` (`native-godot/world/town/resources/r005577.res`).
-- `dungflat_1`: art-source/plan-84/generated/litter-v2.png. Licence: Original project artwork (generated/derived; project LICENSE). Transparent isolated mark; 3x3 tests its empty boundary, not a continuous ground material. Leaves use 29 cm three-leaf cluster cuts; grain 10 cm patch cuts; grit/cinders 13-22 cm patch cuts. Stains have zero relief. Keep ground/collision and real drain bars in geometry.
-  Native town: `litter_flat` (`native-godot/world/town/resources/r005577.res`).
-- `straw_0`: art-source/plan-84/generated/litter-v2.png. Licence: Original project artwork (generated/derived; project LICENSE). Transparent isolated mark; 3x3 tests its empty boundary, not a continuous ground material. Leaves use 29 cm three-leaf cluster cuts; grain 10 cm patch cuts; grit/cinders 13-22 cm patch cuts. Stains have zero relief. Keep ground/collision and real drain bars in geometry.
-  Native town: `litter_flat` (`native-godot/world/town/resources/r005577.res`).
-- `straw_1`: art-source/plan-84/generated/litter-v2.png. Licence: Original project artwork (generated/derived; project LICENSE). Transparent isolated mark; 3x3 tests its empty boundary, not a continuous ground material. Leaves use 29 cm three-leaf cluster cuts; grain 10 cm patch cuts; grit/cinders 13-22 cm patch cuts. Stains have zero relief. Keep ground/collision and real drain bars in geometry.
-  Native town: `litter_flat` (`native-godot/world/town/resources/r005577.res`).
-- `urine_0`: art-source/plan-84/generated/litter-v2.png. Licence: Original project artwork (generated/derived; project LICENSE). Transparent isolated mark; 3x3 tests its empty boundary, not a continuous ground material. Leaves use 29 cm three-leaf cluster cuts; grain 10 cm patch cuts; grit/cinders 13-22 cm patch cuts. Stains have zero relief. Keep ground/collision and real drain bars in geometry.
-  Native town: `litter_flat` (`native-godot/world/town/resources/r005577.res`).
-- `urine_wall`: art-source/plan-84/generated/litter-v2.png. Licence: Original project artwork (generated/derived; project LICENSE). Transparent isolated mark; 3x3 tests its empty boundary, not a continuous ground material. Leaves use 29 cm three-leaf cluster cuts; grain 10 cm patch cuts; grit/cinders 13-22 cm patch cuts. Stains have zero relief. Keep ground/collision and real drain bars in geometry.
-  Native town: `litter_flat` (`native-godot/world/town/resources/r005577.res`).
-- `oil_0`: art-source/plan-84/generated/litter-v2.png. Licence: Original project artwork (generated/derived; project LICENSE). Transparent isolated mark; 3x3 tests its empty boundary, not a continuous ground material. Leaves use 29 cm three-leaf cluster cuts; grain 10 cm patch cuts; grit/cinders 13-22 cm patch cuts. Stains have zero relief. Keep ground/collision and real drain bars in geometry.
-  Native town: `litter_flat` (`native-godot/world/town/resources/r005577.res`).
-- `tar_0`: art-source/plan-84/generated/litter-v2.png. Licence: Original project artwork (generated/derived; project LICENSE). Transparent isolated mark; 3x3 tests its empty boundary, not a continuous ground material. Leaves use 29 cm three-leaf cluster cuts; grain 10 cm patch cuts; grit/cinders 13-22 cm patch cuts. Stains have zero relief. Keep ground/collision and real drain bars in geometry.
-  Native town: `litter_flat` (`native-godot/world/town/resources/r005577.res`).
-- `tar_1`: art-source/plan-84/generated/litter-v2.png. Licence: Original project artwork (generated/derived; project LICENSE). Transparent isolated mark; 3x3 tests its empty boundary, not a continuous ground material. Leaves use 29 cm three-leaf cluster cuts; grain 10 cm patch cuts; grit/cinders 13-22 cm patch cuts. Stains have zero relief. Keep ground/collision and real drain bars in geometry.
-  Native town: `litter_flat` (`native-godot/world/town/resources/r005577.res`).
-- `soot_0`: art-source/plan-84/generated/litter-v2.png. Licence: Original project artwork (generated/derived; project LICENSE). Transparent isolated mark; 3x3 tests its empty boundary, not a continuous ground material. Leaves use 29 cm three-leaf cluster cuts; grain 10 cm patch cuts; grit/cinders 13-22 cm patch cuts. Stains have zero relief. Keep ground/collision and real drain bars in geometry.
-  Native town: `litter_flat` (`native-godot/world/town/resources/r005577.res`).
-- `coaldust_0`: art-source/plan-84/generated/litter-v2.png. Licence: Original project artwork (generated/derived; project LICENSE). Transparent isolated mark; 3x3 tests its empty boundary, not a continuous ground material. Leaves use 29 cm three-leaf cluster cuts; grain 10 cm patch cuts; grit/cinders 13-22 cm patch cuts. Stains have zero relief. Keep ground/collision and real drain bars in geometry.
-  Native town: `litter_flat` (`native-godot/world/town/resources/r005577.res`).
-- `coaldust_1`: art-source/plan-84/generated/litter-v2.png. Licence: Original project artwork (generated/derived; project LICENSE). Transparent isolated mark; 3x3 tests its empty boundary, not a continuous ground material. Leaves use 29 cm three-leaf cluster cuts; grain 10 cm patch cuts; grit/cinders 13-22 cm patch cuts. Stains have zero relief. Keep ground/collision and real drain bars in geometry.
-  Native town: `litter_flat` (`native-godot/world/town/resources/r005577.res`).
-- `slop_0`: art-source/plan-84/generated/litter-v2.png. Licence: Original project artwork (generated/derived; project LICENSE). Transparent isolated mark; 3x3 tests its empty boundary, not a continuous ground material. Leaves use 29 cm three-leaf cluster cuts; grain 10 cm patch cuts; grit/cinders 13-22 cm patch cuts. Stains have zero relief. Keep ground/collision and real drain bars in geometry.
-  Native town: `litter_flat` (`native-godot/world/town/resources/r005577.res`).
-- `scales_0`: art-source/plan-84/generated/litter-v2.png. Licence: Original project artwork (generated/derived; project LICENSE). Transparent isolated mark; 3x3 tests its empty boundary, not a continuous ground material. Leaves use 29 cm three-leaf cluster cuts; grain 10 cm patch cuts; grit/cinders 13-22 cm patch cuts. Stains have zero relief. Keep ground/collision and real drain bars in geometry.
-  Native town: `litter_flat` (`native-godot/world/town/resources/r005577.res`).
-- `guts_0`: art-source/plan-84/generated/litter-v2.png. Licence: Original project artwork (generated/derived; project LICENSE). Transparent isolated mark; 3x3 tests its empty boundary, not a continuous ground material. Leaves use 29 cm three-leaf cluster cuts; grain 10 cm patch cuts; grit/cinders 13-22 cm patch cuts. Stains have zero relief. Keep ground/collision and real drain bars in geometry.
-  Native town: `litter_flat` (`native-godot/world/town/resources/r005577.res`).
-- `leafmush_0`: art-source/plan-84/generated/litter-v2.png. Licence: Original project artwork (generated/derived; project LICENSE). Transparent isolated mark; 3x3 tests its empty boundary, not a continuous ground material. Leaves use 29 cm three-leaf cluster cuts; grain 10 cm patch cuts; grit/cinders 13-22 cm patch cuts. Stains have zero relief. Keep ground/collision and real drain bars in geometry.
-  Native town: `litter_flat` (`native-godot/world/town/resources/r005577.res`).
-- `paper_0`: art-source/plan-84/generated/litter-v2.png. Licence: Original project artwork (generated/derived; project LICENSE). Transparent isolated mark; 3x3 tests its empty boundary, not a continuous ground material. Leaves use 29 cm three-leaf cluster cuts; grain 10 cm patch cuts; grit/cinders 13-22 cm patch cuts. Stains have zero relief. Keep ground/collision and real drain bars in geometry.
-  Native town: `litter_flat` (`native-godot/world/town/resources/r005577.res`).
-- `grain_0`: art-source/plan-84/generated/litter-v2.png. Licence: Original project artwork (generated/derived; project LICENSE). Transparent isolated mark; 3x3 tests its empty boundary, not a continuous ground material. Leaves use 29 cm three-leaf cluster cuts; grain 10 cm patch cuts; grit/cinders 13-22 cm patch cuts. Stains have zero relief. Keep ground/collision and real drain bars in geometry.
-  Native town: `litter_flat` (`native-godot/world/town/resources/r005577.res`).
-- `ash_0`: art-source/plan-84/generated/litter-v2.png. Licence: Original project artwork (generated/derived; project LICENSE). Transparent isolated mark; 3x3 tests its empty boundary, not a continuous ground material. Leaves use 29 cm three-leaf cluster cuts; grain 10 cm patch cuts; grit/cinders 13-22 cm patch cuts. Stains have zero relief. Keep ground/collision and real drain bars in geometry.
-  Native town: `litter_flat` (`native-godot/world/town/resources/r005577.res`).
-- `glass_0`: art-source/plan-84/generated/litter-v2.png. Licence: Original project artwork (generated/derived; project LICENSE). Transparent isolated mark; 3x3 tests its empty boundary, not a continuous ground material. Leaves use 29 cm three-leaf cluster cuts; grain 10 cm patch cuts; grit/cinders 13-22 cm patch cuts. Stains have zero relief. Keep ground/collision and real drain bars in geometry.
-  Native town: `litter_flat` (`native-godot/world/town/resources/r005577.res`).
-- `shells_0`: art-source/plan-84/generated/litter-v2.png. Licence: Original project artwork (generated/derived; project LICENSE). Transparent isolated mark; 3x3 tests its empty boundary, not a continuous ground material. Leaves use 29 cm three-leaf cluster cuts; grain 10 cm patch cuts; grit/cinders 13-22 cm patch cuts. Stains have zero relief. Keep ground/collision and real drain bars in geometry.
-  Native town: `litter_flat` (`native-godot/world/town/resources/r005577.res`).
-- `drain`: Original analytic mask; art-source/plan-84/reused/wrought_iron_c.png. Licence: Original project artwork (generated/derived; project LICENSE). Transparent isolated mark; 3x3 tests its empty boundary, not a continuous ground material. Leaves use 29 cm three-leaf cluster cuts; grain 10 cm patch cuts; grit/cinders 13-22 cm patch cuts. Stains have zero relief. Keep ground/collision and real drain bars in geometry.
-  Native town: `litter_flat` (`native-godot/world/town/resources/r005577.res`).
-- `gutter`: Original analytic mask; art-source/plan-84/reused/wrought_iron_c.png. Licence: Original project artwork (generated/derived; project LICENSE). Transparent isolated mark; 3x3 tests its empty boundary, not a continuous ground material. Leaves use 29 cm three-leaf cluster cuts; grain 10 cm patch cuts; grit/cinders 13-22 cm patch cuts. Stains have zero relief. Keep ground/collision and real drain bars in geometry.
-  Native town: `litter_flat` (`native-godot/world/town/resources/r005577.res`).
-- `leafdrift_0`: art-source/plan-84/generated/litter-v2.png. Licence: Original project artwork (generated/derived; project LICENSE). Transparent isolated mark; 3x3 tests its empty boundary, not a continuous ground material. Leaves use 29 cm three-leaf cluster cuts; grain 10 cm patch cuts; grit/cinders 13-22 cm patch cuts. Stains have zero relief. Keep ground/collision and real drain bars in geometry.
-  Native town: `litter_flat` (`native-godot/world/town/resources/r005577.res`).
-- `leafdrift_1`: art-source/plan-84/generated/litter-v2.png. Licence: Original project artwork (generated/derived; project LICENSE). Transparent isolated mark; 3x3 tests its empty boundary, not a continuous ground material. Leaves use 29 cm three-leaf cluster cuts; grain 10 cm patch cuts; grit/cinders 13-22 cm patch cuts. Stains have zero relief. Keep ground/collision and real drain bars in geometry.
-  Native town: `litter_flat` (`native-godot/world/town/resources/r005577.res`).
-- `leafpatch_0`: art-source/plan-84/generated/litter-v2.png. Licence: Original project artwork (generated/derived; project LICENSE). Transparent isolated mark; 3x3 tests its empty boundary, not a continuous ground material. Leaves use 29 cm three-leaf cluster cuts; grain 10 cm patch cuts; grit/cinders 13-22 cm patch cuts. Stains have zero relief. Keep ground/collision and real drain bars in geometry.
-  Native town: `litter_flat` (`native-godot/world/town/resources/r005577.res`).
-- `leafpatch_1`: art-source/plan-84/generated/litter-v2.png. Licence: Original project artwork (generated/derived; project LICENSE). Transparent isolated mark; 3x3 tests its empty boundary, not a continuous ground material. Leaves use 29 cm three-leaf cluster cuts; grain 10 cm patch cuts; grit/cinders 13-22 cm patch cuts. Stains have zero relief. Keep ground/collision and real drain bars in geometry.
-  Native town: `litter_flat` (`native-godot/world/town/resources/r005577.res`).
-- `leafscatter_0`: art-source/plan-84/generated/litter-v2.png. Licence: Original project artwork (generated/derived; project LICENSE). Transparent isolated mark; 3x3 tests its empty boundary, not a continuous ground material. Leaves use 29 cm three-leaf cluster cuts; grain 10 cm patch cuts; grit/cinders 13-22 cm patch cuts. Stains have zero relief. Keep ground/collision and real drain bars in geometry.
-  Native town: `litter_flat` (`native-godot/world/town/resources/r005577.res`).
-- `leafscatter_1`: art-source/plan-84/generated/litter-v2.png. Licence: Original project artwork (generated/derived; project LICENSE). Transparent isolated mark; 3x3 tests its empty boundary, not a continuous ground material. Leaves use 29 cm three-leaf cluster cuts; grain 10 cm patch cuts; grit/cinders 13-22 cm patch cuts. Stains have zero relief. Keep ground/collision and real drain bars in geometry.
-  Native town: `litter_flat` (`native-godot/world/town/resources/r005577.res`).
+Per-set depth range, exact town resource targets, donor IDs and notes are in `../manifest.json`.
+Comparisons: `D:/Code/_tmp_verify/K2-textures/comparisons/<row>/<set>.jpg`.
+Four-map repeats: `D:/Code/_tmp_verify/K2-textures/tiles/<row>/<set>_3x3.jpg`.
 
-Separate high-resolution marks are deliberate: the original 1024 px atlas gives many marks only 16–32 pixels.
-`native-cells.json` records every native name, cell and physical size. The installer must bind the separate maps or repack/update the metadata atomically; do not replace the old atlas with one mark.
-The geometric `lt_solid` models remain unchanged; torn rags, food and other solid litter need their own contextual review.
-
-Exposed stone, wood and metal edges still require material-appropriate geometric radii. Maps cannot repair silhouettes, junctions, drainage or collision.
-Do not add opaque stain plates. Keep cast bodies/bases consistent. Check backs, tops, undersides, ends, mipmaps and low/grazing angles after wiring.
+Maps add surface detail only. Exposed bevels, real laps, connected drainage, underside normals and collision need native review.

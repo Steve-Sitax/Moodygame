@@ -24,10 +24,10 @@
       ],
       "source_set": "wood_single",
       "metres_per_tile": [
-        1,
-        0.17
+        2,
+        0.1171875
       ],
-      "relief_range_metres": 0.018
+      "relief_range_metres": 0.03
     },
     {
       "name": "paint_dark",
@@ -45,10 +45,10 @@
       ],
       "source_set": "wood_single",
       "metres_per_tile": [
-        1,
-        0.17
+        2,
+        0.1171875
       ],
-      "relief_range_metres": 0.018
+      "relief_range_metres": 0.03
     },
     {
       "name": "varnish",
@@ -66,10 +66,10 @@
       ],
       "source_set": "wood_single",
       "metres_per_tile": [
-        1,
-        0.17
+        2,
+        0.1171875
       ],
-      "relief_range_metres": 0.018
+      "relief_range_metres": 0.03
     },
     {
       "name": "planks",
@@ -87,10 +87,10 @@
       ],
       "source_set": "wood_dark",
       "metres_per_tile": [
-        1,
-        1
+        2,
+        2
       ],
-      "relief_range_metres": 0.018
+      "relief_range_metres": 0.03
     },
     {
       "name": "iron",
@@ -111,7 +111,7 @@
         0.5,
         0.5
       ],
-      "relief_range_metres": 0.018
+      "relief_range_metres": 0.03
     },
     {
       "name": "roof",
@@ -132,7 +132,7 @@
         1,
         1
       ],
-      "relief_range_metres": 0.018
+      "relief_range_metres": 0.03
     },
     {
       "name": "velvet",
@@ -153,7 +153,7 @@
         1,
         1
       ],
-      "relief_range_metres": 0.018
+      "relief_range_metres": 0.03
     },
     {
       "name": "leather",
@@ -171,10 +171,10 @@
       ],
       "source_set": "leather",
       "metres_per_tile": [
-        0.5,
-        0.5
+        0.4,
+        0.4
       ],
-      "relief_range_metres": 0.018
+      "relief_range_metres": 0.03
     },
     {
       "name": "wheel",
@@ -192,10 +192,10 @@
       ],
       "source_set": "wood_single",
       "metres_per_tile": [
-        1,
-        0.17
+        2,
+        0.1171875
       ],
-      "relief_range_metres": 0.018
+      "relief_range_metres": 0.03
     },
     {
       "name": "ceiling",
@@ -213,10 +213,10 @@
       ],
       "source_set": "wood_dark",
       "metres_per_tile": [
-        1,
-        1
+        2,
+        2
       ],
-      "relief_range_metres": 0.018
+      "relief_range_metres": 0.03
     },
     {
       "name": "strap",
@@ -237,13 +237,86 @@
         0.5,
         0.5
       ],
-      "relief_range_metres": 0.018
+      "relief_range_metres": 0.03
+    },
+    {
+      "name": "cream",
+      "native_cell": [
+        128,
+        0,
+        64,
+        64
+      ],
+      "output_cell": [
+        1024,
+        0,
+        512,
+        512
+      ],
+      "source_set": "atlas-specific photograph",
+      "metres_per_tile": [
+        2,
+        0.1171875
+      ],
+      "relief_range_metres": 0.03,
+      "sources": [
+        "dark_wooden_planks"
+      ],
+      "notes": "Photographic substrate; original pigment and lettering meaning retained. Crisp serif lettering is painted pigment, not raised geometry."
+    },
+    {
+      "name": "straw",
+      "native_cell": [
+        64,
+        128,
+        64,
+        64
+      ],
+      "output_cell": [
+        512,
+        1024,
+        512,
+        512
+      ],
+      "source_set": "atlas-specific photograph",
+      "metres_per_tile": [
+        0.25,
+        0.25
+      ],
+      "relief_range_metres": 0.03,
+      "sources": [
+        "art-source/plan-84/round2-generated/fibres.png"
+      ],
+      "notes": "Original generated photographic sample with bounded submillimetre grain reconstruction. Broad pigment, hair/feather volume and food silhouettes remain geometry; measured PBR relief is not claimed."
+    },
+    {
+      "name": "brass",
+      "native_cell": [
+        128,
+        128,
+        64,
+        64
+      ],
+      "output_cell": [
+        1024,
+        1024,
+        512,
+        512
+      ],
+      "source_set": "atlas-specific photograph",
+      "metres_per_tile": [
+        0.5,
+        0.5
+      ],
+      "relief_range_metres": 0.03,
+      "sources": [
+        "Metal063",
+        "art-source/plan-84/round2-generated/bronze-patina.png"
+      ],
+      "notes": "Photographic substrate; original pigment and lettering meaning retained. Crisp serif lettering is painted pigment, not raised geometry."
     }
   ],
   "preserved_cells": [
-    "cream",
-    "straw",
-    "brass",
     "glass",
     "black"
   ]
