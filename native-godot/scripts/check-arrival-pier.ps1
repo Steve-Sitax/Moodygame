@@ -1,4 +1,4 @@
-param([string]$Godot, [string]$Output, [ValidateRange(9140,9239)][int]$Port=9231, [int]$LimitSeconds=1500, [ValidateSet('','lamps')][string]$Only='')
+param([string]$Godot, [string]$Output, [ValidateRange(8800,9239)][int]$Port=9231, [int]$LimitSeconds=1500, [ValidateSet('','lamps')][string]$Only='')
 # Plays the opening ferry in the real native town (disposable save, no AI) and keeps pictures of the Werf landing stage,
 # its lanterns at night, in fog, in rain and by day (-Only lamps stops there), its tidal bridge and the ferry's gangway at three tides, while she moors, is left and sails. Output: arrival-pier.json.
 $ErrorActionPreference='Stop'
