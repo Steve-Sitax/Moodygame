@@ -27,6 +27,14 @@ Rules for helpers: one Godot window at a time, own `--db`/`--prefs`/`--author-ro
 timing runs only while holding `D:/Code/_locks/PERF-LOCK`, `native-godot/override.cfg` (silent, right screen) in
 each worktree, never Steve's save or layouts.
 
+## Ruien plan in 2D, 2026-10-18 (first draft, waits for Steve)
+
+- `docs/plans/ruien/`: the plan over the town map (`ruien-plan.html`), sections to scale, sizes from the real Ruien,
+  levels against the game's tide, gates, the hall under the Grote Markt and the ways in and out. Made by
+  `tools/ruien/plan.py` from `ruien-network.json`. Nothing in the game changes yet.
+- Open for Steve: do the gates lock Antigoon in; ruien too low for him (now) or 4 m with a bent-over walk; does the hall
+  take the south's drainage.
+
 ## People and animals in high detail, 2026-10-13 (art3, in progress)
 
 - In art3 now: clothes pass 2 (#83 met), layered pictures (Texture2DArrays, 85 MB), the animals round 1 (dogs, cats, pigs;

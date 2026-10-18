@@ -1,0 +1,425 @@
+{
+  "_about": "Ruien plan, 2D (Steve, 2026-10-18). World metres: +x north, +z east, street level y 0, quay top 0. Giant galleries (G) are drawn by hand: their last point is the gate. The ruien (M) and side drains (S) are made by tools/ruien/plan.py: every street gully flows along the streets to its nearest gate or giant gallery; a street that carries at least ruiFromGullies gullies gets a rui, the rest get side drains. Output: ruien-routes.json and ruien-plan.html in this folder.",
+  "levels": {
+    "street": 0.0,
+    "crownBelowStreet": 0.9,
+    "highWater": -0.65,
+    "highWaterMax": -0.4,
+    "lowWater": -4.95,
+    "lowWaterMin": -5.2,
+    "lowWaterNeap": -4.71,
+    "canalAndVlietBed": -5.05,
+    "canalStillWaterAtLowTide": -4.75,
+    "petitBassin": -0.7,
+    "slope": 0.001
+  },
+  "classes": {
+    "G": {
+      "name": "Giant gallery",
+      "innerWidth": 5.0,
+      "bedToCrown": 6.0,
+      "channelWidth": 2.4,
+      "ledgeWidth": 1.2,
+      "ledgeAboveBed": 2.7,
+      "sill": -4.5,
+      "colour": "#b0203a",
+      "stroke": 7,
+      "note": "Antigoon walks upright in the water channel. People walk the ledges.",
+      "wall": 0.6
+    },
+    "M": {
+      "name": "Rui",
+      "innerWidth": 3.0,
+      "bedToCrown": 3.0,
+      "ledgeWidth": 0.8,
+      "ledgeAboveBed": 0.5,
+      "sill": -4.3,
+      "colour": "#1f5fa8",
+      "stroke": 4,
+      "note": "People walk upright. Too low for Antigoon, even bent over.",
+      "wall": 0.45
+    },
+    "S": {
+      "name": "Side drain",
+      "innerWidth": 1.0,
+      "bedToCrown": 1.6,
+      "colour": "#3a9a5a",
+      "stroke": 1,
+      "note": "Brick egg drain from the street gullies. People must stoop. Not walkable in the game at first.",
+      "wall": 0.25
+    }
+  },
+  "lines": [
+    {
+      "id": "G1",
+      "name": "Suikerrui",
+      "class": "G",
+      "pts": [
+        [
+          -212,
+          128
+        ],
+        [
+          -204,
+          90
+        ],
+        [
+          -203,
+          40
+        ],
+        [
+          -196,
+          15
+        ],
+        [
+          -195,
+          1
+        ]
+      ],
+      "gate": "O1"
+    },
+    {
+      "id": "G2",
+      "name": "Vleeshuisrui",
+      "class": "G",
+      "pts": [
+        [
+          -250,
+          104
+        ],
+        [
+          -226,
+          124
+        ],
+        [
+          -212,
+          128
+        ],
+        [
+          -175,
+          125
+        ],
+        [
+          -152,
+          112
+        ],
+        [
+          -149,
+          74
+        ]
+      ],
+      "gate": "O2"
+    },
+    {
+      "id": "G3",
+      "name": "Brouwersrui",
+      "class": "G",
+      "pts": [
+        [
+          -151,
+          112
+        ],
+        [
+          -118,
+          128
+        ],
+        [
+          -84,
+          132
+        ]
+      ],
+      "gate": "O4"
+    }
+  ],
+  "gates": [
+    {
+      "id": "O1",
+      "name": "Steen gate",
+      "at": [
+        -195,
+        0
+      ],
+      "into": "Schelde (Steen bay)",
+      "giant": true
+    },
+    {
+      "id": "O2",
+      "name": "Vliet sluice",
+      "at": [
+        -146,
+        72
+      ],
+      "into": "Vliet head",
+      "giant": true
+    },
+    {
+      "id": "O4",
+      "name": "Brouwers sluice",
+      "at": [
+        -82,
+        132
+      ],
+      "into": "Canal des Brasseurs, south wall",
+      "giant": true
+    },
+    {
+      "id": "O6",
+      "name": "Canal head gate",
+      "at": [
+        -76,
+        205
+      ],
+      "into": "Canal des Brasseurs, head",
+      "rui": "Kanaalrui"
+    },
+    {
+      "id": "O7",
+      "name": "Jans gate",
+      "at": [
+        -70,
+        160
+      ],
+      "into": "Canal des Brasseurs, north wall",
+      "rui": "Jansrui"
+    },
+    {
+      "id": "O8",
+      "name": "Rijnkaai gate",
+      "at": [
+        -2,
+        0
+      ],
+      "into": "Schelde",
+      "rui": "Rijnrui"
+    },
+    {
+      "id": "O9",
+      "name": "Paulus gate",
+      "at": [
+        57,
+        0
+      ],
+      "into": "Schelde",
+      "rui": "Paulusrui"
+    },
+    {
+      "id": "O10",
+      "name": "Noorder gate",
+      "at": [
+        200,
+        0
+      ],
+      "into": "Schelde",
+      "rui": "Noorderrui"
+    },
+    {
+      "id": "F1",
+      "name": "Kipdorp flush sluice",
+      "at": [
+        -146,
+        352
+      ],
+      "into": "Moat (lets moat water in to flush the ruien)",
+      "flush": true
+    }
+  ],
+  "chambers": [
+    {
+      "id": "C1",
+      "name": "Hall under the Grote Markt (Antigoon's refuge)",
+      "rect": [
+        -270,
+        86,
+        -240,
+        114
+      ],
+      "bedToCrown": 7.0,
+      "note": "30 x 28 m, brick piers, 7 m to the crown. The story's one large chamber."
+    }
+  ],
+  "access": [
+    {
+      "id": "A1",
+      "kind": "stair",
+      "name": "Sluice keeper's stair, Steenplein",
+      "at": [
+        -212,
+        22
+      ],
+      "note": "The story's human side stair by the quay steps."
+    },
+    {
+      "id": "A2",
+      "kind": "stair",
+      "name": "Stadhuis cellar stair",
+      "at": [
+        -258,
+        62
+      ],
+      "note": "The town's own door; locked."
+    },
+    {
+      "id": "A3",
+      "kind": "hatch",
+      "name": "Vismarkt waste hatch",
+      "at": [
+        -124,
+        44
+      ],
+      "note": "Fishmongers tip waste here; ladder down."
+    },
+    {
+      "id": "A4",
+      "kind": "hatch",
+      "name": "Vleeshuis cellar hatch",
+      "at": [
+        -118,
+        116
+      ],
+      "note": "Butchers' waste drop; ladder down."
+    },
+    {
+      "id": "A5",
+      "kind": "stair",
+      "name": "Jesuit stair, Conscienceplein",
+      "at": [
+        -118,
+        152
+      ],
+      "note": "Real Jesuit exit into the ruien."
+    },
+    {
+      "id": "A6",
+      "kind": "stair",
+      "name": "Kipdorp sluice house",
+      "at": [
+        -152,
+        330
+      ],
+      "note": "Keeper works the flush sluice."
+    },
+    {
+      "id": "A7",
+      "kind": "manhole",
+      "name": "Lijnwaadmarkt manhole",
+      "at": [
+        -210,
+        182
+      ]
+    },
+    {
+      "id": "A8",
+      "kind": "manhole",
+      "name": "Sint-Jansplein manhole",
+      "at": [
+        14,
+        290
+      ]
+    },
+    {
+      "id": "A9",
+      "kind": "manhole",
+      "name": "Cathedral manhole",
+      "at": [
+        -300,
+        220
+      ]
+    },
+    {
+      "id": "A10",
+      "kind": "stair",
+      "name": "Rode Poort guard stair",
+      "at": [
+        205,
+        120
+      ],
+      "note": "Under the north rampart street."
+    },
+    {
+      "id": "A11",
+      "kind": "cellar",
+      "name": "Inn cellar door, Sint-Jacobs quarter",
+      "at": [
+        -62,
+        300
+      ],
+      "note": "Smugglers' way; a story hook."
+    },
+    {
+      "id": "V1",
+      "kind": "air",
+      "name": "Air shaft, Grote Markt pump",
+      "at": [
+        -252,
+        120
+      ],
+      "note": "The hall's chimney, dressed as a pump column."
+    },
+    {
+      "id": "V2",
+      "kind": "air",
+      "name": "Air shaft, Vismarkt",
+      "at": [
+        -140,
+        100
+      ]
+    },
+    {
+      "id": "X1",
+      "kind": "collapse",
+      "name": "Fallen vault, yard behind Steenplein",
+      "at": [
+        -180,
+        60
+      ],
+      "option": true,
+      "note": "Option: a dry way out for Antigoon, fenced by the town. Needed only if the gates also lock him in."
+    }
+  ],
+  "manholeEvery": 80,
+  "ruiFromGullies": 12,
+  "ruiNames": [
+    {
+      "name": "Lijnwaadrui",
+      "near": [
+        -210,
+        250
+      ]
+    },
+    {
+      "name": "Vlietrui",
+      "near": [
+        -148,
+        180
+      ]
+    },
+    {
+      "name": "Kipdorprui",
+      "near": [
+        -148,
+        300
+      ]
+    },
+    {
+      "name": "Zuiderrui",
+      "near": [
+        -303,
+        230
+      ]
+    },
+    {
+      "name": "Werfrui",
+      "near": [
+        -330,
+        64
+      ]
+    },
+    {
+      "name": "Jacobsrui",
+      "near": [
+        -90,
+        262
+      ]
+    }
+  ]
+}
