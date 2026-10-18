@@ -15,7 +15,8 @@ def img(rel, data=False):
     if im is None:
         im = bpy.data.images.load(os.path.join(_root, 'textures', rel), check_existing=True)
         im.name = name
-        im.filepath = TEX + rel
+        here = os.path.dirname(bpy.data.filepath) if bpy.data.filepath else ''
+        im.filepath = (TEX + rel) if os.path.normcase(os.path.abspath(here or '.')) == os.path.normcase(os.path.abspath(_root)) and here else os.path.join(_root, 'textures', rel)
     if data:
         im.colorspace_settings.name = 'Non-Color'
         im.alpha_mode = 'CHANNEL_PACKED'
@@ -217,7 +218,8 @@ def masonry(name, wet_base=0.12, slime_global=0.0, tint=(1, 1, 1), sand_ok=True,
     pre = 'gen/brick_%s_' % bond
     uvn = nb.node('ShaderNodeUVMap', uv_map='UVMap').outputs[0]
     oi = nb.objinfo()
-    off = nb.vmath('MULTIPLY', oi.outputs['Random'], (17.31, 9.13, 0))
+    rnd = nb.node('ShaderNodeAttribute', attribute_name='rnd', attribute_type='GEOMETRY').outputs['Fac']
+    off = nb.vmath('MULTIPLY', nb.comb(rnd, rnd, rnd), (17.31, 9.13, 0))
     uv = nb.vmath('ADD', uvn, off)
     tw, th = spec.BRICK_TILE
     ub = nb.vmath('MULTIPLY', uv, (1 / tw, 1 / th, 1))
@@ -419,6 +421,21 @@ def masonry(name, wet_base=0.12, slime_global=0.0, tint=(1, 1, 1), sand_ok=True,
         h = nb.mixf(smask, h, nb.math('MULTIPLY', nb.math('SUBTRACT', Bh, 0.5), 0.004))
         h = nb.math('SUBTRACT', h, nb.math('MULTIPLY', sgroove, 0.014))
     h = nb.math('MULTIPLY', h, nb.math('MULTIPLY', dfade, disp_scale))
+    def _tap(nm, sock):
+        n_ = nb.node('ShaderNodeMath', operation='ADD', use_clamp=True)
+        n_.name = nm
+        nb._set(n_, 0, sock)
+        nb._set(n_, 1, 0.0)
+    _tap('BAKE_WET', nb.math('MAXIMUM', wet, nb.math('MULTIPLY', slime, 0.8)))
+    _tap('BAKE_LIME', nb.math('MAXIMUM', nb.math('MAXIMUM', lime_c, hal), nb.math('MAXIMUM', bloom, fleck)))
+    _tap('BAKE_SOOT', nb.math('MAXIMUM', soot, nb.math('MULTIPLY', gstreak, 0.6)))
+    _tap('BAKE_MOSS', nb.math('MAXIMUM', moss, lmoss))
+    _tap('BAKE_SAND', sand)
+    _tap('BAKE_STONE', smask)
+    _cn = nb.node('ShaderNodeMix', data_type='RGBA')
+    _cn.name = 'BAKE_COL'
+    nb._set(_cn, 0, 0.0)
+    nb._set(_cn, 6, col)
     bsdf = nb.principled(**{'Base Color': col, 'Roughness': rough, 'Coat Weight': coat,
                             'Coat Roughness': 0.08, 'Specular IOR Level': 0.45})
     disp = nb.node('ShaderNodeDisplacement', {'Height': h, 'Midlevel': 0.0, 'Scale': 1.0}, space='OBJECT')

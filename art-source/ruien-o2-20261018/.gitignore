@@ -6,3 +6,7 @@ textures/*
 !textures/codex/
 renders/*
 !renders/round-9/
+# Game export: rebuilt by scripts/export_game.py, export_textures.py, kit_export.py, build_stretch.py.
+export/**/*.glb
+export/**/*.png
+export/**/*.blend

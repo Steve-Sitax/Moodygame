@@ -452,3 +452,25 @@ Renders: `renders/round-9/` (v1 to v8, `curtain_test.jpg`). Checked on full-reso
   mortar-free lime crust.
 
 Remaining: render-time detail must be baked for Godot; collision; .blend 27.7 MB (over 25 MB).
+
+## Game export (2026-10-19)
+
+Folder `export/` (see `manifest.json`, and `KIT.md` for the kit and generators). Rebuild:
+`python -I scripts/export_textures.py`, then `"$BL" --background ruien-o2.blend --python scripts/export_game.py -- --lod 0,1`
+(about 15 minutes), `scripts/kit_export.py`, and `scripts/check_export.py` for the reimport check.
+
+- Relief: every displaced surface (brick, silt, calcite) is subdivided and the exact shader height is baked per
+  vertex with Cycles and applied: about 2 to 3 cm spacing from the water to 2 m above the ledges, 5 to 8 cm on the crowns
+  and under water. Seams between the dense and coarse parts fade the relief to zero (no cracks).
+- Totals: LOD0 10.19 M triangles (outlet 1.08 M, gallery 3.06 M, hall 6.05 M) in 80 chunks of at most 200k;
+  LOD1 2.81 M (28 percent). GLBs 520 MB at LOD0, 118 MB at LOD1, images not embedded.
+- Vertex data: `COLOR_0` masks (R wet/slime, G lime/halo/runnel, B soot/grime, A moss), `_AO`, `_BAKECOL`.
+- Materials: `ruien_<family>`; face families inside brick (bluestone voussoirs and quoins, sandstone patches) are
+  separate material slots. Textures: 10 families, 2048 px, OpenGL normals.
+- Collision `ruien_o2_collision.glb`: 15 `col_*` meshes, 3,410 triangles. Markers `ruien_o2_markers.glb` plus
+  `manifest.json` markers: 14 lamps, 5 beams, 7 mist boxes, 3 water areas at -4.6, ladder and stair ends, outlet
+  opening and dressing outlines (head wall plane z 72).
+- Check: `export/check/*_compare.jpg` (round-9 render left, reimported GLB right): geometry lines up in all views.
+- Compromises: run-off and drip decals export with a constant alpha (their noise alpha is a shader effect); the
+  baked masks replace the shader layers, so the game shader must rebuild slime, lime and moss from them; render-only
+  items (figures, backdrop, fog) are not exported; LOD1 props are decimated to 30 percent.

@@ -313,6 +313,12 @@ for o in bpy.data.objects:
     if any(c.name in ('RENDER_ONLY',) or c in rend.children_recursive for c in o.users_collection):
         o['ruien_export'] = False
 SC.render_settings()
+import zlib
+for o in bpy.data.objects:
+    if o.type == 'MESH' and o.data.users == 1 and o.data.attributes.get('rnd') is None:
+        if any(sl.material and sl.material.name.startswith('Brick_') for sl in o.material_slots):
+            a_ = o.data.attributes.new('rnd', 'FLOAT', 'POINT')
+            a_.data.foreach_set('value', np.full(len(o.data.vertices), (zlib.crc32(o.name.encode()) % 10007) / 10007.0, np.float32))
 bpy.ops.file.make_paths_relative()
 bpy.ops.wm.save_as_mainfile(filepath=BLEND, compress=True)
 log('saved %s' % BLEND)
