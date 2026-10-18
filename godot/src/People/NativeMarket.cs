@@ -51,6 +51,8 @@ public partial class NativeMarket : Node
         public bool On;
         /// <summary>Pitched (#150): each stall is its own seller's, up as far as she has set it up (Level per rank: -1 down, 0 frame, 1 cover, 2 goods).</summary>
         public bool Pitched;
+        /// <summary>A pitched market's sellers' ids: the prefix and the pitch number (vm_seller_N on the Vismarkt, gm_seller_N on the Grote Markt).</summary>
+        public string Prefix="";
         public int[] Level=Array.Empty<int>(),Shown=Array.Empty<int>();
     }
     private sealed class SellerDrawn {public Puppet Body=null!;public double Talk;public bool Fled;}

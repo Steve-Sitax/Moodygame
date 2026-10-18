@@ -69,7 +69,7 @@ public partial class NativeMarket
     }
     private void Gesture(Target target,double x,double z,double seconds)
     {
-        if(target.Item is{Pitch:>=0} pitched&&town.ActionPerson(SellerId(pitched.Pitch))?.P is{} own&&own.State!="walk"){town.Crowd!.PuppetStand(own,"talk",Math.Atan2(x-own.X,z-own.Z));}
+        if(target.Item is{Pitch:>=0} pitched&&target.Field is{} pf&&town.ActionPerson(SellerId(pf,pitched.Pitch))?.P is{} own&&own.State!="walk"){town.Crowd!.PuppetStand(own,"talk",Math.Atan2(x-own.X,z-own.Z));}
         else if(target.Item!=null&&target.Field?.Sellers.TryGetValue(target.Item,out var draw)==true){double yaw=Math.Atan2(x-draw.Body.X,z-draw.Body.Z);if(target.Item.Sits)town.Crowd!.PuppetSit(draw.Body,yaw);else town.Crowd!.PuppetStand(draw.Body,"talk",yaw);draw.Talk=seconds;}
         else if(target.Keeper!=""&&town.ActionPerson(target.Keeper)?.P is{} p&&NativeStreet.I?.Owns(target.Keeper)!=false)town.Crowd!.PuppetStand(p,"talk",Math.Atan2(x-p.X,z-p.Z));
     }

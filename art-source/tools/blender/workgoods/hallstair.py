@@ -24,7 +24,13 @@ GOING = (FOOT - HEAD) / STEPS
 RISE = RISE_TOTAL / STEPS
 
 
+_CELLS = {}
+
+
 def cells(A):
+    # (once an atlas: the cathedral's loft stair, cathloft.py, shares the same oak)
+    if id(A) in _CELLS:
+        return _CELLS[id(A)]
     def oak(w, h, ppm):
         return pt.wood(w, h, ppm, (0.42, 0.30, 0.18), 121, oak=True, knots=2, ring_mm=4.0, dirt=0.15)
 
@@ -41,10 +47,11 @@ def cells(A):
         img *= (0.85 + 0.2 * pt.fbm(h, w, 0.04 * ppm, 0.04 * ppm, 123, 4))[..., None]
         return img
 
-    return {"oak": A.cell("stair", 1.85, 0.36, 300, oak, "stair oak"),
-            "tread": A.cell("stair", 1.85, 0.36, 300, worn, "stair treads"),
-            "string": A.cell("stair", 1.6, 1.6, 200, oak, "stair strings"),
-            "stone": A.cell("stair", 0.5, 0.5, 200, stone, "stair pads")}
+    _CELLS[id(A)] = {"oak": A.cell("stair", 1.85, 0.36, 300, oak, "stair oak"),
+                     "tread": A.cell("stair", 1.85, 0.36, 300, worn, "stair treads"),
+                     "string": A.cell("stair", 1.6, 1.6, 200, oak, "stair strings"),
+                     "stone": A.cell("stair", 0.5, 0.5, 200, stone, "stair pads")}
+    return _CELLS[id(A)]
 
 
 def stair(A):

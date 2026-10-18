@@ -6,8 +6,8 @@ using Scheldemist.Town;
 namespace Scheldemist.People;
 
 /// <summary>
-/// The Vismarkt's pitches (#150): each market-day stall belongs to a seller who lives in the town (the engine's
-/// vm_seller_N, work.pitch N). She pushes her handcart from home, and her stall stands only while she is at it:
+/// The Vismarkt's pitches (#150) and the Grote Markt's (#192): each market-day stall belongs to a seller who lives in
+/// the town (the engine's vm_seller_N or gm_seller_N, work.pitch N; the prefix is the field's pitches.prefix). She pushes her handcart from home, and her stall stands only while she is at it:
 /// before the market opens she builds it (frame, then awning or cloth, then goods), she sells from opening to
 /// closing, then she packs it away in the same stages and goes home with her cart. The hours are the vismarkt
 /// field's pitches in native-extras.json (the engine reads the same: it refuses sales outside them).
@@ -15,16 +15,19 @@ namespace Scheldemist.People;
 public partial class NativeMarket
 {
     public const string SellerPrefix = "vm_seller_";
-    internal static string SellerId(int pitch) => SellerPrefix + pitch;
+    private static string SellerId(Field f, int pitch) => f.Prefix + pitch;
+    /// <summary>A market-day seller of one of the pitched markets.</summary>
+    public bool IsSeller(string id) => FieldOf(id) != null;
+    private Field? FieldOf(string id) => fields.FirstOrDefault(f => f.Pitched && f.Prefix != "" && id.StartsWith(f.Prefix, StringComparison.Ordinal));
     private static double Hour(Field f, string key) => N(f.Definition["pitches"]?[key]);
     private static int Weekday(int day) => ((day - 1) % 7 + 7) % 7 + 1;
     private bool Selling(Field f) => Weekday(town.Day) != 7 && town.Hour >= Hour(f, "open") && town.Hour < Hour(f, "close");
 
     /// <summary>The seller at her own pitch, at work (not passing it on her way home); a few steps round it (a
     /// stall-keeper's little round) keep her there.</summary>
-    private Townspeople.Sim? There(NativeMarketItem it)
+    private Townspeople.Sim? There(Field f, NativeMarketItem it)
     {
-        var s = town.ActionPerson(SellerId(it.Pitch));
+        var s = town.ActionPerson(SellerId(f, it.Pitch));
         return s != null && !s.Inside && s.Key.StartsWith("work", StringComparison.Ordinal) && Distance(s.X, s.Z, it.Seller.X, it.Seller.Z) < 6 ? s : null;
     }
 
@@ -39,7 +42,7 @@ public partial class NativeMarket
         foreach (var it in f.Items)
         {
             int level = -1;
-            if (There(it) != null)
+            if (There(f, it) != null)
             {
                 if (hour < open) { double p = (hour - setup) / Math.Max(.01, open - setup); level = p < 1 / 3.0 ? 0 : p < 2 / 3.0 ? 1 : 2; }
                 else if (hour >= close) { double p = (hour - close) / Math.Max(.01, packed - close); level = p < 1 / 3.0 ? 2 : p < 2 / 3.0 ? 1 : 0; }
@@ -57,8 +60,11 @@ public partial class NativeMarket
         bool selling = Selling(f);
         foreach (var it in f.Items)
         {
-            if (f.Level[it.Rank] < 0 || There(it) is not { P: { } p } s || s.ActionHeld || p.State == "walk" || p.Conversing) continue;
-            if (Distance(p.X, p.Z, it.Seller.X, it.Seller.Z) > 1.6) continue;
+            if (f.Level[it.Rank] < 0 || There(f, it) is not { P: { } p } s || s.ActionHeld || p.State == "walk" || p.Conversing) continue;
+            // (her walk to the market ends within about 1.6 m of her place, and she steps onto it; from further off, up to
+            // 4 m, she walks to it: #192, a Grote Markt seller stopped at 1.64 m)
+            double off = Distance(p.X, p.Z, it.Seller.X, it.Seller.Z);
+            if (off > 2) { if (off < 4) crowd.PuppetGo(p, it.Seller.X, it.Seller.Z, 1); continue; }
             bool gut = it.Kind == "fishtable" && selling && f.Level[it.Rank] == 2 && p.Human.IsPeople2;
             double move = gut ? FishTableNear() - GutNear * p.Human.WorkRatio("gut") - it.SellerAt.Z : 0;
             double x = it.Seller.X + Math.Sin(it.Yaw) * move, z = it.Seller.Z + Math.Cos(it.Yaw) * move;
@@ -71,9 +77,8 @@ public partial class NativeMarket
     /// <summary>A seller building or striking her stall works at it (crouched to her crates and back up), not calling her wares.</summary>
     private string? SellerMotion(Townspeople.Sim s)
     {
-        if (!s.R.Id.StartsWith(SellerPrefix, StringComparison.Ordinal) || s.R.Work.Pitch is not { } pitch) return null;
-        var f = fields.FirstOrDefault(f => f.Pitched);
-        if (f == null || pitch >= f.Level.Length || f.Level[pitch] < 0 || Selling(f)) return null;
+        if (s.R.Work.Pitch is not { } pitch || FieldOf(s.R.Id) is not { } f) return null;
+        if (pitch >= f.Level.Length || f.Level[pitch] < 0 || Selling(f)) return null;
         return random.NextDouble() < .6 ? "crouch" : "idle";
     }
 
@@ -82,9 +87,7 @@ public partial class NativeMarket
     /// <summary>Why this market seller sells nothing now ("not open yet ..."), or null: she sells, or she is not one.</summary>
     public string? NotOpen(string id)
     {
-        if (!id.StartsWith(SellerPrefix, StringComparison.Ordinal)) return null;
-        var f = fields.FirstOrDefault(f => f.Pitched);
-        if (f == null) return null;
+        if (FieldOf(id) is not { } f) return null;
         if (Weekday(town.Day) == 7) return "no market on Sunday";
         if (town.Hour < Hour(f, "open")) return "not open yet: the stall opens at " + Clock(Hour(f, "open"));
         if (town.Hour >= Hour(f, "close")) return "packing up: the stall is shut until tomorrow";
@@ -94,10 +97,10 @@ public partial class NativeMarket
     /// <summary>Each pitch: its seller, where she is, how far the stall stands (the proofs).</summary>
     public JsonArray PitchState() => new(fields.Where(f => f.Pitched).SelectMany(f => f.Items.Select(it =>
     {
-        var s = town.ActionPerson(SellerId(it.Pitch));
+        var s = town.ActionPerson(SellerId(f, it.Pitch));
         return (JsonNode)new JsonObject
         {
-            ["pitch"] = it.Pitch, ["kind"] = it.Kind, ["goods"] = it.Goods, ["level"] = f.Level[it.Rank], ["seller"] = SellerId(it.Pitch), ["known"] = s != null,
+            ["place"] = f.Place, ["pitch"] = it.Pitch, ["kind"] = it.Kind, ["goods"] = it.Goods, ["level"] = f.Level[it.Rank], ["seller"] = SellerId(f, it.Pitch), ["known"] = s != null,
             ["x"] = s == null ? null : Math.Round(s.X, 2), ["z"] = s == null ? null : Math.Round(s.Z, 2), ["inside"] = s?.Inside, ["key"] = s?.Key,
             ["drawn"] = s?.P != null, ["state"] = s?.P?.State, ["work"] = s?.P?.Human.Work, ["off"] = s == null ? null : Math.Round(Distance(s.P?.X ?? s.X, s.P?.Z ?? s.Z, it.Seller.X, it.Seller.Z), 2),
         };

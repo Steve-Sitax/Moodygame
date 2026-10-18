@@ -57,3 +57,17 @@ the numbers live in the engine files named here.
   and the town's own buying takes from it. When it is gone the fish sellers say "Sold out. The boats bring more at
   dawn." and sell nothing; a seller who sells out stays at her pitch until packing time. The bread seller sells
   from the Steen bakery's stock; vegetables are not counted.
+
+## The Grote Markt sellers (#192) — `native-godot/services/data/native-extras.json` (the grote_markt field's `pitches`), `native-godot/services/data/native-trade.json` (`stallWares`), `native-godot/src/Services/NativeTownMarketPopulation.cs`
+
+- The same day as the Vismarkt's (#150): twenty market-day pitches in fixed places, each with its own seller (ids
+  gm_seller_N), a woman who lives in the town with her family's handcart; set-up 5:30-7:00, selling 7:00-12:30, packing
+  up 12:30-13:00, Monday to Saturday. The square's anonymous sellers are gone.
+- The twenty are kept from the square's old random layout (43 stalls): cheese (two tables, two stalls), vegetables
+  (vegetable stalls, stalls, two barrows, a cart), cloth (four stalls), pottery (two), second-hand goods (a table and a
+  stall) and a hot-food brazier. Each seller's place is on open ground behind her stall, her cart's place beside it.
+- What they sell (F) is from the town's own goods: cheese; vegetables an apple (as the Vismarkt's vegetable seller);
+  cloth a shawl or a wool vest; pottery a plant in its pot; second-hand goods a scarf or a pipe; the brazier a bowl of soup.
+  Prices are the shops' own. None of these is counted stock (as the Vismarkt's vegetables).
+- A pushed handcart that cannot reach its place gives up after 90 s plus 2.5 s for every metre of the straight way
+  (it was 90 s for any way: a seller living round the town hall's block parked her cart in the street).

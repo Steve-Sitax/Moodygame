@@ -1,5 +1,6 @@
 """Room fittings: a tavern's open fireplace (#187: the Ankere's, the Schipke's and the Zwarte Kat's, workgoods/hearth.py)
-and the Vleeshuis's stair up to its theatre floor (#186, workgoods/hallstair.py). Our own work: every texture is painted
+the Vleeshuis's stair up to its theatre floor (#186, workgoods/hallstair.py) and the cathedral's stair and gallery up to
+its organ loft (#192, workgoods/cathloft.py). Our own work: every texture is painted
 by workgoods/paint.py, nothing downloaded.
 
     "C:/Program Files/Blender Foundation/Blender 5.2/blender.exe" -b --factory-startup --python-exit-code 1 \
@@ -7,8 +8,8 @@ by workgoods/paint.py, nothing downloaded.
         --shots .scratch/fittings-build/shots [--no-shots]
 
 Writes a plain glTF binary like the work goods' (one material "fittings", one 2048 x 2048 base-colour atlas, the
-baked shade in COLOR_0): top-level nodes fireplace_tavern (in the recovered piece's own frame) and vleeshuis_stair (in
-the hall plan's frame), game axes, metres.
+baked shade in COLOR_0): top-level nodes fireplace_tavern (in the recovered piece's own frame), vleeshuis_stair and
+cathedral_loft_stair (each in its hall plan's frame), game axes, metres.
 """
 
 import importlib
@@ -25,14 +26,14 @@ ROOT = os.path.abspath(os.path.join(HERE, "..", "..", ".."))
 import workgoods  # noqa: E402,F401
 from workgoods import kit  # noqa: E402
 
-for mod in ("kit", "paint", "hearth", "hallstair", "shots", "verify"):
+for mod in ("kit", "paint", "hearth", "hallstair", "cathloft", "shots", "verify"):
     importlib.reload(importlib.import_module("workgoods." + mod))
-from workgoods import hallstair, hearth, shots, verify  # noqa: E402
+from workgoods import cathloft, hallstair, hearth, shots, verify  # noqa: E402
 
-ORDER = ["fireplace_tavern", "vleeshuis_stair"]
+ORDER = ["fireplace_tavern", "vleeshuis_stair", "cathedral_loft_stair"]
 # reach of the occlusion rays (metres) and whether the model stands on the ground
-SHADE = {"fireplace_tavern": (0.35, True), "vleeshuis_stair": (0.30, True)}
-SIZES = {"fireplace_tavern": (2.40, 2.90, None), "vleeshuis_stair": (15.24, None, None)}
+SHADE = {"fireplace_tavern": (0.35, True), "vleeshuis_stair": (0.30, True), "cathedral_loft_stair": (0.30, True)}
+SIZES = {"fireplace_tavern": (2.40, 2.90, None), "vleeshuis_stair": (15.24, None, None), "cathedral_loft_stair": (None, None, None)}
 
 
 def args():
@@ -87,7 +88,7 @@ def main():
     names = [n for n in ORDER if o["only"] is None or n in o["only"]]
     meshes = {}
     for name in names:
-        meshes[name] = [hearth.fireplace(A) if name == "fireplace_tavern" else hallstair.stair(A)]
+        meshes[name] = [hearth.fireplace(A) if name == "fireplace_tavern" else cathloft.stair(A) if name == "cathedral_loft_stair" else hallstair.stair(A)]
     os.makedirs(os.path.dirname(o["out"]), exist_ok=True)
     os.makedirs(o["shots"], exist_ok=True)
     img = A.to_image("fittings", os.path.join(os.path.dirname(o["shots"]), "fittings_atlas.png"))
@@ -120,7 +121,9 @@ def main():
     ok = verify.check(o["out"], names)
     if not o["no_shots"]:
         # (close views of the opening and the shelf's end)
-        shots.VIEWS.update({"vleeshuis_stair": [((0.3, -1.0, 0.35), (0.5, 0.5, 0.4), 1.4), ((0.6, -1.0, 0.2), (0.95, 0.5, 0.05), 0.12),
+        shots.VIEWS.update({"cathedral_loft_stair": [((0.6, -1.0, 0.45), (0.5, 0.5, 0.45), 1.3), ((-0.8, -1.0, 0.5), (0.2, 0.15, 0.85), 0.35),
+                                                     ((0.9, 0.4, 0.35), (0.5, 0.5, 0.3), 0.6)],
+                            "vleeshuis_stair": [((0.3, -1.0, 0.35), (0.5, 0.5, 0.4), 1.4), ((0.6, -1.0, 0.2), (0.95, 0.5, 0.05), 0.12),
                                                 ((0.4, -1.0, 0.5), (0.5, 0.5, 0.5), 0.15)],
                             "fireplace_tavern": [((0.45, -1.0, 0.35), (0.5, 0.5, 0.45), 1.7), ((0.25, -1.0, 0.2), (0.5, 0.2, 0.2), 0.7),
                                                  ((-0.9, -1.0, 0.25), (0.15, 0.1, 0.45), 0.6)]})

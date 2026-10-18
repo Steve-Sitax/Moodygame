@@ -181,7 +181,9 @@ swimming in the far river (`river`), the small boats' mooring ropes following th
 moving with the navvy's winch (`works`, 10:00), the fish tables' herring, cod and plaice models and every painted fish of the
 stall and trade models swapped for the fish models on crushed ice, with pictures of a crate, basket, barrow, the fixed fish stall
 and the porters' fish box (`fish`, issue 190: `MarketCatch`), and the three tavern fireplaces, with no spark dots in a room's
-hearth (`fireplace`). `--leftovers-only a,b` picks stages. It writes `leftovers.json` and pictures; exit 1 on a failure.
+hearth (`fireplace`), and the cathedral (`cathedral`, issue 192): its west end surveyed (what is built there, the loft's floor
+and what holds a body at 7.25 m, `cathedral-loft-floor.txt`, `cathedral-body.txt`), Jef climbing the loft stair and walking the
+gallery into the loft, the organist's and the confessor's walks in (day, night and rain pictures). `--leftovers-only a,b` picks stages. It writes `leftovers.json` and pictures; exit 1 on a failure.
 
 ## Market, work board, warmth, benches and room keepers
 
@@ -206,7 +208,9 @@ fishwives gutting, E and F at a stall, a sale taking one off the fish stock; at 
 when the last seller's day ends; no market on Sunday; pictures 5:15-13:00), `pitchspots` (with every stall up: an open
 place for each seller behind her stall and a place for her cart; writes the corrected pitch list), `pitchplan` and
 `marketsurvey` (the old random layout, to choose pitches from), `facts` (a survey: fire spots, benches, rooms, the
-town's places). Decisions: `docs/town-life-decisions.md`.
+town's places). `--market-place grote_markt` runs `market` on the Grote Markt's twenty pitches (issue 192: the same day,
+a sale of her own wares, no fish checks); `--pitch-place grote_markt` with `pitchspots`, and with `pitchplan` and
+`--pitch-keep 0,2,5` (or `all`), plan another market's pitches. Decisions: `docs/town-life-decisions.md`.
 Exit 1 on a failed check.
 
 ## Conversations and indoor entrances

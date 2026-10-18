@@ -295,6 +295,67 @@ public static class NativeLeftoversProof
                 }
                 GameState.I.Apply(await api.Post<JobsPayload>("api/dev/set", new { day = 1, hour = 13, minute = 0, weather = "clear" })); Daylight.I.Settle();
             }
+            if (Stage("cathedral"))
+            {
+                // #192: the cathedral's west end, where the organist sits at 7.25 m (hall plan origin -262, 145.53, yaw 0, floor 0.3),
+                // and the confessional in the south aisle: pictures and what is built there
+                Doors.I.Held = true; foreach (var d in Doors.I.All) Doors.I.Force(d, true);
+                float hx = -262f, hz = 145.53f, floor = .3f;
+                if (Jef.I.Fly) Jef.I.ToggleFly();
+                Jef.I.Place(hx, hz + 24f, MathF.PI, 0, floor); await Frames(60);
+                string Names(Node n) { var chain = new List<string>(); for (Node? q = n; q != null && q != game.World; q = q.GetParent()) chain.Add(q.Name.ToString()); chain.Reverse(); return string.Join("/", chain.TakeLast(5)); }
+                facts["westEnd"] = BakedWorld.All(game.GetTree().Root).OfType<MeshInstance3D>().Where(m => m.Mesh != null && m.IsVisibleInTree()).Select(m => (m, box: m.GlobalTransform * m.GetAabb()))
+                    .Where(q => q.box.Size.Length() < 80 && q.box.End.X > hx - 9 && q.box.Position.X < hx + 9 && q.box.Position.Z < hz + 16 && q.box.End.Z > hz - 1 && q.box.End.Y > floor + 3 && q.box.Position.Y < floor + 13)
+                    .Select(q => new { path = Names(q.m), min = new[] { MathF.Round(q.box.Position.X - hx, 2), MathF.Round(q.box.Position.Y - floor, 2), MathF.Round(q.box.Position.Z - hz, 2) }, size = new[] { MathF.Round(q.box.Size.X, 2), MathF.Round(q.box.Size.Y, 2), MathF.Round(q.box.Size.Z, 2) } }).Take(120).ToArray();
+                await Shot("cathedral-west-nave", new Vector3(hx, floor + 1.7f, hz + 24f), new Vector3(hx, floor + 6.5f, hz + 4f));
+                await Shot("cathedral-west-high", new Vector3(hx + 3f, floor + 9f, hz + 16f), new Vector3(hx, floor + 7f, hz + 4f));
+                await Shot("cathedral-west-side", new Vector3(hx + 8f, floor + 2f, hz + 12f), new Vector3(hx - 2f, floor + 6f, hz + 4f));
+                await Shot("cathedral-confessional", new Vector3(hx + 19f, floor + 1.7f, hz + 43f), new Vector3(hx + 24.25f, floor + 1f, hz + 40.55f));
+                Jef.I.Place(hx, hz + 6f, MathF.PI, 0, floor); await Frames(40);
+                facts["underLoft"] = new { ground = Jef.I.GroundAt(hx, hz + 6f, floor + 9f), at7 = Jef.I.GroundAt(hx, hz + 9.25f, floor + 7.6f) };
+                // the loft's floor: its top at every half metre (hall frame), from 8.2 m down
+                var loft = new System.Text.StringBuilder();
+                for (float lz = 0f; lz <= 11.5f; lz += .5f) { loft.Append($"{lz,5:0.0}"); for (float lx = -8f; lx <= 12f; lx += .5f) { Solid.I.Ensure(new Vector3(hx + lx, floor + 7, hz + lz), 4); float g = Jef.I.GroundAt(hx + lx, hz + lz, floor + 7.9f) - floor; loft.Append(g > 6.8f && g < 7.9f ? ((int)MathF.Round((g - 7f) * 10)).ToString()[^1] : g > 0.6f ? '+' : '.'); } loft.AppendLine(); }
+                File.WriteAllText(Path.Combine(output, "cathedral-loft-floor.txt"), loft.ToString());
+                // what holds a body standing at 7.2 m (hall frame x from -8 to 12, z 0 to 22): '#' held, '.' free
+                var room = new System.Text.StringBuilder();
+                foreach (float h in new[] { 7.25f, 4.0f })
+                {
+                    room.AppendLine($"feet at {h} m");
+                    for (float lz = 0f; lz <= 22f; lz += .5f) { room.Append($"{lz,5:0.0}"); for (float lx = -8f; lx <= 12f; lx += .5f) { Solid.I.Ensure(new Vector3(hx + lx, floor + h, hz + lz), 4); room.Append(Jef.I.BodyFree(hx + lx, floor + h, hz + lz) ? '.' : '#'); } room.AppendLine(); }
+                }
+                File.WriteAllText(Path.Combine(output, "cathedral-body.txt"), room.ToString());
+                // the loft's stair (#192): its model stands in the south aisle; Jef climbs it from its foot with his own body and walks
+                // the gallery into the loft to the organist's chair
+                bool stairDrawn = BakedWorld.All(game.GetTree().Root).OfType<Node3D>().Any(n => n.Name == "cathedral_loft_stair" && n.IsVisibleInTree());
+                Check(stairDrawn, "the cathedral's loft stair and gallery stand in the south aisle");
+                if (Jef.I.Fly) Jef.I.ToggleFly();
+                Jef.I.Place(hx + 10f, hz + 21.8f, 0, 0, floor); await Frames(30);
+                var climb = new List<float[]>(); float top = Jef.I.Y - floor; Jef.I.SetKey(Key.W, true);
+                var until = DateTime.UtcNow.AddSeconds(30);
+                while (DateTime.UtcNow < until && Jef.I.Z > hz + 8.75f) { Jef.I.Yaw = 0; await Frames(1); top = MathF.Max(top, Jef.I.Y - floor); if (climb.Count == 0 || MathF.Abs(climb[^1][2] - Jef.I.Z) > .5f) climb.Add(new[] { Jef.I.X, Jef.I.Y, Jef.I.Z }); }
+                until = DateTime.UtcNow.AddSeconds(20);
+                while (DateTime.UtcNow < until && Jef.I.X > hx + 1.2f) { Jef.I.Yaw = MathF.PI / 2; await Frames(1); if (MathF.Abs(climb[^1][0] - Jef.I.X) > .5f) climb.Add(new[] { Jef.I.X, Jef.I.Y, Jef.I.Z }); }
+                Jef.I.ClearKeys(); await Frames(10);
+                var end = new Vector3(Jef.I.X - hx, Jef.I.Y - floor, Jef.I.Z - hz);
+                facts["loftClimb"] = new { top, end = new[] { end.X, end.Y, end.Z }, climb };
+                Check(top > 7.1f && end.Y > 7.1f && end.X < 1.5f, $"Jef climbs the loft stair and walks the gallery into the organ loft (reached {top:0.00} m of 7.3, stands at x {end.X:0.0} on the loft at {end.Y:0.00} m)");
+                await Shot("cathedral-loft-from-gallery", new Vector3(hx + 7.5f, floor + 7.3f + 1.6f, hz + 8.8f), new Vector3(hx - 1f, floor + 7.6f, hz + 9f));
+                await Shot("cathedral-loft-stair-aisle", new Vector3(hx + 8.6f, floor + 1.7f, hz + 25f), new Vector3(hx + 10f, floor + 4f, hz + 12f));
+                await Shot("cathedral-loft-stair-nave", new Vector3(hx - 1f, floor + 2.2f, hz + 19f), new Vector3(hx + 9f, floor + 5f, hz + 11f));
+                await Shot("cathedral-loft-stair-foot", new Vector3(hx + 8.7f, floor + 1.6f, hz + 23.5f), new Vector3(hx + 10f, floor + 1f, hz + 20f));
+                // the organist's walk in from the door, up the stair, to his chair; the confessor's to his box's door, and his step in
+                var organist = Scheldemist.People.HallPeople.I!.WalkIn("cathedral", "organist");
+                var confessor = Scheldemist.People.HallPeople.I.WalkIn("cathedral", "confessor");
+                facts["walkIn"] = new { organist = organist.Points, confessor = confessor.Points, confessorStep = confessor.StepIn, note = Scheldemist.People.HallPeople.StairNote };
+                Check(organist.Points > 0, $"the organist walks in from the door and up the loft stair to his chair ({organist.Points} points)");
+                Check(confessor.Points > 0 && confessor.StepIn < 1.6f, $"the confessor walks in from the door to his box and steps in ({confessor.Points} points, a last step of {confessor.StepIn:0.00} m)");
+                GameState.I.Apply(await api.Post<JobsPayload>("api/dev/set", new { day = 1, hour = 21, minute = 0, weather = "clear" })); Daylight.I.Settle(); await Frames(60);
+                await Shot("cathedral-loft-stair-aisle-night", new Vector3(hx + 8.6f, floor + 1.7f, hz + 25f), new Vector3(hx + 10f, floor + 4f, hz + 12f));
+                GameState.I.Apply(await api.Post<JobsPayload>("api/dev/set", new { day = 1, hour = 13, minute = 0, weather = "rain" })); Daylight.I.Settle(); await Frames(60);
+                await Shot("cathedral-loft-stair-aisle-rain", new Vector3(hx + 8.6f, floor + 1.7f, hz + 25f), new Vector3(hx + 10f, floor + 4f, hz + 12f));
+                GameState.I.Apply(await api.Post<JobsPayload>("api/dev/set", new { day = 1, hour = 13, minute = 0, weather = "clear" })); Daylight.I.Settle();
+            }
             if (Stage("fireplace"))
             {
                 // #187: the Ankere's, the Schipke's and the Zwarte Kat's hearth: the fittings' fireplace, by day and lit at night
