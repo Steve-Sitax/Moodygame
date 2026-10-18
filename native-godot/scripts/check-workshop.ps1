@@ -12,7 +12,7 @@ $workshopProof = Join-Path $workshopProject ('proof\run-' + [guid]::NewGuid().To
 New-Item -ItemType Directory -Path $workshopProof | Out-Null
 Set-Content -LiteralPath (Join-Path $workshopProject 'proof\.gdignore') -Value ''
 
-function Invoke-Workshop([string[]]$EngineArguments, [string]$Name) {
+function Invoke-Workshop([string[]]$EngineArguments, [string]$Name, [int]$LimitSeconds = 45) {
     $workshopStart = [Diagnostics.ProcessStartInfo]::new()
     $workshopStart.FileName = $Godot
     $workshopStart.WorkingDirectory = $workshopProject
@@ -27,9 +27,9 @@ function Invoke-Workshop([string[]]$EngineArguments, [string]$Name) {
         [void]$workshopChild.Start()
         $workshopStdout = $workshopChild.StandardOutput.ReadToEndAsync()
         $workshopStderr = $workshopChild.StandardError.ReadToEndAsync()
-        if (-not $workshopChild.WaitForExit(45000)) {
+        if (-not $workshopChild.WaitForExit($LimitSeconds * 1000)) {
             $workshopChild.Kill($true)
-            throw "$Name exceeded its 45-second limit."
+            throw "$Name exceeded its $LimitSeconds-second limit."
         }
         $workshopText = $workshopStdout.GetAwaiter().GetResult() + $workshopStderr.GetAwaiter().GetResult()
         Set-Content -LiteralPath (Join-Path $workshopProof "$Name.log") -Value $workshopText -Encoding utf8
@@ -41,9 +41,11 @@ function Invoke-Workshop([string[]]$EngineArguments, [string]$Name) {
     finally { $workshopChild.Dispose() }
 }
 
+# A cold first import of a fresh checkout converts every model and texture: allow it far longer than the proofs.
+$workshopImportLimit = if (Test-Path -LiteralPath (Join-Path $workshopProject '.godot\imported')) { 180 } else { 1500 }
 & dotnet build $workshopProject --nologo
 if ($LASTEXITCODE -ne 0) { throw 'Native Godot build failed.' }
-Invoke-Workshop @('--headless', '--editor', '--path', $workshopProject, '--import', '--quit', '--log-file', (Join-Path $workshopProof 'engine-import.log')) 'import'
+Invoke-Workshop @('--headless', '--editor', '--path', $workshopProject, '--import', '--quit', '--log-file', (Join-Path $workshopProof 'engine-import.log')) 'import' $workshopImportLimit
 foreach ($workshopStage in @('write', 'reload')) {
     Invoke-Workshop @('--headless', '--path', $workshopProject, 'res://main.tscn', '--log-file', (Join-Path $workshopProof "engine-$workshopStage.log"), '--',
         '--district', 'quay-pilot', '--author-dir', $workshopProof, '--author-test', $workshopProof, '--proof-stage', $workshopStage) $workshopStage

@@ -13,7 +13,7 @@ public partial class HallPeople
     private readonly List<string> ceremonyGone = new(24);
     public int CeremonyEntered { get; private set; }
     public int CeremonyExited { get; private set; }
-    private static bool CeremonyRole(string role) => role is "requiem_priest" or "bearer0" or "bearer1" or "bearer2" or "bearer3" or "widow" or "mourner" or "groom" or "bride" or "guest" or "wedding_priest" or "worshipper" or "faithful" or "preacher" or "c_guest" or "c_groom" or "c_bride";
+    private static bool CeremonyRole(string role) => role is "audience" or "prompter" or "requiem_priest" or "bearer0" or "bearer1" or "bearer2" or "bearer3" or "widow" or "mourner" or "groom" or "bride" or "guest" or "wedding_priest" or "worshipper" or "faithful" or "preacher" or "c_guest" or "c_groom" or "c_bride";
     private static bool EventRoleForWalk(string role) => role is "requiem_priest" or "bearer0" or "bearer1" or "bearer2" or "bearer3" or "widow" or "mourner" or "groom" or "bride" or "guest" or "wedding_priest";
     private static Vector3 DoorAt(Hall h) => h.Plan.GetProperty("marks").TryGetProperty("door", out var door) ? World(h, door) : h.Origin;
     private static bool EyeInside(Hall h)
@@ -73,13 +73,16 @@ public partial class HallPeople
     {
         f.Ceremony = CeremonyRole(f.Role); if (!f.Ceremony) return;
         f.Rest = f.Target; f.RestYaw = f.Group.Rotation.Y;
-        // Browser landmarks.ts: first roster, priest's appear, upstairs or unseen from the square are already placed.
-        if (appear || !EyeInside(h) || f.Target.Y - h.Origin.Y >= 2) return;
+        // Browser landmarks.ts: first roster, priest's appear, or unseen from the square are already placed; upstairs too,
+        // unless the hall's plan has a stair up there (#186: the Vleeshuis's theatre audience climbs its stair).
+        bool upstairs = f.Target.Y - h.Origin.Y >= 2;
+        if (appear || !EyeInside(h) || upstairs && StairRoute(h, DoorAt(h), f.Rest) == null) return;
         var entry = DoorAt(h); var approach = f.Rest;
         if (f.Human.CanSit && f.Role is "guest" or "mourner" or "worshipper" or "widow") approach -= new Vector3(MathF.Sin(f.RestYaw), 0, MathF.Cos(f.RestYaw)) * 0.62f;
         entry = OpenCeremonyPoint(h, entry); approach = OpenCeremonyPoint(h, approach);
         f.CeremonyGoal = approach;
-        var path = Route(h, entry, approach);
+        var path = upstairs ? StairRoute(h, entry, approach)! : Route(h, entry, approach);
+        f.StairWay = upstairs;
 
         if (path.Count == 0) return;
         f.Group.Position = entry; f.Path.Clear(); foreach (var p in path) f.Path.Enqueue(p);
@@ -98,7 +101,8 @@ public partial class HallPeople
         if (f.Human.CanSit && f.Role is "guest" or "mourner" or "worshipper" or "widow") f.Group.Position -= new Vector3(MathF.Sin(f.RestYaw), 0, MathF.Cos(f.RestYaw)) * 0.62f;
         f.Group.Position = OpenCeremonyPoint(h, f.Group.Position);
         f.CeremonyGoal = OpenCeremonyPoint(h, DoorAt(h));
-        var path = Route(h, f.Group.Position, f.CeremonyGoal);
+        f.StairWay = f.Group.Position.Y - h.Origin.Y >= 2;
+        var path = f.StairWay ? StairRoute(h, f.Group.Position, f.CeremonyGoal) ?? new List<Vector3>() : Route(h, f.Group.Position, f.CeremonyGoal);
         foreach (var p in path) f.Path.Enqueue(p);
         if (f.Path.Count > 0) { f.Target = f.Path.Dequeue(); f.Moving = true; f.Human.Play("walk"); }
         else f.Moving = false;
@@ -114,7 +118,7 @@ public partial class HallPeople
         var eye = Main.I.Cam.GlobalPosition;
         double hurry = EventRoleForWalk(f.Role) && new Vector2(eye.X - from.X, eye.Z - from.Z).Length() > 20 ? 2.4 : 1;
         var to = from.MoveToward(f.Target, (float)(f.Speed * (f.Leaving ? 1.1 : 1) * hurry * Math.Min(delta, 0.1)));
-        if (FreeSegment(h, from, to))
+        if (f.StairWay || FreeSegment(h, from, to))
         {
             f.Group.Position = to; f.Group.Rotation = new Vector3(0, MathF.Atan2(f.Target.X - from.X, f.Target.Z - from.Z), 0);
             if (to.DistanceTo(f.Target) < 0.05)
@@ -127,6 +131,102 @@ public partial class HallPeople
         f.Human.Root.Position = new Vector3(0, f.Moving ? f.Human.Bob() : f.RestLift + f.Human.MotionLift(), 0); f.Human.Update((float)Math.Min(delta, 0.1));
         if (f.EventWear != null) LeadLooks.Grip(f.EventWear, EventRole(f.Role)); return true;
     }
+    /// <summary>
+    /// A way between the hall's ground floor and a place on an upper floor by the plan's stair (#186): the ground floor's own
+    /// route to the stair's foot, up the middle of the flight, a step on at its head, then the upper floor's route (or
+    /// straight, where the plan has none) to the place. Either end may be the high one. Null when no stair reaches it.
+    /// </summary>
+    private static List<Vector3>? StairRoute(Hall h, Vector3 from, Vector3 to)
+    {
+        bool down = from.Y > to.Y; var low = down ? to : from; var high = down ? from : to;
+        if (!h.Plan.TryGetProperty("stairs", out var stairs)) return null;
+        double c = h.Cos, s = h.Sin;
+        Vector3 W(double x, double y, double z) => new(h.Origin.X + (float)(x * c + z * s), h.Origin.Y + (float)y, h.Origin.Z + (float)(-x * s + z * c));
+        foreach (var st in stairs.EnumerateArray())
+        {
+            double y0 = st.GetProperty("y0").GetDouble(), y1 = st.GetProperty("y1").GetDouble();
+            if (Math.Abs(y0 - (low.Y - h.Origin.Y)) > 0.5 || Math.Abs(y1 - (high.Y - h.Origin.Y)) > 0.8) continue;
+            var r = st.GetProperty("rect"); bool alongX = st.GetProperty("along").GetString() == "x";
+            double foot = st.GetProperty("foot").GetDouble(), headAt = st.GetProperty("head").GetDouble(), dir = Math.Sign(headAt - foot);
+            double mid = alongX ? (r.GetProperty("minZ").GetDouble() + r.GetProperty("maxZ").GetDouble()) / 2 : (r.GetProperty("minX").GetDouble() + r.GetProperty("maxX").GetDouble()) / 2;
+            Vector3 At(double along, double y) => alongX ? W(along, y, mid) : W(mid, y, along);
+            var before = At(foot - dir * 0.7, y0); var start = At(foot, y0); var end = At(headAt, y1); var after = At(headAt + dir * 0.7, y1);
+            var groundLeg = new List<Vector3>(Route(h, low, before)); if (groundLeg.Count == 0 && !FreeSegment(h, low, before)) groundLeg = LevelRoute(h, low, before);
+            if (groundLeg.Count == 0) { StairNote += $" no ground way from {low} to {before};"; continue; }
+            var upperLeg = new List<Vector3>(Route(h, after, high)); if (upperLeg.Count == 0 && !FreeSegment(h, after, high)) upperLeg = LevelRoute(h, after, high);
+            if (upperLeg.Count == 0) upperLeg.Add(high);
+            var way = new List<Vector3>(groundLeg) { before, start, end, after }; way.AddRange(upperLeg);
+            if (!down) return way;
+            // coming down: the same way back from the high place to the low one
+            way.Reverse(); way.RemoveAt(0); way.Add(low); return way;
+        }
+        return null;
+    }
+    /// <summary>For the checks (#186): a hall's door, and how many points its stair way between two places has (-1: none).</summary>
+    public static string StairNote = "";
+    /// <summary>
+    /// A way across one floor of a hall where the plan's route nodes give none (#186: the Vleeshuis's ground floor has no node
+    /// near its stair's foot): half-metre cells of the plan's own floors and solids at that height, searched breadth first,
+    /// then pulled straight wherever the plan lets a straight walk through. A floor here counts to its edge (FreeSegment keeps
+    /// 0.3 m in from every floor's edge, which leaves no way from the Vleeshuis's porch through its doorway into the hall);
+    /// solids keep their 0.3 m. Empty when the floor does not join the two.
+    /// </summary>
+    private static List<Vector3> LevelRoute(Hall h, Vector3 from, Vector3 to)
+    {
+        const float step = 0.5f; var result = new List<Vector3>();
+        Parse(h);
+        bool FreeSegment(Hall hall, Vector3 a0, Vector3 b0)
+        {
+            if (Math.Abs(a0.Y - b0.Y) > 0.4) return false;
+            int n = Math.Max(1, (int)Math.Ceiling(a0.DistanceTo(b0) / 0.05));
+            for (int i = 1; i <= n; i++)
+            {
+                var p = a0.Lerp(b0, (float)i / n) - hall.Origin; double x = p.X * hall.Cos - p.Z * hall.Sin, z = p.X * hall.Sin + p.Z * hall.Cos; bool onFloor = false;
+                foreach (var (y, floors, solids) in hall.Levels)
+                {
+                    if (Math.Abs(y - p.Y) >= 0.4) continue;
+                    for (int k = 0; k < floors.Length; k += 4) if (InRect(floors, k, x, z, 0)) onFloor = true;
+                    for (int k = 0; k < solids.Length; k += 4) if (InRect(solids, k, x, z, 0.3)) return false;
+                }
+                if (!onFloor) return false;
+            }
+            return true;
+        }
+        double c = h.Cos, s = h.Sin; float y = from.Y;
+        Vector3 W(double x, double z) => new(h.Origin.X + (float)(x * c + z * s), y, h.Origin.Z + (float)(-x * s + z * c));
+        (double x, double z) L(Vector3 p) { var d = p - h.Origin; return (d.X * c - d.Z * s, d.X * s + d.Z * c); }
+        var a = L(from); var b = L(to);
+        double x0 = Math.Min(a.x, b.x) - 30, x1 = Math.Max(a.x, b.x) + 30, z0 = Math.Min(a.z, b.z) - 30, z1 = Math.Max(a.z, b.z) + 30;
+        int nx = (int)((x1 - x0) / step) + 1, nz = (int)((z1 - z0) / step) + 1;
+        if (nx * nz > 40000) return result;
+        int Cell(double x, double z) => (int)Math.Round((x - x0) / step) + (int)Math.Round((z - z0) / step) * nx;
+        Vector3 At(int i) => W(x0 + i % nx * step, z0 + i / nx * step);
+        var free = new sbyte[nx * nz]; bool Free(int i) { if (free[i] == 0) free[i] = (sbyte)(FreeSegment(h, At(i), At(i)) ? 1 : -1); return free[i] > 0; }
+        int start = Cell(a.x, a.z), goal = Cell(b.x, b.z); var previous = new int[nx * nz]; Array.Fill(previous, -1); previous[start] = start;
+        var queue = new Queue<int>(); queue.Enqueue(start);
+        while (queue.Count > 0 && previous[goal] < 0)
+        {
+            int i = queue.Dequeue(), ix = i % nx, iz = i / nx;
+            for (int dz = -1; dz <= 1; dz++) for (int dx = -1; dx <= 1; dx++)
+            {
+                int jx = ix + dx, jz = iz + dz; if ((dx | dz) == 0 || jx < 0 || jz < 0 || jx >= nx || jz >= nz) continue;
+                int j = jz * nx + jx; if (previous[j] >= 0 || !(j == goal || Free(j)) || !FreeSegment(h, i == start ? from : At(i), j == goal ? to : At(j))) continue;
+                previous[j] = i; queue.Enqueue(j);
+            }
+        }
+        if (previous[goal] < 0) return result;
+        var cells = new List<Vector3>(); for (int i = goal; i != start; i = previous[i]) cells.Add(i == goal ? to : At(i)); cells.Reverse();
+        // pulled straight: from each corner on to the furthest one in a free straight line
+        var here = from;
+        for (int k = 0; k < cells.Count;)
+        {
+            int far = k; for (int m = cells.Count - 1; m > k; m--) if (FreeSegment(h, here, cells[m])) { far = m; break; }
+            result.Add(cells[far]); here = cells[far]; k = far + 1;
+        }
+        return result;
+    }
+    public Vector3? DoorOf(string id) { foreach (var h in Halls) if (h.Id == id) return DoorAt(h); return null; }
+    public int StairWayLength(string id, Vector3 from, Vector3 to) { foreach (var h in Halls) if (h.Id == id) return StairRoute(h, from, to)?.Count ?? -1; return -1; }
     private void FinishExit(Hall h, Figure f)
     {
         var door = DoorAt(h); var s = town?.ActionPerson(f.Id);

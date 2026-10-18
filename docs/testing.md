@@ -162,6 +162,24 @@ camp), `clips`. Morning work keeps its own clock; the pictures' light is set to 
 check. The work goods are built with `native-godot/scripts/build-workgoods.ps1` and stored with
 `replace-workgoods.ps1`.
 
+## Room furniture sizes and the leftovers check
+
+`--furniture-size-check <dir>` (issue 183; `res://town.tscn`, with `--no-ai --no-mainmenu --native-services`, its own `--db`,
+`--prefs`, `--author-root`, port and `SCHELDEMIST_USER_DATA`) measures every room item drawn with a kit piece
+(`Interiors/FurnitureVisual.cs`): each drawn piece's scale on its three axes, taken from the piece itself, must stay within
+1.35 of its own size (casks and clocks may be bigger or smaller, but keep their shape), and no placed object may be scaled.
+It writes `furniture-size.json` (each item: how it was fitted, `fit`, `sized`, `wall`, `row N` or `recovered`, its recovered
+size, the kit piece's own size and stretch) and 13:00 pictures of the items that were stretched before;
+`--furniture-size-shots id,id` picks others. Exit 1 on a failure.
+
+`--leftovers-proof <dir>` (issues 180, 182, 186 and 187, same flags) checks, at 13:00 clear: no frozen bake figure on or at a
+bench (`figures`), the Sint-Jansplein open in the walk map with its four benches joined to the streets (`rond`), Jef climbing the
+Vleeshuis oak stair to the theatre floor with his own body (`theatre`), the evening audience walking up it to the high seats
+(`audience`, day 7 18:05), each landing's family-boat berth and whether her people step out at the landing (`berths`), Jef
+swimming in the far river (`river`), the small boats' mooring ropes following the tide (`ropes`), the wall works' basket
+moving with the navvy's winch (`works`, 10:00), the fish tables' herring, cod and plaice models (`fish`) and the three tavern
+fireplaces (`fireplace`). `--leftovers-only a,b` picks stages. It writes `leftovers.json` and pictures; exit 1 on a failure.
+
 ## Market, work board, warmth, benches and room keepers
 
 `--market-proof <dir>` (with `--no-ai --no-mainmenu --dev`, its own `--db`, `--prefs`, `--author-root`, port and
@@ -194,7 +212,8 @@ Build/import the native project first. `pwsh -File native-godot/scripts/check-co
 runs the real game with isolated saves, preferences and layouts, seed 1873 and no AI. It audits every native
 shop/tavern room against the actual physics geometry and player body, reserves an entrance-to-counter lane,
 checks standing allocations, walks Jef into De Vliet, and captures its doorway/interior at 13:00 clear and 20:00.
-It also checks live conversation holds, facing, clock progress, release, working employers and native bicycle,
+It also checks live conversation holds, facing, clock progress, a passer-by sent through the held talker (he must not be
+shoved off his spot; #185, `talk-passer.json`, and `talk-trail.json` with the talker's place every frame), release, working employers and native bicycle,
 handcart and horse-dray components. Inspect `conversation.json`, `rooms.json`, `cafe-walk.json` and the PNGs.
 
 Add `-Multiplayer` with another fresh output directory to run the existing `MpTest` host/guest harness in its

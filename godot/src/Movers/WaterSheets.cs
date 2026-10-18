@@ -36,6 +36,13 @@ public partial class WaterSheets : Node
             else if (mid.X > 60 && mid.X < 180 && mid.Z > 40 && mid.Z < 120 && box.Size.X > 8) dock.Add(mi);
         }
         riverBase = river.Count > 0 ? river[0].Position.Y : 0;
+        // the far river beyond the town's map is water as far as the river's sheet is drawn (#182)
+        foreach (var mi in river)
+        {
+            var box = ((MeshInstance3D)mi).GlobalTransform * ((MeshInstance3D)mi).Mesh!.GetAabb();
+            Water.SetFarRiver(new Rect2(box.Position.X, box.Position.Z, box.Size.X, box.Size.Z));
+            if (Water.FarRiver is { } far) { GD.Print($"water sheets: the far river is water from z {far.Position.Y:0} to {Water.MapRiverEdge}, x {far.Position.X:0} to {far.End.X:0}"); break; }
+        }
         dockBase = dock.Count > 0 ? dock[0].Position.Y : 0;
         if (chamber != null)
         {

@@ -17,7 +17,8 @@ public partial class NativeMarket
     {
         // Native markets arrive after asynchronous population loading. Prepare their existing tint variants
         // before frame one, with hidden references for the inventory; no stalls or extra draws are added.
-        ReadModel("stalls"); ReadModel("trades");
+        // (#180) and the fish laid on the fish tables: the herring of the work goods, the cod and plaice of the small goods
+        ReadModel("stalls"); ReadModel("trades"); ReadModel("workgoods"); ReadModel("smallgoods"); FishOnTheTable();
         int i = 0;
         foreach (var material in materials.Values)
             AddChild(new MeshInstance3D { Name = "prepared_market_material_" + i++, Visible = false, Mesh = new QuadMesh { Material = Colour(material) } });
@@ -28,11 +29,50 @@ public partial class NativeMarket
         foreach(var root in model.Roots){var found=new List<ModelPart>();var pts=new List<double>();
             void Read(Node node,Transform3D local){if(node is MeshInstance3D mi&&mi.Mesh!=null)for(int surface=0;surface<mi.Mesh.GetSurfaceCount();surface++){
                 var mat=mi.GetActiveMaterial(surface);string name=mat?.ResourceName??"";if(source=="stalls"&&name=="stall_sign")continue;if(mat!=null)materials[name]=mat;
-                var arrays=mi.Mesh.SurfaceGetArrays(surface);var vertices=arrays[(int)Mesh.ArrayType.Vertex].AsVector3Array();if(name!="market_mud")foreach(var vertex in vertices){var p=local*vertex;pts.Add(p.X);pts.Add(p.Y);pts.Add(p.Z);}
+                var arrays=mi.Mesh.SurfaceGetArrays(surface);if(source=="stalls"&&root.Key=="mk2_fish_table")arrays=WithoutTableFish(arrays,local,name);var vertices=arrays[(int)Mesh.ArrayType.Vertex].AsVector3Array();if(name!="market_mud")foreach(var vertex in vertices){var p=local*vertex;pts.Add(p.X);pts.Add(p.Y);pts.Add(p.Z);}
                 var mesh=new ArrayMesh{ResourceName=source+"_"+root.Key+"_"+surface};mesh.AddSurfaceFromArrays(Mesh.PrimitiveType.Triangles,arrays);mesh.SurfaceSetMaterial(0,mat);found.Add(new(mesh,local,name));
             }foreach(var child in node.GetChildren())Read(child,child is Node3D n?local*n.Transform:local);}
             Read(root.Value,Transform3D.Identity);parts[(source,root.Key)]=found;modelPoints[(source,root.Key)]=pts.ToArray();
         }
+    }
+    /// <summary>
+    /// #180: the fish table's own coarse fish (build_stalls.py mk2_fish_table: fifteen herring and three cod drawn on the goods
+    /// atlas's herring and cod cells, and a plaice turned on the detail atlas) come out of the table: the market lays the
+    /// fish models on its ice instead (FishOnTheTable), the herring the fishwives hold and the cod and plaice of the small
+    /// goods. The bed of ice and small fish, the eels in their basket and everything under the table stay.
+    /// </summary>
+    private static Godot.Collections.Array WithoutTableFish(Godot.Collections.Array arrays,Transform3D local,string material)
+    {
+        if(material is not("market_goods" or "market_detail"))return arrays;
+        var v=arrays[(int)Mesh.ArrayType.Vertex].AsVector3Array();var uv=arrays[(int)Mesh.ArrayType.TexUV].VariantType==Variant.Type.Nil?null:arrays[(int)Mesh.ArrayType.TexUV].AsVector2Array();
+        var index=arrays[(int)Mesh.ArrayType.Index].VariantType==Variant.Type.Nil?Enumerable.Range(0,v.Length).ToArray():arrays[(int)Mesh.ArrayType.Index].AsInt32Array();
+        // the herring and cod cells: the goods atlas's bottom row's first two 32 px cells (u 0-0.5, v 0.75-1 once flipped)
+        bool Fish(int i)=>uv!=null&&uv[i].X<.5f&&uv[i].Y>.75f;
+        // the plaice: a turned disc 0.15 m round over the ice at (0.3, 0.26) of the table (game z -0.26), on the ice's top
+        bool Plaice(int i){var p=local*v[i];return new Vector2(p.X-.3f,p.Z+.26f).Length()<.17f&&p.Y>.845f;}
+        var keep=new List<int>(index.Length);int taken=0;
+        for(int k=0;k+2<index.Length;k+=3)
+        {
+            bool fish=material=="market_goods"?Fish(index[k])&&Fish(index[k+1])&&Fish(index[k+2]):Plaice(index[k])&&Plaice(index[k+1])&&Plaice(index[k+2]);
+            if(fish){taken++;continue;}keep.Add(index[k]);keep.Add(index[k+1]);keep.Add(index[k+2]);
+        }
+        if(taken==0)return arrays;
+        var copy=(Godot.Collections.Array)arrays.Duplicate();copy[(int)Mesh.ArrayType.Index]=keep.ToArray();FishTrianglesTaken+=taken;return copy;
+    }
+    /// <summary>For the checks: how many of the table's own fish triangles were taken out.</summary>
+    public static int FishTrianglesTaken{get;private set;}
+    public static string FishModelsNote{get;private set;}="";
+    /// <summary>The fish the table shows, lying as they lie on ice: the herring and the cod on their sides, the plaice flat,
+    /// each the one model of its kind (the herring is the one the fishwives gut and hold).</summary>
+    private void FishOnTheTable()
+    {
+        var side=new Transform3D(new Basis(Vector3.Right,MathF.PI/2),Vector3.Zero);
+        void Lying(string source,string model,string name,Transform3D turn)
+        {if(parts.TryGetValue((source,model),out var list)){parts[("catch",name)]=list.Select(p=>p with{Local=turn*p.Local}).ToList();modelPoints[("catch",name)]=Array.Empty<double>();}}
+        FishModelsNote=string.Join(", ",parts.Keys.Where(k=>k.Item1 is "workgoods" or "smallgoods").Select(k=>k.Item1+"/"+k.Item2));
+        Lying("workgoods","held_fish","mk_goods_fish_herring",side);
+        Lying("smallgoods","cod","mk_goods_fish_cod",side);
+        Lying("smallgoods","plaice","mk_goods_fish_plaice",Transform3D.Identity);
     }
     private Material Colour(Material material)
     {
@@ -51,7 +91,7 @@ public partial class NativeMarket
     }
     private void Build()
     {
-        if(parts.Count==0){ReadModel("stalls");ReadModel("trades");}if(parts.Count==0){built=true;return;}
+        if(parts.Count==0){ReadModel("stalls");ReadModel("trades");ReadModel("workgoods");ReadModel("smallgoods");FishOnTheTable();}else if(!parts.ContainsKey(("catch","mk_goods_fish_herring"))){ReadModel("workgoods");ReadModel("smallgoods");FishOnTheTable();}if(parts.Count==0){built=true;return;}
         definitions=JsonNode.Parse(File.ReadAllText(Path.Combine(Paths.NativeDataRoot??Paths.Root,"services","native-extras.json")))!.AsObject();layout=new(definitions,(s,n)=>parts.ContainsKey((s,n)),(s,n)=>modelPoints.GetValueOrDefault((s,n))??Array.Empty<double>(),materials.Keys);
         var circles=Circles();var lanes=definitions["marketLanes"]!.AsArray().Select(n=>Rect(n!)).ToArray();var tracks=definitions["marketTracks"]!.AsArray().Select(n=>Rect(n!)).ToArray();
         town.Walk!.RefreshBodies();

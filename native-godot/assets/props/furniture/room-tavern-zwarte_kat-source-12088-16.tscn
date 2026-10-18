@@ -87,6 +87,9 @@ _surfaces = [{
 script = ExtResource("1_6hfnx")
 GeometryCollision = true
 Kind = "fitting"
+ModelScene = "fittings/fireplace_tavern"
+ModelYaw = 3.32659
+SceneOffset = Vector3(0.091, 0, 0.771)
 ModelSize = Vector3(2.5146925, 2.8999999, 1.8474064)
 ModelOffset = Vector3(-8.34465e-07, 0, 7.6293945e-06)
 

@@ -1007,10 +1007,13 @@ public sealed partial class Crowd
                     if (map.FreeFor(p, qx, qz) && !SomeoneAt(qx, qz)) best = (qx, qz);
                 }
             if (best == null) continue;
+            if (MoveOutLog.Count < 200) MoveOutLog.Add($"puppet {p.Id} {p.State}{(p.Conversing ? " talking" : "")} from {p.X:0.00},{p.Z:0.00} to {best.Value.x:0.00},{best.Value.z:0.00} out of {world.Position.X:0.00},{world.Position.Z:0.00} size {world.Size.X:0.00}x{world.Size.Z:0.00}");
             p.X = best.Value.x;
             p.Z = best.Value.z;
         }
     }
+    /// <summary>For checks: every body MoveOutOf has set aside (bounded).</summary>
+    public readonly List<string> MoveOutLog = new();
 
     /// <summary>The nearest open grid point where nobody is yet, or null.</summary>
     public (double x, double z)? OpenNearFree(double x, double z) => grid.Built ? grid.NearestOpen(x, z, 4, noPerson) : null;
@@ -1377,6 +1380,9 @@ public sealed partial class Crowd
     private static double ShoveWeight(Puppet p)
     {
         if (p.Remote||p.Vehicle!=null) return 0;
+        // held in a talk with the player: he stands his ground, a passer-by goes round or is eased aside (#185: one in body
+        // contact shoved the talker 0.13 m in three seconds, and the talk check saw him leave his spot)
+        if (p.Conversing) return 0;
         if (p.State == "sit" || p.Kind == "carter") return 0;
         if (p.Role == "puppet" && p.State != "walk" && !FreePoses.Contains(p.PMotion)) return 0;
         return p.State == "walk" ? 1 : 0.4;

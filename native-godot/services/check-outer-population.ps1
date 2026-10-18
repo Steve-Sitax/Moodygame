@@ -1,4 +1,4 @@
-param([ValidateSet('Workshops','Transport','Lamps','Lifecycle')][string]$Proof='Transport',[switch]$RefreshLegacyOracles)
+param([ValidateSet('Workshops','Transport','Lamps','Lifecycle')][string]$Proof='Transport',[switch]$RefreshLegacyOracles,[switch]$Record)
 $ErrorActionPreference='Stop'
 if($RefreshLegacyOracles){throw 'Original-source regeneration is retired. Use the retained fixtures; historical capture scripts are in docs/archive/legacy-oracle-tools.'}
 $workspace=(Resolve-Path (Join-Path $PSScriptRoot '..\..')).Path
@@ -47,5 +47,7 @@ $program=$program.Insert($program.LastIndexOf('}'),$helper)
 Set-Content -LiteralPath (Join-Path $folder 'Program.cs') -Value $program -Encoding utf8
 $folderName=if($Proof -eq 'Lifecycle'){'native-population-lifecycle'}else{'native-'+$Proof.ToLower()+'-population'}
 $output=Join-Path $workspace ('native-godot/proof/'+$folderName+'/result.json')
-& dotnet run --project (Join-Path $folder 'OuterProof.csproj') -- $output (Join-Path $workspace 'native-godot/services/data')
+$recordArgument=@()
+if($Record){if($Proof -ne 'Lifecycle'){throw '-Record applies to the lifecycle proof only.'};$recordArgument+='record'}
+& dotnet run --project (Join-Path $folder 'OuterProof.csproj') -- $output (Join-Path $workspace 'native-godot/services/data') $recordArgument
 if($LASTEXITCODE -ne 0){throw 'Native outer population proof failed.'}

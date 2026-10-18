@@ -114,6 +114,22 @@ public sealed class MeshDeck
             }
             heights=next;
         }
+        // #182: a cell with no floor of its own but floor on most sides round it (five of the eight), or on two opposite sides
+        // (fore and aft, or port and starboard), is a seam in the deck: at her edge where the planking meets the bulwark, in
+        // the narrow bow, or between a hatch and the deck. It takes the lowest floor beside it. An outside cell along a
+        // straight or outward-curved edge has floor on one side only (three of the eight), so the deck never grows past her side.
+        bool Has(int x,int z)=>x>=0&&z>=0&&x<Nx&&z<Nz&&float.IsFinite(heights[z*Nx+x]);
+        for(int pass=0;pass<4;pass++)
+        {
+            var next=(float[])heights.Clone();
+            for(int z=0;z<Nz;z++)for(int x=0;x<Nx;x++)
+            {
+                int i=z*Nx+x;if(float.IsFinite(heights[i]))continue;float low=float.PositiveInfinity;int n=0;
+                for(int dz=-1;dz<=1;dz++)for(int dx=-1;dx<=1;dx++){int nx=x+dx,nz=z+dz;if((dx|dz)==0||nx<0||nz<0||nx>=Nx||nz>=Nz)continue;float h=heights[nz*Nx+nx];if(float.IsFinite(h)){n++;low=Math.Min(low,h);}}
+                if(n>=5||Has(x-1,z)&&Has(x+1,z)||Has(x,z-1)&&Has(x,z+1))next[i]=low;
+            }
+            heights=next;
+        }
     }
     /// <summary>The most the feet go up from one cell to the next while walking on her (a thwart off the bottom boards is a
     /// step up only when it is low enough; higher, it is climbed with a jump). Infinite for the flat decks.</summary>
@@ -135,6 +151,22 @@ public sealed class MeshDeck
         int[] steps={-1,1,-Nx,Nx};while(queue.Count>0&&parent[last]<0){int at=queue.Dequeue();foreach(int step in steps){int next=at+step;if(next<0||next>=parent.Length||parent[next]>=0||Math.Abs(next%Nx-at%Nx)>1)continue;var p=At(next);if(!Stand(p.X,p.Y))continue;parent[next]=at;queue.Enqueue(next);}}
         var result=new List<Vector2>();if(parent[last]<0)return result;for(int i=last;i!=first;i=parent[i])result.Add(At(i));result.Add(start);result.Reverse();
         for(int i=result.Count-2;i>0;i--)if((result[i]-result[i-1]).Normalized().DistanceTo((result[i+1]-result[i]).Normalized())<.01f)result.RemoveAt(i);return result;
+    }
+    /// <summary>#182: a ship's deck under her bow's rail and knightheads, where no drawn top is a floor: an empty cell well inside her
+    /// own hull outline takes the lowest floor beside it, so nothing drawn over the water inside her lets a foot through.</summary>
+    public void FillInside(Func<float,float,bool> inside,int passes=4)
+    {
+        for(int pass=0;pass<passes;pass++)
+        {
+            var next=(float[])heights.Clone();
+            for(int z=0;z<Nz;z++)for(int x=0;x<Nx;x++)
+            {
+                int i=z*Nx+x;if(float.IsFinite(heights[i])||!inside(MinX+x*Cell,MinZ+z*Cell))continue;float low=float.PositiveInfinity;
+                for(int dz=-1;dz<=1;dz++)for(int dx=-1;dx<=1;dx++){int nx=x+dx,nz=z+dz;if((dx|dz)==0||nx<0||nz<0||nx>=Nx||nz>=Nz)continue;float h=heights[nz*Nx+nx];if(float.IsFinite(h))low=Math.Min(low,h);}
+                if(float.IsFinite(low))next[i]=low;
+            }
+            heights=next;
+        }
     }
     public void ConnectedTo(Vector2 seed)
     {

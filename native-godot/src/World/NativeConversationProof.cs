@@ -92,8 +92,32 @@ public static class NativeConversationProof
             var walker=people.Sims.FirstOrDefault(s=>s.P is {Remote:false} p && people.Crowd!.PuppetBusy(p)&&!s.ActionHeld);
             if(walker==null)throw new Exception("No live walker for talk proof");
             var p=walker.P!;var originalGoal=walker.Goal;Jef.I.Place((float)p.X+1.5f,(float)p.Z+1,0);await Frames(2);
-            int minuteBefore=GameState.I.Hour*60+GameState.I.Minute;var start=new Vector2((float)p.X,(float)p.Z);Talk.I!.Open(walker.R.Id,walker.R.Name);await Frames(60);
+            int minuteBefore=GameState.I.Hour*60+GameState.I.Minute;var start=new Vector2((float)p.X,(float)p.Z);int movedOutBefore=people.Crowd!.MoveOutLog.Count;Talk.I!.Open(walker.R.Id,walker.R.Name);
+            // Every frame of the held talk: where the talker is, who is near, and anything that set a body aside (#185).
+            var talkTrail=new List<object>();
+            for(int f=0;f<60;f++)
+            {
+                await Frames(1);
+                var near=people.Sims.Where(s=>s.P is {} q&&q!=p&&Whereabouts.Hypot(q.X-p.X,q.Z-p.Z)<1.2).Select(s=>new{id=s.R.Id,puppet=s.P!.Id,state=s.P.State,distance=Math.Round(Whereabouts.Hypot(s.P.X-p.X,s.P.Z-p.Z),3)}).ToArray();
+                talkTrail.Add(new{frame=f,x=Math.Round(p.X,3),z=Math.Round(p.Z,3),moved=Math.Round(start.DistanceTo(new((float)p.X,(float)p.Z)),3),state=p.State,conversing=p.Conversing,jef=Math.Round(Whereabouts.Hypot(Jef.I.X-p.X,Jef.I.Z-p.Z),3),near});
+            }
+            File.WriteAllText(Path.Combine(output,"talk-trail.json"),JsonSerializer.Serialize(new{walker=walker.R.Id,puppet=p.Id,start=new[]{start.X,start.Y},movedOut=people.Crowd.MoveOutLog.Skip(movedOutBefore).ToArray(),trail=talkTrail},new JsonSerializerOptions{WriteIndented=true}));
             Check(Talk.I.IsOpen&&ConversationHold.I!.Held(walker.R.Id),"talk opens a server lease");Check(start.DistanceTo(new((float)p.X,(float)p.Z))<.25f,"walker stops while clock continues");Check(p.Human.Motion=="talk","walker plays talk pose");Check(ReferenceEquals(originalGoal,walker.Goal),"talk preserves schedule goal");
+            // #185: a passer-by sent straight through the held talker walks round him (or is eased aside), never shoves him off his spot
+            var passer=people.Sims.FirstOrDefault(s=>s!=walker&&s.P is {Remote:false,NetworkVehicle:0,Pushes:false,Conversing:false} q&&people.Crowd!.PuppetBusy(q)&&!s.ActionHeld);
+            if(passer?.P is {} by)
+            {
+                var held=new Vector2((float)p.X,(float)p.Z);var across=new Vector2(MathF.Cos(.7f),MathF.Sin(.7f));
+                // (he starts at the talker's shoulder, in body contact, and is sent through him to the far side)
+                Vector2? from=null;foreach(float turn in new[]{0f,1.57f,3.14f,4.71f}){var d=across.Rotated(turn);var a=held+d*.45f;var b=held-d*2.2f;if(people.Walk!.Free(a.X,a.Y)&&people.Walk.Free(b.X,b.Y)&&people.Walk.Free(held.X,held.Y)){from=a;across=d;break;}}
+                if(from is {} start2)
+                {
+                    by.X=start2.X;by.Z=start2.Y;people.Crowd!.PuppetGo(by,held.X-across.X*2.2,held.Y-across.Y*2.2,1.3);
+                    double closest=99;var shoved=0f;for(int f=0;f<90;f++){await Frames(1);closest=Math.Min(closest,Whereabouts.Hypot(by.X-p.X,by.Z-p.Z));shoved=MathF.Max(shoved,held.DistanceTo(new((float)p.X,(float)p.Z)));}
+                    File.WriteAllText(Path.Combine(output,"talk-passer.json"),JsonSerializer.Serialize(new{passer=passer.R.Id,closest,shoved,talker=new[]{p.X,p.Z},movedOut=people.Crowd.MoveOutLog.Skip(movedOutBefore).ToArray()}));
+                    Check(shoved<.02f&&closest<.6,"a passer-by walking through a held talker does not shove him");
+                }
+            }
             GameState.I.Apply(await api.Post<JobsPayload>("api/dev/advance",new{minutes=5}));await Frames(3);
             Check(GameState.I.Hour*60+GameState.I.Minute>minuteBefore&&ConversationHold.I!.Held(walker.R.Id),"authoritative clock advances during a held talk");
             Jef.I.Place((float)p.X-1.5f,(float)p.Z+1,0);await Frames(45);double facing=Math.Atan2(Jef.I.X-p.X,Jef.I.Z-p.Z);Check(Math.Abs(Math.Atan2(Math.Sin(p.Yaw-facing),Math.Cos(p.Yaw-facing)))<.15,"person tracks a small player move");
