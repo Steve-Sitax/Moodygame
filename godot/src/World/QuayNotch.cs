@@ -25,6 +25,8 @@ public static class QuayNotch
             var xf = Transform3D.Identity;
             for (Node? n = mi; n is Node3D n3; n = n.GetParent()) xf = n3.Transform * xf;
             var cut = new ArrayMesh { ResourceName = mesh.ResourceName };
+            // (its metadata too: Solid's stand-in faces and skipped surfaces live there, issues #157 #163)
+            foreach (var key in mesh.GetMetaList()) cut.SetMeta(key, mesh.GetMeta(key));
             int here = 0;
             for (int s = 0; s < mesh.GetSurfaceCount(); s++)
             {
@@ -49,6 +51,9 @@ public static class QuayNotch
         public float[] Data = Array.Empty<float>();
         public readonly List<float> Added = new();
     }
+
+    // the height under which a triangle belongs to the ground the flight is cut into
+    private const float Ground = 1.5f;
 
     private static int CutSurface(Godot.Collections.Array arrays, Transform3D xf, QuayExits.Frame f, float s0, float s1, float u0, float u1)
     {
@@ -111,8 +116,10 @@ public static class QuayNotch
             var tri = new List<float[]> { Row(index[t]), Row(index[t + 1]), Row(index[t + 2]) };
             var ss = tri.Select(S).ToArray();
             var uu = tri.Select(U).ToArray();
-            // (the whole triangle outside the box: kept as it is)
-            if (ss.Max() <= s0 || ss.Min() >= s1 || uu.Max() <= u0 || uu.Min() >= u1)
+            // (the whole triangle outside the box, or above the ground (a gutter on the house over the flight, issue #163):
+            // kept as it is)
+            bool high = tri.All(r => (xf * new Vector3(r[0], r[1], r[2])).Y > Ground);
+            if (high || ss.Max() <= s0 || ss.Min() >= s1 || uu.Max() <= u0 || uu.Min() >= u1)
             {
                 kept.Add(index[t]); kept.Add(index[t + 1]); kept.Add(index[t + 2]);
                 continue;

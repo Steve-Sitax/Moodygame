@@ -63,6 +63,23 @@ public static class NativeRazedHouses
         int triangles = 0, glowTriangles = 0;
         foreach (var mesh in chunks)
             triangles += Filter(mesh, (a, b, c, alpha) => cut.Any(h => alpha == tags[h.Index] && Within(h.Outline, Centre(a, b, c), Reach)));
+        // A chunk's collision stand-ins (the plain boxes Solid takes for its fine stone and drainage, issues #157 #163) carry
+        // no alpha: a box goes when it lies near a razed house and nearer to it than to any standing one.
+        int standIns = 0;
+        foreach (var mesh in chunks)
+        {
+            if (mesh.Mesh is not ArrayMesh am || !am.HasMeta("native_solid_stand_in")) continue;
+            var faces = am.GetMeta("native_solid_stand_in").AsVector3Array(); var xf = WorldOf(mesh); var keptFaces = new List<Vector3>(faces.Length);
+            var razedLines = cut.Select(h => h.Outline).ToList(); var standingLines = standing.Select(h => h.Outline).ToList();
+            for (int t = 0; t + 2 < faces.Length; t += 3)
+            {
+                var c = Centre(xf * faces[t], xf * faces[t + 1], xf * faces[t + 2]);
+                if (Belongs(new Vector2(c.X, c.Z), razedLines, standingLines)) { standIns++; continue; }
+                keptFaces.Add(faces[t]); keptFaces.Add(faces[t + 1]); keptFaces.Add(faces[t + 2]);
+            }
+            if (keptFaces.Count != faces.Length) am.SetMeta("native_solid_stand_in", keptFaces.ToArray());
+        }
+        if (standIns > 0) notes.Add($"collision stand-ins at the razed houses: {standIns} triangles");
         // The street dressing the bake merged by kind (shop fronts, street life, clutter, posters, litter) carries no house alpha either:
         // a piece goes when it is near a razed house and nearer to it than to any standing one, so a neighbour's door keeps its baskets.
         int dressingTriangles = 0;
@@ -243,6 +260,8 @@ public static class NativeRazedHouses
         var xf = WorldOf(mesh);
         var source = (ArrayMesh)mesh.Mesh;
         var rebuilt = new ArrayMesh { ResourceName = source.ResourceName };
+        // (its metadata too: Solid's stand-in faces and skipped surfaces live there, issue #163)
+        foreach (var key in source.GetMetaList()) rebuilt.SetMeta(key, source.GetMeta(key));
         int dropped = 0;
         for (int s = 0; s < source.GetSurfaceCount(); s++)
         {

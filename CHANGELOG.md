@@ -11,6 +11,7 @@ Bugs and loose ends are tracked as [issues](https://github.com/Steve-Sitax/Moody
 
 ## [Unreleased]
 
+- The town's houses drain their rain now: half-round iron gutters on hangers under the eaves and on the cornices, downpipes with a swan neck, cast brackets and a shoe, rainwater heads where two gables meet, an iron channel across the pavement to the street gutter and grated gullies, with rust and damp streaks down the wall. Rain darkens the iron and makes it shine. A few old houses throw the water clear from a spout, and the broken gutters the rain pours from are broken in the gutter too (#163).
 - The corner stones of houses with wooden shop fronts now run down to the plinth beside the shop front, as on the floors above (#173).
 - The rest of the town houses' stone is dressed too: bands and cornices are single stones with joints, pilasters stand in courses, arched window heads are rings of voussoirs, and every stone keeps its house's own colour. The grime at the foot of brick and plaster walls now follows how worn the house is, and is patchy rather than an even band (#171).
 - The Vleeshuis has its steep slate roof again: one wine keg stretched over the whole building hid it as a dark blob. The same fault drew a giant keg over the Oostershuis and a giant clock over the prison. The rooms' leaded windows no longer glow grey at night; they are dark and catch the sky by day (#161).
