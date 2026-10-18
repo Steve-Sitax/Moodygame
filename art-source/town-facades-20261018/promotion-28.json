@@ -1,0 +1,34 @@
+{
+  "date": "2026-10-18 17:25:11Z",
+  "candidate": "D:/Code/_tmp_verify/H3-facades/cand-steen9",
+  "backup": "D:/Code/_tmp_verify/H3-facades/record/original-resources-28",
+  "resources": [
+    "res://world/town/resources/r001699.res",
+    "res://world/town/resources/r001707.res"
+  ],
+  "installs": [],
+  "originalHashes": {
+    "res://world/town/resources/r001699.res": "4d28882726169911c7588524a791fd8f1352cb6e43a01e9457f1f73a12f27dbe",
+    "res://world/town/resources/r001707.res": "47667f597dce4edd37669b57b69d6367da6bf2d426e6cdf2dc9443e46267a9af"
+  },
+  "installedHashes": {
+    "res://world/town/resources/r001699.res": "2abda32edb81da35600d50461b4d31563c1d03ff0e4fa84220211d81611f8c24",
+    "res://world/town/resources/r001707.res": "fac14fdce38e335d0a863299aadcb3416c58230ea8a5bfdb18cad304525c2440"
+  },
+  "counts": {
+    "res://world/town/resources/r001699.res": {
+      "node": "steen_glass",
+      "surfaces": 2,
+      "oldTriangles": 675,
+      "triangles": 2223,
+      "standInTriangles": 0
+    },
+    "res://world/town/resources/r001707.res": {
+      "node": "steen_atlas",
+      "surfaces": 1,
+      "oldTriangles": 223,
+      "triangles": 223,
+      "standInTriangles": 0
+    }
+  }
+}

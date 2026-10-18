@@ -31,7 +31,8 @@ Checks (real town, disposable saves):
 - The razed houses (536, 537) show no detail: their detail vertices carry the house's alpha and are cut with the rest.
 
 Pictures: `188-detail-before-after-day.jpg` (a street with hidden detail, before and after), `188-stains-*` (brightened
-for viewing only).
+for viewing only; taken with a 0.45 reference wall, the installed shader reads against 0.55: the stains are a little
+darker than shown).
 
 ## #176 The shutters
 
@@ -97,3 +98,42 @@ Found, not changed: the plates use 9 of the 26 names (the browser's street index
 50 corners, ZAKSTRAAT on 54, KUIPERSSTRAAT on 47, MAALDERIJSTRAAT on 46; the names do not follow the real streets.
 
 Pictures: `175-plate-board-before-after-day.jpg`, `175-night-rain-before-after.jpg`, `175-hanging-signs-installed.jpg`.
+
+## #28 Landmark windows with nothing behind them
+
+What was still open (the issue's comments): the Steen (its big room build was stopped by Steve on 2026-09-29: a cheap
+outside fix instead), and at the Carolus painted doors, the dome's four dark discs and the nave roof's four louvred
+dormers. The Vleeshuis attic, the town hall's dormers, the Oostershuis, the cellar and the three churches were done in
+the browser game (2026-09-29) and are in the native town.
+
+The Steen (`scripts/repair-steen-windows.py`, `build-steen-glass.gd`):
+- Its windows over parts with no inside (79 panes in `steen_glass`: the gatehouse's upper storeys and gable, the river
+  range's great hall, the towers and turrets, the barred windows) were opaque leaded glass flush with the wall's face,
+  their picture painted with reflections. Each pane now sits back in a real reveal: 66 move into the wall, 11.7 cm on average (12 cm, less
+  where a wall behind leaves less room: rays inward stop 5 cm short of the building's own surfaces), the reveal's sides
+  in the Steen's sandstone in shade; 13 in walls too thin stay where they were. The iron grilles stay in front.
+- The glass picture is clean dark crown glass in diamond cames, each quarry its own shade, no painted reflection, on a
+  copy of the Steen's own glass material (same shader: no new kind). It is as dark at night as before.
+- Tried and dropped: see-through glass (the rooms' window-glass shader) with a dim room behind. That shader adds its own
+  sky and fog tone, so the panes came out lighter than the wall at night; the rule is glass dark at night.
+- Its two museum boards (5 x 7 pixel letters in its 256-texel atlas) are drawn again in Old Standard TT at 2048 texels;
+  the rest of the atlas is the old picture enlarged (a copy of its atlas material).
+- `promotion-28.json`: the two meshes' original and installed hashes; originals outside the repository.
+
+Not done (the Carolus): the "painted doors" at its side and the Jesuit house draw as plain grey slabs in the native game
+(the painted door picture is not what shows; something draws a flat grey leaf over it); the cells I found for "windows"
+on its front are the backs of statue niches; setting them back changed nothing that shows. The nave roof's louvred
+dormers have the roof right behind them (no room for a reveal); the dome's discs are about 20 cm across. None changed.
+
+## Final checks (all four issues installed, disposable saves, 2026-10-18)
+
+- Shader check PASS: 150 kinds, the same as the baseline after #188's decal change; no new kind.
+- Stuck check (seed 1873, three hours): PASS on the third of three runs. Run 1: one walker paced on the spot on the
+  Rijnkaai (x -2, z 69; nothing of this work within 1.9 m or under 4.4 m); run 2: two people inside a market stall's body
+  at the Handschoenmarkt (`street_trade_lv005`, not part of this work). Both look like the known random failures.
+- Frame time with the PERF-LOCK held, near detail and shutters toggled in one session (another helper's game window ran
+  meanwhile; frames 13-17 ms in both states): frame time unchanged within noise (-0.3 to +0.5 ms), GPU +0.11 to +0.26 ms
+  per view, render CPU +0.03 to +0.17 ms, draw calls +88 to +186, video memory +51 MB against the session before the
+  shutters and signs. Collision 9,641,466 to 10,076,679 triangles.
+- Steve's Braderijstraat view (x -207, z 130): `braderijstraat-shutter-before-after-day-night.jpg` (a shutter there,
+  before and after), `braderijstraat-installed-rain-night-plate.jpg` (the street in rain and at night, the plate).
