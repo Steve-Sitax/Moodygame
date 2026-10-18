@@ -1,7 +1,7 @@
 {
   "sourceCommit": "249f8613",
   "scope": "Native town, default people2, no AI, fresh seed 1873; first processed frame after game parts are attached",
-  "reason": "Reviewed signature inventory after the native materials, clothing, furniture, pier and dressed-stone merges. Kind identity is checked, rather than a historical count. 2026-10-18 (#161, #171): three kinds changed code in place and keep their place: the dressed stone (old stone colour, damp line), the town houses' walls (foot damp follows the house's wear) and the rooms' window glass (follows the sky's light).",
+  "reason": "Reviewed signature inventory after the native materials, clothing, furniture, pier and dressed-stone merges. Kind identity is checked, rather than a historical count. 2026-10-18 (#161, #171): three kinds changed code in place and keep their place: the dressed stone (old stone colour, damp line), the town houses' walls (foot damp follows the house's wear) and the rooms' window glass (follows the sky's light). 2026-10-18 (#188): the town's grime decal kind changed code in place and keeps its place: the stain is multiplied over the lit wall, so it follows the wall's light.",
   "firstKinds": [
     "shader:03DB7241DFC388D2",
     "shader:06ECECA2573809AB",
@@ -51,7 +51,6 @@
     "shader:60BF67C793FC86A3",
     "shader:61015D7C67050809",
     "shader:627511B53C4A68AB",
-    "shader:62B3C6B513217A06",
     "shader:6726DCD50BAD18AE",
     "shader:683DB29423986FBE",
     "shader:68CAEC9869078442",
@@ -147,6 +146,7 @@
     "shader:F4AC7E0C1EDE72A4",
     "shader:F675305212D7B48D",
     "shader:F9167F6B87608764",
+    "shader:F937BAD46319F6D3",
     "shader:FA955D35A2DE6BCF",
     "shader:FA9F32379D98CB3C",
     "shader:FCA45D869CB18919",

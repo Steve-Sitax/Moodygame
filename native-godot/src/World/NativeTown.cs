@@ -206,6 +206,13 @@ public partial class NativeTown : BakedWorld
         if (town.GetNodeOrNull<Node3D>("wall_lamps") is { } wallLamps)
             foreach (var wallLamp in wallLamps.GetChildren().OfType<Node3D>()) wallLamp.Visible = true;
         var wallChunks = new NativeWallChunks { Name = "wall_chunk_culling" }; wallChunks.Collect(All(town)); AddChild(wallChunks);
+        // Issue #188: every block's near-only detail, within its near range (dev: --no-near-detail keeps the bake's state)
+        if (!Scheldemist.Main.I.Flag("no-near-detail"))
+        {
+            var (detailMeshes, detailHidden, detailSolid, detailHigh) = NativeNearDetail.Apply(All(town));
+            Report["nearDetailMeshes"] = detailMeshes; Report["nearDetailWereHidden"] = detailHidden;
+            Report["nearDetailSolidTriangles"] = detailSolid; Report["nearDetailOutOfReachTriangles"] = detailHigh;
+        }
         var registered = new HashSet<ulong>();
         foreach (var node in All(town))
         {
@@ -238,6 +245,7 @@ public partial class NativeTown : BakedWorld
         Solid.Leave.Add(n => n.HasMeta("native_replaced_event_snapshot"));
         Solid.Leave.Add(n => n.HasMeta(Scheldemist.Native.World.NativeQuayLadders.LeaveMeta));
         Solid.Leave.Add(n => n.HasMeta(NativeRazedHouses.DressingMeta));
+        Solid.Leave.Add(n => n.HasMeta(NativeNearDetail.NoCollision));
         Solid.Leave.Add(n => n.HasMeta(NativeBenches.SwapMeta));
         Report["benches"] = NativeBenches.Index(town);
         BuildLights();

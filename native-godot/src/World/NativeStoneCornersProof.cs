@@ -64,6 +64,10 @@ public static class NativeStoneCornersProof
             notes.Add(new { mode = "memory", stage = "before candidate", bufferMemMB = Performance.GetMonitor(Performance.Monitor.RenderBufferMemUsed) / 1048576.0, videoMemMB = Performance.GetMonitor(Performance.Monitor.RenderVideoMemUsed) / 1048576.0 });
             var swaps = candidateFolder == "" ? new List<(MeshInstance3D node, Mesh before, Mesh after)>() : Candidate(game, Paths.Absolute(candidateFolder), notes);
             if (candidateFolder != "") Check("candidate meshes found in the town", swaps.Count > 0);
+            // issue #188: --stone-corners-detail-toggle compares the town without its near-only detail (before) and with it
+            if (OS.GetCmdlineUserArgs().Contains("--stone-corners-detail-toggle"))
+                foreach (var m in BakedWorld.All(game.World).OfType<MeshInstance3D>().Where(m => m.Mesh != null && m.VisibilityRangeEnd > 0 && System.Text.RegularExpressions.Regex.IsMatch(m.Name.ToString(), "^city_-?\\d+_-?\\d+_d_\\d+$")).ToArray())
+                    swaps.Add((m, new ArrayMesh(), m.Mesh!));
             await Frames(10);
             notes.Add(new { mode = "memory", stage = "candidate built", bufferMemMB = Performance.GetMonitor(Performance.Monitor.RenderBufferMemUsed) / 1048576.0, videoMemMB = Performance.GetMonitor(Performance.Monitor.RenderVideoMemUsed) / 1048576.0 });
             void Use(bool candidate) { foreach (var s in swaps) s.node.Mesh = candidate ? s.after : s.before; }
