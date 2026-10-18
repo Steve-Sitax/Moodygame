@@ -7,10 +7,10 @@ coordinator merges into main after checks and `test-icons.ps1 -Full`. Town chunk
 
 | Wave | Bundle | Issues |
 |---|---|---|
-| 1 | A. Checks that fail at random | #145 #146 #136 #124 #125 #106 #49 #47 |
+| 1 | A. Checks that fail at random | merged; #49 #47 wait for an exclusive timing after C2 |
 | 1 | B. Talk and doorways | #168 #158 (merged 69187d20) |
 | 1 | C. Speed | #133 #135 #62 #32: part 1 merged; part 2 (C2, with #167) running |
-| 2 | D. Boats | #155 #87 #109 #154 #156 |
+| 2 (running) | D. Boats | #155 #87 #109 #154 #156 |
 | 2 (running) | E. Carried loads and work poses | #148 #130 #151 #131 #129 #169 #172 #128 #132 |
 | 2 | F. Market, work board, warmth, benches (rules), room keepers | #150 #153 #162 #165 #177 #178 |
 | 2 | L. Routes | #139 #120 |
