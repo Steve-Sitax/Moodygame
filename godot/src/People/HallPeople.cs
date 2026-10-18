@@ -62,6 +62,8 @@ public partial class HallPeople : Node
         public float RestLift;
         public Node3D? EventWear;
         public bool Ceremony, Leaving;
+        /// <summary>On a way that climbs a hall's stair (#186): its legs are the plan's own, not checked floor by floor.</summary>
+        public bool StairWay;
         public Vector3 Rest, CeremonyGoal;
         public float RestYaw;
     }
@@ -110,7 +112,7 @@ public partial class HallPeople : Node
         foreach (var id in h.Figures.Keys.Where(id => !want.Any(p => p.GetProperty("id").GetString() == id)).ToList())
         {
             var f = h.Figures[id];
-            if (f.Ceremony && f.Group.Position.Y - h.Origin.Y < 2) { if (!f.Leaving) CeremonyLeave(h, f); }
+            if (f.Ceremony && (f.Group.Position.Y - h.Origin.Y < 2 || EyeInside(h) && StairRoute(h, f.Group.Position, DoorAt(h)) != null)) { if (!f.Leaving) CeremonyLeave(h, f); }
             else { f.Group.QueueFree(); h.Figures.Remove(id); }
         }
         var occupied = new List<Vector3>();

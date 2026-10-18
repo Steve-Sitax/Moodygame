@@ -15,6 +15,10 @@ public partial class FurnitureVisual : Node3D
     [Export] public float ModelYaw {get;set;}
     [Export] public bool GeometryCollision {get;set;}
     [Export] public bool ResidentSnapshot {get;set;}
+    /// <summary>A stored model ("library/node", e.g. "fittings/fireplace_tavern") drawn in place of the recovered meshes, in
+    /// the piece's own frame turned by ModelYaw and moved by SceneOffset, at its own size (#187: the taverns' hearths).</summary>
+    [Export] public string ModelScene {get;set;}="";
+    [Export] public Vector3 SceneOffset {get;set;}=Vector3.Zero;
     /// <summary>How the kit piece was put in (#183): "fit" to the recovered size, "row N" pieces along a recovered row,
     /// "kit" at its own proportions, "recovered" (the recovered construction kept), "" no kit piece. Read by the size check.</summary>
     public string KitFit {get;private set;}="";
@@ -49,7 +53,8 @@ public partial class FurnitureVisual : Node3D
             {node.SetMeta("native_replaced_event_snapshot",true);if(node is CollisionObject3D body){body.CollisionLayer=0;body.CollisionMask=0;}if(node is CollisionShape3D shape)shape.Disabled=true;}
             return;
         }
-        string id=KitId!=""?KitId:Kind switch {
+        bool drawn=ModelScene!=""&&DrawModelScene();
+        string id=drawn?"":KitId!=""?KitId:Kind switch {
             "chair"=>"chair-ladderback","stool"=>"stool-bar","bench"=>"bench-long","settle"=>"settle",
             "table"=>"table-square","counter"=>"counter-shop","shelf"=>"shelf-wall","cupboard"=>"armoire",
             "bed"=>ModelSize.Y>1.5f?"bed-box":"bed-iron","stove"=>"stove-leuven","clock"=>Wall?"clock-wall":"clock-longcase","washstand"=>"washstand",_=>""};
@@ -64,7 +69,7 @@ public partial class FurnitureVisual : Node3D
         if(group){id="";}
         string path=Kind=="cask"?"res://assets/furniture/shared-keg.tscn":"res://assets/furniture/"+id+".tscn";
         var pieces=new System.Collections.Generic.List<Node3D>();
-        if((id!="" || Kind=="cask"&&!group) && ResourceLoader.Exists(path))
+        if(!drawn&&(id!="" || Kind=="cask"&&!group) && ResourceLoader.Exists(path))
         {
             var scene=ResourceLoader.Load<PackedScene>(path);
             bool faced=false;
@@ -187,6 +192,15 @@ public partial class FurnitureVisual : Node3D
             foreach(var dial in Scheldemist.World.BakedWorld.All(this).OfType<Node3D>().Where(n=>n.Name.ToString().EndsWith("_dial")))clocks.AdoptDial(dial,"furniture dial",Kind);
         if(Scheldemist.Main.I?.World is Native.World.NativeTown)
             Native.World.NativeTownMaterials.Furniture.ApplyObject(this);
+    }
+    private bool DrawModelScene()
+    {
+        var parts=ModelScene.Split('/');
+        if(parts.Length!=2||Scheldemist.Models.ModelLibrary.Get(parts[0],new Scheldemist.Models.ModelLibrary.Look(TwoSided:true,Affine:0,VertexColor:true))?.Copy(parts[1]) is not {} model)return false;
+        HideRecovered();
+        foreach(var child in model.FindChildren("*","CollisionObject3D",true,false).OfType<CollisionObject3D>().ToArray()){child.GetParent().RemoveChild(child);child.Free();}
+        model.Transform=new Transform3D(new Basis(Vector3.Up,ModelYaw),SceneOffset);AddChild(model);
+        KitFit="model";return true;
     }
     private Node3D Prepare(PackedScene scene)
     {

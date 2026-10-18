@@ -78,7 +78,7 @@ public partial class NativeModelRecovery : Node
                                     if (image == null || image.IsEmpty())
                                         throw new IOException("People2 intake requires readable atlas images; use rendered --rendering-method forward_plus, not --headless.");
                                 }
-                if (name is "ferry" or "workgoods" or "benches" or "workboard") CompressPictures(scene);
+                if (name is "ferry" or "workgoods" or "benches" or "workboard" or "smallgoods" or "fittings") CompressPictures(scene);
                 // People2's sliders leave the meshes for one sparse file (People2Morphs): dense blend shapes would
                 // cost over 100 MB of stored resources.
                 string resources = output + "/" + name + "-resources";

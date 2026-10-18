@@ -65,7 +65,30 @@ public partial class HallFloors : Node
                     body.AddChild(new CollisionShape3D { Shape = new BoxShape3D { Size = box.size }, Position = box.position });
                 }
                 foreach (var box in unseen) body.AddChild(new CollisionShape3D { Shape = new BoxShape3D { Size = box.size }, Position = box.position });
+                if (own && plan.GetProperty("id").GetString() == "vleeshuis") VleeshuisStair(root, body);
             }
+    }
+    /// <summary>
+    /// #186: the Vleeshuis's flight up to its theatre floor was treads of collision only (the bake draws the hall but no
+    /// stair), so its 209 seats were reached by no way anyone could see. The fittings' oak stair (build_fittings.py
+    /// vleeshuis_stair) stands over those treads in the hall's own frame; its balustrade on the open side and the posts
+    /// under it are solid, so nobody steps off the flight's open side or walks through a post.
+    /// </summary>
+    private static void VleeshuisStair(Node3D root, StaticBody3D body)
+    {
+        if (Scheldemist.Models.ModelLibrary.Get("fittings", new Scheldemist.Models.ModelLibrary.Look(TwoSided: true, Affine: 0, VertexColor: true))?.Copy("vleeshuis_stair") is not { } stair) return;
+        stair.Name = "vleeshuis_stair"; root.AddChild(stair);
+        const float foot = 26.05f, head = 11f, rise = 9.84f, z = 12.33f;
+        float slope = rise / (foot - head), length = MathF.Sqrt((foot - head) * (foot - head) + rise * rise);
+        // the balustrade: a slab along the rail line from the nosings up to the handrail (0.06 m over the string's top)
+        var rail = new BoxShape3D { Size = new Vector3(length, 0.95f, 0.06f) };
+        float mx = (foot + head) / 2, my = 0.06f + slope * (foot - mx) + 0.40f;
+        body.AddChild(new CollisionShape3D { Name = "stair_balustrade", Shape = rail, Transform = new Transform3D(new Basis(Vector3.Back, -MathF.Atan(slope)), new Vector3(mx, my, z)) });
+        for (int k = 1; k < 5; k++)
+        {
+            float x = 26f - 15f * k / 5, top = 0.06f + slope * (foot - x) - 0.36f;
+            body.AddChild(new CollisionShape3D { Name = "stair_post", Shape = new BoxShape3D { Size = new Vector3(0.18f, top, 0.18f) }, Position = new Vector3(x, top / 2, z) });
+        }
     }
     public override void _ExitTree() { foreach (var root in roots) root.QueueFree(); }
 }

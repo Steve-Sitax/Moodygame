@@ -26,6 +26,7 @@ SIZES = {
     "ledger_open": (0.46, None, None),
 }
 TOL = 0.02
+MATERIAL = "workgoods"  # the one material's name (build_smallgoods.py sets its own)
 GROUNDED = {"ledger_open", "crab_winch", "trunk", "bundle", "featherbed", "basket", "tub", "hides", "parcel"}
 
 
@@ -110,8 +111,8 @@ def check(path, names=None, out=print):
         bad("sparse accessors %s" % sparse)
     mats = J.get("materials", [])
     out("[verify] materials: %s" % [m.get("name") for m in mats])
-    if len(mats) != 1 or mats[0].get("name") != "workgoods":
-        bad("expected one material 'workgoods'")
+    if len(mats) != 1 or mats[0].get("name") != MATERIAL:
+        bad("expected one material '%s'" % MATERIAL)
     else:
         m = mats[0]
         pbr = m.get("pbrMetallicRoughness", {})
