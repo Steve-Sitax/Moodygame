@@ -69,6 +69,18 @@ public partial class MoveTest
         if (!landing) reports.Add(new { stuckRoute = route.TakeLast(12).ToArray(), path = rower.Journey?.BoatTrip?.Path.Select(p => new[] { R((float)p.X), R((float)p.Z) }).ToArray() });
         await Frames(90);
         await Shot("resboat-landing");
+        // (#182) where she lies while her people step out: alongside the landing when her own berth is out of their reach
+        var stop = rower.Journey?.BoatTrip?.Land;
+        if (Rowing.I.Drawings.TryGetValue("town:" + vehicle.Id, out var lying))
+        {
+            var hullAt = lying.Root.GlobalPosition; var outward = new Vector3(hullAt.X - to.X, 0, hullAt.Z - to.Y).Normalized();
+            var eye = hullAt + outward * 9f + Vector3.Up * 3.5f;
+            if (!j.Fly) j.ToggleFly();
+            var cam = Main.I.Cam; cam.GlobalPosition = eye; var q = new Transform3D(Basis.Identity, eye).LookingAt(hullAt + Vector3.Up * 0.8f).Basis.GetRotationQuaternion();
+            if (cam is FlyCam fly) fly.Face(q); else cam.Quaternion = q;
+            await Shot("resboat-landing-water", 25); if (j.Fly) j.ToggleFly();
+            reports.Add(new { landingStop = stop is { } st ? new[] { R(st.X), R(st.Y) } : null, berth = rower.Journey?.BoatTrip is { } bt ? new[] { R(bt.To.X), R(bt.To.Y) } : null, hull = new[] { R(lying.X), R(lying.Z) } });
+        }
         bool up = await Until(() => rower.Journey?.Phase != "landing", 50);
         await Frames(20);
         var crewAt = errand.Who.Select(id => town.ActionPerson(id)).Where(s => s != null).Select(s => new Vector2((float)s!.X, (float)s.Z)).ToArray();

@@ -107,6 +107,8 @@ public partial class Boats : Node
         public string Kind = "";
         public List<(MultiMesh Mm, Transform3D Part, float[]? Buf)> Meshes = new();
         public float[] X = null!, Z = null!, Yaw = null!, Floor = null!, List = null!, P0 = null!, P1 = null!, P2 = null!;
+        /// <summary>The height the bake drew each boat at (its mooring ropes were drawn to her at that height).</summary>
+        public float[] BakeY = null!;
         public float[] M = null!;
         public Vector3 Mid;
         public int N;
@@ -459,7 +461,7 @@ public partial class Boats : Node
                     Kind = kind,
                     N = n,
                     M = Motion.GetValueOrDefault(kind) ?? Motion["rowboat"],
-                    X = new float[n], Z = new float[n], Yaw = new float[n], Floor = new float[n], List = new float[n],
+                    X = new float[n], Z = new float[n], Yaw = new float[n], Floor = new float[n], List = new float[n], BakeY = new float[n],
                     P0 = new float[n], P1 = new float[n], P2 = new float[n], World = new Transform3D[n],
                     Gone = new bool[n], Ref = -1, Node = mmi, WakeKeys = new object[n],
                 };
@@ -474,6 +476,7 @@ public partial class Boats : Node
                     t.Origin += new Vector3(dx, 0, dz);
                     row.X[i] = t.Origin.X;
                     row.Z[i] = t.Origin.Z;
+                    row.BakeY[i] = t.Origin.Y;
                     row.Yaw[i] = MathF.Atan2(t.Basis.Z.X, t.Basis.Z.Z);
                     row.Floor[i] = BedAt(t.Origin.X, t.Origin.Z) + DraftOf(kind);
                     row.P0[i] = (float)r() * 6.283f;
@@ -608,6 +611,7 @@ public partial class Boats : Node
             if (!tideChanged && dx * dx + dz * dz > Near * Near && (frame + (ulong)i) % 8 != 0) continue;
             Write(r, t);
         }
+        if (tideChanged) RopesFollowTide();
         MoverCost.End("boats");
     }
 

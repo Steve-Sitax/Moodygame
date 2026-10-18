@@ -58,7 +58,12 @@ public partial class ShipWalk:Node
         var dim=Boats.I.Dims(kind);
         if(dim.Length<9){float seat=Array.IndexOf(Rowing.HullKinds,kind.Replace("_bare",""))>=0?RowPhysics.Hull.Of(kind.Replace("_bare","")).SeatY:.4f;return floors[kind]=MeshDeck.Hull(model,-dim.Beam/2,dim.Beam/2,-dim.Length/2,dim.Length/2,-.6f,seat+.15f);}
         // a ship: her decks, and where a house, a hatch or a heap stands on them its top (a foot that comes down there stands on it)
-        return floors[kind]=MeshDeck.Hull(model,-dim.Beam/2,dim.Beam/2,-dim.Length/2,dim.Length/2,kind=="brig"?2.25f:.45f,float.MaxValue,.25f);
+        var deck=MeshDeck.Hull(model,-dim.Beam/2,dim.Beam/2,-dim.Length/2,dim.Length/2,kind=="brig"?2.25f:.45f,float.MaxValue,.25f);
+        // (#182) at her bow the rail and knightheads stand over the deck's edge: inside her outline the deck goes on under them
+        if(Boats.I.HullOf(kind) is {} hull)deck.FillInside((x,z)=>
+        {int cx=(int)MathF.Floor((x-hull.MinX)/Boats.HullMap.Cell),cz=(int)MathF.Floor((z-hull.MinZ)/Boats.HullMap.Cell);
+            for(int dz=-2;dz<=2;dz++)for(int dx=-2;dx<=2;dx++)if(!hull.Has(cx+dx,cz+dz))return false;return true;});
+        return floors[kind]=deck;
     }
     public Deck Add(string kind,MeshDeck mesh,Func<Transform3D> frame,Func<bool> visible,Func<bool>? gone=null)
     {var d=new Deck{Kind=kind,Mesh=mesh,World=frame,Visible=visible,Gone=gone};Decks.Add(d);return d;}

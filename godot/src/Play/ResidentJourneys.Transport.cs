@@ -33,7 +33,10 @@ public partial class ResidentJourneys
         public FamilyBoat? BoatTrip;
     }
     public sealed class Carrier {public string Id="";public int Step;public double Go,Wait,Time;}
-    public sealed class FamilyBoat {public string Kind="rowboat";public List<string> Crew=new();public JourneyRules.Point[] Path=Array.Empty<JourneyRules.Point>();public Vector2 To,ToTop,FromTop;public bool Home;}
+    public sealed class FamilyBoat {public string Kind="rowboat";public List<string> Crew=new();public JourneyRules.Point[] Path=Array.Empty<JourneyRules.Point>();public Vector2 To,ToTop,FromTop;public bool Home;
+        /// <summary>Where she comes alongside the landing to put her people ashore when her own berth (her home along the wall, or a place
+        /// further along) is out of their reach (#182); she is taken on to it once nobody is near.</summary>
+        public Vector2? Land;public float LandYaw;}
     private sealed class ParkedCart {public Vector3 At;public int Items,Goods;public Handcart? Cart;public readonly List<Node3D> Cargo=new();public bool Pushed;}
     private ResidentTransport? transport;
     private readonly Dictionary<string,ParkedCart> parked=new();
@@ -141,7 +144,7 @@ public partial class ResidentJourneys
     private void TransportUpdate(double dt)
     {
         if((transportPoll-=dt)<=0){transportPoll=10;_=LoadTransport();}
-        DrawParked();UpdateErrands();
+        DrawParked();UpdateErrands();TakeOn();
         if((snapshotPoll-=dt)<=0){snapshotPoll=.25;PublishCartSnapshots();}
     }
     private void DrawParked()
