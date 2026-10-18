@@ -4,9 +4,9 @@
 [ext_resource type="Script" path="res://src/Authoring/AuthorAsset.cs" id="2_rnvfy"]
 
 [resource]
+script = ExtResource("2_rnvfy")
 PlacementAnchor = Vector3(9.536743e-07, 0, -9.536743e-07)
 GeometryClearance = true
-script = ExtResource("2_rnvfy")
 Id = "room-townhall-source-9030-88"
 Title = "fitting · townhall · source-9030-88"
 Category = "Room originals"

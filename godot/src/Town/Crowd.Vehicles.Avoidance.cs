@@ -78,7 +78,7 @@ public sealed partial class Crowd
         p.Yield="";p.PushAge+=dt;if(p.Remote||lanes.Count==0){p.YieldHold=0;return false;}double rank=p.Vehicle?.Kind==3?2:p.Vehicle!=null?1:0;Lane? hit=null,near=null;double lateral=0,alongHit=0;
         foreach(var l in lanes){if(l.Owner==p||l.Rank<=rank)continue;double dx=p.X-l.X,dz=p.Z-l.Z;if(Math.Abs(dx)>20||Math.Abs(dz)>20)continue;double along=dx*l.Ux+dz*l.Uz;if(along< -l.HalfLength-.4||along>l.HalfLength+l.Look)continue;double lat=dx*l.Rx+dz*l.Rz,room=l.HalfWidth+.55+p.Reach*.5;if(Math.Abs(lat)<room){hit=l;lateral=lat;alongHit=along;break;}if(Math.Abs(lat)<room+1.2)near=l;}
         string Moving()=>p.Vehicle?.Kind==1?"ride":p.Vehicle?.Kind==2?(p.Kind is "carter" or "porter"?"walk":"push"):"walk";
-        if(hit is {} lane){p.Yield="in a lane";p.YieldHold=1.2;if(p.State!="walk"&&p.WayHome==null)p.WayHome=(p.X,p.Z);double want=lane.HalfWidth+.55+.9,step=1.7*dt;
+        if(hit is {} lane){p.Yield="in a lane";p.YieldHold=1.2;if(p.State!="walk"&&p.WayHome==null){p.WayHome=(p.X,p.Z);p.WayHomeLeft=double.PositiveInfinity;p.WayHomeStall=0;}double want=lane.HalfWidth+.55+.9,step=1.7*dt;
             // Keep an escape's direction through the centre line instead of choosing the default side again.
             int centreSide=p.PushAge<1.2&&p.PushX*lane.Rx+p.PushZ*lane.Rz<0?-1:1;
             int[] sides=Math.Abs(lateral)<.15?new[]{centreSide,-centreSide}:new[]{Math.Sign(lateral),-Math.Sign(lateral)};
@@ -101,6 +101,8 @@ public sealed partial class Crowd
             foreach(var l in lanes){if(l.Owner==p||l.Rank<=rank||LaneDepth(p,l,x,z)<=0)continue;p.Yield="waits for a lane";p.Human.Play(p.Vehicle?.Kind==1?"ride":StillMotion(p),.3f);Face(p,Math.Atan2(l.X-p.X,l.Z-p.Z),dt);p.StuckT=0;return true;}}
         if(p.WayHome!=null&&near!=null&&p.State!="walk"){p.Human.Play(StillMotion(p),.3f);return false;}
         if(p.WayHome is {} home&&near==null){double dx=home.x-p.X,dz=home.z-p.Z,d=Hyp(dx,dz);if(d<.1||p.State=="walk"){p.WayHome=null;if(p.State!="walk")p.Human.Play(StillMotion(p),.3f);return false;}
+            // no ground gained for half a second (another rule holds the body, a street game's place): stay, never walk on the spot
+            if(d<p.WayHomeLeft-.02){p.WayHomeLeft=d;p.WayHomeStall=0;}else if((p.WayHomeStall+=dt)>.5){p.WayHome=null;p.Human.Play(StillMotion(p),.3f);return false;}
             double step=Math.Min(d,1.1*dt),x=p.X+dx/d*step,z=p.Z+dz/d*step;if(!map.FreeFor(p,x,z)){p.WayHome=null;p.Human.Play(StillMotion(p),.3f);return false;}p.X=x;p.Z=z;Face(p,Math.Atan2(dx,dz),dt*3);p.Human.Play(p.Vehicle!=null?WalkMotion(p):"walk",.2f);p.Human.SetPace(1.1f/p.Size);if(d-step<.1){p.WayHome=null;p.Human.Play(StillMotion(p),.3f);if(p.PYaw!=null)Face(p,p.PYaw.Value,1);}return true;}
         return false;
     }

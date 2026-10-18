@@ -472,6 +472,10 @@ public sealed class Puppet
     internal double Failed;
     /// <summary>Ways round bodies that stay put taken on this route, and the way point index before which the way points are those ways round (issue 120).</summary>
     internal int StandDetours, DetourEnd;
+    /// <summary>Why the last way round a standing body was not taken, for the stuck check's report.</summary>
+    internal string DetourWhy = "";
+    /// <summary>The next route is planned round the ground standing bodies hold: one of them left no way round (issue 120).</summary>
+    internal bool RoundStanding;
     internal double? PYaw;
     internal bool Repath;
     internal bool NativeRouting;
@@ -495,6 +499,9 @@ public sealed class Puppet
     public int NetworkVehicle,NetworkLoad,NetworkGoods;
     internal NativePersonVehicle? Vehicle;
     internal (double x,double z)? WayHome;
+    /// <summary>The way home after a lane: the distance left at best, and how long no ground was gained on it (another rule,
+    /// a street game's place, holding the body where it is).</summary>
+    internal double WayHomeLeft = double.PositiveInfinity, WayHomeStall;
 }
 
 /// <summary>
@@ -981,8 +988,9 @@ public sealed partial class Crowd
     }
 
     /// <summary>
-    /// A solid has just appeared (a cart parked for the player coming near): whoever stands or waits inside its
-    /// footprint, or within a body's clearance of it, is eased out onto the nearest free ground. Walkers step out by themselves.
+    /// A solid has just appeared or grown (a cart parked for the player coming near, a grinder's barrow set down): whoever stands,
+    /// waits or walks inside its footprint, or within a body's clearance of it, is eased out onto the nearest free ground. A walker
+    /// caught there by a cart drawn round him stood inside its box until he had walked out (stuck check, 2026-10-18).
     /// </summary>
     public void MoveOutOf(Aabb world, double clearance = 0.3)
     {
@@ -990,7 +998,7 @@ public sealed partial class Crowd
         double x0 = world.Position.X - clearance, x1 = world.End.X + clearance, z0 = world.Position.Z - clearance, z1 = world.End.Z + clearance;
         foreach (var p in people)
         {
-            if (p.Remote || p.Vehicle != null || p.State is "walk" or "sit" || p.X < x0 || p.X > x1 || p.Z < z0 || p.Z > z1 || map.FreeFor(p, p.X, p.Z)) continue;
+            if (p.Remote || p.Vehicle != null || p.State is "sit" || p.X < x0 || p.X > x1 || p.Z < z0 || p.Z > z1 || map.FreeFor(p, p.X, p.Z)) continue;
             (double x, double z)? best = null;
             for (double r = 0.25; r <= 3 && best == null; r += 0.25)
                 for (int k = 0; k < 24 && best == null; k++)
@@ -1521,6 +1529,8 @@ public sealed partial class Crowd
             if ((p.Failed += dt) > 1 && heldBefore <= 1 && WedgeLog.Count < 200) WedgeLog.Add(WedgeNote(p, "first step refused", ux, uz, step));
             // a body that stays put holds the step: go round its corners (a passing one is waited for)
             if (p.Failed > 0.25 && DetourStanding(p, p.X + ux * step, p.Z + uz * step, ux, uz, step)) return;
+            // a standing body with no way round its corners (a cart parked across a lane): the next plan goes another way
+            if (p.Failed > 0.25 && p.DetourWhy.StartsWith("no free corner", StringComparison.Ordinal)) p.RoundStanding = true;
             if (p.Failed > (p.Shown ? 6 : 3) && Unwedge(p, ux, uz, step)) return;
             grid.Block(p.X + ux * 0.6, p.Z + uz * 0.6);
             p.Replans++;
@@ -1553,7 +1563,7 @@ public sealed partial class Crowd
         return $"{what}: puppet {p.Id} {p.Role} nose {p.Nose} at {p.X:0.00},{p.Z:0.00} yaw {p.Yaw:0.00} to {t.x:0.00},{t.z:0.00} (leg {p.Pi}/{p.Path.Count}, native {p.NativeRouting}, shown {p.Shown}); "
             + $"standHere {map.FreeFor(p, p.X, p.Z)}, bodyFreeStep {StepFree(p, nx, nz)}, supportsStep {map.SupportsStep(p.X, p.Z, nx, nz)}, supportsLeg {map.SupportsStep(p.X, p.Z, t.x, t.z)}, "
             + $"noseFree {p.Nose == 0 || map.FreeFor(p, nose.x, nose.z)}, noseStatic {p.Nose == 0 || map.SupportsStep(nose.x, nose.z, nose.x, nose.z)}, "
-            + $"noseAt {nose.x:0.00},{nose.z:0.00}, gridOpen {grid.IsOpen(nx, nz)}, bodiesAtNose [{(p.Nose == 0 ? "" : map.BlockedBy(p, nose.x, nose.z))}], bodiesAtStep [{map.BlockedBy(p, nx, nz)}]";
+            + $"noseAt {nose.x:0.00},{nose.z:0.00}, gridOpen {grid.IsOpen(nx, nz)}, bodiesAtNose [{(p.Nose == 0 ? "" : map.BlockedBy(p, nose.x, nose.z))}], bodiesAtStep [{map.BlockedBy(p, nx, nz)}]" + (p.DetourWhy != "" ? $", no way round: {p.DetourWhy}" : "");
     }
 
     /// <summary>Blocked straight on: a step turned up to 70 degrees either way, if one is free (the way it went).</summary>
@@ -1714,7 +1724,8 @@ public sealed partial class Crowd
         p.NativeRouting = false;
         if (path is not { Count: > 0 } && map.IsNative) {
             p.NativeRoute ??= new NativeCrowdRoute(map);
-            if (p.NativeRoute.Window(new Vector2((float)p.X, (float)p.Z), new Vector2((float)dest.x, (float)dest.z), p.Path)) {
+            bool round = p.RoundStanding; p.RoundStanding = false;
+            if (p.NativeRoute.Window(new Vector2((float)p.X, (float)p.Z), new Vector2((float)dest.x, (float)dest.z), p.Path, round)) {
                 p.NativeRouting = true; path = p.Path;
             }
         }

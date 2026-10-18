@@ -4,9 +4,9 @@
 [ext_resource type="Script" path="res://src/Authoring/AuthorAsset.cs" id="2_uyxlq"]
 
 [resource]
+script = ExtResource("2_uyxlq")
 PlacementAnchor = Vector3(3.4570694e-06, 0, -1.9073486e-06)
 GeometryClearance = true
-script = ExtResource("2_uyxlq")
 Id = "room-shop-butcher_vlees-source-10498-23"
 Title = "fitting · shop:butcher_vlees · source-10498-23"
 Category = "Room originals"

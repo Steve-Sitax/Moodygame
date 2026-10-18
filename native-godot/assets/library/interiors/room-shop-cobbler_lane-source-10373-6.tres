@@ -4,9 +4,9 @@
 [ext_resource type="Script" path="res://src/Authoring/AuthorAsset.cs" id="2_aa8ci"]
 
 [resource]
+script = ExtResource("2_aa8ci")
 PlacementAnchor = Vector3(-7.748604e-07, 0, -2.6226044e-06)
 GeometryClearance = true
-script = ExtResource("2_aa8ci")
 Id = "room-shop-cobbler_lane-source-10373-6"
 Title = "fitting · shop:cobbler_lane · source-10373-6"
 Category = "Room originals"

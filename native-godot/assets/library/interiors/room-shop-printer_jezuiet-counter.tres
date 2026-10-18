@@ -4,9 +4,9 @@
 [ext_resource type="Script" path="res://src/Authoring/AuthorAsset.cs" id="2_lxl1g"]
 
 [resource]
+script = ExtResource("2_lxl1g")
 PlacementAnchor = Vector3(-0.56002104, -1.4901161e-08, -2.9921532e-05)
 GeometryClearance = true
-script = ExtResource("2_lxl1g")
 Id = "room-shop-printer_jezuiet-counter"
 Title = "counter · shop:printer_jezuiet · counter"
 Category = "Room originals"

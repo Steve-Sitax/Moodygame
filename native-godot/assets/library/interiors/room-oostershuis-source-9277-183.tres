@@ -4,8 +4,8 @@
 [ext_resource type="Script" path="res://src/Authoring/AuthorAsset.cs" id="2_775gr"]
 
 [resource]
-GeometryClearance = true
 script = ExtResource("2_775gr")
+GeometryClearance = true
 Id = "room-oostershuis-source-9277-183"
 Title = "Architecture marker · oostershuis · room-oostershuis-source-9277-183"
 Category = "Room originals"

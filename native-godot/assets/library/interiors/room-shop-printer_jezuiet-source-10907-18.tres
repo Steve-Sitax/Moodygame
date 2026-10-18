@@ -4,9 +4,9 @@
 [ext_resource type="Script" path="res://src/Authoring/AuthorAsset.cs" id="2_l7jis"]
 
 [resource]
+script = ExtResource("2_l7jis")
 PlacementAnchor = Vector3(3.4570694e-06, 0, -1.2874603e-05)
 GeometryClearance = true
-script = ExtResource("2_l7jis")
 Id = "room-shop-printer_jezuiet-source-10907-18"
 Title = "fitting · shop:printer_jezuiet · source-10907-18"
 Category = "Room originals"

@@ -4,9 +4,9 @@
 [ext_resource type="Script" path="res://src/Authoring/AuthorAsset.cs" id="2_8nu14"]
 
 [resource]
+script = ExtResource("2_8nu14")
 PlacementAnchor = Vector3(1.2636185e-05, 0, -2.3841858e-07)
 GeometryClearance = true
-script = ExtResource("2_8nu14")
 Id = "room-shop-chandler_werf-source-10189-4"
 Title = "clock · shop:chandler_werf · source-10189-4"
 Category = "Room originals"

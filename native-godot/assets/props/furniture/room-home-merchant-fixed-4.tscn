@@ -9,7 +9,6 @@
 [ext_resource type="Material" path="res://world/town/resources/r008720.res" id="7_wihx4"]
 [ext_resource type="Material" path="res://world/town/resources/r008722.res" id="8_sp556"]
 [ext_resource type="Material" path="res://world/town/resources/r008724.res" id="9_3vh1e"]
-[ext_resource type="Material" path="res://world/town/resources/r008750.res" id="10_rohtd"]
 [ext_resource type="Material" path="res://world/town/resources/r002943.res" id="11_a65p7"]
 
 [sub_resource type="ArrayMesh" id="ArrayMesh_a2key"]
@@ -108,18 +107,6 @@ _surfaces = [{
 "vertex_data": PackedByteArray("OBSuPilcjz+5PIq+12vHPilcjz8gvJS+OBSuPlyPgj8+CFe+OBSuPlyPgj8+CFe+12vHPilcjz8gvJS+ziTdPlyPgj9QBn6+12vHPilcjz8gvJS+PuvRPilcjz++E66+ziTdPlyPgj9QBn6+ziTdPlyPgj9QBn6+PuvRPilcjz++E66+16PwPlyPgj++E66+PuvRPilcjz++E66+12vHPilcjz9ca8e+16PwPlyPgj++E66+16PwPlyPgj++E66+12vHPilcjz9ca8e+ziTdPlyPgj9TJN2+12vHPilcjz9ca8e+OBSuPilcjz/D6tG+ziTdPlyPgj9TJN2+ziTdPlyPgj9TJN2+OBSuPilcjz/D6tG+OBSuPlyPgj/XovC+OBSuPilcjz/D6tG+mryUPilcjz9ca8e+OBSuPlyPgj/XovC+OBSuPlyPgj/XovC+mryUPilcjz9ca8e+Rgd+PlyPgj9TJN2+mryUPilcjz9ca8e+Mz2KPilcjz++E66+Rgd+PlyPgj9TJN2+Rgd+PlyPgj9TJN2+Mz2KPilcjz++E66+PgpXPlyPgj++E66+Mz2KPilcjz++E66+mryUPilcjz8gvJS+PgpXPlyPgj++E66+PgpXPlyPgj++E66+mryUPilcjz8gvJS+Rwd+PlyPgj9QBn6+mryUPilcjz8gvJS+OBSuPilcjz+5PIq+Rwd+PlyPgj9QBn6+Rwd+PlyPgj9QBn6+OBSuPilcjz+5PIq+OBSuPlyPgj8+CFe+OBSuPilcjz+5PIq+OBSuPilcjz++E66+12vHPilcjz8gvJS+12vHPilcjz8gvJS+OBSuPilcjz++E66+PuvRPilcjz++E66+PuvRPilcjz++E66+OBSuPilcjz++E66+12vHPilcjz9ca8e+12vHPilcjz9ca8e+OBSuPilcjz++E66+OBSuPilcjz/D6tG+OBSuPilcjz/D6tG+OBSuPilcjz++E66+mryUPilcjz9ca8e+mryUPilcjz9ca8e+OBSuPilcjz++E66+Mz2KPilcjz++E66+Mz2KPilcjz++E66+OBSuPilcjz++E66+mryUPilcjz8gvJS+mryUPilcjz8gvJS+OBSuPilcjz++E66+OBSuPilcjz+5PIq+ziTdPlyPgj9QBn6+OBSuPlyPgj++E66+OBSuPlyPgj8+CFe+16PwPlyPgj++E66+OBSuPlyPgj++E66+ziTdPlyPgj9QBn6+ziTdPlyPgj9TJN2+OBSuPlyPgj++E66+16PwPlyPgj++E66+OBSuPlyPgj/XovC+OBSuPlyPgj++E66+ziTdPlyPgj9TJN2+Rgd+PlyPgj9TJN2+OBSuPlyPgj++E66+OBSuPlyPgj/XovC+PgpXPlyPgj++E66+OBSuPlyPgj++E66+Rgd+PlyPgj9TJN2+Rwd+PlyPgj9QBn6+OBSuPlyPgj++E66+PgpXPlyPgj++E66+OBSuPlyPgj8+CFe+OBSuPlyPgj++E66+Rwd+PlyPgj9QBn6+/3/+r35oV5/trB+m0kRivf9//q9+aFef/3/+r35oV5/trB+m0kRive2sH6bSRGK97awfptJEYr39z/uve2iV0+2sH6bSRGK97awfptJEYr39z/uve2iV0/3P+697aJXT/c/7r3toldPd2Q7Ter1lr/3P+697aJXT/c/7r3toldPd2Q7Ter1lr93ZDtN6vWWv3dkO03q9Za/9z/7/SkHBi93ZDtN6vWWv3dkO03q9Za/9z/7/SkHBi/3P/v9KQcGL/c/+/0pBwYshJg7T0UQyoP3P/v9KQcGL/c/+/0pBwYshJg7T0UQyoCEmDtPRRDKgISYO09FEMqD+L/2vf2horCEmDtPRRDKgISYO09FEMqD+L/2vf2horP4v/a9/aGis/i/9r39oaKwQUx+mBIlAov4v/a9/aGis/i/9r39oaKwQUx+mBIlAohBTH6YEiUCiEFMfpgSJQKL/f/6vfmhXnxBTH6YEiUCiEFMfpgSJQKL/f/6vfmhXn/9//q9+aFef/n/+/wAA/r/+f/7/AAD+v/5//v8AAP6//n/+/wAA/r/+f/7/AAD+v/5//v8AAP6//n/+/wAA/r/+f/7/AAD+v/5//v8AAP6//n/+/wAA/r/+f/7/AAD+v/5//v8AAP6//n/+/wAA/r/+f/7/AAD+v/5//v8AAP6//n/+/wAA/r/+f/7/AAD+v/5//v8AAP6//n/+/wAA/r/+f/7/AAD+v/5//v8AAP6//n/+/wAA/r/+f/7/AAD+v/5//v8AAP6/+n8BAAQA/7/6fwEABAD/v/p/AQAEAP+/+n8BAAQA/7/6fwEABAD/v/p/AQAEAP+/+n8BAAQA/7/6fwEABAD/v/p/AQAEAP+/+n8BAAQA/7/6fwEABAD/v/p/AQAEAP+/+n8BAAQA/7/6fwEABAD/v/p/AQAEAP+/+n8BAAQA/7/6fwEABAD/v/p/AQAEAP+/+n8BAAQA/7/6fwEABAD/v/p/AQAEAP+/+n8BAAQA/7/6fwEABAD/v/p/AQAEAP+/")
 }]
 
-[sub_resource type="ArrayMesh" id="ArrayMesh_3ed0c"]
-_surfaces = [{
-"aabb": AABB(-0.5, -0.5, -0.49999237, 1, 1, 1e-05),
-"attribute_data": PackedByteArray("AAAAAAAAgD8AAIA/AACAPwAAAAAAAAAAAAAAAAAAAAAAAIA/AACAPwAAgD8AAAAA"),
-"format": 34359738391,
-"material": ExtResource("10_rohtd"),
-"primitive": 3,
-"uv_scale": Vector4(0, 0, 0, 0),
-"vertex_count": 6,
-"vertex_data": PackedByteArray("AAAAvwAAAD8A//++AAAAPwAAAD8A//++AAAAvwAAAL8A//++AAAAvwAAAL8A//++AAAAPwAAAD8A//++AAAAPwAAAL8A//++/3//fwCAAID/f/9/AIAAgP9//38AgACA/3//fwCAAID/f/9/AIAAgP9//38AgACA")
-}]
-
 [sub_resource type="BoxShape3D" id="BoxShape3D_oh1k8"]
 size = Vector3(1.0000541, 1.62, 0.97496295)
 
@@ -165,9 +152,6 @@ mesh = SubResource("ArrayMesh_67nwq")
 
 [node name="@MeshInstance3D@22634" type="MeshInstance3D" parent="." unique_id=1863427079]
 mesh = SubResource("ArrayMesh_p4mky")
-
-[node name="@MeshInstance3D@22635" type="MeshInstance3D" parent="." unique_id=1523045678]
-mesh = SubResource("ArrayMesh_3ed0c")
 
 [node name="Solid" type="StaticBody3D" parent="." unique_id=743145827]
 collision_layer = 2

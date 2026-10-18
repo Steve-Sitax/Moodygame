@@ -10,9 +10,11 @@ namespace Scheldemist.Native.Interiors;
 public static class InteriorRoutes
 {
     private const float Step=.25f;
-    private sealed record Grid(int Width,int Depth,List<Vector3> Points,List<int>[] Columns);
+    private sealed record Grid(int Width,int Depth,List<Vector3> Points,List<int>[] Columns,List<(Vector3 At,string By)> Blocked);
     private static readonly ConditionalWeakTable<WorkshopSession,Dictionary<string,Grid>> cache=new();
     public static object Diagnostics {get;private set;}=new{};
+    /// <summary>The first furniture the last Check found no route to, or null.</summary>
+    public static string? Unreachable {get;private set;}
     private static HashSet<string> reachable=new(StringComparer.Ordinal);
     public static bool KeepsRoutes(WorkshopSession session,LayoutDocument next,out string why)
     {
@@ -73,7 +75,7 @@ public static class InteriorRoutes
         using var shape=new BoxShape3D{Size=new(.3f,1.15f,.3f)};
         using var query=new PhysicsShapeQueryParameters3D{Shape=shape,CollisionMask=3,Exclude=exclude,Margin=.001f};
         var space=session.GetWorld3D().DirectSpaceState;
-        int blockedSamples=0;
+        int blockedSamples=0;var blocked=new List<(Vector3,string)>();
         for(int i=0;i<columns.Length;i++)
         {
             var at=room.RoomFrame*new Vector3(rect.Position.X+(i%width+.5f)*Step,0,rect.Position.Y+(i/width+.5f)*Step);
@@ -90,6 +92,7 @@ public static class InteriorRoutes
                 var blockers=space.IntersectShape(query,1);
                 if(blockers.Count!=0)
                 {
+                    blocked.Add((floor,(blockers[0]["collider"].AsGodotObject() as Node)?.GetParent()?.Name.ToString()??"?"));
                     if(blockedSamples<3&&room.EntryPoints.Any(e=>new Vector2(e.X-floor.X,e.Z-floor.Z).Length()<3&&Math.Abs(e.Y-floor.Y)<1))
                     {
                         var collider=blockers[0]["collider"].AsGodotObject() as Node;
@@ -100,15 +103,16 @@ public static class InteriorRoutes
                 columns[i].Add(points.Count);points.Add(floor);
             }
         }
-        var grid=new Grid(width,depth,points,columns);rooms.Add(room.Id,grid);return grid;
+        var grid=new Grid(width,depth,points,columns,blocked);rooms.Add(room.Id,grid);return grid;
     }
     public static bool Check(WorkshopSession session,LayoutDocument document,out string why)
     {
-        why="";reachable=new(StringComparer.Ordinal);var room=session.District;if(room.RoomId=="")return true;
+        why="";Unreachable=null;reachable=new(StringComparer.Ordinal);var room=session.District;if(room.RoomId=="")return true;
         var grid=Floors(session);var free=new bool[grid.Points.Count];var reached=new bool[free.Length];
         var solids=document.Objects.Select(p=>(p,a:session.Assets[p.Asset]))
             .Where(p=>p.a.Footprint.Y+p.a.FootprintOffset.Y>.3f)
-            .Select(p=>(p.a,xf:new Transform3D(Basis.FromEuler(LayoutDocument.Vector(p.p.Rotation)).Scaled(LayoutDocument.Vector(p.p.Scale)),LayoutDocument.Vector(p.p.Position)).AffineInverse())).ToArray();
+            .Select(p=>(p.a,xf:new Transform3D(Basis.FromEuler(LayoutDocument.Vector(p.p.Rotation)).Scaled(LayoutDocument.Vector(p.p.Scale)),LayoutDocument.Vector(p.p.Position)).AffineInverse(),id:p.p.Id)).ToArray();
+        lastBlockers.Clear();
         for(int i=0;i<free.Length;i++)
         {
             free[i]=true;
@@ -120,10 +124,10 @@ public static class InteriorRoutes
                 if(item.a.GeometryClearance)
                 {
                     var body=item.xf*new Aabb(grid.Points[i]+new Vector3(-.15f,.225f,-.15f),new(.3f,1.15f,.3f));
-                    if(Bounds(item.a).Any(b=>b.Intersects(body))){free[i]=false;break;}
+                    if(Bounds(item.a).Any(b=>b.Intersects(body))){free[i]=false;lastBlockers[item.id]=lastBlockers.GetValueOrDefault(item.id)+1;break;}
                     continue;
                 }
-                if(Math.Abs(local.X)<item.a.Footprint.X/2+.12f&&Math.Abs(local.Z)<item.a.Footprint.Z/2+.12f){free[i]=false;break;}
+                if(Math.Abs(local.X)<item.a.Footprint.X/2+.12f&&Math.Abs(local.Z)<item.a.Footprint.Z/2+.12f){free[i]=false;lastBlockers[item.id+" "+item.a.Id+" footprint "+item.a.Footprint]=lastBlockers.GetValueOrDefault(item.id+" "+item.a.Id+" footprint "+item.a.Footprint)+1;break;}
             }
         }
         var queue=new Queue<int>();var inverse=room.RoomFrame.AffineInverse();var rect=room.RoomBounds;
@@ -157,6 +161,7 @@ public static class InteriorRoutes
             Diagnostics=new{points=free.Length,free=free.Count(p=>p),doors};
             if(seed>=0&&distance<=4)queue.Enqueue(seed);
         }
+        lastReached=reached;lastFree=free;lastEntries=entries;
         if(queue.Count==0){why="Keep a clear way in from the room's door.";return false;}
         while(queue.TryDequeue(out int i))
         {
@@ -181,8 +186,43 @@ public static class InteriorRoutes
                 accessible=Math.Abs(y-footHeight)<.4f&&Math.Abs(local.X)<=a.Footprint.X/2+reach&&Math.Abs(local.Z)<=a.Footprint.Z/2+reach;
             }
             if(accessible)reachable.Add(p.Id);
-            else if(why==""){Diagnostics=new{points=free.Length,free=free.Count(p=>p),reached=reached.Count(p=>p),doors,unreachable=p.Id};why="Keep a walking route to "+a.Title+".";}
+            else if(why==""){Diagnostics=new{points=free.Length,free=free.Count(p=>p),reached=reached.Count(p=>p),doors,unreachable=p.Id};Unreachable=p.Id;why="Keep a walking route to "+a.Title+".";}
         }
         return why=="";
+    }
+    private static bool[] lastReached=Array.Empty<bool>(),lastFree=Array.Empty<bool>();
+    private static List<Vector3> lastEntries=new();
+    private static readonly Dictionary<string,int> lastBlockers=new(StringComparer.Ordinal);
+    /// <summary>
+    /// The room's floors after a Check, by storey (half-metre squares): R reached from a door, o free but cut off, # blocked by the
+    /// shell at a walker's height, D a door's start, X the furniture with no route. Below, what blocks most squares, by mesh.
+    /// </summary>
+    public static string Dump(WorkshopSession session,string? unreachable)
+    {
+        var room=session.District;if(room.RoomId=="")return "";
+        var grid=Floors(session);var inverse=room.RoomFrame.AffineInverse();var rect=room.RoomBounds;
+        var text=new System.Text.StringBuilder();
+        Vector3? target=null;
+        if(unreachable!=null&&session.Document.Objects.FirstOrDefault(o=>o.Id==unreachable) is {} item)target=LayoutDocument.Vector(item.Position);
+        var all=grid.Points.Select((p,i)=>(p,kind:i<lastReached.Length&&lastReached[i]?'R':i<lastFree.Length&&lastFree[i]?'o':'f')).Concat(grid.Blocked.Select(b=>(p:b.At,kind:'#'))).ToList();
+        foreach(var storey in all.GroupBy(q=>Math.Round((inverse*q.p).Y/1.5)).OrderBy(g=>g.Key))
+        {
+            if(storey.Count()<40)continue;
+            int w=(int)Math.Ceiling(rect.Size.X/.5),d=(int)Math.Ceiling(rect.Size.Y/.5);var cells=new char[w*d];Array.Fill(cells,' ');
+            int Rank(char c)=>c switch{'R'=>4,'o'=>3,'f'=>2,'#'=>1,_=>0};
+            foreach(var q in storey){var l=inverse*q.p;int x=(int)((l.X-rect.Position.X)/.5),z=(int)((l.Z-rect.Position.Y)/.5);if(x<0||z<0||x>=w||z>=d)continue;if(Rank(q.kind)>Rank(cells[z*w+x]))cells[z*w+x]=q.kind;}
+            void Mark(Vector3 at,char c){var l=inverse*at;int x=(int)((l.X-rect.Position.X)/.5),z=(int)((l.Z-rect.Position.Y)/.5);if(x>=0&&z>=0&&x<w&&z<d&&Math.Round(l.Y/1.5)==storey.Key)cells[z*w+x]=c;}
+            foreach(var e in lastEntries)Mark(e,'D');if(target is {} t)Mark(t,'X');
+            text.AppendLine($"storey at about {storey.Key*1.5:0.0} m (room frame), x from {rect.Position.X:0.0}, z from {rect.Position.Y:0.0}, 0.5 m squares; f is free furniture-blocked:");
+            for(int z=0;z<d;z++)text.AppendLine($"{rect.Position.Y+z*.5,7:0.0} "+new string(cells,z*w,w).TrimEnd());
+        }
+        // every sample (all of a small room, or those in --proof-window x0,x1,z0,z1 of the plan), for a closer look
+        var window=Scheldemist.Native.Game.NativeArguments.Arg("proof-window").Split(',',StringSplitOptions.RemoveEmptyEntries).Select(v=>float.Parse(v,System.Globalization.CultureInfo.InvariantCulture)).ToArray();
+        bool Shown(Vector3 p)=>window.Length==4?p.X>=window[0]&&p.X<=window[1]&&p.Z>=window[2]&&p.Z<=window[3]:all.Count<5000;
+        foreach(var q in all.Where(q=>q.kind!='#'&&Shown(q.p)).OrderBy(q=>q.p.Z).ThenBy(q=>q.p.X))text.AppendLine($"point {q.p.X:0.00} {q.p.Y:0.00} {q.p.Z:0.00} {q.kind}");
+        foreach(var b in grid.Blocked.Where(b=>Shown(b.At)))text.AppendLine($"blocked {b.At.X:0.00} {b.At.Y:0.00} {b.At.Z:0.00} {b.By}");
+        text.AppendLine("furniture blocking: "+string.Join(", ",lastBlockers.OrderByDescending(q=>q.Value).Take(12).Select(q=>$"{q.Key} {q.Value}")));
+        text.AppendLine("blocked by: "+string.Join(", ",grid.Blocked.GroupBy(b=>b.By).OrderByDescending(g=>g.Count()).Take(12).Select(g=>$"{g.Key} {g.Count()}")));
+        return text.ToString();
     }
 }

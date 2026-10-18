@@ -4,9 +4,9 @@
 [ext_resource type="Script" path="res://src/Authoring/AuthorAsset.cs" id="2_av354"]
 
 [resource]
+script = ExtResource("2_av354")
 PlacementAnchor = Vector3(-4.8577785e-06, 0, -3.8146973e-06)
 GeometryClearance = true
-script = ExtResource("2_av354")
 Id = "room-prison-source-9570-663"
 Title = "fitting · prison · source-9570-663"
 Category = "Room originals"

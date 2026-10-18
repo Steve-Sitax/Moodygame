@@ -4,9 +4,9 @@
 [ext_resource type="Script" path="res://src/Authoring/AuthorAsset.cs" id="2_rybck"]
 
 [resource]
+script = ExtResource("2_rybck")
 PlacementAnchor = Vector3(-3.5762787e-06, 0, -1.4305115e-06)
 GeometryClearance = true
-script = ExtResource("2_rybck")
 Id = "room-shop-colonial_steen-source-10563-7"
 Title = "fitting · shop:colonial_steen · source-10563-7"
 Category = "Room originals"

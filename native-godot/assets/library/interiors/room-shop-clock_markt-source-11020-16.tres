@@ -4,9 +4,9 @@
 [ext_resource type="Script" path="res://src/Authoring/AuthorAsset.cs" id="2_oo47j"]
 
 [resource]
+script = ExtResource("2_oo47j")
 PlacementAnchor = Vector3(1.3113022e-06, 0, -1.0728836e-06)
 GeometryClearance = true
-script = ExtResource("2_oo47j")
 Id = "room-shop-clock_markt-source-11020-16"
 Title = "clock · shop:clock_markt · source-11020-16"
 Category = "Room originals"

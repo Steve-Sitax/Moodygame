@@ -4,9 +4,9 @@
 [ext_resource type="Script" path="res://src/Authoring/AuthorAsset.cs" id="2_aavxv"]
 
 [resource]
+script = ExtResource("2_aavxv")
 PlacementAnchor = Vector3(-6.818771e-05, -1.4901161e-08, -7.390976e-05)
 GeometryClearance = true
-script = ExtResource("2_aavxv")
 Id = "room-tavern-ankere-table-2"
 Title = "table · tavern:ankere · table-2"
 Category = "Room originals"

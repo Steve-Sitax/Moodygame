@@ -180,7 +180,12 @@ public partial class StreetTrades : Node
     {
         if(k.Shape?.Shape is not BoxShape3D shape)return;
         shape.Size=box.Size;k.Shape.Position=box.Centre;
-        if(k.Shape.GetParent() is StaticBody3D body)WalkMap.ResizeBody(body,new Aabb(box.Centre-box.Size/2,box.Size));
+        if(k.Shape.GetParent() is StaticBody3D body)
+        {
+            WalkMap.ResizeBody(body,new Aabb(box.Centre-box.Size/2,box.Size));
+            // the barrow set down grows round whoever passes it: ease them out (the stuck check found one inside, 2026-10-18)
+            Main.I.GetNodeOrNull<Townspeople>("Townspeople")?.Crowd?.MoveOutOf(body.GlobalTransform*new Aabb(box.Centre-box.Size/2,box.Size));
+        }
     }
     private void Remove(string id){if(!kits.Remove(id,out var k))return;if(GodotObject.IsInstanceValid(k.Root))k.Root.QueueFree();if(GodotObject.IsInstanceValid(k.Bundle))k.Bundle!.QueueFree();if(k.Cart){k.Puppet.Pushes=false;k.Puppet.Nose=0;k.Puppet.Reach=.3;town?.Crowd?.PuppetLantern(k.Puppet,false);}foreach(var dog in k.Dogs)dog?.Dispose();if(k.Person.R.Trade=="grinder"){Grinders--;k.Puppet.Nose=0;k.Puppet.Reach=.3;}else if(k.DogsN>0)DogCarts--;}
     private void Reset(string how,Net.ClientState? state){gone.Clear();foreach(var id in kits.Keys)gone.Add(id);foreach(var id in gone)Remove(id);}

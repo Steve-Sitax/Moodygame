@@ -14,6 +14,12 @@ Bugs and loose ends are tracked as [issues](https://github.com/Steve-Sitax/Moody
 - The corner stones of houses with wooden shop fronts now run down to the plinth beside the shop front, as on the floors above (#173).
 - The rest of the town houses' stone is dressed too: bands and cornices are single stones with joints, pilasters stand in courses, arched window heads are rings of voussoirs, and every stone keeps its house's own colour. The grime at the foot of brick and plaster walls now follows how worn the house is, and is patchy rather than an even band (#171).
 - The Vleeshuis has its steep slate roof again: one wine keg stretched over the whole building hid it as a dark blob. The same fault drew a giant keg over the Oostershuis and a giant clock over the prison. The rooms' leaded windows no longer glow grey at night; they are dark and catch the sky by day (#161).
+- Walkers no longer brush the cross beams of the portal cranes: the walk map knows every part of a crane that stands at a walker's height, not only its four legs (#179).
+- A walker held by a parked cart across a narrow lane plans another way at once instead of waiting; a cart pusher goes round a standing barrow or crate like a walker does (#120).
+- You can walk into every home you rent: the green marker sheets left in the doorways of the widow's, the alley, the cellar and the garret homes are gone, and the gilt rail no longer runs across the merchant's back doorway, so his stair reaches the room (#139).
+- The town hall's main door opens in office hours; its leaves swing inwards (#139).
+- Townspeople on their rounds no longer cut straight across the dock basin, the canal or a closed courtyard while their way on foot is still being worked out (#139).
+
 - Workers carry one load at a time, with both hands on it whatever they do; a box no longer floats beside a worker with hanging arms, and a body reused for another person no longer brings the last owner's crate (#148).
 - The dockers' sack piles are real sacks now: a docker lifts the top sack, the pile shrinks, and it is filled again while nobody looks and at dawn. The sack on his shoulder is the pile's own sack, with its mark (#130).
 - The emigrants on the Rijnkaai have real luggage: a painted trunk with iron corners and straps, a checked cloth bundle, a striped featherbed and a lidded basket. Jobs' trunks, hides and parcels and the carts' tubs, baskets and chairs are real models too (#151).

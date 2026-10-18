@@ -242,6 +242,31 @@ public partial class Doors : Node
         GameState.I.ClockChanged += ByTheClock;
     }
 
+    /// <summary>
+    /// A door whose leaves stand shut in the bake does not say which way they turn: turn each a quarter turn the way that
+    /// takes its middle away from the street (`outward`), so the leaves open into the building, and let the door open.
+    /// </summary>
+    private static void SwingIn(Door d, Vector2 outward)
+    {
+        foreach (var leaf in d.Leaves)
+        {
+            var was = leaf.Hinge.Rotation;
+            float Inward(float angle)
+            {
+                leaf.Hinge.Rotation = new Vector3(was.X, angle, was.Z);
+                Aabb? box = null;
+                foreach (var n in BakedWorld.All(leaf.Hinge))
+                    if (n is MeshInstance3D { Mesh: not null } mi) { var b = mi.GlobalTransform * mi.Mesh.GetAabb(); box = box == null ? b : box.Value.Merge(b); }
+                var c = box?.GetCenter() ?? leaf.Hinge.GlobalPosition;
+                return -(c.X * outward.X + c.Z * outward.Y);
+            }
+            float plus = Inward(MathF.PI / 2), minus = Inward(-MathF.PI / 2);
+            leaf.Hinge.Rotation = was;
+            leaf.OpenAngle = plus >= minus ? MathF.PI / 2 : -MathF.PI / 2;
+        }
+        d.Fixed = false;
+    }
+
     /// <summary>The doorway's box: where the leaves are when shut, a little thicker than the leaf.</summary>
     private void MakeBody(Door d)
     {
@@ -347,6 +372,9 @@ public partial class Doors : Node
                 var d = doors.Where(q => q.Kind is "hall" or "landmark").OrderBy(q => new Vector2(q.Middle.X, q.Middle.Z).DistanceTo(wall)).FirstOrDefault();
                 if (d == null || new Vector2(d.Middle.X, d.Middle.Z).DistanceTo(wall) > 6) continue;
                 d.Kind = "landmark";
+                // a public door that stands shut in the bake (the town hall's): the server keeps its hours, so it must open.
+                // Its leaves swing in, away from the street, a quarter turn each (issue 139: no way into the town hall).
+                if (d.Fixed) SwingIn(d, o);
                 d.Id = l.GetProperty("id").GetString() ?? d.Id;
                 d.Landmark = l.GetProperty("landmark").GetString() ?? "";
                 d.Label = l.GetProperty("label").GetString() ?? "";

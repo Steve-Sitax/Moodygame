@@ -4,9 +4,9 @@
 [ext_resource type="Script" path="res://src/Authoring/AuthorAsset.cs" id="2_qupe7"]
 
 [resource]
+script = ExtResource("2_qupe7")
 PlacementAnchor = Vector3(-1.5497208e-06, 0, 5.4836273e-06)
 GeometryClearance = true
-script = ExtResource("2_qupe7")
 Id = "room-shop-grocer_south-source-11226-13"
 Title = "sack · shop:grocer_south · source-11226-13"
 Category = "Room originals"

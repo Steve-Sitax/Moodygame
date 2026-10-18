@@ -4,16 +4,14 @@
 [ext_resource type="Script" path="res://src/Authoring/AuthorAsset.cs" id="2_ju5hf"]
 
 [resource]
-PlacementAnchor = Vector3(0, 0, 0)
-GeometryClearance = true
 script = ExtResource("2_ju5hf")
+GeometryClearance = true
 Id = "room-home-cellar-source-11349-2"
-Title = "fitting · home:cellar · source-11349-2"
+Title = "Architecture marker · home:cellar · room-home-cellar-source-11349-2"
 Category = "Room originals"
 Scene = ExtResource("1_wvx2n")
-Footprint = Vector3(0.9655816, 1, 0.26010042)
-FootprintOffset = Vector3(0, -0.5, 0)
-FurnitureKind = "fitting"
+Footprint = Vector3(0.04, 0.04, 0.04)
+FurnitureKind = "architecture-marker"
 SeatYaw = -2.8784664
 UsePoint = Vector3(0, 0.5, 0)
 StandPoint = Vector3(0, 0, 0.6000061)

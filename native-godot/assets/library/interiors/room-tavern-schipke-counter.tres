@@ -4,9 +4,9 @@
 [ext_resource type="Script" path="res://src/Authoring/AuthorAsset.cs" id="2_1w74y"]
 
 [resource]
+script = ExtResource("2_1w74y")
 PlacementAnchor = Vector3(0.4499935, 0, -6.341934e-05)
 GeometryClearance = true
-script = ExtResource("2_1w74y")
 Id = "room-tavern-schipke-counter"
 Title = "counter · tavern:schipke · counter"
 Category = "Room originals"

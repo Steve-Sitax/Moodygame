@@ -550,8 +550,7 @@ public partial class Railway : Node
                 Close();
             }
             // the legs: solid, and they go with it
-            Mv.Body(c.Obj, "portal", m => m.GetParent() == c.Obj);
-            RegisterLegs(c);
+            RegisterLegs(c, Mv.Body(c.Obj, "portal", m => m.GetParent() == c.Obj));
             if (c.Pile != null)
             {
                 c.Pile.Body = NewBox($"pile_{c.Index}", new Vector3(2.2f, 1.6f, 2.2f));
@@ -567,24 +566,68 @@ public partial class Railway : Node
     /// The walk map knows the still world only; the portal is claimed as a mover, so its four legs were open ground to every
     /// walker and cart, and a crane that rolled along its rails ran into the people crossing them (issue 118). Each leg
     /// is a body of its own (a node of its own, so the crowd reads each one's speed) in the crane's frame: where the leg
-    /// stands at a walker's height, between the foot and the first metres of its lean. Between the legs stays open, and so
-    /// do the rails when the crane is away.
+    /// stands at a walker's height. Not only the legs: a brace or sill between two legs at head height took walkers' heads
+    /// under the portal (issue 179), so the parts come from the portal's own triangles, every quarter-metre square of the
+    /// crane's plan where they stand between a walker's step and the top of his head. Where nothing stands at that height
+    /// between the legs it stays open, and so do the rails when the crane is away.
     /// </summary>
     private readonly List<(Node3D Leg, Vector3 Centre)> legSpots = new();
-    private void RegisterLegs(Crane c)
+    private const float PartCell = 0.25f;
+    private void RegisterLegs(Crane c, AnimatableBody3D portal)
     {
-        for (int i = 0; i < CraneFeet.Length; i++)
+        // the portal's triangles in the crane's frame (its body is the crane's child, or follows it when the crane is stretched)
+        var toCrane = c.Obj.GlobalTransform.AffineInverse() * portal.GlobalTransform;
+        float lo = Jef.Step, hi = Jef.Tall + 0.05f;
+        var cells = new HashSet<(int X, int Z)>();
+        foreach (var shape in portal.GetChildren().OfType<CollisionShape3D>())
         {
-            var (fx, fz) = CraneFeet[i];
+            if (shape.Shape is not ConcavePolygonShape3D poly) continue;
+            var xf = toCrane * shape.Transform;
+            var faces = poly.GetFaces();
+            for (int i = 0; i + 2 < faces.Length; i += 3)
+            {
+                Vector3 a = xf * faces[i], b = xf * faces[i + 1], d = xf * faces[i + 2];
+                if (Math.Max(a.Y, Math.Max(b.Y, d.Y)) < lo || Math.Min(a.Y, Math.Min(b.Y, d.Y)) > hi) continue;
+                // samples no further apart than a third of a square, so a thin brace leaves no gap
+                float longest = Math.Max(a.DistanceTo(b), Math.Max(b.DistanceTo(d), d.DistanceTo(a)));
+                int n = Math.Max(1, (int)Math.Ceiling(longest / (PartCell / 3)));
+                for (int u = 0; u <= n; u++)
+                    for (int v = 0; u + v <= n; v++)
+                    {
+                        var p = a + (b - a) * ((float)u / n) + (d - a) * ((float)v / n);
+                        if (p.Y >= lo && p.Y <= hi) cells.Add(((int)Math.Floor(p.X / PartCell), (int)Math.Floor(p.Z / PartCell)));
+                    }
+            }
+        }
+        // squares to boxes: runs along x, then runs of the same span down z
+        var runs = new List<(int X0, int X1, int Z)>();
+        foreach (var row in cells.GroupBy(q => q.Z).OrderBy(g => g.Key))
+        {
+            var xs = row.Select(q => q.X).Order().ToArray();
+            for (int i = 0; i < xs.Length;)
+            {
+                int j = i;
+                while (j + 1 < xs.Length && xs[j + 1] == xs[j] + 1) j++;
+                runs.Add((xs[i], xs[j], row.Key));
+                i = j + 1;
+            }
+        }
+        var boxes = new List<(int X0, int X1, int Z0, int Z1)>();
+        foreach (var r in runs)
+        {
+            int k = boxes.FindIndex(q => q.X0 == r.X0 && q.X1 == r.X1 && q.Z1 == r.Z - 1);
+            if (k >= 0) boxes[k] = (r.X0, r.X1, boxes[k].Z0, r.Z);
+            else boxes.Add((r.X0, r.X1, r.Z, r.Z));
+        }
+        // each box is a body of its own (a node of its own, so the crowd reads each one's speed)
+        for (int i = 0; i < boxes.Count; i++)
+        {
+            var q = boxes[i];
             var leg = new Node3D { Name = "crane_leg_" + i };
             c.Obj.AddChild(leg);
-            float sx = Math.Sign(fx), sz = Math.Sign(fz);
-            // the leg leans in from (2.2, 2.6) at the foot to (1.15, 2.35) at the top, 0.75 m thick: at 1.75 m it is about (1.93, 2.54)
-            float x0 = 1.18f, x1 = 2.95f, z0 = 1.79f, z1 = 3.35f;
-            var lo = new Vector3(sx > 0 ? x0 : -x1, 0, sz > 0 ? z0 : -z1);
-            var box = new Aabb(lo, new Vector3(x1 - x0, 4, z1 - z0));
+            var box = new Aabb(new Vector3(q.X0 * PartCell, lo, q.Z0 * PartCell), new Vector3((q.X1 - q.X0 + 1) * PartCell, hi - lo, (q.Z1 - q.Z0 + 1) * PartCell));
             Scheldemist.Town.WalkMap.RegisterBody(leg, box, true);
-            legSpots.Add((leg, new Vector3(lo.X + (x1 - x0) / 2, 0, lo.Z + (z1 - z0) / 2)));
+            legSpots.Add((leg, box.GetCenter() with { Y = 0 }));
         }
     }
 

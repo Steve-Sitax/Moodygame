@@ -4,9 +4,9 @@
 [ext_resource type="Script" path="res://src/Authoring/AuthorAsset.cs" id="2_skf13"]
 
 [resource]
+script = ExtResource("2_skf13")
 PlacementAnchor = Vector3(1.3709068e-06, -1.4901161e-08, 1.5735626e-05)
 GeometryClearance = true
-script = ExtResource("2_skf13")
 Id = "room-tavern-zwarte_kat-source-12088-15"
 Title = "cask · tavern:zwarte_kat · source-12088-15"
 Category = "Room originals"
