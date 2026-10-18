@@ -57,6 +57,10 @@ public static class NativeStoneCornersProof
                 foreach (var g in BakedWorld.All(game.GetTree().Root).OfType<GeometryInstance3D>().ToArray())
                     if (hide.Split(',').Any(h => g.GetPath().ToString().Contains(h, StringComparison.Ordinal)))
                     { g.Visible = false; notes.Add(new { mode = "hidden", node = g.GetPath().ToString() }); }
+            // issue #163: a town mesh rebuilt at load (a razed house cut out, a step cut) must keep Solid's stand-in and skip lists
+            foreach (var m in BakedWorld.All(game.World).OfType<MeshInstance3D>().Where(m => m.Mesh is ArrayMesh && m.Name.ToString().StartsWith("city_", StringComparison.Ordinal) && m.IsVisibleInTree()))
+                if (m.Mesh!.GetSurfaceCount() > 1 && !m.Mesh.HasMeta("native_solid_skip"))
+                    notes.Add(new { mode = "collision-meta", node = m.Name.ToString(), mesh = m.Mesh.ResourcePath, surfaces = m.Mesh.GetSurfaceCount() });
             notes.Add(new { mode = "memory", stage = "before candidate", bufferMemMB = Performance.GetMonitor(Performance.Monitor.RenderBufferMemUsed) / 1048576.0, videoMemMB = Performance.GetMonitor(Performance.Monitor.RenderVideoMemUsed) / 1048576.0 });
             var swaps = candidateFolder == "" ? new List<(MeshInstance3D node, Mesh before, Mesh after)>() : Candidate(game, Paths.Absolute(candidateFolder), notes);
             if (candidateFolder != "") Check("candidate meshes found in the town", swaps.Count > 0);
@@ -107,6 +111,7 @@ public static class NativeStoneCornersProof
                     // box the pixel's ray meets is hidden in turn; the ones that change the pixel are listed.
                     if (Option("stone-corners-pick") is { Length: > 0 } pick && weather == "day")
                     {
+                        Use(swaps.Count > 0); // (the candidate's pixel, when there is one)
                         var f = pick.Split(',').Select(v => float.Parse(v, System.Globalization.CultureInfo.InvariantCulture)).ToArray();
                         var size = capture.GetViewport().GetVisibleRect().Size; var at = new Vector2(f[0] * size.X, f[1] * size.Y);
                         Vector3 o = capture.ProjectRayOrigin(at), d = capture.ProjectRayNormal(at);
@@ -176,9 +181,11 @@ public static class NativeStoneCornersProof
                 var old = instance.Mesh!; var mesh = new ArrayMesh { ResourceName = old.ResourceName };
                 // (an entry is the surface list, or an object with it under "surfaces")
                 var list = entry.Value.ValueKind == JsonValueKind.Object ? entry.Value.GetProperty("surfaces") : entry.Value;
+                // issue #163: a surface marked "keep" stays as it is (the mesh's own surfaces come first); new ones follow
+                if (list.EnumerateArray().Any(s => s.TryGetProperty("keep", out _))) mesh = (ArrayMesh)old.Duplicate();
                 foreach (var surface in list.EnumerateArray())
                 {
-                    if (surface.GetProperty("vertices").GetInt32() == 0) continue;
+                    if (surface.TryGetProperty("keep", out _) || surface.GetProperty("vertices").GetInt32() == 0) continue;
                     bool custom = surface.TryGetProperty("custom0", out var c) && c.GetBoolean();
                     // the same vertex format as the town's meshes and the promotion: compressed attributes
                     var flags = (custom ? (Mesh.ArrayFormat)((long)Mesh.ArrayCustomFormat.RgFloat << (int)Mesh.ArrayFormat.FormatCustom0Shift) : 0) | (OS.GetCmdlineUserArgs().Contains("--stone-corners-raw") ? 0 : Mesh.ArrayFormat.FlagCompressAttributes);

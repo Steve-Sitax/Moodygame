@@ -1,0 +1,826 @@
+{
+  "date": "2026-10-18 11:17:52Z",
+  "candidate": "D:\\Code\\_tmp_verify\\H2-gutters\\cand-town9",
+  "backup": "D:\\Code\\_tmp_verify\\H2-gutters\\original-resources",
+  "resources": [
+    "res://world/town/resources/r000338.res",
+    "res://world/town/resources/r000340.res",
+    "res://world/town/resources/r000342.res",
+    "res://world/town/resources/r000348.res",
+    "res://world/town/resources/r000349.res",
+    "res://world/town/resources/r000351.res",
+    "res://world/town/resources/r000357.res",
+    "res://world/town/resources/r000359.res",
+    "res://world/town/resources/r000361.res",
+    "res://world/town/resources/r000367.res",
+    "res://world/town/resources/r000369.res",
+    "res://world/town/resources/r000371.res",
+    "res://world/town/resources/r000377.res",
+    "res://world/town/resources/r000378.res",
+    "res://world/town/resources/r000380.res",
+    "res://world/town/resources/r000386.res",
+    "res://world/town/resources/r000387.res",
+    "res://world/town/resources/r000389.res",
+    "res://world/town/resources/r000395.res",
+    "res://world/town/resources/r000397.res",
+    "res://world/town/resources/r000399.res",
+    "res://world/town/resources/r000405.res",
+    "res://world/town/resources/r000406.res",
+    "res://world/town/resources/r000408.res",
+    "res://world/town/resources/r000415.res",
+    "res://world/town/resources/r000417.res",
+    "res://world/town/resources/r000419.res",
+    "res://world/town/resources/r000425.res",
+    "res://world/town/resources/r000426.res",
+    "res://world/town/resources/r000428.res",
+    "res://world/town/resources/r000434.res",
+    "res://world/town/resources/r000435.res",
+    "res://world/town/resources/r000437.res",
+    "res://world/town/resources/r000443.res",
+    "res://world/town/resources/r000444.res",
+    "res://world/town/resources/r000446.res",
+    "res://world/town/resources/r000453.res",
+    "res://world/town/resources/r000455.res",
+    "res://world/town/resources/r000457.res",
+    "res://world/town/resources/r000463.res",
+    "res://world/town/resources/r000465.res",
+    "res://world/town/resources/r000467.res",
+    "res://world/town/resources/r000473.res",
+    "res://world/town/resources/r000475.res",
+    "res://world/town/resources/r000477.res",
+    "res://world/town/resources/r000210.res",
+    "res://world/town/resources/r000222.res",
+    "res://world/town/resources/r000224.res",
+    "res://world/town/resources/r000235.res",
+    "res://world/town/resources/r000237.res",
+    "res://world/town/resources/r000239.res",
+    "res://world/town/resources/r000245.res",
+    "res://world/town/resources/r000247.res",
+    "res://world/town/resources/r000249.res",
+    "res://world/town/resources/r000255.res",
+    "res://world/town/resources/r000257.res",
+    "res://world/town/resources/r000259.res",
+    "res://world/town/resources/r000265.res",
+    "res://world/town/resources/r000267.res",
+    "res://world/town/resources/r000268.res",
+    "res://world/town/resources/r000274.res",
+    "res://world/town/resources/r000276.res",
+    "res://world/town/resources/r000278.res",
+    "res://world/town/resources/r000284.res",
+    "res://world/town/resources/r000286.res",
+    "res://world/town/resources/r000288.res",
+    "res://world/town/resources/r000294.res",
+    "res://world/town/resources/r000296.res",
+    "res://world/town/resources/r000298.res",
+    "res://world/town/resources/r000304.res",
+    "res://world/town/resources/r000305.res",
+    "res://world/town/resources/r000307.res",
+    "res://world/town/resources/r000313.res",
+    "res://world/town/resources/r000314.res",
+    "res://world/town/resources/r000316.res",
+    "res://world/town/resources/r000322.res",
+    "res://world/town/resources/r000323.res",
+    "res://world/town/resources/r000325.res",
+    "res://world/town/resources/r000331.res",
+    "res://world/town/resources/r000332.res",
+    "res://world/town/resources/r000334.res"
+  ],
+  "newInlets": 868,
+  "originalHashes": {
+    "res://world/town/resources/r000338.res": "f3c1e364007b6d0a88170e7686ef138befd760592897092e6581e175ab44e16e",
+    "res://world/town/resources/r000340.res": "834e91be6a25302afc58afcb3e73b9991f6fa7b67b9ccfc69312ec29d02a2c0d",
+    "res://world/town/resources/r000342.res": "da9f6b7ae4bc7782a4dbc0ca1efe4a51334344847db52e61d77c7f5f8ddb7eec",
+    "res://world/town/resources/r000348.res": "c5ab3cfdda351ebc2582bc4689d14d79caa0c8b7ccb412cf2b6ff51e422ae1b8",
+    "res://world/town/resources/r000349.res": "64029a0a70f4c4df2a4fbeed71e5b343944a3872e0f14331ffdc190e3608ab13",
+    "res://world/town/resources/r000351.res": "dcfaf1344303e6595771ae63a393c1b4dd8288abcf616d816011aa62c16dc2bc",
+    "res://world/town/resources/r000357.res": "612033cdb20d3fb47f74a0a31bcd36aa8f18097c5a90cdd9225897fdc5f6c43a",
+    "res://world/town/resources/r000359.res": "2387a45b126979de202842d16fdc00fa730b710d24076fdd8d0d2acbeb5c6f97",
+    "res://world/town/resources/r000361.res": "dc4b295de3fadd58993244258eb89e3bb51fe1c68c7ccafa5b03d2ed5de7d75f",
+    "res://world/town/resources/r000367.res": "b77dffc7864919c8c66cef55c5426967fdedda772bb59e7522571412465899c8",
+    "res://world/town/resources/r000369.res": "fe45a5f05a754729e6d4b1d1fa51c14c63f50982f4e73094c0303a857fec4151",
+    "res://world/town/resources/r000371.res": "10adfeca1b91ec701f9954351976263aa0eb03fa41b33566ab941cd28763fd37",
+    "res://world/town/resources/r000377.res": "cf7f74678d8c2e545288ad8da1715e8c7dab34b2535fabf508c0dc81a40ca527",
+    "res://world/town/resources/r000378.res": "05ddb1a6f09ff2a262ded85a5acc524acb01390b7458bdf5e173c5f90b43a472",
+    "res://world/town/resources/r000380.res": "fb7f0de16e87a9b34b96827a313d054667da28389d326aa3b6a5825aedc6d808",
+    "res://world/town/resources/r000386.res": "3c1e4442896d0395d95e67f5cfea9fc8f84dfde4d0f193ccf17b37824094a8d8",
+    "res://world/town/resources/r000387.res": "00ebd6c6ab15589c8de4e2e45378d534e5b458faf1b1598cc653f4421890fd09",
+    "res://world/town/resources/r000389.res": "41f6e90769c69994852a40bcc26abcc3de41494099e496c6674a4ae164b4f6c0",
+    "res://world/town/resources/r000395.res": "8e32f21ffe641e283c04edbbfbabede4f89828606f807bdee7d2514b4323392e",
+    "res://world/town/resources/r000397.res": "609e5ed2ccd6db85e9a95ca4c70714efca85316421f237b12b59399bb767b6bc",
+    "res://world/town/resources/r000399.res": "107674649e4fd70fded7e57fa799ab5298d615fa769cdb71df39676f5f03526a",
+    "res://world/town/resources/r000405.res": "90bde1785b3b2dfcdc4f9f93ca7250faaee3fee0a317e3d9eb54ee6bc977f770",
+    "res://world/town/resources/r000406.res": "63b121a64ee4fb452028ba122ebd37b818f934651bd53ea492284f63356da013",
+    "res://world/town/resources/r000408.res": "153c453b13732e1546b75c9a42c4fbe765965f6370c252de7e2ea865c8121596",
+    "res://world/town/resources/r000415.res": "7937985e3b2b3b675a3e9be149b8979bba43e7ff16856a48aca39d4b77020f0f",
+    "res://world/town/resources/r000417.res": "d45520edd5af0de5e5f66c5a2470ef4937b3ab57a533fdf41a773d3572e4dc62",
+    "res://world/town/resources/r000419.res": "0e0e34d88bdad96a04021a0ec4cfaa08668873348770539b46b4cad32b9af916",
+    "res://world/town/resources/r000425.res": "791476b3b9aedd88526fbb1d5ee7fa473309cd293cd264d0430f06e6659d831b",
+    "res://world/town/resources/r000426.res": "b4d8b4edc593464b593a13f573b77703b8ed4dc3fe3d492faf1d7e967223531d",
+    "res://world/town/resources/r000428.res": "61284e2f238a3ea4759c049631cb86595278296faf5657f04c5924186d87e2a9",
+    "res://world/town/resources/r000434.res": "022fe81e86c72dca741261ecb81e211f5aa95adeceb8dac2050a04c990d06808",
+    "res://world/town/resources/r000435.res": "681c5e91c59912f33023a393fde11f41123b7d2633daa14c5cb07719b9470f1e",
+    "res://world/town/resources/r000437.res": "b9f08b0d6742ff82d15c30a022b3169620ead05ae89f3eda231bd0cfaabdce2d",
+    "res://world/town/resources/r000443.res": "438d6750f40f65aed37c47c1631ad61205f81ad0316f5603d1eb3acb1fa8b84f",
+    "res://world/town/resources/r000444.res": "d8be499dc30c83710836b1d33637055cf48552ff1dcd5ba697213219d02c710a",
+    "res://world/town/resources/r000446.res": "db80b3db3d78ac1b0992c9243ff54d702e0306c89a47a0c194370dbe41510c6b",
+    "res://world/town/resources/r000453.res": "7cc117603c7cb0e30c16004aa47e466ea9e3b6e99b12ae252b5afd68b90609cc",
+    "res://world/town/resources/r000455.res": "07860540317a670ec761bb564a438e92ace6efdcaf20f670539464a01e48fb23",
+    "res://world/town/resources/r000457.res": "42c7ee073fb17a7142c0d4da81cc8cb0be65b48ffe534b9f7dc3108644d64bb4",
+    "res://world/town/resources/r000463.res": "c51dd80b03c57615fe52aa35836cfbb6f542c93cf129e6394a6a9f8a32c7fac0",
+    "res://world/town/resources/r000465.res": "533839c4f637764f05bb6bc5aa64f0a22ea912c7083303d1d013bcee8b722f1b",
+    "res://world/town/resources/r000467.res": "d22ced758a879ec011cef7e9b3fc16824e91f027730bd2f3f35e9715c80890a4",
+    "res://world/town/resources/r000473.res": "0322e1845803a691745dc361406d1015a371da46fbfeb0da4d8aeb599d8fc4f7",
+    "res://world/town/resources/r000475.res": "53670b51d1804945e454d97be8f70da62c198da531d00968a5c173a96a01a2eb",
+    "res://world/town/resources/r000477.res": "7f0e576fd1bcc3ac56ba32772f84b248f05527124f555fc637494ad63da5ccf7",
+    "res://world/town/resources/r000210.res": "d1b3e81d258497017b217d5bdcdaf2b414741f654b9e7595fe7b590af08f06f7",
+    "res://world/town/resources/r000222.res": "c873a1e9ca4be3125f25566c9fe6a9994dc17169ae5227af80bcfe9f01f65013",
+    "res://world/town/resources/r000224.res": "a98fe06f58b467543b750c982f3e94445562abcb2304c74f1f2139dfd2bc573d",
+    "res://world/town/resources/r000235.res": "762f1035a03692e8e494be1f8e66c4e984756f368063299f2651d9e355be4491",
+    "res://world/town/resources/r000237.res": "5566985041c91ab3b7de15574e01b3b4ce43a88b5950e4ce14600047f90ad760",
+    "res://world/town/resources/r000239.res": "3a768124adadc8f669fe6e8bdec6d55e06fe689ee912a0b1089304c31a0f2e0a",
+    "res://world/town/resources/r000245.res": "9145dbbfb19993717450b41c16c16b9af3821599399509eddd8848e96428bc26",
+    "res://world/town/resources/r000247.res": "776fc5529343ab64ab502fe220eff0897d8057d13d32efb872acb332abd4fcb4",
+    "res://world/town/resources/r000249.res": "f74bb93d28addcdb28a5e788b8c2d83dd80fa907dfc7445d3a1df8f9d9ded17e",
+    "res://world/town/resources/r000255.res": "4f773893893bce59723d89a5ac97f8ab8c6bfdf4c2df371d22e41bcf4461b01a",
+    "res://world/town/resources/r000257.res": "37acaa90504497bd1ee8f02576e64a43461285b9ff0100dc0a0fac8a44309206",
+    "res://world/town/resources/r000259.res": "20aff2ec464933b0f95b9027a82f094beea128e9e0d95666567d4f0edcd5db33",
+    "res://world/town/resources/r000265.res": "da6ecd0961ac44c3a52c98defd13fb03217930822c80d7f0b9f8000fe2aa984c",
+    "res://world/town/resources/r000267.res": "2f01e7d57fdce28690c0ff938297d4c33127c8a1ea7f5a728fd227e1e601839c",
+    "res://world/town/resources/r000268.res": "ef029c23fb09b6d4a33d331c6aa22c7e38274f9761425377c849d0779b56ee7f",
+    "res://world/town/resources/r000274.res": "4090e7a7d0538c9af4e797a99bb4319130ebe06b095f64519a615435075f954f",
+    "res://world/town/resources/r000276.res": "63066e7942854db7534c286e7327fa722e37a111c4eb3c2703ec05bfaee4ef07",
+    "res://world/town/resources/r000278.res": "f539644b62dae3741b9445bff3a810742d6c921e8fe9f659d5becf8239b160bc",
+    "res://world/town/resources/r000284.res": "079f0462c4bf031d2b066ded24741384fa570e117558564f3cb662bf3d3a8318",
+    "res://world/town/resources/r000286.res": "f4c1800c6d18d48d2d34bf8e5760b327ce85c67a5e4d87de388137f209610f08",
+    "res://world/town/resources/r000288.res": "05757703cb4786877b3e74ad89db74697f1ce281e1bb9132e8164f11e5dc60c2",
+    "res://world/town/resources/r000294.res": "d266f92e0312136a8a5f275affb8bb85157849d2c43ee3c2062705edce5755e8",
+    "res://world/town/resources/r000296.res": "78e7a8e4319eba5687d1137701fc17f19dd496404d5e80072c3cd1682d7900bf",
+    "res://world/town/resources/r000298.res": "d3d0f2c945b176284ceb80c0766768f28ed047ffaff3f913c7585a8df8c70197",
+    "res://world/town/resources/r000304.res": "90f773f99a1c14d93a911e62add3437a51a305468202b30cb61fe7be042c3061",
+    "res://world/town/resources/r000305.res": "249932e44b042212b606f9ce8d168942269b460ffef44daaf232cc8778bc38e3",
+    "res://world/town/resources/r000307.res": "21a34b9975f75760f75aa4284819020e3399bb5ca50e773e0548baf68deae50b",
+    "res://world/town/resources/r000313.res": "8be32f332b54f15a56740d153abdeb77d70a6eec74a8f7eda16d058fdc1271b4",
+    "res://world/town/resources/r000314.res": "7eadd94af000aa8bdaeb06963648ca9a84f81d98542fdb028d697a9478f72acd",
+    "res://world/town/resources/r000316.res": "e38881cfd6db153ddc8d6fbe76df7a58da4c3401571b4520606f0153a84c3172",
+    "res://world/town/resources/r000322.res": "7da2d68b3a83956be4896df22abe79fec3acc2ef90d29fea9f0ada86f3a7f357",
+    "res://world/town/resources/r000323.res": "7f6dbd3600d2f4576408fe03d469eb77aafcd1b95ae28ec8d54dae9fa9fce35d",
+    "res://world/town/resources/r000325.res": "df1875e034cc6709a1688473104b69fc34dd45d642290d3b5d5e8fc240b7566a",
+    "res://world/town/resources/r000331.res": "66214e3e188c9fe54afef1e542531afe0f2c9bfac185231a1a254c480357cd77",
+    "res://world/town/resources/r000332.res": "11f802a1b1a93b407f738755a3e632708553b57cecd8870e2c25dea445215724",
+    "res://world/town/resources/r000334.res": "ee83c4ab22a76a14251decda2b0eea22da4019a0d45c9899d6c9061a081c6750",
+    "res://world/town/drainage/ruien-inlets.json": "536fee9853a5369bee414052c057837188e6a3c68f616bad5ce9ce9c109bbcb7"
+  },
+  "installedHashes": {
+    "res://world/town/resources/r000338.res": "5e6f82a4852c504afe7894f337eaae22575d96409706c41267ed91a9daa7a019",
+    "res://world/town/resources/r000340.res": "cf4cdce08900a356f605ec932801f6daf5939fe28022e6bae2e52d1e15e0fdb1",
+    "res://world/town/resources/r000342.res": "1fdc62bc68c13308a2101ee0edd04b20d192bbe6241ee12c8c6c65df2a6781a4",
+    "res://world/town/resources/r000348.res": "9ce939745107b6a73b9c99498c9c5731cd60a38ea9bba24d2b3ea36761873e23",
+    "res://world/town/resources/r000349.res": "21b44d7015f42900de82145f103a9729bda8750a1cbd8f0f473736c865b257ed",
+    "res://world/town/resources/r000351.res": "126f5d7c6ad9c45fb75f3fe99286f7c2afb0f3add8e470749b2efe136c39b2af",
+    "res://world/town/resources/r000357.res": "aefb73579b68669845d95ea37369dfdaa9fe360843c2d3b8bf237a2b1e29b2ce",
+    "res://world/town/resources/r000359.res": "2ff1b48e6105b7a92cff96ea90a9e6e2ddf4bf5a24579de81a4270ec193f85d3",
+    "res://world/town/resources/r000361.res": "30a3e5b6e80a463e3fb375d4ca1b7ad9787a50e99eec424dedf96e357081d00a",
+    "res://world/town/resources/r000367.res": "4bb82ca447e5c25ec29cd5fa8a502ec1ef4a27ff02d9d6851587e39416069a92",
+    "res://world/town/resources/r000369.res": "be9b463739cceae3b19aa9116690179b78332f85955ed879f826b8b01a2fb18f",
+    "res://world/town/resources/r000371.res": "ef0f4f759998c9ca84f5bab7b5bd6454d05bde5cb8413e9c54e9dc0a6c7f9804",
+    "res://world/town/resources/r000377.res": "229830476c5d3a05e73ed04d09e2412cd1fb9e236a27b55385b812c1e236662f",
+    "res://world/town/resources/r000378.res": "4fe48c870b63e7db72289b1e5aa62a09578a7ddacaec7bf240de350bc574eec9",
+    "res://world/town/resources/r000380.res": "5f931419619f68fd595adf0d4ea6477b0951e6d9058f93baca51456731855e0f",
+    "res://world/town/resources/r000386.res": "2a2d567e50eecc6912604c70e50fa7cf1ec4bd6cc14f813cba7e895739cd59e9",
+    "res://world/town/resources/r000387.res": "fd15ef03dad167c8d183ca240c880a400b3a11e9dba7f9931bdea143ebb88b53",
+    "res://world/town/resources/r000389.res": "6c66367d0e25d3501c70db09bd3fec8b661514e8da8a8ff878ac4f5cf5c05ec9",
+    "res://world/town/resources/r000395.res": "055ff026dce142a447856464942e56556f370b60d3be6d54d8ee4cfd37d9aeba",
+    "res://world/town/resources/r000397.res": "e5b3c4dd51122b75206214ed80c8a4708fec19448a0e8c0f7103a1d66decbc4e",
+    "res://world/town/resources/r000399.res": "d26035176532dd350739422305010e65761cf31499ee45924c56d65f9efcf75b",
+    "res://world/town/resources/r000405.res": "305963ecbc873a5a26fdabb62f2705efd7fa6664493e488971e2b7b1a17232e3",
+    "res://world/town/resources/r000406.res": "0149f253c8e3c82a762db3bec4c9fe95c3640edb40d09381fbc9fbeb4771e176",
+    "res://world/town/resources/r000408.res": "77f833673642f7e734b26f3a3a57398163b9e65c9e3287cc90c3711d3d2ced25",
+    "res://world/town/resources/r000415.res": "b0e87eaf39d7af00b5313cd4bbd7f66276ea1093d7ba4206636c0c268fdea017",
+    "res://world/town/resources/r000417.res": "fc0c75f75bcd48a2734ec04ec61a523236d21e7e67ddb8bdd416320d46cb2ae9",
+    "res://world/town/resources/r000419.res": "bc0344ae2c0d5cb86574991f5e49d0c9c87459071dcba3fc65decbb6edab3dca",
+    "res://world/town/resources/r000425.res": "1dc8d0730764a8c356da9010822396d9fa88aa2d8697773ed2ca5e199f493ad6",
+    "res://world/town/resources/r000426.res": "6df76afc1141566d549f59728582437538a72b1c6480a13aef3666156f085f01",
+    "res://world/town/resources/r000428.res": "12ca121bcd0c29e7c62093eae89c750751edb933f2a7e949e6128db405d9777c",
+    "res://world/town/resources/r000434.res": "dadb543cb28cd91f2697310bba8e0d94e7710fd2bf5ceebe50f2e67646e4436d",
+    "res://world/town/resources/r000435.res": "4d6e9dfd4443325193466a1b17b9d775a3ca59934fc37e95dce8fd4bff447c58",
+    "res://world/town/resources/r000437.res": "14eb193016cd33e3c9fb3b72ea9190e81624fd00a7023f0fc9a38aab8aca1fc2",
+    "res://world/town/resources/r000443.res": "492a30873c7988a072f97d15e8896d91a1bf9123e82f3a5309910335b2705686",
+    "res://world/town/resources/r000444.res": "994a75ec2bbd39c310be3383a849ab7e4a0d259e0ebe1bdb1a1c8cfd6ea9319d",
+    "res://world/town/resources/r000446.res": "eba8052835c55d4d5cb452f1e37f8e8258aed4f7e3fd7dd849b1a6a3f41e251f",
+    "res://world/town/resources/r000453.res": "1453cf50fa0511e9a0f00a8b7b55ba81e89cd968b6af8e966307c1c1511d3369",
+    "res://world/town/resources/r000455.res": "f8f79d9b4f95b2898fce1f9bba63522cc1ace41eba528e0dbbee08cb2a3586c5",
+    "res://world/town/resources/r000457.res": "e6d922ab094cc5c99c48d513612608492847e2987ad4b3f5bf54d26947536587",
+    "res://world/town/resources/r000463.res": "7b9567e3b53e5cf0bdfdbbf34b88658703dd0d935109e28892e370008cb3a23e",
+    "res://world/town/resources/r000465.res": "7c9af2e6b25284b0868ecedf2aacb6cef2158209a1f72b10e50950f51e86438d",
+    "res://world/town/resources/r000467.res": "77fe4393f4d3307186029c90c63905d890c805d4537c727b0934553ef61f8bc7",
+    "res://world/town/resources/r000473.res": "3c12c772260398784044f69797f8634fb723e32589046d9f9974a58b85db5a79",
+    "res://world/town/resources/r000475.res": "8f7af3d81b9aedc1e90bd69402ad62919c15c45d503a93137b668435aa91876e",
+    "res://world/town/resources/r000477.res": "7f2598a153eaf6ea71135e55f68f0ba5dcbb019d4642ca1cd914cf8d852e93a8",
+    "res://world/town/resources/r000210.res": "c13dc6340b8f707962c9fa23f510ea86b78bc6324116bbb189e88234c4543c38",
+    "res://world/town/resources/r000222.res": "4671ff79111b5642bd1f64505d8dc55397e35764499e8decac56c3376f92a78c",
+    "res://world/town/resources/r000224.res": "e385124a878d6207fd29619244f266f3c06ae3413c3a8ebd0ea342a464ebdb9f",
+    "res://world/town/resources/r000235.res": "79cdd99702e14213381d32b310c3f00e05aa380a57931ced955a7ffb295b95e9",
+    "res://world/town/resources/r000237.res": "2693304633f92c78495a6dc24c5c2af5cac36974f696b6490c2027ae3002509e",
+    "res://world/town/resources/r000239.res": "2d1e3ee33279b857e563464b5f6831ec86f030a2da6fd667d6991952c7ec91e5",
+    "res://world/town/resources/r000245.res": "e7c767afbcb4bbbc0a06ab2959380f14495e951c624230402f1da3c46ccc61cf",
+    "res://world/town/resources/r000247.res": "cf30776b55ad38eb36d9fa51ad17a617587c9d6fa747151e9b95d2d7ac931b9a",
+    "res://world/town/resources/r000249.res": "c51637b61d18202acf2866d898bb99eaef7dc088d053d55355465e8b1287a564",
+    "res://world/town/resources/r000255.res": "e7f3a2832328b71268b570613b92dc0ab04f56736dcc98ea703e28e4beebc7b6",
+    "res://world/town/resources/r000257.res": "e6fc79608f2bba26133454c480cd46b0f376d08aff79e6373344d94267b4de5e",
+    "res://world/town/resources/r000259.res": "cc66778bcef091eba598a730945e95d5e0c70ad89f7b4366a430e1d0781ab32e",
+    "res://world/town/resources/r000265.res": "0313f450b6e5a0c264458e921da3f781baf6af5bf3a8b367a617440c4df7bc32",
+    "res://world/town/resources/r000267.res": "4cb9cd14fa9026e6abfb0bfbb6fc49c0ef3377229da64e4e1c8968fb145344ff",
+    "res://world/town/resources/r000268.res": "8655e449b4bce0cfefc8a3920b5d504914f56a116fa34e6ece8b8a67bb8ed442",
+    "res://world/town/resources/r000274.res": "290f6fe3da2f57076284546888842d4671ca872df4ee051ac7ceb8608f3dfd3e",
+    "res://world/town/resources/r000276.res": "016cee35315b497e2f10c5a91293a3936438c9e4f5d5fa1d45c8fee7def2362a",
+    "res://world/town/resources/r000278.res": "1508a3ac18b7bb8daf86938c967659d25bc1fd9a35acf7d925066a621bcff0bc",
+    "res://world/town/resources/r000284.res": "0def0f0ea18d919611995b48eefd7a6181302b08bbbc55338b67c860a28486ca",
+    "res://world/town/resources/r000286.res": "e9ec21be45ddee0fe53a747c09d0057fbe4cea2731cd9aae45f0741aea4e9e9e",
+    "res://world/town/resources/r000288.res": "bdb461470cc5efaf1cbf9b51a78ebdb7c68cd7c599e57f1a941beb33a80749f2",
+    "res://world/town/resources/r000294.res": "1f7f7c0ee4d089413d76d99a8875ea6347900ed2f0d081ffe47989b9e776daca",
+    "res://world/town/resources/r000296.res": "de517724e8c50aacd004a015cf9913661940717ccfc23a92bed5a284b511f77f",
+    "res://world/town/resources/r000298.res": "edd5f1135c34e78dbd0f322aa59eda4e5bb2efd617feee8a25219e383b356db5",
+    "res://world/town/resources/r000304.res": "c849815b1ea8680571435a087d2252b4d2b702c429dd4b6429fa07c812fe6b55",
+    "res://world/town/resources/r000305.res": "056125989be241c7fe918a09b7937496dd1cbbd6cb408cffb294d899413ad654",
+    "res://world/town/resources/r000307.res": "51fe470edb4f430f77e645fba2d704bcca02f5eb10d8fd95ebacb3a1d6446fd3",
+    "res://world/town/resources/r000313.res": "e00a6ce92b0e0d0615609ef9896771ab3ad32530761b82df5f00bd2fd63bea18",
+    "res://world/town/resources/r000314.res": "329711a1177ea859e6dd90bde58c02d6b2cf48de9eca5c149ec943650a688e56",
+    "res://world/town/resources/r000316.res": "ba39f7f458893de47a33a1b772574143b94ec062b24cfd2d7124a07ec4175440",
+    "res://world/town/resources/r000322.res": "23fc54463220c69f213e54c044ad5dd0bfaf8030a2b11d0e78080889f6998f7e",
+    "res://world/town/resources/r000323.res": "b522fd26bd2fff9644171e71f740fb57b3e5a875bb16fd76f67a56e3f6379ff3",
+    "res://world/town/resources/r000325.res": "c18632b48593992e8a1cad29b07e7dc0e9724bc8a875fdecb821693ce0586de7",
+    "res://world/town/resources/r000331.res": "9bf3287b8a3986313d39d5fb15b087ae9798c9901cda36254e314f6fdee5a54f",
+    "res://world/town/resources/r000332.res": "f2468571a63162bc4b4ec4a67bc1e87be9895c422d5e198ac857965a1c63140f",
+    "res://world/town/resources/r000334.res": "ec0583ea4cf118e94ae5ef16587fe5aa8e435e9adcf2d69492ab36fa5f2d65aa",
+    "res://world/town/drainage/ruien-inlets.json": "f2716bf6efc58ff855b99248785f6b52dc957a21dae295e3225aa5b5340472ed"
+  },
+  "counts": {
+    "res://world/town/resources/r000338.res": {
+      "surfaces": 3,
+      "oldSurfaces": 2,
+      "addedTriangles": 107452,
+      "standInTriangles": 1656,
+      "kept": true
+    },
+    "res://world/town/resources/r000340.res": {
+      "surfaces": 2,
+      "oldSurfaces": 1,
+      "addedTriangles": 1520,
+      "standInTriangles": 0,
+      "kept": true
+    },
+    "res://world/town/resources/r000342.res": {
+      "surfaces": 1,
+      "oldSurfaces": 1,
+      "addedTriangles": 97007,
+      "standInTriangles": 30465,
+      "kept": false
+    },
+    "res://world/town/resources/r000348.res": {
+      "surfaces": 3,
+      "oldSurfaces": 2,
+      "addedTriangles": 222254,
+      "standInTriangles": 3264,
+      "kept": true
+    },
+    "res://world/town/resources/r000349.res": {
+      "surfaces": 2,
+      "oldSurfaces": 1,
+      "addedTriangles": 2976,
+      "standInTriangles": 0,
+      "kept": true
+    },
+    "res://world/town/resources/r000351.res": {
+      "surfaces": 1,
+      "oldSurfaces": 1,
+      "addedTriangles": 165508,
+      "standInTriangles": 54947,
+      "kept": false
+    },
+    "res://world/town/resources/r000357.res": {
+      "surfaces": 3,
+      "oldSurfaces": 2,
+      "addedTriangles": 277086,
+      "standInTriangles": 4176,
+      "kept": true
+    },
+    "res://world/town/resources/r000359.res": {
+      "surfaces": 2,
+      "oldSurfaces": 1,
+      "addedTriangles": 3884,
+      "standInTriangles": 0,
+      "kept": true
+    },
+    "res://world/town/resources/r000361.res": {
+      "surfaces": 1,
+      "oldSurfaces": 1,
+      "addedTriangles": 200428,
+      "standInTriangles": 68708,
+      "kept": false
+    },
+    "res://world/town/resources/r000367.res": {
+      "surfaces": 3,
+      "oldSurfaces": 2,
+      "addedTriangles": 92446,
+      "standInTriangles": 1296,
+      "kept": true
+    },
+    "res://world/town/resources/r000369.res": {
+      "surfaces": 2,
+      "oldSurfaces": 1,
+      "addedTriangles": 1288,
+      "standInTriangles": 0,
+      "kept": true
+    },
+    "res://world/town/resources/r000371.res": {
+      "surfaces": 1,
+      "oldSurfaces": 1,
+      "addedTriangles": 75108,
+      "standInTriangles": 23644,
+      "kept": false
+    },
+    "res://world/town/resources/r000377.res": {
+      "surfaces": 3,
+      "oldSurfaces": 2,
+      "addedTriangles": 122788,
+      "standInTriangles": 1800,
+      "kept": true
+    },
+    "res://world/town/resources/r000378.res": {
+      "surfaces": 2,
+      "oldSurfaces": 1,
+      "addedTriangles": 1760,
+      "standInTriangles": 0,
+      "kept": true
+    },
+    "res://world/town/resources/r000380.res": {
+      "surfaces": 1,
+      "oldSurfaces": 1,
+      "addedTriangles": 95301,
+      "standInTriangles": 31807,
+      "kept": false
+    },
+    "res://world/town/resources/r000386.res": {
+      "surfaces": 3,
+      "oldSurfaces": 2,
+      "addedTriangles": 204254,
+      "standInTriangles": 3156,
+      "kept": true
+    },
+    "res://world/town/resources/r000387.res": {
+      "surfaces": 2,
+      "oldSurfaces": 1,
+      "addedTriangles": 2944,
+      "standInTriangles": 0,
+      "kept": true
+    },
+    "res://world/town/resources/r000389.res": {
+      "surfaces": 1,
+      "oldSurfaces": 1,
+      "addedTriangles": 179056,
+      "standInTriangles": 62441,
+      "kept": false
+    },
+    "res://world/town/resources/r000395.res": {
+      "surfaces": 3,
+      "oldSurfaces": 2,
+      "addedTriangles": 275516,
+      "standInTriangles": 3984,
+      "kept": true
+    },
+    "res://world/town/resources/r000397.res": {
+      "surfaces": 2,
+      "oldSurfaces": 1,
+      "addedTriangles": 3616,
+      "standInTriangles": 0,
+      "kept": true
+    },
+    "res://world/town/resources/r000399.res": {
+      "surfaces": 1,
+      "oldSurfaces": 1,
+      "addedTriangles": 191244,
+      "standInTriangles": 61220,
+      "kept": false
+    },
+    "res://world/town/resources/r000405.res": {
+      "surfaces": 3,
+      "oldSurfaces": 2,
+      "addedTriangles": 121428,
+      "standInTriangles": 1608,
+      "kept": true
+    },
+    "res://world/town/resources/r000406.res": {
+      "surfaces": 2,
+      "oldSurfaces": 1,
+      "addedTriangles": 1492,
+      "standInTriangles": 0,
+      "kept": true
+    },
+    "res://world/town/resources/r000408.res": {
+      "surfaces": 1,
+      "oldSurfaces": 1,
+      "addedTriangles": 58584,
+      "standInTriangles": 19902,
+      "kept": false
+    },
+    "res://world/town/resources/r000415.res": {
+      "surfaces": 3,
+      "oldSurfaces": 2,
+      "addedTriangles": 66882,
+      "standInTriangles": 900,
+      "kept": true
+    },
+    "res://world/town/resources/r000417.res": {
+      "surfaces": 2,
+      "oldSurfaces": 1,
+      "addedTriangles": 912,
+      "standInTriangles": 0,
+      "kept": true
+    },
+    "res://world/town/resources/r000419.res": {
+      "surfaces": 1,
+      "oldSurfaces": 1,
+      "addedTriangles": 70438,
+      "standInTriangles": 21612,
+      "kept": false
+    },
+    "res://world/town/resources/r000425.res": {
+      "surfaces": 3,
+      "oldSurfaces": 2,
+      "addedTriangles": 23352,
+      "standInTriangles": 288,
+      "kept": true
+    },
+    "res://world/town/resources/r000426.res": {
+      "surfaces": 2,
+      "oldSurfaces": 1,
+      "addedTriangles": 284,
+      "standInTriangles": 0,
+      "kept": true
+    },
+    "res://world/town/resources/r000428.res": {
+      "surfaces": 1,
+      "oldSurfaces": 1,
+      "addedTriangles": 32391,
+      "standInTriangles": 10607,
+      "kept": false
+    },
+    "res://world/town/resources/r000434.res": {
+      "surfaces": 3,
+      "oldSurfaces": 2,
+      "addedTriangles": 129678,
+      "standInTriangles": 1764,
+      "kept": true
+    },
+    "res://world/town/resources/r000435.res": {
+      "surfaces": 2,
+      "oldSurfaces": 1,
+      "addedTriangles": 1680,
+      "standInTriangles": 0,
+      "kept": true
+    },
+    "res://world/town/resources/r000437.res": {
+      "surfaces": 1,
+      "oldSurfaces": 1,
+      "addedTriangles": 106320,
+      "standInTriangles": 33594,
+      "kept": false
+    },
+    "res://world/town/resources/r000443.res": {
+      "surfaces": 3,
+      "oldSurfaces": 2,
+      "addedTriangles": 82704,
+      "standInTriangles": 1116,
+      "kept": true
+    },
+    "res://world/town/resources/r000444.res": {
+      "surfaces": 2,
+      "oldSurfaces": 1,
+      "addedTriangles": 1008,
+      "standInTriangles": 0,
+      "kept": true
+    },
+    "res://world/town/resources/r000446.res": {
+      "surfaces": 1,
+      "oldSurfaces": 1,
+      "addedTriangles": 44650,
+      "standInTriangles": 12230,
+      "kept": false
+    },
+    "res://world/town/resources/r000453.res": {
+      "surfaces": 3,
+      "oldSurfaces": 2,
+      "addedTriangles": 112626,
+      "standInTriangles": 1644,
+      "kept": true
+    },
+    "res://world/town/resources/r000455.res": {
+      "surfaces": 2,
+      "oldSurfaces": 1,
+      "addedTriangles": 1528,
+      "standInTriangles": 0,
+      "kept": true
+    },
+    "res://world/town/resources/r000457.res": {
+      "surfaces": 1,
+      "oldSurfaces": 1,
+      "addedTriangles": 103133,
+      "standInTriangles": 36910,
+      "kept": false
+    },
+    "res://world/town/resources/r000463.res": {
+      "surfaces": 3,
+      "oldSurfaces": 2,
+      "addedTriangles": 135558,
+      "standInTriangles": 1968,
+      "kept": true
+    },
+    "res://world/town/resources/r000465.res": {
+      "surfaces": 2,
+      "oldSurfaces": 1,
+      "addedTriangles": 1816,
+      "standInTriangles": 0,
+      "kept": true
+    },
+    "res://world/town/resources/r000467.res": {
+      "surfaces": 1,
+      "oldSurfaces": 1,
+      "addedTriangles": 87332,
+      "standInTriangles": 30061,
+      "kept": false
+    },
+    "res://world/town/resources/r000473.res": {
+      "surfaces": 3,
+      "oldSurfaces": 2,
+      "addedTriangles": 95104,
+      "standInTriangles": 1452,
+      "kept": true
+    },
+    "res://world/town/resources/r000475.res": {
+      "surfaces": 2,
+      "oldSurfaces": 1,
+      "addedTriangles": 1408,
+      "standInTriangles": 0,
+      "kept": true
+    },
+    "res://world/town/resources/r000477.res": {
+      "surfaces": 1,
+      "oldSurfaces": 1,
+      "addedTriangles": 82413,
+      "standInTriangles": 24457,
+      "kept": false
+    },
+    "res://world/town/resources/r000210.res": {
+      "surfaces": 3,
+      "oldSurfaces": 2,
+      "addedTriangles": 109218,
+      "standInTriangles": 1332,
+      "kept": true
+    },
+    "res://world/town/resources/r000222.res": {
+      "surfaces": 2,
+      "oldSurfaces": 1,
+      "addedTriangles": 1152,
+      "standInTriangles": 0,
+      "kept": true
+    },
+    "res://world/town/resources/r000224.res": {
+      "surfaces": 1,
+      "oldSurfaces": 1,
+      "addedTriangles": 97026,
+      "standInTriangles": 25349,
+      "kept": false
+    },
+    "res://world/town/resources/r000235.res": {
+      "surfaces": 3,
+      "oldSurfaces": 2,
+      "addedTriangles": 243838,
+      "standInTriangles": 3528,
+      "kept": true
+    },
+    "res://world/town/resources/r000237.res": {
+      "surfaces": 2,
+      "oldSurfaces": 1,
+      "addedTriangles": 3260,
+      "standInTriangles": 0,
+      "kept": true
+    },
+    "res://world/town/resources/r000239.res": {
+      "surfaces": 1,
+      "oldSurfaces": 1,
+      "addedTriangles": 133166,
+      "standInTriangles": 42108,
+      "kept": false
+    },
+    "res://world/town/resources/r000245.res": {
+      "surfaces": 3,
+      "oldSurfaces": 2,
+      "addedTriangles": 287302,
+      "standInTriangles": 3936,
+      "kept": true
+    },
+    "res://world/town/resources/r000247.res": {
+      "surfaces": 2,
+      "oldSurfaces": 1,
+      "addedTriangles": 3616,
+      "standInTriangles": 0,
+      "kept": true
+    },
+    "res://world/town/resources/r000249.res": {
+      "surfaces": 1,
+      "oldSurfaces": 1,
+      "addedTriangles": 160680,
+      "standInTriangles": 51524,
+      "kept": false
+    },
+    "res://world/town/resources/r000255.res": {
+      "surfaces": 3,
+      "oldSurfaces": 2,
+      "addedTriangles": 113904,
+      "standInTriangles": 1740,
+      "kept": true
+    },
+    "res://world/town/resources/r000257.res": {
+      "surfaces": 2,
+      "oldSurfaces": 1,
+      "addedTriangles": 1672,
+      "standInTriangles": 0,
+      "kept": true
+    },
+    "res://world/town/resources/r000259.res": {
+      "surfaces": 1,
+      "oldSurfaces": 1,
+      "addedTriangles": 98443,
+      "standInTriangles": 30884,
+      "kept": false
+    },
+    "res://world/town/resources/r000265.res": {
+      "surfaces": 3,
+      "oldSurfaces": 2,
+      "addedTriangles": 52006,
+      "standInTriangles": 360,
+      "kept": true
+    },
+    "res://world/town/resources/r000267.res": {
+      "surfaces": 2,
+      "oldSurfaces": 1,
+      "addedTriangles": 312,
+      "standInTriangles": 0,
+      "kept": true
+    },
+    "res://world/town/resources/r000268.res": {
+      "surfaces": 1,
+      "oldSurfaces": 1,
+      "addedTriangles": 82330,
+      "standInTriangles": 15013,
+      "kept": false
+    },
+    "res://world/town/resources/r000274.res": {
+      "surfaces": 3,
+      "oldSurfaces": 2,
+      "addedTriangles": 120236,
+      "standInTriangles": 1716,
+      "kept": true
+    },
+    "res://world/town/resources/r000276.res": {
+      "surfaces": 2,
+      "oldSurfaces": 1,
+      "addedTriangles": 1544,
+      "standInTriangles": 0,
+      "kept": true
+    },
+    "res://world/town/resources/r000278.res": {
+      "surfaces": 1,
+      "oldSurfaces": 1,
+      "addedTriangles": 106847,
+      "standInTriangles": 28297,
+      "kept": false
+    },
+    "res://world/town/resources/r000284.res": {
+      "surfaces": 3,
+      "oldSurfaces": 2,
+      "addedTriangles": 351216,
+      "standInTriangles": 5136,
+      "kept": true
+    },
+    "res://world/town/resources/r000286.res": {
+      "surfaces": 2,
+      "oldSurfaces": 1,
+      "addedTriangles": 4484,
+      "standInTriangles": 0,
+      "kept": true
+    },
+    "res://world/town/resources/r000288.res": {
+      "surfaces": 1,
+      "oldSurfaces": 1,
+      "addedTriangles": 154693,
+      "standInTriangles": 50155,
+      "kept": false
+    },
+    "res://world/town/resources/r000294.res": {
+      "surfaces": 3,
+      "oldSurfaces": 2,
+      "addedTriangles": 101478,
+      "standInTriangles": 1380,
+      "kept": true
+    },
+    "res://world/town/resources/r000296.res": {
+      "surfaces": 2,
+      "oldSurfaces": 1,
+      "addedTriangles": 1400,
+      "standInTriangles": 0,
+      "kept": true
+    },
+    "res://world/town/resources/r000298.res": {
+      "surfaces": 1,
+      "oldSurfaces": 1,
+      "addedTriangles": 69019,
+      "standInTriangles": 21788,
+      "kept": false
+    },
+    "res://world/town/resources/r000304.res": {
+      "surfaces": 3,
+      "oldSurfaces": 2,
+      "addedTriangles": 9574,
+      "standInTriangles": 96,
+      "kept": true
+    },
+    "res://world/town/resources/r000305.res": {
+      "surfaces": 2,
+      "oldSurfaces": 1,
+      "addedTriangles": 108,
+      "standInTriangles": 0,
+      "kept": true
+    },
+    "res://world/town/resources/r000307.res": {
+      "surfaces": 1,
+      "oldSurfaces": 1,
+      "addedTriangles": 10893,
+      "standInTriangles": 3884,
+      "kept": false
+    },
+    "res://world/town/resources/r000313.res": {
+      "surfaces": 3,
+      "oldSurfaces": 2,
+      "addedTriangles": 76142,
+      "standInTriangles": 1140,
+      "kept": true
+    },
+    "res://world/town/resources/r000314.res": {
+      "surfaces": 2,
+      "oldSurfaces": 1,
+      "addedTriangles": 976,
+      "standInTriangles": 0,
+      "kept": true
+    },
+    "res://world/town/resources/r000316.res": {
+      "surfaces": 1,
+      "oldSurfaces": 1,
+      "addedTriangles": 36809,
+      "standInTriangles": 12013,
+      "kept": false
+    },
+    "res://world/town/resources/r000322.res": {
+      "surfaces": 3,
+      "oldSurfaces": 2,
+      "addedTriangles": 62742,
+      "standInTriangles": 804,
+      "kept": true
+    },
+    "res://world/town/resources/r000323.res": {
+      "surfaces": 2,
+      "oldSurfaces": 1,
+      "addedTriangles": 780,
+      "standInTriangles": 0,
+      "kept": true
+    },
+    "res://world/town/resources/r000325.res": {
+      "surfaces": 1,
+      "oldSurfaces": 1,
+      "addedTriangles": 43106,
+      "standInTriangles": 13787,
+      "kept": false
+    },
+    "res://world/town/resources/r000331.res": {
+      "surfaces": 3,
+      "oldSurfaces": 2,
+      "addedTriangles": 2960,
+      "standInTriangles": 36,
+      "kept": true
+    },
+    "res://world/town/resources/r000332.res": {
+      "surfaces": 2,
+      "oldSurfaces": 1,
+      "addedTriangles": 28,
+      "standInTriangles": 0,
+      "kept": true
+    },
+    "res://world/town/resources/r000334.res": {
+      "surfaces": 1,
+      "oldSurfaces": 1,
+      "addedTriangles": 974,
+      "standInTriangles": 228,
+      "kept": false
+    }
+  }
+}
