@@ -4,8 +4,8 @@
 [ext_resource type="Script" path="res://src/Authoring/AuthorAsset.cs" id="2_um14d"]
 
 [resource]
-GeometryClearance = true
 script = ExtResource("2_um14d")
+GeometryClearance = true
 Id = "room-cathedral-source-8915-81"
 Title = "Architecture marker · cathedral · room-cathedral-source-8915-81"
 Category = "Room originals"

@@ -247,6 +247,7 @@ public partial class NativeTownGame : Scheldemist.Main
             base._Ready(); initialized = true;
 #if DEBUG
             if(Arg("furniture-game-proof") is {Length:>0} furnitureProof) _ = Interiors.FurnitureGameProof.Run(this,Paths.Absolute(furnitureProof));
+            if(Arg("room-route-audit") is {Length:>0} roomRoutes) _ = Interiors.RoomRouteAudit.Run(this,Paths.Absolute(roomRoutes));
 #endif
             if (DedicatedServer) _ = StartDedicated();
             if (Arg("conversation-proof") is { Length: > 0 } conversationProof) _ = NativeConversationProof.Run(this, Paths.Absolute(conversationProof));

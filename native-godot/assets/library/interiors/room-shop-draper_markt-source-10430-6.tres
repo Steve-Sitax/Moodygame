@@ -4,9 +4,9 @@
 [ext_resource type="Script" path="res://src/Authoring/AuthorAsset.cs" id="2_o803m"]
 
 [resource]
+script = ExtResource("2_o803m")
 PlacementAnchor = Vector3(-4.2915344e-06, 0, 3.5762787e-06)
 GeometryClearance = true
-script = ExtResource("2_o803m")
 Id = "room-shop-draper_markt-source-10430-6"
 Title = "fitting · shop:draper_markt · source-10430-6"
 Category = "Room originals"

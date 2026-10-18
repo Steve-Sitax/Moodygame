@@ -56,11 +56,17 @@ chair, Jef's sitting and sleep in the moved bed, exact host/guest layouts, and i
 night pictures. Before/after/restart pictures were inspected, including close back and underside views. The original
 quay proof adds 33 write and 6 reload checks, including committing a copy through a viewport click.
 
-The wider physical floor audit has gaps in cathedral upper rooms, the garret, prison/governor rooms, some tavern seats
-and hall doors. See `.scratch/routes4/room-routes.json`, `.scratch/routes5/room-routes.json` and `.scratch/routes6`.
-These are reported rather than described as a universal route pass. The outdoor path audit checked 8,202 targets and
-1,530,162 cells: all static targets passed; five live street residents were unreachable (`.scratch/paths/paths.json`).
-The source locations are recorded there for the lead's issue report. No speed or owner-acceptance claim is made.
+Route audit (issue 139, 2026-10-18): the 3,847 room asset files listed `GeometryClearance` and `PlacementAnchor` before
+their `script` line, so Godot dropped both and the workshop's floor graph treated every recovered group as one solid box
+(three taverns and the governor's rooms looked blocked). They now load. The route that counts is the game's own
+`--room-route-audit` (docs/testing.md): Jef's ground and body tests from the street through every door. It found and this
+pass fixed: green marker sheets left standing in the doorways of the rented homes (widow, alley, cellar, garret, and one on
+the merchant's desk, now architecture markers or gone), the merchant's gilt rail running across his back doorway at 0.9 m,
+and the town hall's main door, which never opened. Its hall and prison seats where the game sets people down without a walk
+are listed as placed. The workshop graph still fails the garret and the cathedral's upper rooms (roof tops read as floor,
+no town stair holes); the game audit passes them. The outdoor path check's five unreachable street residents were rounds
+walked straight across water and closed yards while their ways were still being worked out; they now wait at the round's
+point instead. No speed or owner-acceptance claim is made.
 
 Final checks: shader audit passed with 133 inventory kinds, zero new kinds after the baseline and zero problems;
 all visible placed furniture uses the town ShaderMaterial path. Lights stayed at 121 OmniLight3D and one sun

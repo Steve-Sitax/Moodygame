@@ -4,9 +4,9 @@
 [ext_resource type="Script" path="res://src/Authoring/AuthorAsset.cs" id="2_xmojp"]
 
 [resource]
+script = ExtResource("2_xmojp")
 PlacementAnchor = Vector3(-0.56000495, -1.4901161e-08, 2.026558e-06)
 GeometryClearance = true
-script = ExtResource("2_xmojp")
 Id = "room-shop-apothecary_markt-counter"
 Title = "counter · shop:apothecary_markt · counter"
 Category = "Room originals"

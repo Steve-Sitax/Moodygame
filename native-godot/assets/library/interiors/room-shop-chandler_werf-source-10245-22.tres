@@ -4,9 +4,9 @@
 [ext_resource type="Script" path="res://src/Authoring/AuthorAsset.cs" id="2_nuora"]
 
 [resource]
+script = ExtResource("2_nuora")
 PlacementAnchor = Vector3(0, 0, -1.4505349e-07)
 GeometryClearance = true
-script = ExtResource("2_nuora")
 Id = "room-shop-chandler_werf-source-10245-22"
 Title = "fitting · shop:chandler_werf · source-10245-22"
 Category = "Room originals"

@@ -110,7 +110,14 @@ public partial class HomeDoorTest : Node
 
             // 3. in, and down to the room
             var middle = f.World(0, f.D / 2);
-            var route = Route(wall, outward, (p, g) => MathF.Abs(g - f.Y) < 0.3f && (p - new Vector2(middle.X, middle.Z)).Length() < 0.8f);
+            // on the room's floor within 2 m of its middle, at least half a metre inside its frame: a table can stand on the
+            // middle itself (the merchant's)
+            var route = Route(wall, outward, (p, g) =>
+            {
+                if (MathF.Abs(g - f.Y) >= 0.3f || (p - new Vector2(middle.X, middle.Z)).Length() >= 2f) return false;
+                var l = f.Local(p.X, p.Y);
+                return MathF.Abs(l.X) < f.W / 2 - 0.5f && l.Y > 0.5f && l.Y < f.D - 0.5f;
+            });
             Check(route != null, "a walkable route runs from the street door to the room floor");
             if (route != null)
             {

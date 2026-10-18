@@ -4,8 +4,8 @@
 [ext_resource type="Script" path="res://src/Authoring/AuthorAsset.cs" id="2_mc8wy"]
 
 [resource]
-GeometryClearance = true
 script = ExtResource("2_mc8wy")
+GeometryClearance = true
 Id = "room-tavern-engel-seat-7"
 Title = "Architecture marker · tavern:engel · room-tavern-engel-seat-7"
 Category = "Room originals"

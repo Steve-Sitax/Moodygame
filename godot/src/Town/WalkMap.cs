@@ -155,6 +155,10 @@ public sealed class WalkMap
         return found;
     }
 
+    /// <summary>Is (x, z) clear of every live body that is not a passing vehicle (a parked cart, a crate, a posted figure)? For a route
+    /// planned round them after one held a walker with no way round (issue 120). Any thread.</summary>
+    public bool NoStandingBody(double x, double z) => BodyFree(x, z, true);
+
     public bool FreeFor(Puppet owner, double x, double z)
     {
         int ix = (int)Math.Floor((x-X0)*4), iz = (int)Math.Floor((z-Z0)*4);

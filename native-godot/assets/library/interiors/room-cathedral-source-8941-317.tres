@@ -4,9 +4,9 @@
 [ext_resource type="Script" path="res://src/Authoring/AuthorAsset.cs" id="2_dprkm"]
 
 [resource]
+script = ExtResource("2_dprkm")
 PlacementAnchor = Vector3(1.168251e-05, 0.3, 3.8146973e-06)
 GeometryClearance = true
-script = ExtResource("2_dprkm")
 Id = "room-cathedral-source-8941-317"
 Title = "chair · cathedral · source-8941-317"
 Category = "Room originals"

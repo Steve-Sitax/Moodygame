@@ -239,6 +239,10 @@ public static class Whereabouts
     {
         public List<Pt> Pts = new();
         public List<double> Starts = new();
+        /// <summary>Per leg: the way on foot is known. A leg without one is never walked straight through houses or water:
+        /// he waits at its start point until it comes (issue 139).</summary>
+        public List<bool> Known = new();
+        public List<Pt> From = new(), To = new();
         public double Total;
         public int Generation;
         public bool Complete;
@@ -288,6 +292,7 @@ public static class Whereabouts
             var w = way(a.X, a.Z, b.X, b.Z, out _);
             if (w == null) whole = false;
             var leg = w ?? new[] { a, b };
+            rw.Known.Add(w != null); rw.From.Add(a); rw.To.Add(b);
             rw.Starts.Add(d);
             if (rw.Pts.Count > 0) d += Hypot(leg[0].X - rw.Pts[^1].X, leg[0].Z - rw.Pts[^1].Z);
             rw.Pts.AddRange(leg);
@@ -312,18 +317,29 @@ public static class Whereabouts
             while (i + 1 < rw.Starts.Count && rw.Starts[i + 1] <= s) i++;
             return i;
         }
+        // a leg with no way on foot yet: at its start point (a point of the round, on the streets), never on the straight line
+        bool Waiting(double s, out (double x, double z, double yaw, int leg) at, bool back = false)
+        {
+            int i = LegAt(s);
+            var q = back ? rw.To[i] : rw.From[i];
+            at = rw.Known[i] ? default : (q.X, q.Z, 0, i);
+            return !rw.Known[i];
+        }
         if (loop)
         {
             double s = ((d % rw.Total) + rw.Total) % rw.Total;
+            if (Waiting(s, out var wait)) return wait with { leg = (wait.leg + 1) % pts.Length };
             var p = PointAlong(rw.Pts, s);
             return (p.x, p.z, p.yaw, (LegAt(s) + 1) % pts.Length);
         }
         double u = ((d % (2 * rw.Total)) + 2 * rw.Total) % (2 * rw.Total);
         if (u <= rw.Total)
         {
+            if (Waiting(u, out var wait)) return wait with { leg = 1 };
             var p = PointAlong(rw.Pts, u);
             return (p.x, p.z, p.yaw, 1);
         }
+        if (Waiting(2 * rw.Total - u, out var waitBack, true)) return waitBack with { leg = 0 };
         var back = PointAlong(rw.Pts, 2 * rw.Total - u);
         return (back.x, back.z, back.yaw + Math.PI, 0);
     }

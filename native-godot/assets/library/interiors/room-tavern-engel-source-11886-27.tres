@@ -4,9 +4,9 @@
 [ext_resource type="Script" path="res://src/Authoring/AuthorAsset.cs" id="2_xunxw"]
 
 [resource]
+script = ExtResource("2_xunxw")
 PlacementAnchor = Vector3(4.7683716e-06, 0, 1.66893e-06)
 GeometryClearance = true
-script = ExtResource("2_xunxw")
 Id = "room-tavern-engel-source-11886-27"
 Title = "shelf · tavern:engel · source-11886-27"
 Category = "Room originals"

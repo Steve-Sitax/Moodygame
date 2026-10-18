@@ -91,6 +91,24 @@ the four-minute limit holds, so the whole town (45 rooms) runs best in four chun
 every door open, a rented home's too (`Doors.Held`), and counts a cellar window onto a light well as seeing the street when
 the shaft is open to the sky through its grating.
 
+The room route audit (issue 139) is `--room-route-audit <dir> --dev` on `res://town.tscn` (its own `--db`, `--prefs`,
+`--author-root`, port and user data, `--no-ai --no-mainmenu --native-services`; it takes about five minutes, bound the run
+at 20). For each of the 45 editable rooms in its town shell it floods eighth-metre cells with Jef's own
+`GroundAt` and `BodyFree` (his 0.32 m body, 0.36 m step, the stairs), every door held open, from the street before every
+door round the room, and asks every seat, bed, counter and stove of the room's furniture to be reached (0.7, 1.1 and 1.5 m).
+It writes `room-route-audit.json`; `ok` must be true, exit 1 otherwise. Places the game sets its people at without a walk
+are listed under `Placed` with the reason (HallPeople's appearing roles and seats 2 m or more above a hall's floor, the
+prison's shut wings), not passed over silently. A room with a place no route reaches gets `<room>.game-map.txt` (the cells
+reached by storey, its doors and what holds a body in each doorway) and, per place, what holds a body on the straight way to
+it and a picture. `--audit-rooms room-a,room-b` picks rooms; `--audit-line x0,z0,x1,z1,feet` writes `audit-line.txt`, what
+holds a body every 6 cm along one line. The furniture workshop's own floor graph (`res://main.tscn -- --district
+room-tavern-ankere --furniture-proof <dir> --proof-stage routes`, `room-routes.json` and a `<room>.map.txt` per failing room)
+is the editing guard: it has no town stair holes and no Jef body, so a room can fail there and pass
+here (the garret, the cathedral's upper rooms); this audit is the one that says a route exists.
+
+The outdoor path check (`--paths`) also lists every live townsperson with what they do there; an unreachable one gets a
+6 m map round it (`unreachableMaps`: R reached, o free but cut off, # not free, W the server's way grid).
+
 `--homedoortest <dir> --home cellar --no-ai --db <dir>/test.sqlite --hour 13 --weather clear` walks Jef to a home's street
 door, finds it shut, takes the key at the notice, and walks him in (down the steps, for the cellar), through the room, to each
 window, and back out, with pictures and `homedoortest.json`; the way inside is found with Jef's own ground test. Its second

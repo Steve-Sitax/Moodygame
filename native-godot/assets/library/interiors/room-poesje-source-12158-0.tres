@@ -4,9 +4,9 @@
 [ext_resource type="Script" path="res://src/Authoring/AuthorAsset.cs" id="2_rmceo"]
 
 [resource]
+script = ExtResource("2_rmceo")
 PlacementAnchor = Vector3(-3.8146973e-06, 0, 1.4305115e-06)
 GeometryClearance = true
-script = ExtResource("2_rmceo")
 Id = "room-poesje-source-12158-0"
 Title = "fitting · poesje · source-12158-0"
 Category = "Room originals"

@@ -4,9 +4,9 @@
 [ext_resource type="Script" path="res://src/Authoring/AuthorAsset.cs" id="2_lyibp"]
 
 [resource]
+script = ExtResource("2_lyibp")
 PlacementAnchor = Vector3(4.2915344e-06, 0, 0.0075104237)
 GeometryClearance = true
-script = ExtResource("2_lyibp")
 Id = "room-home-merchant-fixed-2"
 Title = "wardrobe · home:merchant · fixed-2"
 Category = "Room originals"

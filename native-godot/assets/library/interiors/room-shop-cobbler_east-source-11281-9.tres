@@ -4,9 +4,9 @@
 [ext_resource type="Script" path="res://src/Authoring/AuthorAsset.cs" id="2_pkmow"]
 
 [resource]
+script = ExtResource("2_pkmow")
 PlacementAnchor = Vector3(4.7683716e-07, 0, 8.583069e-06)
 GeometryClearance = true
-script = ExtResource("2_pkmow")
 Id = "room-shop-cobbler_east-source-11281-9"
 Title = "fitting · shop:cobbler_east · source-11281-9"
 Category = "Room originals"

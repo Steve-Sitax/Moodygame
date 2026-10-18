@@ -18,13 +18,19 @@ public sealed partial class Crowd
     private const int StandingDetoursPerRoute = 3;
     private readonly (double x, double z)[] standCorners = new (double, double)[4];
 
-    /// <summary>Can this body walk the straight line (every 0.2 m is ground it fits on, the static support holds, no bridge bars it)?</summary>
+    /// <summary>Can this body walk the straight line (every 0.2 m is ground it fits on, the static support holds, no bridge bars it)?
+    /// A cart's or barrow's pusher walks behind its nose: that point, straight ahead on the line, must be free too.</summary>
     private bool LineWalkable(Puppet p, double ax, double az, double bx, double bz)
     {
         if (Bridges.Barred(ax, az, bx, bz) || !map.SupportsStep(ax, az, bx, bz)) return false;
-        int n = Math.Max(1, (int)Math.Ceiling(Hyp(bx - ax, bz - az) / 0.2));
+        double len = Hyp(bx - ax, bz - az), fx = len > 1e-6 ? (bx - ax) / len : 0, fz = len > 1e-6 ? (bz - az) / len : 0;
+        int n = Math.Max(1, (int)Math.Ceiling(len / 0.2));
         for (int i = 1; i <= n; i++)
-            if (!map.FreeFor(p, ax + (bx - ax) * i / n, az + (bz - az) * i / n)) return false;
+        {
+            double x = ax + (bx - ax) * i / n, z = az + (bz - az) * i / n;
+            if (!map.FreeFor(p, x, z)) return false;
+            if (p.Nose > 0 && !map.FreeFor(p, x + fx * p.Nose, z + fz * p.Nose)) return false;
+        }
         return true;
     }
 
@@ -59,18 +65,26 @@ public sealed partial class Crowd
     /// </summary>
     private bool DetourStanding(Puppet p, double nx, double nz, double ux, double uz, double step)
     {
-        if (p.Pi >= p.Path.Count || p.StandDetours >= StandingDetoursPerRoute) return false;
-        if (!map.StandingBodyAt(p, nx, nz, out var w)) return false;
+        if (p.Pi >= p.Path.Count) { p.DetourWhy = "no way point"; return false; }
+        if (p.StandDetours >= StandingDetoursPerRoute) { p.DetourWhy = "ways round used up"; return false; }
+        // what refuses the step: a body at the walker's own next step, or (for a cart or barrow) at its nose ahead
+        if (!map.StandingBodyAt(p, nx, nz, out var w))
+        {
+            var nose = p.Nose > 0 ? NosePoint(p, nx, nz, ux, uz) : (x: nx, z: nz);
+            if (p.Nose <= 0 || !map.StandingBodyAt(p, nose.x, nose.z, out w)) { p.DetourWhy = "no standing body (or a moving one)"; return false; }
+        }
         // the way point itself may lie in the body's margin (it came after the route was planned): aim at the next one, and drop it
         int ti = p.Pi;
         var t = p.Path[ti];
         if (!map.FreeFor(p, t.x, t.z))
         {
-            if (ti + 1 >= p.Path.Count) return false;
+            if (ti + 1 >= p.Path.Count) { p.DetourWhy = "the last way point is taken"; return false; }
             t = p.Path[++ti];
-            if (!map.FreeFor(p, t.x, t.z)) return false;
+            if (!map.FreeFor(p, t.x, t.z)) { p.DetourWhy = "the next way point is taken too"; return false; }
         }
-        double x0 = w.Position.X - StandingPad, x1 = w.End.X + StandingPad, z0 = w.Position.Z - StandingPad, z1 = w.End.Z + StandingPad;
+        // a pushed cart is wider than its pusher: its corners go round with the cart's half-width more room
+        double pad = StandingPad + (p.Nose > 0 ? p.Reach : 0);
+        double x0 = w.Position.X - pad, x1 = w.End.X + pad, z0 = w.Position.Z - pad, z1 = w.End.Z + pad;
         standCorners[0] = (x0, z0); standCorners[1] = (x1, z0); standCorners[2] = (x1, z1); standCorners[3] = (x0, z1);
         // where the old line (body to way point) leaves the padded box: the way back to it starts just past there
         double dx = t.x - p.X, dz = t.z - p.Z, len = Hyp(dx, dz), exit = 0;
@@ -99,7 +113,8 @@ public sealed partial class Crowd
             found = RoundCorners(p, rx, rz, out first, out second, out _);
             viaPoint = attempt < 2;
         }
-        if (!found) return false;
+        if (!found) { p.DetourWhy = $"no free corner way round the box {w.Position.X:0.00},{w.Position.Z:0.00} to {w.End.X:0.00},{w.End.Z:0.00}"; return false; }
+        p.DetourWhy = "";
         if (WedgeLog.Count < 200) WedgeLog.Add(WedgeNote(p, "went round a standing body", ux, uz, step) + $" | its box {w.Position.X:0.00},{w.Position.Z:0.00} to {w.End.X:0.00},{w.End.Z:0.00}, via {standCorners[first].x:0.00},{standCorners[first].z:0.00}" + (second >= 0 ? $" and {standCorners[second].x:0.00},{standCorners[second].z:0.00}" : "") + (viaPoint ? $" back to the line at {rx:0.00},{rz:0.00}" : ""));
         if (ti > p.Pi) p.Path.RemoveAt(p.Pi);
         int added = 1 + (second >= 0 ? 1 : 0) + (viaPoint ? 1 : 0);

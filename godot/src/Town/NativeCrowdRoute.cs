@@ -20,13 +20,15 @@ public sealed class NativeCrowdRoute
     public void Clear() { way = null; next = 0; }
 
     /// <summary>The static route is cached; live bodies, bridge gates and vehicle clearance still govern every actual step.</summary>
-    public bool Window(Vector2 from, Vector2 to, List<(double x, double z)> output)
+    /// <summary>`roundStanding`: plan afresh, round the ground live standing bodies hold (a parked cart across a lane, issue 120).</summary>
+    public bool Window(Vector2 from, Vector2 to, List<(double x, double z)> output, bool roundStanding = false)
     {
         using var cost = Scheldemist.Dev.FrameCost.Track("Crowd.NativeRoute");
         output.Clear();
         if (!map.IsNative) return false;
-        if (way == null || goal.DistanceSquaredTo(to) > .25f || !Advance(from)) {
-            Searches++; goal = to; next = 0; way = Ways.NativePath(map, from, to);
+        if (roundStanding || way == null || goal.DistanceSquaredTo(to) > .25f || !Advance(from)) {
+            Func<double, double, bool>? taken = roundStanding ? (x, z) => !map.NoStandingBody(x, z) : null;
+            Searches++; goal = to; next = 0; way = Ways.NativePath(map, from, to, taken);
             if (way == null || way.Count == 0) return false;
             // Nearest-cell snapping must never move a body across a wall or a ledge.
             if (!map.SupportsStep(from.X, from.Y, way[0].X, way[0].Y)) { Clear(); return false; }

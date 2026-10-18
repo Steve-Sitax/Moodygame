@@ -53,6 +53,18 @@ public static class FurnitureWorkshopProof
                 }
                 File.WriteAllText(Path.Combine(output,"floor-probe.json"),JsonSerializer.Serialize(hits,new JsonSerializerOptions{WriteIndented=true}));s.GetTree().Quit();return;
             }
+            if(stage=="shots")
+            {
+                // dev: pictures from given points in the opened room (--proof-shots "x,y,z,tx,ty,tz;...", world metres)
+                await Frames(10);int n=0;
+                foreach(var spec in Scheldemist.Native.Game.NativeArguments.Arg("proof-shots").Split(';',StringSplitOptions.RemoveEmptyEntries))
+                {
+                    var v=spec.Split(',').Select(t=>float.Parse(t,System.Globalization.CultureInfo.InvariantCulture)).ToArray();var eye=new Vector3(v[0],v[1],v[2]);
+                    s.Camera.Position=eye-s.Camera.Eye.Position;s.Camera.Eye.LookAt(new Vector3(v[3],v[4],v[5]));await Frames(6);
+                    await s.ToSignal(RenderingServer.Singleton,RenderingServer.SignalName.FramePostDraw);using var picture=s.GetViewport().GetTexture().GetImage();picture.SavePng(Path.Combine(output,$"shot-{n++}.png"));
+                }
+                s.GetTree().Quit();return;
+            }
             if(stage=="routes")
             {
                 foreach(var room in World.NativeDistrictLayouts.Available().Where(r=>r.RoomId!=""&&(Scheldemist.Native.Game.NativeArguments.Arg("proof-room")==""||Scheldemist.Native.Game.NativeArguments.Arg("proof-room").Split(',').Contains(r.Id))))
@@ -61,6 +73,7 @@ public static class FurnitureWorkshopProof
                     string why="Room could not be opened";
                     bool pass=s.DistrictId==room.Id&&InteriorRoutes.Check(s,s.Document,out why);
                     rows.Add(new{name=room.Id,pass,reason=pass?"":why,diagnostic=InteriorRoutes.Diagnostics});
+                    if(!pass&&s.DistrictId==room.Id)File.WriteAllText(Path.Combine(output,room.Id+".map.txt"),InteriorRoutes.Dump(s,InteriorRoutes.Unreachable));
                     File.WriteAllText(Path.Combine(output,"room-routes.json"),JsonSerializer.Serialize(rows,new JsonSerializerOptions{WriteIndented=true}));
                     GD.Print("room route "+room.Id+": "+pass);
                 }

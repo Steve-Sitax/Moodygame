@@ -46,7 +46,8 @@ public partial class Townspeople
             }
             DrawRope(r);
         }
-        int role=r.Line.IndexOf(s);if(role<0)return true;
+        // not in the line (yet): stand, never keep a walk clip on the spot (the stuck check found one, 2026-10-18)
+        int role=r.Line.IndexOf(s);if(role<0){if(s.P is {} waiting&&waiting.Human.Motion=="walk")Crowd!.PuppetStand(waiting,"idle",waiting.Yaw);return true;}
         if(r.Line.Count<3)role+=3;
         double fx=Math.Sin(r.Yaw),fz=Math.Cos(r.Yaw),rx=Math.Cos(r.Yaw),rz=-Math.Sin(r.Yaw),x,z,yaw;
         var puppet=s.P!;double scale=puppet.Human.Scale*puppet.Size;

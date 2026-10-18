@@ -420,7 +420,7 @@ public static class Ways
     /// Is the straight line from the centre of cell a to the centre of cell b all passable? Every cell the line
     /// touches counts, and through a cell corner both side cells count.
     /// </summary>
-    private static bool Clear(Grid g, int a, int b)
+    private static bool Clear(Grid g, int a, int b, Func<double, double, bool>? closed = null)
     {
         if (g.NativeMap != null)
         {
@@ -438,6 +438,7 @@ public static class Ways
         for (;;)
         {
             if (g.Pass[r * g.W + c] == 0) return false;
+            if (closed != null && (r != a / g.W || c != a % g.W) && closed(Centre(g, r * g.W + c).X, Centre(g, r * g.W + c).Y)) return false;
             if (r == r1 && c == c1) return true;
             if (Math.Abs(tr - tc) < 1e-9)
             {
@@ -475,10 +476,10 @@ public static class Ways
     }
 
     /// <summary>Exact native cell routing for a crowd body. Keep sub-metre doorways and require this scene's installed map.</summary>
-    public static List<Vector2>? NativePath(Scheldemist.Town.WalkMap map, Vector2 from, Vector2 to)
+    public static List<Vector2>? NativePath(Scheldemist.Town.WalkMap map, Vector2 from, Vector2 to, Func<double, double, bool>? closed = null)
     {
         if (TheGrid() is not { } g || !ReferenceEquals(g.NativeMap, map)) return null;
-        lock (g) return Find(g, from.X, from.Y, to.X, to.Y);
+        lock (g) return Find(g, from.X, from.Y, to.X, to.Y, false, closed);
     }
 
     /// <summary>The same for places in the world (y is left out; the way comes back on the ground, y = 0).</summary>
@@ -540,7 +541,8 @@ public static class Ways
         }
     }
 
-    private static List<Vector2>? Find(Grid g, double ax, double az, double bx, double bz, bool freshBuffers = false)
+    /// <summary>`closed`, when given: cells it says are taken (a standing body's ground) are not walked, nor cut across.</summary>
+    private static List<Vector2>? Find(Grid g, double ax, double az, double bx, double bz, bool freshBuffers = false, Func<double, double, bool>? closed = null)
     {
         int s = NearestPass(g, ax, az);
         int t = NearestPass(g, bx, bz);
@@ -582,6 +584,7 @@ public static class Ways
                     if (rr < 0 || cc < 0 || rr >= g.H || cc >= g.W) continue;
                     int j = rr * g.W + cc;
                     if (g.Pass[j] == 0 || g.Closed[j] == run) continue;
+                    if (closed != null && j != t && closed(Centre(g, j).X, Centre(g, j).Y)) continue;
                     if (g.NativeMap != null)
                     {
                         int direction = dr < 0 ? dc + 1 : dr > 0 ? dc + 6 : dc < 0 ? 3 : 4;
@@ -609,7 +612,7 @@ public static class Ways
         while (a < cells.Count - 1)
         {
             int b = a + 1;
-            while (b + 1 < cells.Count && Clear(g, cells[a], cells[b + 1])) b++;
+            while (b + 1 < cells.Count && Clear(g, cells[a], cells[b + 1], closed)) b++;
             keep.Add(Centre(g, cells[b]));
             a = b;
         }

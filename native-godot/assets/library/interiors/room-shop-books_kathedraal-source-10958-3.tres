@@ -4,9 +4,9 @@
 [ext_resource type="Script" path="res://src/Authoring/AuthorAsset.cs" id="2_ttpxm"]
 
 [resource]
+script = ExtResource("2_ttpxm")
 PlacementAnchor = Vector3(3.8146973e-06, 0, -2.7418137e-06)
 GeometryClearance = true
-script = ExtResource("2_ttpxm")
 Id = "room-shop-books_kathedraal-source-10958-3"
 Title = "fitting · shop:books_kathedraal · source-10958-3"
 Category = "Room originals"

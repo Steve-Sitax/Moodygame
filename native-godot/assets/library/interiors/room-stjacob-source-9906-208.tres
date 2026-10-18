@@ -4,9 +4,9 @@
 [ext_resource type="Script" path="res://src/Authoring/AuthorAsset.cs" id="2_nslt8"]
 
 [resource]
+script = ExtResource("2_nslt8")
 PlacementAnchor = Vector3(3.8146973e-06, 0, -8.106232e-06)
 GeometryClearance = true
-script = ExtResource("2_nslt8")
 Id = "room-stjacob-source-9906-208"
 Title = "fitting · stjacob · source-9906-208"
 Category = "Room originals"
