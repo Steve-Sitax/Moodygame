@@ -474,6 +474,8 @@ public static class People2Faces
     private static readonly List<Request> requests = new();
     private static readonly Dictionary<Node3D, Request> activeRequests = new();
     internal static double LastUploadMs { get; private set; }
+    internal static int LastAppliedMeshes { get; private set; }
+    internal static string LastAppliedKind { get; private set; } = "";
     internal static int Pending => requests.Count;
     internal static double MaxWorkerMs { get; private set; }
     internal static long UploadCount { get; private set; }
@@ -516,6 +518,7 @@ public static class People2Faces
     // Called once by People2Warmup's process. Never upload two meshes in one frame.
     internal static void Pump()
     {
+        LastAppliedMeshes = 0; LastAppliedKind = "";
         LastUploadMs = 0;
         bool workerBusy = false;
         for (int i = 0; i < jobs.Count; i++) if (jobs[i].Worker != null) { workerBusy = true; break; }
@@ -526,7 +529,7 @@ public static class People2Faces
             if (!activeRequests.TryGetValue(r.Root, out var current) || !ReferenceEquals(current, r)) { requests.RemoveAt(i); r.Job.Users.Remove(r); continue; }
             if (!r.FarApplied && r.Job.Far != null)
             {
-                if (r.Far != null) { r.Far.Mesh = r.Job.Far; r.Far.Visible = true; r.Far.VisibilityRangeBegin = r.Job.Near != null ? 15 : 0; }
+                if (r.Far != null) { r.Far.Mesh = r.Job.Far; r.Far.Visible = true; r.Far.VisibilityRangeBegin = r.Job.Near != null ? 15 : 0; LastAppliedMeshes++; LastAppliedKind = r.Job.Kind; }
                 r.FarApplied = true;
                 r.Root.SetMeta("face_type", r.Job.Face.Type); r.Root.SetMeta("face_cell", r.Job.Face.Cell);
                 r.Root.SetMeta("face_hair", r.Job.Face.Hair + "/" + (r.Job.Face.Beard ?? "-") + "/" + (r.Job.Face.Moustache ?? "-"));
@@ -534,7 +537,7 @@ public static class People2Faces
             }
             if (r.FarApplied && !r.NearApplied && r.Job.Near != null)
             {
-                if (r.Near != null) { r.Near.Mesh = r.Job.Near; r.Near.Visible = true; }
+                if (r.Near != null) { r.Near.Mesh = r.Job.Near; r.Near.Visible = true; LastAppliedMeshes++; LastAppliedKind = r.Job.Kind; }
                 if (r.Far != null) r.Far.VisibilityRangeBegin = 15;
                 r.NearApplied = true;
             }

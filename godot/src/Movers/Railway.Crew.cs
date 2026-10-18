@@ -24,8 +24,10 @@ public partial class Railway
     private void UpdateCrew(float dt)
     {
         var f=HorseFrame(0);bool visible=state!="shed"&&f.X>hideX;var at=new Vector3(f.X-MathF.Cos(f.Yaw)*1.25f,0,f.Z+MathF.Sin(f.Yaw)*1.25f);
+        using(var cost=Scheldemist.Dev.FrameCost.Track("Railway.Shunter"))
         if(shunter!=null){shunter.Root.Visible=visible;shunter.Root.Transform=new(new Basis(Vector3.Up,f.Yaw+(state=="work"?1.2f:0)),at);shunter.Play(v>.08f?"walk":"idle");shunter.SetPace(Math.Max(.3f,v));if(visible)shunter.Update(dt);}
         keeperTime+=dt;float cycle=(float)(keeperTime%36);bool walks=!gate.WantOpen&&cycle<12;float z=walks?10.7f+Math.Min(cycle,12-cycle)*.85f:10.7f;
+        using(var cost=Scheldemist.Dev.FrameCost.Track("Railway.Keeper"))
         if(keeper!=null){keeper.Root.Position=new(Gate.Face+1.3f,0,z);keeper.Root.Rotation=new(0,gate.WantOpen?-MathF.PI/2:cycle<6?0:MathF.PI,0);keeper.Play(walks?"walk":"idle");keeper.SetPace(.85f);keeper.Update(dt);}
         harness.Clear();
         if(visible)for(int i=0;i<2;i++)
@@ -40,7 +42,8 @@ public partial class Railway
             }
         }
         if(visible){var rear=HorseFrame(1);var frame=new Transform3D(new Basis(Vector3.Up,rear.Yaw),new(rear.X,0,rear.Z));harness.Add(frame*new Vector3(-.42f,.98f,-1.4f),frame*new Vector3(.42f,.98f,-1.4f));}
-        harness.Commit();UpdateSounds();
+        using(var cost=Scheldemist.Dev.FrameCost.Track("Railway.Harness")) harness.Commit();
+        using(var cost=Scheldemist.Dev.FrameCost.Track("Railway.Sound")) UpdateSounds();
     }
     public void AddSounds(List<VehicleSound> output)
     {if(state=="shed")return;foreach(var w in wagons)output.Add(new("dray",w.X,w.Z,v>.08f?"go":"stop"));}

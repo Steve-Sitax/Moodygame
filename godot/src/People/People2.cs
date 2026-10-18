@@ -72,6 +72,21 @@ public static class People2
         return model.Roots.ContainsKey(body);
     }
     private static string Body(string kind) => kind.StartsWith("p2:", StringComparison.Ordinal) ? kind[3..] : map.GetValueOrDefault(kind, kind is "old_woman" or "old_man" ? kind + "_dressed" : kind);
+    internal static readonly List<object> PreparedRigProof = new();
+    internal static void PrepareRigs(IEnumerable<string> kinds)
+    {
+        if (!Enabled || Main.I.Flag("layers-original") || Main.I.Flag("movers-original")) return;
+        foreach (string kind in kinds) {
+            if (!Has(kind) || model == null) continue;
+            var root = model.Roots[Body(kind)];
+            // Preparing only the immutable rig data consumes no person/face/animation random numbers.
+            _ = new HumanLayers(root, root.GetNode<Skeleton3D>("Skeleton3D"));
+            if (Main.I.Flag("route-speed-proof")) {
+                var proof = HumanLayers.CompareSetup(root); PreparedRigProof.Add(proof);
+                if (!JsonSerializer.SerializeToElement(proof).GetProperty("ok").GetBoolean()) throw new InvalidDataException("Prepared omnibus rig differs: " + kind);
+            }
+        }
+    }
     private static void EnsureRoot(string body)
     {
         if (model == null) return;
@@ -90,7 +105,7 @@ public static class People2
             if (mi.Name.ToString().EndsWith("_lod1", StringComparison.Ordinal)) mi.VisibilityRangeBegin = 15;
         }
     }
-    public static void Forget() { model?.Scene.Free(); model = null; tried = false; loadFailure = null; Clips.Clear(); Bodies.Clear(); BaseBody.Clear(); held.Clear(); kindBase.Clear(); map.Clear(); HumanLayers.Forget(); People2Material.Forget(); People2Faces.Forget(); People2Moves.Forget(); People2Shoulders.Forget(); }
+    public static void Forget() { model?.Scene.Free(); model = null; tried = false; loadFailure = null; Clips.Clear(); Bodies.Clear(); BaseBody.Clear(); held.Clear(); kindBase.Clear(); map.Clear(); PreparedRigProof.Clear(); HumanLayers.Forget(); People2Material.Forget(); People2Faces.Forget(); People2Moves.Forget(); People2Shoulders.Forget(); }
     public static void Load()
     {
         if (loadFailure != null) throw new InvalidDataException("People2 cannot fall back after a failed import.", loadFailure);
@@ -216,6 +231,7 @@ public static class People2
     }
     internal static Human? Make(string kind, bool explicitPlayer = false)
     {
+        using var cost = Scheldemist.Dev.FrameCost.Track("People2.Make");
         if (!Has(kind, explicitPlayer)) return null;
         ulong begin = Time.GetTicksUsec();
         string body = Body(kind);

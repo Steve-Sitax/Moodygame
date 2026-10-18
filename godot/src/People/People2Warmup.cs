@@ -13,5 +13,5 @@ public partial class People2Warmup : Node
         if (People2.PreparedMesh is { } mesh)
             AddChild(new MeshInstance3D { Name = "people2_material_reference", Mesh = mesh, Visible = false });
     }
-    public override void _Process(double delta) => People2Faces.Pump();
+    public override void _Process(double delta) { using var cost = Dev.FrameCost.Track("People.FacePump"); People2Faces.Pump(); }
 }

@@ -75,9 +75,9 @@ public partial class Waters : Node
 
     // ---------------------------------------------------------------- the ripple sources (psx.ts `ripples`, the same)
 
-    private sealed class RingSrc { public float X, Z, T0, C, Life, S; }
+    private struct RingSrc { public float X, Z, T0, C, Life, S; }
     private sealed class WakeSrc { public float X, Z, Dx, Dz, V, Beam, S, Seen; }
-    private static readonly List<RingSrc> rings = new();
+    private static readonly List<RingSrc> rings = new(64);
     private static readonly Dictionary<object, WakeSrc> wakes = new();
     private static readonly Dictionary<object, float> emitAt = new();
     private static readonly List<(float d, Vector4 a, Vector4 b)> rippleList = new();

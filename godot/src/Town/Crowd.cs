@@ -19,6 +19,14 @@ public sealed class NavGrid
     private int search;
     private WalkMap? map;
     private readonly List<(double x, double z)> pathCells = new(512);
+    private readonly record struct RouteKey(double Sx, double Sz, double Tx, double Tz, int Limit);
+    private sealed class RouteAnswer { public bool Found; public readonly List<(double x, double z)> Points = new(32); }
+    private readonly Dictionary<RouteKey, int> routeCache = new();
+    private readonly RouteAnswer[] routeAnswers = new RouteAnswer[32];
+    private ulong routeFrame = ulong.MaxValue, routeBodies, routeTopology;
+    public int RouteCacheHits { get; private set; }
+
+    private void ClearRoutes() { routeCache.Clear(); routeFrame = ulong.MaxValue; }
 
     public NavGrid(int half)
     {
@@ -37,6 +45,8 @@ public sealed class NavGrid
     /// <summary>Rebuild round (cx, cz): the cells of the baked walk map (WalkMap.Open is the browser's own test per cell).</summary>
     public void Build(WalkMap m, double cx, double cz)
     {
+        using var cost = Scheldemist.Dev.FrameCost.Track("NavGrid.Build");
+        ClearRoutes();
         map = m;
         Cx = (int)Whereabouts.JsRound(cx);
         Cz = (int)Whereabouts.JsRound(cz);
@@ -64,7 +74,7 @@ public sealed class NavGrid
     public void Block(double x, double z)
     {
         int c = Cell(x, z);
-        if (c >= 0) open[c] = 0;
+        if (c >= 0) { open[c] = 0; ClearRoutes(); }
     }
 
     public bool Inside(double x, double z, double margin = 2) => x > X0 + margin && z > Z0 + margin && x < X0 + N - margin && z < Z0 + N - margin;
@@ -112,10 +122,35 @@ public sealed class NavGrid
     /// </summary>
     public List<(double x, double z)>? Path(double sx, double sz, double tx, double tz, int maxExpand = 9000, Func<double, double, bool>? standAt = null, List<(double x, double z)>? output = null)
     {
+        using var cost = Scheldemist.Dev.FrameCost.Track("NavGrid.Path");
         output?.Clear();
+        var key = new RouteKey(sx, sz, tx, tz, maxExpand);
+        // Caller predicates may depend on bridges or people changed later in this same frame.
+        bool cache = WalkMap.CachedRouteLinks && standAt == null;
+        if (cache) {
+            ulong frame = Engine.GetProcessFrames(), bodies = map?.BodySnapshot ?? 0, topology = map?.TopologyRevision ?? 0;
+            if (routeFrame != frame || routeBodies != bodies || routeTopology != topology) { routeCache.Clear(); routeFrame = frame; routeBodies = bodies; routeTopology = topology; }
+            if (routeCache.TryGetValue(key, out int saved)) {
+                RouteCacheHits++;
+                var answer = routeAnswers[saved];
+                if (!answer.Found) return null;
+                var result = output ?? new List<(double x, double z)>(answer.Points.Count);
+                result.AddRange(answer.Points); return result;
+            }
+        }
+        List<(double x, double z)>? Remember(List<(double x, double z)>? answer) {
+            if (cache && routeCache.Count < routeAnswers.Length) {
+                int index = routeCache.Count;
+                var saved = routeAnswers[index] ??= new RouteAnswer();
+                saved.Found = answer != null; saved.Points.Clear();
+                if (answer != null) saved.Points.AddRange(answer);
+                routeCache.Add(key, index);
+            }
+            return answer;
+        }
         var s0 = NearestOpen(sx, sz, 2, standAt);
         var t0 = NearestOpen(tx, tz, 2, standAt);
-        if (s0 == null || t0 == null) return null;
+        if (s0 == null || t0 == null) return Remember(null);
         int s = Cell(s0.Value.x, s0.Value.z), t = Cell(t0.Value.x, t0.Value.z);
         int n = N, tix = t % n, tiz = t / n;
         float H(int c)
@@ -180,7 +215,7 @@ public sealed class NavGrid
                     if (nx < 0 || nz < 0 || nx >= n || nz >= n) continue;
                     int nc = nz * n + nx;
                     if (open[nc] == 0 || closed[nc] == id) continue;
-                    if (map != null && !map.CanStep(X0 + cx + 0.5, Z0 + cz + 0.5, X0 + nx + 0.5, Z0 + nz + 0.5)) continue;
+                    if (map != null && !map.GridStep(X0 + cx + 0.5, Z0 + cz + 0.5, X0 + nx + 0.5, Z0 + nz + 0.5)) continue;
                     // no cutting corners past a wall
                     if (dx != 0 && dz != 0 && (open[cz * n + nx] == 0 || open[nz * n + cx] == 0)) continue;
                     float ng = g[c] + (dx != 0 && dz != 0 ? 1.4142f : 1);
@@ -192,7 +227,7 @@ public sealed class NavGrid
                     Push(nc);
                 }
         }
-        if (!found) return null;
+        if (!found) return Remember(null);
         var cells = pathCells;
         cells.Clear();
         for (int c = t; c != -1; c = from[c]) cells.Add((X0 + c % n + 0.5, Z0 + c / n + 0.5));
@@ -210,7 +245,7 @@ public sealed class NavGrid
             }
         }
         o.Add(cells[^1]);
-        return o;
+        return Remember(o);
     }
 }
 
@@ -719,6 +754,50 @@ public sealed partial class Crowd
         if (!grid.Built || !grid.Inside(bx, bz, 2)) return null;
         var a = grid.NearestOpen(ax, az, 6);
         return a != null ? grid.Path(a.Value.x, a.Value.z, bx, bz, maxExpand, null, output) : null;
+    }
+
+    /// <summary>Same-snapshot A/B proof: every open directed edge, plus whole routes in both caller forms.</summary>
+    public object CompareRouteLinks()
+    {
+        bool enabled = WalkMap.CachedRouteLinks;
+        int edges = 0, differences = 0, routes = 0;
+        for (int z = 1; z < grid.N - 1; z++) for (int x = 1; x < grid.N - 1; x++) {
+            double ax = grid.X0 + x + .5, az = grid.Z0 + z + .5;
+            if (!grid.IsOpen(ax, az)) continue;
+            for (int dz = -1; dz <= 1; dz++) for (int dx = -1; dx <= 1; dx++) {
+                if (dx == 0 && dz == 0) continue;
+                edges++;
+                WalkMap.CachedRouteLinks = false;
+                bool reference = map.CanStep(ax, az, ax + dx, az + dz);
+                WalkMap.CachedRouteLinks = true;
+                if (reference != map.GridStep(ax, az, ax + dx, az + dz)) differences++;
+            }
+        }
+        var original = new List<(double x, double z)>();
+        var cached = new List<(double x, double z)>();
+        double oldMax = 0, newMax = 0, oldTotal = 0, newTotal = 0;
+        try {
+            for (int i = 0; i < people.Count && i < 24; i++) {
+                var p = people[i]; var to = p.Dest ?? (grid.Cx + Math.Sin(i * 2.4) * 30, grid.Cz + Math.Cos(i * 2.4) * 30);
+                for (int pass = 0; pass < 2; pass++) {
+                    // Reverse A/B order on the second pass; neither path can read changing bodies in between.
+                    bool firstFound = false, secondFound = false;
+                    for (int order = 0; order < 2; order++) {
+                        bool useCache = (order == 1) == (pass == 0);
+                        WalkMap.CachedRouteLinks = useCache;
+                        var began = System.Diagnostics.Stopwatch.GetTimestamp();
+                        bool found = grid.Path(p.X, p.Z, to.Item1, to.Item2, pass == 0 ? 6000 : 9000, pass == 0 ? null : standFree, useCache ? cached : original) != null;
+                        double ms = System.Diagnostics.Stopwatch.GetElapsedTime(began).TotalMilliseconds;
+                        if (useCache) { newMax = Math.Max(newMax, ms); newTotal += ms; secondFound = found; }
+                        else { oldMax = Math.Max(oldMax, ms); oldTotal += ms; firstFound = found; }
+                    }
+                    routes++;
+                    if (firstFound != secondFound || original.Count != cached.Count) differences++;
+                    else for (int k = 0; k < original.Count; k++) if (original[k] != cached[k]) differences++;
+                }
+            }
+        } finally { WalkMap.CachedRouteLinks = enabled; }
+        return new { edges, routes, differences, cachedLinks = map.HasCachedRouteLinks, originalMaxMs = oldMax, cachedMaxMs = newMax, originalTotalMs = oldTotal, cachedTotalMs = newTotal, ok = differences == 0 && map.HasCachedRouteLinks };
     }
 
     /// <summary>The overlap check (the browser's `__scheldemist.overlaps()`): pairs whose middles are nearer than `min` m.</summary>

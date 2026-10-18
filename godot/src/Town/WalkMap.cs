@@ -28,6 +28,12 @@ public sealed class WalkMap
     private BodySample[] bodySamples = Array.Empty<BodySample>();
     private ulong[] bodyBits = Array.Empty<ulong>();
     private int bodyWords;
+    public ulong BodySnapshot { get; private set; }
+    public ulong TopologyRevision { get; private set; }
+    private bool[] routeBodyTiles = Array.Empty<bool>();
+    private byte[] routeLinks = Array.Empty<byte>();
+    public static bool CachedRouteLinks = Array.IndexOf(OS.GetCmdlineUserArgs(), "--route-original") < 0;
+    public bool HasCachedRouteLinks => routeLinks.Length != 0;
     /// <summary>Live boxes absent from the static browser dump: piles, carts and posted people.</summary>
     public static void RegisterBody(Node3D node, Aabb box, bool transit = false, Puppet? owner = null, bool moves = false) => bodies.Add(new() { Node = node, Box = box, Transit = transit, Owner = owner, Moves = moves });
     public IEnumerable<(Node3D Node,Aabb World,Puppet? Owner)> TransitBodies()
@@ -46,6 +52,7 @@ public sealed class WalkMap
         // these copied values, with the bitset and its stride updated together.
         lock (bodyGate)
         {
+        BodySnapshot++;
         if (bodySamples.Length != bodies.Count) bodySamples = new BodySample[bodies.Count];
         for (int i = 0; i < bodies.Count; i++) {
             var source = bodies[i];
@@ -55,13 +62,19 @@ public sealed class WalkMap
         int count = tileW * ((D + 7) / 8) * bodyWords;
         if (bodyBits.Length != count) bodyBits = new ulong[count];
         else Array.Clear(bodyBits);
+        int tiles = tileW * ((D + 7) / 8);
+        if (routeBodyTiles.Length != tiles) routeBodyTiles = new bool[tiles];
+        else Array.Clear(routeBodyTiles);
         for (int i = 0; i < bodySamples.Length; i++)
         {
             var b = bodySamples[i];
             if (!b.Active) continue;
             int x0 = Math.Max(0, (int)Math.Floor((b.World.Position.X - 0.3 - X0) / 8)), x1 = Math.Min(tileW - 1, (int)Math.Floor((b.World.End.X + 0.3 - X0) / 8));
             int z0 = Math.Max(0, (int)Math.Floor((b.World.Position.Z - 0.3 - Z0) / 8)), z1 = Math.Min((D + 7) / 8 - 1, (int)Math.Floor((b.World.End.Z + 0.3 - Z0) / 8));
-            for (int z = z0; z <= z1; z++) for (int x = x0; x <= x1; x++) bodyBits[(z * tileW + x) * bodyWords + i / 64] |= 1ul << (i % 64);
+            for (int z = z0; z <= z1; z++) for (int x = x0; x <= x1; x++) {
+                bodyBits[(z * tileW + x) * bodyWords + i / 64] |= 1ul << (i % 64);
+                if (!b.Transit) routeBodyTiles[z * tileW + x] = true;
+            }
         }
         }
     }
@@ -169,11 +182,13 @@ public sealed class WalkMap
     }
 
     /// <summary>Discard temporary footprint height ranges after the native map has finished construction.</summary>
-    public void FinishNative() { RebuildNativeOpenCells(); low = high = Array.Empty<float>(); RefreshBodies(); }
+    public void FinishNative() { RebuildNativeOpenCells(); low = high = Array.Empty<float>(); PrepareRouteLinks(); RefreshBodies(); }
 
     /// <summary>Set native support connectivity after static footprint rasterization.</summary>
     public void RestrictNativeTo(byte[] reached)
     {
+        TopologyRevision++;
+        routeLinks = Array.Empty<byte>();
         if (!nativeHeights || reached.Length != free.Length) throw new ArgumentException("Native reachability size differs from map");
         for (int i = 0; i < free.Length; i++) if (reached[i] == 0) free[i] = 0;
     }
@@ -218,6 +233,53 @@ public sealed class WalkMap
     public bool CanStep(double ax, double az, double bx, double bz)
         => StepSupported(ax, az, bx, bz, true);
 
+    // Cache the exact directed one-metre links shared by local routes. Unlike the long-range map,
+    // these retain CanStep's direction and samples, including its endpoint-height rule.
+    private void PrepareRouteLinks()
+    {
+        if (!nativeHeights) return;
+        var links = new byte[W * D];
+        for (int z = 0; z < D; z++) for (int x = 0; x < W; x++) {
+            if (open[z * W + x] != 3) continue;
+            int bit = 0;
+            for (int dz = -1; dz <= 1; dz++) for (int dx = -1; dx <= 1; dx++) {
+                if (dx == 0 && dz == 0) continue;
+                if (StepSupported(X0 + x + .5, Z0 + z + .5, X0 + x + dx + .5, Z0 + z + dz + .5, false)) links[z * W + x] |= (byte)(1 << bit);
+                bit++;
+            }
+        }
+        routeLinks = links;
+    }
+
+    /// <summary>The same CanStep answer for a grid edge; static support is shared, live obstacles are current.</summary>
+    public bool GridStep(double ax, double az, double bx, double bz)
+    {
+        if (!CachedRouteLinks || routeLinks.Length == 0) return CanStep(ax, az, bx, bz);
+        int x = (int)Math.Floor(ax - X0), z = (int)Math.Floor(az - Z0);
+        int dx = (int)(bx - ax), dz = (int)(bz - az);
+        int direction = (dz + 1) * 3 + dx + 1;
+        if (x < 0 || z < 0 || x >= W || z >= D || ax != X0 + x + .5 || az != Z0 + z + .5
+            || bx - ax != dx || bz - az != dz || Math.Abs(dx) > 1 || Math.Abs(dz) > 1 || direction == 4)
+            return CanStep(ax, az, bx, bz);
+        if (direction > 4) direction--;
+        if ((routeLinks[z * W + x] & (1 << direction)) == 0) return false;
+        lock (bodyGate) {
+            if (!RouteBodiesNearLocked(ax, az, bx, bz)) return true;
+            int count = dx != 0 && dz != 0 ? 12 : 8;
+            for (int i = 1; i <= count; i++)
+                if (!BodyFreeLocked(ax + (bx - ax) * i / count, az + (bz - az) * i / count, true, null, .3)) return false;
+            return true;
+        }
+    }
+
+    private bool RouteBodiesNearLocked(double ax, double az, double bx, double bz)
+    {
+        int x0 = Math.Max(0, (int)Math.Floor((Math.Min(ax, bx) - X0) / 8)), x1 = Math.Min(tileW - 1, (int)Math.Floor((Math.Max(ax, bx) - X0) / 8));
+        int z0 = Math.Max(0, (int)Math.Floor((Math.Min(az, bz) - Z0) / 8)), z1 = Math.Min((D + 7) / 8 - 1, (int)Math.Floor((Math.Max(az, bz) - Z0) / 8));
+        for (int z = z0; z <= z1; z++) for (int x = x0; x <= x1; x++) if (routeBodyTiles[z * tileW + x]) return true;
+        return false;
+    }
+
     /// <summary>Long-range plans follow static authored support and height. Crowd handles temporary people and movers.</summary>
     public bool SupportsStep(double ax, double az, double bx, double bz)
         => StepSupported(ax, az, bx, bz, false);
@@ -225,6 +287,13 @@ public sealed class WalkMap
     private bool StepSupported(double ax, double az, double bx, double bz, bool liveBodies)
     {
         if (!nativeHeights) return true;
+        if (liveBodies && CachedRouteLinks) {
+            // One body snapshot/lock for the whole leg, rather than one lock per eighth-metre sample.
+            lock (bodyGate) {
+                bool near = RouteBodiesNearLocked(ax, az, bx, bz);
+                return StaticAndBodiesStep(ax, az, bx, bz, near);
+            }
+        }
         int count = Math.Max(1, (int)Math.Ceiling(Math.Sqrt((bx - ax) * (bx - ax) + (bz - az) * (bz - az)) * 8));
         double previous = NativeHeight(ax, az);
         for (int i = 1; i <= count; i++)
@@ -233,6 +302,21 @@ public sealed class WalkMap
             if (liveBodies ? !PathFree(x, z) : !NativeCellFree((int)Math.Floor((x - X0) * 4), (int)Math.Floor((z - Z0) * 4))) return false;
             double height = NativeHeight(x, z);
             if (Math.Abs(height - previous) > 0.36) return false;
+            previous = height;
+        }
+        return true;
+    }
+
+    private bool StaticAndBodiesStep(double ax, double az, double bx, double bz, bool bodiesNear)
+    {
+        int count = Math.Max(1, (int)Math.Ceiling(Math.Sqrt((bx - ax) * (bx - ax) + (bz - az) * (bz - az)) * 8));
+        double previous = NativeHeight(ax, az);
+        for (int i = 1; i <= count; i++) {
+            double x = ax + (bx - ax) * i / count, z = az + (bz - az) * i / count;
+            if (!NativeCellFree((int)Math.Floor((x - X0) * 4), (int)Math.Floor((z - Z0) * 4))
+                || bodiesNear && !BodyFreeLocked(x, z, true, null, .3)) return false;
+            double height = NativeHeight(x, z);
+            if (Math.Abs(height - previous) > .36) return false;
             previous = height;
         }
         return true;
@@ -338,6 +422,8 @@ public sealed class WalkMap
     /// Clip before projecting so a high beam or deck underside does not close the space beneath/above it.</summary>
     public void AddTriangles(Vector3[] faces)
     {
+        TopologyRevision++;
+        routeLinks = Array.Empty<byte>();
         var a = new Vector3[8]; var b = new Vector3[8];
         int Clip(Vector3[] input, int n, Vector3[] output, float y, bool above)
         {
@@ -412,6 +498,8 @@ public sealed class WalkMap
     /// The arrays remain the same cheap lookup used by every step; no per-person scan of props.</summary>
     public void AddBox(double x, double z, double minX, double maxX, double minZ, double maxZ, double yaw)
     {
+        TopologyRevision++;
+        routeLinks = Array.Empty<byte>();
         double c = Math.Cos(yaw), s = Math.Sin(yaw), radius = Math.Max(Math.Abs(minX), Math.Abs(maxX)) + Math.Max(Math.Abs(minZ), Math.Abs(maxZ)) + 1;
         bool In(double wx, double wz, double pad)
         {

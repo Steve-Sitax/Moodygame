@@ -50,6 +50,8 @@ public static class Ways
         public uint[] Stamp = Array.Empty<uint>();
         public uint[] Closed = Array.Empty<uint>();
         public uint Run;
+        public readonly Heap Frontier = new();
+        public readonly List<int> PathCells = new(1024);
         public Scheldemist.Town.WalkMap? NativeMap;
         public Func<float, float, bool>? NativeWater;
         public byte[] NativeLinks = Array.Empty<byte>();
@@ -538,7 +540,7 @@ public static class Ways
         }
     }
 
-    private static List<Vector2>? Find(Grid g, double ax, double az, double bx, double bz)
+    private static List<Vector2>? Find(Grid g, double ax, double az, double bx, double bz, bool freshBuffers = false)
     {
         int s = NearestPass(g, ax, az);
         int t = NearestPass(g, bx, bz);
@@ -551,7 +553,9 @@ public static class Ways
             int dr = Math.Abs(i / g.W - tr), dc = Math.Abs(i % g.W - tc);
             return (Math.Max(dr, dc) + (Sqrt2 - 1) * Math.Min(dr, dc)) * Greed;
         }
-        var heap = new Heap();
+        // Both entry points hold g's lock. Reuse its search buffers instead of allocating 48 KiB per route.
+        var heap = freshBuffers ? new Heap() : g.Frontier;
+        heap.N = 0;
         g.Stamp[s] = run;
         g.Cost[s] = 0;
         g.From[s] = -1;
@@ -595,7 +599,8 @@ public static class Ways
             }
         }
         if (!found) return null;
-        var cells = new List<int>();
+        var cells = freshBuffers ? new List<int>() : g.PathCells;
+        cells.Clear();
         for (int i = t; i >= 0; i = g.From[i]) cells.Add(i);
         cells.Reverse();
         // pull the string tight: keep only the corners a straight walk needs
@@ -609,6 +614,25 @@ public static class Ways
             a = b;
         }
         return keep;
+    }
+
+    internal static object HeapProof()
+    {
+        var g = TheGrid() ?? throw new InvalidOperationException("no native routing grid");
+        int checks = 0, differences = 0;
+        long originalBytes = 0, cachedBytes = 0;
+        var points = new[] { new Vector2(10, 12), new Vector2(-118, 30), new Vector2(-254, 90), new Vector2(-262, 138), new Vector2(20, 20) };
+        lock (g) foreach (var from in points) foreach (var to in points) {
+            long bytes = GC.GetAllocatedBytesForCurrentThread();
+            var original = Find(g, from.X, from.Y, to.X, to.Y, true);
+            originalBytes += GC.GetAllocatedBytesForCurrentThread() - bytes;
+            bytes = GC.GetAllocatedBytesForCurrentThread();
+            var cached = Find(g, from.X, from.Y, to.X, to.Y);
+            cachedBytes += GC.GetAllocatedBytesForCurrentThread() - bytes;
+            checks++;
+            if (original == null ? cached != null : cached == null || !original.SequenceEqual(cached)) differences++;
+        }
+        return new { checks, differences, originalBytes, cachedBytes, ok = differences == 0 };
     }
 
     /// <summary>The length of a way in metres.</summary>
