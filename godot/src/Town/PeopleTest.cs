@@ -34,6 +34,10 @@ public partial class PeopleTest : Node
     private readonly List<double> times = new();
     private ulong drawCalls;
     private readonly List<double> logic = new();
+    private readonly List<object> slowFrames = new();
+    private ulong profileFrameStart;
+    private bool profileConnected;
+    private Dev.FrameCost.Scope processProfile, renderProfile;
     private readonly List<double> animationTime = new(), layerTime = new(), legacyTime = new(), newTime = new(), animalTime = new(), animalsShown = new(), playerTime = new();
     private readonly List<double>[] animationParts = { new(), new(), new() };
     private readonly List<double> allocations = new(256), animalAllocations = new(256), wildlifeAllocations = new(256);
@@ -89,6 +93,14 @@ public partial class PeopleTest : Node
             return;
         }
         Directory.CreateDirectory(dir);
+        if (Main.I.Arg("people-places") is { Length: > 0 } places) {
+            wanted.Clear();
+            foreach (string place in places.Split(',')) {
+                string name = place.Trim().Replace('_', ' ');
+                if (name is not ("vismarkt" or "grote markt") || wanted.Contains(name)) throw new ArgumentException("people-places must contain vismarkt and/or grote markt once each");
+                wanted.Add(name);
+            }
+        }
         // Sample after the local rig (priority 75), including its IK and collision probes once.
         ProcessPriority = 100;
         town = GetParent().GetNode<Townspeople>("Townspeople");
@@ -97,6 +109,31 @@ public partial class PeopleTest : Node
         if (Scheldemist.Player.Jef.I is { Fly: false } jef) jef.ToggleFly();
         DisplayServer.WindowSetVsyncMode(DisplayServer.VSyncMode.Disabled);
         Engine.MaxFps = 0;
+        if (Main.I.Flag("profile-parts")) {
+            GetTree().PhysicsFrame += BeginProfileFrame; GetTree().ProcessFrame += BeginProfileFrame;
+            RenderingServer.FramePreDraw += BeforeProfileDraw; RenderingServer.FramePostDraw += EndProfileFrame;
+            profileConnected = true;
+        }
+    }
+
+    private void BeginProfileFrame()
+    {
+        if (profileFrameStart != 0) return;
+        profileFrameStart = Time.GetTicksUsec(); processProfile = Dev.FrameCost.Track("Engine.process-and-physics");
+    }
+    private void BeforeProfileDraw()
+    {
+        processProfile.Dispose(); processProfile = default; renderProfile = Dev.FrameCost.Track("Engine.render-submission");
+    }
+    private void EndProfileFrame()
+    {
+        renderProfile.Dispose(); renderProfile = default; profileFrameStart = 0;
+    }
+    public override void _ExitTree()
+    {
+        if (!profileConnected) return;
+        if (GetTree() is { } tree) { tree.PhysicsFrame -= BeginProfileFrame; tree.ProcessFrame -= BeginProfileFrame; }
+        RenderingServer.FramePreDraw -= BeforeProfileDraw; RenderingServer.FramePostDraw -= EndProfileFrame;
     }
 
     private void Fail(string why)
@@ -171,6 +208,8 @@ public partial class PeopleTest : Node
     private float pictureHour = -1;
     public override void _Process(double delta)
     {
+        using var testCost = Dev.FrameCost.Track("PeopleTest.Process");
+        Dev.FrameCost.Frame();
         t += delta;
         frames++;
         ulong now = Time.GetTicksUsec();
@@ -280,6 +319,8 @@ public partial class PeopleTest : Node
                 times.Clear();
                 drawCalls = 0;
                 logic.Clear();
+                Dev.FrameCost.Clear();
+                slowFrames.Clear();
                 Next("time");
                 break;
             case "time":
@@ -310,7 +351,9 @@ public partial class PeopleTest : Node
                     legacyTime.Add(Dev.PeopleTiming.LegacyMs); newTime.Add(Dev.PeopleTiming.People2Ms);
                     layerTime.Add(Dev.PeopleTiming.LayersMs);
                     times.Add(ms);
-                    drawCalls += RenderingServer.GetRenderingInfo(RenderingServer.RenderingInfo.TotalDrawCallsInFrame);
+                    if (Main.I.Flag("profile-parts") && ms >= 16 && slowFrames.Count < 1200)
+                        slowFrames.Add(new { frame = Engine.GetProcessFrames(), wallMs = ms, atUsec = now, logicMs = town.LogicMs });
+                    using (Dev.FrameCost.Track("PeopleTest.DrawCalls")) drawCalls += RenderingServer.GetRenderingInfo(RenderingServer.RenderingInfo.TotalDrawCallsInFrame);
                     logic.Add(town.LogicMs);
                     allocations.Add(town.AllocatedBytesLastFrame);
                     for (int i = 0; i < 5; i++) allocationParts[i] += town.AllocationParts[i];
@@ -334,6 +377,7 @@ public partial class PeopleTest : Node
                 row["overlaps"] = crowd.Overlaps();
                 row["feetOffTheGroundMaxM"] = Math.Round(crowd.Walking.Max(p => Math.Abs(p.Group.Position.Y - town.Walk!.BaseAt(p.X, p.Z))), 3);
                 row["frame"] = Stats(times);
+                if (Main.I.Flag("profile-parts")) { row["profile"] = Dev.FrameCost.Report(); row["trace"] = Dev.FrameCost.Spikes(); row["gcTrace"] = Dev.FrameCost.GcEvents(); row["slowFrames"] = slowFrames.ToArray(); }
                 row["logicMs"] = Stats(logic);
                 // the 1.5 ms gate covers people and animals: all Human.Update calls plus the animals' whole update
                 row["peopleCpuGate"] = animationTime.Average() + animalTime.Average() < 1.5 && logic.Average() < 1.5;
@@ -362,6 +406,7 @@ public partial class PeopleTest : Node
                 allocations.Clear(); animalAllocations.Clear(); wildlifeAllocations.Clear();
                 // Mirrors render on alternate frames; compare the whole sample, not opposite endpoint phases.
                 row["drawCalls"] = Math.Round((double)drawCalls / times.Count, 1);
+                File.WriteAllText(Path.Combine(dir, wanted[place].Replace(' ', '-') + "-timing.json"), JsonSerializer.Serialize(row, new JsonSerializerOptions { WriteIndented = true }));
                 // the same view without them
                 town.Paused = true;
                 foreach (var p in crowd.Walking) p.Group.Visible = false;
@@ -377,7 +422,7 @@ public partial class PeopleTest : Node
                 if (frames > 5)
                 {
                     times.Add(ms);
-                    drawCalls += RenderingServer.GetRenderingInfo(RenderingServer.RenderingInfo.TotalDrawCallsInFrame);
+                    using (Dev.FrameCost.Track("PeopleTest.DrawCalls")) drawCalls += RenderingServer.GetRenderingInfo(RenderingServer.RenderingInfo.TotalDrawCallsInFrame);
                 }
                 if (frames < 605) break;
                 row["frameWithoutPeople"] = Stats(times);

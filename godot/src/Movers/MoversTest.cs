@@ -186,6 +186,8 @@ public partial class MoversTest : Node
         foreach (var c in clocks??new()) GD.Print($"clock: {c.Where} at {c.At}: {c.Shows}, {(c.Running?"running":"FAILED")}");
         var report = new Dictionary<string, object?>
         {
+            ["profile"] = Scheldemist.Dev.FrameCost.Report(),
+            ["trace"] = Scheldemist.Dev.FrameCost.Spikes(),
             ["ok"] = !failed && rows.Count > 0,
             ["made"] = DateTime.UtcNow.ToString("s", CultureInfo.InvariantCulture) + "Z",
             ["moversMsPerFrame"] = tourCost,
@@ -206,10 +208,24 @@ public partial class MoversTest : Node
 /// </summary>
 public static class MoverCost
 {
+    private static bool codePrepared;
+    public static void PrepareCode(IEnumerable<Node> parts)
+    {
+        if (codePrepared) return;
+        codePrepared = true;
+        var types = new HashSet<Type> { typeof(Scheldemist.People.Human2), typeof(Scheldemist.People.HumanLayers), typeof(Scheldemist.People.People2Eyes), typeof(Copies) };
+        foreach (var part in parts) if (part.GetType().Namespace == typeof(Railway).Namespace) types.Add(part.GetType());
+        foreach (var type in types.ToArray()) foreach (var nested in type.GetNestedTypes(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic)) types.Add(nested);
+        foreach (var type in types) foreach (var method in type.GetMethods(System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.DeclaredOnly)) {
+            if (method.IsAbstract || method.ContainsGenericParameters || method.GetMethodBody() == null) continue;
+            try { System.Runtime.CompilerServices.RuntimeHelpers.PrepareMethod(method.MethodHandle); }
+            catch (Exception) { } // Runtime-only/generated generic entry points can decline explicit preparation.
+        }
+    }
     private static readonly Dictionary<string, (double Sum, long N, double Max)> cost = new();
     private static readonly Dictionary<string, ulong> open = new();
     private static readonly Dictionary<string, long> allocatedAt = new();
-    private static readonly Dictionary<string, (long Sum, long Max)> allocated = new();
+    private static readonly Dictionary<string, (long Sum, long Max, long Zero)> allocated = new();
     private static readonly List<object> spikes = new();
     private static int gc0, gc1, gc2;
     private static ulong measuredFrame=ulong.MaxValue;
@@ -234,7 +250,7 @@ public static class MoverCost
         double ms = (Time.GetTicksUsec() - open[part]) / 1000.0;
         long bytes = GC.GetAllocatedBytesForCurrentThread() - allocatedAt[part];
         var a = allocated.GetValueOrDefault(part);
-        allocated[part] = (a.Sum + bytes, Math.Max(a.Max, bytes));
+        allocated[part] = (a.Sum + bytes, Math.Max(a.Max, bytes), a.Zero + (bytes == 0 ? 1 : 0));
         int g0=GC.CollectionCount(0),g1=GC.CollectionCount(1),g2=GC.CollectionCount(2);
         if(ms>8 && spikes.Count<128) spikes.Add(new {part,ms,bytes,frame=MoverClock.Frame,gc=new[]{g0-gc0,g1-gc1,g2-gc2}});
         gc0=g0;gc1=g1;gc2=g2;
@@ -271,7 +287,7 @@ public static class MoverCost
             double mean = c.N > 0 ? c.Sum / c.N : 0;
             all += mean;
             var a=allocated.GetValueOrDefault(k);
-            r[k] = new { mean = Math.Round(mean, 4), max = Math.Round(c.Max, 3), bytesMean=Math.Round(a.Sum/(double)c.N,2),bytesMax=a.Max };
+            r[k] = new { mean = Math.Round(mean, 4), max = Math.Round(c.Max, 3), bytesMean=Math.Round(a.Sum/(double)c.N,2),bytesMax=a.Max,zeroAllocationFrames=a.Zero,frames=c.N };
         }
         r["all"] = Math.Round(all, 4);
         r["spikes"] = spikes.ToArray();

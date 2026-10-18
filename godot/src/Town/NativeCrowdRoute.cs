@@ -22,6 +22,7 @@ public sealed class NativeCrowdRoute
     /// <summary>The static route is cached; live bodies, bridge gates and vehicle clearance still govern every actual step.</summary>
     public bool Window(Vector2 from, Vector2 to, List<(double x, double z)> output)
     {
+        using var cost = Scheldemist.Dev.FrameCost.Track("Crowd.NativeRoute");
         output.Clear();
         if (!map.IsNative) return false;
         if (way == null || goal.DistanceSquaredTo(to) > .25f || !Advance(from)) {

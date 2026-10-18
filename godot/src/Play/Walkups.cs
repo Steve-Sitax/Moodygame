@@ -154,21 +154,57 @@ public partial class Walkups : Node
         foreach (var r in together.Roster) if (r.Id != together.PlayerId && together.PlayerAt(r.Id) is { } p && Whereabouts.Hypot(p.X - x, p.Z - z) < 45) return true;
         return false;
     }
-    private (double x, double z)? HiddenStart(Vector2 goal)
+    private readonly record struct StartCandidate(double X, double Z, double Distance, int Order);
+    private readonly StartCandidate[] startCandidates = new StartCandidate[48];
+    private static readonly IComparer<StartCandidate> nearestStart = Comparer<StartCandidate>.Create(static (a, b) => {
+        int distance = a.Distance.CompareTo(b.Distance); return distance != 0 ? distance : a.Order.CompareTo(b.Order);
+    });
+    private int startPathRequests;
+    private (double x, double z)? HiddenStart(Vector2 goal, bool original = false)
     {
+        startPathRequests = 0;
         var crowd = town!.Crowd!; var j = Player.Jef.I;
         var openGoal = crowd.OpenNear(goal.X, goal.Y);
         if (openGoal == null) return null;
-        (double x, double z)? best = null; double distance = double.PositiveInfinity;
+        int count = 0;
         for (int i = 0; i < 48; i++)
         {
             double a = i / 48.0 * Math.PI * 2 + i % 2 * .07, r = 28 + i % 4 * 5;
             var q = crowd.OpenNearFree(j.X + Math.Cos(a) * r, j.Z + Math.Sin(a) * r);
             if (q == null || !crowd.IsHidden(q.Value.x, q.Value.z) || OthersSee(q.Value.x, q.Value.z) || Whereabouts.Hypot(q.Value.x - j.X, q.Value.z - j.Z) < 27) continue;
             double d = Whereabouts.Hypot(q.Value.x - goal.X, q.Value.z - goal.Y);
-            if (d < distance && crowd.PathOn(q.Value.x, q.Value.z, openGoal.Value.x, openGoal.Value.z, path) != null) { best = q; distance = d; }
+            if (double.IsFinite(d)) startCandidates[count++] = new(q.Value.x, q.Value.z, d, i);
+        }
+        // The old loop searched each successively nearer candidate. Nearest first returns the same minimum,
+        // including its original-index tie break, without searching the farther successful routes as well.
+        if (!original) Array.Sort(startCandidates, 0, count, nearestStart);
+        (double x, double z)? best = null; double distance = double.PositiveInfinity;
+        for (int i = 0; i < count; i++) {
+            var q = startCandidates[i];
+            if (q.Distance >= distance) continue;
+            startPathRequests++;
+            if (crowd.PathOn(q.X, q.Z, openGoal.Value.x, openGoal.Value.z, path) == null) continue;
+            best = (q.X, q.Z); distance = q.Distance;
+            if (!original) return best;
         }
         return best;
+    }
+    internal object CompareHiddenStarts()
+    {
+        var j = Player.Jef.I; int checks = 0, differences = 0, oldQueries = 0, newQueries = 0;
+        double originalMs = 0, cachedMs = 0;
+        bool enabled = WalkMap.CachedRouteLinks;
+        try {
+            foreach (var offset in new[] { Vector2.Zero, new Vector2(10, 0), new Vector2(-10, 0), new Vector2(0, 15), new Vector2(20, -15) }) {
+                var goal = new Vector2(j.X, j.Z) + offset;
+                WalkMap.CachedRouteLinks = false; long at = System.Diagnostics.Stopwatch.GetTimestamp();
+                var original = HiddenStart(goal, true); originalMs += System.Diagnostics.Stopwatch.GetElapsedTime(at).TotalMilliseconds; oldQueries += startPathRequests;
+                WalkMap.CachedRouteLinks = true; at = System.Diagnostics.Stopwatch.GetTimestamp();
+                var cached = HiddenStart(goal); cachedMs += System.Diagnostics.Stopwatch.GetElapsedTime(at).TotalMilliseconds; newQueries += startPathRequests;
+                checks++; if (original != cached) differences++;
+            }
+        } finally { WalkMap.CachedRouteLinks = enabled; }
+        return new { checks, differences, oldQueries, newQueries, originalMs, cachedMs, ok = differences == 0 && newQueries <= oldQueries };
     }
     private Vector2 Reachable(Puppet p, Vector2 target)
     {

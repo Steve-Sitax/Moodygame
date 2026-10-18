@@ -7,6 +7,7 @@ namespace Scheldemist.People;
 // The town's shared carts, fitted to the two animated grip sockets in the body's frame.
 internal sealed class People2Vehicle
 {
+    private static readonly StringName GripError = "vehicle_grip_error";
     private readonly Node3D root;
     private readonly Skeleton3D skeleton;
     private readonly int left, right;
@@ -57,7 +58,7 @@ internal sealed class People2Vehicle
             Vector3 position = mid-basis*handle;
             if (!pushing) position.Y = 0;
             truck.Transform = new Transform3D(basis, position);
-            root.SetMeta("vehicle_grip_error", (truck.Transform*handle-mid).Length());
+            root.SetMeta(GripError, (truck.Transform*handle-mid).Length());
         }
     }
     internal void Dispose() { cart?.Dispose(); truck?.QueueFree(); }

@@ -12,7 +12,7 @@ internal sealed class Human2
 {
     private readonly Skeleton3D sk;
     private readonly Node3D root;
-    private readonly string kind, style;
+    private readonly string kind, style, styleWalk;
     private readonly People2.Clip stroll, walking, hurry, run, sprint;
     private float legacyStride = 1.2f;
     private readonly int hipBone;
@@ -160,7 +160,7 @@ internal sealed class Human2
     internal string ClipName => clipName;
     internal Human2(string kind, Node3D root, (float hips, bool female, string style) info)
     {
-        this.kind = kind; this.root = root; hips = info.hips; Female = info.female; style = info.style;
+        this.kind = kind; this.root = root; hips = info.hips; Female = info.female; style = info.style; styleWalk = style + "_walk";
         sk = root.GetNode<Skeleton3D>("Skeleton3D");
         rest = new Quaternion[sk.GetBoneCount()]; fadeFrom = new Quaternion[rest.Length];
         writtenPose = new Quaternion[rest.Length]; poseWritten = new bool[rest.Length]; cachePose = new bool[rest.Length];
@@ -371,10 +371,10 @@ internal sealed class Human2
 
     private string Map(string m)
     {
-        if (People2.Clips.ContainsKey(m) && !Array.Exists(Humans.Motions, x => x == m)) return m; // Parade only.
+        if (People2.Clips.ContainsKey(m) && Array.IndexOf(Humans.Motions, m) < 0) return m; // Parade only.
         if (WorkClip(m) is { } work && People2.Clips.ContainsKey(work)) return work;
         if (Humans.OwnClips.TryGetValue(kind, out var own) && own.TryGetValue(m, out var name)) return name;
-        if (m == "walk") return style + "_walk";
+        if (m == "walk") return styleWalk;
         if (fam != null)
         {
             switch (m)
@@ -497,7 +497,7 @@ internal sealed class Human2
         bool l = left < runDuty, r = right < runDuty;
         return l != r && l == (left < walkDuty) && r == (right < walkDuty);
     }
-    private bool Walking => !held && motion == "walk" && clip.Cycle > 0 && clipName == style + "_walk";
+    private bool Walking => !held && motion == "walk" && clip.Cycle > 0 && clipName == styleWalk;
     /// <summary>A loop that walks with its own pace (a carry, a push, the cask, the sentry's march).</summary>
     private bool PacedLoop => !held && clip.Loop && clip.Cycle > 0 && clip.Stride > 0 && (motion is "walk" or "carry" or "push" || motion.StartsWith("work:", StringComparison.Ordinal)) && !Walking;
 

@@ -50,6 +50,26 @@ public partial class NativeNavigationProof : Node3D
             var grid = new NavGrid(10); grid.Build(map, 8, 5);
             var path = grid.Path(7.5, 1.5, 7.5, 7.5);
             Check("crowd routes up stairs", path != null && path.Count > 0, path ?? new());
+            Check("local directed links prepared", map.HasCachedRouteLinks, map.HasCachedRouteLinks);
+            int edges = 0, differences = 0;
+            for (int z = 0; z < map.D; z++) for (int x = 0; x < map.W; x++) {
+                double ax = map.X0 + x + .5, az = map.Z0 + z + .5;
+                if (!map.Open(ax, az)) continue;
+                for (int dz = -1; dz <= 1; dz++) for (int dx = -1; dx <= 1; dx++) {
+                    if (dx == 0 && dz == 0) continue;
+                    WalkMap.CachedRouteLinks = false; bool original = map.CanStep(ax, az, ax + dx, az + dz);
+                    WalkMap.CachedRouteLinks = true; edges++;
+                    if (original != map.GridStep(ax, az, ax + dx, az + dz)) differences++;
+                }
+            }
+            Check("cached local links equal original cliff and stair samples", differences == 0, new { edges, differences });
+            int hits = grid.RouteCacheHits;
+            var secondPath = grid.Path(7.5, 1.5, 7.5, 7.5);
+            Check("same-frame route is reused exactly", grid.RouteCacheHits == hits + 1 && path!.SequenceEqual(secondPath!), new { hits = grid.RouteCacheHits });
+            secondPath!.Clear();
+            Check("caller cannot change cached waypoints", grid.Path(7.5, 1.5, 7.5, 7.5)!.SequenceEqual(path!), path!);
+            hits = grid.RouteCacheHits; grid.Block(7.5, 1.5); grid.Path(7.5, 1.5, 7.5, 7.5);
+            Check("closing a grid cell invalidates route answers", grid.RouteCacheHits == hits, grid.RouteCacheHits);
             Check("crowd string pulling cannot cross cliff", !grid.LineOpen(7.5, 7.5, 9.5, 7.5), grid.LineOpen(7.5, 7.5, 9.5, 7.5));
             Ways.InstallNative(map, (_, _) => false);
             Check("long range native route grid", Ways.Error == "" && Ways.Reachable(7.125, 7.125), Ways.Error);
@@ -60,9 +80,20 @@ public partial class NativeNavigationProof : Node3D
             Check("native flags preserve solid obstacles", Ways.Flags(0.125, 2.125) == Ways.Wall, Ways.Flags(0.125, 2.125));
             var moving = new Node3D { Name = "TemporaryCart", Position = new Vector3(4, .8f, 1) }; town.AddChild(moving);
             WalkMap.RegisterBody(moving, new Aabb(new Vector3(-.2f, -.8f, -.2f), new Vector3(.4f, 1.6f, .4f))); map.RefreshBodies();
+            int beforeRefreshHit = grid.RouteCacheHits;
+            grid.Path(7.5, 1.5, 7.5, 7.5);
+            Check("body refresh invalidates route answers within a frame", grid.RouteCacheHits == beforeRefreshHit, grid.RouteCacheHits);
             Check("crowd still avoids live cart", !map.CanStep(3.5, 1.125, 4.5, 1.125), map.CanStep(3.5, 1.125, 4.5, 1.125));
+            Check("cached grid link avoids live cart", !map.GridStep(3.5, 1.5, 4.5, 1.5), map.GridStep(3.5, 1.5, 4.5, 1.5));
+            moving.Position += Vector3.Right * 4; map.RefreshBodies();
+            Check("cached grid link reopens after cart moves", map.GridStep(3.5, 1.5, 4.5, 1.5), map.GridStep(3.5, 1.5, 4.5, 1.5));
+            moving.Position -= Vector3.Right * 4; map.RefreshBodies();
             Check("long-range support ignores temporary obstruction", map.SupportsStep(3.5, 1.125, 4.5, 1.125), map.SupportsStep(3.5, 1.125, 4.5, 1.125));
             Check("cached native links retain a route around moving bodies", Ways.Path(new Vector2(3, 1), new Vector2(5, 1)) is { Count: > 1 }, "live-body avoidance remains in Crowd");
+            grid.Path(7.5, 1.5, 7.5, 7.5); hits = grid.RouteCacheHits;
+            map.AddBox(3.5, 3.5, -.25, .25, -.25, .25, 0);
+            grid.Path(7.5, 1.5, 7.5, 7.5);
+            Check("permanent footprint invalidates route answers", grid.RouteCacheHits == hits && !map.HasCachedRouteLinks, new { hits = grid.RouteCacheHits, map.TopologyRevision });
             var pier = new Node3D { Name="BoardedPier" }; AddChild(pier);
             Plane(pier,"ground_quay",new Vector3(0,0,1),new Vector2(4,2));
             for (int board=0; board<9; board++) Plane(pier,"pier_deck",new Vector3(0,0,-.01f-board*.29f),new Vector2(2,.26f));

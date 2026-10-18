@@ -135,6 +135,7 @@ public static class Humans
     /// <summary>A new person of this kind, or null when the models are not there (or the kind is not in them).</summary>
     public static Human? Make(string kind)
     {
+        using var cost = Scheldemist.Dev.FrameCost.Track("People.Make");
         if (People2.Enabled && People2.Make(kind) is { } newer) return newer;
         if (!Ready) return null;
         var root = model!.Copy(kind);

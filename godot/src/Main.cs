@@ -36,13 +36,37 @@ public partial class Main : Node
     public CanvasLayer Ui { get; private set; } = null!;
     /// <summary>Options after "--" on the command line: --name value.</summary>
     private string[]? arguments;
+    private static int ArgumentIndex(string[] args, string k)
+    {
+        for (int i = 0; i < args.Length; i++) {
+            var value = args[i];
+            if (value.Length == k.Length + 2 && value[0] == '-' && value[1] == '-'
+                && value.AsSpan(2).SequenceEqual(k.AsSpan())) return i;
+        }
+        return -1;
+    }
     public string Arg(string k, string d = "")
     {
         var args = arguments ??= OS.GetCmdlineUserArgs();
-        int i = Array.IndexOf(args, "--" + k);
+        int i = ArgumentIndex(args, k);
         return i >= 0 && i + 1 < args.Length ? args[i + 1] : d;
     }
-    public bool Flag(string k) => Array.IndexOf(arguments ??= OS.GetCmdlineUserArgs(), "--" + k) >= 0;
+    public bool Flag(string k) => ArgumentIndex(arguments ??= OS.GetCmdlineUserArgs(), k) >= 0;
+    internal static object ArgumentLookupProof()
+    {
+        string[][] cases = { Array.Empty<string>(), new[] { "--a", "value", "--a", "other", "--tail" }, new[] { "a", "--", "---a", "--\u00e9", "--missing-value" } };
+        string[] keys = { "", "a", "tail", "\u00e9", "missing", "missing-value", "--a" };
+        int checks = 0, differences = 0, referenceSum = 0, cachedSum = 0;
+        foreach (var args in cases) foreach (var key in keys) { checks++; if (Array.IndexOf(args, "--" + key) != ArgumentIndex(args, key)) differences++; }
+        for (int i = 0; i < 100; i++) ArgumentIndex(cases[1], keys[i % keys.Length]);
+        long bytes = GC.GetAllocatedBytesForCurrentThread();
+        for (int i = 0; i < 1000; i++) referenceSum += Array.IndexOf(cases[1], "--" + keys[i % keys.Length]);
+        long originalBytes = GC.GetAllocatedBytesForCurrentThread() - bytes;
+        bytes = GC.GetAllocatedBytesForCurrentThread();
+        for (int i = 0; i < 1000; i++) cachedSum += ArgumentIndex(cases[1], keys[i % keys.Length]);
+        long cachedBytes = GC.GetAllocatedBytesForCurrentThread() - bytes;
+        return new { checks, differences, originalBytes, cachedBytes, ok = differences == 0 && referenceSum == cachedSum && cachedBytes == 0 && originalBytes > 0 };
+    }
 
     private SubViewport view = null!;
     private TextureRect screen = null!;
@@ -165,6 +189,7 @@ public partial class Main : Node
             Engine.MaxFps = 0;
         }
         foreach (var part in parts.Where(p => p.GetParent() == null)) AddChild(part);
+        if (!Flag("movers-original")) Movers.MoverCost.PrepareCode(parts);
         Loaded = true;
     }
 

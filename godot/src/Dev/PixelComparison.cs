@@ -36,6 +36,15 @@ public static class PixelComparison
     public static async Task<object> Run(Checks check)
     {
         var rows = new List<object>(); int total = 0, controlPixels = 0, actionChecks = 0, actionDifferences = 0, floorChecks = 0, floorDifferences = 0, roomChecks = 0, roomDifferences = 0, routeChecks = 0, routeDifferences = 0, hudChecks = 0, hudDifferences = 0;
+        var routeSpeed = new List<object>();
+        var layersSetup = new List<object>();
+        var walkups = new List<object>();
+        var checkedBodies = new HashSet<string>();
+        var arguments = Main.ArgumentLookupProof();
+        var nativeHeap = Ways.HeapProof();
+        routeChecks++; if (!System.Text.Json.JsonSerializer.SerializeToElement(nativeHeap).GetProperty("ok").GetBoolean()) routeDifferences++;
+        foreach (var prepared in People.People2.PreparedRigProof) { routeChecks++; if (!System.Text.Json.JsonSerializer.SerializeToElement(prepared).GetProperty("ok").GetBoolean()) routeDifferences++; }
+        routeChecks++; if (!System.Text.Json.JsonSerializer.SerializeToElement(arguments).GetProperty("ok").GetBoolean()) routeDifferences++;
         object scheduleProof = SpeedComparison.ScheduleProof();
         int deedsChecks = 0, deedsDifferences = 0;
         int providerChecks = 0, providerDifferences = 0;
@@ -106,6 +115,21 @@ public static class PixelComparison
                 finally { SpeedComparison.Cached = previous; }
             }
             foreach (var resident in Kit.I.People!.Data!.Residents) { routeChecks++; if (!Kit.I.People.SameDayRoute(resident)) routeDifferences++; }
+            if (Main.I.Flag("route-speed-proof")) {
+                var proof = people.Crowd!.CompareRouteLinks(); routeSpeed.Add(proof);
+                routeChecks++; if (!System.Text.Json.JsonSerializer.SerializeToElement(proof).GetProperty("ok").GetBoolean()) routeDifferences++;
+                if (Play.Walkups.I is { } walkup) {
+                    var starts = walkup.CompareHiddenStarts(); walkups.Add(starts);
+                    routeChecks++; if (!System.Text.Json.JsonSerializer.SerializeToElement(starts).GetProperty("ok").GetBoolean()) routeDifferences++;
+                }
+                foreach (var p in people.Crowd.Walking) {
+                    var root = p.Human.Root;
+                    if (!root.HasMeta("people2_body")) continue;
+                    if (!checkedBodies.Add(root.Name.ToString())) continue;
+                    var setup = People.HumanLayers.CompareSetup(root); layersSetup.Add(setup);
+                    routeChecks++; if (!System.Text.Json.JsonSerializer.SerializeToElement(setup).GetProperty("ok").GetBoolean()) routeDifferences++;
+                }
+            }
             actionChecks++; if (!Play.Interact.I.SameActions()) actionDifferences++;
             var jef = Player.Jef.I;
             for (int x = -4; x <= 4; x++) for (int z = -4; z <= 4; z++)
@@ -126,11 +150,13 @@ public static class PixelComparison
                 string name = place.Replace(' ', '_') + (hour == 13 ? "_day" : "_night") + (scenario == "idle" ? "" : "_" + scenario);
                 UniformUpdates.Cached = false;
                 SpeedComparison.Cached = false;
+                Town.WalkMap.CachedRouteLinks = false;
                 Daylight.I.RepeatLight(); Lights.I._Process(0); Rooms.I.RepeatVisibility(); Play.Jobs.I._Process(0); Play.Interact.I.RepeatPrompt(); UniformUpdates.Replay(); NodeUpdates.Replay(); Movers.Copies.Replay(); await Draw(check);
                 using var a = Main.I.GetViewport().GetTexture().GetImage();
                 string before = check.Picture(name + "_before");
                 UniformUpdates.Cached = true;
                 SpeedComparison.Cached = true;
+                Town.WalkMap.CachedRouteLinks = true;
                 Daylight.I.RepeatLight(); Lights.I._Process(0); Rooms.I.RepeatVisibility(); Play.Jobs.I._Process(0); Play.Interact.I.RepeatPrompt(); UniformUpdates.Replay(); NodeUpdates.Replay(); Movers.Copies.Replay(); await Draw(check);
                 using var b = Main.I.GetViewport().GetTexture().GetImage();
                 string after = check.Picture(name + "_after");
@@ -144,9 +170,15 @@ public static class PixelComparison
                 rows.Add(new { place, hour, weather, scenario, different, control, before, after, size = new[] { a.GetWidth(), a.GetHeight() } });
                 GD.Print($"pixelcheck: {name}, {different} pixels differ, control {control}");
             }
-            finally { UniformUpdates.Cached = cached; SpeedComparison.Cached = speedCached; Main.I.PictureTime(-1); Main.I.GetTree().Paused = false; }
+            finally { UniformUpdates.Cached = cached; SpeedComparison.Cached = speedCached; Town.WalkMap.CachedRouteLinks = !Main.I.Flag("route-original"); Main.I.PictureTime(-1); Main.I.GetTree().Paused = false; }
         }
         return new { ok = total == 0 && controlPixels > 0 && actionDifferences == 0 && floorDifferences == 0 && roomDifferences == 0 && routeDifferences == 0 && hudDifferences == 0 && deedsDifferences == 0 && providerDifferences == 0 && System.Text.Json.JsonSerializer.SerializeToElement(scheduleProof).GetProperty("ok").GetBoolean(), differentPixels = total, controlPixels, comparisons = rows, scheduleProof, actionProof = new { actionChecks, actionDifferences }, floorProof = new { floorChecks, floorDifferences }, roomProof = new { roomChecks, roomDifferences }, routeProof = new { routeChecks, routeDifferences }, hudProof = new { hudChecks, hudDifferences }, deedsProof = new { deedsChecks, deedsDifferences }, providerProof = new { providerChecks, providerDifferences },
+            routeSpeed,
+            layersSetup,
+            walkups,
+            preparedRigs = People.People2.PreparedRigProof,
+            arguments,
+            nativeHeap,
             method = "RGBA8 full screen including retro grain, paused scene and fixed grain; original/cached uniforms, node and MultiMesh poses, reflections, rooms, interaction prompts and active-job HUD; exact schedule, route, floor, room, action and job comparisons; deliberately wrong fog colour as positive control" };
     }
 }

@@ -650,7 +650,7 @@ public partial class Townspeople : Node
         long next = GC.GetAllocatedBytesForCurrentThread(); AllocationParts[1] = next - mark; mark = next;
         lanterns?.Update(delta, cp, hour);
         next = GC.GetAllocatedBytesForCurrentThread(); AllocationParts[2] = next - mark; mark = next;
-        Indoors?.Update(delta, cp);
+        using (Scheldemist.Dev.FrameCost.Track("Town.Indoors")) Indoors?.Update(delta, cp);
         next = GC.GetAllocatedBytesForCurrentThread(); AllocationParts[3] = next - mark; mark = next;
         Carried.LanternLook(hour, Time.GetTicksMsec() / 1000.0);
         next = GC.GetAllocatedBytesForCurrentThread(); AllocationParts[4] = next - mark;
@@ -660,6 +660,7 @@ public partial class Townspeople : Node
 
     private void Step(double dt, double vx, double vz, (double x, double z)? body)
     {
+        using var cost = Scheldemist.Dev.FrameCost.Track("Town.Step");
         px = vx;
         pz = vz;
         AskWays(dt);
@@ -1147,6 +1148,7 @@ public partial class Townspeople : Node
     private ulong people2SpawnFrame = ulong.MaxValue;
     private void Spawn(bool anywhere)
     {
+        using var cost = Scheldemist.Dev.FrameCost.Track("Town.Spawn");
         var crowd = Crowd!;
         int alive = 0;
         foreach (var person in sims) if (person.P != null) alive++;

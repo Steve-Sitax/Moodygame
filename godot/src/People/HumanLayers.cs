@@ -59,8 +59,26 @@ internal sealed class HumanLayers
     private Vector3 lastPosition, lastForward;
     private Vector2 look;
     private bool hadPosition;
-    public HumanLayers(Node3D root, Skeleton3D sk)
+    private sealed record Bindings(int[] Bones, int[] SpringSlots, int[] SpringBones);
+    private Bindings ReadBindings(Skin skin, string[] names)
     {
+        int count = skin.GetBindCount();
+        var result = new Bindings(new int[count], new int[count], new int[count]);
+        for (int i = 0; i < count; i++) {
+            string name = skin.GetBindName(i).ToString();
+            int bone = skin.GetBindBone(i);
+            result.Bones[i] = name == "" ? bone : sk.FindBone(name);
+            if (name == "" && bone >= 0) name = sk.GetBoneName(bone).ToString();
+            result.SpringSlots[i] = Array.IndexOf(names, name);
+            result.SpringBones[i] = result.SpringSlots[i] >= 0 ? sk.FindBone(name) : -1;
+        }
+        return result;
+    }
+
+    public HumanLayers(Node3D root, Skeleton3D sk, bool cachedSetup = true)
+    {
+        using var cost = Dev.FrameCost.Track("People.LayersSetup");
+        cachedSetup &= !Main.I.Flag("layers-original");
         this.root = root; this.sk = sk;
         LoadTracks();
         hipBone = sk.FindBone("hips");
@@ -85,10 +103,14 @@ internal sealed class HumanLayers
         string[] names = { "skirtF", "skirtB", "skirtL", "skirtR", "coatTailL", "coatTailR" };
         springs = new int[names.Length]; springAngle = new float[names.Length]; springVelocity = new float[names.Length];
         Array.Fill(springs, -1);
+        var bindings = cachedSetup ? new Dictionary<Skin, Bindings>() : null;
         // A skin may bind every bone even when none of its vertices use it. Inspect nonzero weights.
         foreach (var n in BakedWorld.All(root))
         {
             if (n is not MeshInstance3D mi || mi.Mesh == null || mi.Skin == null) continue;
+            Bindings? lookup = null;
+            if (bindings != null && !bindings.TryGetValue(mi.Skin, out lookup)) bindings[mi.Skin] = lookup = ReadBindings(mi.Skin, names);
+            int bindCount = mi.Skin.GetBindCount();
             for (int s = 0; s < mi.Mesh.GetSurfaceCount(); s++)
             {
                 var arrays = mi.Mesh.SurfaceGetArrays(s);
@@ -96,7 +118,12 @@ internal sealed class HumanLayers
                 var weights = arrays[(int)Mesh.ArrayType.Weights].AsFloat32Array();
                 for (int v = 0; v < weights.Length; v++)
                 {
-                    if (weights[v] <= 0 || bones[v] >= mi.Skin.GetBindCount()) continue;
+                    if (weights[v] <= 0 || bones[v] >= bindCount) continue;
+                    if (lookup != null) {
+                        int slot = lookup.SpringSlots[bones[v]];
+                        if (slot >= 0) springs[slot] = lookup.SpringBones[bones[v]];
+                        continue;
+                    }
                     string bind = mi.Skin.GetBindName(bones[v]).ToString();
                     int index = mi.Skin.GetBindBone(bones[v]);
                     if (bind == "" && index >= 0) bind = sk.GetBoneName(index);
@@ -104,10 +131,10 @@ internal sealed class HumanLayers
                 }
             }
         }
-        FindContacts();
+        FindContacts(bindings);
         rigs[body] = new Rig(springs, contacts);
     }
-    private void FindContacts()
+    private void FindContacts(Dictionary<Skin, Bindings>? bindings)
     {
         for (int side = 0; side < 2; side++)
         {
@@ -116,6 +143,7 @@ internal sealed class HumanLayers
             foreach (var n in BakedWorld.All(root))
             {
                 if (n is not MeshInstance3D mi || mi.Mesh == null || mi.Skin == null || !mi.Name.ToString().EndsWith("_lod0", StringComparison.Ordinal)) continue;
+                var lookup = bindings?.GetValueOrDefault(mi.Skin);
                 for (int s = 0; s < mi.Mesh.GetSurfaceCount(); s++)
                 {
                     var arrays = mi.Mesh.SurfaceGetArrays(s); var vertices = arrays[(int)Mesh.ArrayType.Vertex].AsVector3Array();
@@ -127,8 +155,12 @@ internal sealed class HumanLayers
                         for (int k = 0; k < influences; k++)
                         {
                             int bind = bones[v * influences + k];
-                            string name = mi.Skin.GetBindName(bind).ToString();
-                            int bone = name == "" ? mi.Skin.GetBindBone(bind) : sk.FindBone(name);
+                            int bone;
+                            if (lookup != null) bone = lookup.Bones[bind];
+                            else {
+                                string name = mi.Skin.GetBindName(bind).ToString();
+                                bone = name == "" ? mi.Skin.GetBindBone(bind) : sk.FindBone(name);
+                            }
                             if (bone == foot[side] || bone == toe[side]) weight += weights[v * influences + k];
                         }
                         if (weight <= 0.5f) continue;
@@ -141,6 +173,28 @@ internal sealed class HumanLayers
             contacts[side * 3] = sk.GetBoneGlobalRest(foot[side]).AffineInverse() * new Vector3(ankle.X, sole, back + 0.034f);
             contacts[side * 3 + 1] = sk.GetBoneGlobalRest(toe[side]).AffineInverse() * new Vector3(mtp.X, sole, mtp.Z);
             contacts[side * 3 + 2] = sk.GetBoneGlobalRest(toe[side]).AffineInverse() * new Vector3(mtp.X, sole, front - 0.008f);
+        }
+    }
+    internal static object CompareSetup(Node3D root)
+    {
+        string body = root.Name.ToString();
+        rigs.Remove(body, out var previous);
+        try {
+            var sk = root.GetNode<Skeleton3D>("Skeleton3D");
+            long bytes = GC.GetAllocatedBytesForCurrentThread();
+            long at = System.Diagnostics.Stopwatch.GetTimestamp();
+            var original = new HumanLayers(root, sk, false);
+            double originalMs = System.Diagnostics.Stopwatch.GetElapsedTime(at).TotalMilliseconds;
+            long originalBytes = GC.GetAllocatedBytesForCurrentThread() - bytes;
+            rigs.Remove(body);
+            bytes = GC.GetAllocatedBytesForCurrentThread(); at = System.Diagnostics.Stopwatch.GetTimestamp();
+            var cached = new HumanLayers(root, sk);
+            double cachedMs = System.Diagnostics.Stopwatch.GetElapsedTime(at).TotalMilliseconds;
+            long cachedBytes = GC.GetAllocatedBytesForCurrentThread() - bytes;
+            bool same = original.springs.AsSpan().SequenceEqual(cached.springs) && original.contacts.AsSpan().SequenceEqual(cached.contacts);
+            return new { body, originalMs, cachedMs, originalBytes, cachedBytes, contacts = original.contacts.Length, springs = original.springs.Length, ok = same };
+        } finally {
+            if (previous != null) rigs[body] = previous; else rigs.Remove(body);
         }
     }
     public void ReleaseFeet() { activeContact[0] = activeContact[1] = -1; Array.Clear(contactDown); }

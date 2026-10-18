@@ -11,6 +11,8 @@ Bugs and loose ends are tracked as [issues](https://github.com/Steve-Sitax/Moody
 
 ## [Unreleased]
 
+- Reduced hitches when townspeople and omnibus passengers first appear, and reduced repeated route work and memory churn in boats and the railway (#62, #133, #135).
+
 - Parked family handcarts can be taken: walk up and press E. The owner's cart is gone from his round, and the cart keeps its load, which you can push, unload and load again; a second player cannot copy it. The frozen handcart and horse dray that stood all day on the Rijnkaai are gone; the real drays there have a carter and a walking horse.
 
 - The town's houses have dressed stone now. Corner stones, door and window surrounds, sills, heads, keystones and plinths were plain sharp boxes with a smeared picture; each is now its own stone with worn, chamfered edges, a tooled face, mortar joints that line up with the brick courses, and a sharp stone picture. Arched doors and coach gates have a ring of wedge stones that follows the curve, double doors match their lintel, and shop windows have a real stone frame. Plinths and door steps are blue stone. Soot, rain streaks, splash and rising damp follow the neighbourhood: clean on the fine squares, black and green in the poor streets.

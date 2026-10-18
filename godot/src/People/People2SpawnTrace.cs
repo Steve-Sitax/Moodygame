@@ -11,7 +11,7 @@ namespace Scheldemist.People;
 [GamePart(222)]
 internal partial class People2SpawnTrace : Node
 {
-    private readonly record struct Sample(ulong Frame, double WallMs, double ProcessMs, double UploadMs, double MakeMs, double AnimationMs, int Pending, long Uploads);
+    private readonly record struct Sample(ulong Frame, double WallMs, double ProcessMs, double UploadMs, double MakeMs, double AnimationMs, int Pending, long Uploads, int Gen0, int Gen1, int Gen2, long PipelineMesh, long PipelineSurface, long PipelineDraw, long PipelineSpecialization, int AppliedMeshes, string AppliedKind);
     private readonly List<Sample> samples = new(24000);
     private string output = "";
     private ulong last;
@@ -27,10 +27,12 @@ internal partial class People2SpawnTrace : Node
     }
     private void Record()
     {
+        using var cost = Dev.FrameCost.Track("PeopleTest.PostDrawTrace");
         ulong now = Time.GetTicksUsec();
         if (!started && Main.I.Loaded && town?.Data != null) { started = true; last = now; return; }
         if (started && samples.Count < 24000)
-            samples.Add(new Sample(Engine.GetProcessFrames(), (now-last)/1000.0, Performance.GetMonitor(Performance.Monitor.TimeProcess)*1000, People2Faces.LastUploadMs, People2.MakeMsThisFrame, Dev.PeopleTiming.LastHumanMs, People2Faces.Pending, People2Faces.UploadCount));
+            samples.Add(new Sample(Engine.GetProcessFrames(), (now-last)/1000.0, Performance.GetMonitor(Performance.Monitor.TimeProcess)*1000, People2Faces.LastUploadMs, People2.MakeMsThisFrame, Dev.PeopleTiming.LastHumanMs, People2Faces.Pending, People2Faces.UploadCount, GC.CollectionCount(0), GC.CollectionCount(1), GC.CollectionCount(2),
+                (long)RenderingServer.GetRenderingInfo(RenderingServer.RenderingInfo.PipelineCompilationsMesh), (long)RenderingServer.GetRenderingInfo(RenderingServer.RenderingInfo.PipelineCompilationsSurface), (long)RenderingServer.GetRenderingInfo(RenderingServer.RenderingInfo.PipelineCompilationsDraw), (long)RenderingServer.GetRenderingInfo(RenderingServer.RenderingInfo.PipelineCompilationsSpecialization), People2Faces.LastAppliedMeshes, People2Faces.LastAppliedKind));
         last = now;
     }
     public override void _ExitTree()

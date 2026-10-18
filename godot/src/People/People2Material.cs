@@ -211,6 +211,7 @@ internal static class People2Material
     }
     internal static void LoadPart(ModelLibrary.Model model, string rootName)
     {
+        using var cost = Scheldemist.Dev.FrameCost.Track("People2.LoadPart:" + rootName);
         using var index = System.Text.Json.JsonDocument.Parse(Godot.FileAccess.GetFileAsString("res://assets/game-models/people2_parts.json"));
         string part = index.RootElement.GetProperty(rootName).GetString()!;
         if (ModelLibrary.NativeScene?.Invoke(part) is not { } scene)

@@ -849,6 +849,7 @@ public partial class Railway : Node
 
     private void UpdateCrane(Crane c, float dt, bool trainStopped)
     {
+        using var cost = Scheldemist.Dev.FrameCost.Track("Railway.Crane");
         if (YieldStep(c,dt)) return;
         if (StartFeed(c,dt)) return;
         if (TravelStep(c, dt)) return;
@@ -1189,6 +1190,7 @@ public partial class Railway : Node
     /// <summary>How far the head may go now: before the next stop, the gate, an open bridge, Jef.</summary>
     private float Limit()
     {
+        using var cost = Scheldemist.Dev.FrameCost.Track("Railway.Limit");
         float lim = line.Length + 50;
         waitWhy = "";
         while (stopI < stops.Count)
@@ -1277,6 +1279,7 @@ public partial class Railway : Node
     // ---------------------------------------------------------------- per frame
     public override void _Process(double delta)
     {
+        using var cost = Scheldemist.Dev.FrameCost.Track("Movers.Railway");
         if (!ok || NetRemote) return;
         MoverCost.Begin("railway");
         float dt = (float)MoverClock.Dt;
@@ -1343,6 +1346,7 @@ public partial class Railway : Node
 
     private void PlaceTrain()
     {
+        using var cost = Scheldemist.Dev.FrameCost.Track("Railway.PlaceTrain");
         var pool = HorsePool.I;
         float amp = Math.Min(1, v / 0.8f);
         for (int i = 0; i < 2; i++)
@@ -1387,6 +1391,7 @@ public partial class Railway : Node
 
     private void Draw()
     {
+        using var cost = Scheldemist.Dev.FrameCost.Track("Railway.Draw");
         bool hidden = state == "shed";
         foreach (string g in Goods) gcount[g] = 0;
         var idx = drawIndices; idx.Clear();
