@@ -14,9 +14,19 @@ public partial class FurnitureVisual : Node3D
     [Export] public Vector3 ModelOffset {get;set;}=Vector3.Zero;
     [Export] public float ModelYaw {get;set;}
     [Export] public bool GeometryCollision {get;set;}
+    [Export] public bool ResidentSnapshot {get;set;}
     public override void _Ready()
     {
         if(Engine.IsEditorHint())return;
+        // Keep the imported object id/placement editable, but its frozen person is replaced
+        // by the live indoor resident. It must contribute neither a mesh nor collision.
+        if(ResidentSnapshot)
+        {
+            Visible=false;
+            foreach(var node in Scheldemist.World.BakedWorld.All(this))
+            {node.SetMeta("native_replaced_event_snapshot",true);if(node is CollisionObject3D body){body.CollisionLayer=0;body.CollisionMask=0;}if(node is CollisionShape3D shape)shape.Disabled=true;}
+            return;
+        }
         string id=KitId!=""?KitId:Kind switch {
             "chair"=>"chair-ladderback","stool"=>"stool-bar","bench"=>"bench-long","settle"=>"settle",
             "table"=>"table-square","counter"=>"counter-shop","shelf"=>"shelf-wall","cupboard"=>"armoire",

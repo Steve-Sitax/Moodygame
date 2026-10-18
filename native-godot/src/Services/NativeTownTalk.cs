@@ -209,6 +209,8 @@ public sealed partial class NativeTownTalk : INativeServiceModule
     {
         service.Register("POST", "/api/npc/:id/near", r => { if (C.Scalar<long>("SELECT COUNT(*) FROM npc WHERE id=$p0", r.Param("id")) == 0) throw new NativeServiceException("nobody by that name here", 404); return new JsonObject { ["ok"] = true }; });
         service.RegisterAsync("POST", "/api/npc/:id/talk", TalkAsync);
+        service.Register("POST", "/api/talk/hold", HoldTalk);
+        service.TalkHolds = TalkPins;
         service.Register("POST", "/api/npc/:id/witness", r => {
             string id = r.Param("id"), action = r.Text("event");
             if (action is not ("took" or "returned")) throw new NativeServiceException("bad event");

@@ -144,7 +144,7 @@ public partial class FurnitureIntake : Node
             var remainder=new Node3D {Name="RetainedStructure"};var hidden=new HashSet<int>();var loose=new List<Part>();
             foreach(var mesh in BakedWorld.All(room).OfType<MeshInstance3D>().Where(m=>m.Mesh is ArrayMesh).ToArray())
             {
-                if(mesh.Name.ToString().Contains("punch")||Ancestors(mesh).Any(n=>n.Name.ToString().StartsWith("house_")||n.Name.ToString().StartsWith("fires")||n.Name.ToString().StartsWith("hall_sun")))continue;
+                if(mesh.Skin!=null||Ancestors(mesh).Any(n=>n is Skeleton3D)||mesh.Name.ToString().Contains("punch")||Ancestors(mesh).Any(n=>n.Name.ToString().StartsWith("house_")||n.Name.ToString().StartsWith("fires")||n.Name.ToString().StartsWith("hall_sun")))continue;
                 var transform=TransformOf(mesh,room);bool modified=false; var retained=new List<Part>();
                 for(int s=0;s<mesh.Mesh!.GetSurfaceCount();s++)
                 {

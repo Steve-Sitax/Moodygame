@@ -43,6 +43,7 @@ public sealed partial class NativeServiceHost : INativeRecipientBackend
     public readonly List<Action<int>> HourHooks = new();
     public readonly List<Action<int>> SleepEndedHooks = new();
     public readonly List<Func<int, string, bool, int, JsonObject?>> SleepHooks = new();
+    public Func<IEnumerable<int>, IReadOnlyDictionary<string, int>>? TalkHolds;
     public Func<int, JsonObject>? HomeBed;
     public Func<IEnumerable<int>> OnlinePlayers = () => new[] { 1 };
     public Func<int, string, JsonObject?>? ResolveRoom;

@@ -689,7 +689,7 @@ public partial class Townspeople : Node
             }
             else if (!s.Inside)
             {
-                if (s.ActionHeld) continue;
+                if (s.ActionHeld || Scheldemist.Talks.ConversationHold.I?.Held(s.R.Id)==true) continue;
                 // the unseen take turns, each one every CoarseEvery frames with the time since; where the shared sum
                 // puts him comes from the clock, so he is where he would have been
                 s.CoarseDt += dt;
@@ -716,7 +716,7 @@ public partial class Townspeople : Node
     private void Reschedule(Sim s, bool first)
     {
         if (MaySimulate?.Invoke(s.R.Id) == false) return;
-        if (s.ActionHeld) return;
+        if (s.ActionHeld || Scheldemist.Talks.ConversationHold.I?.Held(s.R.Id)==true) return;
         var now = PlanNow(s);
         // the great storm: no calls at the shops, everyone out of it
         bool storm = stormLevel > 0;
@@ -1251,6 +1251,7 @@ public partial class Townspeople : Node
     /// <summary>Tell a puppet where to go for its goal.</summary>
     private void Direct(Sim s)
     {
+        if(Scheldemist.Talks.ConversationHold.I?.Held(s.R.Id)==true)return;
         var p = s.P!;
         var g = s.Goal;
         var crowd = Crowd!;
@@ -1300,7 +1301,7 @@ public partial class Townspeople : Node
 
     private void Behave(Sim s, double dt, (double x, double z)? body)
     {
-        if (s.ActionHeld) return;
+        if (s.ActionHeld || Scheldemist.Talks.ConversationHold.I?.Held(s.R.Id)==true) return;
         var p = s.P!;
         var g = s.Goal;
         var crowd = Crowd!;

@@ -623,3 +623,17 @@ Local handoff receipts and reviewed-picture manifest: `.scratch/batch2-review/`;
 Action hands, the reflection/shadow body, MakeHuman character preview and profile controls are documented in
 [Jef in Godot](godot-jef.md), including the separate clothing intake boundary and current acceptance-gate status.
 Remote player packets remain unchanged; [the appearance transport proposal](jef-look-network.md) awaits approval.
+
+### Indoor conversations and recovered snapshots
+
+`Indoors` uses the resident's normal dressed kind and stable identity through `Humans.Make`; indoor and street
+copies therefore share the people2 model and face. Carters/porters leave personal carts and trucks outside
+and use the existing room poses in the same clothes. Standing spots use native room frames and real collision,
+with a reserved route to the counter. Seated conversations layer existing upper-body clips over the seated/ride
+pose; their attention follows the speaker. No shader kind, light, motion-list or native puppet packet field is added.
+
+The imported `room-tavern-vliet-source-11830-63` fitting was a frozen keeper copied by the furniture intake.
+Its permanent wrapper, transform and source geometry remain for editing/reference, but `ResidentSnapshot`
+disables its rendering and collision in play. The source-room audit found this one skinned person across all
+27 shop/tavern rooms. Intake now excludes skinned people; native room snapshots are hidden before collision
+and navigation build. This invisible reference adds no exposed runtime edge geometry.

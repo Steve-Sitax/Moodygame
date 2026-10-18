@@ -111,7 +111,7 @@ public partial class TavernSeats : Node
     private void Pose()
     {
         if(town?.Indoors is not {} indoors)return;
-        foreach(var r in Rooms) foreach(var h in indoors.Houses) { if(h.Id!=r.Id)continue; foreach(var s in r.Seats) if(s.Occupant is {} p && h.Figures.TryGetValue(p.Id,out var f) && f.Human.CanSit) { f.Group.GlobalPosition=s.At+Vector3.Up*f.Human.SitDrop(s.Height);f.Group.GlobalRotation=new(0,s.Yaw,0);f.Yaw=f.Want=s.Yaw;f.Wait=100;f.Human.Play("sit"); } }
+        foreach(var r in Rooms) foreach(var h in indoors.Houses) { if(h.Id!=r.Id)continue; foreach(var s in r.Seats) if(s.Occupant is {} p && h.Figures.TryGetValue(p.Id,out var f) && f.Human.CanSit && Scheldemist.Talks.ConversationHold.I?.Held(p.Id)!=true && !indoors.InEntryLane(h,new(s.At.X,s.At.Z))) { f.Group.GlobalPosition=s.At+Vector3.Up*f.Human.SitDrop(s.Height);f.Group.GlobalRotation=new(0,s.Yaw,0);f.Yaw=f.Want=s.Yaw;f.Wait=100;f.Human.Play("sit"); } }
     }
     public override void _ExitTree() { dead=true; foreach(var p in prompts)p.Dispose(); if(Scheldemist.Menu.MainMenu.I is {} menu)menu.WorldReplaced-=Reset; }
 }

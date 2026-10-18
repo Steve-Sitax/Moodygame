@@ -41,7 +41,8 @@ public partial class MpTest : Node
     {
         string dir = Path.GetFullPath(main.Arg("mptest"));
         Directory.CreateDirectory(dir);
-        string db = Path.Combine(dir, main.Arg("join") != "" ? "mp-guest.sqlite" : "mp-host.sqlite");
+        string db = main.Flag("mpconversation")&&main.Arg("join")!=""?Path.Combine(dir,"guest","game.sqlite"):Path.Combine(dir, main.Arg("join") != "" ? "mp-guest.sqlite" : "mp-host.sqlite");
+        Directory.CreateDirectory(Path.GetDirectoryName(db)!);
         if (prepared.Add(db))
         {
             Clean(db);
@@ -64,6 +65,7 @@ public partial class MpTest : Node
         ProcessMode = ProcessModeEnum.Always;
         Directory.CreateDirectory(dir);
         guest = Main.I.Arg("join") != "";
+        if(Main.I.Flag("mpconversation"))Engine.MaxFps=30;
         if (Windows.Dialogs.I is { } d) d.KeepMouse = true;
         _ = Run();
     }
@@ -268,7 +270,7 @@ public partial class MpTest : Node
         var info = new ProcessStartInfo { FileName = exe, UseShellExecute = false, CreateNoWindow = true, WindowStyle = ProcessWindowStyle.Hidden };
         // Keep the guest's own server beside the test host's port, including after it leaves.
         string guestPort = (new Uri(link.Server!.Url).Port + 1).ToString();
-        foreach (string a in new[] { "--path", ProjectSettings.GlobalizePath("res://"), "--log-file", Path.Combine(dir, "guest-engine.log"), "--position", "120,120", "--", "--join", link.Server.Url, "--code", house.Code, "--name", "Anna", "--seat", "2", "--port", guestPort, "--prefs", Path.Combine(dir, "guest-settings.json"), "--no-ai", "--mptest", dir })
+        foreach (string a in new[] { "--path", ProjectSettings.GlobalizePath("res://"), "--log-file", Path.Combine(dir, "guest-engine.log"), "--position", "5850,90", "--", "--join", link.Server.Url, "--code", house.Code, "--name", "Anna", "--seat", "2", "--port", guestPort, "--prefs", Path.Combine(dir, "guest-settings.json"), "--no-ai", "--mptest", dir })
             info.ArgumentList.Add(a);
         if (Main.I.Arg("town") != "")
         {
@@ -277,7 +279,8 @@ public partial class MpTest : Node
         }
         foreach (string f in new[] { "mptest-guest.json", "mptest-guest-home.json", "mptest-start.json", "mptest.json", "mp_host.png", "mp_guest.png" }) File.Delete(Path.Combine(dir, f));
         if (Main.I.Flag("mpmoving")) info.ArgumentList.Add("--mpmoving");
-        if (Main.I.Arg("author-root") != "") { info.ArgumentList.Add("--author-root"); info.ArgumentList.Add(Main.I.Arg("author-root")); }
+        if(Main.I.Flag("mpconversation")){info.ArgumentList.Insert(0,"--headless");info.ArgumentList.Add("--mpconversation");info.Environment["SCHELDEMIST_USER_DATA"]=Path.Combine(dir,"guest","userdata");}
+        if (Main.I.Arg("author-root") != "") { info.ArgumentList.Add("--author-root"); info.ArgumentList.Add(Main.I.Flag("mpconversation")?Path.Combine(dir,"guest","layouts"):Main.I.Arg("author-root")); }
         if (OS.GetCmdlineArgs().Contains("--verbose")) info.ArgumentList.Insert(0, "--verbose");
         other = Process.Start(info);
         if (other == null) return Fail("the second game did not start");
@@ -286,6 +289,7 @@ public partial class MpTest : Node
 
         if (!await Until(() => tg.Roster.Count(r => r.Online) >= 2 && tg.PlayerAt(2) != null, 120)) return Fail($"the guest did not come into the town (roster {tg.Roster.Count}, guest exited {other.HasExited})");
         doc["roster"] = tg.Roster;
+        if(Main.I.Flag("mpconversation"))return await HostConversation();
         // the start both walk from, on the server's clock
         double t0 = tg.ServerNow + 3000;
         File.WriteAllText(Path.Combine(dir, "mptest-start.json"), JsonSerializer.Serialize(new { t0 }));
@@ -323,6 +327,7 @@ public partial class MpTest : Node
         if (ServerLink.I is not { } link || Together.I is not { } tg) return Fail("a part is off");
         if (!await Until(() => (st.Live && link.Up && Jef.I != null) || link.Error != "", 110) || link.Error != "") return Fail(link.Error != "" ? link.Error : "no first state");
         Jef.I.TestInput = true;
+        if(Main.I.Flag("mpconversation"))return await GuestConversation();
         doc["server"] = new Dictionary<string, object?> { ["url"] = link.Server?.Url, ["own"] = link.Server?.Own, ["token"] = link.Api!.Guest };
         if (!await Until(() => tg.On && tg.PlayerId > 1 && tg.PlayerAt(1) != null, 60)) return Fail($"not in the host's town (on {tg.On}, id {tg.PlayerId})");
         doc["me"] = new Dictionary<string, object?> { ["id"] = tg.PlayerId, ["name"] = st.PlayerName, ["money_c"] = st.Money, ["placed_at"] = new[] { Jef.I.X, Jef.I.Z } };

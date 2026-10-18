@@ -23,6 +23,7 @@ public partial class BakedWorld : Node3D
     public virtual Scheldemist.Town.WalkMap? NativeWalk => null;
     public virtual IReadOnlyList<InteriorFurniture>? NativeFurniture => null;
     public virtual IReadOnlySet<string>? NativeFurnitureRooms => null;
+    public virtual (Transform3D Frame, Rect2 Bounds)? NativeRoom(string id) => null;
     public virtual Node3D? CreateNativeFurniture(string kind) => null;
     /// <summary>0: legacy anchor; 1: authored seat; -1: the owner removed that seat.</summary>
     public virtual int ResolveNativeSeat(string room, Vector3 original, out Vector3 at, out float height, out float yaw)

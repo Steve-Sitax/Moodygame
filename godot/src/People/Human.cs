@@ -369,6 +369,11 @@ public sealed class Human
         return face;
     }
 
+    public void SetIndoor(bool indoor) => newer?.SetIndoor(indoor);
+
+    public void FaceConversation(Vector3? target, bool seated = false)
+    {if(newer!=null)newer.FaceConversation(target,seated);}
+
     public void Update(float dt)
     {
         using var timing = Dev.PeopleTiming.Track(newer != null);
