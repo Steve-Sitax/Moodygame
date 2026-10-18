@@ -15,11 +15,12 @@ coordinator merges into main after checks and `test-icons.ps1 -Full`. Town chunk
 | 2 (running) | F. Market, work board, warmth, benches (rules), room keepers | #150 #153 #162 #165 #177 #178 |
 | 2 (running) | L. Routes | #139 #120 #179 |
 | 3 | G. Street furniture models | #160 #149 #164 #180 |
-| 3 | H. Town fabric (one at a time) | H1 running: #161 #171 #173; then H2 #163; then H3 #170 #91 |
+| 3 | H. Town fabric (one at a time) | H1 merged (#161 #173; #171 part); H2 #163 running; then H3 #170 #91 |
 | 3 | M. Shop fronts, signs, shutters (after H, same files) | #174 #175 #176 |
 | 3 | I. Light and look | #97 #137 #28 (cheap fix) |
 | 3 | J. People kit | #82 #138 #140 |
 | 3 | K. Textures | #84 |
+| 4 | N. Leftovers | #171 rest, #180 #182 #183 #184, #181 heap with #62 #32 #47 #49 |
 | - | Parked by Steve (play first) | #141 |
 
 Helpers: Claude Opus 5.5 high for the work; Codex for generated pictures (textures) and picture checks (Steve 2026-10-18).
