@@ -1,0 +1,38 @@
+{
+ "meshes": 73,
+ "built": {
+  "reskinned (no front)": 11399,
+  "door hood": 106,
+  "door lintel": 2687,
+  "door surround (flat)": 563,
+  "strip": 3761,
+  "door step": 882,
+  "door surround (arched)": 503,
+  "band": 660,
+  "reskinned (no wall)": 425,
+  "reskinned": 11473,
+  "cornice": 105,
+  "hood": 391,
+  "keystone": 2649,
+  "window sill": 5749,
+  "window head": 5610,
+  "head or sill": 8031,
+  "panel stone": 1382,
+  "frieze": 784,
+  "fanlight bar": 553,
+  "single quoin": 2298,
+  "quoin corner": 48,
+  "plinth": 1225,
+  "shop architrave": 43,
+  "pilaster": 139,
+  "arched head": 31
+ },
+ "kept": {
+  "no front": 2433,
+  "no wall": 211,
+  "unclassified": 384,
+  "shop window reveal": 43
+ },
+ "addedTriangles": 4362592,
+ "removedTriangles": 1043216
+}

@@ -30,6 +30,6 @@ Rebuild: `audit-stone-corners.gd -- <folder> city_`, Blender `repair-stone-corne
 `stone-corners-promote.tscn -- --candidate --record` in Forward+. The promotion refuses changed sources and
 existing backups. Never rebuild from installed meshes: start from `original-resources.zip`.
 
-Not yet dressed: arched window heads (they keep their curved old stone), pilasters, stone bands and cornices,
-fanlight bars, and stone in the district scenes outside the city chunks. The brick and plaster walls keep their own
-grime band.
+Pass 2 (18 October 2026, #173 and #171): ground-floor quoins beside shop fronts, arched window heads, pilasters,
+bands and cornices, fanlight bars and every other town-house stone, and the walls' foot grime. Record and pictures:
+`../town-fabric-20261018`. Still not dressed: stone outside the city chunks (churches, prison, town places).
