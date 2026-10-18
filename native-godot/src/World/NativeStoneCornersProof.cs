@@ -70,7 +70,9 @@ public static class NativeStoneCornersProof
                     swaps.Add((m, new ArrayMesh(), m.Mesh!));
             await Frames(10);
             notes.Add(new { mode = "memory", stage = "candidate built", bufferMemMB = Performance.GetMonitor(Performance.Monitor.RenderBufferMemUsed) / 1048576.0, videoMemMB = Performance.GetMonitor(Performance.Monitor.RenderVideoMemUsed) / 1048576.0 });
-            void Use(bool candidate) { foreach (var s in swaps) s.node.Mesh = candidate ? s.after : s.before; }
+            // --stone-corners-toggle-node a,b: nodes of these names show only with the candidate (issue #176: the new shutters)
+            var toggled = Option("stone-corners-toggle-node") is { Length: > 0 } tn ? BakedWorld.All(game.World).OfType<Node3D>().Where(n => tn.Split(',').Contains(n.Name.ToString())).ToArray() : Array.Empty<Node3D>();
+            void Use(bool candidate) { foreach (var s in swaps) s.node.Mesh = candidate ? s.after : s.before; foreach (var n in toggled) n.Visible = candidate; }
             // the town is drawn in its own SubViewport; the window's viewport only shows that picture
             var viewport = game.World.GetViewport().GetViewportRid();
             RenderingServer.ViewportSetMeasureRenderTime(viewport, true);
