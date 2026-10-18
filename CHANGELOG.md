@@ -11,6 +11,8 @@ Bugs and loose ends are tracked as [issues](https://github.com/Steve-Sitax/Moody
 
 ## [Unreleased]
 
+- Every street name plate now names the street it stands on (#193). The plates used only nine names round the whole town (Braderijstraat was on 50 corners); now 98 streets, quays and squares each have their own name, the same on every corner of that street, from the town's own street lines. The Braderijstraat corner keeps its plates. A plate is as long as its name and stays clear of shop boards, hanging signs and drainpipes.
+- Painted wood gets wet in the rain (#193): shutters, wooden shop fronts and shop boards turn darker and catch a little of the sky's sheen, like the stone around them.
 - Room furniture keeps its shape (#183). The bar stools that were one stool stretched 3.8 m along the bar are a row of five stools; a long counter is two counter sections; tables pushed together are two tables; casks, barrels and wall clocks come in their own size instead of being pulled out of shape. A piece that fits nothing keeps its own old model. The stretched shelf behind De Vliet's bar is gone; the bottle shelves show.
 - The Sint-Jansplein is open again: townspeople walk across it and can reach its four benches (#187).
 - The Steen's sailor no longer sits frozen on a bench by the Steen; the benches are for the town's live people (#187).

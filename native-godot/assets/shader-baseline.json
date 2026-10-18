@@ -1,7 +1,7 @@
 {
   "sourceCommit": "249f8613",
   "scope": "Native town, default people2, no AI, fresh seed 1873; first processed frame after game parts are attached",
-  "reason": "Reviewed signature inventory after the native materials, clothing, furniture, pier and dressed-stone merges. Kind identity is checked, rather than a historical count. 2026-10-18 (#161, #171): three kinds changed code in place and keep their place: the dressed stone (old stone colour, damp line), the town houses' walls (foot damp follows the house's wear) and the rooms' window glass (follows the sky's light). 2026-10-18 (#97): the sky dome's kind changed code in place and keeps its place (a clear day's blue between the clouds). 2026-10-18 (#188): the town's grime decal kind changed code in place and keeps its place: the stain is multiplied over the lit wall, so it follows the wall's light.",
+  "reason": "Reviewed signature inventory after the native materials, clothing, furniture, pier and dressed-stone merges. Kind identity is checked, rather than a historical count. 2026-10-18 (#161, #171): three kinds changed code in place and keep their place: the dressed stone (old stone colour, damp line), the town houses' walls (foot damp follows the house's wear) and the rooms' window glass (follows the sky's light). 2026-10-18 (#97): the sky dome's kind changed code in place and keeps its place (a clear day's blue between the clouds). 2026-10-18 (#188): the town's grime decal kind changed code in place and keeps its place: the stain is multiplied over the lit wall, so it follows the wall's light. 2026-10-18 (#193): the solid lit kind (the town's wood, shop boards and shutters; Psx.WetPaint) changed code in place and keeps its place: painted wood darkens and takes a sheen in the rain where a material sets wet_paint (scripts/WoodWetRepair.cs writes the generated code into r000211).",
   "firstKinds": [
     "shader:03DB7241DFC388D2",
     "shader:06ECECA2573809AB",
@@ -78,7 +78,7 @@
     "shader:85177915FB3E2132",
     "shader:85E9E6AB830C223B",
     "shader:881C71FAC7B51582",
-    "shader:8BBBF7104D0B9BC7",
+    "shader:39CE47A6510CE729",
     "shader:8C4D7A6852241913",
     "shader:8EFD04B93E2AC808",
     "shader:8FEBE951D07E5D33",
