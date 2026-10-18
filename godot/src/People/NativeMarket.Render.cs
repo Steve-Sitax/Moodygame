@@ -57,7 +57,7 @@ public partial class NativeMarket
         town.Walk!.RefreshBodies();
         foreach(var row in definitions["fields"]!.AsArray()){var def=row!.AsObject();string place=S(def["place"]);var own=circles.ToList();foreach(var s in town.Data!.Stalls)if(s.Place==place){own.Add(new(s.X,s.Z,2));own.Add(new(s.X+s.Face.X*1.4,s.Z+s.Face.Z*1.4,1.2));own.Add(new(s.X-s.Face.X*1.2,s.Z-s.Face.Z*1.2,1));}
             var f=new Field{Definition=def,Place=place,Centre=new(N(def["centre"]![0]),N(def["centre"]![1])),Entries=def["entries"]!.AsArray().Select(p=>new NativeMarketPoint(N(p![0]),N(p[1]))).ToArray(),Group=new(){Name="market_"+place}};
-            f.Items=layout.Layout(def,own,Array.Empty<NativeMarketRect>(),lanes,tracks,(x,z)=>town.Walk.Free(x,z)?0:1);Main.I.View.AddChild(f.Group);BuildBatches(f);BuildBodies(f);fields.Add(f);
+            f.Items=layout.Layout(def,own,Array.Empty<NativeMarketRect>(),lanes,tracks,(x,z)=>town.Walk.Free(x,z)?0:1);f.Pitched=def["pitches"]!=null;f.Level=Enumerable.Repeat(-1,f.Items.Count).ToArray();Main.I.View.AddChild(f.Group);BuildBatches(f);BuildBodies(f);fields.Add(f);
         }built=true;
     }
     private void BuildBatches(Field f)
@@ -65,7 +65,7 @@ public partial class NativeMarket
         var batches=new Dictionary<(Mesh,Material?),Batch>();
         void Put(string source,string name,double x,double y,double z,double yaw,double[] scale,double[]? tint,string? awning,int rank){
             if(!parts.TryGetValue((source,name),out var list))return;var at=new Transform3D(new Basis(Vector3.Up,(float)yaw).Scaled(new((float)scale[0],(float)scale[1],(float)scale[2])),new((float)x,(float)y,(float)z));
-            foreach(var p in list){var original=p.Mesh.SurfaceGetMaterial(0);var material=awning!=null&&p.Material=="awning_red"?materials.GetValueOrDefault(awning)??original:original;if(material!=null)material=Colour(material);var key=(p.Mesh,material);if(!batches.TryGetValue(key,out var b))batches[key]=b=new(){Mesh=new(){TransformFormat=MultiMesh.TransformFormatEnum.Transform3D,UseColors=true,Mesh=p.Mesh},Node=new(){MaterialOverride=material}};b.Rows.Add((rank,at*p.Local,tint==null?Colors.White:new((float)tint[0],(float)tint[1],(float)tint[2],1)));}
+            foreach(var p in list){var original=p.Mesh.SurfaceGetMaterial(0);var material=awning!=null&&p.Material=="awning_red"?materials.GetValueOrDefault(awning)??original:original;if(material!=null)material=Colour(material);var key=(p.Mesh,material);if(!batches.TryGetValue(key,out var b))batches[key]=b=new(){Mesh=new(){TransformFormat=MultiMesh.TransformFormatEnum.Transform3D,UseColors=true,Mesh=p.Mesh},Node=new(){MaterialOverride=material}};b.Rows.Add((rank,at*p.Local,tint==null?Colors.White:new((float)tint[0],(float)tint[1],(float)tint[2],1),Stage(name)));}
         }
         foreach(var item in f.Items){double c=Math.Cos(item.Yaw),s=Math.Sin(item.Yaw);foreach(var q in item.Puts)Put(q.Source,q.Name,item.X+q.U*c+q.V*s,q.Y+town.Walk!.BaseAt(item.X,item.Z),item.Z-q.U*s+q.V*c,item.Yaw+q.Yaw,q.Scale,q.Tint,q.Awning,item.Rank);}
         foreach(var l in f.Definition["litter"]!.AsArray())Put("trades",S(l![0]),N(l[1]),town.Walk!.BaseAt(N(l[1]),N(l[2])),N(l[2]),N(l[3]),new[]{1.0,1,1},null,null,-1);
@@ -78,8 +78,20 @@ public partial class NativeMarket
     private void Window(Field f,int low,int high)
     {
         if(f.Low==low&&f.High==high)return;f.Low=low;f.High=high;
-        foreach(var b in f.Batches){int n=0;foreach(var row in b.Rows)if(row.Rank<0||row.Rank>=low&&row.Rank<high){b.Mesh.SetInstanceTransform(n,row.Transform);b.Mesh.SetInstanceColor(n,row.Tint);n++;}b.Mesh.VisibleInstanceCount=n;b.Node.Visible=n>0;}
-        foreach(var pair in f.Bodies){bool up=pair.Key.Rank>=low&&pair.Key.Rank<high;foreach(var body in pair.Value){body.Visible=up;body.CollisionLayer=up?Solid.Layer:0;}}
+        var level=new int[f.Items.Count];for(int i=0;i<level.Length;i++)level[i]=i>=low&&i<high?2:-1;Show(f,level);
+    }
+    /// <summary>A stall is built and struck in three stages (#150): its frame (and the table or barrow itself), then its
+    /// awning or cloth, then its goods.</summary>
+    private static int Stage(string name)=>name.StartsWith("stall_goods_")||name.StartsWith("stall_more_")||name.StartsWith("mk2_goods_")||name.StartsWith("shop_goods_")||name.StartsWith("shop_more_")||name.StartsWith("mk_goods_")||name.StartsWith("mk_basket")||name is"mk2_fish_crates"or"mk_crates"or"mk_fishbox"or"mk_gull"or"mk2_ground_baskets"or"mk_leaves"or"mk2_under"?2
+        :name is"stall_awning"or"stall_cloth"?1:0;
+    /// <summary>Draw each stall (by rank) as far as its level: -1 down, 0 frame, 1 cover, 2 goods; its collision while any of it stands.</summary>
+    private void Show(Field f,int[] level)
+    {
+        if(f.Shown.Length==level.Length&&f.Shown.AsSpan().SequenceEqual(level))return;
+        bool bodies=f.Shown.Length!=level.Length;for(int i=0;i<level.Length&&!bodies;i++)bodies=f.Shown[i]>=0!=level[i]>=0;f.Shown=(int[])level.Clone();
+        foreach(var b in f.Batches){int n=0;foreach(var row in b.Rows)if(row.Rank<0||row.Rank<level.Length&&level[row.Rank]>=row.Stage){b.Mesh.SetInstanceTransform(n,row.Transform);b.Mesh.SetInstanceColor(n,row.Tint);n++;}b.Mesh.VisibleInstanceCount=n;b.Node.Visible=n>0;}
+        if(!bodies)return;
+        foreach(var pair in f.Bodies){bool up=pair.Key.Rank<level.Length&&level[pair.Key.Rank]>=0;foreach(var body in pair.Value){body.Visible=up;body.CollisionLayer=up?Solid.Layer:0;}}
         town.Walk!.RefreshBodies();
     }
 }

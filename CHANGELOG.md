@@ -11,6 +11,7 @@ Bugs and loose ends are tracked as [issues](https://github.com/Steve-Sitax/Moody
 
 ## [Unreleased]
 
+- The Vismarkt's market-day sellers are real people now (#150). Sixteen women of the town each keep a pitch: they push their handcart from home before dawn, build their stall (frame, awning, goods), sell from seven till half past twelve, pack up and go home with the cart; no market on Sunday. Talk to any of them with E; F buys while she sells, and before seven she tells you she is not open yet. The fish comes from the quay porters' crates, and when the market's fish is sold out the sellers say so. The six everyday fish stalls keep their own fishwives.
 - Tavern and shop keepers serve from behind their counters again. The counters (and a tavern's bar stools) stand a hand's width further into the room, so the keeper has room between the bar and the back shelves (#177).
 - The Vleeshuis keeps no old frozen figures; its own cellar master and cellarmen stand in the hall while it is open (#178).
 - A new hiring board by the Hessenatie (#153): painted boards worn back to grey wood, a moulded frame, a little roof and the natie's name on its header. Every open job hangs on it as its own paper note, in the poster's own paper and hand, with what the work is, who gives it and the pay, readable from a metre. Look at a note and press E to take that job (E elsewhere on the board still opens the list). The board has eight places: when it is full, new work waits until a note is taken.

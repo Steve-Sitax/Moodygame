@@ -25,6 +25,8 @@ public sealed class NativeMarketItem
     public double X,Z,Yaw,HalfLength,HalfDepth,Talk;
     public bool Sits;
     public int Rank;
+    /// <summary>The pitch number (native-extras.json pitches) of a market-day stall kept by its own seller; -1 for one drawn with an anonymous seller.</summary>
+    public int Pitch=-1;
     public NativeMarketPoint SellerAt,FrontAt,Seller,Front;
     public NativeMarketRect[] Rects=Array.Empty<NativeMarketRect>();
     public readonly List<NativeMarketPut> Puts=new();
@@ -58,6 +60,16 @@ public sealed partial class NativeMarketLayout
         double top=it.Kind is"baskets"or"pottery"?.5:it.Kind=="barrow"?.7:1.1,mid=(low.U0+low.U1)/2;it.Rects=new[]{Box(Extent(it.Puts,1.3,low.U0,mid),top),Box(Extent(it.Puts,1.3,mid,low.U1),top)};
         it.FrontAt=new(it.FrontAt.X,low.V1+.6);it.Seller=World(it.SellerAt.X,it.SellerAt.Z);it.Front=World(it.FrontAt.X,it.FrontAt.Z);
     }
+    /// <summary>A pitched stall's collision (#150): one box for each solid model up to 1.3 m (its table or barrow, its
+    /// crates and baskets), not one box over the lot, so the place its seller stands behind it stays free to walk to.</summary>
+    public void PutRects(NativeMarketItem it)
+    {
+        double c=Math.Cos(it.Yaw),s=Math.Sin(it.Yaw),top=it.Kind is"baskets"or"pottery"?.5:it.Kind=="barrow"?.7:1.1;var rects=new List<NativeMarketRect>();
+        foreach(var q in it.Puts){if(!q.Solid)continue;var pts=points(q.Source,q.Name);double qc=Math.Cos(q.Yaw),qs=Math.Sin(q.Yaw),x0=double.PositiveInfinity,x1=double.NegativeInfinity,z0=double.PositiveInfinity,z1=double.NegativeInfinity;
+            for(int i=0;i+2<pts.Length;i+=3){if(q.Y+pts[i+1]*q.Scale[1]>1.3)continue;double lx=pts[i]*q.Scale[0],lz=pts[i+2]*q.Scale[2],u=q.U+lx*qc+lz*qs,v=q.V-lx*qs+lz*qc,x=it.X+u*c+v*s,z=it.Z-u*s+v*c;x0=Math.Min(x0,x);x1=Math.Max(x1,x);z0=Math.Min(z0,z);z1=Math.Max(z1,z);}
+            if(double.IsFinite(x0))rects.Add(new(x0,x1,z0,z1,top));}
+        if(rects.Count>0)it.Rects=rects.ToArray();
+    }
     public List<NativeMarketItem> Layout(JsonObject def,IReadOnlyList<NativeMarketCircle> circles,IReadOnlyList<NativeMarketRect> solids,IReadOnlyList<NativeMarketRect> lanes,IReadOnlyList<NativeMarketRect> tracks,Func<double,double,int> flags)
     {
         Tried=0;Refused.Clear();var R=Random((uint)N(def["seed"]));double J(double range)=>(R()*2-1)*range;
@@ -79,6 +91,12 @@ public sealed partial class NativeMarketLayout
         bool rough=def["rough"]!.GetValue<bool>();string[] awnings=(rough?new[]{"awning_red","awning_blue","canvas_patched","canvas_patched","sackcloth"}:new[]{"awning_red","awning_blue","awning_red","awning_blue","canvas_patched"}).Where(materials.Contains).ToArray();
         (NativeMarketItem Item,NativeMarketExtent All,NativeMarketExtent Low) Make(string kind,string goods,double length){var sellers=data["sellers"]![goods]!.AsArray();string seller=S(sellers[(int)Math.Floor(R()*sellers.Count)]);double su=R()*.6-.3,fu=R()*.8-.4;var it=new NativeMarketItem{Kind=kind,Goods=goods,SellerKind=seller,Sits=seller=="old_man"||kind=="pottery",HalfLength=length/2,HalfDepth=depths[kind],Talk=R()*5,SellerAt=new(su,-(depths[kind]+.5)),FrontAt=new(fu,depths[kind]+.75)};Dress(it,awnings,R,rough);return(it,Extent(it.Puts),Extent(it.Puts,1.3));}
         (string Kind,string Goods) PickMix(){var mix=def["mix"]!.AsArray();double r=R()*mix.Sum(n=>N(n![0]));foreach(var m in mix)if((r-=N(m![0]))<=0)return(S(m[1]),S(m[2]));return(S(mix[0]![1]),S(mix[0]![2]));}
+        // pitches (#150): each stall stands where the data puts it and belongs to its own seller (a resident)
+        if(def["pitches"]?["list"]is JsonArray pitches){
+            foreach(var pitch in pitches){var (it,_,low)=Make(S(pitch!["kind"]),S(pitch["goods"]),N(pitch["length"]));double x=N(pitch["x"]),z=N(pitch["z"]),yaw=N(pitch["yaw"]);Place(it,x,z,yaw,low);
+                var at=P(pitch["seller"]!);double dx=at.X-x,dz=at.Z-z,c=Math.Cos(yaw),s=Math.Sin(yaw);it.SellerAt=new(dx*c-dz*s,dx*s+dz*c);it.Seller=at;it.Sits=false;PutRects(it);it.Pitch=it.Rank=items.Count;items.Add(it);}
+            return items;
+        }
         foreach(var row in def["rows"]!.AsArray()){
             var pts=row!["pts"]!.AsArray().Select(n=>P(n!)).ToArray();var line=new List<NativeMarketPoint>();
             for(int i=0;i<pts.Length-1;i++){var p0=pts[Math.Max(0,i-1)];var p1=pts[i];var p2=pts[i+1];var p3=pts[Math.Min(pts.Length-1,i+2)];for(int k=0;k<8;k++){double t=k/8.0,t2=t*t,t3=t2*t;double F(double a,double b,double c,double d)=>.5*(2*b+(-a+c)*t+(2*a-5*b+4*c-d)*t2+(-a+3*b-3*c+d)*t3);line.Add(new(F(p0.X,p1.X,p2.X,p3.X),F(p0.Z,p1.Z,p2.Z,p3.Z)));}}line.Add(pts[^1]);

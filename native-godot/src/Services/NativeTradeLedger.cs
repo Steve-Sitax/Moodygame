@@ -56,12 +56,25 @@ public sealed partial class NativeTradeLedger : INativeServiceModule
     }
     public JsonObject? SellerPost(string npc)
     {
-        if(npc=="fientje")return Post("vismarkt");var r=actions.Resident(npc);if(r==null)return null;string shop=S(r["work"],"shop");if(shop!=""&&Post(shop)is {} post)return post;if(r["work"]?["stall"]!=null){int slot=(int)N(r["work"],"stall");var stalls=A(C.World("town")?["stalls"]);string goods=slot>=0&&slot<stalls.Count?S(stalls[slot],"goods"):"";if(goods=="fish")return Post("vismarkt");if(goods=="bread")return Post("bakery_steen");}return S(r,"trade")=="fish_merchant"?Post("vismarkt"):S(r,"trade")=="baker_boy"?Post("bakery_steen"):null;
+        if(npc=="fientje")return Post("vismarkt");var r=actions.Resident(npc);if(r==null)return null;string shop=S(r["work"],"shop");if(shop!=""&&Post(shop)is {} post)return post;if(r["work"]?["stall"]!=null){int slot=(int)N(r["work"],"stall");var stalls=A(C.World("town")?["stalls"]);string goods=slot>=0&&slot<stalls.Count?S(stalls[slot],"goods"):"";if(goods=="fish")return Post("vismarkt");if(goods=="bread")return Post("bakery_steen");}if(r["work"]?["pitch"]!=null){string sells=S(r["work"],"goods");if(sells=="fish")return Post("vismarkt");if(sells=="bread")return Post("bakery_steen");}return S(r,"trade")=="fish_merchant"?Post("vismarkt"):S(r,"trade")=="baker_boy"?Post("bakery_steen"):null;
     }
     public int Price(string seller,string kind,int price){string good=S(Facts["wareGood"],kind);var post=good==""?null:SellerPost(seller);if(post==null||S(post,"good")!=good)return price;return StockPrice(price,post,N(Ledger()["stock"],S(post,"id"),N(post,"start")),Hour);}
     public string? Bought(int player,string seller,string kind){string good=S(Facts["wareGood"],kind);var post=good==""?null:SellerPost(seller);if(post==null||S(post,"good")!=good)return null;var ledger=Ledger();double before=N(ledger["stock"],S(post,"id"),N(post,"start"));ledger["stock"]![S(post,"id")]=Math.Max(0,before-1);var sold=Sold(ledger,S(post,"id"),(int)N(ledger,"at")/1440+1);sold["players"]=N(sold,"players")+1;Write(ledger);return before<=N(post,"floor")?S(Facts["lastLine"],good):null;}
+    /// <summary>A market-day seller (#150) sells only in the market's hours (the vismarkt field's pitches) and while her post has stock.</summary>
+    private string? PitchRefusal(string npc)
+    {
+        var r=actions.Resident(npc);if(r?["work"]?["pitch"]==null)return null;pitchHours??=NativeTownMarketPopulation.Pitches(C.Options.DataDirectory)??new JsonObject();
+        int day=(int)N(host.Clock.View(),"day");double hour=Hour;
+        if(day%7==0)return "There is no market on a Sunday.";
+        if(hour<N(pitchHours,"open"))return $"Not open yet. I am still setting up; the market opens at {(int)N(pitchHours,"open")} o'clock.";
+        if(hour>=N(pitchHours,"close"))return "We are packing up. Come back tomorrow morning.";
+        if(SellerPost(npc)is {} post&&N(Ledger()["stock"],S(post,"id"),N(post,"start"))<1)return S(post,"good")=="fish"?"Sold out. The boats bring more at dawn.":"Sold out for today.";
+        return null;
+    }
+    private JsonObject? pitchHours;
     public void Register(NativeServiceHost service)
     {
+        var refuse=host.Trade.RefusePurchase;host.Trade.RefusePurchase=(player,npc)=>refuse?.Invoke(player,npc)??PitchRefusal(npc);
         service.Register("GET","/api/trade",r=>new JsonObject{["posts"]=View(),["runs"]=Ledger()["runs"]?.DeepClone()??new JsonArray(),["drove"]=Drove()});service.Register("POST","/api/dev/trade",r=>{var post=Post(r.Text("post"));if(post==null||r.Body["stock"]is not JsonValue value||!value.TryGetValue<double>(out var stock)||!double.IsFinite(stock))throw new NativeServiceException("post and stock");var ledger=Ledger();ledger["stock"]![S(post,"id")]=Math.Clamp(stock,0,N(post,"room"));ledger.Remove("looked");Write(ledger);cached=null;return new JsonObject{["posts"]=View(),["runs"]=Ledger()["runs"]?.DeepClone()??new JsonArray()};});host.Trade.SellerPrices.Add(Price);host.Trade.BoughtLineHooks.Add(Bought);var prior=goods.HauledIn;goods.HauledIn=route=>{prior?.Invoke(route);if(A(Facts["hauls"]).FirstOrDefault(h=>S(h,"id")==route)is {} haul&&S(haul,"place")=="vismarkt")Supply("vismarkt",6);};service.Jobs.BoardExtras.Add(()=>OfferRush());service.TakeJobHooks.Add(RushTaken);service.Jobs.SettlementExtras.Add(RushSettled);service.TickAfterHooks.Add(_=>{Ledger();if(lastRushHour!=(int)Hour){lastRushHour=(int)Hour;if(OfferRush().Count>0)host.PublishState();}});service.NewGame+=()=>{cached=null;cachedMinute=int.MinValue;lastRushHour=-1;droveLooked=false;droveWay=null;};service.Loaded+=()=>{cached=null;cachedMinute=int.MinValue;lastRushHour=-1;droveLooked=false;droveWay=null;};
     }
 }

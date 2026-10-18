@@ -188,6 +188,8 @@ public partial class Townspeople : Node
     private readonly Dictionary<string, string> shopPlaces = new();
     private string ShopPlace(string id) { if (!shopPlaces.TryGetValue(id, out var value)) shopPlaces[id] = value = "shop:" + id; return value; }
     private readonly Dictionary<string, (double x, double z, double yaw)> sellerSpots = new();
+    /// <summary>A standing person's work motion now (a market seller setting up or packing her stall), or null for the goal's own.</summary>
+    public Func<Sim, string?>? StandMotion;
     private readonly Dictionary<string, Game> games = new();
     private readonly Dictionary<string, Pt[]?> ways = new();
     private readonly HashSet<string> planWaysPending = new();
@@ -1365,8 +1367,9 @@ public partial class Townspeople : Node
                 {
                     // sellers call out now and then; drinkers take turns talking; the emigrant women talk among themselves
                     bool talky = g.Mode == "tavern" || s.R.Work.Kind is "stall" or "shop" or "wait";
-                    bool talking = talky && rng.NextDouble() < (g.Mode == "tavern" ? 0.4 : 0.25);
-                    crowd.PuppetStand(p, talking ? "talk" : g.Motion ?? "idle", g.Yaw);
+                    string? work = StandMotion?.Invoke(s);
+                    bool talking = work == null && talky && rng.NextDouble() < (g.Mode == "tavern" ? 0.4 : 0.25);
+                    crowd.PuppetStand(p, talking ? "talk" : work ?? g.Motion ?? "idle", g.Yaw);
                     s.Wait = talking ? Rnd(2.5, 5) : Rnd(4, 10);
                 }
                 return;

@@ -37,4 +37,23 @@ the numbers live in the engine files named here.
 - The sleep rules are unchanged (`fine` benches are where the police move sleepers on; robbery as before). A new
   bench is `fine` when its model's finish is fine.
 
-## The Vismarkt sellers (#150) — see the section added with that work.
+## The Vismarkt sellers (#150) — `native-godot/services/data/native-extras.json` (the vismarkt field's `pitches`), `native-godot/src/Services/NativeTownMarketPopulation.cs`, `godot/src/People/NativeMarket.Pitches.cs`
+
+- Fixed stalls: the six fish stalls that stand on the Vismarkt every day (under their tarpaulins at night) keep their
+  own fishwives, as before. Temporary stalls: sixteen market-day pitches (fourteen of fish, two of them barrows, one of
+  vegetables and one of bread), Monday to Saturday. The market's other stalls, kept by nameless sellers, are gone:
+  every seller on the square is now a person who lives in the town.
+- Each pitch has its own seller: a woman with a home near the market and her family's handcart. Her cart stands by
+  her door at night; she pushes it to her pitch with her goods (two or three crates), parks it beside the stall, and
+  pushes it home again after the market.
+- Hours (the engine's, in the data): she is at her pitch by 5:30-5:45. Set-up 5:30-7:00: first the frame or table,
+  then the awning or cloth, then the goods. Selling 7:00-12:30. Packing up 12:30-13:00: goods first, then the
+  awning; the frame comes down when she leaves with her cart. No market on Sunday.
+- Talk to a seller with E at any hour she is there; F buys from her while she sells. Before seven she says she is
+  still setting up, after half past twelve that she is packing up, and on Sunday there is no market. A seller is
+  talked to across her stall (a little further off than other people).
+- Stock: the fish sellers sell from the Vismarkt's one stock of fish (the trade ledger's `vismarkt` post, 14 to start,
+  room for 80). The quay porters' crates from the boats bring 6 portions each (the two dawn routes from the quay),
+  and the town's own buying takes from it. When it is gone the fish sellers say "Sold out. The boats bring more at
+  dawn." and sell nothing; a seller who sells out stays at her pitch until packing time. The bread seller sells
+  from the Steen bakery's stock; vegetables are not counted.

@@ -153,7 +153,14 @@ the before), `benchplan` (`--bench-plan <json>`: tries planned new bench places 
 and a route), `board` (the old plain board gone, the new one by the Hessenatie, one note per open job in the
 engine's eight places with title, giver and pay big enough for a metre; a full board waits the rest off its list; E on a
 note takes its job, its note comes down and a waiting job goes up in that place; day, rain and night pictures),
-`boardsurvey`, `facts` (a survey: fire spots, benches, rooms, the town's places). Decisions: `docs/town-life-decisions.md`.
+`boardsurvey`, `market` (the Vismarkt's sixteen pitches, each with its own seller, home, hours and handcart, a
+walking route from her door, no one else's cart on a pitch; one seller pushes her cart from her door with the clock
+running; at 6:15 the stalls part-built and no sales ("not open yet"), at 9:00 every stall up with its seller at it, the
+fishwives gutting, E and F at a stall, a sale taking one off the fish stock; at 12:45 packing and no sales; all gone
+when the last seller's day ends; no market on Sunday; pictures 5:15-13:00), `pitchspots` (with every stall up: an open
+place for each seller behind her stall and a place for her cart; writes the corrected pitch list), `pitchplan` and
+`marketsurvey` (the old random layout, to choose pitches from), `facts` (a survey: fire spots, benches, rooms, the
+town's places). Decisions: `docs/town-life-decisions.md`.
 Exit 1 on a failed check.
 
 ## Conversations and indoor entrances

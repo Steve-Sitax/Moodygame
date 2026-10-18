@@ -57,6 +57,10 @@ internal partial class MarketProof : Node
                         case "benches": await Benches(); break;
                         case "benchplan": await BenchPlan(); break;
                         case "benchsurvey": await BenchSurvey(); break;
+                        case "marketsurvey": await MarketSurvey(); break;
+                        case "pitchplan": await PitchPlan(); break;
+                        case "market": await Market(); break;
+                        case "pitchspots": await PitchSpots(); break;
                         default: Check(stage + " is a known stage", false); break;
                     }
                 }
@@ -595,6 +599,343 @@ internal partial class MarketProof : Node
                     await Shot("bench-" + weather + hour + "-" + id.Replace(':', '-'), b.At * new Vector3(1.1f, 1.15f, 2.0f), b.At * new Vector3(0, .45f, 0), 25);
         }
         await Dev.Kit.I.Light(13, "clear");
+    }
+
+    // ------------------------------------------------------------------ the Vismarkt as it stands (#150)
+    private async Task MarketSurvey()
+    {
+        await Dev.Kit.I.Light(9, "clear");
+        await Frames(60);
+        var market = People.NativeMarket.I ?? throw new InvalidOperationException("no market part");
+        var items = market.ItemsAt("vismarkt");
+        facts["vismarktItems"] = items.Select(it => new { it.Rank, it.Kind, it.Goods, it.SellerKind, x = MathF.Round((float)it.X, 2), z = MathF.Round((float)it.Z, 2), yaw = MathF.Round((float)it.Yaw, 3), half = MathF.Round((float)it.HalfLength, 2), seller = new[] { MathF.Round((float)it.Seller.X, 2), MathF.Round((float)it.Seller.Z, 2) }, sellerAt = new[] { MathF.Round((float)it.SellerAt.X, 2), MathF.Round((float)it.SellerAt.Z, 2) } }).ToArray();
+        facts["vismarktStalls"] = town.Data!.Stalls.Where(s => s.Place == "vismarkt").Select(s => new { s.Keeper, s.Goods, x = s.X, z = s.Z }).ToArray();
+        facts["markets"] = market.Inspect().ToJsonString();
+        facts["residents"] = town.Data.Residents.Count;
+        facts["fishwives"] = town.Data.Residents.Where(r => r.Trade is "fishwife" or "market_woman").Select(r => new { r.Id, r.Trade, r.Work.Place, r.Work.Kind, r.Household }).ToArray();
+        await Shot("vismarkt-9-above", new Vector3(-117, 38, 2), new Vector3(-117, 0, 29), 40);
+        await Shot("vismarkt-9-street", new Vector3(-104, 2.2f, 14), new Vector3(-120, 1.2f, 30), 30);
+        Check("market surveyed", items.Count > 0, items.Count);
+    }
+
+    // ------------------------------------------------------------------ the Vismarkt's sellers (#150): real people, carts, set-up, selling, packing
+    private async Task Market()
+    {
+        var market = People.NativeMarket.I ?? throw new InvalidOperationException("no market part");
+        var api = Net.ServerLink.I!.Api!;
+        var crowd = town.Crowd!;
+        await Dev.Kit.I.Light(4.5, "clear", day: 1);
+        await Frames(120);
+        var sellers = town.Data!.Residents.Where(r => r.Id.StartsWith(People.NativeMarket.SellerPrefix, StringComparison.Ordinal)).OrderBy(r => r.Work.Pitch).ToList();
+        var pitches = market.ItemsAt("vismarkt");
+        var item = pitches.Where(it => it.Pitch >= 0).ToDictionary(it => it.Pitch);
+        Check("the Vismarkt's market-day stalls are its pitches, each kept by its own seller", pitches.Count == 16 && item.Count == 16 && sellers.Count == 16 && sellers.All(r => r.Work.Pitch is { } k && item.ContainsKey(k)) && sellers.Select(r => r.Work.Pitch).Distinct().Count() == 16, new { pitches = pitches.Count, sellers = sellers.Count });
+        Check("every seller is a woman with her own home and market hours Monday to Saturday", sellers.All(r => r.Sex == "f" && r.HomeHouse >= 0 && r.Sched.Day.Any(s => s.Act == "work") && r.Sched.Sunday.All(s => s.Act != "work")));
+        facts["sellers"] = sellers.Select(r => new { r.Id, r.Name, r.Kind, r.Trade, pitch = r.Work.Pitch, home = new[] { Math.Round(r.HomeSx, 1), Math.Round(r.HomeSz, 1) }, day = r.Sched.Day.Select(s => $"{s.A:0.00}-{s.B:0.00} {s.Act}").ToArray() }).ToArray();
+        var transport = await api.TownTransport();
+        var carts = sellers.Select(r => (r, cart: transport.Vehicles.FirstOrDefault(v => v.Kind == "handcart" && v.Owner == r.Id))).ToList();
+        bool ParkedBy((Resident r, Net.ResidentVehicle? cart) c) => c.cart != null && c.cart.Parks.Any(p => p.Key.StartsWith("work", StringComparison.Ordinal) && p.Value.Length >= 2 && Math.Sqrt(Math.Pow(p.Value[0] - item[c.r.Work.Pitch!.Value].Seller.X, 2) + Math.Pow(p.Value[1] - item[c.r.Work.Pitch!.Value].Seller.Z, 2)) < 3.5);
+        Check("every seller has her family's handcart, parked beside her pitch at work", carts.All(ParkedBy), carts.Where(c => !ParkedBy(c)).Select(c => new { c.r.Id, cart = c.cart?.Id, parks = c.cart?.Parks.Select(p => p.Key + ":" + string.Join(",", p.Value)).ToArray() }).ToArray());
+        var onPitch = transport.Vehicles.Where(v => !v.Owner.StartsWith(People.NativeMarket.SellerPrefix, StringComparison.Ordinal)).SelectMany(v => v.Parks.Values.Append(v.Home).Select(q => (v.Id, q)))
+            .Where(c => c.q.Length >= 2 && pitches.Any(it => it.Rects.Any(r => r.Contains(c.q[0], c.q[1], .8)) || Math.Sqrt(Math.Pow(c.q[0] - it.Seller.X, 2) + Math.Pow(c.q[1] - it.Seller.Z, 2)) < 1.2)).Select(c => c.Id + " " + string.Join(",", c.q)).ToArray();
+        Check("no one else's cart or velocipede is parked on a pitch", onPitch.Length == 0, onPitch);
+        // a native way on foot from her door to her place behind the stall
+        var noWay = new List<object>();
+        foreach (var r in sellers)
+        {
+            var it = item[r.Work.Pitch!.Value];
+            var way = World.Ways.NativePath(town.Walk!, new Vector2((float)r.HomeSx, (float)r.HomeSz), new Vector2((float)it.Seller.X, (float)it.Seller.Z));
+            double end = way is { Count: > 0 } ? way[^1].DistanceTo(new Vector2((float)it.Seller.X, (float)it.Seller.Z)) : 99;
+            if (end > 1.2) noWay.Add(new { r.Id, end = Math.Round(end, 2), points = way?.Count ?? 0 });
+        }
+        Check("every seller has a walking route from her door to her pitch", noWay.Count == 0, noWay);
+        Check("before dawn every pitch is empty: no stall without its seller", market.PitchState().All(p => p!["level"]!.GetValue<int>() == -1), market.PitchState().ToJsonString());
+        double stockDawn = await Stock(api);
+
+        // one seller from her door to her pitch with her handcart
+        var first = carts.Where(ParkedBy).Select(c => c.r).OrderBy(r => Math.Abs(Math.Sqrt(Math.Pow(r.HomeSx - item[r.Work.Pitch!.Value].Seller.X, 2) + Math.Pow(r.HomeSz - item[r.Work.Pitch!.Value].Seller.Z, 2)) - 50)).First();
+        var firstAt = item[first.Work.Pitch!.Value];
+        double walkH = Math.Sqrt(Math.Pow(first.HomeSx - firstAt.Seller.X, 2) + Math.Pow(first.HomeSz - firstAt.Seller.Z, 2)) * 1.5 / 2.0 / 60;
+        double leave = first.Sched.Day.First(s => s.Act == "work").A - walkH;
+        await Dev.Kit.I.Light(leave - .25, "clear", day: 1);
+        Game.GameState.I.PlayingWhen = () => true;
+        town.Refill();
+        var door = new Vector3((float)first.HomeSx, 0, (float)first.HomeSz);
+        await Look(door + new Vector3(4, 3, 4), door + Vector3.Up, 30);
+        bool pushed = false, cartShot = false;
+        var phases = new List<string>();
+        var keys = new List<string>();
+        for (int i = 0; i < 60 * 150; i++)
+        {
+            await Frame();
+            var s = town.ActionPerson(first.Id);
+            var trip = ResidentJourneys.I?.Trips.FirstOrDefault(t => t.Person.R.Id == first.Id);
+            if (trip != null && (phases.Count == 0 || phases[^1] != trip.Phase)) phases.Add(trip.Phase);
+            if (s != null && (keys.Count == 0 || !keys[^1].EndsWith(s.Key))) keys.Add($"{town.Hour:0.000} drawn={s.P != null} inside={s.Inside} {s.Key}");
+            if (s?.P is { } p)
+            {
+                if (i % 30 == 0) await Look(new Vector3((float)p.X, 0, (float)p.Z) + new Vector3(3.5f, 2.6f, 3.5f), new Vector3((float)p.X, 1, (float)p.Z), 1);
+                bool withCart = crowd.PuppetVehicleNode(p) != null;
+                pushed |= withCart;
+                if (withCart && !cartShot && i > 120) { cartShot = true; await Shot("market-0515-cart", new Vector3((float)p.X, 0, (float)p.Z) + new Vector3(3, 2.2f, 3), new Vector3((float)p.X, .9f, (float)p.Z), 4); }
+            }
+            if (pushed && trip == null && s != null && Math.Abs(s.X - firstAt.Seller.X) + Math.Abs(s.Z - firstAt.Seller.Z) < 2.5) break;
+        }
+        Game.GameState.I.PlayingWhen = () => false;
+        var sNow = town.ActionPerson(first.Id);
+        facts["firstSeller"] = new { first.Id, first.Name, leave, phases, keys, pushed, at = sNow == null ? null : new[] { Math.Round(sNow.X, 2), Math.Round(sNow.Z, 2) }, pitch = new[] { firstAt.Seller.X, firstAt.Seller.Z }, hour = town.Hour };
+        Check("a seller pushes her handcart from her door to her pitch", pushed && sNow != null && Math.Abs(sNow.X - firstAt.Seller.X) + Math.Abs(sNow.Z - firstAt.Seller.Z) < 2.5, facts["firstSeller"]);
+        await Frames(60);
+        var fc = new Vector3((float)firstAt.X, 0, (float)firstAt.Z);
+        await Shot("market-0530-arrived", fc + new Vector3(MathF.Sin((float)firstAt.Yaw), 0, MathF.Cos((float)firstAt.Yaw)) * 4.5f + new Vector3(0, 2.4f, 0), fc + Vector3.Up * .8f, 30);
+
+        // setting up: before seven the stalls stand part-built, and nobody sells yet
+        await Dev.Kit.I.Light(6.25, "clear", day: 1);
+        town.Refill();
+        await Look(new Vector3(-117, 30, 4), new Vector3(-117, 0, 29), 60);
+        await AtPitches(market, 16, 150);
+        var setup = market.PitchState();
+        int building = setup.Count(p => p!["level"]!.GetValue<int>() is 0 or 1), ready = setup.Count(p => p!["level"]!.GetValue<int>() == 2);
+        facts["setup0615"] = setup.ToJsonString();
+        Check("at 6:15 the sellers are building their stalls: frames and awnings up, no goods", building >= 12 && ready == 0, new { building, ready });
+        var seller = sellers[0];
+        string? shut = market.NotOpen(seller.Id);
+        string refused = "";
+        try { await api.Buy(seller.Id, "herring"); } catch (Net.ApiException e) { refused = e.Message; }
+        Check("before seven a seller says she is not open yet, and sells nothing", shut != null && shut.StartsWith("not open yet") && refused.Contains("Not open yet"), new { shut, refused });
+        await Shot("market-0615-setup", new Vector3(-104, 2.4f, 14), new Vector3(-118, 1.2f, 30), 20);
+
+        // the market: every pitch kept and selling, each seller at her own place, the fishwives gutting
+        await Dev.Kit.I.Light(9, "clear", day: 1);
+        town.Refill();
+        await Look(new Vector3(-117, 30, 4), new Vector3(-117, 0, 29), 60);
+        await AtPitches(market, 16, 150);
+        var nine = market.PitchState();
+        facts["market0900"] = nine.ToJsonString();
+        Check("at 9:00 every pitch stands with its goods out and its own seller behind it", nine.All(p => p!["level"]!.GetValue<int>() == 2), nine.Where(p => p!["level"]!.GetValue<int>() != 2).Select(p => p!.ToJsonString()).ToArray());
+        Check("no anonymous sellers on the Vismarkt", market.Inspect().Any(f => f!["place"]!.GetValue<string>() == "vismarkt" && f["sellers"]!.GetValue<int>() == 0));
+        await Shot("market-0900-above", new Vector3(-117, 38, 2), new Vector3(-117, 0, 29), 30);
+        await Shot("market-0900-street", new Vector3(-104, 2.2f, 14), new Vector3(-120, 1.2f, 30), 20);
+        // close to a few sellers: the camera beside each, their bodies drawn
+        var close = new List<(string Id, string Kind, bool Drawn, string? Work, string? Clip, double Off)>();
+        foreach (var r in sellers.Where(r => item[r.Work.Pitch!.Value].Kind == "fishtable").Take(3).Concat(sellers.Where(r => item[r.Work.Pitch!.Value].Kind == "stall").Take(1)))
+        {
+            var it = item[r.Work.Pitch!.Value];
+            var front = new Vector3((float)it.X, 0, (float)it.Z) + new Vector3(MathF.Sin((float)it.Yaw), 0, MathF.Cos((float)it.Yaw)) * 2.6f;
+            await Look(front + Vector3.Up * 1.6f, new Vector3((float)it.Seller.X, 1, (float)it.Seller.Z), 60);
+            // (a stall-keeper takes a few steps round her stall now and then: wait until she is back at it)
+            var s = town.ActionPerson(r.Id);
+            for (int k = 0; k < 60 * 40 && !(s?.P is { State: not "walk" } q && Math.Sqrt(Math.Pow(q.X - it.Seller.X, 2) + Math.Pow(q.Z - it.Seller.Z, 2)) < .45); k++) await Frame();
+            await Frames(60);
+            close.Add((r.Id, it.Kind, s?.P != null, s?.P?.Human.Work, s?.P?.Human.AnimationState.Clip, s?.P == null ? -1 : Math.Round(Math.Sqrt(Math.Pow(s.P.X - it.Seller.X, 2) + Math.Pow(s.P.Z - it.Seller.Z, 2)), 2)));
+            await Shot($"market-0900-{it.Kind}-{r.Work.Pitch}", front + Vector3.Up * 1.6f, new Vector3((float)it.Seller.X, 1, (float)it.Seller.Z), 30);
+        }
+        facts["closeSellers"] = close.Select(c => new { c.Id, c.Kind, c.Drawn, c.Work, c.Clip, c.Off }).ToArray();
+        Check("behind a fish table the seller guts the catch while she sells", close.Where(c => c.Kind == "fishtable").All(c => c.Drawn && c.Work == "fish_stall"), facts["closeSellers"]);
+        Check("each seller stands at her own place behind her stall", close.All(c => c.Drawn && c.Off is >= 0 and < .45), facts["closeSellers"]);
+        // talk and trade: E talks, F buys; a sale takes one portion off the fish market's stock
+        var buyer = sellers.Where(r => item[r.Work.Pitch!.Value].Goods == "fish").OrderBy(r => town.ActionPerson(r.Id)?.P is { State: not "walk" } q && Math.Abs(q.X - item[r.Work.Pitch!.Value].Seller.X) + Math.Abs(q.Z - item[r.Work.Pitch!.Value].Seller.Z) < .6 ? 0 : 1).First();
+        var bit = item[buyer.Work.Pitch!.Value];
+        // Jef at the stall's front edge (the layout's front point is 0.6 m out from it)
+        var stand = new Vector3((float)(bit.Front.X - Math.Sin(bit.Yaw) * .4), 0, (float)(bit.Front.Z - Math.Cos(bit.Yaw) * .4));
+        if (Player.Jef.I.Fly) Player.Jef.I.ToggleFly();
+        Main.I.Cam.SetProcess(true);
+        var sb = town.ActionPerson(buyer.Id);
+        // (the camera looks down its -z: the yaw points from her back to Jef)
+        float yaw = MathF.Atan2((float)(stand.X - (sb?.P?.X ?? bit.Seller.X)), (float)(stand.Z - (sb?.P?.Z ?? bit.Seller.Z)));
+        Player.Jef.I.Place(stand.X, stand.Z, yaw, -.05f, 0);
+        await Frames(60);
+        // (settled on the ground, face her again: the first frames can turn him)
+        Player.Jef.I.Place(Player.Jef.I.X, Player.Jef.I.Z, yaw, -.05f, 0);
+        await Frames(2);
+        Interact.I.RepeatPrompt();
+        string prompt = Interact.I.Text;
+        facts["talk"] = new { buyer = buyer.Id, buyer.First, jef = new[] { Player.Jef.I.X, Player.Jef.I.Z }, seller = sb?.P == null ? null : new[] { sb.P.X, sb.P.Z }, sells = Talks.Talk.I?.Sells(buyer.Id), shut = Interact.I.IsShut, fly = Player.Jef.I.Fly, dialogs = Windows.Dialogs.I?.Up.ToArray(), acts = Interact.I.Find().Select(a => a.Key + " " + a.Text).ToArray(), carried = Goods.I.Carried?.Kind, setYaw = yaw, jefYaw = Player.Jef.I.Yaw, pitch = Player.Jef.I.Pitch, eye = F(Player.Jef.I.Cam.GlobalPosition), aim = sb?.P == null ? null : Interact.Aim((float)sb.P.X, 1.3f, (float)sb.P.Z), only = ((System.Collections.IEnumerable)typeof(Interact).GetField("providers", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!.GetValue(Interact.I)!).Cast<Func<float, float, Offers?>>().Select(f => (f, o: f(Player.Jef.I.X, Player.Jef.I.Z))).Where(q => q.o?.Only != null).Select(q => q.f.Method.DeclaringType?.Name + "." + q.f.Method.Name + ":" + string.Join("|", q.o!.Only!.Select(a => a.Text))).ToArray(), near = Folk.Near(Player.Jef.I.X, Player.Jef.I.Z, 2.6f).Select(n => n.Name + " " + n.Dist.ToString("0.00")).ToArray() };
+        Check("at her stall E talks to the seller and F buys from her", prompt.Contains("talk to " + buyer.First) && prompt.Contains("buy from " + buyer.First), prompt);
+        await Shot("market-0900-talk", Main.I.Cam.GlobalPosition, Main.I.Cam.GlobalPosition - Main.I.Cam.GlobalBasis.Z, 4);
+        Main.I.Cam.SetProcess(false);
+        if (!Player.Jef.I.Fly) Player.Jef.I.ToggleFly();
+        await Api.Post<Net.JobsPayload>("api/dev/set", new Dictionary<string, object> { ["money_c"] = 500 });
+        double before = await Stock(api), soldBefore = await Stock(api, "soldPlayers");
+        string sold = "";
+        try { var reply = await api.Buy(buyer.Id, "herring"); sold = reply.Line + " (" + reply.PriceC + " c)"; } catch (Net.ApiException e) { sold = "refused: " + e.Message; }
+        double after = await Stock(api), soldAfter = await Stock(api, "soldPlayers");
+        // (the stock itself may also rise meanwhile: the porters' crates come in from the quay)
+        Check("she sells a herring from the fish market's own stock", !sold.StartsWith("refused") && soldAfter == soldBefore + 1, new { sold, before, after, soldBefore, soldAfter });
+        facts["stock"] = new { dawn = stockDawn, nine = before, sold = after };
+
+        // packing up after half past twelve: goods first, then the awning; nobody sells
+        await Dev.Kit.I.Light(12.75, "clear", day: 1);
+        town.Refill();
+        await Look(new Vector3(-117, 30, 4), new Vector3(-117, 0, 29), 60);
+        await AtPitches(market, 16, 150);
+        var pack = market.PitchState();
+        facts["pack1245"] = pack.ToJsonString();
+        int packing = pack.Count(p => p!["level"]!.GetValue<int>() is 0 or 1), full = pack.Count(p => p!["level"]!.GetValue<int>() == 2);
+        string late = "";
+        try { await api.Buy(seller.Id, "herring"); } catch (Net.ApiException e) { late = e.Message; }
+        Check("at 12:45 the sellers are packing up and sell nothing", packing >= 12 && full == 0 && late.Contains("packing up") && market.NotOpen(seller.Id)?.StartsWith("packing up") == true, new { packing, full, late });
+        await Shot("market-1245-packing", new Vector3(-104, 2.2f, 14), new Vector3(-120, 1.2f, 30), 20);
+
+        // the market gone by 13:30: each frame struck as its seller leaves with her cart
+        await Dev.Kit.I.Light(13, "clear", day: 1);
+        town.Refill();
+        await Look(new Vector3(-117, 30, 4), new Vector3(-117, 0, 29), 240);
+        facts["gone1300"] = market.PitchState().ToJsonString();
+        await Shot("market-1300-above", new Vector3(-117, 38, 2), new Vector3(-117, 0, 29), 20);
+        await Shot("market-1300-street", new Vector3(-104, 2.2f, 14), new Vector3(-120, 1.2f, 30), 20);
+        double home = sellers.Max(r => r.Sched.Day.First(q => q.Act == "work").B) + .05;
+        await Dev.Kit.I.Light(home, "clear", day: 1);
+        town.Refill();
+        await Look(new Vector3(-117, 30, 4), new Vector3(-117, 0, 29), 240);
+        var gone = market.PitchState();
+        facts["goneAt"] = home;
+        Check("when the last seller's day ends every seller has gone home and her pitch is empty", gone.All(p => p!["level"]!.GetValue<int>() == -1), gone.Where(p => p!["level"]!.GetValue<int>() != -1).Select(p => p!.ToJsonString()).ToArray());
+        // Sunday: no market
+        await Dev.Kit.I.Light(9, "clear", day: 7);
+        town.Refill();
+        await Look(new Vector3(-117, 30, 4), new Vector3(-117, 0, 29), 240);
+        Check("on Sunday there is no market", market.PitchState().All(p => p!["level"]!.GetValue<int>() == -1) && market.NotOpen(seller.Id) == "no market on Sunday", new { shut = market.NotOpen(seller.Id), day = town.Day, up = market.PitchState().Where(p => p!["level"]!.GetValue<int>() != -1).Select(p => p!.ToJsonString()).ToArray() });
+        await Dev.Kit.I.Light(13, "clear", day: 1);
+    }
+
+    /// <summary>After a jump in time the sellers walk to their pitches in real time: wait until this many stand at theirs.</summary>
+    private async Task AtPitches(People.NativeMarket market, int want, double seconds)
+    {
+        for (int i = 0; i < seconds * 60; i++)
+        {
+            await Frame();
+            if (i % 30 == 0 && market.PitchState().Count(p => p!["level"]!.GetValue<int>() >= 0) >= want) break;
+        }
+        await Frames(30);
+    }
+
+    private static async Task<double> Stock(Net.Api api, string field = "stock")
+    {
+        var data = await api.Get<JsonElement>("api/trade");
+        foreach (var p in data.GetProperty("posts").EnumerateArray()) if (p.GetProperty("id").GetString() == "vismarkt") return p.GetProperty(field).GetDouble();
+        return double.NaN;
+    }
+
+    // ------------------------------------------------------------------ the Vismarkt pitches (#150): each seller's place behind her stall on open ground, and her cart's place beside it
+    private async Task PitchSpots()
+    {
+        var market = People.NativeMarket.I ?? throw new InvalidOperationException("no market part");
+        await Dev.Kit.I.Light(4.5, "clear", day: 1);
+        market.ShowAll = true;
+        await Frames(60);
+        var crowd = town.Crowd!;
+        var items = market.ItemsAt("vismarkt");
+        var data = System.Text.Json.Nodes.JsonNode.Parse(File.ReadAllText(Path.Combine(Paths.NativeDataRoot ?? Paths.Root, "services", "native-extras.json")))!["fields"]![0]!["pitches"]!["list"]!.AsArray();
+        bool InStall(double x, double z, double pad) => items.Any(it => it.Rects.Any(r => r.Contains(x, z, pad)));
+        // the sellers' places: the layout's own, or the nearest open ground behind the stall
+        var sellers = new (double x, double z)[items.Count];
+        var moved = new double[items.Count];
+        foreach (var it in items)
+        {
+            var at = new Vector3((float)it.X, 0, (float)it.Z);
+            await Look(at + new Vector3(0, 14, 7), at, 40);
+            double c = Math.Cos(it.Yaw), s = Math.Sin(it.Yaw);
+            (double x, double z)? best = null;
+            foreach (double back in new[] { 0, .1, .2, .3, .4, .5, .6, .7, .8, .9, 1.0, 1.2 })
+            {
+                foreach (double side in new[] { 0, .15, -.15, .3, -.3, .45, -.45, .6, -.6 })
+                {
+                    double u = it.SellerAt.X + side, v = it.SellerAt.Z - back, x = it.X + u * c + v * s, z = it.Z - u * s + v * c;
+                    if (!crowd.CanStand(x, z) || InStall(x, z, .3) || sellers.Take(it.Pitch).Any(q => Math.Sqrt(Math.Pow(q.x - x, 2) + Math.Pow(q.z - z, 2)) < 1.2)) continue;
+                    best = (x, z); moved[it.Pitch] = Math.Sqrt(back * back + side * side); break;
+                }
+                if (best != null) break;
+            }
+            sellers[it.Pitch] = best ?? (double.NaN, double.NaN);
+        }
+        // the carts' places: 2.3 m by 1.1 m on open ground, clear of every stall, seller and other cart
+        var carts = new List<(double x, double z, double yaw)?>();
+        bool CartFits(double x, double z, double yaw)
+        {
+            double fx = Math.Sin(yaw), fz = Math.Cos(yaw);
+            for (double a = -1.15; a <= 1.151; a += .23)
+                for (double b = -.55; b <= .551; b += .275)
+                {
+                    double px = x + fx * a - fz * b, pz = z + fz * a + fx * b;
+                    if (!town.Walk!.Free(px, pz) || InStall(px, pz, .2)) return false;
+                    if (sellers.Any(q => Math.Sqrt(Math.Pow(q.x - px, 2) + Math.Pow(q.z - pz, 2)) < .9)) return false;
+                    if (carts.Any(q => q is { } o && Math.Abs(px - o.x) < 1.6 && Math.Abs(pz - o.z) < 1.6)) return false;
+                }
+            return true;
+        }
+        foreach (var it in items)
+        {
+            var had = data[it.Pitch]!["cart"] as System.Text.Json.Nodes.JsonArray;
+            (double x, double z, double yaw)? best = had != null && CartFits(had[0]!.GetValue<double>(), had[1]!.GetValue<double>(), had[2]!.GetValue<double>()) ? (had[0]!.GetValue<double>(), had[1]!.GetValue<double>(), had[2]!.GetValue<double>()) : null;
+            var me = sellers[it.Pitch];
+            double fx = Math.Sin(it.Yaw), fz = Math.Cos(it.Yaw), sx = fz, sz = -fx;
+            foreach (double back in new[] { 1.0, 1.3, 1.6, 2.0, 2.5 })
+                foreach (double side in new[] { 1.2, -1.2, 1.8, -1.8, .6, -.6, 2.4, -2.4, 0 })
+                    foreach (double turn in new[] { Math.PI / 2, 0 })
+                    {
+                        if (best != null) break;
+                        double x = me.x - fx * back + sx * side, z = me.z - fz * back + sz * side, yaw = it.Yaw + turn;
+                        if (CartFits(x, z, yaw)) best = (x, z, yaw);
+                    }
+            carts.Add(best);
+        }
+        market.ShowAll = false;
+        double R2(double v) => Math.Round(v, 2);
+        var list = items.Select(it => new { kind = it.Kind, goods = it.Goods, x = R2(it.X), z = R2(it.Z), yaw = Math.Round(it.Yaw, 3), length = R2(it.HalfLength * 2), seller = new[] { R2(sellers[it.Pitch].x), R2(sellers[it.Pitch].z) }, cart = carts[it.Pitch] is { } c ? new[] { R2(c.x), R2(c.z), Math.Round(c.yaw, 3) } : null }).ToArray();
+        facts["pitchesNew"] = list;
+        facts["moved"] = moved.Select(R2).ToArray();
+        Check("every pitch has an open place for its seller behind the stall", sellers.All(q => double.IsFinite(q.x)), facts["moved"]);
+        Check("every pitch has a place for its seller's cart beside it", carts.All(c => c != null));
+    }
+
+    // ------------------------------------------------------------------ the Vismarkt pitches (#150): the kept stalls and a cart place beside each
+    private async Task PitchPlan()
+    {
+        await Dev.Kit.I.Light(9, "clear");
+        await Frames(60);
+        var market = People.NativeMarket.I ?? throw new InvalidOperationException("no market part");
+        var items = market.ItemsAt("vismarkt");
+        int[] keep = { 0, 1, 2, 3, 4, 6, 7, 8, 9, 10, 12, 13, 14, 17, 22, 30 };
+        var kept = keep.Where(k => k < items.Count).Select(k => items.First(i => i.Rank == k)).ToList();
+        var crowd = town.Crowd!;
+        var stalls = town.Data!.Stalls.Where(s => s.Place == "vismarkt").ToList();
+        var carts = new List<(double x, double z, double yaw)>();
+        bool InItem(double x, double z, double pad) => kept.Any(it => it.Rects.Any(r => r.Contains(x, z, pad)) || Math.Abs(x - it.Seller.X) + Math.Abs(z - it.Seller.Z) < .8 + pad)
+            || stalls.Any(s => Math.Abs(x - s.X) < 1.6 + pad && Math.Abs(z - s.Z) < 1.6 + pad);
+        bool Fits(double x, double z, double yaw)
+        {
+            double fx = Math.Sin(yaw), fz = Math.Cos(yaw);
+            for (double a = -1.15; a <= 1.151; a += .23)
+                for (double b = -.55; b <= .551; b += .275)
+                {
+                    double px = x + fx * a - fz * b, pz = z + fz * a + fx * b;
+                    if (!town.Walk!.Free(px, pz) || InItem(px, pz, .2)) return false;
+                    if (carts.Any(c => Math.Abs(px - c.x) < 1.6 && Math.Abs(pz - c.z) < 1.6)) return false;
+                }
+            return true;
+        }
+        var plan = new List<object>();
+        foreach (var it in kept)
+        {
+            double fx = Math.Sin(it.Yaw), fz = Math.Cos(it.Yaw), sx = fz, sz = -fx;
+            (double x, double z, double yaw)? best = null;
+            foreach (double back in new[] { 1.0, 1.3, 1.6, 2.0, 2.5 })
+                foreach (double side in new[] { 0.0, .6, -.6, 1.2, -1.2, 1.8, -1.8, 2.4, -2.4 })
+                    foreach (double turn in new[] { Math.PI / 2, 0 })
+                    {
+                        if (best != null) break;
+                        double x = it.Seller.X - fx * back + sx * side, z = it.Seller.Z - fz * back + sz * side, yaw = it.Yaw + turn;
+                        if (Fits(x, z, yaw)) best = (x, z, yaw);
+                    }
+            if (best is { } b) carts.Add(b);
+            double R2(double v) => Math.Round(v, 2);
+            plan.Add(new { kind = it.Kind, goods = it.Goods, x = R2(it.X), z = R2(it.Z), yaw = Math.Round(it.Yaw, 3), length = R2(it.HalfLength * 2), seller = new[] { R2(it.Seller.X), R2(it.Seller.Z) }, cart = best is { } c ? new[] { R2(c.x), R2(c.z), Math.Round(c.yaw, 3) } : null, rank = it.Rank });
+        }
+        facts["pitches"] = plan;
+        facts["standAtSellers"] = kept.Select(it => new { stand = crowd.CanStand(it.Seller.X, it.Seller.Z), free = town.Walk!.Free(it.Seller.X, it.Seller.Z) }).ToArray();
+        Check("every kept pitch has a free cart place beside it", plan.Count == kept.Count && carts.Count == kept.Count, new { kept = kept.Count, carts = carts.Count });
+        await Shot("pitchplan-9-above", new Vector3(-117, 38, 2), new Vector3(-117, 0, 29), 40);
     }
 
     // ------------------------------------------------------------------ the hiring board (#153): what stands there now

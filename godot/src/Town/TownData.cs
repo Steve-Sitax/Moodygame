@@ -30,6 +30,8 @@ public sealed class WorkSpec
     public double[]? Faces;
     public Pt? Door;
     public int? Stall;
+    /// <summary>A market-day pitch (#150): the vismarkt field's pitch number she keeps.</summary>
+    public int? Pitch;
     public string? Shop;
     public bool Seat;
     public string? Motion;
@@ -157,6 +159,7 @@ public sealed class TownData
                 {
                     Place = S(w, "place"), Kind = S(w, "kind"), At = Nums(w, "at"), A = Po(w, "a"), B = Po(w, "b"), Route = Pts(w, "route"), Faces = Nums(w, "faces"), Door = Po(w, "door"),
                     Stall = w.TryGetProperty("stall", out var st) && st.ValueKind == JsonValueKind.Number ? st.GetInt32() : null, Shop = So(w, "shop"),
+                    Pitch = w.TryGetProperty("pitch", out var pt) && pt.ValueKind == JsonValueKind.Number ? pt.GetInt32() : null,
                     Seat = w.TryGetProperty("seat", out var seat) && seat.ValueKind == JsonValueKind.True, Motion = So(w, "motion"),
                 },
                 Sched = ScheduleOf(sched),
