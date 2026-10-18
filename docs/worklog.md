@@ -8,11 +8,11 @@ coordinator merges into main after checks and `test-icons.ps1 -Full`. Town chunk
 | Wave | Bundle | Issues |
 |---|---|---|
 | 1 | A. Checks that fail at random | #145 #146 #136 #124 #125 #106 #49 #47 |
-| 1 | B. Talk and doorways | #168 #158 |
+| 1 | B. Talk and doorways | #168 #158 (merged 69187d20) |
 | 1 | C. Speed | #133 #135 #62 #32 |
 | 2 | D. Boats | #155 #87 #109 #167 #154 #156 |
-| 2 | E. Carried loads and work poses | #148 #130 #151 #131 #129 #169 #172 #128 #132 |
-| 2 | F. Market, work board, warmth, benches (rules) | #150 #153 #162 #165 |
+| 2 (running) | E. Carried loads and work poses | #148 #130 #151 #131 #129 #169 #172 #128 #132 |
+| 2 | F. Market, work board, warmth, benches (rules), room keepers | #150 #153 #162 #165 #177 #178 |
 | 2 | L. Routes | #139 #120 |
 | 3 | G. Street furniture models | #160 #149 #164, bench and board models |
 | 3 | H. Town fabric (one at a time) | #161, #171 with #173, #163, #170 with #91 |
