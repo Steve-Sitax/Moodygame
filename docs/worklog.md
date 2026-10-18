@@ -15,7 +15,7 @@ coordinator merges into main after checks and `test-icons.ps1 -Full`. Town chunk
 | 2 | F. Market, work board, warmth, benches (rules), room keepers | merged 0294af09 (#187 leftovers) |
 | 2 | L. Routes | merged (#186 theatre stair, #185 talk check flake) |
 | 3 | G. Street furniture models | #160 #149 #164 #180 |
-| 3 | H. Town fabric (one at a time) | H1 merged (#161 #173; #171 part); H2 merged (#163); H3 running: #188 #176 #175 #28; then H4 #174 shop fronts; then H5 #170 #91 paving |
+| 3 | H. Town fabric (one at a time) | H1 merged (#161 #173; #171 part); H2 merged (#163); H3 merged 487f132b (#188 #176 #175; #28 part); H4 running: #174 #193 #28 rest; then H5 #170 #91 paving with G #160 #149 #164 and #171 rest |
 | 3 | I. Light and look | merged ed978ca9 |
 | 3 (running) | J. People kit | #82 #138 #140, rowing and climbing from #182 |
 | 3 | K. Textures | #84 |
