@@ -82,7 +82,8 @@ For example, `--dev-command 'hour 13 clear; go vismarkt; summon fishwife'`. Cons
 normal server dev routes, crowd and job-taking path. Four of them are exercised by `--devtest <dir>`.
 
 Boats (issues 155, 87, 154, 156; opt-in parts of the move check): `--movetest <dir> --moveonly boatdeck` (a 2 m drop
-onto every kind of boat, a hole scan over each hull, a walk on a deck underway, quay to boat, quay to barge, low water),
+onto every kind of boat, a hole scan over each hull, a walk on a deck underway, quay to boat, quay to barge, low water;
+`--boatkinds rowboat,punt` drops on those kinds only; a failed drop writes its trace, Jef's last water entry and push),
 `ladders` (no hull on any ladder's or landing's hold; prints a mooring plan when one is blocked), `crews` (every boat
 underway within 140 m has her people; `--crewhour H`), `takeboat` (take an owned and a nobody's moored boat, row out
 and back, tie up). `--mptest <dir> --mpboat` adds the boat to the two-game check: the host takes a moored boat and
@@ -177,8 +178,12 @@ bench (`figures`), the Sint-Jansplein open in the walk map with its four benches
 Vleeshuis oak stair to the theatre floor with his own body (`theatre`), the evening audience walking up it to the high seats
 (`audience`, day 7 18:05), each landing's family-boat berth and whether her people step out at the landing (`berths`), Jef
 swimming in the far river (`river`), the small boats' mooring ropes following the tide (`ropes`), the wall works' basket
-moving with the navvy's winch (`works`, 10:00), the fish tables' herring, cod and plaice models (`fish`) and the three tavern
-fireplaces (`fireplace`). `--leftovers-only a,b` picks stages. It writes `leftovers.json` and pictures; exit 1 on a failure.
+moving with the navvy's winch (`works`, 10:00), the fish tables' herring, cod and plaice models and every painted fish of the
+stall and trade models swapped for the fish models on crushed ice, with pictures of a crate, basket, barrow, the fixed fish stall
+and the porters' fish box (`fish`, issue 190: `MarketCatch`), and the three tavern fireplaces, with no spark dots in a room's
+hearth (`fireplace`), and the cathedral (`cathedral`, issue 192): its west end surveyed (what is built there, the loft's floor
+and what holds a body at 7.25 m, `cathedral-loft-floor.txt`, `cathedral-body.txt`), Jef climbing the loft stair and walking the
+gallery into the loft, the organist's and the confessor's walks in (day, night and rain pictures). `--leftovers-only a,b` picks stages. It writes `leftovers.json` and pictures; exit 1 on a failure.
 
 ## Market, work board, warmth, benches and room keepers
 
@@ -203,7 +208,9 @@ fishwives gutting, E and F at a stall, a sale taking one off the fish stock; at 
 when the last seller's day ends; no market on Sunday; pictures 5:15-13:00), `pitchspots` (with every stall up: an open
 place for each seller behind her stall and a place for her cart; writes the corrected pitch list), `pitchplan` and
 `marketsurvey` (the old random layout, to choose pitches from), `facts` (a survey: fire spots, benches, rooms, the
-town's places). Decisions: `docs/town-life-decisions.md`.
+town's places). `--market-place grote_markt` runs `market` on the Grote Markt's twenty pitches (issue 192: the same day,
+a sale of her own wares, no fish checks); `--pitch-place grote_markt` with `pitchspots`, and with `pitchplan` and
+`--pitch-keep 0,2,5` (or `all`), plan another market's pitches. Decisions: `docs/town-life-decisions.md`.
 Exit 1 on a failed check.
 
 ## Conversations and indoor entrances

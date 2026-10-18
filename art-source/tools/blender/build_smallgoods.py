@@ -12,6 +12,8 @@ at the origin, in game axes (+Y up), real scale in metres:
   cod      a 52 cm cod, its middle at the origin, head +X, back +Y (as held_fish)
   plaice   a 31 cm plaice, eyed side up (+Y), head +X, its middle at the origin
   baby     a swaddled infant, the bundle's middle at the origin, lying along +Z with the head at +Z, face up
+  ice      a bed of crushed ice 0.50 x 0.40 m (#190), its underside at the origin, laid under the market's fish
+  ice_round the same ice as a round bed 0.40 m across (a basket's, a bucket's)
 """
 
 import importlib
@@ -28,14 +30,14 @@ ROOT = os.path.abspath(os.path.join(HERE, "..", "..", ".."))
 import workgoods  # noqa: E402,F401
 from workgoods import kit  # noqa: E402
 
-for mod in ("kit", "paint", "catch", "infant", "shots", "verify"):
+for mod in ("kit", "paint", "catch", "infant", "ice", "shots", "verify"):
     importlib.reload(importlib.import_module("workgoods." + mod))
-from workgoods import catch, infant, shots, verify  # noqa: E402
+from workgoods import catch, ice, infant, shots, verify  # noqa: E402
 
-ORDER = ["cod", "plaice", "baby"]
+ORDER = ["cod", "plaice", "baby", "ice", "ice_round"]
 # reach of the occlusion rays (metres) and whether the model stands on the ground
-SHADE = {"cod": (0.04, False), "plaice": (0.03, False), "baby": (0.06, False)}
-SIZES = {"cod": (0.52, None, None), "plaice": (0.354, None, None), "baby": (None, None, 0.475)}
+SHADE = {"cod": (0.04, False), "plaice": (0.03, False), "baby": (0.06, False), "ice": (0.02, True), "ice_round": (0.02, True)}
+SIZES = {"cod": (0.52, None, None), "plaice": (0.354, None, None), "baby": (None, None, 0.475), "ice": (0.50, None, 0.40), "ice_round": (0.40, None, 0.40)}
 
 
 def args():
@@ -90,7 +92,7 @@ def main():
     names = [n for n in ORDER if o["only"] is None or n in o["only"]]
     meshes = {}
     for name in names:
-        meshes[name] = [catch.cod(A) if name == "cod" else catch.plaice(A) if name == "plaice" else infant.baby(A)]
+        meshes[name] = [catch.cod(A) if name == "cod" else catch.plaice(A) if name == "plaice" else ice.ice(A) if name == "ice" else ice.ice_round(A) if name == "ice_round" else infant.baby(A)]
     os.makedirs(os.path.dirname(o["out"]), exist_ok=True)
     os.makedirs(o["shots"], exist_ok=True)
     img = A.to_image("smallgoods", os.path.join(os.path.dirname(o["shots"]), "smallgoods_atlas.png"))
@@ -123,10 +125,11 @@ def main():
     ok = verify.check(o["out"], names)
     if not o["no_shots"]:
         # (their middles are at the origin: lift them clear of the pictures' ground)
-        shots.LIFT.update({"cod": 0.06, "plaice": 0.02, "baby": 0.10})
+        shots.LIFT.update({"cod": 0.06, "plaice": 0.02, "baby": 0.10, "ice": 0.0, "ice_round": 0.0})
         shots.VIEWS.update({"baby": [((0.75, -1.0, 0.62), (0.5, 0.5, 0.45), 3.0), ((0.2, -1.0, 0.7), (0.5, 0.05, 0.6), 1.2)],
                             "cod": [((0.3, -1.0, 0.45), (0.5, 0.5, 0.5), 3.0), ((0.5, -1.0, 0.15), (0.85, 0.3, 0.5), 1.0)],
-                            "plaice": [((0.5, -1.0, 0.8), (0.5, 0.5, 0.5), 3.0), ((0.7, -1.0, 0.25), (0.85, 0.5, 0.5), 1.0)]})
+                            "plaice": [((0.5, -1.0, 0.8), (0.5, 0.5, 0.5), 3.0), ((0.7, -1.0, 0.25), (0.85, 0.5, 0.5), 1.0)],
+                            "ice": [((0.5, -1.0, 0.7), (0.5, 0.5, 0.5), 2.0), ((0.4, -1.0, 0.3), (0.6, 0.4, 0.5), 0.6)]})
         shots.render_all(built, names, o["shots"], mat)
     print("[smallgoods] %.0f s" % (time.time() - t0))
     if not ok:

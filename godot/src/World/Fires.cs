@@ -28,6 +28,10 @@ public partial class Fires : Node
     /// <summary>Counts for a check: the fires, the spots.</summary>
     public (int fires, int spots) Info => (fires.Count, fires.Sum(f => f.Spots));
 
+    /// <summary>For a check (#190): the room fires and the spark points they draw (none), the fires outdoors and theirs.</summary>
+    public (int roomFires, int roomSparks, int outdoorFires, int outdoorSparks) SparkCount =>
+        (fires.Count(f => Indoors(f.Root)), fires.Where(f => Indoors(f.Root)).Sum(f => f.SparkPoints), fires.Count(f => !Indoors(f.Root)), fires.Where(f => !Indoors(f.Root)).Sum(f => f.SparkPoints));
+
     /// <summary>Every burning spot (world metres, its size), with the group that made it.</summary>
     public IEnumerable<(Vector3 at, float size, string group)> Spots =>
         fires.Where(f => GodotObject.IsInstanceValid(f.Root) && f.Root.IsInsideTree())
@@ -41,6 +45,7 @@ public partial class Fires : Node
         internal int Spots;
         internal List<(Vector3 at, float size)> Places = new();
         internal string Group = "";
+        internal int SparkPoints;
         internal Func<bool>? Burning;
         internal bool Lit = true;
         /// <summary>How fierce (0 out .. 1 full), and how thick the smoke (0..1.5; steam when the water hits).</summary>
@@ -303,10 +308,19 @@ void fragment() {
 
     private Vector3 firstSpot;
 
+    /// <summary>A fire of a room of the town (a hearth or a stove: its group under a ROOM_ node).</summary>
+    private static bool Indoors(Node n)
+    {
+        for (Node? p = n; p != null; p = p.GetParent()) if (p.Name.ToString().StartsWith("ROOM_", StringComparison.Ordinal)) return true;
+        return false;
+    }
+
     private Fire Make(List<(Vector3 at, float size)> spots, int smoke, Node3D parent)
     {
         if (fires.Count == 0) firstSpot = spots[0].at;
-        int per = Flames + Sparks + smoke;
+        // (#190) a hearth in a room has no sparks: drawn as discs of 3.5 cm they hung in the fireplace as pale dots
+        int sparks = Indoors(parent) ? 0 : Sparks;
+        int per = Flames + sparks + smoke;
         int n = spots.Count * per;
         uint sd = 1873;
         float R() => (sd = sd * 1664525u + 1013904223u) / 4294967296f;
@@ -318,7 +332,7 @@ void fragment() {
                 int o = k * 16;
                 buf[o] = 1; buf[o + 3] = at.X; buf[o + 5] = 1; buf[o + 7] = at.Y; buf[o + 10] = 1; buf[o + 11] = at.Z;
                 buf[o + 12] = R();
-                buf[o + 13] = i < Flames ? 0 : i < Flames + Sparks ? 1 : 2;
+                buf[o + 13] = i < Flames ? 0 : i < Flames + sparks ? 1 : 2;
                 buf[o + 14] = size;
             }
         var quads = new MultiMesh { TransformFormat = MultiMesh.TransformFormatEnum.Transform3D, UseCustomData = true, Mesh = new QuadMesh { Size = Vector2.One }, InstanceCount = n };
@@ -327,7 +341,7 @@ void fragment() {
         var box = new Aabb(spots[0].at, Vector3.Zero);
         foreach (var (at, size) in spots) box = box.Expand(at);
         quads.CustomAabb = box.Grow(5);
-        var fire = new Fire { Root = new Node3D { Name = "fire" }, Spots = spots.Count, Places = spots, Group = parent.Name };
+        var fire = new Fire { Root = new Node3D { Name = "fire" }, Spots = spots.Count, Places = spots, Group = parent.Name, SparkPoints = sparks * spots.Count };
         parent.AddChild(fire.Root);
         var flameMat = new ShaderMaterial { Shader = flameShader, RenderPriority = 5 };
         var smokeMat = new ShaderMaterial { Shader = smokeShader, RenderPriority = 4 };

@@ -11,6 +11,11 @@ Bugs and loose ends are tracked as [issues](https://github.com/Steve-Sitax/Moody
 
 ## [Unreleased]
 
+- The Grote Markt's sellers are people of the town, as on the Vismarkt: twenty stalls in fixed places, each kept by her own seller with a name, a home and a handcart. She sets up from half past five, sells from seven to half past twelve (E talks, F buys: cheese, apples, shawls, a potted plant, a scarf or a pipe, soup at the brazier), packs up and goes home; no market on Sunday (#192).
+- The cathedral's organ loft has a way up: an oak stair in the south aisle and a short gallery into the loft. You can climb it, and the organist walks up it to his organ; the confessor walks to his confessional and steps in (#192).
+- The market's fish are real fish everywhere: the crates, baskets, buckets and barrows, the fixed fish stalls and the porters' fish boxes hold the herring (and the stalls the cod) on crushed ice, and the fish tables' big blurry fish picture is crushed ice too. The stalls' dried cod hang from the rail by the tail (#190).
+- No more pale dots floating in the tavern fireplaces: a room's hearth burns without the outdoor fires' sparks (#190).
+- Dropping or jumping onto a boat under way lands you in her: while you are in the air over her deck you go with her (#191).
 - Room furniture keeps its shape (#183). The bar stools that were one stool stretched 3.8 m along the bar are a row of five stools; a long counter is two counter sections; tables pushed together are two tables; casks, barrels and wall clocks come in their own size instead of being pulled out of shape. A piece that fits nothing keeps its own old model. The stretched shelf behind De Vliet's bar is gone; the bottle shelves show.
 - The Sint-Jansplein is open again: townspeople walk across it and can reach its four benches (#187).
 - The Steen's sailor no longer sits frozen on a bench by the Steen; the benches are for the town's live people (#187).

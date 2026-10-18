@@ -48,11 +48,12 @@ public partial class MoveTest
         j.Pitch = -0.55f;
         j.Knock(Vector2.Zero, 0.01f, 0);
         var trace = new List<float[]>();
-        var s = await Sampled(t => { { var lp = d.World().AffineInverse() * new Vector3(j.X, j.Y, j.Z); trace.Add(new[] { R(t), R(j.Y), j.Grounded ? 1 : 0, j.Riding ? 1 : 0, R(lp.X), R(lp.Y), R(lp.Z), d.Mesh.Stand(lp.X, lp.Z, .1f) ? 1 : 0, Fin(d.Mesh.Floor(lp.X, lp.Z)), Fin(j.GroundAt(j.X, j.Z, j.Y)), d.Visible() ? 1 : 0 }); } return t < 0.4f || !(j.Swimming || j.Riding && ShipWalk.I.On != null) && t < 4; }, 5);
+        float carried0 = ShipWalk.I.AirCarried;
+        var s = await Sampled(t => { { var lp = d.World().AffineInverse() * new Vector3(j.X, j.Y, j.Z); trace.Add(new[] { R(t), R(j.Y), j.Grounded ? 1 : 0, j.Riding ? 1 : 0, R(lp.X), R(lp.Y), R(lp.Z), d.Mesh.Stand(lp.X, lp.Z, .1f) ? 1 : 0, Fin(d.Mesh.Floor(lp.X, lp.Z)), Fin(j.GroundAt(j.X, j.Z, j.Y)), d.Visible() ? 1 : 0, R(j.X), R(j.Z), R(d.World().Origin.X), R(d.World().Origin.Z), R(d.World().Basis.GetEuler().Y) }); } return t < 0.4f || !(j.Swimming || j.Riding && ShipWalk.I.On != null) && t < 4; }, 5);
         await Frames(20);
         var now = d.At(ShipWalk.I.On == d ? ShipWalk.I.Local : local);
         bool held = !j.Swimming && ShipWalk.I.On == d && MathF.Abs(j.Y - now.Y) < 0.12f;
-        return new { label, kind = d.Kind, small = d.Small, local = new[] { R(local.X), R(local.Y) }, held, swimming = j.Swimming, on = ShipWalk.I.On?.Kind, onSame = ShipWalk.I.On == d, feet = new[] { R(j.X), R(j.Y), R(j.Z) }, floor = R(now.Y), state = StateOf(), trace = held ? null : trace.Where((_, i) => i % 3 == 0).ToArray() };
+        return new { label, kind = d.Kind, small = d.Small, local = new[] { R(local.X), R(local.Y) }, held, airCarried = R(ShipWalk.I.AirCarried - carried0), swimming = j.Swimming, on = ShipWalk.I.On?.Kind, onSame = ShipWalk.I.On == d, feet = new[] { R(j.X), R(j.Y), R(j.Z) }, floor = R(now.Y), state = StateOf(), water = held ? null : j.LastWater, shove = held ? null : j.LastShove, trace = held ? null : trace.ToArray() };
     }
 
     private async Task BoatDeckCheck()
@@ -110,9 +111,12 @@ public partial class MoveTest
         // the drops: one of each kind and owner, near the town where there is one, at her middle and at her best other floor
         var rows = new List<object>();
         int failedDrops = 0;
-        foreach (var g in groups)
+        // (`--boatkinds rowboat,punt` drops on those kinds only: a quicker look at one fault)
+        var only = Main.I.Arg("boatkinds").Split(',', StringSplitOptions.RemoveEmptyEntries);
+        foreach (var g in groups.Where(g => only.Length == 0 || only.Contains(g.Key.Kind)))
         {
-            var d = g.Where(x => Water.In(x.World().Origin.X, x.World().Origin.Z)).OrderBy(x => new Vector2(x.World().Origin.X + 60, x.World().Origin.Z).Length()).FirstOrDefault();
+            // (shown now: the lock changes which boat lies in her chamber, and a hidden one is no floor to drop on)
+            var d = g.Where(x => x.Visible() && Water.In(x.World().Origin.X, x.World().Origin.Z)).OrderBy(x => new Vector2(x.World().Origin.X + 60, x.World().Origin.Z).Length()).FirstOrDefault();
             if (d == null) { rows.Add(new { label = $"{g.Key.Kind} ({g.Key.Owner})", skipped = "none on the water of the map" }); continue; }
             var middle = d.Mesh.Nearest(Vector2.Zero);
             var r = await Drop(d, middle, $"{g.Key.Kind} ({g.Key.Owner})");
@@ -231,12 +235,25 @@ public partial class MoveTest
             float fell = 0; void OnFell(float h, bool water) => fell = h;
             j.Fell += OnFell;
             j.SetKey(Key.W, true);
-            await Sampled(t => t < 0.5f || !j.Grounded && !j.Swimming || t < 3 && sw.On == null && !j.Swimming, 6);
+            var lowTrace = new List<float[]>();
+            await Sampled(t => { var lp = low.Boat.World().AffineInverse() * new Vector3(j.X, j.Y, j.Z); lowTrace.Add(new[] { R(t), R(j.X), R(j.Y), R(j.Z), j.Grounded ? 1 : 0, Fin(j.GroundAt(j.X, j.Z, j.Y)), R(lp.X), R(lp.Z), low.Boat.Mesh.Stand(lp.X, lp.Z, .1f) ? 1 : 0, Fin(low.Boat.Mesh.Floor(lp.X, lp.Z)), sw.On == null ? 0 : 1 }); return t < 0.5f || !j.Grounded && !j.Swimming || t < 3 && sw.On == null && !j.Swimming; }, 6);
             j.ClearKeys();
             await Frames(15);
             j.Fell -= OnFell;
             await Shot("deck-low-water-in-boat");
-            Check(!j.Swimming && sw.On?.Small == true, "at low water Jef drops off the quay into a moored boat and lands in her", new { on = sw.On?.Kind, fell = R(fell), j.Swimming });
+            bool lowOk = !j.Swimming && sw.On?.Small == true;
+            Check(lowOk, "at low water Jef drops off the quay into a moored boat and lands in her", new { on = sw.On?.Kind, fell = R(fell), j.Swimming, held = sw.AirHeld, water = j.Swimming ? j.LastWater : null, trace = lowOk ? null : lowTrace.ToArray() });
+            sw.Clear();
+            // (#191) running off the quay: his way would carry him well past her far side before he comes down to her floor
+            int heldBefore = sw.AirHeld;
+            await Settle(low.From.X, low.From.Y, low.Yaw, -0.6f);
+            j.SetKey(Key.W, true); j.SetKey(Key.Shift, true);
+            var runTrace = new List<float[]>();
+            await Sampled(t => { var lp = low.Boat.World().AffineInverse() * new Vector3(j.X, j.Y, j.Z); runTrace.Add(new[] { R(t), R(j.Y), j.Grounded ? 1 : 0, j.Riding ? 1 : 0, R(lp.X), R(lp.Z), low.Boat.Mesh.Stand(lp.X, lp.Z, .1f) ? 1 : 0, Fin(low.Boat.Mesh.Floor(lp.X, lp.Z)), Fin(j.GroundAt(j.X, j.Z, j.Y)), sw.On == null ? 0 : 1, sw.AirHeld - heldBefore }); return t < 0.5f || !j.Grounded && !j.Swimming || t < 3 && sw.On == null && !j.Swimming; }, 6);
+            j.ClearKeys();
+            await Frames(15);
+            await Shot("deck-low-water-run-in-boat");
+            Check(!j.Swimming && sw.On?.Small == true, "at low water Jef runs off the quay into a moored boat and lands in her", new { on = sw.On?.Kind, j.Swimming, held = sw.AirHeld - heldBefore, feet = new[] { R(j.X), R(j.Y), R(j.Z) }, trace = sw.On?.Small == true ? null : runTrace.ToArray() });
             sw.Clear();
         }
         Tide.Hold(null);

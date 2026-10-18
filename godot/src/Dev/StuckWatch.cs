@@ -96,8 +96,11 @@ public sealed class StuckWatch
             if (how != null) bad.TryAdd(id, new { id, who = s.R.Name, s.R.Trade, how, x, z, place, atSeconds = seconds, goal, shown = p?.Shown ?? false, state = p?.State, motion = p?.Human.Motion, role = p?.Role, wait = s.Wait, held = p?.Held, stuckT = p?.StuckT, bridgeWait = p?.BridgeWait, vehicle = p?.Vehicle != null, dest = p?.Dest is { } d ? new[] { d.x, d.z } : null, replans = p?.Replans, free = town.Walk!.Free(x, z), trail = tr.TakeLast(14).Select(a => a.Detail).ToArray(), lanes = p == null ? null : town.Crowd!.LanesNear(p), source = "godot/src/Town/Townspeople.cs; godot/src/Town/Crowd.cs" });
             if (p == null || !p.Shown) continue;
             bodyProbe.Transform = new Transform3D(Basis.Identity, new Vector3((float)x, (float)town.Walk!.BaseAt(x, z) + Jef.Step + (Jef.Tall - Jef.Step) / 2, (float)z));
+            // (her own handcart's or dray's bodies are not in her way: she stands between its shafts, and her own moves pass them by,
+            // WalkMap.RegisterBody's owner; #192 the Grote Markt sellers pushing theirs home were counted inside them)
+            bodyProbe.Exclude = town.Crowd!.PuppetVehicleNode(p) is { } own ? new Godot.Collections.Array<Rid>(BakedWorld.All(own).OfType<CollisionObject3D>().Select(c => c.GetRid())) : new Godot.Collections.Array<Rid>();
             var hits = Main.I.View.FindWorld3D().DirectSpaceState.IntersectShape(bodyProbe, 1);
-            if (!town.Walk!.Free(x, z) || hits.Count > 0)
+            if (!town.Walk!.FreeFor(p, x, z) || hits.Count > 0)
             {
                 string hit = hits.Count == 0 ? "baked walk map" : hits[0]["collider"].AsGodotObject() is Node collider ? collider.GetPath().ToString() : Solid.I.BodyName(hits[0]["rid"].AsRid());
                 if (solids.Add($"{id} at {x:0.00},{z:0.00} ({place}): {hit} <{goal} {p.State}/{p.Human.Motion} t={Math.Floor(seconds / 10) * 10}>") && solidTrails.Count < 24 && solidTrailKeys.Add(id + "|" + hit))

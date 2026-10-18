@@ -8,18 +8,18 @@ namespace Scheldemist.Native.Services;
 
 public sealed partial class NativeTownTransportPopulation
 {
-    /// <summary>The Vismarkt sellers' handcarts (#150), added to the town's transport after the fresh town is made:
+    /// <summary>A pitched market's sellers' handcarts (#150 the Vismarkt, #192 the Grote Markt), added to the town's transport after the fresh town is made:
     /// each cart stands by its seller's door, and at work at her pitch's cart place. Anyone else's cart or velocipede
     /// parked on a pitch (its stall, its seller's place or its cart's place) moves to open ground nearby. Sellers
     /// who have a cart already are left as they are. Returns the carts added.</summary>
-    public int AddMarketCarts(JsonObject pitches)
+    public int AddMarketCarts(JsonObject pitches, string place = "vismarkt")
     {
         var c = population.Host.Context;
         if (c.World("transport") is not JsonObject had) return 0;
         var record = had.DeepClone().AsObject();
         var town = population.Snapshot();
         var vehicles = A(record["vehicles"]);
-        var sellers = A(town["residents"]).Where(r => r?["work"]?["pitch"] != null).Select(r => r!).ToList();
+        var sellers = A(town["residents"]).Where(r => r?["work"]?["pitch"] != null && S(r["work"], "place") == place).Select(r => r!).ToList();
         if (sellers.Count == 0) { population.Town.Clear(); return 0; }
         var list = A(pitches["list"]);
         var keep = KeepOff(town);

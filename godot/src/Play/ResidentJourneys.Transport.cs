@@ -184,7 +184,10 @@ public partial class ResidentJourneys
         if(t.Phase=="go") {
             if(p!=null&&p.NetworkVehicle==0)town.Crowd!.PuppetVehicle(p,t.Mode=="velocipede"?1:t.Mode=="handcart"?2:3,t.Mode=="dray"?(t.Unload>0?1:0):t.Loaded,CargoCode(t.Load?.What));
             var to=t.Park==null?t.To:V(t.Park);double radius=t.Mode=="velocipede"?1.6:t.Mode=="dray"?3.5:3;
-            if(Near(t,to,p==null?.6:radius)||p!=null&&t.Time>90)ArriveTransport(t);else Go(t,to,dt,t.Mode=="velocipede"?4:t.Mode=="dray"?1.15:.95);return;
+            // (a drawn trip that cannot get there in time stops where it is: in 90 s and 4 s a metre of its straight way (a cart
+            // goes about a metre a second, the way round up to twice the straight line), #192 a Grote Markt seller's cart from
+            // a home round the town hall's block)
+            if(Near(t,to,p==null?.6:radius)||p!=null&&t.Time>90+4*t.Door.DistanceTo(to))ArriveTransport(t);else Go(t,to,dt,t.Mode=="velocipede"?4:t.Mode=="dray"?1.15:.95);return;
         }
         if(t.Phase=="unload"){if(p==null){if(t.Time>t.Unload*9*.7/(6/1.3)){t.Unload=0;CartItems(t,0);UnloadFinished(t);}}else Unloading(t,dt);return;}
         if(t.Phase=="walkon"){if(Near(t,t.To,1.6))End(t,true);else Go(t,t.To,dt);}
