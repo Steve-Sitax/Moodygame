@@ -119,6 +119,7 @@ public partial class PeopleTest : Node
             RenderingServer.FramePreDraw += BeforeProfileDraw; RenderingServer.FramePostDraw += EndProfileFrame;
             profileConnected = true;
         }
+        if (Main.I.Flag("engine-phases")) Dev.EnginePhases.Start(this, 25, dir);
     }
 
     private void BeginProfileFrame()
@@ -330,6 +331,7 @@ public partial class PeopleTest : Node
                 logic.Clear();
                 Dev.FrameCost.Clear();
                 slowFrames.Clear();
+                Dev.EnginePhases.Clear();
                 Next("time");
                 break;
             case "time":
@@ -387,6 +389,8 @@ public partial class PeopleTest : Node
                 row["feetOffTheGroundMaxM"] = Math.Round(crowd.Walking.Max(p => Math.Abs(p.Group.Position.Y - town.Walk!.BaseAt(p.X, p.Z))), 3);
                 row["frame"] = Stats(times);
                 if (Main.I.Flag("profile-parts")) { row["profile"] = Dev.FrameCost.Report(); row["trace"] = Dev.FrameCost.Spikes(); row["gcTrace"] = Dev.FrameCost.GcEvents(); row["slowFrames"] = slowFrames.ToArray(); }
+                if (Dev.EnginePhases.Enabled) row["enginePhases"] = Dev.EnginePhases.Report();
+                row["routeBudget"] = crowd.RouteBudget;
                 row["logicMs"] = Stats(logic);
                 // the 1.5 ms gate covers people and animals: all Human.Update calls plus the animals' whole update
                 row["peopleCpuGate"] = animationTime.Average() + animalTime.Average() < 1.5 && logic.Average() < 1.5;

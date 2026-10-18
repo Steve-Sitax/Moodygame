@@ -125,14 +125,14 @@ public partial class Walkups : Node
         {
             c.WalkAge += dt; c.Repath -= dt;
             c.Goal ??= Reachable(p, target);
-            var goal = c.Goal.Value;
+            if (c.Goal is not { } goal) return;
             double d = Whereabouts.Hypot(p.X - goal.X, p.Z - goal.Y);
             if (d <= .45) { c.Arrived = true; Arrivals++; crowd.PuppetStand(p, c.Motion, c.Yaw); }
             else if (c.WalkAge >= 40) { c.Stop(); }
             else if (c.Repath <= 0)
             {
                 c.Repath = .5;
-                if (c.WalkAge > 3 && !crowd.PuppetBusy(p)) c.Goal = Reachable(p, target);
+                if (c.WalkAge > 3 && !crowd.PuppetBusy(p)) c.Goal = Reachable(p, target) ?? c.Goal;
                 goal = c.Goal.Value;
                 crowd.PuppetGo(p, goal.X, goal.Y, c.Pace);
             }
@@ -161,30 +161,40 @@ public partial class Walkups : Node
         int distance = a.Distance.CompareTo(b.Distance); return distance != 0 ? distance : a.Order.CompareTo(b.Order);
     });
     private int startPathRequests;
+    // a start search put off by the frame's route budget (#133) asks the same candidates again next frame
+    private Vector2 keptGoal; private int keptCount = -1, keptFrom; private ulong keptFrame;
     private (double x, double z)? HiddenStart(Vector2 goal, bool original = false)
     {
         startPathRequests = 0;
         var crowd = town!.Crowd!; var j = Player.Jef.I;
         var openGoal = crowd.OpenNear(goal.X, goal.Y);
         if (openGoal == null) return null;
-        int count = 0;
-        for (int i = 0; i < 48; i++)
+        int count = 0, from = 0;
+        if (!original && keptCount >= 0 && keptGoal.DistanceTo(goal) < 1 && Engine.GetProcessFrames() - keptFrame <= 2) { count = keptCount; from = keptFrom; }
+        else
         {
-            double a = i / 48.0 * Math.PI * 2 + i % 2 * .07, r = 28 + i % 4 * 5;
-            var q = crowd.OpenNearFree(j.X + Math.Cos(a) * r, j.Z + Math.Sin(a) * r);
-            if (q == null || !crowd.IsHidden(q.Value.x, q.Value.z) || OthersSee(q.Value.x, q.Value.z) || Whereabouts.Hypot(q.Value.x - j.X, q.Value.z - j.Z) < 27) continue;
-            double d = Whereabouts.Hypot(q.Value.x - goal.X, q.Value.z - goal.Y);
-            if (double.IsFinite(d)) startCandidates[count++] = new(q.Value.x, q.Value.z, d, i);
+            for (int i = 0; i < 48; i++)
+            {
+                double a = i / 48.0 * Math.PI * 2 + i % 2 * .07, r = 28 + i % 4 * 5;
+                var q = crowd.OpenNearFree(j.X + Math.Cos(a) * r, j.Z + Math.Sin(a) * r);
+                if (q == null || !crowd.IsHidden(q.Value.x, q.Value.z) || OthersSee(q.Value.x, q.Value.z) || Whereabouts.Hypot(q.Value.x - j.X, q.Value.z - j.Z) < 27) continue;
+                double d = Whereabouts.Hypot(q.Value.x - goal.X, q.Value.z - goal.Y);
+                if (double.IsFinite(d)) startCandidates[count++] = new(q.Value.x, q.Value.z, d, i);
+            }
+            // The old loop searched each successively nearer candidate. Nearest first returns the same minimum,
+            // including its original-index tie break, without searching the farther successful routes as well.
+            if (!original) Array.Sort(startCandidates, 0, count, nearestStart);
         }
-        // The old loop searched each successively nearer candidate. Nearest first returns the same minimum,
-        // including its original-index tie break, without searching the farther successful routes as well.
-        if (!original) Array.Sort(startCandidates, 0, count, nearestStart);
+        keptCount = -1;
         (double x, double z)? best = null; double distance = double.PositiveInfinity;
-        for (int i = 0; i < count; i++) {
+        for (int i = from; i < count; i++) {
             var q = startCandidates[i];
             if (q.Distance >= distance) continue;
             startPathRequests++;
-            if (crowd.PathOn(q.X, q.Z, openGoal.Value.x, openGoal.Value.z, path) == null) continue;
+            if (crowd.PathOn(q.X, q.Z, openGoal.Value.x, openGoal.Value.z, path) == null) {
+                if (crowd.PathDeferred && !original) { keptGoal = goal; keptCount = count; keptFrom = i; keptFrame = Engine.GetProcessFrames(); return null; }
+                continue;
+            }
             best = (q.X, q.Z); distance = q.Distance;
             if (!original) return best;
         }
@@ -195,6 +205,7 @@ public partial class Walkups : Node
         var j = Player.Jef.I; int checks = 0, differences = 0, oldQueries = 0, newQueries = 0;
         double originalMs = 0, cachedMs = 0;
         bool enabled = WalkMap.CachedRouteLinks;
+        using var whole = NavGrid.Unbudgeted();
         try {
             foreach (var offset in new[] { Vector2.Zero, new Vector2(10, 0), new Vector2(-10, 0), new Vector2(0, 15), new Vector2(20, -15) }) {
                 var goal = new Vector2(j.X, j.Z) + offset;
@@ -207,7 +218,9 @@ public partial class Walkups : Node
         } finally { WalkMap.CachedRouteLinks = enabled; }
         return new { checks, differences, oldQueries, newQueries, originalMs, cachedMs, ok = differences == 0 && newQueries <= oldQueries };
     }
-    private Vector2 Reachable(Puppet p, Vector2 target)
+    /// <summary>The nearest reachable point on the way back from the target, or null when the frame's route budget
+    /// put a search off (#133): asked again next frame.</summary>
+    private Vector2? Reachable(Puppet p, Vector2 target)
     {
         var crowd = town!.Crowd!;
         double length = Whereabouts.Hypot(p.X-target.X,p.Z-target.Y);
@@ -215,7 +228,9 @@ public partial class Walkups : Node
         {
             double k=length>0?back/length:0;
             var q=crowd.OpenNear(target.X+(p.X-target.X)*k,target.Y+(p.Z-target.Y)*k);
-            if(q!=null&&crowd.PathOn(p.X,p.Z,q.Value.x,q.Value.z,path)!=null)return new((float)q.Value.x,(float)q.Value.z);
+            if(q==null)continue;
+            if(crowd.PathOn(p.X,p.Z,q.Value.x,q.Value.z,path)!=null)return new((float)q.Value.x,(float)q.Value.z);
+            if(crowd.PathDeferred)return null;
         }
         return new((float)p.X,(float)p.Z);
     }

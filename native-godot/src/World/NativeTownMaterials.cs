@@ -30,6 +30,10 @@ public sealed class NativeTownMaterials
     private const string Table = "res://game/rijnkaai/materials.json";
     private readonly Dictionary<ulong, Mesh> meshes = new();
     private readonly Dictionary<ulong, Material> swapped = new();
+    // The C# wrappers of the materials looked at stay alive while the town is dressed. A wrapper the GC finalized while
+    // Godot still counted references to its material made SurfaceGetMaterial fail on a freed handle
+    // ("Handle is not initialized" in SwapGCHandleForType, seen loading FurnitureVisual).
+    private readonly Dictionary<ulong, Material> seen = new();
     private Dictionary<int, ShaderMaterial>? game;
     /// <summary>Surfaces and overrides given a game material, and ones left as they were (unknown shaders).</summary>
     public int Swapped { get; private set; }
@@ -63,6 +67,7 @@ public sealed class NativeTownMaterials
     private Material? Swap(Material original, MeshInstance3D mesh)
     {
         ulong id = original.GetInstanceId();
+        seen.TryAdd(id, original);
         if (swapped.TryGetValue(id, out var done)) return done;
         Material? made = null;
         if (original is ShaderMaterial shader)

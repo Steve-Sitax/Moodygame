@@ -538,6 +538,7 @@ public partial class Boats : Node
             bool plain = part == Transform3D.Identity;
             if (buf == null)
             {
+                using var single = Scheldemist.Dev.FrameCost.Track("Boats.SetInstance");
                 for (int i = 0; i < f.N; i++) mm.SetInstanceTransform(i, PlayerDraw(f,i,plain ? f.World[i] : f.World[i] * part));
                 continue;
             }
@@ -563,6 +564,7 @@ public partial class Boats : Node
         MoverCost.Begin("boats");
         float t = (float)MoverClock.T;
         float sea = MoverClock.Sea, lim = Math.Min(sea, 2.5f);
+        var floatCost = Scheldemist.Dev.FrameCost.Track("Boats.Floats");
         for (int i = floats.Count - 1; i >= 0; i--)
         {
             var f = floats[i];
@@ -573,17 +575,21 @@ public partial class Boats : Node
             }
             if (!f.Outer.Visible) continue;
             var o = f.Outer.Position;
+            float yaw = f.Outer.Rotation.Y;
             float level = Tide.LevelAt(o.X, o.Z);
-            float floor = MathF.Max(BoatGround.Floor(f.Kind, o.X, o.Z, f.Outer.Rotation.Y), float.IsNaN(f.Floor) ? float.NegativeInfinity : f.Floor);
+            float floor = MathF.Max(BoatGround.Floor(f.Kind, o.X, o.Z, yaw), float.IsNaN(f.Floor) ? float.NegativeInfinity : f.Floor);
             float aground = level <= floor + 0.06f ? 1 : 0;
             float free = 1 - aground;
-            o.Y = Math.Max(level, floor);
-            f.Outer.Position = o;
-            if (free > 0.5f) Scheldemist.World.Waters.Moored(f, o.X, o.Z, MathF.Sin(f.Outer.Rotation.Y), MathF.Cos(f.Outer.Rotation.Y), 7, 2.2f); // (D3: faint rings at the hull)
+            float y = Math.Max(level, floor);
+            // (#62: setting the same height again made Godot update the whole hull's nodes; only a change is written)
+            if (y != o.Y) { o.Y = y; f.Outer.Position = o; }
+            if (free > 0.5f) Scheldemist.World.Waters.Moored(f, o.X, o.Z, MathF.Sin(yaw), MathF.Cos(yaw), 7, 2.2f); // (D3: faint rings at the hull)
             float h = f.M[0] * Math.Min(sea, 3.6f) * free, roll = f.M[1] * lim * free, pitch = f.M[2] * lim * free, w = MathF.Tau / f.M[3];
             f.Inner.Position = new Vector3(0, h * MathF.Sin(w * t + f.P0) + h * 0.4f * MathF.Sin(2.3f * w * t + f.P0 * 1.7f), 0);
             f.Inner.Rotation = new Vector3(pitch * MathF.Sin(1.13f * w * t + f.P2), 0, f.Heel * free + roll * MathF.Sin(0.83f * w * t + f.P1));
         }
+        floatCost.Dispose();
+        using var rowCost = Scheldemist.Dev.FrameCost.Track("Boats.Rows");
         var cam = Main.I.Cam?.GlobalPosition ?? Vector3.Zero;
         if (float.IsNaN(lastRiver) || MathF.Abs(lastRiver - Tide.River) > 0.0001f || MathF.Abs(lastChamberA - Tide.ChamberA) > 0.0001f || MathF.Abs(lastChamberB - Tide.ChamberB) > 0.0001f) tideFrames = 8;
         lastRiver = Tide.River;

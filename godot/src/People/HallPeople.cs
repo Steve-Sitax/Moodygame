@@ -36,6 +36,16 @@ public partial class HallPeople : Node
         public double Poll;
         public int RosterVersion;
         public readonly Dictionary<string, Figure> Figures = new();
+        // The plan read once into numbers (#135): looking names up in the JSON for every 5 cm of every segment of a
+        // route search took 130-560 ms in one frame. The same numbers, the same order of tests, the same answers.
+        public bool Parsed, HasGrid;
+        public double GridX, GridZ, GridStep, Cos, Sin;
+        public int GridRowCount;
+        public (double Y, double[] Floors, double[] Solids)[] Levels = Array.Empty<(double, double[], double[])>();
+        public (double X, double Z)[] Nodes = Array.Empty<(double, double)>();
+        /// <summary>Node-to-node segments already tested at this floor height: 0 unknown, 1 free, 2 blocked.</summary>
+        public byte[] NodePairs = Array.Empty<byte>();
+        public float NodePairsY = float.NaN;
     }
     public sealed class Figure
     {
@@ -227,9 +237,9 @@ public partial class HallPeople : Node
         LogicMs = (Time.GetTicksUsec() - started) / 1000.0;
     }
     private static bool InRect(JsonElement r, double x, double z, double margin) => x >= r.GetProperty("minX").GetDouble() - margin && x <= r.GetProperty("maxX").GetDouble() + margin && z >= r.GetProperty("minZ").GetDouble() - margin && z <= r.GetProperty("maxZ").GetDouble() + margin;
-    private static bool FreeSegment(Hall h, Vector3 from, Vector3 to)
+    /// <summary>The original test straight from the plan's JSON, kept for the proof below.</summary>
+    private static bool FreeSegmentJson(Hall h, Vector3 from, Vector3 to)
     {
-        // Exact floor solids from shared/hallPlan.ts. A blocked loop stands and tries the next mark.
         if (Math.Abs(from.Y - to.Y) > 0.4) return false;
         var levels = h.Plan.GetProperty("levels");
         int n = Math.Max(1, (int)Math.Ceiling(from.DistanceTo(to) / 0.05));
@@ -256,14 +266,115 @@ public partial class HallPeople : Node
         }
         return true;
     }
+    /// <summary>
+    /// The speed proof (#135): in every hall, the segments between all plan nodes and to and from points round them, at
+    /// every floor height, tested by the numbers and by the original JSON test; then routes between nodes with the
+    /// kept node pairs and with fresh ones. Every answer must be the same.
+    /// </summary>
+    public object CompareHallRoutes()
+    {
+        int segments = 0, routes = 0, differences = 0; double jsonMs = 0, numbersMs = 0;
+        foreach (var h in Halls)
+        {
+            Parse(h);
+            var heights = new List<float> { h.Origin.Y };
+            foreach (var (y, _, _) in h.Levels) heights.Add(h.Origin.Y + (float)y);
+            var points = new List<Vector3>();
+            foreach (float y in heights)
+            {
+                points.Clear();
+                foreach (var (x, z) in h.Nodes) points.Add(new Vector3(h.Origin.X + (float)(x * h.Cos + z * h.Sin), y, h.Origin.Z + (float)(-x * h.Sin + z * h.Cos)));
+                int count = points.Count;
+                for (int i = 0; i < count; i++) points.Add(points[i] + new Vector3(.37f, 0, -.21f));
+                for (int a = 0; a < points.Count; a++) for (int b = 0; b < points.Count; b += 3)
+                {
+                    long t0 = System.Diagnostics.Stopwatch.GetTimestamp(); bool old = FreeSegmentJson(h, points[a], points[b]);
+                    long t1 = System.Diagnostics.Stopwatch.GetTimestamp(); bool now = FreeSegment(h, points[a], points[b]);
+                    jsonMs += System.Diagnostics.Stopwatch.GetElapsedTime(t0, t1).TotalMilliseconds; numbersMs += System.Diagnostics.Stopwatch.GetElapsedTime(t1).TotalMilliseconds;
+                    segments++; if (old != now) differences++;
+                }
+                for (int a = 0; a + 1 < count; a += 2)
+                {
+                    var kept = new List<Vector3>(Route(h, points[count + a], points[a + 1]));
+                    h.NodePairsY = float.NaN;
+                    var fresh = Route(h, points[count + a], points[a + 1]);
+                    routes++; if (kept.Count != fresh.Count) differences++; else for (int k = 0; k < kept.Count; k++) if (kept[k] != fresh[k]) differences++;
+                }
+            }
+        }
+        return new { halls = Halls.Count, segments, routes, differences, jsonMs, numbersMs, ok = differences == 0 && segments > 0 };
+    }
+    private static bool FreeSegment(Hall h, Vector3 from, Vector3 to)
+    {
+        // Exact floor solids from shared/hallPlan.ts. A blocked loop stands and tries the next mark.
+        if (Math.Abs(from.Y - to.Y) > 0.4) return false;
+        Parse(h);
+        int n = Math.Max(1, (int)Math.Ceiling(from.DistanceTo(to) / 0.05));
+        double c = h.Cos, s = h.Sin;
+        for (int i = 1; i <= n; i++)
+        {
+            var p = from.Lerp(to, (float)i / n) - h.Origin; double x = p.X * c - p.Z * s, z = p.X * s + p.Z * c;
+            if (h.HasGrid)
+            {
+                int ix = (int)Math.Round((x - h.GridX) / h.GridStep), iz = (int)Math.Round((z - h.GridZ) / h.GridStep);
+                if (iz < 0 || iz >= h.GridRowCount) return false;
+                string row = h.GridRows[iz];
+                if (ix < 0 || ix >= row.Length || row[ix] != '1') return false;
+                continue;
+            }
+            bool onFloor = false;
+            foreach (var (y, floors, solids) in h.Levels)
+            {
+                if (Math.Abs(y - p.Y) >= 0.4) continue;
+                for (int k = 0; k < floors.Length; k += 4) if (InRect(floors, k, x, z, -0.3)) onFloor = true;
+                for (int k = 0; k < solids.Length; k += 4) if (InRect(solids, k, x, z, 0.3)) return false;
+            }
+            if (!onFloor) return false;
+        }
+        return true;
+    }
+    private static void Parse(Hall h)
+    {
+        if (h.Parsed) return;
+        static double[] Rects(JsonElement list)
+        {
+            var r = new double[list.GetArrayLength() * 4]; int k = 0;
+            foreach (var rect in list.EnumerateArray()) { r[k++] = rect.GetProperty("minX").GetDouble(); r[k++] = rect.GetProperty("maxX").GetDouble(); r[k++] = rect.GetProperty("minZ").GetDouble(); r[k++] = rect.GetProperty("maxZ").GetDouble(); }
+            return r;
+        }
+        var levels = h.Plan.GetProperty("levels");
+        h.Levels = new (double, double[], double[])[levels.GetArrayLength()]; int l = 0;
+        foreach (var level in levels.EnumerateArray()) h.Levels[l++] = (level.GetProperty("y").GetDouble(), Rects(level.GetProperty("floors")), Rects(level.GetProperty("solids")));
+        if (h.Plan.TryGetProperty("freeGrid", out var grid))
+        {
+            h.HasGrid = true; h.GridX = grid.GetProperty("x").GetDouble(); h.GridZ = grid.GetProperty("z").GetDouble(); h.GridStep = grid.GetProperty("step").GetDouble();
+            h.GridRowCount = grid.GetProperty("rows").GetArrayLength();
+        }
+        var nodes = h.Plan.GetProperty("nodes");
+        h.Nodes = new (double, double)[nodes.GetArrayLength()]; int n = 0;
+        foreach (var p in nodes.EnumerateArray()) h.Nodes[n++] = (p[0].GetDouble(), p[1].GetDouble());
+        h.NodePairs = new byte[h.Nodes.Length * h.Nodes.Length];
+        h.Cos = Math.Cos(h.Yaw); h.Sin = Math.Sin(h.Yaw);
+        h.Parsed = true;
+    }
+    private static bool InRect(double[] r, int k, double x, double z, double margin) => x >= r[k] - margin && x <= r[k + 1] + margin && z >= r[k + 2] - margin && z <= r[k + 3] + margin;
+    /// <summary>FreeSegment between two plan nodes at the floor height y, tested once and kept.</summary>
+    private static bool FreeNodes(Hall h, List<Vector3> nodes, int a, int b, float y)
+    {
+        if (h.NodePairsY != y) { Array.Clear(h.NodePairs); h.NodePairsY = y; }
+        int k = (a - 2) * h.Nodes.Length + (b - 2);
+        if (h.NodePairs[k] == 0) h.NodePairs[k] = FreeSegment(h, nodes[a], nodes[b]) ? (byte)1 : (byte)2;
+        return h.NodePairs[k] == 1;
+    }
     private static List<Vector3> Route(Hall h, Vector3 from, Vector3 to)
     {
         var result = h.RouteResult; result.Clear();
         if (FreeSegment(h, from, to)) { result.Add(to); return result; }
         var nodes = h.RouteNodes; nodes.Clear(); nodes.Add(from); nodes.Add(to);
-        foreach (var p in h.Plan.GetProperty("nodes").EnumerateArray())
+        Parse(h);
+        foreach (var (x, z) in h.Nodes)
         {
-            double c = Math.Cos(h.Yaw), s = Math.Sin(h.Yaw), x = p[0].GetDouble(), z = p[1].GetDouble();
+            double c = h.Cos, s = h.Sin;
             nodes.Add(new Vector3(h.Origin.X + (float)(x * c + z * s), from.Y, h.Origin.Z + (float)(-x * s + z * c)));
         }
         var dist = h.RouteDistance; var previous = h.RoutePrevious; var used = h.RouteUsed;
@@ -275,7 +386,7 @@ public partial class HallPeople : Node
             if (at < 0 || float.IsPositiveInfinity(dist[at])) break;
             if (at == 1) { for (int i = 1; i != 0; i = previous[i]) result.Add(nodes[i]); result.Reverse(); return result; }
             used[at] = true;
-            for (int i = 0; i < nodes.Count; i++) if (!used[i]) { float d = dist[at] + nodes[at].DistanceTo(nodes[i]); if (d < dist[i] && FreeSegment(h, nodes[at], nodes[i])) { dist[i] = d; previous[i] = at; } }
+            for (int i = 0; i < nodes.Count; i++) if (!used[i]) { float d = dist[at] + nodes[at].DistanceTo(nodes[i]); if (d < dist[i] && (at >= 2 && i >= 2 ? FreeNodes(h, nodes, at, i, from.Y) : FreeSegment(h, nodes[at], nodes[i]))) { dist[i] = d; previous[i] = at; } }
         }
         if (h.GridRows.Length > 0) return GridRoute(h, from, to);
         return result;

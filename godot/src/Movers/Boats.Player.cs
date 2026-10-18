@@ -20,7 +20,7 @@ public partial class Boats
         {if(hide&&f.Outer.Visible){playerHiddenFloats.Add(f);f.Outer.Visible=false;}else if(!hide&&playerHiddenFloats.Remove(f))f.Outer.Visible=true;}
     }
     private Transform3D PlayerDraw(Row row,int i,Transform3D at)
-    {if(playerHidden.Contains((row,i)))at.Basis=new Basis(Vector3.Zero,Vector3.Zero,Vector3.Zero);return at;}
+    {if(playerHidden.Count!=0&&playerHidden.Contains((row,i)))at.Basis=new Basis(Vector3.Zero,Vector3.Zero,Vector3.Zero);return at;}
     /// <summary>Clearance of the live hulls, including the moving ships, without scene traversal or temporary lists.</summary>
     public bool PlayerWaterFree(float x,float z,float radius)
     {

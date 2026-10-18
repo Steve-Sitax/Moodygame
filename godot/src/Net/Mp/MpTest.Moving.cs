@@ -62,7 +62,9 @@ public partial class MpTest
             town.ActionHold(s); town.ActionHide(s); s.X = Jef.I.X + 3; s.Z = Jef.I.Z + 5; town.ActionClaim(s);
             // Keep this ownership/replication fixture on a verified local route. The old fixed
             // destination was across town, beyond this viewer's crowd grid and behind buildings.
-            var place = town.Data!.Places.Values.Where(p =>
+            // this fixture picks a place by whole route searches, not under the frame's route budget
+            TownPlace? place;
+            using (NavGrid.Unbudgeted()) place = town.Data!.Places.Values.Where(p =>
                 new Vector2((float)p.X, (float)p.Z).DistanceTo(new((float)s.X, (float)s.Z)) is > 12 and < 38
                 && town.Crowd!.PathOn(s.X, s.Z, p.X, p.Z) is { Count: > 1 })
                 .OrderBy(p => new Vector2((float)p.X, (float)p.Z).DistanceSquaredTo(new((float)s.X, (float)s.Z))).FirstOrDefault();

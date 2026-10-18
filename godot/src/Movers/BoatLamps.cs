@@ -13,9 +13,13 @@ namespace Scheldemist.Movers;
 public partial class BoatLamps : Node
 {
     public static BoatLamps I {get;private set;}=null!;
-    private sealed record Lamp(Func<Transform3D> World, Func<bool> Visible, Vector3 Local, int Kind, float Phase, Action<Vector3,float>? Spill);
+    private sealed record Lamp(Func<Transform3D> World, Func<bool> Visible, Vector3 Local, int Kind, float Phase, Action<Vector3,float>? Spill)
+    {
+        /// <summary>The lantern's glass in its frame, when the model has glass round the lamp: lit over it (#167).</summary>
+        public Transform3D? Glass {get;init;}
+    }
     private readonly List<Lamp> lamps=new();
-    private readonly Dictionary<string,(Vector3 At,int Kind)[]> points=new();
+    private readonly Dictionary<string,(Vector3 At,int Kind,Transform3D? Glass)[]> points=new();
     private readonly HashSet<Boats.Float> registered=new();
     private static readonly Color[] Colors={new(1,.82f,.5f),new(1,.25f,.15f),new(.35f,1,.45f)};
     private Copies draw=null!;
@@ -23,15 +27,20 @@ public partial class BoatLamps : Node
     private float lit;
     private bool burning;
     private int floatCount = -1;
-    private (Vector3 At,int Kind)[] Points(string kind)
+    private (Vector3 At,int Kind,Transform3D? Glass)[] Points(string kind)
     {
         if (points.TryGetValue(kind,out var p)) return p;
         var root=ModelLibrary.Get("boats")?.Roots.GetValueOrDefault(kind);
-        var list=new List<(Vector3,int)>();
+        var list=new List<(Vector3,int,Transform3D?)>();
         if (root!=null && root.HasMeta("extras") && root.GetMeta("extras").AsGodotDictionary().TryGetValue("lamps",out var raw))
         {
             using var json=JsonDocument.Parse(raw.AsString());
-            foreach (var q in json.RootElement.EnumerateArray()) list.Add((new(q[0].GetSingle(),q[2].GetSingle(),-q[1].GetSingle()),q.GetArrayLength()>3?q[3].GetInt32():0));
+            var glass=GlassPoints(root);
+            foreach (var q in json.RootElement.EnumerateArray())
+            {
+                var at=new Vector3(q[0].GetSingle(),q[2].GetSingle(),-q[1].GetSingle());
+                list.Add((at,q.GetArrayLength()>3?q[3].GetInt32():0,GlassBox(glass,at)));
+            }
         }
         points[kind]=p=list.ToArray(); return p;
     }
@@ -41,7 +50,8 @@ public partial class BoatLamps : Node
         {
             seed=seed*16807%2147483647;
             int k=Math.Clamp(p.Kind,0,2);
-            lamps.Add(new(world,visible,p.At,k,(float)(seed/2147483647.0*6.283),Lights.I?.AddMoving(kind+" lantern",Colors[k],k==0?.55f:.3f)));
+            lamps.Add(new(world,visible,p.At,k,(float)(seed/2147483647.0*6.283),Lights.I?.AddMoving(kind+" lantern",Colors[k],k==0?.55f:.3f)){Glass=p.Glass});
+            if(p.Glass!=null)GlassLanterns++;
         }
     }
     public override void _Ready()
@@ -57,7 +67,7 @@ public partial class BoatLamps : Node
         var node=new MultiMeshInstance3D {Name="live_boat_lanterns",Multimesh=mm};
         Mv.Town.AddChild(node); draw=new Copies(node); draw.ZeroAll(); draw.Commit();
         if(lamps.Count>0)Main.I.World.Unported.Remove("boat_lamps");
-        GD.Print($"boat lanterns: {lamps.Count} on live hulls, fixed spill slots");
+        GD.Print($"boat lanterns: {lamps.Count} on live hulls, fixed spill slots, {GlassLanterns} with glass lit over it");
         if(MoversTest.On && lamps.Count>0)
         {
             var l=lamps[0];
@@ -79,26 +89,27 @@ public partial class BoatLamps : Node
         lit+=((Daylight.I?.LampsLit??0)-lit)*(float)Math.Min(1,MoverClock.Dt*2);
         if (lit<=.005f)
         {
-            if (burning) { draw.ZeroAll(); foreach (var l in lamps) l.Spill?.Invoke(Vector3.Down*999,0); draw.Commit(); StageGlassOff(); }
+            if (burning) { draw.ZeroAll(); foreach (var l in lamps) l.Spill?.Invoke(Vector3.Down*999,0); draw.Commit(); GlassOff(); }
             UpdateWindows(0);
-            burning=false; StageBurning=0; MoverCost.End("boat_lamps"); return;
+            burning=false; StageBurning=0; GlassBurning=0; MoverCost.End("boat_lamps"); return;
         }
         UpdateWindows(lit);
         burning=true;
-        var eye=Main.I.Cam.GlobalPosition; float far=(Daylight.I?.FogFar??200)+15; int stage=0;
+        var eye=Main.I.Cam.GlobalPosition; float far=(Daylight.I?.FogFar??200)+15; int stage=0; glassBurning=0;
         for (int i=0;i<lamps.Count;i++)
         {
             var l=lamps[i];
-            if(!l.Visible()) {draw.Zero(i);l.Spill?.Invoke(Vector3.Down*999,0);if(OnStage(i))StageGlass(i,default,0);continue;}
+            if(!l.Visible()) {draw.Zero(i);l.Spill?.Invoke(Vector3.Down*999,0);LitGlass(i,l,default,0);continue;}
             var xf=l.World();
             bool near=new Vector2(xf.Origin.X-eye.X,xf.Origin.Z-eye.Z).LengthSquared()<far*far;
-            if (!near || lit<=.005f) {draw.Zero(i); l.Spill?.Invoke(Vector3.Down*999,0); if(OnStage(i))StageGlass(i,default,0); continue;}
+            if (!near || lit<=.005f) {draw.Zero(i); l.Spill?.Invoke(Vector3.Down*999,0); LitGlass(i,l,default,0); continue;}
             var at=xf*l.Local;
             float flick=.9f+.1f*MathF.Sin((float)MoverClock.T*7.3f+l.Phase)*MathF.Sin((float)MoverClock.T*3.1f+l.Phase*2);
             draw.Set(i,new Transform3D(Basis.Identity,at)); draw.Tint(i,Colors[l.Kind]*(lit*flick));
             l.Spill?.Invoke(at,lit>.05f?1:0);
-            if(OnStage(i)){stage++;StageGlass(i,xf,lit*flick);}
+            if(OnStage(i))stage++;
+            LitGlass(i,l,xf,lit*flick);
         }
-        StageBurning=stage; draw.Commit(); stageGlass?.Commit(); MoverCost.End("boat_lamps");
+        StageBurning=stage; GlassBurning=glassBurning; draw.Commit(); glass?.Commit(); MoverCost.End("boat_lamps");
     }
 }

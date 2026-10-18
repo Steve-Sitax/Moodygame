@@ -40,21 +40,33 @@ public sealed class WalkMap
     public static void ResizeBody(Node3D node, Aabb box) { foreach (var b in bodies) if (b.Node == node) b.Box = box; }
     public IEnumerable<(Node3D Node,Aabb World,Puppet? Owner)> TransitBodies()
     {foreach(var b in bodies)if(b.Transit&&b.Active&&GodotObject.IsInstanceValid(b.Node))yield return(b.Node,b.World,b.Owner);}
+    /// <summary>TransitBodies into a list the caller keeps: the same bodies in the same order, no iterator a frame.</summary>
+    public void TransitBodies(List<(Node3D Node,Aabb World,Puppet? Owner)> into)
+    {into.Clear();foreach(var b in bodies)if(b.Transit&&b.Active&&GodotObject.IsInstanceValid(b.Node))into.Add((b.Node,b.World,b.Owner));}
+    /// <summary>For checks: the live bodies registered, and of them the ones that are not vehicles, carried or moving.</summary>
+    public static int BodyCount => bodies.Count;
+    public static int StillBodyCount { get { int n = 0; foreach (var b in bodies) if (!b.Transit && !b.Moves && b.Owner == null) n++; return n; } }
     public void RefreshBodies()
     {
+        bool changed = bodies.Count != bodySamples.Length;
         for (int i = bodies.Count - 1; i >= 0; i--)
         {
             var b = bodies[i];
-            if (!GodotObject.IsInstanceValid(b.Node)) { bodies.RemoveAt(i); continue; }
-            b.World = b.Node.GlobalTransform * b.Box;
-            b.Inverse = b.Node.GlobalTransform.AffineInverse();
-            b.Active = b.Node is not CollisionObject3D collision || collision.CollisionLayer != 0;
+            if (!GodotObject.IsInstanceValid(b.Node)) { bodies.RemoveAt(i); changed = true; continue; }
+            // one read of the node's transform (each read is a call into Godot)
+            var global = b.Node.GlobalTransform;
+            var world = global * b.Box; var inverse = global.AffineInverse();
+            bool active = b.Node is not CollisionObject3D collision || collision.CollisionLayer != 0;
+            if (world != b.World || inverse != b.Inverse || active != b.Active) changed = true;
+            b.World = world; b.Inverse = inverse; b.Active = active;
         }
         // Nodes are sampled on the main thread. Background route requests read only
         // these copied values, with the bitset and its stride updated together.
         lock (bodyGate)
         {
         BodySnapshot++;
+        // nothing moved, came or went: the samples and tiles already hold exactly these values (#135)
+        if (!changed && bodySamples.Length == bodies.Count && routeBodyTiles.Length != 0) return;
         if (bodySamples.Length != bodies.Count) bodySamples = new BodySample[bodies.Count];
         for (int i = 0; i < bodies.Count; i++) {
             var source = bodies[i];
