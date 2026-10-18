@@ -36,6 +36,9 @@ public partial class Arms : Node
     private bool animateWhileFlying;
     private string? timingPose;
     private Node3D bodyLantern = null!;
+    // the lantern Jef's own eyes see, hung from the view hand's fist (the body's lantern is for mirrors and shadows)
+    private Node3D viewLantern = null!;
+    private bool viewLanternShown;
     private Vector3 lanternAt, bodyLanternAt;
     private bool lanternPlaced;
     private float beltBlend;
@@ -117,6 +120,11 @@ public partial class Arms : Node
         lanternPlaced = false;
         beltBlend = 0;
         bodyLantern.Scale = Vector3.One * .8f; Figure.Root.AddChild(bodyLantern);
+        viewLantern?.QueueFree();
+        viewLantern = Carried.Lantern(); viewLantern.Name = "jef_view_lantern"; viewLantern.Visible = false;
+        Main.I.View.AddChild(viewLantern);
+        foreach (var mi in BakedWorld.All(viewLantern).OfType<MeshInstance3D>()) mi.Layers = ArmLayer;
+        viewLanternShown = false; LanternLayers(false);
         handIK = new HumanLayers(Hands.Root, Hands.Root.GetNode<Skeleton3D>("Skeleton3D"));
         bodyIK = new HumanLayers(Figure.Root, Figure.Root.GetNode<Skeleton3D>("Skeleton3D"));
         foreach (var mi in BakedWorld.All(Figure.Root).OfType<MeshInstance3D>())
@@ -173,7 +181,10 @@ public partial class Arms : Node
             h.SetPace(Pose == "run" ? Jef.Hurry : speed);
             h.CarryLoad(Pose == "carry" ? "crate" : null);
             h.Play(motion);
-            if (Pose is "climb" or "vault") h.WorkClipNow("man_stairs_up", clock % 1, true);
+            // (#182) on a quay ladder the body climbs rung by rung (its hands are put on the holds below)
+            // (over the coping, at the hoops, the old climb as before: the let-go there reads the body's shoulders)
+            if (Pose == "climb" && j.ClimbLadder?.Of is { } rungs && j.Cam.GlobalPosition.Y <= (float.IsFinite(rungs.TopRung) ? rungs.TopRung : rungs.Top - .15f) + .05f && h.ClimbLadder(at.Y - rungs.Foot)) { }
+            else if (Pose is "climb" or "vault") h.WorkClipNow("man_stairs_up", clock % 1, true);
             if (Pose == "row" && Rowing.I?.Boat != null) h.SetPhase("row", Rowing.I.Rower.Phase);
             h.Update(dt);
         }
@@ -183,7 +194,7 @@ public partial class Arms : Node
             Figure.Root.Rotation = new Vector3(MathF.PI * .45f, j.Yaw + MathF.PI, 0);
         }
         else if (Pose == "row" && Rowing.I?.Boat is { } boat)
-            Figure.Root.GlobalTransform = new Transform3D(boat.Root.GlobalBasis, boat.Root.ToGlobal(new Vector3(0, boat.Hull.SeatY + Figure.SitDrop(0) + .02f, boat.Hull.SeatZ)));
+            Figure.Root.GlobalTransform = new Transform3D(boat.Root.GlobalBasis, boat.Root.ToGlobal(new Vector3(0, boat.Hull.SeatY + Figure.RowDrop(), boat.Hull.SeatZ)));
         else if (Pose == "velo" && Velocipedes.I?.Ridden is { } velo)
             Figure.Root.GlobalTransform = new Transform3D(velo.Root.GlobalBasis, velo.Root.ToGlobal(new Vector3(0, Figure.SitDrop(.97f), -.02f)));
         else if (Pose == "sit" && TavernSeats.I?.Sitting is { } tavern)
@@ -253,6 +264,12 @@ public partial class Arms : Node
             bodyLantern.Rotation = new Vector3(0, 0, MathF.Sin(clock * 3) * .06f);
             bodyLantern.GlobalPosition = bodyLanternAt - bodyLantern.GlobalBasis.Orthonormalized() * Vector3.Up * .086f;
         }
+        // In the view hand (not on the belt): the eyes see a lantern hung from that fist, its bail's top bar along the
+        // fist's handle axis (#140: the body's lantern, placed by the body's hand, put the bail through the view fingers).
+        bool inView = bodyLantern.Visible && !LanternOnBelt && Hands.Root.Visible && HandLift > .05f && (Slots & HandSlots.Left) != 0;
+        if (inView != viewLanternShown) { viewLanternShown = inView; LanternLayers(inView); }
+        viewLantern.Visible = inView;
+        if (inView) HangViewLantern();
     }
     /// <summary>
     /// Where the hands hold a quay ladder: hand over hand up the rungs (the left on every other rung, the right on the
@@ -327,6 +344,23 @@ public partial class Arms : Node
         // take a hold out of reach before the arm's length says so)
         if (held && !rungs && Math.Max(BodyGripError, ViewGripError) > .02f) hoopsLetGo = true;
         return hoopsLetGo ? null : (hold[0], hold[1]);
+    }
+    /// <summary>The body's lantern is drawn for Jef's eyes only while the view lantern is not (mirrors and the shadow always).</summary>
+    private void LanternLayers(bool viewShown)
+    {
+        foreach (var mi in BakedWorld.All(bodyLantern).OfType<MeshInstance3D>()) mi.Layers = viewShown ? BodyLayer : 1u | BodyLayer;
+    }
+    /// <summary>The view lantern from the view hand's grip socket: upright, the bail's top bar (0.1045 m over the lantern's
+    /// origin at full size) on the fist's handle axis, swinging a little about it.</summary>
+    private void HangViewLantern()
+    {
+        var sk = Hands.Root.GetNode<Skeleton3D>("Skeleton3D");
+        var grip = sk.GlobalTransform * sk.GetBoneGlobalPose(sk.FindBone("gripL"));
+        var axis = grip.Basis.Y; axis.Y = 0;
+        axis = axis.LengthSquared() > 1e-6f ? axis.Normalized() : Jef.I.Cam.GlobalBasis.X;
+        float scale = .8f * Hands.Root.Scale.X;
+        var basis = new Basis(axis, Vector3.Up, axis.Cross(Vector3.Up)).Orthonormalized() * new Basis(Vector3.Right, MathF.Sin(clock * 2.6f) * .05f);
+        viewLantern.GlobalTransform = new Transform3D(basis.Scaled(Vector3.One * scale), grip.Origin - basis.Y * .1045f * scale);
     }
     private float Clearance()
     {
@@ -496,7 +530,7 @@ public partial class Arms : Node
     public override void _ExitTree()
     {
         if (MainMenu.I is { } menu) menu.WorldReplaced -= Replaced;
-        Figure?.Dispose(); Hands?.Dispose();
+        Figure?.Dispose(); Hands?.Dispose(); viewLantern?.QueueFree();
         CharacterSheet.MakePreview = null; I = null;
     }
 }

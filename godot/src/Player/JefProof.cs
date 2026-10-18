@@ -33,7 +33,8 @@ internal partial class JefProof : Node
         await Frames(); await ToSignal(RenderingServer.Singleton, RenderingServer.SignalName.FramePostDraw);
         (menu ? Main.I.GetViewport().GetTexture() : Main.I.View.GetTexture()).GetImage().SavePng(Path.Combine(dir, name + ".png"));
         var arms = Arms.I!;
-        if (arms.Pose is "idle" or "walk" or "run" && !arms.ProofLantern)
+        // (a quay-ladder climb lets go at the top for a moment: its pictures are not of empty hands at rest)
+        if (arms.Pose is "idle" or "walk" or "run" && !arms.ProofLantern && !Jef.I.Climbing)
             emptyHandsHidden &= arms.HandLift == 0 && !arms.Hands.Root.Visible;
         if (arms.Pose == "carry") maxGripError = Math.Max(maxGripError, arms.LoadGripError);
         maxDuplicateProps = Math.Max(maxDuplicateProps, arms.Figure.ThingsShown + arms.Hands.ThingsShown);

@@ -40,7 +40,9 @@ def make_kind(name, body, age, spec, female=False, held=(), hero=True):
         ctx.mul(exposed, (0.94, 0.92, 0.88))
         if spec.get("barefoot"):
             dirt = gc.sm(0.13, 0.025, ctx.y) * exposed
-            speckle = 0.6 + 0.4 * np.sin(ctx.x * 240 + ctx.z * 310) ** 2
+            # (#82) splashed and caked by patches (the old sine speckle drew stripes across the feet)
+            pts = np.stack((ctx.x, ctx.y, ctx.z), -1)
+            speckle = np.clip(0.55 + 0.35 * ck._noise3(pts, 60.0, 81) + 0.25 * ck._noise3(pts, 260.0, 82), 0, 1)
             ctx.mix(dirt * speckle * 0.45, (0.28, 0.21, 0.14))
         if spec.get("gloves"):
             hands = ck.starts(ctx.part, ("finger", "arm")) & (ctx.y < bd.Y(ctx.P, 0.52))

@@ -67,7 +67,7 @@ TALKING = {"talk": 1.0, "talk_f": 1.0, "rifle_talk": 1.0}
 # stooped bodies (old_man, old_woman), the thighs forward, the knees bent and the feet flat, the hips lowered by as
 # much as the legs shortened (docs/people.md "The old"); other standing clips: the games add the same turns
 OLD_CLIPS = ("idle", "idle_f", "talk", "talk_f")
-OLD_STANCE = {"thigh": 5.0, "knee": 10.0, "drop": 0.003}
+OLD_STANCE = {"thigh": 7.0, "knee": 14.0, "drop": 0.006}  # (#82: the first 5/10 degrees read too mild)
 
 
 def thumb_axes(J):

@@ -52,7 +52,7 @@ public partial class Rowing
         var hull=Make(key,kind,x,z,yaw);hull.Oars.Visible=true;
         var boat=new ResidentHull{Id=id,Kind=kind,Hull=hull,Path=path};residentHulls[id]=boat;
         var source=ResidentJourneys.I?.Transport?.Vehicles.FirstOrDefault(v=>v.Id==id);if(source?.Home.Length>=3)residentHomes[id]=new((float)source.Home[0],(float)source.Home[1],(float)source.Home[2]);
-        for(int i=0;i<Math.Min(3,crew.Length);i++){var h=Humans.Make(crew[i].Kind);if(h==null)continue;var frame=new Node3D{Name="crew_"+crew[i].Id};frame.AddChild(h.Root);hull.Root.AddChild(frame);h.Start();bool row=i==0;frame.Position=new(0,hull.Hull.SeatY+h.SitDrop(0)+.02f,row?hull.Hull.SeatZ:i==1?hull.Hull.SeatZ+1.4f:hull.Hull.SeatZ-1.25f);frame.Rotation=new(0,row||i==1?MathF.PI:0,0);h.Play(row?"row":h.CanSit?"sit":"idle",0);if(row)SeatRower(h,frame,hull.Hull,kind);boat.Crew.Add((crew[i].Id,crew[i].Kind,h,frame));}
+        for(int i=0;i<Math.Min(3,crew.Length);i++){var h=Humans.Make(crew[i].Kind);if(h==null)continue;var frame=new Node3D{Name="crew_"+crew[i].Id};frame.AddChild(h.Root);hull.Root.AddChild(frame);h.Start();bool row=i==0;frame.Position=new(0,hull.Hull.SeatY+h.SitDrop(0)+.02f,row?hull.Hull.SeatZ:i==1?hull.Hull.SeatZ+1.4f:hull.Hull.SeatZ-1.25f);frame.Rotation=new(0,row&&!h.IsPeople2||i==1?MathF.PI:0,0);h.Play(row?"row":h.CanSit?"sit":"idle",0);if(row)SeatRower(h,frame,hull.Hull,kind);boat.Crew.Add((crew[i].Id,crew[i].Kind,h,frame));}
         for(int i=0;i<Math.Clamp(sacks,0,12);i++){var sack=Carried.Sack(.42f,.2f,.3f);if(sack==null)continue;sack.Position=new(i%2==1?.2f:-.2f,.42f,hull.Hull.SeatZ-.8f-i/2*.42f);sack.Rotation=new(0,i*.7f,0);hull.Root.AddChild(sack);boat.Cargo.Add(sack);}
         if(residentHomes.TryGetValue(id,out var home))Boats.I.PlayerHideSmall(home.X,home.Y,true);
     }
@@ -75,24 +75,32 @@ public partial class Rowing
     {
         var d=b.Hull;var eye=Main.I.Cam.GlobalPosition;bool shown=new Vector2(d.X-eye.X,d.Z-eye.Z).Length()<90;d.Root.Visible=shown;
         d.Root.Position=new(d.X,Water.Level(d.X,d.Z),d.Z);d.Root.Rotation=new(0,d.Yaw,MathF.Sin((float)MoverClock.T*1.3f+d.X)*.02f);
-        if(!shown)return;for(int i=0;i<b.Crew.Count;i++){if(i==0&&!b.Crew[i].Human.IsPeople2)b.Crew[i].Human.SetPhase("row",phase<0?.7f:phase);b.Crew[i].Human.Update((float)dt);}
-        OarPhase(d,phase);
+        if(!shown)return;OarPhase(d,phase);
+        for(int i=0;i<b.Crew.Count;i++){var h=b.Crew[i].Human;if(i==0){h.SetPhase("row",phase<0?.7f:phase);HoldOars(h,d);}h.Update((float)dt);}
     }
-    /// <summary>A rower on her thwart. The old bodies have a rowing clip; the people2 bodies have none (they stood on the
-    /// thwart, issue 154): they sit on it, the seat's height over her bottom boards, and the oars work.</summary>
+    /// <summary>A rower on her thwart. The old bodies face aft with their own clip; a people2 rower (#182) sits on the
+    /// thwart's top facing the bow, as Jef rows, and pushes the oars with the row clip: the game sets its phase (the
+    /// oars' stroke) and puts the fists on the oars' grips (HoldOars).</summary>
     internal static void SeatRower(Human h,Node3D frame,RowPhysics.Hull hull,string kind)
     {
         if(!h.IsPeople2)return;
-        float boards=ShipWalk.I?.FloorFor(kind) is {} deck&&float.IsFinite(deck.Floor(0,hull.SeatZ+.35f))?deck.Floor(0,hull.SeatZ+.35f):hull.SeatY-.42f;
-        float seat=Math.Clamp(hull.SeatY-boards,.25f,.6f);
-        frame.Position=new(0,boards+h.SitDrop(seat),hull.SeatZ);
-        h.Play(h.CanSit?"sit":"idle",0);
+        frame.Position=new(0,hull.SeatY+h.RowDrop(),hull.SeatZ);frame.Rotation=Vector3.Zero;
+        h.Play("row",0);
+    }
+    /// <summary>Where a hand takes an oar (side 0 the port oar, the rower's left as he faces the bow).</summary>
+    internal static Vector3 OarGrip(Drawn d,int side)=>d.Feather[side].ToGlobal(new Vector3(-In+.07f,0,0));
+    /// <summary>A people2 rower's fists on the oars' grips, after the oars are posed and before the rower's update.</summary>
+    internal static void HoldOars(Human h,Drawn d)
+    {
+        if(!h.IsPeople2)return;
+        var inv=h.Root.GlobalTransform.AffineInverse();
+        h.GripTargets(inv*OarGrip(d,0),inv*OarGrip(d,1));
     }
     /// <summary>The oars at a point of the stroke (0..1; below 0: held still, blades just off the water).</summary>
     internal static void OarPhase(Drawn d,float phase)
     {
         float mid=Out-Blade/2,dipIn=MathF.Asin(Math.Min(.95f,(d.Hull.Pin.Y+.06f)/mid)),dipOut=MathF.Asin(Math.Min(.95f,Math.Max(0,d.Hull.Pin.Y-.22f)/mid)),th=0,dp=dipOut+.04f,fe=0;
-        if(phase>=0&&phase<.42f){float u=Mathf.SmoothStep(0,1,phase/.42f);th=.55f-u;dp=dipIn;}else if(phase>=.42f){float u=(phase-.42f)/.58f;th=-.45f+Mathf.SmoothStep(0,1,u);dp=dipOut;fe=MathF.Sin(MathF.PI*Math.Min(1,u*1.15f))*MathF.PI/2*.95f;}
+        if(phase>=0&&phase<.42f){float u=Mathf.SmoothStep(0,1,phase/.42f);th=.55f-u;dp=dipIn;}else if(phase>=.42f){float u=(phase-.42f)/.58f;th=-.45f+Mathf.SmoothStep(0,1,u);dp=u<.08f?Mathf.Lerp(dipIn,dipOut,u/.08f):u>.92f?Mathf.Lerp(dipOut,dipIn,(u-.92f)/.08f):dipOut;fe=MathF.Sin(MathF.PI*Math.Min(1,u*1.15f))*MathF.PI/2*.95f;} // (the blades eased out and in, as Jef's: a rower's fists follow the grips)
         for(int i=0;i<2;i++){d.Pivot[i].Rotation=new(0,i==0?-th:th,0);d.Dip[i].Rotation=new(0,0,-dp);d.Feather[i].Rotation=new(i==0?fe:-fe,0,0);}
     }
     public void ResidentBoatEnd(string id,Vector3? at,bool home)

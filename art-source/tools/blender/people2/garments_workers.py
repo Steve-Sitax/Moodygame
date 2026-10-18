@@ -323,6 +323,9 @@ def build_kind(kind, make_body, ref_uv, layout, atl, tex=2048, log=print):
             for order in (order0,order1):
                 order.discard((over,under))
                 order.add((under,over))
+    from . import clothes_build as cbl
+    cbl.clean_sleeves(near,b["P"]); cbl.clean_sleeves(cage,b["P"])  # (#140) a sleeve on its own arm
+    cbl.follow_under(near,order0); cbl.follow_under(cage,order1)  # (#138) a layer moves with the one under it
     dr.reduce_cloth(near,14000-lod.tris(b["lod0"]))
     dr.reduce_cloth(cage,2500-lod.tris(b["lod1"]))
     clear_worker_layers(near,b["lod0"],order0)

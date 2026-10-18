@@ -275,6 +275,8 @@ public sealed class Human
     /// <summary>How far to lower the body (negative) so it sits on a seat `seat` metres high (the sit clip). A
     /// people2 body picks its seated clip by the seat's height (a step, a crate, a bench or a chair), whose hips
     /// come down by themselves; a seat of 0 is a seat at the node's own height.</summary>
+    /// <summary>Where a rower's node goes under the thwart's top (people2's row clip; the old bodies sit as before).</summary>
+    public float RowDrop() => newer?.RowDrop() ?? SitDrop(0);
     public float SitDrop(float seat = 0.45f) => newer?.SitDrop(seat) ?? LegacySitDrop(seat);
 
     private float LegacySitDrop(float seat) => seat + 0.07f * Scale - 0.9f * Scale;
@@ -352,6 +354,8 @@ public sealed class Human
     internal string? Carrying => newer?.Carrying;
 
     /// <summary>The proofs: play a work clip from t (frozen: held there).</summary>
+    /// <summary>Climbing a ladder, `height` over one of its rungs (people2's ladder clip; false for the old bodies).</summary>
+    internal bool ClimbLadder(float height) { if (newer == null || !newer.Ladder(height)) return false; Motion = "work:ladder"; return true; }
     internal void WorkClipNow(string clip, float t, bool frozen = false) { if (newer != null) { newer.PlayClip(clip, t, frozen); Motion = "work:" + clip; } }
 
     internal int ThingsShown => newer?.ThingsShown ?? 0;
@@ -412,7 +416,7 @@ public sealed class Human
                 identityReady = true;
                 if (Root.HasMeta("face_seed")) eyes?.Seed((uint)Root.GetMeta("face_seed").AsInt64());
             }
-            newer.Update(dt); if (!viewmodel) eyes?.Update(dt, newer.Speaking, localPlayer); return;
+            newer.Update(dt); if (!viewmodel) eyes?.Update(dt, newer.Speaking, localPlayer, newer.SitWeight); return;
         }
         mixer.SpeedScale = SpeedOf(Motion);
         mixer.Advance(dt);

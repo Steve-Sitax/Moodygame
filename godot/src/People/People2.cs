@@ -309,9 +309,13 @@ public static class People2
         // who this is for the face recipe: the requested kind, the base body that carries the hair pieces
         var (baseBody, handsHard) = kindBase.GetValueOrDefault(body, (body, 0f));
         root.SetMeta("people2_kind", recipeKind);
+        // (#138) a kind drawn in another's place (--people2-map) gets the face and hair of the one drawn, not of the
+        // place: a woman's kind in a man's slot kept his face and lost her hair
+        string faceKind = map.ContainsKey(kind) ? body : recipeKind;
+        root.SetMeta("people2_face_kind", faceKind);
         root.SetMeta("people2_body", baseBody);
         root.SetMeta("people2_mesh_kind", body);
-        root.SetMeta("people2_female", female || info.Item2);
+        root.SetMeta("people2_female", map.ContainsKey(kind) ? info.Item2 || Humans.Women.Contains(faceKind) : female || info.Item2);
         root.SetMeta("people2_hands_hard", handsHard);
         ulong frame = Engine.GetProcessFrames();
         if (frame != makeFrame) { makeFrame = frame; makeMs = 0; }

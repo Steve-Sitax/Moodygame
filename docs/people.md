@@ -1535,13 +1535,56 @@ node's frame in game axes). The native runtime: docs/godot-people2.md "Work".
 - **K (weapons):** model each with its grip at the origin, tip along +y, edge along -z; hang it on gripR/gripL,
   sheathed ones on hipL; move it to the grip table's `axisAt` for its handle size and use that table's curls.
 
+## Leftovers fixed (#82, #138, #140, #182; 2026-10-18)
+
+- **Shoulders and knees.** `motion.clavicle_for` (every hold pose of D1-D3) uses the old clips' rule
+  (`clips_legacy.CLAV_FROM/RATE/MAX`: a quarter of the rise past 30 degrees, at most 30, none for a reach backward).
+  `mhbody.shoulder_rule` splits the chest-helper-arm blend with smooth shares (the straight ramps' kinks folded the
+  skin at the front of the armpit). `mhbody.knee_rule`: a 5.5 cm blend either way, its middle 2.5 cm below the joint on the
+  kneecap's side and 2.5 cm above it behind; `preview.bend_measure` at 120 degrees: man_middling
+  42% before, 46% after; woman_middling 52%, 54%; man_stout 48%, 45%; child_middling 75%, 66%.
+- **The old.** `clips_legacy.OLD_STANCE` thigh 7, knee 14 degrees (was 5, 10), hips 6 mm lower. The stoop itself
+  stays at 17 degrees (men) / 15 (women): it bends the body's rest shape, and the garments are laid on it from an
+  upright pattern; at 24 and 32 degrees the old man's coat stood off his back and his chest came through its front.
+  A deeper stoop needs the garments laid on the bent body (open).
+- **Feet.** `mhbody.LOD0["foot"]` 950 (was 700; the scalp 560, was 260; the trunk gives them, 960, was 1,350, mostly
+  under clothes; the legs keep 1,100): round toes with nails for barefoot people and a smooth bald crown. The urchins' dirt is noise splashes (a sine drew
+  stripes).
+- **Hair.** `mhface.HAIRLINE`'s nape runs nearly level across the back (a crop's and a cap's hair hung a tail down the
+  nape, a bun left a dark stub). The face painter no longer fades its paint into plain skin along the head island's
+  own cut over the crown (the pale streak over a bald head). `Side.locks`: 26 narrow rounded locks, staggered, and 9 on
+  the small side (were 15 planks of 2.8 cm). `Undercap`: 2.6 mm under the cap, flat locks, a small flat knot (the hair
+  showed through the linen).
+- **The player's hats** (`held_player`): felt with matted fibres, a grosgrain band standing 0.8 mm proud with its bow
+  on the left, the brim bound with ribbon; the flat cap's peak felt with four rows of stitching.
+- **Layers** (`clothes_build`): `clean_sleeves` keeps a sleeve below the armpit on its own arm's bones (a sleeve
+  touching the chest at rest was dragged into a wing when the arm rose); `follow_under` gives a garment lying on
+  another most of the lower one's weights within 4-12 mm (shawl over sleeve, apron over skirt, coat over waistcoat),
+  never across an arm and the trunk or legs, and a coat's sprung tails stay free of the trousers. `dress.SKIRT_UNDER`:
+  a skirt is always under a jacket, coat or smock. `undershirt` judges the trunk's skin round the neck above the neck's
+  lowest point by the neck's height rule (a rule by part painted saw teeth of cloth along the triangles above a
+  neckline). `under_cloth` reaches 2 cm on the neck and 2.5 cm on the arms (7 cm
+  painted ragged dark collars on skin in sight). The far copy's lining lies 4 mm deeper (`dress.thicken_far`).
+- **Occlusion.** `clothes_build.occlusion` counts an arm against the trunk only inside the armpit's hollow (60 mm round
+  rig.py's armpit mark): the hanging arm no longer darkens the front of the shoulder.
+- **Seated skirts.** `dress.sit_key` writes a `sit` shape on a skirted kind's near copy (skirt, overskirt, flounce,
+  habit skirt, apron): over the lap the front lies down on the thighs, below the knees the sides and back fall in to
+  the legs, the front hangs straight and the hem drops 3 cm. The game keeps it live (`People2Faces`, beside blink,
+  brow and smile) and sets it while the person sits (`Human2.SitWeight`, eased over 0.6 s).
+- **Rowing** (`clips_work.row`, `row_handle`): the game's oars are pushed (the rower faces the bow, as Jef does), so
+  the clip pushes too: the handles follow the oars' own stroke (drive 0..0.42, the dip eased out and in), the back
+  leans into the push and comes back with the hands. The game puts the fists on its oars' grips (`Rowing.HoldOars`).
+- **Climbing a quay ladder** (`clips_work.ladder`, `LADDER`): facing the wall 0.30 m off the rungs, the left hand
+  with the right foot and the right hand with the left foot, two rungs (0.58 m) a loop; the game sets the phase from
+  the node's height over the rungs (`Human.ClimbLadder`), backward for a climb down.
+
 ## Known limits
 
 - The motion treats the back of the sole as a round heel (`motion.HEEL_R`). If anyone moves the sole or adds a heel
   (shoes, boots), the foot points come from the mesh at build time, so the clips follow; rebuild and read the slide
   and scuff measures (a longer toe catches the stairs: the toe end stays at 0.195 m from the ankle's line).
-- Bare feet have no separate toes in the mesh (ten columns round the foot): the toes are a rounded arc in shape and
-  are drawn in the paint.
+- (Cage bodies only, history: the MakeHuman feet have their own toes in the mesh; bare feet keep 950 near
+  triangles since 2026-10-18.)
 - Keys are at 24 fps (the kit's rate): fast in-place clips bow a planted foot between keys by a few mm (see the
   measures); the runtimes' foot lock takes it out.
 - The skirt and coat-tail bones are not keyed (springs in the games); nor are the sockets.

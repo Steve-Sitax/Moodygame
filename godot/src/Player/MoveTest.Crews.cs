@@ -55,6 +55,8 @@ public partial class MoveTest
             j.Yaw = Facing(stern.X - me.X, stern.Z - me.Z);
             j.Pitch = deck.Small ? -0.35f : MathF.Atan2(stern.Y - me.Y - Jef.Eye, new Vector2(stern.X - me.X, stern.Z - me.Z).Length());
             await Shot($"crew-{hour:0.#}h-{r.Kind}-deck", 12);
+            // (#182) a rower's stroke: four more pictures half a second apart (the oars and the rower's push together)
+            if (deck.Small) for (int k = 0; k < 4; k++) { await Frames(15); await Shot($"crew-{hour:0.#}h-{r.Kind}-stroke-{k}", 1); }
             ShipWalk.I.Clear();
         }
     }

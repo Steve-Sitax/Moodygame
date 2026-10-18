@@ -42,8 +42,11 @@ SPECS = {
 # triangle budgets of the two copies per region (mh.regions), both sides together
 # the hands keep enough to read as hands at a metre (knuckles, nails, a closed fist): the trunk, arms and legs give
 # up a little (mostly under clothes, cut away in the kinds)
-LOD0 = {"face": 2700, "scalp": 260, "ear": 260, "neck": 240, "torso": 1350, "arm": 1050, "hand": 1150, "leg": 1100,
-        "foot": 700}  # bare feet: toes at their picture's density (the kinds' feet are cut away under shoes)
+# (#138) the scalp shows on a bald crown at 0.6 m: 560 (was 260); (#82) bare feet: 950 (was 700), so each toe is
+# round and has its nail (the kinds' feet are cut away under shoes). The trunk gives them (960, was 1350: mostly under
+# clothes, cut away in the kinds); the legs keep 1100 (fewer folded the bent knee: 41% of its section at 120 degrees)
+LOD0 = {"face": 2700, "scalp": 560, "ear": 260, "neck": 240, "torso": 960, "arm": 1050, "hand": 1150, "leg": 1100,
+        "foot": 950}
 LOD1 = {"face": 330, "scalp": 110, "ear": 40, "neck": 50, "torso": 420, "arm": 220, "hand": 170, "leg": 340,
         "foot": 110}
 REGION_ORDER = ["torso", "leg", "arm", "neck", "foot", "hand", "scalp", "ear", "face"]
@@ -653,6 +656,35 @@ def finger_rule(Wv, co, J, body):
     return W
 
 
+def knee_rule(Wv, co, J):
+    """The knee's blend from the thigh to the shin (#82: MakeHuman's blend kept 42% of the knee's section at a 120
+    degree bend, preview.bend_measure; the target is 45-60%): a smooth blend 5.5 cm either way along the leg's axis,
+    its middle 2.5 cm below the joint on the kneecap's side (the kneecap's skin rides with the thigh and keeps the
+    knee's round when it bends) and 2.5 cm above it in the hollow behind (where the skin folds). At 120 degrees:
+    man_middling 46%, woman_middling 55% (a shorter blend kept more but folded a fin at the woman's knee).
+    Only the thigh's and the shin's shares are moved; their sum and every other bone's weight stay."""
+    ix = {n: i for i, n in enumerate(rig.NAMES)}
+    W = Wv.copy()
+    hw, shift = 0.055, 0.025
+    for S in "LR":
+        up, low = ix["legUp" + S], ix["legLow" + S]
+        knee = np.asarray(J["legLow" + S][0], float)
+        axis = np.asarray(J["legLow" + S][1], float) - knee
+        axis /= np.linalg.norm(axis)
+        tot = W[:, up] + W[:, low]
+        d = co - knee
+        s = d @ axis
+        perp = d - np.outer(s, axis)
+        pl = np.linalg.norm(perp, axis=1)
+        front = np.where(pl > 1e-6, perp[:, 2] / np.maximum(pl, 1e-6), 0.0)  # game z: forward
+        m = (tot > 0.5) & (np.abs(s) < 0.12) & (pl < 0.12)
+        t = np.clip((s - shift * front + hw) / (2 * hw), 0, 1)
+        t = t * t * (3 - 2 * t)
+        W[m, up] = (tot * (1 - t))[m]
+        W[m, low] = (tot * t)[m]
+    return W
+
+
 def shoulder_rule(Wv, co, J):
     """The kit's shoulder helpers (docs/people.md "Shoulder helpers"): the skin round the arm hole, the armpit and the
     deltoid's round hang on shoulderL/R, which turn by half of the arm's swing. MakeHuman's blend from the chest
@@ -669,9 +701,14 @@ def shoulder_rule(Wv, co, J):
         tot = a + c
         m = near & (tot > 1e-6) & (a > 1e-4)
         t = np.where(m, a / np.maximum(tot, 1e-9), 0)
-        chest_new = np.where(t < 0.5, (1 - 2 * t), 0.0) * tot
-        helper = np.where(t < 0.5, 2 * t, 2 * (1 - t)) * tot
-        arm_new = np.where(t < 0.5, 0.0, 2 * t - 1) * tot
+        # (#82) smooth shares (the straight ramps met in kinks at the middle and the ends of the blend, which folded
+        # the skin along a line at the front of the armpit with the arm raised far forward)
+        def ss(e0, e1, x):
+            u = np.clip((x - e0) / (e1 - e0), 0, 1)
+            return u * u * (3 - 2 * u)
+        chest_new = ss(0.5, 0.0, t) * tot
+        arm_new = ss(0.5, 1.0, t) * tot
+        helper = tot - chest_new - arm_new
         # the deltoid's round: vertices fully on the arm within 7 cm of the joint keep a share on the helper
         full = near & (t >= 0.5) & (d < 0.07)
         extra = np.where(full, 0.5 * (1 - d / 0.07), 0.0) * arm_new
@@ -734,7 +771,7 @@ def build_mesh(name, lod, body, J, with_eyes=True):
     loop_uv = [uv[T.loop_start[f]:T.loop_start[f] + len(face)] for f, face in enumerate(faces)]
     loop_flag = [flag[T.loop_start[f]:T.loop_start[f] + len(face)] for f, face in enumerate(faces)]
     loop_isl = [island[T.loop_start[f]] for f in range(len(faces))]
-    W = finger_rule(shoulder_rule(T.binding.interp(body.W), co, J), co, J, body)
+    W = finger_rule(knee_rule(shoulder_rule(T.binding.interp(body.W), co, J), co, J), co, J, body)
     parts = list(T.part)
     n0 = len(co)
     if with_eyes:

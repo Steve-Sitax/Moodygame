@@ -223,6 +223,7 @@ public static class People2Faces
         public float[]? Tan, Weights;
         public Vector3[][]? Expressions;
         public Vector3[][]? ExpressionNormals;
+        public string[] ExpressionNames = LiveKeys;
     }
     private static ArrayMesh Upload(Prepared p)
     {
@@ -239,9 +240,9 @@ public static class People2Faces
         var mesh = new ArrayMesh { BlendShapeMode = Mesh.BlendShapeMode.Normalized };
         var shapes = new Godot.Collections.Array<Godot.Collections.Array>();
         if (p.Expressions != null)
-            for (int k = 0; k < LiveKeys.Length; k++)
+            for (int k = 0; k < p.Expressions.Length; k++)
             {
-                mesh.AddBlendShape(LiveKeys[k]);
+                mesh.AddBlendShape(p.ExpressionNames[k]);
                 var sa = new Godot.Collections.Array(); sa.Resize((int)Mesh.ArrayType.Max);
                 sa[(int)Mesh.ArrayType.Vertex] = p.Expressions[k];
                 sa[(int)Mesh.ArrayType.Normal] = p.ExpressionNormals![k];
@@ -253,6 +254,8 @@ public static class People2Faces
         return mesh;
     }
     private static readonly string[] LiveKeys = { "blink", "brow_raise", "smile" };
+    // (#138) a skirted kind's near copy also carries `sit`: its skirt and apron fall in round the shins when seated
+    private static readonly string[] LiveKeysSit = { "blink", "brow_raise", "smile", "sit" };
     private static ArrayMesh Build(Template t, Vector3[] v, Vector3[] n, Color[] c, Template[]? pieces = null, Vector3[][]? pv = null, Vector3[][]? pn = null)
         => Upload(Prepare(t, v, n, c, pieces, pv, pn));
 
@@ -501,13 +504,14 @@ public static class People2Faces
         var p = Prepare(t, v, n, t.C!, pieces.ToArray(), pv, pn);
         if (lod == 0)
         {
-            p.Expressions = new Vector3[LiveKeys.Length][];
-            p.ExpressionNormals = new Vector3[LiveKeys.Length][];
-            for (int k = 0; k < LiveKeys.Length; k++)
+            var names = p.ExpressionNames = t.Keys.ContainsKey("sit") ? LiveKeysSit : LiveKeys;
+            p.Expressions = new Vector3[names.Length][];
+            p.ExpressionNormals = new Vector3[names.Length][];
+            for (int k = 0; k < names.Length; k++)
             {
                 var d = p.Expressions[k] = (Vector3[])p.V.Clone();
                 var dn = p.ExpressionNormals[k] = (Vector3[])p.N.Clone();
-                if (!t.Keys.TryGetValue(LiveKeys[k], out var key)) throw new InvalidDataException("Missing live people2 expression: " + t.Name + "/" + LiveKeys[k]);
+                if (!t.Keys.TryGetValue(names[k], out var key)) throw new InvalidDataException("Missing live people2 expression: " + t.Name + "/" + names[k]);
                 for (int i = 0; i < key.idx.Length; i++) { int vtx = key.idx[i]; d[vtx] += key.dp[i]; dn[vtx] = (dn[vtx] + key.dn[i]).Normalized(); }
             }
         }
@@ -657,8 +661,11 @@ public static class People2Faces
             var template = p.Source;
             int inf = p.Weights!.Length / p.V.Length;
             var skeleton = root.GetNode<Skeleton3D>("Skeleton3D");
-            // The view model starts just above the elbow, where its hidden cut stays behind the eye.
-            float cut = skeleton.GetBoneGlobalRest(skeleton.FindBone("armLowL")).Origin.Y + .025f;
+            Vector3 Rest(string bone) => skeleton.GetBoneGlobalRest(skeleton.FindBone(bone)).Origin;
+            Vector3 elbowL = Rest("armLowL"), elbowR = Rest("armLowR"), wristL = Rest("handL"), wristR = Rest("handR");
+            // The view model starts just above the elbow, where its hidden cut stays behind the eye. (#140) The cut is a
+            // clean level ring (the arms hang straight at rest): along whole triangles it left a saw-toothed edge.
+            float cut = elbowL.Y + .025f;
             bool ArmVertex(int v)
             {
                 float weight = 0;
@@ -666,15 +673,21 @@ public static class People2Faces
                 {
                     int b = p.Bones![v * inf + k];
                     string name = b < template.BindNames.Length ? template.BindNames[b] : "";
-                    if (name.StartsWith("armLow") || name.StartsWith("armTwist") || name.StartsWith("hand") || name.StartsWith("thumb") || name.StartsWith("index") || name.StartsWith("middle") || name.StartsWith("ring")) weight += p.Weights[v * inf + k];
+                    if (name.StartsWith("armUp") || name.StartsWith("shoulder") || name.StartsWith("armLow") || name.StartsWith("armTwist") || name.StartsWith("hand") || name.StartsWith("thumb") || name.StartsWith("index") || name.StartsWith("middle") || name.StartsWith("ring")) weight += p.Weights[v * inf + k];
                 }
-                return weight > .35f && p.V[v].Y < cut;
+                return weight > .5f;
             }
             var index = new List<int>();
             for (int i = 0; i < p.Index!.Length; i += 3)
-                if (ArmVertex(p.Index[i]) && ArmVertex(p.Index[i + 1]) && ArmVertex(p.Index[i + 2]))
-                { index.Add(p.Index[i]); index.Add(p.Index[i + 1]); index.Add(p.Index[i + 2]); }
-            CapOpenEnds(p, index, inf);
+            {
+                int a = p.Index[i], b = p.Index[i + 1], c = p.Index[i + 2];
+                if ((p.V[a].Y < cut || p.V[b].Y < cut || p.V[c].Y < cut) && ArmVertex(a) && ArmVertex(b) && ArmVertex(c)) { index.Add(a); index.Add(b); index.Add(c); }
+            }
+            index = ClipBelow(p, index, inf, cut);
+            ForearmOnly(p, index, inf, template.BindNames);
+            OuterShell(p, index, elbowL, wristL, elbowR, wristR);
+            index = Refine(p, index, inf);
+            CapCut(p, index, inf, cut, wristL.Y);
             p.Index = index.ToArray(); p.Expressions = null; p.ExpressionNormals = null;
             root.SetMeta("arm_triangles", index.Count / 3);
         }
@@ -689,50 +702,244 @@ public static class People2Faces
         root.SetMeta("player_recipe", Menu.Character.ToJson(profile));
     }
 
-    // The first-person sleeve is cut open at the elbow. When the upper arm points at the eye (ladder, oars)
-    // the camera looks straight down that tube, so each open rim is closed with a fan to its centre.
-    private static void CapOpenEnds(Prepared p, List<int> index, int inf)
+    /// <summary>(#140) Every view-arm vertex follows the forearm's chain alone (armLow, armTwist, hand, fingers): the
+    /// cloth's elbow blend reaches some 10 cm down the forearm, and those sleeve rows, still hung on the upper arm,
+    /// swung out when the elbow bent hard (the climb, a ladder). The view model never shows the elbow bend.</summary>
+    private static void ForearmOnly(Prepared p, List<int> index, int inf, string[] bindNames)
     {
-        var edges = new Dictionary<(int, int), int>();
-        for (int i = 0; i < index.Count; i += 3)
-            for (int k = 0; k < 3; k++) edges[(index[i + k], index[i + (k + 1) % 3])] = index[i + (k + 2) % 3];
-        var next = new Dictionary<int, List<int>>();
-        foreach (var (a, b) in edges.Keys)
-            if (!edges.ContainsKey((b, a))) { if (!next.TryGetValue(a, out var l)) next[a] = l = new List<int>(); l.Add(b); }
-        var seen = new HashSet<int>(); var loops = new List<List<int>>();
-        foreach (int start in next.Keys.OrderBy(v => v))
+        bool Fore(string n) => n.StartsWith("armLow") || n.StartsWith("armTwist") || n.StartsWith("hand") || n.StartsWith("thumb") || n.StartsWith("index") || n.StartsWith("middle") || n.StartsWith("ring");
+        int lowL = Array.IndexOf(bindNames, "armLowL"), lowR = Array.IndexOf(bindNames, "armLowR");
+        var bones = (int[])p.Bones!.Clone(); var weights = (float[])p.Weights!.Clone();
+        foreach (int v in new HashSet<int>(index))
         {
-            if (seen.Contains(start)) continue;
-            // Flood one connected rim (jagged cuts can branch; the fan only needs the vertex set and its edges).
-            var group = new List<int>(); var stack = new Stack<int>(); stack.Push(start);
-            while (stack.Count > 0)
+            float sum = 0;
+            for (int k = 0; k < inf; k++)
             {
-                int v = stack.Pop(); if (!seen.Add(v)) continue; group.Add(v);
-                if (next.TryGetValue(v, out var outs)) foreach (int w in outs) stack.Push(w);
-                foreach (var pair in next) if (pair.Value.Contains(v) && !seen.Contains(pair.Key)) stack.Push(pair.Key);
+                int b = bones[v * inf + k];
+                if (b < bindNames.Length && Fore(bindNames[b])) sum += weights[v * inf + k]; else weights[v * inf + k] = 0;
             }
-            loops.Add(group);
+            if (sum > 1e-4f) for (int k = 0; k < inf; k++) weights[v * inf + k] /= sum;
+            else { bones[v * inf] = p.V[v].X > 0 ? lowL : lowR; weights[v * inf] = 1; for (int k = 1; k < inf; k++) weights[v * inf + k] = 0; }
         }
-        if (loops.Count == 0) return;
-        int count = p.V.Length, extra = loops.Count, tan = p.Tan != null ? p.Tan.Length / count : 0;
+        p.Bones = bones; p.Weights = weights;
+    }
+
+    /// <summary>(#140) Only the outermost cloth of the forearm is kept: per arm, round the elbow-wrist line, every
+    /// triangle lying more than 4 mm inside the outermost surface in its slice (2 cm along, 1/16 of a turn round) goes,
+    /// and so does every lining facing the arm. The shirt and the linings under a sleeve showed down its open end
+    /// (the cream shards on the ladder). Where the shirt's cuff reaches past the sleeve it is the outermost there; the
+    /// hand beyond the wrist keeps everything.</summary>
+    private static void OuterShell(Prepared p, List<int> index, Vector3 elbowL, Vector3 wristL, Vector3 elbowR, Vector3 wristR)
+    {
+        const float Step = .02f, Inside = .004f; const int Turn = 16;
+        (int Key, float R, float T, Vector3 Radial) Slice(Vector3 q)
+        {
+            bool left = q.X > 0; var e = left ? elbowL : elbowR; var w = left ? wristL : wristR;
+            var axis = (w - e).Normalized(); float t = (q - e).Dot(axis); var radial = q - e - axis * t;
+            var side = axis.Cross(Vector3.Forward).Normalized(); var up = axis.Cross(side);
+            float angle = MathF.Atan2(radial.Dot(up), radial.Dot(side));
+            int a = ((int)MathF.Floor((angle + MathF.PI) / MathF.Tau * Turn) % Turn + Turn) % Turn;
+            return ((left ? 1 : 0) * 1000000 + (int)MathF.Floor(t / Step) * 100 + a, radial.Length(), t - (w - e).Length(), radial);
+        }
+        var outer = new Dictionary<int, float>();
+        void Note(Vector3 q) { var s = Slice(q); if (!outer.TryGetValue(s.Key, out float r) || s.R > r) outer[s.Key] = s.R; }
+        for (int i = 0; i < index.Count; i += 3)
+        {
+            // a grid of points over each triangle: a long cloth triangle crosses slices none of its corners lie in
+            Vector3 a = p.V[index[i]], b = p.V[index[i + 1]], c = p.V[index[i + 2]];
+            for (int u = 0; u <= 4; u++) for (int w = 0; u + w <= 4; w++) Note(a + (b - a) * (u / 4f) + (c - a) * (w / 4f));
+        }
+        var keep = new List<int>(index.Count);
+        for (int i = 0; i < index.Count; i += 3)
+        {
+            int ia = index[i], ib = index[i + 1], ic = index[i + 2];
+            var mid = (p.V[ia] + p.V[ib] + p.V[ic]) / 3; var s = Slice(mid);
+            if (s.T > 0) { keep.Add(ia); keep.Add(ib); keep.Add(ic); continue; }
+            float rmax = MathF.Max(Slice(p.V[ia]).R, MathF.Max(Slice(p.V[ib]).R, Slice(p.V[ic]).R));
+            if (rmax < outer[s.Key] - Inside) continue;
+            var fn = p.N[ia] + p.N[ib] + p.N[ic];
+            if (fn.LengthSquared() > 1e-8f && s.Radial.LengthSquared() > 1e-8f && fn.Normalized().Dot(s.Radial.Normalized()) < -.2f) continue;
+            keep.Add(ia); keep.Add(ib); keep.Add(ic);
+        }
+        index.Clear(); index.AddRange(keep);
+    }
+
+    /// <summary>(#140) The view arm's triangles cut at the level `cut`: whatever lies above it goes, a triangle crossing it is
+    /// split there (the new points blend position, normal, UV, colour, tangent and weights along the edge), so the sleeve
+    /// ends in a clean ring.</summary>
+    private static List<int> ClipBelow(Prepared p, List<int> index, int inf, float cut)
+    {
+        int count = p.V.Length, tan = p.Tan != null ? p.Tan.Length / count : 0;
+        var made = new Dictionary<(int, int), int>();
+        var nv = new List<Vector3>(); var nn = new List<Vector3>(); var nuv = new List<Vector2>(); var nc = new List<Color>();
+        var nbones = new List<int>(); var nweights = new List<float>(); var ntan = new List<float>();
+        int At(int a, int b)
+        {
+            var key = a < b ? (a, b) : (b, a);
+            if (made.TryGetValue(key, out int m)) return m;
+            float t = (cut - p.V[a].Y) / (p.V[b].Y - p.V[a].Y);
+            nv.Add(p.V[a].Lerp(p.V[b], t)); nn.Add(p.N[a].Lerp(p.N[b], t).Normalized());
+            nuv.Add(p.UV[a].Lerp(p.UV[b], t)); nc.Add(p.C[a].Lerp(p.C[b], t));
+            var acc = new Dictionary<int, float>();
+            for (int k = 0; k < inf; k++)
+            {
+                acc[p.Bones![a * inf + k]] = acc.GetValueOrDefault(p.Bones[a * inf + k]) + p.Weights![a * inf + k] * (1 - t);
+                acc[p.Bones[b * inf + k]] = acc.GetValueOrDefault(p.Bones[b * inf + k]) + p.Weights[b * inf + k] * t;
+            }
+            var top = acc.OrderByDescending(kv => kv.Value).Take(inf).ToList(); float sum = top.Sum(kv => kv.Value);
+            for (int k = 0; k < inf; k++) { nbones.Add(k < top.Count ? top[k].Key : 0); nweights.Add(k < top.Count && sum > 0 ? top[k].Value / sum : 0); }
+            for (int k = 0; k < tan; k++) ntan.Add(k == 3 ? p.Tan![a * tan + 3] : p.Tan![a * tan + k] + (p.Tan[b * tan + k] - p.Tan[a * tan + k]) * t);
+            m = count + nv.Count - 1; made[key] = m; return m;
+        }
+        var outIndex = new List<int>(index.Count);
+        for (int i = 0; i < index.Count; i += 3)
+        {
+            int[] v = { index[i], index[i + 1], index[i + 2] };
+            int below = v.Count(x => p.V[x].Y < cut);
+            if (below == 3) { outIndex.AddRange(v); continue; }
+            // the lone corner first (the one below when one is, the one above when two are), the winding kept
+            int lone = Enumerable.Range(0, 3).First(k => (p.V[v[k]].Y < cut) == (below == 1));
+            int a = v[lone], b = v[(lone + 1) % 3], c = v[(lone + 2) % 3];
+            int ab = At(a, b), ca = At(c, a);
+            if (below == 1) outIndex.AddRange(new[] { a, ab, ca });
+            else outIndex.AddRange(new[] { ab, b, c, ab, c, ca });
+        }
+        int extra = nv.Count;
+        if (extra == 0) return outIndex;
+        Array.Resize(ref p.V, count + extra); Array.Resize(ref p.N, count + extra); Array.Resize(ref p.UV, count + extra); Array.Resize(ref p.C, count + extra);
+        var bones = p.Bones!; var weights = p.Weights!; Array.Resize(ref bones, (count + extra) * inf); Array.Resize(ref weights, (count + extra) * inf);
+        for (int i = 0; i < extra; i++)
+        {
+            p.V[count + i] = nv[i]; p.N[count + i] = nn[i]; p.UV[count + i] = nuv[i]; p.C[count + i] = nc[i];
+            for (int k = 0; k < inf; k++) { bones[(count + i) * inf + k] = nbones[i * inf + k]; weights[(count + i) * inf + k] = nweights[i * inf + k]; }
+        }
+        p.Bones = bones; p.Weights = weights;
+        if (p.Tan != null) { var t = p.Tan; Array.Resize(ref t, (count + extra) * tan); for (int i = 0; i < ntan.Count; i++) t[count * tan + i] = ntan[i]; p.Tan = t; }
+        if (p.PlayerRegions != null) { var r = p.PlayerRegions; Array.Resize(ref r, count + extra); for (int i = 0; i < extra; i++) r[count + i] = new Vector2(nv[i].Y, nv[i].X); p.PlayerRegions = r; }
+        return outIndex;
+    }
+
+    /// <summary>(#140) One step of smooth subdivision of the view arms (each triangle into four): the new edge points lie
+    /// on the surface the vertex normals describe (Phong tessellation, 3/4 of the way), so the sleeve and the hand are
+    /// round at 0.3 m; weights, UVs, colours and tangents are blended along the edge.</summary>
+    private static List<int> Refine(Prepared p, List<int> index, int inf)
+    {
+        int count = p.V.Length;
+        var mids = new Dictionary<(int, int), int>();
+        var nv = new List<Vector3>(); var nn = new List<Vector3>(); var nuv = new List<Vector2>(); var nc = new List<Color>();
+        var nbones = new List<int>(); var nweights = new List<float>(); var ntan = new List<float>();
+        int tan = p.Tan != null ? p.Tan.Length / count : 0;
+        int Mid(int a, int b)
+        {
+            var key = a < b ? (a, b) : (b, a);
+            if (mids.TryGetValue(key, out int m)) return m;
+            Vector3 pa = p.V[a], pb = p.V[b], na = p.N[a].Normalized(), nbn = p.N[b].Normalized();
+            var mid = (pa + pb) * .5f;
+            var qa = mid - na * (mid - pa).Dot(na); var qb = mid - nbn * (mid - pb).Dot(nbn);
+            nv.Add(mid.Lerp((qa + qb) * .5f, .75f));
+            nn.Add((na + nbn).LengthSquared() > 1e-8f ? (na + nbn).Normalized() : na);
+            nuv.Add((p.UV[a] + p.UV[b]) * .5f); nc.Add(p.C[a].Lerp(p.C[b], .5f));
+            // the two vertices' influences together, the strongest `inf` kept
+            var acc = new Dictionary<int, float>();
+            for (int k = 0; k < inf; k++)
+            {
+                acc[p.Bones![a * inf + k]] = acc.GetValueOrDefault(p.Bones[a * inf + k]) + p.Weights![a * inf + k] * .5f;
+                acc[p.Bones[b * inf + k]] = acc.GetValueOrDefault(p.Bones[b * inf + k]) + p.Weights[b * inf + k] * .5f;
+            }
+            var top = acc.OrderByDescending(kv => kv.Value).Take(inf).ToList(); float sum = top.Sum(kv => kv.Value);
+            for (int k = 0; k < inf; k++) { nbones.Add(k < top.Count ? top[k].Key : 0); nweights.Add(k < top.Count && sum > 0 ? top[k].Value / sum : 0); }
+            for (int k = 0; k < tan; k++) ntan.Add(k == 3 ? p.Tan![a * tan + 3] : (p.Tan![a * tan + k] + p.Tan[b * tan + k]) * .5f);
+            m = count + nv.Count - 1; mids[key] = m; return m;
+        }
+        var outIndex = new List<int>(index.Count * 4);
+        for (int i = 0; i < index.Count; i += 3)
+        {
+            int a = index[i], b = index[i + 1], c = index[i + 2];
+            int ab = Mid(a, b), bc = Mid(b, c), ca = Mid(c, a);
+            outIndex.AddRange(new[] { a, ab, ca, ab, b, bc, ca, bc, c, ab, bc, ca });
+        }
+        int extra = nv.Count;
+        Array.Resize(ref p.V, count + extra); Array.Resize(ref p.N, count + extra); Array.Resize(ref p.UV, count + extra); Array.Resize(ref p.C, count + extra);
+        var bones = p.Bones!; var weights = p.Weights!; Array.Resize(ref bones, (count + extra) * inf); Array.Resize(ref weights, (count + extra) * inf);
+        for (int i = 0; i < extra; i++)
+        {
+            p.V[count + i] = nv[i]; p.N[count + i] = nn[i]; p.UV[count + i] = nuv[i]; p.C[count + i] = nc[i];
+            for (int k = 0; k < inf; k++) { bones[(count + i) * inf + k] = nbones[i * inf + k]; weights[(count + i) * inf + k] = nweights[i * inf + k]; }
+        }
+        p.Bones = bones; p.Weights = weights;
+        if (p.Tan != null) { var t = p.Tan; Array.Resize(ref t, (count + extra) * tan); for (int i = 0; i < ntan.Count; i++) t[count * tan + i] = ntan[i]; p.Tan = t; }
+        if (p.PlayerRegions != null) { var r = p.PlayerRegions; Array.Resize(ref r, count + extra); for (int i = 0; i < extra; i++) r[count + i] = new Vector2(nv[i].Y, nv[i].X); p.PlayerRegions = r; }
+        return outIndex;
+    }
+
+    // (#140) The first-person sleeve is cut open below the elbow, and the people's material draws no back faces: looking
+    // into that open end (the climb, a ladder) one saw through the tube, a crescent of its outer cloth left as a flap,
+    // and the linings at its far end. Each ring of open edges on the cut (within 6 mm of it) is closed with a cone
+    // 3.5 cm down inside the sleeve, of the sleeve's own cloth in the shade, drawn from both sides.
+    private static void CapCut(Prepared p, List<int> index, int inf, float cut, float wrist)
+    {
+        InnerWall(p, index, inf, cut, wrist);
+        var edges = new HashSet<(int, int)>();
+        for (int i = 0; i < index.Count; i += 3)
+            for (int k = 0; k < 3; k++) edges.Add((index[i + k], index[i + (k + 1) % 3]));
+        bool OnCut(int v) => p.V[v].Y > cut - .006f && p.V[v].Y < cut + .002f;
+        var rim = edges.Where(e => !edges.Contains((e.Item2, e.Item1)) && OnCut(e.Item1) && OnCut(e.Item2)).ToList();
+        // one ring per connected run of rim edges (by welded position: a UV seam splits a ring's points)
+        var weld = new Dictionary<(int, int, int), int>(); var root = new Dictionary<int, int>();
+        int Key(int v) { var q = p.V[v] * 2000; var k = ((int)MathF.Round(q.X), (int)MathF.Round(q.Y), (int)MathF.Round(q.Z)); if (!weld.TryGetValue(k, out int id)) weld[k] = id = weld.Count; return id; }
+        int Find(int x) { while (root.TryGetValue(x, out int r) && r != x) x = r; return x; }
+        foreach (var (a, b) in rim) { int ka = Key(a), kb = Key(b); root.TryAdd(ka, ka); root.TryAdd(kb, kb); int ra = Find(ka), rb = Find(kb); if (ra != rb) root[ra] = rb; }
+        var rings = rim.GroupBy(e => Find(Key(e.Item1))).Where(g => g.Count() >= 3).Select(g => g.ToList()).ToList();
+        if (rings.Count == 0) return;
+        int count = p.V.Length, extra = rings.Count, tan = p.Tan != null ? p.Tan.Length / count : 0;
         Array.Resize(ref p.V, count + extra); Array.Resize(ref p.N, count + extra); Array.Resize(ref p.UV, count + extra);
         Array.Resize(ref p.C, count + extra);
         if (p.PlayerRegions != null) { var r = p.PlayerRegions; Array.Resize(ref r, count + extra); p.PlayerRegions = r; }
         var bones = p.Bones!; var weights = p.Weights!; var tangents = p.Tan;
         Array.Resize(ref bones, (count + extra) * inf); Array.Resize(ref weights, (count + extra) * inf);
         if (tangents != null) Array.Resize(ref tangents, (count + extra) * tan);
-        for (int l = 0; l < loops.Count; l++)
+        for (int l = 0; l < rings.Count; l++)
         {
-            var group = loops[l]; int centre = count + l, first = group[0];
-            Vector3 sum = Vector3.Zero; foreach (int v in group) sum += p.V[v];
-            p.V[centre] = sum / group.Count; p.N[centre] = Vector3.Up;
-            p.UV[centre] = p.UV[first]; p.C[centre] = p.C[first];
+            var ring = rings[l]; int centre = count + l;
+            var points = ring.SelectMany(e => new[] { e.Item1, e.Item2 }).Distinct().ToList();
+            var mean = points.Aggregate(Vector3.Zero, (acc, v) => acc + p.V[v]) / points.Count;
+            int first = points.OrderByDescending(v => new Vector2(p.V[v].X - mean.X, p.V[v].Z - mean.Z).LengthSquared()).First();
+            // the arms hang straight at rest: down is along the forearm, into the sleeve
+            p.V[centre] = mean + Vector3.Down * .035f; p.N[centre] = Vector3.Up;
+            p.UV[centre] = p.UV[first]; p.C[centre] = p.C[first]; p.C[centre].B = .22f;
             if (p.PlayerRegions != null) p.PlayerRegions[centre] = new Vector2(p.V[centre].Y, p.V[centre].X);
             for (int k = 0; k < inf; k++) { bones[centre * inf + k] = bones[first * inf + k]; weights[centre * inf + k] = weights[first * inf + k]; }
             if (tangents != null) for (int k = 0; k < tan; k++) tangents[centre * tan + k] = tangents[first * tan + k];
-            foreach (int a in group)
-                if (next.TryGetValue(a, out var outs)) foreach (int b in outs) { index.Add(b); index.Add(a); index.Add(centre); }
+            foreach (var (a, b) in ring) { index.Add(b); index.Add(a); index.Add(centre); index.Add(a); index.Add(b); index.Add(centre); }
         }
+        p.Bones = bones; p.Weights = weights; p.Tan = tangents;
+    }
+
+    /// <summary>(#140) The sleeve from the wrist to the cut seen from inside: its own cloth turned round and in the shade (the
+    /// material draws no back faces). On a ladder the sleeve passes the eye within the camera's near distance and is cut
+    /// open there; one saw through it, and the cuff's linings at its far end.</summary>
+    private static void InnerWall(Prepared p, List<int> index, int inf, float cut, float wrist)
+    {
+        var tris = new List<int>();
+        for (int i = 0; i < index.Count; i += 3)
+            if (p.V[index[i]].Y > wrist && p.V[index[i + 1]].Y > wrist && p.V[index[i + 2]].Y > wrist) { tris.Add(index[i]); tris.Add(index[i + 1]); tris.Add(index[i + 2]); }
+        if (tris.Count == 0) return;
+        var copy = new Dictionary<int, int>();
+        foreach (int v in tris) copy.TryAdd(v, p.V.Length + copy.Count);
+        int count = p.V.Length, extra = copy.Count, tan = p.Tan != null ? p.Tan.Length / count : 0;
+        Array.Resize(ref p.V, count + extra); Array.Resize(ref p.N, count + extra); Array.Resize(ref p.UV, count + extra); Array.Resize(ref p.C, count + extra);
+        if (p.PlayerRegions != null) { var r = p.PlayerRegions; Array.Resize(ref r, count + extra); p.PlayerRegions = r; }
+        var bones = p.Bones!; var weights = p.Weights!; var tangents = p.Tan;
+        Array.Resize(ref bones, (count + extra) * inf); Array.Resize(ref weights, (count + extra) * inf);
+        if (tangents != null) Array.Resize(ref tangents, (count + extra) * tan);
+        foreach (var (v, c) in copy)
+        {
+            p.V[c] = p.V[v]; p.N[c] = -p.N[v]; p.UV[c] = p.UV[v]; p.C[c] = p.C[v]; p.C[c].B = .22f;
+            if (p.PlayerRegions != null) p.PlayerRegions[c] = p.PlayerRegions[v];
+            for (int k = 0; k < inf; k++) { bones[c * inf + k] = bones[v * inf + k]; weights[c * inf + k] = weights[v * inf + k]; }
+            if (tangents != null) for (int k = 0; k < tan; k++) tangents[c * tan + k] = tangents[v * tan + k];
+        }
+        for (int i = 0; i < tris.Count; i += 3) { index.Add(copy[tris[i]]); index.Add(copy[tris[i + 2]]); index.Add(copy[tris[i + 1]]); }
         p.Bones = bones; p.Weights = weights; p.Tan = tangents;
     }
 
@@ -756,7 +963,7 @@ public static class People2Faces
         root.SetMeta("face_seed", (long)seed);
         People2Material.Tone(root, seed);
         if (!root.HasMeta("people2_kind")) return faceId;
-        string kind = root.HasMeta("people2_kind") ? root.GetMeta("people2_kind").AsString() : root.Name.ToString();
+        string kind = root.HasMeta("people2_face_kind") ? root.GetMeta("people2_face_kind").AsString() : root.GetMeta("people2_kind").AsString();
         string body = root.HasMeta("people2_body") ? root.GetMeta("people2_body").AsString() : kind;
         if (templates.Count == 0 || !File.Exists(Paths.Shared("faceTypes.json"))) return faceId;
         string sex = root.HasMeta("people2_female") && root.GetMeta("people2_female").AsBool() ? "f" : "m";

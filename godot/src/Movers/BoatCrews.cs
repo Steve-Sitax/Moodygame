@@ -81,7 +81,7 @@ public partial class BoatCrews : Node
                 var frame = new Node3D { Position = new Vector3(0, oars.Hull.SeatY + h.SitDrop(0) + 0.02f, oars.Hull.SeatZ), Rotation = new Vector3(0, MathF.PI, 0) };
                 root.AddChild(frame); frame.AddChild(h.Root); h.Start(); h.Play("row", 0);
                 Scheldemist.Play.Rowing.SeatRower(h, frame, oars.Hull, f.Kind);
-                crew.Hands.Add(new Hand { Human = h, Frame = frame, Motion = h.IsPeople2 ? "sit" : "row" });
+                crew.Hands.Add(new Hand { Human = h, Frame = frame, Motion = "row" });
             }
             return crew;
         }
@@ -119,12 +119,17 @@ public partial class BoatCrews : Node
             crew.Root.Visible = near;
             if (!near) continue;
             crew.Phase = (crew.Phase + dt / 2) % 1;
+            // the oars first: a people2 rower's fists then take their grips (Rowing.HoldOars)
+            if (crew.Oars != null) Scheldemist.Play.Rowing.OarPhase(crew.Oars, t.Speed > 0.15f ? crew.Phase : -1);
             foreach (var h in crew.Hands)
             {
-                if (h.Motion == "row") h.Human.SetPhase("row", t.Speed > 0.15f ? crew.Phase : 0.7f);
+                if (h.Motion == "row")
+                {
+                    h.Human.SetPhase("row", t.Speed > 0.15f ? crew.Phase : 0.7f);
+                    if (crew.Oars != null) Scheldemist.Play.Rowing.HoldOars(h.Human, crew.Oars);
+                }
                 h.Human.Update(dt);
             }
-            if (crew.Oars != null) Scheldemist.Play.Rowing.OarPhase(crew.Oars, t.Speed > 0.15f ? crew.Phase : -1);
         }
         MoverCost.End("boat_crews");
     }

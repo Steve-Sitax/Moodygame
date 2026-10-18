@@ -631,6 +631,20 @@ The pack holds 322 files / 71,959,156 bytes. Final fingerprint:
 `f28f075142fa1b9800a534306c3a6ea6a25b5884b6b0b09cbefebff070828ffe`.
 Local handoff receipts and reviewed-picture manifest: `.scratch/batch2-review/`; report: `.scratch/report.md`.
 
+### Rowing, ladders, seated skirts (#182, #138; 2026-10-18)
+
+- Boat crews and residents' rowers sit on the thwart facing the bow, as Jef rows, and play the people2 `row` clip:
+  `SetPhase` follows the oars' stroke (`BoatCrews`, `Rowing.PoseResidentBoat`), the node goes `Human.RowDrop` under the
+  thwart's top, and `Rowing.HoldOars` puts both grip sockets on the oars' grips (`Human.GripTargets`) after the oars
+  are posed. `Rowing.OarPhase` eases the blades out and in as Jef's oars do. The old kit's rowers are unchanged.
+- `Human.ClimbLadder(height)` plays the `ladder` clip at the phase of the node's height over the rungs (two rungs a
+  loop; a climb down plays it backward). The work proof climbs the quay ladder nearest its stage up and down
+  (`ladder-*.png`, `work.json ladder.worstHandToRung`). Residents' boats at ladders are not yet boarded: the resident
+  journeys only choose boats at flights (`ResidentJourneys`, `Rowing.Landing`).
+- A skirted kind's near copy carries a live `sit` shape beside blink, brow and smile (`People2Faces.LiveKeysSit`);
+  `People2Eyes` sets it from `Human2.SitWeight` (sit, lace, row and ride, eased over 0.6 s). Far copies have none.
+- A kind drawn in another's place by `--people2-map` takes the drawn kind's face and hair (`people2_face_kind`).
+
 ### Local Jef runtime (package G)
 
 Action hands, the reflection/shadow body, MakeHuman character preview and profile controls are documented in
