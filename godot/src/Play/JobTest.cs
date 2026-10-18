@@ -222,11 +222,15 @@ public partial class JobTest : Node
         var acquire=Dev.PerformanceLease.Acquire("jobtest frames");
         yield return When(()=>acquire.IsCompleted,1210,"PERF-LOCK acquired or twenty-minute wait reported");
         using var isolation=performanceLease=acquire.GetAwaiter().GetResult();
-        var midday = link.Api!.DevSet(new Dictionary<string, double> { ["hour"] = 13, ["minute"] = 0 });
-        yield return When(() => midday.IsCompleted, 10, "midday for the frame check");
-        if (midday.IsCompletedSuccessfully) GameState.I.Apply(midday.Result);
+        var midday = link.Api!.Post<JobsPayload>("api/dev/set",new {hour=13,minute=0,weather="clear"});
+        yield return When(() => midday.IsCompleted, 10, "clear midday for the frame check");
+        if(!midday.IsCompletedSuccessfully){Fail("clear midday setup failed");yield break;}
+        GameState.I.Apply(midday.Result);
+        Note("weather",GameState.I.Payload!.Clock.Weather);
+        Check(GameState.I.Payload.Clock.Weather=="clear","authoritative weather is clear for the frame check");
         World.Daylight.I?.SetTime(13);
         World.Daylight.I?.SetWeather("clear");
+        World.Daylight.I?.Settle();
         DisplayServer.WindowSetVsyncMode(DisplayServer.VSyncMode.Disabled);
         Engine.MaxFps = 0;
         Stand(-118, 36, -118, 30);

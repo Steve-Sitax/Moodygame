@@ -41,6 +41,8 @@ diagnostic. Never stop a player's or another helper's window to clear the gate. 
 Bound external runners to allow the lock wait as well as the check's own execution time.
 
 Jobtest measures complete **wall** frames, including GPU/presentation waits and the native town's planar mirrors.
+Its clock response must confirm clear weather, and the local renderer settles before sampling; a local override alone
+can disagree with the server's fog state.
 Its mean budget is one frame at the checks' existing 120 Hz target (8.33 ms), defined once in `PerformanceBudget.cs`.
 The old 5 ms wall limit asked for 200 Hz; issue #49 already reproduced about 6 ms before the daylight work. This
 metric change does not relax perfcheck's active-main-thread mean/p95 limits (5 ms, with a 3 ms mean target), maximum
