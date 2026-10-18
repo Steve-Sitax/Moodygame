@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="AuthorAsset" format=3]
+
+[ext_resource type="PackedScene" path="res://assets/street-furniture/bench-park-worn.tscn" id="1_bench"]
+[ext_resource type="Script" path="res://src/Authoring/AuthorAsset.cs" id="2_x8xg6"]
+
+[resource]
+script = ExtResource("2_x8xg6")
+Id = "park-bench-iron-worn"
+Title = "Cast-iron park bench, rusting"
+Category = "Street furniture"
+Scene = ExtResource("1_bench")
+Footprint = Vector3(1.88, 0.9, 0.64)
+FootprintOffset = Vector3(0, 0, -0.02)

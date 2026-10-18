@@ -145,7 +145,12 @@ check. The work goods are built with `native-godot/scripts/build-workgoods.ps1` 
 the counter, customers still reach it; De Vliet at 13:00 and 20:00), `vleeshuis` (no old-kit figure shows or blocks
 in the Vleeshuis, its workers are people2 and out of the doorways), `warmth` (real clock ticks with Jef's own place:
 warmth rises by a burning fire basket at night and by an open tavern's hearth, not ten metres away, not by day, not
-by a shut tavern's cold hearth; the fires burn or go out to match), `facts` (a survey: fire spots, benches, rooms).
+by a shut tavern's cold hearth; the fires burn or go out to match), `benches` (every bench of the town placed with
+the new models and listed for sleeping, a person can stand in front of each and walk on, its collider is where its seat
+is drawn; E sleeps and F sits at five benches of each kind, the engine accepts the sleep; day, rain and night pictures),
+`benchsurvey` (before/after pictures of the old benches: add `--keep-old-benches --bench-cams <bench-cams.json>` for
+the before), `benchplan` (`--bench-plan <json>`: tries planned new bench places for free level ground, room in front
+and a route), `facts` (a survey: fire spots, benches, rooms, the town's places).
 Exit 1 on a failed check.
 
 ## Conversations and indoor entrances

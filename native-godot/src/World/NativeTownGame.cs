@@ -61,6 +61,12 @@ public partial class NativeTownGame : Scheldemist.Main
         {var at=stove.Node.GlobalPosition;heat.Add(new(stove.Id,stove.Room,at.X,at.Y,at.Z));}
         host.Clock.HeatSources=heat;
         GD.Print($"warmth: {heat.Count(h=>h.Place!=null)} tavern fires, {heat.Count(h=>h.Place==null)} fire baskets");
+        // #165: the benches authored in the districts join the engine's sleep benches (the old ones keep their ids).
+        int newBenches=0;
+        foreach(var place in Scheldemist.Play.BenchPlaces.All)
+            if(host.Rest.Bench(place.Id)==null)
+            {var seat=place.At*new Vector3(0,0,.02f);host.Rest.RegisterBench(new JsonObject{["id"]=place.Id,["label"]=place.Label,["x"]=(double)seat.X,["z"]=(double)seat.Z,["y"]=(double)place.At.Origin.Y,["fine"]=place.Fine});newBenches++;}
+        GD.Print($"benches: {Scheldemist.Play.BenchPlaces.All.Count} placed, {newBenches} new to the sleep list");
         try
         {
             var town = new Services.NativeTown(host); host.AddModule(town);

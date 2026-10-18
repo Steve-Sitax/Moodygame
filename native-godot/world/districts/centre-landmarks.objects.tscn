@@ -2,6 +2,8 @@
 
 [ext_resource type="Script" path="res://src/Authoring/AuthoredObject.cs" id="1_obj"]
 [ext_resource type="Resource" path="res://recovered/street-props-20261015/props/post-box-pillar.tres" id="2_sp15"]
+[ext_resource type="Resource" path="res://assets/library/bench.tres" id="62_bench"]
+[ext_resource type="Resource" path="res://recovered/street-props-20261015/props/park-bench-iron.tres" id="60_bench"]
 
 [node name="Objects" type="Node3D" unique_id=1779458900]
 
@@ -10,3 +12,31 @@ transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -285.6, 0.121, 94.55)
 script = ExtResource("1_obj")
 ObjectId = "grote-markt-post-box"
 Asset = ExtResource("2_sp15")
+
+[node name="object_bench-tavern-engel" type="Node3D" parent="." unique_id=1347871997]
+transform = Transform3D(-0.000004, 0, -1, 0, 1, 0, 1, 0, -0.000004, -223.32, 0, 74.8)
+script = ExtResource("1_obj")
+ObjectId = "bench-tavern-engel"
+Asset = ExtResource("62_bench")
+metadata/bench_label = "the bench before Den Engel"
+
+[node name="object_bench-cathedral-west-1" type="Node3D" parent="." unique_id=1139355634]
+transform = Transform3D(-1, 0, -0.000007, 0, 1, 0, 0.000007, 0, -1, -256, 0, 143.88)
+script = ExtResource("1_obj")
+ObjectId = "bench-cathedral-west-1"
+Asset = ExtResource("60_bench")
+metadata/bench_label = "a bench before the cathedral"
+
+[node name="object_bench-cathedral-west-2" type="Node3D" parent="." unique_id=1824560016]
+transform = Transform3D(-1, 0, -0.000007, 0, 1, 0, 0.000007, 0, -1, -268, 0, 143.88)
+script = ExtResource("1_obj")
+ObjectId = "bench-cathedral-west-2"
+Asset = ExtResource("60_bench")
+metadata/bench_label = "a bench before the cathedral"
+
+[node name="object_bench-handschoenmarkt" type="Node3D" parent="." unique_id=1790205609]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -244, 0, 128)
+script = ExtResource("1_obj")
+ObjectId = "bench-handschoenmarkt"
+Asset = ExtResource("60_bench")
+metadata/bench_label = "a bench on the Handschoenmarkt"

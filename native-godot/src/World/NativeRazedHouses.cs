@@ -172,12 +172,13 @@ public static class NativeRazedHouses
             }
             placed.Add("lime");
         }
-        if (ResourceLoader.Load<Scheldemist.Native.Authoring.AuthorAsset>("res://assets/library/bench.tres") is { } bench)
+        if (ResourceLoader.Load<Scheldemist.Native.Authoring.AuthorAsset>("res://assets/library/bench-worn.tres") is { } bench)
         {
             var seat = new Scheldemist.Native.Authoring.AuthoredObject { Name = "razed_corner_bench", ObjectId = "razed-corner-bench", Asset = bench };
             seat.Position = new Vector3(BenchAt.X, 0, BenchAt.Z);
             seat.Rotation = new Vector3(0, BenchAt.Yaw, 0);
             seat.SetMeta(DressingMeta, true);
+            seat.SetMeta(NativeBenches.LabelMeta, "a bench at the corner behind the cathedral");
             town.AddChild(seat);
             placed.Add("bench");
         }

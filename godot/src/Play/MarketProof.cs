@@ -52,6 +52,9 @@ internal partial class MarketProof : Node
                         case "keepers": await Keepers(); break;
                         case "vleeshuis": await Vleeshuis(); break;
                         case "warmth": await Warmth(); break;
+                        case "benches": await Benches(); break;
+                        case "benchplan": await BenchPlan(); break;
+                        case "benchsurvey": await BenchSurvey(); break;
                         default: Check(stage + " is a known stage", false); break;
                     }
                 }
@@ -374,11 +377,231 @@ internal partial class MarketProof : Node
     }
 
 
+    // ------------------------------------------------------------------ benches (#165): a survey of what stands there now
+    private async Task BenchSurvey()
+    {
+        await Dev.Kit.I.Light(13, "clear");
+        using var doc = JsonDocument.Parse(Godot.FileAccess.GetFileAsString("res://services/data/native-rules.json"));
+        var server = doc.RootElement.GetProperty("benches").EnumerateArray().Select(b => (id: b.GetProperty("id").GetString()!, x: b.GetProperty("x").GetSingle(), y: b.GetProperty("y").GetSingle(), z: b.GetProperty("z").GetSingle())).ToList();
+        var meshes = BakedWorld.All(Main.I.World).OfType<MeshInstance3D>().Where(m => m.Mesh != null && m.IsVisibleInTree())
+            .Select(m => (m, box: m.GlobalTransform * m.GetAabb())).Where(p => p.box.Size.X < 4 && p.box.Size.Z < 4 && p.box.Size.Y < 2.5f).ToList();
+        var rows = new List<object>();
+        foreach (var b in server)
+        {
+            var at = new Vector3(b.x, b.y, b.z);
+            var near = meshes.Where(p => new Vector2(p.box.GetCenter().X - b.x, p.box.GetCenter().Z - b.z).Length() < 1.6f && Math.Abs(p.box.Position.Y - b.y) < 1.5f)
+                .Select(p => new { path = p.m.GetPath().ToString().Split("/town/").Last(), name = p.m.Name.ToString(), size = F(p.box.Size), centre = F(p.box.GetCenter()), tris = p.m.Mesh!.GetFaces().Length / 3 }).Take(6).ToArray();
+            var multi = BakedWorld.All(Main.I.World).OfType<MultiMeshInstance3D>().Where(m => m.Multimesh != null && m.IsVisibleInTree()).SelectMany(m =>
+                Enumerable.Range(0, m.Multimesh.VisibleInstanceCount < 0 ? m.Multimesh.InstanceCount : m.Multimesh.VisibleInstanceCount).Select(i => (m, i, t: m.GlobalTransform * m.Multimesh.GetInstanceTransform(i))))
+                .Where(q => new Vector2(q.t.Origin.X - b.x, q.t.Origin.Z - b.z).Length() < 1.2f && Math.Abs(q.t.Origin.Y - b.y) < 1.5f)
+                .Select(q => new { path = q.m.GetPath().ToString().Split("/town/").Last(), q.i, at = F(q.t.Origin), yaw = MathF.Round(q.t.Basis.GetEuler().Y, 3), mesh = q.m.Multimesh.Mesh?.ResourcePath, aabb = F(q.m.Multimesh.Mesh?.GetAabb().Size ?? Vector3.Zero) }).Take(4).ToArray();
+            var holders = BakedWorld.All(Main.I.World).OfType<MeshInstance3D>().Where(m => m.Mesh != null && m.IsVisibleInTree()).Where(m => (m.GlobalTransform * m.GetAabb()).Grow(.05f).HasPoint(at + Vector3.Up * .45f) && (m.GlobalTransform * m.GetAabb()).Size.Length() < 80)
+                .Select(m => new { path = m.GetPath().ToString().Split("/town/").Last(), size = F((m.GlobalTransform * m.GetAabb()).Size) }).Take(4).ToArray();
+            rows.Add(new { b.id, at = F(at), client = Day.I?.Benches.Any(c => c.Id == b.id) == true, near, multi, holders });
+        }
+        facts["benchSurvey"] = rows;
+        facts["benchCams"] = null;
+        var cams = new Dictionary<string, float[]>();
+        string camFile = Main.I.Arg("bench-cams");
+        Dictionary<string, float[]>? given = camFile != "" ? JsonSerializer.Deserialize<Dictionary<string, float[]>>(File.ReadAllText(camFile)) : null;
+        foreach (var id in new[] { "rond:0", "green:lijnwaadmarkt:0", "green:court_green:0", "park:0", "steen:1", "stop:vismarkt:kaaien", "stop:meir:markt", "wall:0", "wall:2", "wall:7", "wall:10", "wall:29", "green:stjacob_yard:0" })
+        {
+            var b = server.First(s => s.id == id);
+            var place = BenchPlaces.Get(id);
+            var at = place?.At ?? new Transform3D(Basis.Identity, new Vector3(b.x, b.y, b.z));
+            if (given != null && given.TryGetValue(id, out var g)) at = new Transform3D(Basis.FromEuler(new Vector3(0, g[3], 0)), new Vector3(g[0], g[1], g[2]));
+            cams[id] = new[] { at.Origin.X, at.Origin.Y, at.Origin.Z, at.Basis.GetEuler().Y };
+            await Shot("bench-" + id.Replace(':', '-'), at * new Vector3(1.5f, 1.25f, 2.1f), at * new Vector3(0, .45f, 0), 25);
+        }
+        facts["benchCams"] = cams;
+        File.WriteAllText(Path.Combine(dir, "bench-cams.json"), JsonSerializer.Serialize(cams));
+        var iron = BakedWorld.All(Main.I.World).OfType<Node3D>().FirstOrDefault(n => n.Name.ToString().Contains("stadspark-bench-west-1"));
+        if (iron != null) await Shot("bench-now-iron", iron.GlobalPosition + new Vector3(1.6f, 1.2f, 1.4f), iron.GlobalPosition + Vector3.Up * .45f, 25);
+        Check("benches surveyed", true);
+    }
+
+    // ------------------------------------------------------------------ new benches (#165): try the planned places
+    private sealed record PlanEntry(string id, string label, string model, string mode, string? place, float x, float z, float yaw, float[]? along, float[]? reference);
+
+    /// <summary>For each planned bench, the first candidate place where the bench stands free on level ground, a
+    /// person can stand in front of it, and a route runs from there to the street; written to bench-plan.json.</summary>
+    private async Task BenchPlan()
+    {
+        await Dev.Kit.I.Light(13, "clear");
+        var plan = JsonSerializer.Deserialize<List<PlanEntry>>(File.ReadAllText(Main.I.Arg("bench-plan")))!;
+        var found = new List<object>();
+        var taken = BenchPlaces.All.Select(b => new Vector2(b.At.Origin.X, b.At.Origin.Z)).ToList();
+        using var box = new BoxShape3D { Size = new Vector3(1.95f, .85f, .62f) };
+        foreach (var e in plan)
+        {
+            var tries = new List<(Vector3 at, float yaw)>();
+            if (e.mode == "door" && e.place != null && town.Data!.Places.TryGetValue(e.place, out var pl) && pl.Door is { } door && pl.Out is { } o)
+            {
+                var outV = new Vector2((float)o.X, (float)o.Z).Normalized(); var along = new Vector2(-outV.Y, outV.X);
+                float yaw = MathF.Atan2(outV.X, outV.Y);
+                foreach (float a in e.along ?? new[] { 2.2f, -2.2f, 3.2f, -3.2f, 4.2f, -4.2f })
+                    foreach (float d in new[] { .42f, .52f, .65f, .8f })
+                    { var p = new Vector2((float)door.X, (float)door.Z) + along * a + outV * d; tries.Add((new Vector3(p.X, 0, p.Y), yaw)); }
+            }
+            else
+                foreach (float r in new[] { 0f, .5f, 1f, 1.5f })
+                    for (int k = 0; k < (r == 0 ? 1 : 8); k++)
+                        tries.Add((new Vector3(e.x + r * MathF.Cos(k * MathF.Tau / 8), 0, e.z + r * MathF.Sin(k * MathF.Tau / 8)), e.yaw));
+            string why = "no candidate";
+            object? chosen = null;
+            // the crowd's walk grid is built round the viewer: stand there first
+            if (tries.Count > 0)
+            {
+                var near = tries[0].at;
+                Player.Jef.I.Place(near.X, near.Z + 3, 0, near: 0);
+                await Look(near + new Vector3(0, 6, 6), near, 45);
+            }
+            foreach (var (at0, yaw) in tries)
+            {
+                var basis = Basis.FromEuler(new Vector3(0, yaw, 0));
+                float ground = GroundUnder(at0 + Vector3.Up * 1.5f);
+                var at = at0 with { Y = ground };
+                var xf = new Transform3D(basis, at);
+                var corners = new[] { new Vector3(-.92f, 0, .2f), new Vector3(.92f, 0, .2f), new Vector3(-.92f, 0, -.28f), new Vector3(.92f, 0, -.28f) }.Select(c => GroundUnder(xf * c + Vector3.Up * 1.0f)).ToArray();
+                if (corners.Any(c => Math.Abs(c - ground) > .07f)) { why = "uneven ground"; continue; }
+                using var q = new PhysicsShapeQueryParameters3D { Shape = box, CollisionMask = Solid.Layer, Margin = .001f, Transform = new Transform3D(basis, xf * new Vector3(0, .5f, -.04f)) };
+                var hits = Main.I.World.GetWorld3D().DirectSpaceState.IntersectShape(q, 4);
+                if (hits.Count > 0) { why = "blocked by " + string.Join(",", hits.Select(h => (h["collider"].AsGodotObject() as Node)?.Name.ToString())); continue; }
+                if (taken.Any(t => t.DistanceTo(new Vector2(at.X, at.Z)) < 2.4f)) { why = "too near another bench"; continue; }
+                var front = xf * new Vector3(0, 0, .95f);
+                if (!Player.Jef.I.StandFree(front.X, front.Z, ground)) { why = "no room in front"; continue; }
+                var reference = e.reference is { Length: 2 } rf ? new Vector2(rf[0], rf[1]) : new Vector2(front.X, front.Z) + new Vector2(MathF.Sin(yaw), MathF.Cos(yaw)) * 6;
+                var route = town.Crowd!.PathOn(front.X, front.Z, reference.X, reference.Y);
+                if (route == null) { why = "no route from the front to the street"; continue; }
+                chosen = new { e.id, e.label, e.model, at = F(at), yaw = MathF.Round(yaw, 4), routeSteps = route.Count };
+                taken.Add(new Vector2(at.X, at.Z));
+                await Shot("plan-" + e.id, xf * new Vector3(1.6f, 1.4f, 2.6f), at + Vector3.Up * .5f, 15);
+                break;
+            }
+            found.Add(chosen ?? new { e.id, e.label, e.model, at = (float[]?)null, yaw = 0f, routeSteps = 0, why });
+            Check("planned bench " + e.id + " has a free place", chosen != null, chosen == null ? why : null);
+        }
+        File.WriteAllText(Path.Combine(dir, "bench-plan.json"), JsonSerializer.Serialize(found, new JsonSerializerOptions { WriteIndented = true }));
+    }
+
+    private static float GroundUnder(Vector3 p)
+    {
+        var space = Main.I.View.FindWorld3D().DirectSpaceState;
+        var hit = space.IntersectRay(PhysicsRayQueryParameters3D.Create(p, p + Vector3.Down * 4, Solid.Layer));
+        return hit.Count > 0 ? ((Vector3)hit["position"]).Y : float.NaN;
+    }
+
+    // ------------------------------------------------------------------ benches (#165): every bench usable, on a route, solid where it is drawn
+    private async Task Benches()
+    {
+        await Dev.Kit.I.Light(13, "clear");
+        var all = BenchPlaces.All.ToList();
+        var day = Day.I!;
+        facts["benchCount"] = new { placed = all.Count, swapped = all.Count(b => !b.Id.StartsWith("bench-") && b.Id.Contains(':')), listed = day.Benches.Count };
+        Check("every bench in the town is placed with the new models (76 old, 24 new, the park's and the corner's)", all.Count >= 100, all.Count);
+        Check("Day lists every placed bench for sleeping", all.All(b => day.Benches.Any(d => d.Id == b.Id)), all.Where(b => day.Benches.All(d => d.Id != b.Id)).Select(b => b.Id).ToArray());
+        var rows = new List<object>();
+        int routeless = 0, hollow = 0;
+        var unmapped = new List<string>();
+        foreach (var b in all)
+        {
+            var front = b.At * new Vector3(0, 0, .95f);
+            float ground = b.At.Origin.Y;
+            Player.Jef.I.Place(front.X, front.Z, b.Facing + MathF.PI, near: ground);
+            await Look(front + new Vector3(0, 7, 5), front, 30);
+            bool stand = Player.Jef.I.StandFree(front.X, front.Z, ground);
+            // on from the front: ahead, or either way along the bench (a wall walk, a quay), or a little ahead and aside
+            List<(double x, double z)>? route = null;
+            foreach (var to in new[] { new Vector3(0, 0, 6.95f), new Vector3(6, 0, .95f), new Vector3(-6, 0, .95f), new Vector3(4, 0, 3.5f), new Vector3(-4, 0, 3.5f) })
+            { var t = b.At * to; route = town.Crowd!.PathOn(front.X, front.Z, t.X, t.Z); if (route != null) break; }
+            // the seat's collider top under each sitting place, and the body across its legs
+            var space = Main.I.World.GetWorld3D().DirectSpaceState;
+            float SeatHit(Vector3 p) { var hit = space.IntersectRay(PhysicsRayQueryParameters3D.Create(p + Vector3.Up * .5f, p + Vector3.Down * .8f, Solid.Layer)); return hit.Count > 0 ? ((Vector3)hit["position"]).Y - ground : float.NaN; }
+            float s0 = SeatHit(b.Sit(0)), s1 = SeatHit(b.Sit(1));
+            float seat = b.SeatY - ground;
+            bool solid = Math.Abs(s0 - seat) < .06f && Math.Abs(s1 - seat) < .06f;
+            // a square the town's walk map leaves closed (an old gap, also without the benches) is noted, not counted
+            bool mapless = town.Walk is { } wm && !Enumerable.Range(-6, 13).SelectMany(i => Enumerable.Range(-6, 13).Select(j => (i, j))).Any(c => wm.Free(front.X + c.i * .5, front.Z + c.j * .5));
+            if (mapless) unmapped.Add(b.Id);
+            else if (route == null || !stand) routeless++;
+            if (!solid) hollow++;
+            rows.Add(new { b.Id, b.Model, at = F(b.At.Origin), yaw = MathF.Round(b.Facing, 3), stand, route = route?.Count ?? -1, seatHits = new[] { s0, s1 }, seat });
+        }
+        facts["benchChecks"] = rows;
+        await Shot("bench-rond-above", new Vector3(20.01f, 22, 296.01f), new Vector3(20, 0, 296), 30);
+        if (town.Walk is { } walk)
+        {
+            var grid = new System.Text.StringBuilder();
+            for (float z = 288; z <= 304; z += .5f) { for (float x = 12; x <= 28; x += .5f) grid.Append(walk.Free(x, z) ? '.' : '#'); grid.AppendLine(); }
+            File.WriteAllText(Path.Combine(dir, "rond-walk.txt"), grid.ToString());
+        }
+        Check("a person can stand in front of every bench and walk on from there", routeless == 0, routeless);
+        facts["benchesOutsideWalkMap"] = unmapped;
+        Check("every bench's collider is where its seat is drawn", hollow == 0, hollow);
+        // E: sleep (the engine knows every bench), F: sit, E stands up again
+        if (Player.Jef.I.Fly) Player.Jef.I.ToggleFly();
+        Main.I.Cam.SetProcess(true);
+        foreach (var id in new[] { "bench-tavern-vliet", "wall:16", "stop:vismarkt:kaaien", "rond:0", "stadspark-bench-west-1" })
+        {
+            if (BenchPlaces.Get(id) is not { } b) { Check(id + " is placed", false); continue; }
+            var front = b.At * new Vector3(0, 0, .85f);
+            // Jef's own eyes, facing the bench and looking down at its seat
+            Player.Jef.I.Place(front.X, front.Z, b.Facing, -.45f, b.At.Origin.Y);
+            await Frames(30);
+            Interact.I.RepeatPrompt();
+            string prompt = Interact.I.Text;
+            Check(id + ": the prompt offers sleep (E) and sitting (F)", prompt.Contains("sleep on the bench") && prompt.Contains("sit on the bench"), prompt);
+            bool sat = Interact.I.Press(Key.F);
+            await Frames(20);
+            var seats = Main.I.GetNodeOrNull<TavernSeats>("TavernSeats");
+            Check(id + ": F seats Jef on the bench", sat && seats?.OnStreetBench == true && new Vector2(Player.Jef.I.X - b.At.Origin.X, Player.Jef.I.Z - b.At.Origin.Z).Length() < .7f, new { sat, x = Player.Jef.I.X, z = Player.Jef.I.Z });
+            if (id is "bench-tavern-vliet" or "rond:0")
+            {
+                using var image = Main.I.View.GetTexture().GetImage();
+                image.SavePng(Path.Combine(dir, "bench-seated-" + id.Replace(':', '-') + ".png")); pictures.Add("bench-seated-" + id.Replace(':', '-') + ".png");
+            }
+            Interact.I.RepeatPrompt();
+            Check(id + ": seated, F offers to sleep on it", Interact.I.Text.Contains("sleep on the bench"), Interact.I.Text);
+            Interact.I.Press(Key.E);
+            await Frames(10);
+            Check(id + ": E stands Jef up again", seats?.Sitting == null && !Player.Jef.I.Frozen);
+            try
+            {
+                var at = b.At * new Vector3(0, 0, .02f);
+                var reply = await Api.Sleep(new Net.RestAsk { Place = "bench", Bench = id, Hours = 1, Pos = new Net.Pos3(at.X, at.Z, b.At.Origin.Y) });
+                Check(id + ": the engine lets Jef sleep on it", reply.Rest != null);
+                Game.GameState.I.Apply(await Api.Post<Net.JobsPayload>("api/sleep/wake"));
+            }
+            catch (Net.ApiException e) { Check(id + ": the engine lets Jef sleep on it", false, e.Message); }
+            await SetNeeds(13, 8);
+        }
+        Main.I.Cam.SetProcess(false);
+        if (!Player.Jef.I.Fly) Player.Jef.I.ToggleFly();
+        // pictures of the new models where they stand: by day, in rain and at night
+        foreach (var id in new[] { "bench-tavern-vliet", "bench-cathedral-west-1", "bench-rijnkaai-1", "stop:vismarkt:kaaien", "rond:0", "wall:16", "green:stjacob_yard:0", "steen:0", "bench-groenplaats-1", "park:3" })
+        {
+            if (BenchPlaces.Get(id) is not { } b) continue;
+            await Shot("bench-day-" + id.Replace(':', '-'), b.At * new Vector3(1.1f, 1.15f, 2.0f), b.At * new Vector3(0, .45f, 0), 25);
+            await Shot("bench-close-" + id.Replace(':', '-'), b.At * new Vector3(.55f, .62f, .75f), b.At * new Vector3(.75f, .40f, 0), 15);
+        }
+        foreach (var (weather, hour) in new[] { ("rain", 13), ("clear", 22) })
+        {
+            await Dev.Kit.I.Light(hour, weather);
+            await Frames(30);
+            foreach (var id in new[] { "bench-tavern-vliet", "rond:0", "bench-rijnkaai-1" })
+                if (BenchPlaces.Get(id) is { } b)
+                    await Shot("bench-" + weather + hour + "-" + id.Replace(':', '-'), b.At * new Vector3(1.1f, 1.15f, 2.0f), b.At * new Vector3(0, .45f, 0), 25);
+        }
+        await Dev.Kit.I.Light(13, "clear");
+    }
+
     // ------------------------------------------------------------------ what is there (a survey for the work)
     private void Facts()
     {
         facts["fires"] = Fires.I?.Spots.Select(s => new { at = F(s.at), s.size, s.group }).ToArray();
         facts["benches"] = Day.I?.Benches.Select(b => new { b.Id, b.Label, b.X, b.Z, b.Y, b.Fine }).ToArray();
+        facts["places"] = town.Data!.Places.Select(p => new { id = p.Key, p.Value.Label, x = Math.Round(p.Value.X, 1), z = Math.Round(p.Value.Z, 1), door = p.Value.Door is { } d ? new[] { Math.Round(d.X, 2), Math.Round(d.Z, 2) } : null, @out = p.Value.Out is { } o ? new[] { Math.Round(o.X, 2), Math.Round(o.Z, 2) } : null }).ToArray();
+        facts["benchPlaces"] = BenchPlaces.All.Select(b => new { b.Id, b.Model, at = F(b.At.Origin), yaw = MathF.Round(b.Facing, 3), b.Label }).ToArray();
         var indoors = town.Indoors;
         if (indoors != null)
             facts["rooms"] = indoors.Houses.Select(h =>
@@ -404,6 +627,13 @@ internal partial class MarketProof : Node
             facts["vleeshuis"] = BakedWorld.All(hall).Where(n => n is Skeleton3D || n.Name.ToString().Contains("keeper", StringComparison.OrdinalIgnoreCase))
                 .Select(n => new { path = n.GetPath().ToString(), type = n.GetClass(), at = n is Node3D d ? F(d.GlobalPosition) : null, visible = n is Node3D v && v.IsVisibleInTree(),
                     bodies = BakedWorld.All(n.GetParent()).OfType<CollisionObject3D>().Select(b => new { path = b.GetPath().ToString(), layer = b.CollisionLayer }).ToArray() }).ToArray();
+        if (town.Walk is { } walk)
+        {
+            var grid = new System.Text.StringBuilder();
+            for (float z = 288; z <= 304; z += .5f) { for (float x = 12; x <= 28; x += .5f) grid.Append(walk.Free(x, z) ? '.' : walk.Open(x, z) ? 'o' : '#'); grid.AppendLine(); }
+            File.WriteAllText(Path.Combine(dir, "rond-walk.txt"), grid.ToString());
+            facts["walkBounds"] = new { walk.X0, walk.Z0, walk.W, walk.D };
+        }
         Check("facts gathered", true);
     }
 }

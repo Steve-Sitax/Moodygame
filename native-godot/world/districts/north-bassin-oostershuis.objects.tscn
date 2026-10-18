@@ -1,3 +1,20 @@
 [gd_scene format=3]
 
+[ext_resource type="Script" path="res://src/Authoring/AuthoredObject.cs" id="1_obj"]
+[ext_resource type="Resource" path="res://assets/library/bench-worn.tres" id="63_bench"]
+
 [node name="Objects" type="Node3D" unique_id=1253775729]
+
+[node name="object_bench-tavern-bassin" type="Node3D" parent="." unique_id=225035889]
+transform = Transform3D(-1, 0, -0.000007, 0, 1, 0, 0.000007, 0, -1, 80.7, 0, 124.68)
+script = ExtResource("1_obj")
+ObjectId = "bench-tavern-bassin"
+Asset = ExtResource("63_bench")
+metadata/bench_label = "the bench before Het Bassin"
+
+[node name="object_bench-bassin-quay" type="Node3D" parent="." unique_id=526119536]
+transform = Transform3D(-0.000004, 0, -1, 0, 1, 0, 1, 0, -0.000004, 97.06, 0, 30.16)
+script = ExtResource("1_obj")
+ObjectId = "bench-bassin-quay"
+Asset = ExtResource("63_bench")
+metadata/bench_label = "a bench on the Petit Bassin"

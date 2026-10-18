@@ -144,6 +144,16 @@ public partial class NativeTown : BakedWorld
         foreach (var note in razed.Notes) GD.Print("razed houses: " + note);
         // The corner they leave gets a lime and a bench (only when the cut happened, so a re-baked town shows no tree in a house).
         var dressing = razed.Houses > 0 ? NativeRazedHouses.Dress(town) : Array.Empty<string>();
+        // The bake's plain benches give way to the new bench models, turned and placed as they stood (#165).
+        // (dev: --keep-old-benches leaves them, for a before-and-after)
+        if (!Scheldemist.Main.I.Flag("keep-old-benches"))
+        {
+            var benchClock = System.Diagnostics.Stopwatch.StartNew();
+            var benches = NativeBenches.Swap(town, System.IO.Path.Combine(Scheldemist.Paths.NativeDataRoot ?? "", "services", "native-rules.json"));
+            foreach (var note in benches.Notes) GD.Print("benches: " + note);
+            GD.Print($"benches: swapped in {benchClock.ElapsedMilliseconds} ms");
+            Report["benchesSwapped"] = benches.Swapped; Report["benchTrianglesCut"] = benches.Triangles;
+        }
         // The baked quay ladders ran through the coping and into the stone (issue 85): the native ladder replaces them.
         var ladders = Scheldemist.Native.World.NativeQuayLadders.Install(town);
         quayLadders = ladders.Ladders;
@@ -226,6 +236,8 @@ public partial class NativeTown : BakedWorld
         Solid.Leave.Add(n => n.HasMeta("native_replaced_event_snapshot"));
         Solid.Leave.Add(n => n.HasMeta(Scheldemist.Native.World.NativeQuayLadders.LeaveMeta));
         Solid.Leave.Add(n => n.HasMeta(NativeRazedHouses.DressingMeta));
+        Solid.Leave.Add(n => n.HasMeta(NativeBenches.SwapMeta));
+        Report["benches"] = NativeBenches.Index(town);
         BuildLights();
     }
     private void BuildLights()
