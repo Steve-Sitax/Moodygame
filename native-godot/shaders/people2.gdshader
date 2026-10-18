@@ -145,9 +145,13 @@ void fragment() {
     if (face || zone > 4.5) c.rgb = clamp(c.rgb + skin_tone_shift, vec3(0.0), vec3(1.0));
     float close_detail = 1.0 - smoothstep(1.25, 3.5, length(world - CAMERA_POSITION_WORLD));
     vec2 detail_uv = UV * (face ? 4.0 : 8.0);
+    // (#140) Jef's own arms within a hand's length: a second, finer octave of the same grain (cloth threads, skin
+    // pores), so the forearm and hand are not soft at 0.3 m; nobody else's figure takes this path.
+    float fine = viewmodel_depth_pull * (1.0 - smoothstep(0.3, 1.0, length(world - CAMERA_POSITION_WORLD)));
     if (zone > 0.5 && close_detail > 0.0) {
         vec3 grain = texture(detail_colour, vec3(detail_uv, zone)).rgb;
         c.rgb *= mix(vec3(1.0), grain / vec3(0.5), close_detail * 0.35);
+        if (fine > 0.0) c.rgb *= mix(vec3(1.0), texture(detail_colour, vec3(detail_uv * 3.0 + 0.37, zone)).rgb / vec3(0.5), fine * 0.3);
     }
     eye = COLOR.r;
     bool hair = face && eye < 0.5 && c.a < 0.99;
@@ -174,6 +178,7 @@ void fragment() {
     float inv = inversesqrt(max(max(dot(t,t), dot(b,b)), 1e-12));
     vec2 xy = layered_pictures ? (face ? texture(face_normal, vec3(UV,float(face_layer))).rg : texture(clothes_normal, vec3(UV,float(clothes_layer))).rg) * 2.0 - 1.0 : (texture(skin_normal, UV).rg * 2.0 - 1.0) * normal_strength;
     if (zone > 0.5 && close_detail > 0.0 && eye < 0.5) xy += (texture(detail_normal, vec3(detail_uv,zone)).rg * 2.0 - 1.0) * close_detail * 0.4;
+    if (zone > 0.5 && fine > 0.0 && eye < 0.5) xy += (texture(detail_normal, vec3(detail_uv * 3.0 + 0.37, zone)).rg * 2.0 - 1.0) * fine * 0.35;
     vec3 nm = vec3(xy, sqrt(max(1.0 - dot(xy,xy), 0.001)));
     NORMAL = normalize(mat3(t * inv, b * inv, NORMAL) * normalize(nm));
     vec3 nw = normalize((INV_VIEW_MATRIX * vec4(NORMAL, 0.0)).xyz);

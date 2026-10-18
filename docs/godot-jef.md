@@ -24,6 +24,31 @@ The existing four-slot lantern pool now includes Jef; his slot alone may cast sh
 existing preference permits it. World light counts do not increase. The lantern instances share the same
 reusable glass/frame/halo resources as NPCs. Its iron frame now includes a bail, round cage rods and rolled rims.
 
+## Close-up arms and lantern (#140, 2026-10-18)
+
+- The camera copy's forearms and hands are refined once when they are cut (`People2Faces.Refine`): every triangle in
+  four, the new points on the surface the vertex normals describe (Phong tessellation, three quarters of the way), so
+  the sleeve and the hand are round at 0.3 m (about 12,300 triangles, was 4,600; Jef's own view only).
+- The cut takes the whole sleeve below a level ring 2.5 cm over the elbow (upper-arm weights included: the forearm's
+  alone left ragged strips), and splits the triangles crossing it (`ClipBelow`): a cut along whole triangles left a
+  saw-toothed edge. Every vertex of the copy then follows the forearm's bones alone (`ForearmOnly`): the cloth's elbow
+  blend reaches some 10 cm down the forearm, and on a hard-bent elbow those rows swung out.
+- Only the outermost cloth is kept (`OuterShell`): per arm, round the elbow-wrist line, whatever lies more than 4 mm
+  inside the outermost surface goes, and every lining facing the arm; the hand keeps everything. The sleeve from the
+  wrist to the cut also has an inner wall, its own cloth turned round in the shade (`InnerWall`), and the ring at the
+  cut is closed by a cone 3.5 cm deep in the sleeve, drawn from both sides (`CapCut`). The people's material draws no
+  back faces: looking into the open end (the climb, the crane's ladder, whose rungs come within 20 cm of the eye and
+  fold the elbows back past the ears) one saw through the tube, a crescent of its cloth left as a flap, and the shirt
+  and linings at the cuff as cream shards.
+- The people2 shader adds a second, finer octave of the same detail grain within a metre of the eye on the camera copy
+  only (`viewmodel_depth_pull`): cloth threads and skin at 0.3 m. No new shader kind.
+- The lantern Jef's eyes see hangs from the camera copy's left fist (`Arms.HangViewLantern`): upright, the bail's top
+  bar on the fist's handle axis, swinging a little about it; the body's lantern is drawn only for mirrors and the
+  shadow while it shows. Its panes are horn (`Carried.Panes`, `HornPicture`): a lit surface with fibres and cloudy
+  patches, the candle's glow as emission (a faint warmth by day, the full glow after dark), in the iron's shader kind.
+- Rowing: the body sits on the thwart's top by the row clip's own seat (`Human.RowDrop`); on a quay ladder's rungs it
+  climbs with the ladder clip (`Human.ClimbLadder`), over the hoops as before.
+
 ## Character screen and storage
 
 `CharacterPreview` creates a private 3D viewport with two directional preview lights, drag rotation and a
@@ -53,9 +78,9 @@ the existing people2 shader and normal/detail arrays. No new shader kind or mult
 
 ## Geometry notes
 
-The arm mesh has no newly exposed world edge: its open elbow cut is a deliberately hidden mating boundary. Each open rim
-is closed with a fan to its centre (`CapOpenEnds`), so a ladder or oar pose that points the upper arm at the eye
-shows a closed sleeve rather than the inside of the tube.
+The arm mesh has no newly exposed world edge: its open elbow cut is a deliberately hidden mating boundary. The ring
+at the cut is closed with a recessed cone, and the sleeve has a shaded inner wall (`CapCut`, `InnerWall`, above), so a
+ladder or oar pose that points the upper arm at the eye shows a closed sleeve rather than the inside of the tube.
 Existing sleeve hems retain their source thickness and UVs. The lantern bail/rods have 2–2.5 mm round sections;
 rolled lips round the iron base/cap perimeter. The four thin horn panes and sheet roof joints intentionally
 retain planar edges. The base, rods, rims and roof share the existing iron finish. No collision is added to a
@@ -85,4 +110,4 @@ the native sampler proof compares these results with Godot's interpolation.
 Re-run on 2026-10-14 after the hand-slot work: 1.282 ms Vismarkt and 0.998 ms Grote Markt (exclusive window), the
 rotation sampler matches Godot to 1.8e-7 over 4,493,048 samples, shader audit 131 kinds with one people2 kind and
 zero new, content identity 7, pack 343, native multiplayer and dedicated network, menu test and `test-icons.ps1 -Full` pass.
-Known fault: in the ladder pose the sleeve cloth still clips the near plane at the lower corners.
+The ladder pose's sleeve shards at the lower corners are addressed above (#140); see the report's pictures.

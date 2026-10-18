@@ -207,8 +207,10 @@ def head_angles(pos):
 
 
 HAIRLINE = {  # azimuth -> elevation of the hairline (men; women a little lower at the front and temples)
-    "m": ([0, 25, 45, 62, 78, 92, 110, 135, 160, 180], [27, 28, 26, 17, 6, 0, -12, -38, -55, -60]),
-    "f": ([0, 25, 45, 62, 78, 92, 110, 135, 160, 180], [24, 24, 21, 13, 4, -2, -14, -40, -57, -62]),
+    # (#138) the nape's line runs nearly level across the back: it fell to a point at the middle (a men's crop and a
+    # cap's hair hung a narrow tail down the nape, a bun left a dark stub under it)
+    "m": ([0, 25, 45, 62, 78, 92, 110, 135, 160, 180], [27, 28, 26, 17, 6, 0, -12, -38, -45, -46]),
+    "f": ([0, 25, 45, 62, 78, 92, 110, 135, 160, 180], [24, 24, 21, 13, 4, -2, -14, -38, -42, -43]),
 }
 
 
@@ -366,7 +368,10 @@ def paint(look):
     rgb = rgb * (1 - la[..., None]) + np.array((0.05, 0.04, 0.035)) * la[..., None]
     # toward the neck's seam the face's own paint fades into the plain skin the body picture has (no step)
     holes = (np.linalg.norm(pos - G["eyeL"], axis=-1) < 0.03) | (np.linalg.norm(pos - G["eyeR"], axis=-1) < 0.03) |         (np.linalg.norm((pos - G["mouth"]) * (1, 1.4, 1), axis=-1) < 0.04)
-    edge = np.where(holes, 1.0, seam_fade(head, 40))  # the neck's seam, not the lids' and lips' edges
+    # (#138) the head island's own cut down the middle of the crown and the back of the head is no seam with the
+    # neck: no fade there (it drew a pale streak over a bald crown and through the scalp's paint)
+    midline = (np.abs(x) < 0.03) & ((z < -0.03) | (y > 0.04)) & (y > -0.02)  # (above the ears: below is the neck's)
+    edge = np.where(holes | midline, 1.0, seam_fade(head, 40))  # the neck's seam, not the lids' and lips' edges
     rgb = plain * (1 - edge[..., None]) + rgb * edge[..., None]
     # pores and fine relief everywhere on the skin; wrinkles from the skin's own darker lines (a high pass)
     lum = rgb.mean(-1)

@@ -157,6 +157,70 @@ def paint_body(b, kind, rect, size=1024, under=None):
     return rgb, nmap
 
 
+def thicken_far(ob, extra=0.004):
+    """(#138) The far copy's reduction is coarse for cloth 2-3 mm thick: its lining crossed the outer side and showed
+    (a forced far copy close up). The lining's points go `extra` deeper inside (along their own normals, which face
+    the body); the rims stretch with them."""
+    raw = wt.parts(ob)
+    me = ob.data
+    me.update()
+    n = 0
+    for v in me.vertices:
+        if (raw[v.index] or "").startswith("in_"):
+            v.co = v.co + v.normal * extra
+            n += 1
+    me.update()
+    return n
+
+
+SIT_PIECES = ("skirt", "overskirt", "flounce", "habit_skirt", "apron")
+
+
+def sit_key(ob, b, first):
+    """(#138) The near copy's live `sit` shape (the game sets it while the person sits): seated, a skirt or an apron
+    below the knees went with the shins as a round drum (a barrel round the lower legs); with the shape its sides and
+    back fall in toward the legs and the front hangs straight from the knees, as cloth falls over the seat's edge. In
+    rest space (below the knee the cloth rides the shins, which hang upright in every seat). Returns the points it
+    moves (none: no key)."""
+    me = ob.data
+    raw = wt.parts(ob)
+    knee = float(b["J"]["legLowL"][0][1])
+    hip_y = float(b["J"]["legUpL"][0][1])
+    hip_x = abs(float(b["J"]["legUpL"][0][0]))
+    zc = float(b["J"]["legUpL"][0][2])  # the thighs' line, front to back
+    co = np.array([toG(v.co) for v in me.vertices])
+    move = np.zeros_like(co)
+    for i in range(first, len(co)):
+        pc = (raw[i] or "").removeprefix("in_")
+        if not pc.startswith(SIT_PIECES):
+            continue
+        x, y, z = co[i]
+        z = z - zc
+        # over the lap (hips to knees): the front lies down on the thighs instead of standing 10 cm over them
+        fa = float(np.clip((hip_y - 0.04 - y) / (hip_y - 0.04 - knee), 0, 1))
+        fa = fa * fa * (3 - 2 * fa)
+        dz = -0.45 * fa * max(0.0, z - 0.075) if y > knee else 0.0  # (55% of the gap between layers kept)
+        # below the knees: the sides and back fall in to the legs, the front hangs straight, the hem a little lower
+        f = float(np.clip((knee + 0.03 - y) / 0.30, 0, 1))
+        f = f * f * (3 - 2 * f)
+        legs = hip_x + 0.035  # the shins' outer line
+        dx = -np.sign(x) * 0.7 * f * max(0.0, abs(x) - legs)
+        dz += 0.8 * f * max(0.0, -z - 0.03) - 0.6 * f * max(0.0, z - 0.10)
+        dy = -0.03 * f
+        move[i] = (dx, dy, dz)
+    n = int(np.count_nonzero(np.abs(move).sum(1) > 1e-5))
+    if not n:
+        return 0
+    if not me.shape_keys:
+        ob.shape_key_add(name="Basis", from_mix=False)
+    kb = ob.shape_key_add(name="sit", from_mix=False)
+    basis = me.shape_keys.key_blocks[0]
+    from . import B
+    for i in np.nonzero(np.abs(move).sum(1) > 1e-5)[0]:
+        kb.data[int(i)].co = basis.data[int(i)].co + B(*move[i])
+    return n
+
+
 def clothes_keys(ob, b, first, lod):
     """The MakeClothes way, made smooth: every garment vertex (from index `first` on) finds the body's base mesh
     where it lies (an arm's cloth on the arm, a leg's on the leg, a hat on the head) and takes each slider's move as
@@ -321,6 +385,11 @@ def paint_clothes(ob, pieces, fit, size, seed=3, layer=False):
     return rgb, nmap
 
 
+# (under, over) for every kind that has both pieces (see build: the layers)
+SKIRT_UNDER = {(sk, up) for sk in ("skirt", "overskirt", "flounce") for up in ("coat", "jacket", "smock", "coat_collar",
+                                                                            "apron")}
+
+
 def build(kind, make_body, ref_uv, layout, atl, tex=2048, log=print):
     """Make one kind (docs/people.md "How a kind is made"). make_body: build_people2.make_body. Returns the body dict
     (like the base bodies') with the kind's extras."""
@@ -351,6 +420,10 @@ def build(kind, make_body, ref_uv, layout, atl, tex=2048, log=print):
         kind.name, cb.island_census(near), cb.island_census(cage)))
     # the garments' hidden layers and the body under the clothes
     keep = tuple(getattr(kind, "keep_layers", ()))
+    if any(pc.name.startswith("shawl") for pc in pieces):
+        # (#138) a shawl moves on its own: the bodice under it is kept whole (deleted as hidden, it left holes at the
+        # elbows and shoulders where the shawl's edge swung off it)
+        keep += ("bodice",)
     h0 = cb.delete_hidden(near, keep=keep)
     h1 = cb.delete_hidden(cage, keep=keep, reach=0.045)
     cut0 = ck.cut_body(b["lod0"], kind.covers, near)
@@ -359,13 +432,22 @@ def build(kind, make_body, ref_uv, layout, atl, tex=2048, log=print):
     # which piece lies over which, read before the reduction; after it, every layer is put back under the next
     order0, order1 = ck.layer_order(near), ck.layer_order(cage)
     told = set(getattr(kind, "layers", ()))  # (under, over) the kind states: they win over the rays' votes
+    # (#138) a skirt is always under a jacket, coat, smock or apron worn over it: where a full skirt flares out past
+    # the jacket's skirts the rays voted the other way round, and the skirt showed through the jacket
+    names = {pc.name for pc in pieces}
+    told |= {(u, o) for (u, o) in SKIRT_UNDER if u in names and o in names and (o, u) not in told}
     order0 = {p for p in order0 if (p[1], p[0]) not in told} | told
     order1 = {p for p in order1 if (p[1], p[0]) not in told} | told
+    s0, s1 = cb.clean_sleeves(near, b["P"]), cb.clean_sleeves(cage, b["P"])
+    log("[people2]   %s sleeve points on their own arm only: near %d, far %d" % (kind.name, s0, s1))
+    f0, f1 = cb.follow_under(near, order0), cb.follow_under(cage, order1)
+    log("[people2]   %s points following the layer under them: near %d, far %d" % (kind.name, f0, f1))
     before = {"lod0": cb.tris(near), "lod1": cb.tris(cage)}
     budget0 = (getattr(kind, "near_budget", None) or (NEAR_HERO if kind.hero else NEAR_CROWD)) - lod.tris(b["lod0"])
     budget1 = (getattr(kind, "far_budget", None) or FAR) - lod.tris(b["lod1"])
     cb.reduce(near, budget0, weights=kind.reduce_weights(near) if getattr(kind, "reduce_weights", None) else None)
     cb.reduce(cage, budget1, weights=cb.protect_weights(cage, seam=0.4, rim=0.35))
+    thicken_far(cage)
     m0 = ck.clear_layers(near, b["lod0"], order0, clearance=0.0035, passes=3, body_clearance=0.005)
     m1 = ck.clear_layers(cage, b["lod1"], order1, clearance=0.004, body_clearance=0.006)
     # the reduced garments cut corners over curves (a shoulder): what pokes out is tucked back under, and skin that
@@ -424,6 +506,9 @@ def build(kind, make_body, ref_uv, layout, atl, tex=2048, log=print):
     join(b["lod1"], cage)
     clothes_keys(b["lod0"], b, n0, 0)
     clothes_keys(b["lod1"], b, n1, 1)
+    sk_n = sit_key(b["lod0"], b, n0)
+    if sk_n:
+        log("[people2]   %s sit shape: %d points of skirt and apron" % (kind.name, sk_n))
     # baked occlusion over body and clothes (vertex colour blue; clothes_build.AO_RULE)
     through = getattr(kind, "ao_through", False)  # kinds_player: no resting-arm shapes in the bake
     ao0 = cb.bake_occlusion(b["lod0"], b["P"], through=through)

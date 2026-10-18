@@ -156,6 +156,7 @@ public static class Carried
 
     private static Mesh? glass, cap, halo;
     private static ShaderMaterial? lit, haloMat;
+    private static readonly StringName EmissionParameter = "emission";
 
     /// <summary>Make the lantern's meshes and materials at load, so no new shader kind appears when the first lantern is handed out.</summary>
     public static void Prepare()
@@ -164,8 +165,15 @@ public static class Carried
         {
             var plain = new StandardMaterial3D();
             Psx.Kind Kind(bool unlit, bool add) => new(Unlit: unlit, Blend: add, Scissor: false, TwoSided: add, DepthWrite: !add, Snap: true, Atlas: 0, VertexColor: false, Add: add, Fog: true);
-            plain.AlbedoColor = new Color(1, 0.753f, 0.439f).SrgbToLinear();
-            lit = BakedWorld.PsxMaterial(plain, Kind(true, false), 0, 1.2);
+            // Horn panes (#140): a lit surface like the iron (the same shader kind), so daylight shades the horn's
+            // mottled grain; the candle behind it is the emission, strong after dark and a faint warmth by day.
+            plain.AlbedoColor = new Color(1, 1, 1);
+            plain.AlbedoTexture = HornPicture(false);
+            plain.EmissionEnabled = true;
+            plain.Emission = new Color(0, 0, 0);
+            plain.EmissionTexture = HornPicture(true);
+            lit = BakedWorld.PsxMaterial(plain, Kind(false, false), 0, 1.2);
+            plain.AlbedoTexture = null; plain.EmissionTexture = null; plain.EmissionEnabled = false;
             plain.AlbedoColor = new Color(0.102f, 0.102f, 0.102f).SrgbToLinear();
             var iron = BakedWorld.PsxMaterial(plain, Kind(false, false), 0);
             var grad = new GradientTexture2D
@@ -176,7 +184,7 @@ public static class Carried
             plain.AlbedoColor = new Color(1, 0.69f, 0.376f).SrgbToLinear();
             plain.AlbedoTexture = grad;
             haloMat = BakedWorld.PsxMaterial(plain, Kind(true, true), 0, 1.2, 0, 0.45f);
-            glass = new BoxMesh { Size = new Vector3(.10f, .14f, .10f), Material = lit };
+            glass = Panes(lit);
             // One iron mesh shared by every lantern, with round cage rods, rolled lips and a real bail.
             var frame = new SurfaceTool(); frame.Begin(Mesh.PrimitiveType.Triangles);
             void Part(Mesh mesh, Vector3 at, Basis? turn = null) => frame.AppendFrom(mesh, 0, new Transform3D(turn ?? Basis.Identity, at));
@@ -213,7 +221,70 @@ public static class Carried
         float dark = (float)LanternPool.DarkAt(hour);
         float flick = 0.4f + 0.06f * MathF.Sin((float)timeS * 13f);
         haloMat!.SetShaderParameter(AlbedoParameter, new Color(new Color(1, 0.69f, 0.376f).SrgbToLinear(), flick * dark));
-        lit.SetShaderParameter(AlbedoParameter, new Color(0.42f + 0.58f * dark, 0.35f + 0.4f * dark, 0.27f + 0.17f * dark).SrgbToLinear());
+        // the candle through the horn: a faint warmth by day, the full glow after dark (linear, as the shader counts)
+        float glow = (0.05f + 0.95f * dark) * (0.92f + 0.2f * flick);
+        lit.SetShaderParameter(EmissionParameter, new Vector3(1.0f, 0.52f, 0.17f) * glow * 1.6f);
+    }
+
+    /// <summary>The four horn panes between the cage's rods (each pane its own whole picture, so the grain runs up
+    /// the pane), with the solid horn top and bottom under the iron rims; outward normals.</summary>
+    private static ArrayMesh Panes(Material material)
+    {
+        var st = new SurfaceTool(); st.Begin(Mesh.PrimitiveType.Triangles);
+        const float h = 0.07f, r = 0.049f;
+        void Quad(Vector3 a, Vector3 b, Vector3 c, Vector3 d, Vector3 n)
+        {
+            var uv = new[] { new Vector2(0, 1), new Vector2(1, 1), new Vector2(1, 0), new Vector2(0, 0) };
+            var p = new[] { a, b, c, d };
+            // (clockwise seen from outside: Godot's front face)
+            foreach (int k in new[] { 0, 2, 1, 0, 3, 2 }) { st.SetNormal(n); st.SetUV(uv[k]); st.AddVertex(p[k]); }
+        }
+        for (int i = 0; i < 4; i++)
+        {
+            float t = i * MathF.PI / 2;
+            var n = new Vector3(MathF.Sin(t), 0, MathF.Cos(t));
+            var side = new Vector3(n.Z, 0, -n.X);
+            var c = n * r;
+            Quad(c - side * r + Vector3.Down * h, c + side * r + Vector3.Down * h, c + side * r + Vector3.Up * h, c - side * r + Vector3.Up * h, n);
+        }
+        Quad(new(-r, h, r), new(r, h, r), new(r, h, -r), new(-r, h, -r), Vector3.Up);
+        Quad(new(-r, -h, -r), new(r, -h, -r), new(r, -h, r), new(-r, -h, r), Vector3.Down);
+        var mesh = st.Commit(); mesh.SurfaceSetMaterial(0, material);
+        return mesh;
+    }
+
+    /// <summary>The horn pane's picture: thin, uneven horn with fibres running up it and cloudy patches, darker at the
+    /// edges where it sits in the frame (`glow`: how the candle shows through it, brightest in the middle).</summary>
+    private static ImageTexture HornPicture(bool glow)
+    {
+        const int W = 64, H = 96;
+        var im = Image.CreateEmpty(W, H, false, Image.Format.Rgb8);
+        var rng = new RandomNumberGenerator { Seed = 1873 };
+        var fibre = new float[W];
+        for (int x = 0; x < W; x++) fibre[x] = rng.Randf();
+        for (int y = 0; y < H; y++)
+            for (int x = 0; x < W; x++)
+            {
+                float u = (x + 0.5f) / W, v = (y + 0.5f) / H;
+                float f = 0.55f * fibre[x] + 0.45f * fibre[(x + y / 11) % W];
+                float cloud = 0.5f + 0.5f * MathF.Sin(u * 7.3f + MathF.Sin(v * 5.1f) * 1.7f) * MathF.Cos(v * 4.3f - u * 2.2f);
+                float edge = Math.Min(Math.Min(u, 1 - u), Math.Min(v, 1 - v));
+                float rim = Mathf.SmoothStep(0.0f, 0.12f, edge);
+                Color c;
+                if (glow)
+                {
+                    float d = new Vector2((u - 0.5f) * 1.4f, (v - 0.58f)).Length();
+                    float k = Math.Clamp(1.15f - d * 1.6f, 0.12f, 1f) * (0.78f + 0.22f * cloud) * (0.86f + 0.14f * f) * (0.35f + 0.65f * rim);
+                    c = new Color(k, k, k);
+                }
+                else
+                {
+                    float k = (0.80f + 0.12f * f + 0.10f * cloud) * (0.55f + 0.45f * rim);
+                    c = new Color(0.62f * k, 0.48f * k, 0.30f * k);
+                }
+                im.SetPixel(x, y, c);
+            }
+        return ImageTexture.CreateFromImage(im);
     }
 
     /// <summary>The halo faces the eye (a sprite in the browser).</summary>

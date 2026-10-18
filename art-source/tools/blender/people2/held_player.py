@@ -56,10 +56,74 @@ def _cap_paint(ctx):
     ctx.mix(sm(0.006, 0.0, np.linalg.norm(ctx.pos - ctx.piece.meta["top"], axis=1)) * 0.9, (0.16, 0.14, 0.12))
 
 
+def felt(ctx, nap=1.0):
+    """Felt (#138: the hats were smooth shells): matted fibres in two sizes, a little cloudiness in the colour where the
+    felt was pressed thicker or thinner, a faint nap catching the light, worn paler on the crown's top and the brim's
+    edge where hands take the hat."""
+    p = ctx.pos
+    f1 = ck._noise3(p, 2600.0, 71)
+    f2 = ck._noise3(p, 900.0, 72)
+    cloud = ck._noise3(p, 60.0, 73)
+    ctx.rgb[:] = ctx.rgb * (1 + 0.035 * f1 + 0.03 * f2 + 0.045 * cloud * nap)[:, None]
+    ctx.bump(0.6 * f1 + 0.4 * f2, 0.00004)
+    m = ctx.piece.meta
+    if "band_y" in m:
+        top = sm(m["band_y"] + 0.10, m["band_y"] + 0.14, ctx.y) * (~ctx.inner)
+        ctx.mix(top * 0.10, (0.36, 0.34, 0.32))
+
+
+def hat_band(ctx, band_y, height, rfun, centre, bow_side=1.0):
+    """A grosgrain ribbon round the crown above the brim (fine ribs across it, a little sheen, a seam at its edges)
+    and its flat bow on the left side. rfun(angle): the crown's radius at the band."""
+    p = ctx.pos
+    r = np.hypot(p[:, 0] - centre[0], p[:, 2] - centre[2])
+    a = np.arctan2(p[:, 0] - centre[0], p[:, 2] - centre[2])
+    radius = rfun(a) * 1.045
+    on = (ctx.y > band_y - 0.0005) & (ctx.y < band_y + height) & (r < radius + 0.003) & ~ctx.inner
+    ribs = np.cos((ctx.y - band_y) * 2 * np.pi / 0.0011)
+    ctx.mix(on * 0.92, (0.035, 0.034, 0.038))
+    ctx.mul(on * (0.5 + 0.5 * ribs), 1.12)
+    ctx.bump(on * ribs, 0.000025)
+    ck.seam_line(ctx, np.where(on | (np.abs(ctx.y - band_y - height) < 0.002), ctx.y - band_y - height, 1.0),
+                 width=0.0006, depth=0.00008, stitches=False)
+    # the bow: two flat loops and the knot between them, on the person's left (+x)
+    s_ = (a - bow_side * np.pi / 2) * radius  # along the band from the bow's middle (metres)
+    v = ctx.y - band_y - height * 0.5
+    loops = (np.abs(s_) < 0.022) & (np.abs(v) < height * 0.62) & (r < radius + 0.006) & ~ctx.inner
+    knot = loops & (np.abs(s_) < 0.0045)
+    shape = np.clip(1 - (np.abs(s_) / 0.022) ** 2 - (v / (height * 0.62)) ** 2, 0, 1)
+    ctx.mix(loops * 0.95, (0.03, 0.03, 0.034))
+    ctx.bump(loops * np.sqrt(shape), 0.0006)
+    ctx.bump(knot * 1.0, 0.0004)
+    ctx.mul(knot * 1.0, 0.85)
+
+
+def brim_binding(ctx, band_y, rfun, centre, width=0.006):
+    """The brim's edge bound with ribbon over and under, stitched along its inner edge. rfun(angle): the brim's outer
+    radius."""
+    p = ctx.pos
+    r = np.hypot(p[:, 0] - centre[0], p[:, 2] - centre[2])
+    radius_out = rfun(np.arctan2(p[:, 0] - centre[0], p[:, 2] - centre[2]))
+    on = (r > radius_out - width) & (ctx.y < band_y + 0.02)
+    ctx.mix(on * 0.9, (0.035, 0.034, 0.038))
+    ctx.bump(on * 1.0, 0.00012)
+    ck.seam_line(ctx, np.where(ctx.y < band_y + 0.02, r - (radius_out - width), 1.0), width=0.0005, depth=0.00006)
+
+
+def _peak_paint(ctx):
+    """The cap's peak: felt, four rows of stitching following its edge, the edge itself worn paler."""
+    felt(ctx, nap=0.6)
+    e = getattr(ctx, "edge", None)
+    if e is not None:
+        for d in (0.004, 0.009, 0.014, 0.019):
+            ck.seam_line(ctx, np.where(~ctx.inner, e - d, 1.0), width=0.0005, depth=0.00007, shade=0.9, stitches=False)
+        ctx.mix(sm(0.004, 0.0, e) * 0.25, (0.5, 0.48, 0.45))
+
+
 def flatcap(fit):
     col = hexrgb(HAT_COLOUR["flatcap"])
     cap = _hat("flatcap", "", Cloth(col, "wool", wear=0.45, dust=0.2, folds=0.5, extra=_cap_paint), 1.3)
-    peak = _hat("flatcap", "_peak", Cloth(col, "felt", wear=0.5, folds=0.0), 1.3)
+    peak = _hat("flatcap", "_peak", Cloth(col, "felt", wear=0.5, folds=0.0, extra=_peak_paint), 1.3)
     ids, _ = ck.flat_cap(fit, cap, peak, puff=0.014, fwd=0.016)
     cap.meta["band_top"] = float(np.array(cap.V)[ids[1]][:, 1].mean())
     cap.meta["top"] = np.array(cap.V)[ids.max() + 1]
@@ -91,14 +155,27 @@ def solid_hat(fit, style):
     a = np.arange(n) * 2 * math.pi / n
     r0 = ck.head_support(fit, band_y, a) + 0.016
     col = hexrgb(HAT_COLOUR[style])
-    pc = _hat(style, "", Cloth(col, "felt", wear=0.25, folds=0.15, lining=tuple(np.array(col) * 0.8)), 1.2)
     width = 0.034 if style == "bowler" else 0.030
+    band_h = 0.030 if style == "bowler" else 0.034
+
+    def crown_r(ang):
+        return np.interp(np.mod(ang, 2 * math.pi), np.append(a, 2 * math.pi), np.append(r0, r0[0]))
+
+    def paint(ctx):
+        felt(ctx)
+        hat_band(ctx, band_y + 0.004, band_h, crown_r, c)
+        brim_binding(ctx, band_y, lambda ang: crown_r(ang) + width, c)
+
+    pc = _hat(style, "", Cloth(col, "felt", wear=0.25, folds=0.15, lining=tuple(np.array(col) * 0.8), extra=paint), 1.2)
+    # the band stands 0.8 mm proud of the crown over its height (its top edge a step in the silhouette)
+    pr = 1.0 + 0.0008 / float(np.mean(r0))
     if style == "tophat":
-        walls = [(band_y + 0.004, 1.0), (band_y + 0.020, 1.012), (top + 0.045, 0.975), (top + 0.098, 0.955),
+        walls = [(band_y + 0.004, 1.0 * pr), (band_y + 0.020, 1.012 * pr), (band_y + 0.004 + band_h, 1.0135 * pr),
+                 (band_y + 0.0045 + band_h, 1.0135), (top + 0.045, 0.975), (top + 0.098, 0.955),
                  (top + 0.108, 0.93), (top + 0.1115, 0.5)]
     else:
-        walls = [(band_y + 0.004, 1.0), (band_y + 0.016, 1.035), (band_y + 0.040, 1.04), (top - 0.018, 1.0),
-                 (top + 0.014, 0.84), (top + 0.029, 0.45)]
+        walls = [(band_y + 0.004, 1.0 * pr), (band_y + 0.016, 1.035 * pr), (band_y + 0.004 + band_h, 1.04 * pr),
+                 (band_y + 0.0045 + band_h, 1.04), (top - 0.018, 1.0), (top + 0.014, 0.84), (top + 0.029, 0.45)]
     rows = []
     # the brim: its edge rolled up, falling to the band
     curl = 0.007 + 0.006 * np.cos(a) ** 2 * (1 if style == "bowler" else 0)
@@ -113,7 +190,7 @@ def solid_hat(fit, style):
         pc.face((ids[-1, j], ids[-1, (j + 1) % n], centre))
     pc.seam(ids[-1, n // 2], centre)
     # one grid, one winding: turn the whole surface if its crown wall faces inward
-    k = 3 * n + n // 3  # a wall face (from the first wall row to the second)
+    k = 3 * n + n // 3  # a wall face (from the first wall row to the second: the band)
     V = np.array(pc.V)
     f = pc.F[k]
     nrm = np.zeros(3)

@@ -1,302 +1,302 @@
 {
   "man_middling": {
     "part": "people2",
-    "bytes": 14521632
+    "bytes": 14625448
   },
   "baker": {
     "part": "people2_uniform1",
-    "bytes": 4383752
+    "bytes": 4404484
   },
   "clerk": {
     "part": "people2_uniform1",
-    "bytes": 4383752
+    "bytes": 4404484
   },
   "customs": {
     "part": "people2_uniform1",
-    "bytes": 4383752
+    "bytes": 4404484
   },
   "gentleman": {
     "part": "people2_uniform2",
-    "bytes": 4453464
+    "bytes": 4468728
   },
   "police": {
     "part": "people2_uniform2",
-    "bytes": 4453464
+    "bytes": 4468728
   },
   "priest": {
     "part": "people2_uniform2",
-    "bytes": 4453464
+    "bytes": 4468728
   },
   "publican": {
     "part": "people2_uniform3",
-    "bytes": 4573416
+    "bytes": 4585180
   },
   "sentry": {
     "part": "people2_uniform3",
-    "bytes": 4573416
+    "bytes": 4585180
   },
   "shopkeeper": {
     "part": "people2_uniform3",
-    "bytes": 4573416
+    "bytes": 4585180
   },
   "soldier": {
     "part": "people2_uniform4",
-    "bytes": 4767820
+    "bytes": 4757808
   },
   "soldier_b": {
     "part": "people2_uniform4",
-    "bytes": 4767820
+    "bytes": 4757808
   },
   "tourist": {
     "part": "people2_uniform4",
-    "bytes": 4767820
+    "bytes": 4757808
   },
   "baker_boy": {
     "part": "people2_workers1",
-    "bytes": 4947556
+    "bytes": 4973444
   },
   "beggar": {
     "part": "people2_workers1",
-    "bytes": 4947556
+    "bytes": 4973444
   },
   "carter": {
     "part": "people2_workers1",
-    "bytes": 4947556
+    "bytes": 4973444
   },
   "coalman": {
     "part": "people2_workers2",
-    "bytes": 4408596
+    "bytes": 4428360
   },
   "docker_a": {
     "part": "people2_workers2",
-    "bytes": 4408596
+    "bytes": 4428360
   },
   "docker_b": {
     "part": "people2_workers2",
-    "bytes": 4408596
+    "bytes": 4428360
   },
   "docker_c": {
     "part": "people2_workers3",
-    "bytes": 4772700
+    "bytes": 4790160
   },
   "docker_sack": {
     "part": "people2_workers3",
-    "bytes": 4772700
+    "bytes": 4790160
   },
   "grinder": {
     "part": "people2_workers3",
-    "bytes": 4772700
+    "bytes": 4790160
   },
   "porter": {
     "part": "people2_workers4",
-    "bytes": 5314064
+    "bytes": 5329988
   },
   "ragman": {
     "part": "people2_workers4",
-    "bytes": 5314064
+    "bytes": 5329988
   },
   "sweep": {
     "part": "people2_workers4",
-    "bytes": 5314064
+    "bytes": 5329988
   },
   "sweep_boy": {
     "part": "people2_workers5",
-    "bytes": 1681780
+    "bytes": 1683008
   },
   "beguine": {
     "part": "people2_women1",
-    "bytes": 4994068
+    "bytes": 5005920
   },
   "fishwife_a": {
     "part": "people2_women1",
-    "bytes": 4994068
+    "bytes": 5005920
   },
   "fishwife_b": {
     "part": "people2_women1",
-    "bytes": 4994068
+    "bytes": 5005920
   },
   "girl": {
     "part": "people2_women2",
-    "bytes": 4368832
+    "bytes": 4406488
   },
   "girl_b": {
     "part": "people2_women2",
-    "bytes": 4368832
+    "bytes": 4406488
   },
   "maid": {
     "part": "people2_women2",
-    "bytes": 4368832
+    "bytes": 4406488
   },
   "milk_woman": {
     "part": "people2_women3",
-    "bytes": 5225820
+    "bytes": 5249596
   },
   "nun": {
     "part": "people2_women3",
-    "bytes": 5225820
+    "bytes": 5249596
   },
   "old_woman_dressed": {
     "part": "people2_women3",
-    "bytes": 5225820
+    "bytes": 5249596
   },
   "shopwife": {
     "part": "people2_women4",
-    "bytes": 4800596
+    "bytes": 4844772
   },
   "tourist_lady": {
     "part": "people2_women4",
-    "bytes": 4800596
+    "bytes": 4844772
   },
   "wife_a": {
     "part": "people2_women4",
-    "bytes": 4800596
+    "bytes": 4844772
   },
   "wife_b": {
     "part": "people2_women5",
-    "bytes": 1583028
+    "bytes": 1580996
   },
   "boy": {
     "part": "people2_cast1",
-    "bytes": 4056172
+    "bytes": 4033228
   },
   "fientje": {
     "part": "people2_cast1",
-    "bytes": 4056172
+    "bytes": 4033228
   },
   "foreman": {
     "part": "people2_cast1",
-    "bytes": 4056172
+    "bytes": 4033228
   },
   "old_man_dressed": {
     "part": "people2_cast2",
-    "bytes": 3939208
+    "bytes": 3927684
   },
   "peeters": {
     "part": "people2_cast2",
-    "bytes": 3939208
+    "bytes": 3927684
   },
   "recipient": {
     "part": "people2_cast2",
-    "bytes": 3939208
+    "bytes": 3927684
   },
   "sailor": {
     "part": "people2_cast3",
-    "bytes": 3651124
+    "bytes": 3647600
   },
   "sailor_b": {
     "part": "people2_cast3",
-    "bytes": 3651124
+    "bytes": 3647600
   },
   "sooi": {
     "part": "people2_cast3",
-    "bytes": 3651124
+    "bytes": 3647600
   },
   "stranger": {
     "part": "people2_cast4",
-    "bytes": 4264412
+    "bytes": 4254568
   },
   "thief": {
     "part": "people2_cast4",
-    "bytes": 4264412
+    "bytes": 4254568
   },
   "tuur": {
     "part": "people2_cast4",
-    "bytes": 4264412
+    "bytes": 4254568
   },
   "urchin": {
     "part": "people2_cast5",
-    "bytes": 1307400
+    "bytes": 1302408
   },
   "child_middling": {
     "part": "people2_child_middling",
-    "bytes": 1596236
+    "bytes": 1589348
   },
   "child_slight": {
     "part": "people2_child_slight",
-    "bytes": 1842112
+    "bytes": 1853700
   },
   "jef_m_apron": {
     "part": "people2_player1",
-    "bytes": 3848512
+    "bytes": 3831512
   },
   "jef_m_coat": {
     "part": "people2_player1",
-    "bytes": 3848512
+    "bytes": 3831512
   },
   "jef_m_jacket": {
     "part": "people2_player1",
-    "bytes": 3848512
+    "bytes": 3831512
   },
   "jef_m_jacket_apron": {
     "part": "people2_player2",
-    "bytes": 3723392
+    "bytes": 3714448
   },
   "jef_m_shirt": {
     "part": "people2_player2",
-    "bytes": 3723392
+    "bytes": 3714448
   },
   "jef_m_smock": {
     "part": "people2_player2",
-    "bytes": 3723392
+    "bytes": 3714448
   },
   "jef_w_apron": {
     "part": "people2_player3",
-    "bytes": 3870868
+    "bytes": 3875468
   },
   "jef_w_coat": {
     "part": "people2_player3",
-    "bytes": 3870868
+    "bytes": 3875468
   },
   "jef_w_jacket": {
     "part": "people2_player3",
-    "bytes": 3870868
+    "bytes": 3875468
   },
   "jef_w_jacket_apron": {
     "part": "people2_player4",
-    "bytes": 3850088
+    "bytes": 3861600
   },
   "jef_w_plain": {
     "part": "people2_player4",
-    "bytes": 3850088
+    "bytes": 3861600
   },
   "jef_w_shawl": {
     "part": "people2_player4",
-    "bytes": 3850088
+    "bytes": 3861600
   },
   "jef_w_shawl_apron": {
     "part": "people2_player5",
-    "bytes": 2590664
+    "bytes": 2591240
   },
   "jef_w_smock": {
     "part": "people2_player5",
-    "bytes": 2590664
+    "bytes": 2591240
   },
   "man_slight": {
     "part": "people2_man_slight",
-    "bytes": 4925976
+    "bytes": 4947548
   },
   "man_stout": {
     "part": "people2_man_stout",
-    "bytes": 4719716
+    "bytes": 4743916
   },
   "old_man": {
     "part": "people2_old_man",
-    "bytes": 4987660
+    "bytes": 5007908
   },
   "old_woman": {
     "part": "people2_old_woman",
-    "bytes": 1879104
+    "bytes": 1883788
   },
   "woman_middling": {
     "part": "people2_woman_middling",
-    "bytes": 2448528
+    "bytes": 2435088
   },
   "woman_slight": {
     "part": "people2_woman_slight",
-    "bytes": 2813272
+    "bytes": 2817168
   },
   "woman_stout": {
     "part": "people2_woman_stout",
-    "bytes": 2369184
+    "bytes": 2353276
   }
 }

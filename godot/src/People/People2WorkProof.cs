@@ -97,9 +97,10 @@ internal partial class People2WorkProof : Node
                         manual = false;
                     }
             }
+            var ladder = await LadderClimb(dir, pictures);
             var life = Life(60);
             var townHaul = await TownHaul(dir, 45);
-            File.WriteAllText(Path.Combine(dir, "work.json"), JsonSerializer.Serialize(new { ok = true, route = route.Id, pileTop = pile, origin = new[] { origin.X, origin.Y, origin.Z }, yaw, figures = report, life, townHaul, pictures }, new JsonSerializerOptions { WriteIndented = true }));
+            File.WriteAllText(Path.Combine(dir, "work.json"), JsonSerializer.Serialize(new { ok = true, route = route.Id, pileTop = pile, origin = new[] { origin.X, origin.Y, origin.Z }, yaw, figures = report, life, townHaul, ladder, pictures }, new JsonSerializerOptions { WriteIndented = true }));
             manual = true; SetProcess(false);
             World.Blobs.I?.Set("people2-work", null);
             foreach (var figure in figs) { figure.Human.Dispose(); figure.Group.QueueFree(); }
@@ -457,6 +458,54 @@ internal partial class People2WorkProof : Node
             p.Y = Ground(p.X, p.Z);
             f.Group.Position = p;
         }
+    }
+
+    /// <summary>(#182) A resident on the quay ladder nearest the stage: up from low water to the top rung and down
+    /// again, the ladder clip's phase from his height over the rungs (Human.ClimbLadder), pictures from the water at
+    /// 13:00 every 0.12 m, and how far the holding hand's grip lies from its rung.</summary>
+    private async System.Threading.Tasks.Task<object> LadderClimb(string dir, List<object> pictures)
+    {
+        if (World.QuayExits.Ladders.Count == 0) return new { skipped = "no quay ladder" };
+        var l = World.QuayExits.Ladders.OrderBy(q => new Vector2(q.X - origin.X, q.Z - origin.Z).LengthSquared()).First();
+        var n = new Vector3(l.Nx, 0, l.Nz).Normalized();
+        var wall = new Vector3(l.X, 0, l.Z);
+        float top = float.IsFinite(l.TopRung) ? l.TopRung : l.Top - .15f;
+        var h = Humans.Make("docker_a") ?? throw new InvalidOperationException("no docker_a for the ladder");
+        var group = new Node3D { Name = "ladder_climber" };
+        AddChild(group); group.AddChild(h.Root); h.Start(); h.SetIdentity("ladder-proof");
+        group.Rotation = new Vector3(0, MathF.Atan2(-n.X, -n.Z), 0);
+        await Dev.Kit.I.Light(13, "clear");
+        manual = true;
+        float worst = 0; var heights = new List<float>();
+        var rungs = new List<Vector3>();
+        for (float y = l.Foot; y <= top + .01f; y += l.Pitch)
+            foreach (float s in new[] { -World.QuayExits.Ladder.GripX, World.QuayExits.Ladder.GripX })
+                rungs.Add(wall + n * l.Rung + new Vector3(n.Z, 0, -n.X) * s + Vector3.Up * y);
+        // the hands reach 1.83 m over the node: the climb stays where both feet and hands are on rungs, from the
+        // water's surface up (the lowest rungs lie under water, for swimmers)
+        float end = top - 1.83f, start = Math.Clamp(World.Water.Level(l.X, l.Z) - .25f, l.Foot, end - .6f), step = Math.Max(.04f, (end - start) / 12);
+        for (int k = 0; k < 20; k++)
+        {
+            float y = k <= 12 ? start + k * step : start + (24 - k) * step; // up 12 steps, then 7 down
+            group.Position = wall + n * (l.Rung + .30f) + Vector3.Up * y;
+            h.ClimbLadder(y - l.Foot);
+            h.Update(1f / 60);
+            // one hand always holds: the nearer of the two grips to a rung, worst over the climb
+            float held = float.MaxValue;
+            foreach (string grip in new[] { "gripL", "gripR" })
+                if (h.Socket(grip) is { } g) held = Math.Min(held, rungs.Min(r => r.DistanceTo(g)));
+            if (held < float.MaxValue) worst = Math.Max(worst, held);
+            heights.Add(y);
+            // from over the water, 2.4 m off the wall and a little to the side, at his height: from the quay above the
+            // coping hid him (the rungs climbed lie 3-4 m under the edge)
+            await Look(wall + n * 2.4f + new Vector3(n.Z, 0, -n.X) * .8f + Vector3.Up * (y + 1.5f), group.Position + Vector3.Up * 1.0f, 3);
+            string name = $"ladder-{k:00}.png";
+            SavePicture(Path.Combine(dir, name));
+            pictures.Add(new { name, y, clip = h.AnimationState.Clip });
+        }
+        manual = false;
+        h.Dispose(); group.QueueFree();
+        return new { ladder = new[] { l.X, l.Z }, foot = l.Foot, topRung = top, pitch = l.Pitch, worstHandToRung = worst, heights };
     }
 
     private async System.Threading.Tasks.Task Look(Vector3 at, Vector3 look, int settle)

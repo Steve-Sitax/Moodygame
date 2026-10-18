@@ -11,7 +11,7 @@ internal sealed class People2Eyes
     private readonly int head, left, right;
     private MeshInstance3D? near;
     private Mesh? lastMesh;
-    private int blink = -1, brow = -1, smile = -1;
+    private int blink = -1, brow = -1, smile = -1, sit = -1;
     private uint rng;
     private float nextBlink, blinkTime = -1, nextLook, expression;
     private Vector2 gaze, want;
@@ -26,12 +26,13 @@ internal sealed class People2Eyes
     }
     internal void Seed(uint seed) { rng = seed | 1; nextBlink = 1 + Random() * 4; nextLook = Random(); expression = Random()*20; }
     private float Random() { rng ^= rng << 13; rng ^= rng >> 17; rng ^= rng << 5; return (rng & 0xffffff) / 16777216f; }
-    internal void Update(float dt, bool speaking, bool localPlayer = false)
+    internal void Update(float dt, bool speaking, bool localPlayer = false, float seated = 0)
     {
         if (near == null || !GodotObject.IsInstanceValid(near) || !root.IsInsideTree()) return;
+        if (sit >= 0 && lastMesh == near.Mesh) Set(sit, seated); // (the skirt's seated fall: Human2.SitWeight)
         if (near.Mesh != lastMesh)
         {
-            lastMesh = near.Mesh; blink = near.FindBlendShapeByName("blink"); brow = near.FindBlendShapeByName("brow_raise"); smile = near.FindBlendShapeByName("smile");
+            lastMesh = near.Mesh; blink = near.FindBlendShapeByName("blink"); brow = near.FindBlendShapeByName("brow_raise"); smile = near.FindBlendShapeByName("smile"); sit = near.FindBlendShapeByName("sit");
         }
         float distance = localPlayer ? 0 : root.GlobalPosition.DistanceSquaredTo(Main.I.Cam.GlobalPosition);
         if (distance >= 225)

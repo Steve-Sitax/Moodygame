@@ -574,8 +574,10 @@ def shoulder_helpers(pose):
 
 
 def clavicle_for(ps, S, wrist):
-    """The kit's shoulder rule for a hand going to `wrist`: the clavicle lifts when the arm rises past 35 degrees
-    (0.13 of the excess, at most 13) and comes forward with a forward reach."""
+    """The kit's shoulder rule for a hand going to `wrist`, the same as the old clips' (clips_legacy.shoulder_rule):
+    the clavicle lifts by CLAV_RATE of the reach's rise past CLAV_FROM degrees, at most CLAV_MAX (30), not for the part
+    of the reach that goes back, and comes forward with a forward reach."""
+    from .clips_legacy import CLAV_FROM, CLAV_MAX, CLAV_RATE
     sg = 1 if S == "L" else -1
     sh = ps.P["armUp" + S]
     d = (Vector(wrist) - sh)
@@ -585,7 +587,7 @@ def clavicle_for(ps, S, wrist):
     # in the chest's frame
     dl = ps.D["upperChest"].inverted() @ d
     elev = math.degrees(math.acos(clamp(-dl.z, -1.0, 1.0)))
-    e = min(13.0, 0.13 * max(0.0, elev - 35.0))
+    e = min(CLAV_MAX, CLAV_RATE * max(0.0, elev - CLAV_FROM)) * (1.0 - clamp(dl.y / 0.6))
     fwd = max(0.0, -dl.y) * clamp((elev - 35.0) / 40.0)
     return RZ(-sg * 10.0 * fwd) @ RY(-sg * e)
 

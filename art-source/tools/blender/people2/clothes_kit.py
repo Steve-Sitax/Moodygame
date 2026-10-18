@@ -959,8 +959,16 @@ def undershirt(ctx, rgb, top, zone=2, bottom=None, covers=None, skip=()):
     if covers is not None:
         pts = np.stack((ctx.x, ctx.y, ctx.z), -1)
         never = ("head", "eye", "finger") + tuple(skip)  # skip: parts the kind paints itself (stockings)
+        # (#138) the trunk's skin above the neck's lowest point is judged as the neck (its rule is by height): the
+        # trunk/neck part edge runs along triangles, and a rule by part painted saw teeth of cloth on the skin above
+        # a neckline
+        parts = np.asarray(ctx.part).astype(str)
+        neck = np.char.startswith(parts, "neck")
+        neck_lo = float(ctx.y[neck].min()) if neck.any() else np.inf
+        near_neck = np.abs(ctx.x) < 0.085  # (round the neck only: the shoulders' tops keep the trunk's rule)
+        as_part = np.where(np.char.startswith(parts, "torso") & (ctx.y > neck_lo) & near_neck, "neck", parts)
         m |= np.array([bool(covers(pts[i], p or "")) and not str(p).startswith(never)
-                       for i, p in enumerate(ctx.part)])
+                       for i, p in enumerate(as_part)])
     if bottom is not None:
         m &= ctx.y > bottom
     n = 0.5 + 0.5 * _noise3(np.stack((ctx.x, ctx.y, ctx.z), -1), 140.0, 5)

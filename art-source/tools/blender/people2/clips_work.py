@@ -1866,14 +1866,37 @@ def grind(fam, T=4.8, seed=511):
     return sp
 
 
-ROW = {"seat": 0.45, "rowlock": (0.77, 0.68, 0.24), "stretcher": (0.55, 0.12)}
+# The game's small boats (godot/src/Play/RowPhysics.cs Hull.Of, Rowing.cs): the oar pins 0.68 m ahead of the thwart's
+# middle (toward the bow), about 0.77 m out and 0.24 m over the thwart; the oar is 2.70 m, 0.70 m inboard, its grip
+# 0.63 m in from the pin. The rower faces the bow and pushes (Jef rows so too): the blades go in at phase 0 with the
+# handles near the chest and are pushed away through the drive (phase 0 .. 0.42), lifted and drawn back after it.
+ROW = {"seat": 0.45, "rowlock": (0.77, 0.68, 0.24), "stretcher": (0.55, 0.12), "inboard": 0.63, "drive": 0.42,
+       "dip": (0.405, 0.234)}
+
+
+def row_handle(u, side=1.0):
+    """The game's oar grip at stroke phase u (Rowing.OarPhase with the dip eased like Rowing.PoseOars), relative to
+    the thwart's top middle: (left, fwd, up) metres, and the pin."""
+    dr = ROW["drive"]
+    dip_in, dip_out = ROW["dip"]
+    if u < dr:
+        th = 0.55 - smoothstep(u / dr)
+        dp = dip_in
+    else:
+        w = (u - dr) / (1.0 - dr)
+        th = -0.45 + smoothstep(w)
+        dp = lerp(dip_in, dip_out, w / 0.08) if w < 0.08 else lerp(dip_out, dip_in, (w - 0.92) / 0.08) if w > 0.92 else dip_out
+    px, pf, pu = ROW["rowlock"]
+    r = ROW["inboard"]
+    grip = (side * (px - r * math.cos(dp) * math.cos(th)), pf - r * math.cos(dp) * math.sin(th), pu + r * math.sin(dp))
+    return grip, (side * px, pf, pu)
 
 
 def row(fam, T=2.0, seed=521):
-    """Rowing, seated on a thwart, the feet braced on the stretcher: the catch (leaning forward, the arms long, the
-    blades going in), the drive (the legs and the back, the handles drawn to the lower ribs, leaning back), the
-    recovery (the hands away first, the body after). The game sets the phase: the drive from 0 to 0.42 (as its
-    oars)."""
+    """Rowing a small boat as the game's oars move (row_handle): seated on the thwart facing the bow, the feet braced
+    on the bottom boards' stretcher; the drive pushes the handles away from the chest, the back leaning into it, the
+    hands drawn back to the lower ribs while the blades are out. The game sets the phase (its oars' stroke) and puts
+    the fists on its own oars' grips (Human.GripTargets) for any hull; this clip carries the body and the arms."""
     k = fam.k
     sp = WSpec(fam, T, loop=True)
     H_ = ci.sit_height(fam, ROW["seat"])
@@ -1882,25 +1905,22 @@ def row(fam, T=2.0, seed=521):
     sp.feet_at = lambda t: {S: {"flat": cm.stance_flat(fam.sk, S, sf * k, sgn(S) * 0.12 * k, lambda p: sz * k, 0.0, sgn(S) * 6.0),
                                 "yaw": sgn(S) * 6.0, "roll_min": 0.0, "swing": False} for S in "LR"}
 
-    def drive(t):
+    def push(t):
+        """0 with the handles at the chest (the catch) .. 1 at the end of the drive, the arms out."""
         u = (t % T) / T
-        if u < 0.42:
-            return smootherstep(u / 0.42)
-        return 1.0 - smootherstep((u - 0.42) / 0.58)
+        dr = ROW["drive"]
+        return smoothstep(u / dr) if u < dr else 1.0 - smoothstep((u - dr) / (1.0 - dr))
 
-    sp.hips = lambda t: (0.0, -4.0 - 10.0 * drive(t) + 14.0 * (1 - drive(t)), 0.0)
-    sp.trunk = lambda t: (24.0 - 40.0 * drive(t), 0.0, 0.0)
-    sp.look = lambda t: (0.0, -6.0 + 8.0 * drive(t), 0.0)
+    sp.hips = lambda t: (0.0, -2.0 + 16.0 * push(t), 0.0)
+    sp.trunk = lambda t: (-6.0 + 44.0 * push(t), 0.0, 0.0)
+    sp.look = lambda t: (0.0, 4.0 - 10.0 * push(t), 0.0)
     sp.keep = 0.25
-    hand_x = 0.15
 
     def handle(S):
         def fn(t, fam_, S_, ctx):
-            d = drive(t)
-            u = (t % T) / T
-            low = 0.0 if u < 0.42 else math.sin(math.pi * (u - 0.42) / 0.58) * 0.03
-            p = V(sgn(S) * hand_x, lerp(0.62, 0.20, d), ROW["seat"] + lerp(0.20, 0.31, d) - low) * k
-            lock = V(sgn(S) * ROW["rowlock"][0], ROW["rowlock"][1], ROW["seat"] + ROW["rowlock"][2]) * k
+            (gx, gf, gu), (lx, lf, lu) = row_handle((t % T) / T, sgn(S))
+            p = V(gx, gf, ROW["seat"] + gu) * k
+            lock = V(lx, lf, ROW["seat"] + lu) * k
             ax = (lock - p).normalized()
             return p, ax, Vector((0.0, 1.0, -0.4))
         return fn
@@ -1917,7 +1937,9 @@ def row(fam, T=2.0, seed=521):
 
     sp.things_late = oars
     sp.thing_meta = {"oarL": {"model": "oar"}, "oarR": {"model": "oar"}}
-    sp.meta = {"work": "row", "view": "sit", "seat": ROW["seat"], "phase": "drive 0 .. 0.42 (as the game's oars)",
+    sp.meta = {"work": "row", "view": "sit", "seat": ROW["seat"], "facing": "bow",
+               "phase": "the game's oar stroke: drive (blades in, handles pushed away) 0 .. %.2f" % ROW["drive"],
+               "pin": list(ROW["rowlock"]), "inboard": ROW["inboard"],
                "_props": [("box", M(V(0.0, -0.02, ROW["seat"] - 0.02) * k), (1.2, 0.22, 0.04), "wood"),
                           ("box", M(V(0.0, sf + 0.06, sz) * k), (0.6, 0.05, 0.12), "wood")]}
     return sp
@@ -1974,6 +1996,85 @@ def ride(fam, T=1.0, seed=531):
                "_props": [("box", M(V(0.0, 0.03, 0.78) * k), (0.14, 0.26, 0.04), "wood"),
                           ("cyl", M(V(0.0, gf, gu) * k), (0.012, 0.84), "iron"),
                           ("cyl", M(V(0.0, hf, hu) * k) @ Matrix.Rotation(0.0, 4, "Z"), (0.46, 0.04), "iron")]}
+    return sp
+
+
+# ---------------------------------------------------------------- climbing a quay ladder
+
+# The quay ladders (godot/src/World/QuayExits.cs Ladder): rungs 0.29 m apart, a hand takes a rung 0.15 m out from its
+# middle. One loop climbs two rungs (0.58 m): each foot and each hand moves up two rungs once, the left hand with the
+# right foot and the right hand with the left foot. In place: the game raises the node 0.58 m a loop and sets the
+# phase from the node's height over the rungs (phase 0: a rung at the node's height); a climb down plays it backward.
+LADDER = {"pitch": 0.29, "rung": 0.30, "grip_x": 0.15, "foot_x": 0.11, "hips": 0.82, "hips_fwd": -0.13, "T": 1.66,
+          # (window of the move in the loop, the rung it starts from at phase 0, over the node, in rungs)
+          "moves": {"footR": ((0.00, 0.45), 0), "footL": ((0.50, 0.95), 1),
+                    "handL": ((0.05, 0.45), 5), "handR": ((0.55, 0.95), 6)}}
+
+
+def ladder_hold(limb, u):
+    """Where limb's rung is at loop fraction u, over the node (m), and how far through its move it is (0 holding)."""
+    (a, b), r0 = LADDER["moves"][limb]
+    rise = 2 * LADDER["pitch"]
+    h0 = r0 * LADDER["pitch"]
+    uu = u % 1.0
+    if a < 0 and uu > 1 + a:  # a move that starts before the loop's end
+        uu -= 1.0
+    if uu < a:
+        return h0 - rise * uu, 0.0
+    if uu > b:
+        return h0 + rise - rise * uu, 0.0
+    s = (uu - a) / (b - a)
+    e = smootherstep(s)
+    return lerp(h0 - rise * a, h0 + rise - rise * b, e), math.sin(math.pi * s)
+
+
+def ladder(fam, seed=561):
+    """Climbing a quay ladder facing the wall (LADDER): the hands over the rungs, the balls of the feet on them, the
+    body held off the ladder, the hips swaying over the foot that holds. The game moves the node."""
+    k = fam.k
+    T = LADDER["T"]
+    sp = WSpec(fam, T, loop=True)
+    base = {S: sp.fam.base_flat(S) for S in "LR"}
+    R0 = LADDER["rung"]
+
+    def u_of(t):
+        return (t % T) / T
+
+    def hips_at(t):
+        u = u_of(t)
+        sway = 0.025 * math.cos(TAU * (u - 0.72))  # over the left foot while the right one moves
+        qh = yaw(4.0 * math.sin(TAU * (u - 0.2))) @ bow(4.0)  # held off the ladder by the arms
+        return Vector((sway * k, -LADDER["hips_fwd"] * k, LADDER["hips"] * k)), qh
+
+    def feet_at(t):
+        out = {}
+        u = u_of(t)
+        for S in "LR":
+            flat, yw = base[S]
+            h, mv = ladder_hold("foot" + S, u)
+            ank = Vector((sgn(S) * LADDER["foot_x"] * k, -(R0 - 0.12 - 0.07 * mv) * k, flat.z + h * k + 0.012 * k))
+            out[S] = {"flat": flat, "yaw": 0.0, "roll_min": 0.0, "swing": True, "ankle": ank,
+                      "rot": cm.foot_rot(0.0, 0.0, -6.0 * mv), "toe": RX(-6.0 * mv), "pole": V(sgn(S) * 0.25, 1.0, 0.1)}
+        return out
+
+    def rung(S):
+        def fn(t, fam_, S_, ctx):
+            h, mv = ladder_hold("hand" + S, u_of(t))
+            p = V(sgn(S) * LADDER["grip_x"], R0 - 0.09 * mv, h) * k
+            return p, Vector((-sgn(S), 0.0, 0.0)), Vector((0.0, 1.0, -0.5))
+        return fn
+
+    sp.hips_at = hips_at
+    sp.feet_at = feet_at
+    sp.arms = {S: Along(rung(S), (lambda S_: lambda f, S2, c: V(sgn(S_) * 1.0, -0.4, -0.6))(S), r=0.012,
+                        opened=(lambda S_: lambda t: ladder_hold("hand" + S_, u_of(t))[1])(S)) for S in "LR"}
+    sp.trunk = lambda t: (2.0, 0.0, 3.0 * math.sin(TAU * (u_of(t) - 0.2)))
+    sp.look = lambda t: (0.0, -18.0, 0.0)
+    sp.meta = {"work": "ladder", "phase": "a rung at the node's height at 0; up 0.58 m a loop (play it backward to "
+                                          "climb down)", "rise": round(2 * LADDER["pitch"], 3),
+               "rung": R0, "pitch": LADDER["pitch"],
+               "_props": [("box", M(V(0.0, R0 + 0.01, h) * k), (0.42, 0.024, 0.024), "iron")
+                          for h in (-0.29, 0.0, 0.29, 0.58, 0.87, 1.16, 1.45, 1.74, 2.03)]}
     return sp
 
 
@@ -2086,6 +2187,7 @@ def recipes():
         speed=1.35)
     add("grind", "man", lambda f: grind(f), role="grind", motion="grind")
     add("row", "man", lambda f: row(f), role="row", motion="row")
+    add("ladder", "man", lambda f: ladder(f), role="ladder", motion="ladder")
     add("ride", "man", lambda f: ride(f), role="ride", motion="ride")
     add("crouch", "man", lambda f: crouch(f), role="crouch", motion="crouch")
     add("child_crouch", "child", lambda f: crouch(f, T=3.2, seed=392), role="crouch", motion="crouch")

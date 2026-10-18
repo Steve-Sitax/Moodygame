@@ -116,6 +116,12 @@ def around(ao, dist, h_cam, h_look, yaws=(0, 90, 180, 35)):
     return out
 
 
+def sit_shape(meshes, value):
+    for m in meshes:
+        if m.data.shape_keys and "sit" in m.data.shape_keys.key_blocks:
+            m.data.shape_keys.key_blocks["sit"].value = value
+
+
 def kind_sheets(kind, out, gas=False):
     rig, cells = pm._rig(), pm._faces_json()["cells"]
     sex = "f" if rig["kinds"][kind]["sex"] == "f" else "m"
@@ -163,12 +169,14 @@ def kind_sheets(kind, out, gas=False):
         k = hips / 0.95
         ao.location.z = 0.45 + 0.07 * k - 0.9 * k
     bench = seat_box(h, d, w)
+    sit_shape(ms, 1.0)  # the near copy's seated fall of skirt and apron, as the game sets it (dress.sit_key)
     for loc, look in around(ao, 2.0, 1.2, 0.55, yaws=(0, 35, 90, 180)):
         _shot(ps, out, "%s_sit_%d" % (kind, len(ps)), loc, look, res=(720, 720))
     fn = os.path.join(out, "%s_sit.png" % kind)
     pm.sheet(ps, 4, fn, w=360)
     made.append(fn)
     bpy.data.objects.remove(bench)
+    sit_shape(ms, 0.0)
     ao.location.z = 0.0
     # close views, standing
     pose(ao, fam_idle, 0.15)

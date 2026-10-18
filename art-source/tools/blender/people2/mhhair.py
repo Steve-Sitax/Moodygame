@@ -1016,26 +1016,28 @@ class Side(Scalp):
     def locks(self, shell, head):
         out = []
         rng = np.random.default_rng(17)
-        # the big side: from the parting across the top and down toward the right ear, the front ones swept back
-        n = 15
+        # the big side: from the parting across the top and down toward the right ear, the front ones swept back.
+        # (#138: 15 locks of 2.8 cm read as planks at 0.6 m) many narrow, rounded locks, their roots and lengths
+        # staggered, lying in two heights so they overlap like combed hair
+        n = 26
         for i in range(n):
-            s = (i + 0.5) / n
+            s = float(np.clip((i + 0.5 + 0.35 * (rng.uniform() - 0.5)) / n, 0.01, 0.99))
             root = self.parting(s)
             tgt = direction(2 + 10 * s, 92 + 40 * s, -1.0)
             mid = _slerp(root, tgt, 0.45) + np.array((0, 0.08 - 0.05 * s, -0.10 + 0.05 * s))
-            end = _slerp(root, tgt, 0.78 - 0.30 * s)
+            end = _slerp(root, tgt, (0.78 - 0.30 * s) * (0.9 + 0.2 * rng.uniform()))
             ctrl = [_ang(root), _ang(_unit(mid)), _ang(end)]
-            out.append(lock_on(shell, head, ctrl, 9, 0.028 + 0.004 * rng.uniform(), lift=0.0006 + 0.0006 * (i % 3),
-                               k=i % 2, bulge=0.14, root=0.10, tip_t=0.95, taper=0.35))
+            out.append(lock_on(shell, head, ctrl, 7, 0.0155 + 0.004 * rng.uniform(), lift=0.0004 + 0.0005 * (i % 2),
+                               k=i % 2, bulge=0.24, root=0.12, tip_t=0.95, taper=0.5))
         # the small side: down from the parting toward the left ear
-        for i in range(5):
-            s = (i + 0.5) / 5
+        for i in range(9):
+            s = (i + 0.5) / 9
             root = self.parting(s * 0.85)
             tgt = direction(-2 + 8 * s, 85 + 45 * s, 1.0)
-            end = _slerp(root, tgt, 0.70)
+            end = _slerp(root, tgt, 0.66 + 0.08 * rng.uniform())
             ctrl = [_ang(root), _ang(_slerp(root, tgt, 0.35)), _ang(end)]
-            out.append(lock_on(shell, head, ctrl, 7, 0.017, lift=0.0011, k=(i + 1) % 2, bulge=0.2, root=0.10,
-                               tip_t=0.9))
+            out.append(lock_on(shell, head, ctrl, 6, 0.0105, lift=0.0008, k=(i + 1) % 2, bulge=0.26, root=0.12,
+                               tip_t=0.9, taper=0.5))
         return out
 
 
@@ -1151,8 +1153,9 @@ class Women(Scalp):
         a = math.radians(28 + 58 * s)
         return _unit(np.array((side * 0.03, math.sin(a), math.cos(a))))
 
-    def drawn_back(self, shell, head, n=7, end_el=None, limit=None, k0=0):
-        """The locks from the parting, down over the temple and the ear's top and back to the knot."""
+    def drawn_back(self, shell, head, n=7, end_el=None, limit=None, k0=0, lift=None, bulge=0.12):
+        """The locks from the parting, down over the temple and the ear's top and back to the knot. lift(i, points):
+        a lock's lift along its path (the hair under a cap lies flat behind the cap's edge)."""
         out = []
         be, ba = self.bun
         for side in (1.0, -1.0):
@@ -1167,8 +1170,11 @@ class Women(Scalp):
                 ctrl = [(max(e, float(self.line(np.array([a]))[0]) + 7.0), a, sd) for e, a, sd in ctrl]
                 if limit is not None:
                     ctrl = limit(ctrl)
-                out.append(lock_on(shell, head, ctrl, 12, 0.026 + 0.004 * (i % 2), lift=0.0010 + 0.0008 * (i % 3),
-                                   k=(i + k0) % 2, bulge=0.12, root=0.06, tip_t=0.95, taper=0.30))
+                lf = 0.0010 + 0.0008 * (i % 3)
+                if lift is not None:
+                    lf = lift(i, ctrl, lf)
+                out.append(lock_on(shell, head, ctrl, 12, 0.026 + 0.004 * (i % 2), lift=lf,
+                                   k=(i + k0) % 2, bulge=bulge, root=0.06, tip_t=0.95, taper=0.30))
         return out
 
     def nape_up(self, shell, head, n=4, top=None):
@@ -1226,7 +1232,8 @@ class Undercap(Women):
         el, az = angles(D)
         th = Women.thickness(self, head, D)
         a = _sm(self.lim(az) - 3.0, self.lim(az) + 1.0, el)
-        return th * (1 - a) + np.minimum(th, 0.0042) * a
+        # (#138: the hair came through the white cap in dark patches) under the cap it lies 2.6 mm thick at most
+        return th * (1 - a) + np.minimum(th, 0.0026) * a
 
     def fur_mask(self, D):
         el, az = angles(D)
@@ -1235,12 +1242,15 @@ class Undercap(Women):
     def locks(self, shell, head):
         def limit(ctrl):
             return ctrl
-        out = self.drawn_back(shell, head, n=6)
-        # under the cap the locks lie flat: their lift goes with the shell
-        return out
+        # under the cap the locks lie flat on the shell: no lift past the cap's front edge, and a flat lock (the
+        # cap is fitted 9 mm over the skin; shell, lock and its rounding stay inside 6 mm)
+        def lift(i, ctrl, lf):
+            return 0.00025
+        return self.drawn_back(shell, head, n=6, lift=lift, bulge=0.05)
 
     def tubes(self, shell, head):
-        return self.knot(shell, head, R=0.022, r=0.0060, turns=1.5, lift=0.0015, flat=0.004)
+        # a small, flat knot pinned under the cap (it stood out through the linen at the back of the head)
+        return self.knot(shell, head, R=0.017, r=0.0030, turns=1.4, lift=0.0, flat=0.0035)
 
 
 class Plaits(Women):

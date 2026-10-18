@@ -366,6 +366,125 @@ def tuck(ob, body, order, covers, clearance=0.004, body_clearance=0.005, reach=0
     return moved
 
 
+# ---------------------------------------------------------------- 4b. a layer moves with the one under it
+
+SPRINGS = ("skirtF", "skirtB", "skirtL", "skirtR", "coatTailL", "coatTailR")
+
+
+def follow_under(ob, order, near=0.004, far=0.012, share=0.85):
+    """(#138, #82) Where a garment lies on another (layer_order's pairs: a shawl's edge on the bodice's sleeve, a cuff
+    on the shirt, an apron's edge on the skirt), its points take most of the weights of the cloth under them, so
+    both move together: posed, the two had different weights and cut through each other along ragged lines (the
+    fishwife's shawl over her elbows, the chemise through the bodice, the apron through the skirt). A point within
+    `near` of the lower layer takes `share` of its weights, fading out by `far`. A point hung on the spring bones
+    (coat tails) does not follow a lower layer that is not (trousers); an apron takes a skirt's springs with it. Lower layers first, so a coat follows a
+    waistcoat that follows a shirt. Returns how many points changed."""
+    from mathutils import Vector
+    from mathutils.bvhtree import BVHTree
+    from mathutils.interpolate import poly_3d_calc
+    from .rig import NAMES
+    me = ob.data
+    raw = wt.parts(ob)
+    piece = piece_of(raw)
+    W = wt.read(ob)
+    co = np.array([v.co[:] for v in me.vertices])
+    spring = np.array([NAMES.index(n) for n in SPRINGS if n in NAMES])
+    limb = [_limb(NAMES[int(k)]) for k in np.argmax(W, 1)]  # an arm never shares with the trunk or a leg
+    sp = W[:, spring].sum(1) > 0.05 if len(spring) else np.zeros(len(co), bool)
+    idx = {}
+    for i, p in enumerate(piece):
+        if p:
+            idx.setdefault(p, []).append(i)
+    faces_of = {}
+    for f in me.polygons:
+        p = piece[f.vertices[0]]
+        if p:
+            faces_of.setdefault(p, []).append(tuple(f.vertices))
+    verts = [tuple(c) for c in co]
+    # lower layers first: a piece's depth is how many pieces lie under it
+    depth = {p: 0 for p in idx}
+    for _ in range(len(idx)):
+        for (u, o) in order:
+            if u in depth and o in depth:
+                depth[o] = max(depth[o], depth[u] + 1)
+    changed = set()
+    for (u, o) in sorted(order, key=lambda pr: depth.get(pr[1], 0)):
+        if u not in faces_of or o not in idx:
+            continue
+        # an apron on a skirt stands off it more (its own flare): followed out to 3.5 cm, or it lay under the
+        # skirt's lap when seated (the skirt came through it)
+        reach = max(far, 0.035) if u.startswith(("skirt", "overskirt", "habit_skirt")) and o.startswith("apron") else far
+        fl = faces_of[u]
+        tree = BVHTree.FromPolygons(verts, fl)
+        Wsnap = W.copy()  # the lower layer's weights as they are now (a point of o never reads o's new weights)
+        for i in idx[o]:
+            loc, _n, fi, dist = tree.find_nearest(Vector(co[i]), reach)
+            if loc is None:
+                continue
+            f = fl[fi]
+            bw = poly_3d_calc([Vector(co[j]) for j in f], loc)
+            wu = sum(Wsnap[j] * w for j, w in zip(f, bw))
+            if sp[i] and not sp[f[0]]:  # (a coat's tails swing free over the trousers)
+                continue
+            lu = limb[f[0]]
+            if lu != limb[i] and ("arm" in lu[:3] or "arm" in limb[i][:3]):  # (trousers beside a hanging cuff)
+                continue
+            t = share * (1.0 - smooth(near, reach, dist))
+            W[i] = (1 - t) * W[i] + t * wu
+            changed.add(i)
+    if changed:
+        W = W / np.maximum(W.sum(1, keepdims=True), 1e-9)
+        ch = sorted(changed)
+        for g in ob.vertex_groups:
+            if g.name in NAMES:
+                g.remove(ch)
+        wt.apply_rows(ob, W, ch)
+    return len(changed)
+
+
+def clean_sleeves(ob, P, keep=("shoulderL", "shoulderR", "clavicleL", "clavicleR")):
+    """(#140, #138) A sleeve below the armpit hangs on its own arm only: a sleeve's inside, touching the chest or the
+    waist at rest, took a share of the trunk's bones from the skin beside it, and a raised arm then dragged it into a
+    wing at the elbow (the bulbous sleeve in first person on the ladder). Below the armpit, points whose strongest bone
+    is one arm's lose every other bone but that arm's (and its shoulder helper and clavicle), and points of the trunk's
+    cloth lose that arm's bones. Returns how many."""
+    from . import body as bd
+    from .rig import NAMES
+    W = wt.read(ob)
+    co = np.array([v.co[:] for v in ob.data.vertices])
+    pit = bd.Y(P, 0.735)  # Blender z is the game's up
+    group = [_limb(n) for n in NAMES]
+    changed = []
+    for S in "LR":
+        mine = np.array([g == "arm" + S or n in ("shoulder" + S, "clavicle" + S) for n, g in zip(NAMES, group)])
+        arm = W[:, mine].sum(1)
+        top = mine[np.argmax(W, 1)]  # the strongest bone is this arm's: the sleeve, its inside against the chest too
+        low = co[:, 2] < pit - 0.02
+        m = top & (arm > 0.25) & low & (W[:, ~mine].sum(1) > 1e-4)
+        for i in np.nonzero(m)[0]:
+            W[i, ~mine] = 0.0
+            W[i] /= max(W[i].sum(), 1e-9)
+            changed.append(int(i))
+        # and the other way: cloth of the trunk beside the hanging arm (a jacket's side, a skirt's top) took the arm's
+        # bones from the skin next to it and followed the arm out into a wing; it keeps the trunk's
+        m = ~top & low & (arm > 1e-4) & (W[:, ~mine].sum(1) > 0.05)
+        for i in np.nonzero(m)[0]:
+            W[i, mine] = 0.0
+            W[i] /= max(W[i].sum(), 1e-9)
+            changed.append(int(i))
+    if changed:
+        for g in ob.vertex_groups:
+            if g.name in NAMES:
+                g.remove(changed)
+        wt.apply_rows(ob, W, changed)
+    return len(changed)
+
+
+def smooth(a, b, x):
+    t = min(1.0, max(0.0, (x - a) / (b - a)))
+    return t * t * (3 - 2 * t)
+
+
 # ---------------------------------------------------------------- 5. islands
 
 
@@ -1041,7 +1160,9 @@ def under_cloth(ctx, tree, face_piece, looks, covers=None, reach=None, tilt=28.0
     pokes of skin through cloth (a slider's broad shoulders) show cloth. looks: {piece: Cloth}. covers: the kind's
     cover rule, a gate (the hands, which no rule covers, beside a smock are never painted)."""
     from mathutils import Vector
-    reach = reach or {"neck": 0.07, "arm": 0.07, "torso": 0.25, "leg": 0.30}
+    # (#138) the neck and the arms only where the cloth lies on them: with 7 cm the skin above a neckline, beside a
+    # standing collar or a shawl's edge took the lining's colour in ragged dark shapes, in sight
+    reach = reach or {"neck": 0.02, "arm": 0.025, "torso": 0.25, "leg": 0.30}
     ca, sa = math.cos(math.radians(tilt)), math.sin(math.radians(tilt))
     n_ = len(ctx.pos)
     cov = np.zeros(n_, np.float32)
@@ -1118,6 +1239,7 @@ def occlusion(ob, P, reach=0.10, rays=40, through=False):
     dirs = paint._ao_dirs(rays)
     y_pit = bd.Y(P, 0.735)
     y_crotch = bd.Y(P, 0.44)
+    pits = _pits(ob, P)
     occ = np.zeros(len(co), np.float32)
     wsum = float(np.sum(dirs[:, 2]))
     for i, v in enumerate(me.vertices):
@@ -1137,21 +1259,52 @@ def occlusion(ob, P, reach=0.10, rays=40, through=False):
                 dist += travelled
                 b = pgrp[fi]
                 skip = False
+                share = 1.0
                 if a != b:
                     if "trunk" in (a, b):
                         limb = a if b == "trunk" else b
-                        lo = y_pit if limb.startswith("arm") else y_crotch
-                        skip = co[i].z < lo or hit.z < lo
+                        if limb.startswith("arm"):
+                            # (#138) only the hollow of the armpit itself: the hanging arm against the front of the
+                            # shoulder and the chest's side darkened skin and cloth that show when the arms come forward
+                            share = _in_pit(pits, limb[-1], co[i])
+                            skip = share <= 0.0
+                        else:
+                            skip = co[i].z < y_crotch or hit.z < y_crotch
                     else:
                         skip = True
                 if not skip:
-                    acc += (1.0 - (dist / reach) ** 2) * float(d[2])
+                    acc += share * (1.0 - (dist / reach) ** 2) * float(d[2])
                     break
                 # through: a limb resting against the cloth at rest does not leave its shape in the bake (the ray
                 # goes on past it to what lies behind)
                 start, travelled = hit + dv * 0.0005, dist + 0.0005
         occ[i] = acc / wsum
     return np.clip(occ, 0.0, 1.0)
+
+
+def _pits(ob, P):
+    """The hollow of each armpit (Blender space): under the shoulder joint, a little in from it (rig.py's armpit mark),
+    and its reach. From the armature the mesh is deformed by, else from the figures."""
+    from mathutils import Vector
+
+    from . import body as bd
+    w = P.get("w", P["H"] / 1.67)
+    arm = next((m.object for m in ob.modifiers if m.type == "ARMATURE" and m.object is not None), None)
+    out = {}
+    for S, sg in (("L", 1), ("R", -1)):
+        if arm is not None and ("armUp" + S) in arm.data.bones:
+            sh = arm.matrix_world @ arm.data.bones["armUp" + S].head_local
+            sh = ob.matrix_world.inverted() @ sh
+        else:
+            sh = Vector((sg * bd.shoulder_x(P), 0.0, bd.Y(P, 0.82)))
+        out[S] = (Vector((sh.x - sg * 0.045 * w, sh.y + 0.005 * w, sh.z - 0.06 * w)), 0.06 * w)
+    return out
+
+
+def _in_pit(pits, S, p):
+    c, r = pits[S]
+    d = (p - c).length / r
+    return max(0.0, 1.0 - d * d)
 
 
 AO_RULE = ("picture_flags blue = ambient light reaching the point at rest, 1 open .. 0.22 closed (the render "

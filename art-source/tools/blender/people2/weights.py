@@ -256,6 +256,21 @@ def apply(ob, W, limit=4):
             vg.add([int(i)], float(Wl[i, b]), "REPLACE")
 
 
+def apply_rows(ob, W, rows, limit=4):
+    """Write the weight matrix's `rows` (vertex indices) into the bone groups, at most `limit` bones a vertex,
+    normalised (the vertices' old bone weights must be removed first)."""
+    rows = list(rows)
+    Wl = limit_weights(W[rows], limit)
+    for b, n in enumerate(NAMES):
+        if KIND[n] == "socket":
+            continue
+        if n not in ob.vertex_groups:
+            ob.vertex_groups.new(name=n)
+        vg = ob.vertex_groups[n]
+        for k in np.nonzero(Wl[:, b] > 1e-5)[0]:
+            vg.add([int(rows[k])], float(Wl[k, b]), "REPLACE")
+
+
 def limit_weights(W, limit=4):
     W = W.copy()
     if limit:

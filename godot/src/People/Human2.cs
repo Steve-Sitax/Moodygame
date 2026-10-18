@@ -479,6 +479,14 @@ internal sealed class Human2
 
     /// <summary>How far to lower the node for a seat `s` high (the D2 sit clips lower the hips themselves), and
     /// the feet's correction for a seat that is not the clip's own height; null: this body has no such clip.</summary>
+    /// <summary>The thwart's top under a rower over his node: the row clip (art-source clips_work.ROW) sits on a seat
+    /// 0.45 m over the node, scaled from its own body to this one.</summary>
+    internal float RowDrop()
+    {
+        const float RowSeat = 0.45f;
+        return People2.Clips.TryGetValue(Map("row"), out var c) ? -RowSeat * hips / c.Hips : -RowSeat * hips / 0.9118f;
+    }
+
     internal float? SitDrop(float s)
     {
         seat = s;
@@ -524,7 +532,7 @@ internal sealed class Human2
     internal void Start()
     {
         Array.Clear(poseWritten);
-        gripL = gripR = null;
+        gripL = gripR = null; SitWeight = 0;
         // a pooled body forgets its last owner's work (a fish table, a sack pile, a winch) and stands up its baskets
         work = null; PileTop = -1;
         things.Hidden.Clear();
@@ -598,6 +606,18 @@ internal sealed class Human2
     }
 
     /// <summary>A work clip from time t, as the proofs show it (frozen: held at t).</summary>
+    /// <summary>(#182) Climbing a ladder (the `ladder` clip, art-source clips_work.LADDER): one loop climbs two rungs
+    /// of 0.29 m; `height` is the node's height over any rung of the ladder (a climb down plays it backward). The node
+    /// stands 0.30 m out from the rungs, facing them. False without the clip.</summary>
+    internal bool Ladder(float height)
+    {
+        const float Rise = 0.58f;
+        if (!People2.Clips.TryGetValue("ladder", out var c)) return false;
+        float u = ((height / Rise) % 1 + 1) % 1;
+        PlayClip("ladder", u * c.Length, true);
+        return true;
+    }
+
     internal void PlayClip(string name, float t, bool frozen)
     {
         if (!People2.Clips.ContainsKey(name)) return;
@@ -658,10 +678,13 @@ internal sealed class Human2
         }
     }
 
+    /// <summary>How far the person is seated (0..1, eased over 0.6 s): the near copy's `sit` shape (skirts fall in).</summary>
+    internal float SitWeight { get; private set; }
     public void Update(float dt)
     {
         if (dt <= 0 || !root.IsInsideTree()) return;
         age += dt;
+        SitWeight = Mathf.MoveToward(SitWeight, motion is "sit" or "lace" or "row" or "ride" ? 1 : 0, dt / 0.6f);
         var a = clip; var b = clip; float weight = 0;
         float bodyRatio = hips / clip.Hips;
         float rate = speeds.GetValueOrDefault(motion, 1);
