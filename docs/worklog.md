@@ -27,13 +27,14 @@ Rules for helpers: one Godot window at a time, own `--db`/`--prefs`/`--author-ro
 timing runs only while holding `D:/Code/_locks/PERF-LOCK`, `native-godot/override.cfg` (silent, right screen) in
 each worktree, never Steve's save or layouts.
 
-## Ruien plan in 2D, 2026-10-18 (first draft, waits for Steve)
+## Ruien plan in 2D, 2026-10-18 (second draft, waits for Steve)
 
-- `docs/plans/ruien/`: the plan over the town map (`ruien-plan.html`), sections to scale, sizes from the real Ruien,
-  levels against the game's tide, gates, the hall under the Grote Markt and the ways in and out. Made by
-  `tools/ruien/plan.py` from `ruien-network.json`. Nothing in the game changes yet.
-- Open for Steve: do the gates lock Antigoon in; ruien too low for him (now) or 4 m with a bent-over walk; does the hall
-  take the south's drainage.
+- `docs/plans/ruien/`: Steve's redrawn network worked out over the town map (`ruien-plan.html`): sizes (red 6 x 5.2 m,
+  water to Antigoon's waist; blue 4 m from the water's bottom to the roof, walkway above the water), halls, gates,
+  148 ladders under grates, 18 stairs, 45 dim lamps, side drains for all gullies. Ten Codex mood pictures in
+  `concepts/`, sources in `references.md`. Made by `tools/ruien/trace.py` and `plan.py`. Nothing in the game changes yet.
+- Open for Steve: Antigoon bends 0.6 m in a rui (needs a bent-over walk) or becomes 3.85 m; the Bassin boat door.
+  Antigoon to 4.4 m is Steve's decision, not done in the game yet.
 
 ## People and animals in high detail, 2026-10-13 (art3, in progress)
 
