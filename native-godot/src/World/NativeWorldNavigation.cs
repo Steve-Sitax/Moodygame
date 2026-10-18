@@ -17,6 +17,8 @@ public static class NativeWorldNavigation
     {
         "ground_earth", "ground_flags", "ground_cobble", "ground_grass", "ground_quay",
         "park_ground_lawn", "park_ground_gravel", "park_ground_mud", "park_ground_bed",
+        // the Sint-Jansplein (townplaces "rond") draws its own ground: without these the square was closed to every walk (#187)
+        "rond_pavement", "rond_road", "rond_kerbs", "rond_island", "rond_path",
     };
     private static readonly HashSet<string> ConnectedNames = new(StringComparer.OrdinalIgnoreCase)
     {

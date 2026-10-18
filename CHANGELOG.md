@@ -11,6 +11,9 @@ Bugs and loose ends are tracked as [issues](https://github.com/Steve-Sitax/Moody
 
 ## [Unreleased]
 
+- Room furniture keeps its shape (#183). The bar stools that were one stool stretched 3.8 m along the bar are a row of five stools; a long counter is two counter sections; tables pushed together are two tables; casks, barrels and wall clocks come in their own size instead of being pulled out of shape. A piece that fits nothing keeps its own old model. The stretched shelf behind De Vliet's bar is gone; the bottle shelves show.
+- The Sint-Jansplein is open again: townspeople walk across it and can reach its four benches (#187).
+- The Steen's sailor no longer sits frozen on a bench by the Steen; the benches are for the town's live people (#187).
 - The town's houses drain their rain now: half-round iron gutters on hangers under the eaves and on the cornices, downpipes with a swan neck, cast brackets and a shoe, rainwater heads where two gables meet, an iron channel across the pavement to the street gutter and grated gullies, with rust and damp streaks down the wall. Rain darkens the iron and makes it shine. A few old houses throw the water clear from a spout, and the broken gutters the rain pours from are broken in the gutter too (#163).
 - A clear day looks clear: a blue sky over a light haze, the fog lighter and further off, a stronger sun on the walls, and real sun shadows of people, trees, stalls and eaves near you (the Shadows setting, formerly Lantern shadows, turns them off). Mist, fog, rain and night look as before (#97).
 - Taverns, shops and homes follow the time of day inside: by day a cool light from the windows with the lamps out and only the stove burning; after dark the room's own light drops and its lamps and stove light it in warm pools (#137).

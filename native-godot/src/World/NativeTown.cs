@@ -72,6 +72,13 @@ public partial class NativeTown : BakedWorld
     /// rather than hiding something else. Not in the list, on purpose: the Steen's fisher, children and sailor and the net-mender at the trades (steenlife.ts, permanent
     /// street scenery), the goods and traffic rigs (their movers claim them), and everything the runtime parts hide themselves (the fire's crowd, the market).
     /// </summary>
+    /// <summary>A node's place in the town scene's own frame (the scene is not yet in the tree while it loads).</summary>
+    private static Transform3D InTown(Node node, Node town)
+    {
+        var xf = Transform3D.Identity;
+        for (Node? n = node; n != null && n != town; n = n.GetParent()) if (n is Node3D n3) xf = n3.Transform * xf;
+        return xf;
+    }
     private static readonly (string What, Func<Node3D, bool> Match)[] LeftoverSnapshots =
     {
         ("soot sheet", n => n.Name == "soot" || SourceOf(n) == "soot"),
@@ -175,6 +182,19 @@ public partial class NativeTown : BakedWorld
             foreach(var n in All(model)){n.SetMeta("native_replaced_event_snapshot",true);if(n is CollisionObject3D body){body.CollisionLayer=0;body.CollisionMask=0;}}
         }
         Report["hiddenRoomPeopleSnapshots"]=roomPeople;
+        // #187: a bake figure sat on or stood at a bench (the Steen's sailor) stays there frozen while the town's live people sit
+        // and sleep on the new benches: it goes. (The bus stops' waiters are the movers' own, live_waiters, and not baked.)
+        var benchSpots=All(town).OfType<Node3D>().Where(n=>n.HasMeta(NativeBenches.SleepMeta)).Select(n=>InTown(n,town).Origin).ToArray();
+        int benchPeople=0;
+        foreach(var skeleton in All(town).OfType<Skeleton3D>().ToArray())
+        {
+            if(skeleton.GetParent() is not Node3D model||!model.Visible||model.HasMeta("native_replaced_event_snapshot"))continue;
+            var at=InTown(model,town).Origin;
+            if(!benchSpots.Any(b=>new Vector2(b.X-at.X,b.Z-at.Z).Length()<1.2f&&Math.Abs(b.Y-at.Y)<1.5f))continue;
+            model.Visible=false;benchPeople++;
+            foreach(var n in All(model)){n.SetMeta("native_replaced_event_snapshot",true);if(n is CollisionObject3D body){body.CollisionLayer=0;body.CollisionMask=0;}}
+        }
+        Report["hiddenBenchPeopleSnapshots"]=benchPeople;
 
         Report["werfStepsCutTriangles"] = werfCut;
         Report["razedHouses"] = razed.Houses;

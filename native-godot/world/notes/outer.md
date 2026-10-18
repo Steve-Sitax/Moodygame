@@ -88,6 +88,15 @@ Source navigation recorded in `services/fixtures/population-lifecycle.json` is i
 never loads it. Run `services/check-outer-population.ps1 -Proof Lifecycle` without replacing a running game assembly.
 Add `-RefreshLegacyOracles` only during recovery to execute the original TypeScript in isolated memory databases.
 
+Re-recorded 2026-10-18 (#187): two deliberate changes after the import made the native towns differ from the original
+ones. #134 moved ten job places out of vehicle lanes (`spots.json`, goods, rules, ledger), and #112/#121 take a home's
+street side from its house outline (`NativeTownHouseDoors.cs`). With the import's data files and door code put back,
+all 168 checks still pass against the original towns. The expected towns, stage counts, records, NPCs and views are
+now the native generation of that date (`-Record`); the doors, navigation and recorded nearest-open answers stay the
+original's. A nearest-open query the original never made gets the point itself when it is open for a body (0.45 m) and
+reachable (as all 1,289 recorded answers of that kind), otherwise the nearest reachable cell's centre. After another
+deliberate change to town generation, re-record with `-Record`, read the diff and say why in this note.
+
 `NativeTown.PrivateTown` recomputes reachable activity anchors on cache rebuild, using saved anchors as source input
 before replacing them; it does not rewrite a save. Centre's full Homes/Night and Shops/Cafés fixtures passed 96 each.
 Long route precomputation runs outside the database gate, coalesces requests and rejects a replaced town revision.

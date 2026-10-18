@@ -162,6 +162,21 @@ camp), `clips`. Morning work keeps its own clock; the pictures' light is set to 
 check. The work goods are built with `native-godot/scripts/build-workgoods.ps1` and stored with
 `replace-workgoods.ps1`.
 
+## Room furniture sizes and the leftovers check
+
+`--furniture-size-check <dir>` (issue 183; `res://town.tscn`, with `--no-ai --no-mainmenu --native-services`, its own `--db`,
+`--prefs`, `--author-root`, port and `SCHELDEMIST_USER_DATA`) measures every room item drawn with a kit piece
+(`Interiors/FurnitureVisual.cs`): each drawn piece's scale on its three axes, taken from the piece itself, must stay within
+1.35 of its own size (casks and clocks may be bigger or smaller, but keep their shape), and no placed object may be scaled.
+It writes `furniture-size.json` (each item: how it was fitted, `fit`, `sized`, `wall`, `row N` or `recovered`, its recovered
+size, the kit piece's own size and stretch) and 13:00 pictures of the items that were stretched before;
+`--furniture-size-shots id,id` picks others. Exit 1 on a failure.
+
+`--leftovers-proof <dir>` (issues 186 and 187, same flags) checks, at 13:00 clear: no frozen bake figure on or at a bench
+(`figures`), the Sint-Jansplein open in the walk map with its four benches joined to the streets (`rond`), and Jef climbing the
+Vleeshuis stair to the theatre floor with his own body (`theatre`). `--leftovers-only a,b` picks stages. It writes
+`leftovers.json` and pictures; exit 1 on a failure.
+
 ## Market, work board, warmth, benches and room keepers
 
 `--market-proof <dir>` (with `--no-ai --no-mainmenu --dev`, its own `--db`, `--prefs`, `--author-root`, port and
