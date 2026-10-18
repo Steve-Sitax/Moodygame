@@ -223,6 +223,7 @@ public partial class PostedPeople : Node
         var taken = TakenWork ?? accepted;
         foreach (var n in list)
         {
+            if(Scheldemist.Talks.ConversationHold.I?.Held(n.Id)==true)continue;
             if (n.Resident == null)
             {
                 // the Rijnkaai's own: at the post in their hours, with a lantern after dark while their work is open
@@ -330,12 +331,14 @@ public partial class PostedPeople : Node
                 if (routes.Count == 0) routes = LocalRound.RoundRoutes(home, free, seed, 0.8);
                 n.Round = new LocalRound(home, routes, seed);
             }
-            n.Round.Update(delta, d < 3.2, free);
+            if(Scheldemist.Talks.ConversationHold.I?.Held(n.Id)!=true)n.Round.Update(delta, d < 3.2, free);
+            else if(Scheldemist.Talks.ConversationHold.I?.Anchor(n.Id) is {} heldAt){n.Round.X=heldAt.X;n.Round.Z=heldAt.Y;}
             n.X = n.Round.X;
             n.Z = n.Round.Z;
             n.Y = n.OnDeck ? Math.Max(Tide.LevelAt(-40, -7.2f), BrigFloor) + DeckOverWater : town.Walk.BaseAt(n.X, n.Z);
             // walking: the way he goes; Jef within six metres: he looks at him; else as he stands at the post
-            if (n.Round.Walking) n.Facing = n.Round.Yaw;
+            if(Scheldemist.Talks.ConversationHold.I?.Facing(n.Id) is {} talkAt)n.Facing=Math.Atan2(talkAt.X-n.X,talkAt.Y-n.Z);
+            else if (n.Round.Walking) n.Facing = n.Round.Yaw;
             else if (d < 6) n.Facing = Math.Atan2(jef!.X - n.X, jef.Z - n.Z);
             else n.Facing = n.Anchor.yaw;
             n.Yaw += Math.Atan2(Math.Sin(n.Facing - n.Yaw), Math.Cos(n.Facing - n.Yaw)) * Math.Min(1, delta * 3);
@@ -379,7 +382,10 @@ public partial class PostedPeople : Node
     private void Animate(Posted n, double dt, double d)
     {
         var h = n.Human!;
-        if (n.Round is { Walking: true })
+        var facing=Scheldemist.Talks.ConversationHold.I?.Facing(n.Id);
+        h.FaceConversation(facing is {} at?new Vector3(at.X,(float)n.Y+1.6f,at.Y):null);
+        if(Scheldemist.Talks.ConversationHold.I?.Held(n.Id)==true)h.Play("talk",.3f);
+        else if (n.Round is { Walking: true })
         {
             h.Play("walk");
             h.SetPace((float)n.Round.Speed);

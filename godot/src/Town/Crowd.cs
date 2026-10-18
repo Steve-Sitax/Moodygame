@@ -241,6 +241,7 @@ public sealed class Puppet
     internal double Drop;
     public bool Shown;
     public bool Remote;
+    public bool Conversing;
     internal double AnimAcc;
     internal double BestD = double.PositiveInfinity, StuckT;
     /// <summary>Standing at the end of a bridge that is up, until it is down (Walk).</summary>
@@ -443,6 +444,7 @@ public sealed partial class Crowd
     /// <summary>Walk there on the grid; the way is worked out over the next frames.</summary>
     public void PuppetGo(Puppet p, double x, double z, double? pace = null)
     {
+        if(p.Conversing)return;
         if (pace is > 0) p.Pace = pace.Value;
         double tx = x, tz = z;
         if (!map.IsNative && grid.Built && !grid.Inside(x, z, 4))
@@ -742,6 +744,7 @@ public sealed partial class Crowd
 
     private void Think(Puppet p, double dt)
     {
+        if(p.Conversing){if(p.PYaw is {} a)Face(p,a,dt);return;}
         p.SinceDetour += dt;
         if(GiveWay(p,dt))return;
         if (p.Role == "follow")

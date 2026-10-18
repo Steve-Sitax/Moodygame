@@ -38,6 +38,7 @@ public sealed partial class NativeMultiplayer
         if(!Limited(conn,seat,text.StartsWith("{\"type\":\"world\"",StringComparison.Ordinal)?"world":"text"))return;
         string type=Text(message,"type");
         if(type=="ping"&&message["c"]!=null&&double.IsFinite(Number(message,"c",double.NaN)))Send(conn,new JsonObject{["type"]="pong",["c"]=message["c"]!.DeepClone(),["s"]=C.Now});
+        else if(type=="owners") { Send(conn,new JsonObject{["type"]="owners",["full"]=true,["list"]=owners.List()});Send(conn,PinsMessage()); }
         else if(type=="claim"&&message["ids"] is JsonArray requested) {
             var current=PinsNow();var result=owners.Claim(seat.Id,Strings(requested),Bool(message,"steal"),id=>current.TryGetValue(id,out int p)?p:null);
             if(result.Changes.Count>0){if(!puppetsAt.ContainsKey(seat.Id))puppetsAt[seat.Id]=C.Now;SendAll(new JsonObject{["type"]="owners",["list"]=result.Changes});}if(result.Denied.Count>0)Send(conn,new JsonObject{["type"]="owners",["list"]=result.Denied});

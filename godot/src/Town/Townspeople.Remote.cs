@@ -22,7 +22,9 @@ public partial class Townspeople
         // people2 (package D3): a hauler bending at a sack pile lifts a sack there, as on the host (from the routes)
         if (puppet.Human.IsPeople2 && motion != puppet.Human.Motion)
             puppet.Human.Work = motion == "crouch" && (pose.Gear & 4) == 0 && HaulRoute.SackPileAt(pose.X, pose.Z) != null ? "haul_sack" : null;
-        if (puppet.Human.Motion != motion) puppet.Human.Play(motion, .15f);
+        string animation=pose.PuppetVehicle==1&&motion=="talk"?"ride":motion;
+        if (puppet.Human.Motion != animation) puppet.Human.Play(animation, .15f);
+        puppet.Conversing = motion == "talk";
         puppet.PMotion = motion; puppet.State = (pose.Gear & 1) != 0 ? "sit" : motion is "walk" or "carry" or "push" or "ride" ? "walk" : "stand";
         puppet.Human.SetPace(Math.Max(.3f, pose.Speed));
         Crowd.PuppetLantern(puppet, (pose.Gear & 2) != 0);
@@ -34,7 +36,7 @@ public partial class Townspeople
     public void RemoteRelease(Sim person, bool remove = false)
     {
         if (!CurrentPerson(person)) return;
-        if (person.P is { } puppet) { puppet.Remote = false; Crowd!.PuppetStand(puppet); }
+        if (person.P is { } puppet) { puppet.Remote = false; puppet.Conversing = false; Crowd!.PuppetStand(puppet); }
         if (remove) Lose(person, true);
         person.Key = ""; person.Hw = null; person.Round = null;
         if (!person.ActionHeld) Reschedule(person, false);

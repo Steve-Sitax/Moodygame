@@ -20,12 +20,13 @@ namespace Scheldemist.Town;
 /// Whether a door stands open is the doors' part: Townspeople.DoorAt answers when it is set; until then a house is
 /// open while its keeper is at work.
 /// </summary>
-public sealed class Indoors
+public sealed partial class Indoors
 {
     public sealed class House
     {
         public string Id = "", Kind = "";
         public Pt Door, Out;
+        public readonly List<Pt> EntryLane=new();
         /// <summary>Where the town sends those who go in (the place's point, a shop's door step).</summary>
         public Pt Goal;
         public Resident? Keeper;
@@ -60,6 +61,7 @@ public sealed class Indoors
     public Indoors(Townspeople town)
     {
         this.town = town;
+        clearanceQuery.Exclude=new Godot.Collections.Array<Rid>{Scheldemist.Player.Jef.I.Body.GetRid()};
         var data = town.Data!;
         try
         {
@@ -87,6 +89,8 @@ public sealed class Indoors
                     house.Goal = pl?.Door ?? (pl != null ? new Pt(pl.X, pl.Z) : shop.Door);
                     house.Keeper = data.Residents.FirstOrDefault(r => r.Id == shop.Keeper);
                 }
+                if(Main.I.World.NativeRoom(id) is {} room)
+                {house.Door=new(room.Frame.Origin.X,room.Frame.Origin.Z);var outward=-room.Frame.Basis.Z.Normalized();house.Out=new(outward.X,outward.Z);}
                 Houses.Add(house);
                 byPlace[id] = house;
             }
@@ -109,55 +113,7 @@ public sealed class Indoors
     private List<Pt> SpotsOf(House h)
     {
         if (h.Spots != null) return h.Spots;
-        var walk = town.Walk!;
-        var seen = new HashSet<(int, int)>();
-        var queue = new Queue<(int, int)>();
-        var cells = new List<Pt>();
-        // from a step inside the door, over the floor a body fits on, never back out through the door's plane
-        for (double inStep = 1.0; inStep <= 2.5 && queue.Count == 0; inStep += 0.5)
-        {
-            double sx = h.Door.X - h.Out.X * inStep, sz = h.Door.Z - h.Out.Z * inStep;
-            if (walk.Free(sx, sz)) queue.Enqueue(((int)Math.Round(sx * 2), (int)Math.Round(sz * 2)));
-        }
-        foreach (var c in queue) seen.Add(c);
-        while (queue.Count > 0 && cells.Count < 600)
-        {
-            var (ix, iz) = queue.Dequeue();
-            double x = ix / 2.0, z = iz / 2.0;
-            cells.Add(new Pt(x, z));
-            foreach (var (dx, dz) in new[] { (1, 0), (-1, 0), (0, 1), (0, -1) })
-            {
-                var n = (ix + dx, iz + dz);
-                double nx = n.Item1 / 2.0, nz = n.Item2 / 2.0;
-                if (seen.Contains(n) || !walk.Free(nx, nz)) continue;
-                double behind = -((nx - h.Door.X) * h.Out.X + (nz - h.Door.Z) * h.Out.Z);
-                if (behind < 0.7 || Whereabouts.Hypot(nx - h.Door.X, nz - h.Door.Z) > 9) continue;
-                seen.Add(n);
-                queue.Enqueue(n);
-            }
-        }
-        var spots = new List<Pt>();
-        if(Main.I.World.NativeFurniture?.FirstOrDefault(p=>p.Room==h.Id&&p.Kind=="counter") is {} counter)
-            spots.Add(new Pt(counter.KeeperAt.X,counter.KeeperAt.Z));
-        // Seats are explicit room destinations. The recovered street walk grid can have
-        // no standing cells behind a counter, but that must not suppress seated patrons.
-        if(Main.I.World.NativeFurniture is {} furniture)
-            foreach(var item in furniture.Where(p=>p.Room==h.Id))
-                foreach(var seat in item.Seats)
-                {
-                    var at=item.Node.ToGlobal(seat);
-                    if(spots.Count<PerHouse&&!spots.Any(p=>Whereabouts.Hypot(p.X-at.X,p.Z-at.Z)<.3))
-                        spots.Add(new Pt(at.X,at.Z));
-                }
-        foreach (var c in cells.OrderByDescending(c => Whereabouts.Hypot(c.X - h.Door.X, c.Z - h.Door.Z)))
-        {
-            if (spots.Count >= PerHouse) break;
-            // a metre from the next, and room round the body
-            if (spots.Any(s => Whereabouts.Hypot(s.X - c.X, s.Z - c.Z) < 1.1)) continue;
-            if (!walk.Free(c.X + 0.3, c.Z) || !walk.Free(c.X - 0.3, c.Z) || !walk.Free(c.X, c.Z + 0.3) || !walk.Free(c.X, c.Z - 0.3)) continue;
-            spots.Add(c);
-        }
-        return h.Spots = spots;
+        return h.Spots = RoomSpots(h);
     }
 
     /// <summary>Who is inside this house now: those who went in at its door (the keeper first).</summary>
@@ -207,7 +163,7 @@ public sealed class Indoors
                 {
                     bool keep = false;
                     foreach (var person in want) if (person.R.Id == id) { keep = true; break; }
-                    if (!keep) removed.Add(id);
+                    if (!keep && Scheldemist.Talks.ConversationHold.I?.Held(id)!=true) removed.Add(id);
                 }
                 foreach (string id in removed) Drop(h, id);
                 int total = 0;
@@ -225,18 +181,18 @@ public sealed class Indoors
                         if (!taken) break;
                     }
                     if (spot == spots.Count) continue;
-                    var human = Humans.Make(Humans.IsKind(s.Kind) ? s.Kind : "docker_a");
+                    var human = Humans.Make(s.Kind) ?? Humans.Make("docker_a");
                     if (human == null) continue;
                     var at = spots[spot];
                     var g = new Node3D { Name = "indoors_" + s.R.Id };
                     g.AddChild(human.Root);
                     Main.I.View.AddChild(g);
-                    var body = new StaticBody3D { CollisionLayer = Solid.Layer, CollisionMask = 0 };
-                    body.AddChild(new CollisionShape3D { Shape = new CylinderShape3D { Radius = 0.3f, Height = 1.5f }, Position = new Vector3(0, 0.75f, 0) }); g.AddChild(body);
                     total++;
+                    human.SetIndoor(true);
+                    human.SetIdentity(s.R.Id);
                     human.Start();
                     double yaw = Math.Atan2(h.Door.X - at.X, h.Door.Z - at.Z);
-                    g.Position = new Vector3((float)at.X, (float)town.Walk!.BaseAt(at.X, at.Z), (float)at.Z);
+                    g.Position = new Vector3((float)at.X, FloorY(h,at), (float)at.Z);
                     g.Rotation = new Vector3(0, (float)yaw, 0);
                     h.Figures[s.R.Id] = new Figure { Human = human, Group = g, Yaw = yaw, Want = yaw, Spot = spot, Wait = rng.NextDouble() * 4 };
                 }
@@ -245,8 +201,13 @@ public sealed class Indoors
             drawn += h.Figures.Count;
             if (d > AnimR) continue;
             var list = h.Figures.Values;
-            foreach (var f in list)
+            foreach (var pair in h.Figures)
             {
+                var f=pair.Value;
+                Yield(h,f,dt,eye);
+                if(Scheldemist.Talks.ConversationHold.I?.Facing(pair.Key) is {} facing)
+                {var p=f.Group.Position;bool seated=f.Human.Motion=="sit";f.Human.FaceConversation(new(facing.X,p.Y+1.6f,facing.Y),seated);if(!seated){f.Want=Math.Atan2(facing.X-p.X,facing.Y-p.Z);f.Human.Play("talk",.25f);}f.Wait=1;}
+                else f.Human.FaceConversation(null);
                 if ((f.Wait -= dt) <= 0)
                 {
                     // a word with the nearest other, or a look to the door
@@ -275,10 +236,12 @@ public sealed class Indoors
     private static void Drop(House h, string id)
     {
         if (!h.Figures.Remove(id, out var f)) return;
+        f.Human.Dispose();
         f.Group.QueueFree();
     }
 
     /// <summary>For a check: every figure drawn inside.</summary>
+    public IEnumerable<Human> Models(House h) => h.Figures.Values.Select(f=>f.Human);
     public IEnumerable<Node3D> Groups => Houses.SelectMany(h => h.Figures.Values.Select(f => f.Group));
     public Vector3? PositionOf(string id)
     {
@@ -291,5 +254,6 @@ public sealed class Indoors
     {
         foreach (var h in Houses)
             foreach (var id in h.Figures.Keys.ToList()) Drop(h, id);
+        clearanceQuery.Dispose();clearanceShape.Dispose();
     }
 }

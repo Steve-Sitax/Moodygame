@@ -49,10 +49,13 @@ public partial class Actors
         {
             var person=town.ActionPerson(pair.Key);if(person is not {ActionHeld:true}||!ReferenceEquals(person.ActionOwner,this))continue;
             var replica=pair.Value;
+            // An action can adopt an already-owned street body after the ownership packet.
+            // Reapply its simulation owner here so an observer never runs the local walker.
+            if(replica.Owner>0&&person.P is {} owned)owned.Remote=replica.Owner!=together.PlayerId;
             if(replica.Owner==0||replica.Owner==together.PlayerId||replica.Track.Sample(together.ServerNow) is not {} pose)continue;
             var s=person;if(s.Inside)continue;s.X=pose.X;s.Z=pose.Z;
             var p=s.P;if(p==null&&new Vector2(pose.X,pose.Z).DistanceSquaredTo(new(Main.I.Cam.GlobalPosition.X,Main.I.Cam.GlobalPosition.Z))<58*58)p=town.ActionClaim(s);
-            if(p==null)continue;p.X=pose.X;p.Z=pose.Z;p.Yaw=pose.Yaw;p.Size=replica.Size;p.Loaded=(pose.Gear&4)!=0;town.Crowd!.PuppetLantern(p,(pose.Gear&2)!=0);
+            if(p==null)continue;p.Remote=true;p.X=pose.X;p.Z=pose.Z;p.Yaw=pose.Yaw;p.Size=replica.Size;p.Loaded=(pose.Gear&4)!=0;town.Crowd!.PuppetLantern(p,(pose.Gear&2)!=0);
             town.Crowd!.PuppetStand(p,EventPuppets.Motions[pose.Mode],pose.Yaw);p.Human.SetPace(Math.Max(.3f,pose.Speed));
         }
         if(replicaWait>0)return;replicaWait=.1;

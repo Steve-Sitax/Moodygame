@@ -69,7 +69,7 @@ public partial class ResidentJourneys:Node
     {
         if(!(GameState.I.Playing||Player.Jef.I.TestInput))return;double dt=Math.Min(delta,.1);TransportUpdate(dt);
         for(int i=Trips.Count-1;i>=0;i--){var t=Trips[i];var s=t.Person;
-            if(town.MaySimulate?.Invoke(s.R.Id)==false)continue;
+            if(town.MaySimulate?.Invoke(s.R.Id)==false || Scheldemist.Talks.ConversationHold.I?.Held(s.R.Id)==true)continue;
             if(!ReferenceEquals(s.ActionOwner,this)){End(t,false);continue;}t.Time+=dt;
             if(t.Mode!="omnibus"){StepTransport(t,dt);continue;}
             if(t.Phase=="bus"){if(t.Bus!=null){s.X=t.Bus.Pa.X;s.Z=t.Bus.Pa.Y;}continue;}

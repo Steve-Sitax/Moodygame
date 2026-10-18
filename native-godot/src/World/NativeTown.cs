@@ -24,8 +24,10 @@ public partial class NativeTown : BakedWorld
     public override IReadOnlySet<string>? NativeFurnitureRooms => Layouts.Districts.Where(d=>d.District.RoomId!="").Select(d=>d.District.RoomId).ToHashSet(StringComparer.Ordinal);
     private IReadOnlyList<InteriorFurniture>? furniture;
     private Dictionary<string,InteriorFurniture>? furnitureById;
-    public override IReadOnlyList<InteriorFurniture>? NativeFurniture => furniture??=Layouts.Districts.Where(d=>d.District.RoomId!="").SelectMany(d=>d.Objects.GetChildren().OfType<AuthoredObject>().Select(o=>
+    public override IReadOnlyList<InteriorFurniture>? NativeFurniture => furniture??=Layouts.Districts.Where(d=>d.District.RoomId!="").SelectMany(d=>d.Objects.GetChildren().OfType<AuthoredObject>().Where(o=>!o.GetChildren().OfType<Scheldemist.Native.Interiors.FurnitureVisual>().Any(v=>v.ResidentSnapshot)).Select(o=>
         new InteriorFurniture(d.District.RoomId,o.ObjectId,o.Asset!.FurnitureKind,o,o.Asset.SeatPoints,o.Asset.SeatHeight,o.Asset.SeatYaw,o.Asset.Table,o.Asset.UsePoint,o.Asset.StandPoint,o.Asset.Footprint,o.Asset.FootprintOffset,o.Asset.KeeperPoint==Vector3.Zero?o.Asset.StandPoint:o.Asset.KeeperPoint))).ToArray();
+    public override (Transform3D Frame, Rect2 Bounds)? NativeRoom(string id)
+    {var room=Layouts.Districts.FirstOrDefault(d=>d.District.RoomId==id);return room==null?null:(room.District.RoomFrame,room.District.RoomBounds);}
     public override Node3D? CreateNativeFurniture(string kind)
     {
         string path="res://assets/props/furniture-"+kind+".tscn";
@@ -147,6 +149,20 @@ public partial class NativeTown : BakedWorld
         quayLadders = ladders.Ladders;
         foreach (var note in ladders.Notes) GD.Print("quay ladders: " + note);
         AddChild(town);
+        // Static room portraits are source snapshots, never a second resident model.
+        int roomPeople=0;
+        foreach(var skeleton in All(town).OfType<Skeleton3D>())
+        {
+            bool room=false;for(Node? n=skeleton.GetParent();n!=null;n=n.GetParent())
+                if(n.Name.ToString().StartsWith("ROOM_tavern_")||n.Name.ToString().StartsWith("ROOM_shop_")){room=true;break;}
+            if(!room||skeleton.GetParent() is not Node3D model)continue;
+            model.Visible=false;roomPeople++;
+            foreach(var player in All(model).OfType<AnimationPlayer>()){player.Autoplay="";player.Stop();}
+            foreach(var mesh in All(model).OfType<GeometryInstance3D>())mesh.Visible=false;
+            foreach(var n in All(model)){n.SetMeta("native_replaced_event_snapshot",true);if(n is CollisionObject3D body){body.CollisionLayer=0;body.CollisionMask=0;}}
+        }
+        Report["hiddenRoomPeopleSnapshots"]=roomPeople;
+
         Report["werfStepsCutTriangles"] = werfCut;
         Report["razedHouses"] = razed.Houses;
         Report["razedTriangles"] = razed.Triangles;

@@ -32,6 +32,21 @@ internal sealed class Human2
     internal static long ValidatedPoseSkips { get; private set; }
     private readonly int[] boneMap;
     private readonly HumanLayers layers;
+    private People2.Clip? seatedTalk;
+    private float seatedTalkTime;
+    private readonly HashSet<int> conversationBones=new();
+    internal void FaceConversation(Vector3? target,bool seated)
+    {
+        layers.AttentionTarget=target;
+        if(target.HasValue&&seated&&seatedTalk==null)
+        {
+            string name=fam==null?"talk":TalkClip();
+            seatedTalk=People2.Clips.GetValueOrDefault(name);seatedTalkTime=0;
+            if(conversationBones.Count==0)for(int bone=0;bone<rest.Length;bone++)
+            {string key=sk.GetBoneName(bone).ToString();if(key is "chest" or "neck" or "head" || key.StartsWith("clavicle") || key.StartsWith("arm") || key.StartsWith("hand") || key.StartsWith("finger"))conversationBones.Add(bone);}
+        }
+        if((!target.HasValue||!seated)&&seatedTalk!=null){seatedTalk=null;Speaking=false;}
+    }
     private readonly Dictionary<string, float> speeds = new();
     private string motion = "idle";
     private People2.Clip clip = null!;
@@ -76,6 +91,8 @@ internal sealed class Human2
         }
     }
     internal bool CanSit => !Humans.OwnClips.ContainsKey(kind);
+    private bool indoor;
+    internal void SetIndoor(bool value){indoor=value;vehicle.UseExternal(value);}
     internal void UseExternalVehicle(bool external) => vehicle.UseExternal(external);
     private string? load;          // what is carried: "sack", "crate", "fishbox", "keg" (Crowd.PuppetLoad)
     private bool dropPending;      // a sack just let go: set it down before standing
@@ -279,6 +296,8 @@ internal sealed class Human2
     /// <summary>The D3 clip for a motion (null: none; the D2 and the old ones decide).</summary>
     private string? WorkClip(string m)
     {
+        // The carter and porter keep their clothes in a room, with their cart/truck outside.
+        if(indoor&&vehicle.Present)return null;
         if (People2Moves.KindClip(kind, m) is { } own && People2.Clips.ContainsKey(own)) return own;
         if (vehicle.Present && m is "talk" or "fold" or "behind" or "lean" or "sit")
             return People2Moves.KindClip(kind, "idle");
@@ -601,6 +620,7 @@ internal sealed class Human2
         float blend = fadeDuration > 0 ? 1 - fadeLeft / fadeDuration : 1;
         if (blend < 1) blend = blend * blend * (3 - 2 * blend);
         long poseStart = Dev.PeopleTiming.ProfileStart();
+        if(seatedTalk!=null)seatedTalkTime=(seatedTalkTime+dt)%seatedTalk.Length;
         for (int bone = 0; bone < rest.Length; bone++)
         {
             int source = boneMap[bone];
@@ -608,6 +628,9 @@ internal sealed class Human2
             Quaternion q = track >= 0 ? a.Rotations.NormalizedAt(track, ta) : rest[bone];
             if (a != b && other >= 0) q = q.Slerp(b.Rotations.NormalizedAt(other, tb), weight);
             q = blend < 1 ? fadeFrom[bone].Normalized().Slerp(q.Normalized(), blend) : q;
+            if(seatedTalk!=null && conversationBones.Contains(bone) && source>=0 && seatedTalk.RotationTracks[source] is int talkTrack && talkTrack>=0)
+                q=seatedTalk.Rotations.NormalizedAt(talkTrack,seatedTalkTime);
+
             if (!cachePose[bone] || !poseWritten[bone] || writtenPose[bone] != q)
             {
                 sk.SetBonePoseRotation(bone, q); writtenPose[bone] = q; poseWritten[bone] = true;

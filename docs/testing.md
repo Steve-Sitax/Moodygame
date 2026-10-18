@@ -89,6 +89,25 @@ Interior rays need the live room part's `IInteriorAuditSource` to certify room v
 fails and marks the probes diagnostic. Floor connectivity, seams, containment, shader-only cutouts and unmarked
 painted windows remain outside that fallback.
 
+## Conversations and indoor entrances
+
+Build/import the native project first. `pwsh -File native-godot/scripts/check-conversations.ps1 -Output <fresh-directory> -Port 8925`
+runs the real game with isolated saves, preferences and layouts, seed 1873 and no AI. It audits every native
+shop/tavern room against the actual physics geometry and player body, reserves an entrance-to-counter lane,
+checks standing allocations, walks Jef into De Vliet, and captures its doorway/interior at 13:00 clear and 20:00.
+It also checks live conversation holds, facing, clock progress, release, working employers and native bicycle,
+handcart and horse-dray components. Inspect `conversation.json`, `rooms.json`, `cafe-walk.json` and the PNGs.
+
+Add `-Multiplayer` with another fresh output directory to run the existing `MpTest` host/guest harness in its
+`--mpconversation` mode. The guest runs headless, so only the host opens a window. The guest checks its actual
+remote puppet's talk pose and position, refused ownership takeover, and release; `mptest.json` contains both
+observations and `mp-talk-host.png` shows the host's conversation. The next port belongs to the guest.
+The wrapper does not rebuild the network fingerprint; use matching source/resources for both processes.
+
+`dotnet run --project native-godot/services/proofs/Multiplayer.Proof.csproj` also checks exclusive talk leases,
+release permissions, distance limits, lost heartbeats, invalid coordinates and the hard three-minute deadline.
+This rule proof advances an injected clock; it does not replace inspecting the rendered game.
+
 ## Testing in the browser
 
 How to check a change in the game quickly, and where and when to look. Steve's rule (CLAUDE.md): every

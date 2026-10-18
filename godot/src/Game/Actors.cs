@@ -151,7 +151,7 @@ public partial class Actors : Node
         ulong start = Time.GetTicksUsec(); long before = GC.GetAllocatedBytesForCurrentThread(); clock += delta;
         foreach (var r in Runs)
         {
-            if (!NpcOwned(r.Action.Npc)) continue;
+            if (!NpcOwned(r.Action.Npc) || Scheldemist.Talks.ConversationHold.I?.Held(r.Action.Npc)==true) continue;
             Step(r, delta);
             if (GodotObject.IsInstanceValid(r.Wear))
             {

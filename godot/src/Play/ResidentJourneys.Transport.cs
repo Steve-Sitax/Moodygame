@@ -210,7 +210,7 @@ public partial class ResidentJourneys
                 var dir=new Vector2(MathF.Sin(cart.Z),MathF.Cos(cart.Z));var side=new Vector2(dir.Y,-dir.X);var axle=new Vector2(cart.X,cart.Y);var candidates=new[]{axle-dir*.6f+side,axle-dir*.6f-side,axle-dir*2.7f};t.Bed=candidates.FirstOrDefault(q=>town.Crowd!.CanStand(q.X,q.Y),candidates[2]);t.HasBed=true;
             }
         }
-        void Carry(Puppet who,Carrier step){step.Go-=dt;step.Wait-=dt;if(step.Wait>0)return;
+        void Carry(Puppet who,Carrier step){if(who.Conversing)return;step.Go-=dt;step.Wait-=dt;if(step.Wait>0)return;
             if(step.Step==0){town.Crowd!.PuppetLoad(who,true);if(new Vector2((float)who.X,(float)who.Z).DistanceTo(t.Bed)<1.5){t.Loaded=Math.Min(items,t.Loaded+1);CartItems(t,t.Loaded);town.Crowd.PuppetLoad(who,false);town.Crowd.PuppetStand(who);step.Step=1;step.Go=0;step.Wait=1.3;}else if(step.Go<=0||!town.Crowd.PuppetBusy(who)){step.Go=1.5;town.Crowd.PuppetGo(who,t.Bed.X,t.Bed.Y,.9);}}
             else if(step.Step==1){if(new Vector2((float)who.X,(float)who.Z).DistanceTo(t.Door)<.9){step.Step=t.Loaded+t.Helpers.Count(h=>h.Step==0)<items?0:2;step.Wait=step.Step==0?1.6:0;}else if(step.Go<=0||!town.Crowd!.PuppetBusy(who)){step.Go=1.5;town.Crowd!.PuppetGo(who,t.Door.X,t.Door.Y,1.1);}}
         }

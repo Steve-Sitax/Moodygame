@@ -23,7 +23,9 @@ public sealed partial class NativeMultiplayer
         // Source priority: family seeks, hired/treat/return hands, then job calls.
         foreach(var row in rows.Where(r=>Text(r,"kind")=="seek")){int who=SeekHolder(row);if(on.Contains(who))result[Text(row,"npc_id")]=who;}
         foreach(var row in rows.Where(r=>Text(r,"kind")=="routine")) { var routine=ActionData(row)["routine"] as JsonObject;if(routine==null||Text(routine,"purpose") is not("hire" or "treat" or "goods_back"))continue;int who=(int)(routine["state"] is JsonObject state&&state["player"]!=null?Number(state,"player"):Number(routine,"player",1));if(on.Contains(who))result[Text(row,"npc_id")]=who; }
-        foreach(var row in rows.Where(r=>Text(r,"kind")=="come")){int who=ComeHolder(row);if(on.Contains(who))result[Text(row,"npc_id")]=who;}return result;
+        foreach(var row in rows.Where(r=>Text(r,"kind")=="come")){int who=ComeHolder(row);if(on.Contains(who))result[Text(row,"npc_id")]=who;}
+        foreach(var pin in host.TalkHolds?.Invoke(on) ?? new Dictionary<string,int>())result[pin.Key]=pin.Value;
+        return result;
     }
     private IEnumerable<int> DefaultFigureHolders()=>C.Rows("SELECT DISTINCT COALESCE(taken_by,1) AS player FROM job WHERE status='taken'").OfType<JsonObject>().Select(row=>(int)Number(row,"player")).Concat(C.Rows("SELECT * FROM npc_action WHERE kind='come' AND status='active'").OfType<JsonObject>().Select(ComeHolder)).Distinct();
     public bool MayReportNpc(int player,string npc) {

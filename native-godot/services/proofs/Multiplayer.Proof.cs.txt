@@ -84,6 +84,8 @@ Check(hb.Count==before+1&&hb[^1][0]==3&&hb[^1][1]==1,"only guest-owned puppet en
 mp.ReceiveText(gc,"{\"type\":\"claim\",\"ids\":[\"guest-first-action\"]}");Check(mp.Walker("guest-first-action")==guest,"action handover fixture begins on a guest-owned ordinary resident");
 mp.ReceiveText(hc,"{\"type\":\"claim\",\"ids\":[\"guest-first-action\"],\"steal\":true}");Check(mp.Walker("guest-first-action")==1,"host action claims take an existing unpinned guest resident");
 mp.ReceiveText(hc,"{\"type\":\"release\",\"ids\":[\"guest-first-action\"]}");mp.ReceiveText(gc,"{\"type\":\"claim\",\"ids\":[\"guest-first-action\"]}");Check(mp.Walker("guest-first-action")==guest,"released action returns to ordinary street ownership");
+before=gt.Count;mp.ReceiveText(gc,"{\"type\":\"owners\"}");
+Check(gt.Count==before+2&&S(gt[^2],"type")=="owners"&&B(gt[^2],"full")&&A(gt[^2]["list"]).Any(row=>row![1]!.GetValue<string>()=="guest-first-action"&&row[2]!.GetValue<int>()==guest)&&S(gt[^1],"type")=="pins","a loaded/replaced client can resynchronize authoritative resident ownership and pins");
 before=ht.Count;mp.ReceiveText(gc,"{\"type\":\"world\",\"t\":1000000,\"d\":{\"cranes\":[999]}}");Check(ht.Count==before,"non-world guest cannot overwrite moving world");
 before=gt.Count;mp.ReceiveText(hc,"{\"type\":\"world\",\"t\":1000000,\"d\":{\"cranes\":[1]}}");Check(gt.Count==before+1&&S(gt[^1],"type")=="world","authoritative world PC state relayed unchanged");
 var largeWorld=new JsonObject{["cranes"]=new JsonArray(Enumerable.Range(0,150).Select(i=>(JsonNode)new JsonObject{["id"]=i,["x"]=i*.37,["yaw"]=i*.03,["_ops"]=new string('Q',1000)}).ToArray())};
@@ -167,6 +169,26 @@ await host.Call("POST","/api/cart/proof/at","{\"x\":49,\"z\":12,\"yaw\":0,\"held
 Check(N(A(transport.CartView(2)["list"]).Single(c=>S(c,"id")=="cart:proof"),"x")==49,"the stolen loaded cart can be moved and parked");
 deeds.Return(2,(int)N(cartDeed,"deed"));
 Check(!A(transport.CartView(2)["list"]).Any(c=>S(c,"id")=="cart:proof")&&goods.Get(sack)?["by"]==null&&host.Context.Scalar<string>("SELECT state FROM home_item WHERE id=$p0",chair)=="gone","returning a stolen cart removes it and leaves cargo on the ground without duplicating furniture");
+// Issue 168: the server, not a dialog or a model, owns the exclusive bounded hold.
+var talkTown=new Scheldemist.Native.Services.NativeTown(host);var talkHolds=new NativeTownTalk(host,talkTown);host.AddModule(talkHolds);
+async Task<JsonNode> Hold(int player,string mode,double x=1,double z=1)=>JsonNode.Parse(await host.Call("POST","/api/talk/hold",JsonSerializer.Serialize(new{npc=residentId,mode,x,z,npc_x=1,npc_z=1}),player))!;
+var held=await Hold(1,"open");Check(B(held,"active")&&talkHolds.TalkPins(new[]{1,2}).GetValueOrDefault(residentId)==1,"talk opens an authoritative pin for its player");
+bool refusedTalk=false;try{await Hold(2,"open");}catch(NativeServiceException e){refusedTalk=e.Status==409;}Check(refusedTalk,"second player cannot take another player's conversation");
+var busyTalk=JsonNode.Parse(await host.Call("POST","/api/npc/"+residentId+"/talk",JsonSerializer.Serialize(new{kind="open"}),2))!;
+Check(B(busyTalk,"end")&&S(busyTalk,"npc_line").Contains("someone else"),"another player cannot narrate or propose actions through a held person's conversation");
+await Hold(2,"release");Check(talkHolds.TalkPins(new[]{1,2}).ContainsKey(residentId),"another player cannot release the speaker");
+now+=1000;var turned=await Hold(1,"renew",2,2);Check(B(turned,"active")&&N(A(turned["holds"])[0],"x")==2,"a nearby player move updates the shared facing point");
+await Hold(1,"release");Check(talkHolds.TalkPins(new[]{1,2}).Count==0,"closing clears the server pin");
+await Hold(1,"open");var away=await Hold(1,"renew",6,1);Check(!B(away,"active")&&S(away,"line")=="Goodbye for now.","walking more than four metres releases with goodbye");
+await Hold(1,"open");for(int i=0;i<45;i++){now+=4000;await Hold(1,"renew");}
+var deadline=await Hold(1,"renew");Check(!B(deadline,"active")&&S(deadline,"line")=="I must be off.","heartbeats cannot extend the three-minute hard deadline");
+Check(!B(await Hold(1,"renew"),"active"),"a late heartbeat cannot recreate an expired conversation");
+await Hold(1,"open");now+=5001;Check(talkHolds.TalkPins(new[]{1,2}).Count==0,"disconnect or lost heartbeat releases within five seconds");
+await Hold(2,"open");Check(talkHolds.TalkPins(new[]{1,2}).GetValueOrDefault(residentId)==2,"a guest can hold a person after release");
+Check(talkHolds.TalkPins(new[]{1}).Count==0,"an offline guest cannot pin resident ownership");
+await Hold(2,"release");
+bool invalidHold=false;try{await host.Call("POST","/api/talk/hold",JsonSerializer.Serialize(new{npc=residentId,mode="open",x="invalid",z=1,npc_x=1,npc_z=1}),1);}catch(NativeServiceException e){invalidHold=e.Status==400;}
+Check(invalidHold,"malformed talk coordinates cannot create a lease");
 Console.WriteLine("PASS "+checks+" stateful multiplayer checks, "+sourceChecks+" original comparisons");
 
 

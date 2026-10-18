@@ -142,7 +142,7 @@ public partial class NativeStreet : Node
         foreach (var person in town.Sims)
         {
             if (person.P is not { Remote: false } puppet || (person.ActionOwner is Game.Actors || person.ServerEventDriven) || !people.TryGetValue(person.R.Id, out var row) || row.Owner != together.PlayerId) continue;
-            int mode = Math.Max(0, Array.IndexOf(EventPuppets.Motions, puppet.Human.Motion ?? "idle"));
+            int mode = puppet.Conversing ? 2 : Math.Max(0, Array.IndexOf(EventPuppets.Motions, puppet.Human.Motion ?? "idle"));
             int gear = (puppet.State == "sit" ? 1 : 0) | (puppet.Lantern != null ? 2 : 0) | (puppet.Loaded ? 4 : 0);
             int bought = Math.Max(0, Array.IndexOf(EventPuppets.Bought, puppet.Bought));
             double now = together.ServerNow; sent.TryGetValue(person.R.Id, out var was);
@@ -165,6 +165,9 @@ public partial class NativeStreet : Node
     {
         people.Clear(); numbered.Clear(); pins.Clear(); sent.Clear(); claimAge = sendAge = 0;
         foreach (var person in town.Sims) if (person.P?.Remote == true) town.RemoteRelease(person);
+        // Welcome can arrive before the town's population. Loading that population clears
+        // its old replicas, so explicitly recover the server's ownership map and pins.
+        if(together.Connected)together.SendText(new{type="owners"});
     }
     public override void _ExitTree()
     {

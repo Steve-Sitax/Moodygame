@@ -58,6 +58,7 @@ internal sealed class HumanLayers
     internal float HandReachError { get; private set; }
     private Vector3 lastPosition, lastForward;
     private Vector2 look;
+    internal Vector3? AttentionTarget;
     private bool hadPosition;
     public HumanLayers(Node3D root, Skeleton3D sk)
     {
@@ -158,9 +159,9 @@ internal sealed class HumanLayers
         if (standLock && hadPosition && ((position - lastPosition).LengthSquared() > 0.000009f || forward.Dot(lastForward) < 0.99996f)) ReleaseFeet();
         lastPosition = position; lastForward = forward; hadPosition = true;
         if (distance >= 225) { look = Vector2.Zero; ReleaseFeet(); return; }
-        Vector3 target = root.GlobalTransform.AffineInverse() * Main.I.Cam.GlobalPosition;
+        Vector3 target = root.GlobalTransform.AffineInverse() * (AttentionTarget ?? Main.I.Cam.GlobalPosition);
         Vector2 want = Vector2.Zero;
-        if (!LocalPlayer && distance < 36 && target.Z > MathF.Sqrt(target.X * target.X + target.Z * target.Z) * 0.5f)
+        if (!LocalPlayer && distance < 36 && (AttentionTarget.HasValue || target.Z > MathF.Sqrt(target.X * target.X + target.Z * target.Z) * 0.5f))
         {
             float yaw = MathF.Atan2(target.X, target.Z);
             float pitch = MathF.Atan2(target.Y - sk.GetBoneGlobalPose(head).Origin.Y, MathF.Sqrt(target.X * target.X + target.Z * target.Z));
