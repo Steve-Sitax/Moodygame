@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
+using System.Text.Json;
 using Godot;
 using Scheldemist.World;
 
@@ -23,6 +24,7 @@ public sealed class RenderAudit
     private int firstPsx;
     private int samples;
     private int nativePreviewLights;
+    private bool? baselineMatched;
     private static string Hash(string code) => Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(code)))[..16];
     private static string Location(Node node) => node.IsInsideTree() ? node.GetPath().ToString() : "prepared-model/" + node.Name;
     private readonly Dictionary<ulong, (string Code, string Kind)> shaderKinds = new();
@@ -89,13 +91,29 @@ public sealed class RenderAudit
             }
             if (n is CanvasItem c) See(c.Material);
         }
-        if (first) { firstLights = counts; firstPsx = Render.Psx.ShaderCount; }
+        if (first)
+        {
+            firstLights = counts; firstPsx = Render.Psx.ShaderCount;
+            const string baseline="res://assets/shader-baseline.json";
+            if(Godot.FileAccess.FileExists(baseline))
+            {
+                using var doc=JsonDocument.Parse(Godot.FileAccess.GetFileAsString(baseline));
+                var expected=doc.RootElement.GetProperty("firstKinds").EnumerateArray().Select(k=>k.GetString()!).ToHashSet();
+                baselineMatched=firstKinds.SetEquals(expected);
+                foreach(var k in firstKinds.Except(expected))problems.Add("kind absent from recorded shader baseline: "+k+" at "+firstKindLocations[k]);
+                foreach(var k in expected.Except(firstKinds))problems.Add("recorded shader kind missing: "+k);
+            }
+            else if(Main.I.UsesLocalBackend)
+            {
+                baselineMatched=false;problems.Add("missing recorded shader baseline: "+baseline);
+            }
+        }
         // The native cache is also prepared before frame one; keep its count stable as well as the code inventory.
         else if (Render.Psx.ShaderCount != firstPsx) problems.Add($"psx shader kinds changed from {firstPsx} to {Render.Psx.ShaderCount}");
         if (!first && (counts.Count != firstLights!.Count || counts.Any(p => firstLights.GetValueOrDefault(p.Key) != p.Value))) problems.Add("light counts changed at " + label);
         // Keep all changes, and the named route snapshots; avoid a huge copy per frame.
         if (first || !label.StartsWith("frame") || counts.Any(p => firstLights!.GetValueOrDefault(p.Key) != p.Value)) lights.Add(new { at = label, counts });
     }
-    public object Report() => new { people2ShaderKinds = people2Kinds.Order().ToArray(), people2ShaderKindCount = people2Kinds.Count, nativePreviewLights, generatedCacheEntries = Render.Psx.ShaderCount, firstGeneratedCacheEntries = firstPsx, ok = problems.Count == 0, programs = Render.Psx.ShaderCount, firstPrograms = firstPsx, materials = materials.Count, firstKinds = firstKinds.Order().ToArray(), firstKindLocations, madeAfterFirstFrame = made, newKinds, lightSettings = lights, samples, problems = problems.Order().ToArray(),
+    public object Report() => new { baselineMatched, people2ShaderKinds = people2Kinds.Order().ToArray(), people2ShaderKindCount = people2Kinds.Count, nativePreviewLights, generatedCacheEntries = Render.Psx.ShaderCount, firstGeneratedCacheEntries = firstPsx, ok = problems.Count == 0, programs = Render.Psx.ShaderCount, firstPrograms = firstPsx, materials = materials.Count, firstKinds = firstKinds.Order().ToArray(), firstKindLocations, madeAfterFirstFrame = made, newKinds, lightSettings = lights, samples, problems = problems.Order().ToArray(),
         notCovered = new[] { "GPU driver compilation timing and transient resources made and freed between scene samples", "unvisited game actions that make new materials" } };
 }

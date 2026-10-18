@@ -602,7 +602,12 @@ public partial class MoveTest
                 Solid.I.Ensure(new Vector3(sx, 0, sz), 20);
                 await Frames(5);
                 j.Place(sx, sz, down ? Facing(f.Tx, f.Tz) : Facing(-f.Tx, -f.Tz));
-                await Frames(40);
+                Check(await Until(()=>!j.PlacementPending,30),$"flight {i}: placement and collision ready");
+                // Placement can immediately enter water and climb back onto a shallow tread. Do not measure that
+                // stationary recovery/old swimming eye offset as part of the scripted walk.
+                double quiet=0,seen=j.Clock;var previousEye=j.Cam.GlobalPosition;
+                bool Settled(){double dt=j.Clock-seen;if(dt<=0)return false;float speed=previousEye.DistanceTo(j.Cam.GlobalPosition)/(float)dt;seen=j.Clock;previousEye=j.Cam.GlobalPosition;quiet=!j.PlacementPending&&!j.Climbing&&speed<.15f?quiet+dt:0;return quiet>=.2;}
+                Check(await Until(Settled,30),$"flight {i}: stationary placement camera settled");
                 int inside = 0, mid = 0;
                 var insideNames = new HashSet<string>();
                 float sMax = -99, sMin = 99, yLow = 99, uMax = -99, uMin = 99;

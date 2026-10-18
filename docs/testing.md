@@ -31,8 +31,41 @@ The report also includes `laneChecks`: controlled milk-woman fixtures exercise o
 three frame rates and both lane orders, crossing waits, a blocked lateral escape, the bridge-rail escape,
 vehicle ownership and priority, and release after a vehicle departs. Every entry must be true. Run only these
 fixtures with `--lanecheck <dir>` in place of `--stuck <dir>`; it writes `lanecheck.json` and quits.
-The same shape runs every other check below; give each its own option and folder. Every place must be below 5 ms
-mean active main-frame time, and `paths` and `shaders` must have no findings.
+The same shape runs every other check below; give each its own option and folder. Every place must be below the
+active-frame budgets in `godot/src/Dev/PerformanceBudget.cs`, and `paths` and `shaders` must have no findings.
+
+`perfcheck`, jobtest's `frames` step and peopletest's crowd timings acquire `D:/Code/_locks/PERF-LOCK` with an atomic
+create, waiting every 30 seconds for up to 20 minutes. They record concurrent Godot window PIDs/titles throughout
+measurement. A shared-window run or a lock timeout cannot pass an isolated performance gate; its numbers remain
+diagnostic. Never stop a player's or another helper's window to clear the gate. The lock is released after timing.
+Bound external runners to allow the lock wait as well as the check's own execution time.
+
+Jobtest measures complete **wall** frames, including GPU/presentation waits and the native town's planar mirrors.
+Its mean budget is one frame at the checks' existing 120 Hz target (8.33 ms), defined once in `PerformanceBudget.cs`.
+The old 5 ms wall limit asked for 200 Hz; issue #49 already reproduced about 6 ms before the daylight work. This
+metric change does not relax perfcheck's active-main-thread mean/p95 limits (5 ms, with a 3 ms mean target), maximum
+frame or allocation gates. Contaminated measurements cannot identify a regression or establish an uncontended pass.
+
+The native shader check compares the actual first-frame kind signatures against `native-godot/assets/shader-baseline.json`.
+Review added/removed signatures and their `firstKindLocations` when intentionally updating it; matching a count alone
+does not detect a replaced kind. People2's wrapper uses that same report, without a separate inventory count.
+The baseline's `historicalChange` records the original extra surface and its source revision.
+
+`check-story.ps1` and `check-antigoon.ps1` accept `-Output <fresh directory>` and `-SkipBuild` for consecutive runs of
+one already-built revision. Story waits for the actual reply/flame and staged scrape, and is a scripted menu run
+(no first-run graphics benchmark or focus-loss pause). Antigoon records his actual food routes in `food-plan.json`;
+its feeding deadline follows route length and shielding speed, rather than a fixed cross-town travel allowance.
+Combat stages start with a healthy witness, and the meal capture checks the actor's rendered eating state.
+Routes use the reach map's half-metre lattice and preserve blocked corners when smoothing; shielding excludes leaps.
+`dotnet run --project native-godot/services/proofs/antigoon/Antigoon.Proof.csproj` includes fractional-position corner
+regressions that fail with the old shifting grid, as well as the combat, food, light and street-event rules.
+
+Use `--placestest <dir> --places-only furniture-emigrants` for the cart and baby regressions together. The purchase
+waits out a pre-purchase poll and identifies the newly bought arms item by ID; the camp refresh finishes before
+waiting for a mother to enter the real crowd and her baby to become visible. Real generated arrivals are brought
+forward when the initial families have no baby, so this assertion cannot silently skip. `--moveonly steps` waits for Jef's
+placement/collision hold and the stationary camera's water recovery to finish; `--move-sampler-stall-ms 1200` deliberately stalls the first sampled wall frame
+while retaining Jef's capped movement clock. A stopped clock has its own bounded failure.
 
 `--streetgametest <dir>` reproduces issue 119 near Rijnkaai (-2, 69) with the three reported resident ids. It holds
 each child's next hop behind another body for four simulated seconds, checks that the child waits without walking

@@ -23,6 +23,8 @@ public partial class Checks : Node
     private readonly ulong began = Time.GetTicksMsec();
     private ulong limit = 240_000;
     private bool running;
+    private bool waitingPerformanceLock;
+    private PerformanceLease? performanceLease;
     private ulong frameStart;
     private double lastMainMs;
     private long frameAllocatedAt;
@@ -61,7 +63,7 @@ public partial class Checks : Node
         GameState.I.PlayingWhen = () => false;
         Jef.I.TestInput = true;
         DisplayServer.WindowSetVsyncMode(DisplayServer.VSyncMode.Disabled);
-        Engine.MaxFps = 120;
+        Engine.MaxFps = PerformanceBudget.CheckFrameRate;
         if (mode == "shaders") renderAudit = new RenderAudit();
         if (mode == "perfcheck")
         {
@@ -128,6 +130,7 @@ public partial class Checks : Node
     }
     public override void _ExitTree()
     {
+        performanceLease?.Dispose();
         if (!timingConnected) return;
         if (GetTree() != null) { GetTree().ProcessFrame -= BeginFrame; GetTree().PhysicsFrame -= BeginFrame; }
         RenderingServer.FramePostDraw -= EndFrame;
@@ -139,7 +142,7 @@ public partial class Checks : Node
         frames++;
         // The baseline is the first processed frame after all game parts were added, not after late loads.
         renderAudit?.Sample("frame " + frames);
-        if (Time.GetTicksMsec() - began > limit) { Finish(new { ok = false, problems = new[] { "check exceeded its configured time limit" } }); return; }
+        if (!waitingPerformanceLock && Time.GetTicksMsec() - began > limit) { Finish(new { ok = false, problems = new[] { "check exceeded its configured time limit" } }); return; }
         if (running) return;
         if (Kit.I.Error != "") { Finish(new { ok = false, problems = new[] { Kit.I.Error } }); return; }
         // Short checks must not quit while background audio tasks still create native resources.
@@ -303,6 +306,10 @@ public partial class Checks : Node
     private Window lastWindow = null!;
     private async Task<object> Perf()
     {
+        ulong waitStart=Time.GetTicksMsec();waitingPerformanceLock=true;
+        try{performanceLease=await PerformanceLease.Acquire("perfcheck");}
+        finally{limit+=Time.GetTicksMsec()-waitStart;waitingPerformanceLock=false;}
+        using var isolation=performanceLease;
         Engine.MaxFps = 0;
         int seconds = int.TryParse(Main.I.Arg("perf-seconds", "6"), out int duration) && duration >= 2 && duration <= 60 ? duration : throw new ArgumentException("perf-seconds must be 2..60");
         if (Main.I.Arg("perf-job") is { Length: > 0 } job)
@@ -325,14 +332,14 @@ public partial class Checks : Node
             var wallTimes = lastWindow.Wall.Order().ToArray();
             var slow = lastWindow.Main.Select((v, i) => new { frame = i, main = v, wall = lastWindow.Wall[i] }).Where(s => s.wall > 16 || s.main > 16).ToArray();
             double mean = Math.Round(mainTimes.Average(), 3);
-            bool meanTarget = mean < 3 && turn.Mean < 3;
-            bool hardLimit = mean < 5 && turn.Mean < 5 && live.P95 < 5 && turn.P95 < 5
-                && live.Over16 == 0 && turn.Over16 == 0 && live.Max <= 16 && turn.Max <= 16
+            bool meanTarget = mean < PerformanceBudget.TargetMeanMs && turn.Mean < PerformanceBudget.TargetMeanMs;
+            bool hardLimit = mean < PerformanceBudget.ActiveMeanMs && turn.Mean < PerformanceBudget.ActiveMeanMs && live.P95 < PerformanceBudget.ActiveP95Ms && turn.P95 < PerformanceBudget.ActiveP95Ms
+                && live.Over16 == 0 && turn.Over16 == 0 && live.Max <= PerformanceBudget.MaximumFrameMs && turn.Max <= PerformanceBudget.MaximumFrameMs
                 && live.MeanBytes <= 512 && turn.MeanBytes <= 512 && live.MedianBytes == 0 && turn.MedianBytes == 0;
             rows.Add(new { place = name, liveMean = mean, liveP95 = live.P95, liveMax = live.Max, liveWallMax = live.WallMax, over16 = live.Over16, mainOver16 = mainTimes.Count(t => t > 16), collections = live.Collections, slowFrames = slow, fps = Math.Round(1000 / live.WallMean), over33 = live.Over33, stillMean = still.Mean, turnMean = turn.Mean, turnP95 = turn.P95,
                 calls = turn.Calls, scene = SceneInventory.Capture(), top = FrameCost.Report(), turnTop, rendering = new { setupCpu = lastWindow.RenderSetup / live.Samples, viewports = lastWindow.Render.Select(p => new { viewport = p.Key, cpu = p.Value.cpu / live.Samples, gpu = p.Value.gpu / live.Samples }).ToArray() }, ok = meanTarget && hardLimit, meanTarget, hardLimit, still, turn, live, liveSamples = live.Samples, liveWallMean = live.WallMean, liveWallP95 = live.WallP95, walkedMetres = start.DistanceTo(new Vector2(Jef.I.X, Jef.I.Z)) });
         }
-        return new { ok = rows.All(r => JsonSerializer.SerializeToElement(r).GetProperty("ok").GetBoolean()), at = DateTime.UtcNow, gpu = RenderingServer.GetVideoAdapterName(), budget = 5, targetMean = 3, p95Budget = 5, maximumFrame = 16, managedMeanBudget = 512, managedMedianBudget = 0, metric = "active main frame: first physics/process signal through RenderingServer.FramePostDraw, including renderer submission; wall frame time recorded separately", rows,
+        return new { ok = isolation.Isolated && rows.All(r => JsonSerializer.SerializeToElement(r).GetProperty("ok").GetBoolean()), isolation=isolation.Report(), at = DateTime.UtcNow, gpu = RenderingServer.GetVideoAdapterName(), budget = PerformanceBudget.ActiveMeanMs, targetMean = PerformanceBudget.TargetMeanMs, p95Budget = PerformanceBudget.ActiveP95Ms, maximumFrame = PerformanceBudget.MaximumFrameMs, managedMeanBudget = 512, managedMedianBudget = 0, metric = "active main frame: first physics/process signal through RenderingServer.FramePostDraw, including renderer submission; wall frame time recorded separately", rows,
             notCovered = new[] { "per-part browser frameProf breakdown and GPU-finish synchronisation", "night, rain and population stress settings", "walking can meet walls; displacement is reported" } };
     }
 }

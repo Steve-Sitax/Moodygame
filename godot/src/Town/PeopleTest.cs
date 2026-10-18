@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text.Json;
+using System.Threading.Tasks;
 using Godot;
 using Scheldemist.People;
 using Scheldemist.Player;
@@ -42,6 +43,11 @@ public partial class PeopleTest : Node
     private Puppet? model;
     private JsonElement placeFacts;
     private double waited;
+    private Task<Dev.PerformanceLease>? timingAcquire;
+    private Dev.PerformanceLease? timingLease;
+    private readonly List<object> timingReports=new();
+    private bool timingsIsolated=true;
+    public override void _ExitTree()=>timingLease?.Dispose();
     private bool aimed;
     private readonly Dictionary<string, object> jefRow = new();
     private readonly Dictionary<string, object> postedRow = new();
@@ -277,6 +283,9 @@ public partial class PeopleTest : Node
             case "timingstart":
                 if (town.PlanWaysWaiting > 0 && t < 60) break;
                 if (t < 3) break;
+                timingAcquire??=Dev.PerformanceLease.Acquire("peopletest crowds");
+                if(!timingAcquire.IsCompleted)break;
+                timingLease??=timingAcquire.GetAwaiter().GetResult();
                 times.Clear();
                 drawCalls = 0;
                 logic.Clear();
@@ -383,6 +392,8 @@ public partial class PeopleTest : Node
                 row["frameWithoutPeople"] = Stats(times);
                 row["drawCallsWithoutPeople"] = Math.Round((double)drawCalls / times.Count, 1);
                 row["peopleAndAnimalsCostMs"] = Math.Round((double)((Dictionary<string, object>)row["frame"])["mean"] - (double)((Dictionary<string, object>)row["frameWithoutPeople"])["mean"], 3);
+                timingsIsolated&=timingLease!.Isolated;var isolation=timingLease.Report();timingReports.Add(isolation);row["isolation"]=isolation;
+                timingLease.Dispose();timingLease=null;timingAcquire=null;
                 town.Paused = false;
                 foreach (var g in hiddenForTiming) g.Visible = true;
                 foreach (var extra in timingPeople) crowd!.RemovePuppet(extra);
@@ -1058,7 +1069,8 @@ public partial class PeopleTest : Node
             case "done":
                 File.WriteAllText(Path.Combine(dir, "peopletest.json"), JsonSerializer.Serialize(new
                 {
-                    ok = ChecksPass(),
+                    ok = ChecksPass() && timingsIsolated,
+                    isolation=timingReports,
                     day = town.Day,
                     hour = Math.Round(town.Hour, 3),
                     maxDrawn = town.MaxPuppets,
@@ -1080,7 +1092,7 @@ public partial class PeopleTest : Node
                 }, new JsonSerializerOptions { WriteIndented = true }));
                 GD.Print("peopletest: written " + Path.Combine(dir, "peopletest.json"));
                 SetProcess(false);
-                GetTree().Quit(ChecksPass() ? 0 : 1);
+                GetTree().Quit(ChecksPass() && timingsIsolated ? 0 : 1);
                 break;
             case "halls":
                 if (frames != 1) break;

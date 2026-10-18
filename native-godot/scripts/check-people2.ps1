@@ -82,24 +82,20 @@ try {
             'network' { $args += @('--dedicated','--native-network-smoke',$dir) }
         }
         $timing = $mode -in @('timing','legacy-timing')
-        if (($timing -or $mode -eq "shaders") -and -not $AllowSharedTiming) {
-            $exclusiveUntil = [DateTime]::UtcNow.AddSeconds($WaitForTimingSeconds)
-            $waiting = 0
-            while ((Other-Godot).Count) {
-                if ([DateTime]::UtcNow -ge $exclusiveUntil) { throw "Exclusive $mode requires all other Godot engines to finish." }
-                if ($waiting++ % 30 -eq 0) { Write-Output "Waiting for other Godot engines before $mode." }
-                Start-Sleep -Seconds 1
-            }
+        # The in-game sampler owns PERF-LOCK and records windows during its measurement, after warmup.
+        # Do not wait for or ask to close a player's window; shader identity is not a timing measurement.
+        if ($timing) {
             tasklist /FI "IMAGENAME eq Godot*" | Set-Content -LiteralPath (Join-Path $dir 'tasklist-before.txt')
         }
         $start = [Diagnostics.ProcessStartInfo]::new($engine)
         $start.WorkingDirectory = $project; $start.UseShellExecute = $false; $start.CreateNoWindow = $true
-        $start.WindowStyle = [Diagnostics.ProcessWindowStyle]::Hidden
+        $start.WindowStyle = if($mode -eq 'network'){[Diagnostics.ProcessWindowStyle]::Hidden}else{[Diagnostics.ProcessWindowStyle]::Normal}
         $start.RedirectStandardOutput = $true; $start.RedirectStandardError = $true
         foreach ($arg in $args) { $start.ArgumentList.Add($arg) }
         $child = [Diagnostics.Process]::new(); $child.StartInfo = $start
         $isolation = [Collections.Generic.List[object]]::new()
         $limit = if ($mode -in @('captures','batch2-captures','integration-captures','distance-captures','dress-captures')) { 1200 } else { 420 }
+        if($timing){$limit+=1200} # the in-game PERF-LOCK wait is separate from execution
         if ($mode -in @('captures','distance-captures')) { $limit *= [Math]::Ceiling($expectedRoots / 26.0) }
         if ($mode -eq 'integration-captures') { $limit *= [Math]::Ceiling($expectedRoots / 26.0) }
         try {
@@ -118,13 +114,11 @@ try {
             $log = $stdout.GetAwaiter().GetResult() + $stderr.GetAwaiter().GetResult()
             [IO.File]::WriteAllText((Join-Path $dir 'engine.log'),$log)
             if ($timing) { $isolation | ConvertTo-Json -Depth 4 | Set-Content -LiteralPath (Join-Path $dir 'process-isolation.json') }
-            if ($contaminated -and -not $AllowSharedTiming) { throw 'People timing contaminated by another Godot process.' }
-            if ($contaminated) { Write-Warning 'Shared-process timing trace only: not an accepted exclusive performance gate.' }
+            if ($contaminated) { Write-Output 'Other Godot processes were observed during startup or sampling; peopletest.json records the authoritative isolation of each locked measurement.' }
             if ($child.ExitCode -ne 0 -or $log -match '(?m)^ERROR:') { throw "People2 $mode failed; inspect $dir/engine.log" }
             $reportFile = switch ($mode) { {$_ -in @('captures','batch2-captures','integration-captures','dress-captures','distance-captures','crowd-captures')} {'captures.json'} 'motion' {'motion.json'} 'work' {'work.json'} 'routing' {'people2-proof.json'} 'shaders' {'shaders.json'} 'parade' {'parade.json'} 'network' {'network.json'} default {'peopletest.json'} }
             $report = Get-Content -LiteralPath (Join-Path $dir $reportFile) -Raw | ConvertFrom-Json
-            # Main's accepted inventory includes Antigoon (issue #136).
-            if ($mode -eq 'shaders' -and ($report.firstKinds.Count -ne 131 -or $report.people2ShaderKindCount -ne 1 -or -not $report.ok -or $report.problems.Count)) { throw 'Shader inventory must keep main''s 131 kinds, exactly one people2 kind, and zero problems.' }
+            if ($mode -eq 'shaders' -and (-not $report.baselineMatched -or $report.people2ShaderKindCount -ne 1 -or -not $report.ok -or $report.problems.Count)) { throw 'Shader inventory must match assets/shader-baseline.json, keep exactly one people2 kind, and have zero problems.' }
             if ($mode -in @('captures','batch2-captures','integration-captures','crowd-captures','motion','work','dress-captures','distance-captures','timing','legacy-timing') -and -not $report.ok) { throw "People2 $mode report failed." }
             if ($mode -eq 'network' -and -not $report.passed) { throw 'Native multiplayer identity proof failed.' }
             if ($mode -eq 'routing' -and (-not $report.switchOkay -or -not $report.faceSetter.ok -or $report.bodyHeights.Count -ne $expectedRoots -or $report.figures[0].body -ne 'man_middling' -or $report.figures[1].body -ne 'woman_stout' -or $report.figures[2].body -ne 'man_stout' -or $report.figures[3].body -ne 'man_slight')) { throw 'People2 map/body/toggle proof failed.' }

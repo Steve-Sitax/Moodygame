@@ -39,7 +39,16 @@ public partial class PlacesTest : Node
             await api.Post<OkReply>("api/arrival/ashore");Jef.I.Place(10,12,0);Check(await Until(()=>FerryArrival.I.Ashore&&!Jef.I.Riding,15),"arrival drive released on quay before test placements");
             GameState.I.Apply(await api.Post<JobsPayload>("api/dev/set", new { hour = 13, minute = 45, weather = "clear", food = 10, sleep = 10, warmth = 10, health = 10, money_c = 500 }));
             string only = Main.I.Arg("places-only");
-            if (only is not ("" or "lamps" or "homes" or "park" or "mill" or "docks" or "counters" or "ballads" or "night" or "homes-work" or "places" or "landmarks" or "townwork" or "seats" or "emigrants" or "poesje" or "cart" or "wedding" or "indoor" or "indoor-life")) throw new InvalidOperationException("unknown places-only selection");
+            if (only is not ("" or "lamps" or "homes" or "park" or "mill" or "docks" or "counters" or "ballads" or "night" or "homes-work" or "places" or "landmarks" or "townwork" or "seats" or "emigrants" or "poesje" or "cart" or "furniture-cart" or "furniture-emigrants" or "wedding" or "indoor" or "indoor-life")) throw new InvalidOperationException("unknown places-only selection");
+            if(only is "furniture-cart" or "furniture-emigrants")
+            {
+                GameState.I.Apply(await api.Post<JobsPayload>("api/dev/set",new{money_c=1000}));
+                await HomeLife.I.Load();
+                Check(await Until(()=>HomeLife.I.Info!=null&&!HomeLife.I.Busy,30),"home state ready for furniture cart");
+                await HomeLife.I.Change(()=>api.HomeTake(new("alley","day")));
+                Check(HomeLife.I.Info!.Lease?.Home=="alley","furniture cart household has its home");
+                await FurnitureCart(api);
+            }
             // The indoor and wedding selections use fresh worlds: the wedding director
             // can still own the curate after a fixture jumps backwards to Sunday.
             // Prove civil work before later fixtures reserve residents or jump to Sunday.
@@ -88,7 +97,7 @@ public partial class PlacesTest : Node
             if (only is "" or "places" or "night") await Night(api);
             if (only is "" or "townwork") await TownWorkTest(api);
             if (only is "" or "indoor" or "indoor-life" or "seats") await Seats(api);
-            if (only is "" or "indoor" or "indoor-life" or "emigrants") await EmigrantTest(api);
+            if (only is "" or "indoor" or "indoor-life" or "emigrants" or "furniture-emigrants") await EmigrantTest(api);
             if (only is "" or "indoor" or "indoor-life" or "poesje") await PoesjeTest(api);
             if (only is "" or "cart") await CartJobTest(api);
         }
@@ -409,11 +418,23 @@ public partial class PlacesTest : Node
         // Hold the real lighter's departure during the short deterministic loading window.
         GameState.I.Apply(await api.Post<JobsPayload>("api/dev/set",new{hour=13,minute=45,weather="clear"})); Scheldemist.World.Daylight.I!.SetTime(13.75f);Scheldemist.World.Daylight.I.Settle();
         var a=Scheldemist.Movers.River.I.Anchorage!; if(quayTow>=0){var tow=a.Tows[quayTow];tow.S=quayS;tow.Stop=1;tow.Phase="dwell";tow.Crab=1;tow.Dwell=180;}
-        await At(31,27,31,29,1); await Emigrants.I.Load(); Check(await Until(()=>Emigrants.I.CampCount>0,12),"emigrant camp from engine");Check(Emigrants.I.NoticeText.Contains("EMIGRANTS BOARD"),"emigrant notice follows engine ship day");var notice=Emigrants.I.NoticeAt;await At(notice.X,notice.Z+2,notice.X,notice.Z,notice.Y);await Shot("emigrant-notice");if(Emigrants.I.Info!.Families.Any(f=>f.Baby!=null)){Check(await Until(()=>Emigrants.I.BabyAt!=null,12),"emigrant babies visible in mothers’ arms");var baby=Emigrants.I.BabyAt!.Value;pictureAt=baby+new Vector3(1.5f,.7f,-1.5f);pictureTarget=baby;await Shot("emigrant-mother-baby");pictureAt=pictureTarget=null;} replies.Add(new{emigrants=await api.Emigrants()});Check(await Until(()=>Emigrants.I.CampProp!=null,8),"camp luggage visible");var campAt=Emigrants.I.CampProp!.Value;await At(campAt.X,campAt.Z+2.3f,campAt.X,campAt.Z,campAt.Y+.35f);await Shot("emigrant-camp");
+        await At(31,27,31,29,1); await Emigrants.I.Refresh();
+        // A fresh day-one town need not have an infant yet. Bring forward real generated arrivals so this
+        // regression cannot silently skip the baby assertion; their normal routes and rendering still apply.
+        for(int arrival=0;arrival<8&&!Emigrants.I.Info!.Families.Any(f=>f.Baby!=null);arrival++)
+        {replies.Add(new{babyFamilyArrival=await api.Post<JsonElement>("api/dev/emigrants",new{arrive=true})});await Emigrants.I.Refresh();}
+        Check(Emigrants.I.Info!.Families.Any(f=>f.Baby!=null),"emigrant fixture includes a baby");
+        Check(await Until(()=>Emigrants.I.CampCount>0,12),"emigrant camp from engine");Check(Emigrants.I.NoticeText.Contains("EMIGRANTS BOARD"),"emigrant notice follows engine ship day");var notice=Emigrants.I.NoticeAt;await At(notice.X,notice.Z+2,notice.X,notice.Z,notice.Y);await Shot("emigrant-notice");{var town=Main.I.GetNode<Scheldemist.Town.Townspeople>("Townspeople");
+            var mothers=Emigrants.I.Info.Families.Where(f=>f.Baby!=null).Select(f=>f.Baby!.Mother).ToHashSet();
+            // Camp props arrive before route planning and the crowd have drawn a mother.
+            bool motherReady=await Until(()=>mothers.Any(id=>town.ActionPerson(id)?.P is {} p&&town.Crowd!.Alive(p)),60);
+            bool babyReady=motherReady&&await Until(()=>Emigrants.I.BabyAt!=null,5);
+            replies.Add(new{emigrantBabyProbe=new{motherReady,babyReady,Emigrants.I.CampCount,Emigrants.I.BabyCount,town.WaysWaiting,mothers=mothers.Select(id=>{var s=town.ActionPerson(id);return new{id,s?.X,s?.Z,s?.Inside,s?.ActionHeld,drawn=s?.P!=null,goal=s?.Goal.Mode};}).ToArray()}});
+            Check(babyReady,"emigrant babies visible in mothers’ arms");var baby=Emigrants.I.BabyAt!.Value;pictureAt=baby+new Vector3(1.5f,.7f,-1.5f);pictureTarget=baby;await Shot("emigrant-mother-baby");pictureAt=pictureTarget=null;} replies.Add(new{emigrants=await api.Emigrants()});Check(await Until(()=>Emigrants.I.CampProp!=null,8),"camp luggage visible");var campAt=Emigrants.I.CampProp!.Value;await At(campAt.X,campAt.Z+2.3f,campAt.X,campAt.Z,campAt.Y+.35f);await Shot("emigrant-camp");
         Emigrants.I.SetProcess(false);
         GameState.I.Apply(await api.Post<JobsPayload>("api/dev/set",new{day=2,hour=13,minute=0,weather="clear"}));Scheldemist.World.Daylight.I!.SetTime(13f);Scheldemist.World.Daylight.I.Settle();replies.Add(new{shipFixture=await api.Post<JsonElement>("api/dev/emigrants",new{ship_today=true})});await api.Tick();GameState.I.Apply(await api.Jobs());
         var info=await api.Emigrants();var f=info.Families.First(f=>f.BoardingToday);var j=GameState.I.Jobs.First(j=>j.EmployerNpc==f.Head && j.TaskType=="carry" && j.Status=="offered");await Jobs.I.TakeJob(j);Check(Jobs.I.Run is HaulRun,"emigrant luggage follows carry run");
-        await Emigrants.I.Load();Check((await api.Emigrants()).Families.First(q=>q.Household==f.Household).WaitingForJef,"family waits for taken luggage");
+        await Emigrants.I.Refresh();Check((await api.Emigrants()).Families.First(q=>q.Household==f.Household).WaitingForJef,"family waits for taken luggage");
         bool refused=false;try{await api.EmigrantBoard(f.Household);}catch(ApiException e){refused=e.Status==409;replies.Add(new{boardingRefused=e.Message});}Check(refused,"engine refuses boarding before luggage");
         var task=JobTask.Of(Jobs.I.Active!)!;var from=Spots.Get(task.From)!;var to=Spots.Get(task.To)!;
         Check(await Until(()=>Goods.I.Items.Any(i=>i.JobId==j.Id && i.Obj!=null),12),"emigrant job chests laid out");
@@ -421,7 +442,7 @@ public partial class PlacesTest : Node
         var head=Folk.At(f.Head);if(head!=null)await At(head.Value.X,head.Value.Z+1.3f,head.Value.X,head.Value.Z,head.Value.Y+1.3f);
         Check(await Until(()=>Jobs.I.LastDone?.Job.Id==j.Id,12),"emigrant luggage settled");replies.Add(new{emigrantPay=Jobs.I.LastDone});await Shot("emigrant-luggage-paid");
         var boarded=new List<int>();void Answer(int hh,EmigrantBoard reply){boarded.Add(hh);replies.Add(new{household=hh,board=reply});}Emigrants.I.Answered+=Answer;
-        try {if(quayTow>=0){var tow=a.Tows[quayTow];tow.S=quayS;tow.Stop=1;tow.Phase="dwell";tow.Crab=1;tow.Dwell=180;}await At(28,4,28,-3,1);await Emigrants.I.Load();Emigrants.I.SetProcess(true);bool completedBoarding=await Until(()=>boarded.Contains(f.Household),65);replies.Add(new{boardingProbe=new{Emigrants.I.AboardCount,Emigrants.I.CampCount,info=Emigrants.I.Info,tows=a.Tows.Select(t=>new{t.Stop,t.Phase,t.Crab,t.Dwell}).ToArray(),claimed=Main.I.GetNode<Scheldemist.Town.Townspeople>("Townspeople").Sims.Where(s=>f.Members.Contains(s.R.Id)).Select(s=>new{s.R.Id,s.ActionHeld,owner=s.ActionOwner?.GetType().Name}).ToArray()}});Check(completedBoarding,"family boards real tender and engine records it");Check(Emigrants.I.AboardCount>0,"family figures on lighter deck");var deckAt=Emigrants.I.DeckPerson!.Value;replies.Add(new{deckPoint=deckAt.ToString(),tows=a.Tows.Select(t=>new{outer=t.Lighter.Boat.Outer.GlobalPosition.ToString(),visible=t.Lighter.Boat.Outer.IsVisibleInTree(),inner=t.Lighter.Boat.Inner.IsVisibleInTree(),nodes=Scheldemist.World.BakedWorld.All(t.Lighter.Boat.Outer).OfType<Node3D>().Select(n=>new{name=n.Name.ToString(),visible=n.Visible,inTree=n.IsVisibleInTree()}).ToArray()}).ToArray()});pictureAt=deckAt+new Vector3(2,4,-4);pictureTarget=deckAt+Vector3.Up*.8f;await Shot("emigrants-tender");pictureAt=pictureTarget=null;
+        try {if(quayTow>=0){var tow=a.Tows[quayTow];tow.S=quayS;tow.Stop=1;tow.Phase="dwell";tow.Crab=1;tow.Dwell=180;}await At(28,4,28,-3,1);await Emigrants.I.Refresh();Emigrants.I.SetProcess(true);bool completedBoarding=await Until(()=>boarded.Contains(f.Household),65);replies.Add(new{boardingProbe=new{Emigrants.I.AboardCount,Emigrants.I.CampCount,info=Emigrants.I.Info,tows=a.Tows.Select(t=>new{t.Stop,t.Phase,t.Crab,t.Dwell}).ToArray(),claimed=Main.I.GetNode<Scheldemist.Town.Townspeople>("Townspeople").Sims.Where(s=>f.Members.Contains(s.R.Id)).Select(s=>new{s.R.Id,s.ActionHeld,owner=s.ActionOwner?.GetType().Name}).ToArray()}});Check(completedBoarding,"family boards real tender and engine records it");Check(Emigrants.I.AboardCount>0,"family figures on lighter deck");var deckAt=Emigrants.I.DeckPerson!.Value;replies.Add(new{deckPoint=deckAt.ToString(),tows=a.Tows.Select(t=>new{outer=t.Lighter.Boat.Outer.GlobalPosition.ToString(),visible=t.Lighter.Boat.Outer.IsVisibleInTree(),inner=t.Lighter.Boat.Inner.IsVisibleInTree(),nodes=Scheldemist.World.BakedWorld.All(t.Lighter.Boat.Outer).OfType<Node3D>().Select(n=>new{name=n.Name.ToString(),visible=n.Visible,inTree=n.IsVisibleInTree()}).ToArray()}).ToArray()});pictureAt=deckAt+new Vector3(2,4,-4);pictureTarget=deckAt+Vector3.Up*.8f;await Shot("emigrants-tender");pictureAt=pictureTarget=null;
             foreach(var tow in a.Tows)if(tow.Stop==1)tow.Phase="out";Check(await Until(()=>Emigrants.I.WavingCount>0,5),"departing emigrants wave from tender");pictureAt=deckAt+new Vector3(2,2,-3);pictureTarget=deckAt+Vector3.Up*1.1f;await Shot("emigrants-wave");pictureAt=pictureTarget=null;
             // The same mover is brought to its existing liner stop; no server boarding rule is bypassed.
             foreach(var t in a.Tows) if(t.Stop==1){t.Stop=0;t.Phase="dwell";}Check(await Until(()=>Emigrants.I.LinerTransfers>0,5),"tender empties at liner");replies.Add(new{linerTransfers=Emigrants.I.LinerTransfers,emigrants=await api.Emigrants()});

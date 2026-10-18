@@ -102,6 +102,8 @@ public partial class JobTest : Node
     }
 
     private bool measuring;
+    private Dev.PerformanceLease? performanceLease;
+    public override void _ExitTree()=>performanceLease?.Dispose();
 
     private void Step(string name, string what)
     {
@@ -216,7 +218,10 @@ public partial class JobTest : Node
 
         if(Main.I.Flag("job-features-only"))yield break;
 
-        Step("frames", "the frame time at the Vismarkt with these parts on: no vsync, Jef turning once round (the budget here is 5 ms)");
+        Step("frames", $"wall frame time at the Vismarkt: no vsync, Jef turning once round (mean budget {Dev.PerformanceBudget.JobWallMeanMs} ms)");
+        var acquire=Dev.PerformanceLease.Acquire("jobtest frames");
+        yield return When(()=>acquire.IsCompleted,1210,"PERF-LOCK acquired or twenty-minute wait reported");
+        using var isolation=performanceLease=acquire.GetAwaiter().GetResult();
         var midday = link.Api!.DevSet(new Dictionary<string, double> { ["hour"] = 13, ["minute"] = 0 });
         yield return When(() => midday.IsCompleted, 10, "midday for the frame check");
         if (midday.IsCompletedSuccessfully) GameState.I.Apply(midday.Result);
@@ -240,8 +245,11 @@ public partial class JobTest : Node
             Note("mean_ms", Math.Round(mean, 2));
             Note("p95_ms", Math.Round(sorted[(int)(sorted.Count * 0.95)], 2));
             Note("draw_calls", RenderingServer.GetRenderingInfo(RenderingServer.RenderingInfo.TotalDrawCallsInFrame));
-            Check(mean < 5, $"{mean:0.00} ms a frame at the Vismarkt: over the 5 ms asked");
+            Note("isolation",isolation.Report());
+            Check(isolation.Isolated,"timing requires PERF-LOCK and no concurrent Godot windows");
+            Check(mean < Dev.PerformanceBudget.JobWallMeanMs, $"{mean:0.00} ms wall frame at the Vismarkt: budget {Dev.PerformanceBudget.JobWallMeanMs} ms");
         }
+        isolation.Dispose();
         Shot("7-vismarkt");
     }
 

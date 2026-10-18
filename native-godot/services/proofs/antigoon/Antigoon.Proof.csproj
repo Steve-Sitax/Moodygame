@@ -3,4 +3,5 @@
   <ItemGroup><Compile Include="../../../src/Services/AntigoonBrain.cs" Link="AntigoonBrain.cs" /></ItemGroup>
   <ItemGroup><Compile Include="../../../src/Services/AntigoonNightEvent.cs" Link="AntigoonNightEvent.cs" /></ItemGroup>
   <ItemGroup><Compile Include="../../../src/Services/AntigoonReach.cs" Link="AntigoonReach.cs" /></ItemGroup>
+  <ItemGroup><Compile Include="../../../src/Services/AntigoonPath.cs" Link="AntigoonPath.cs" /></ItemGroup>
 </Project>

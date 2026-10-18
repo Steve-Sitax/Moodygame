@@ -52,9 +52,15 @@ public partial class PlacesTest
         var fixture=await api.Post<JsonElement>("api/dev/job",new {type="carry",cart=true,twist="none",employer="sooi"});int id=fixture.GetProperty("id").GetInt32();GameState.I.Apply(await api.Jobs());await Jobs.I.TakeJob(GameState.I.Jobs.First(j=>j.Id==id));await Handcarts.I.Load();
         Check(await Until(()=>Handcarts.I.View.List.Any(c=>c.Kind=="lent"&&c.Job==id&&c.Placed),12),"lent cart placed by actual lender hook");
         var cart=Handcarts.I.View.List.First(c=>c.Job==id);
-        GameState.I.Apply(await api.Buy(HomeLife.I.Info!.Dealer!.Id,"plant"));await HomeLife.I.Load();
-        var plant=HomeLife.I.Info!.Items.Last(i=>i.Kind=="plant");
-        Check(await Until(()=>HomeFurniture.I.CarriedFurniture?.Id==plant.Id,10),"new furniture carried in arms");
+        var previous=HomeLife.I.Info!.Items.Select(i=>i.Id).ToHashSet();
+        GameState.I.Apply(await api.Buy(HomeLife.I.Info.Dealer!.Id,"plant"));
+        // A pre-purchase poll may still own Load's busy gate. Let it finish, then request the new state.
+        Check(await Until(()=>!HomeLife.I.Busy,15),"home poll finished after furniture purchase");
+        await HomeLife.I.Load();
+        var plant=HomeLife.I.Info!.Items.Single(i=>i.Kind=="plant"&&!previous.Contains(i.Id)&&i.State=="arms");
+        bool carried=await Until(()=>HomeFurniture.I.CarriedFurniture?.Id==plant.Id,15);
+        replies.Add(new{furnitureArms=new{expected=plant.Id,arms=HomeFurniture.I.CarriedFurniture,items=HomeLife.I.Info.Items,goods=Goods.I.Carried?.Kind}});
+        Check(carried,"new furniture carried in arms");
         await At(cart.X+.95f,cart.Z,cart.X,cart.Z,.7f);Check(Interact.I.Find().Any(a=>a.Text=="put the "+plant.Name+" on the cart"),"carried furniture cart E prompt");Interact.I.Press(Key.E);
         Check(await Until(()=>Handcarts.I.View.List.Any(c=>c.Id==cart.Id&&c.Load.Any(p=>p.Piece==plant.Id))&&!HomeFurniture.I.CartBusy,10),"engine transfers furniture from arms to lent cart");
         Check(await Until(()=>!HomeLife.I.Info!.Items.Any(i=>i.Id==plant.Id),10),"furniture on cart leaves home arms");await Shot("lent-cart-furniture");

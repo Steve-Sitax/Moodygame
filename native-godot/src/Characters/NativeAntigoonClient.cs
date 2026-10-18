@@ -120,7 +120,7 @@ public partial class NativeAntigoonClient : Node
         float lift=(-height+.5f*Jef.Gravity*time*time)/time;
         Jef.I.Knock((to-from)/time,lift,1.4f,thrown:true);Jef.I.Jolt(1.1f,4f);
         blow.Play();flash.Color=new Color(.4f,0,0,.7f);CreateTween().TweenProperty(flash,"color:a",0f,1.4).SetEase(Tween.EaseType.Out);
-        Hud.I?.Say(N(t["wall"])>0||t["wall"]?.GetValue<bool>()==true?"He hurls you against the wall.":"He hurls you across the street.");
+        Hud.I?.Say(t["wall"]?.GetValue<bool>()==true?"He hurls you against the wall.":"He hurls you across the street.");
     }
     /// <summary>The host says his boot landed on this player: throw Jef back from the giant, black out red, shake the street.</summary>
     private void Kicked()

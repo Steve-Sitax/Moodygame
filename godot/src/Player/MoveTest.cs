@@ -118,10 +118,16 @@ public partial class MoveTest : Node
     private async Task<List<Sample>> Sampled(Func<float, bool> step, float limit)
     {
         var list = new List<Sample>();
+        // ProcessFrame resumes before Jef's update. Fence the previous placement/frame before starting his clock.
+        await Frames(1);
         float t = 0;
         double c0 = Jef.I.Clock;
+        if(int.TryParse(Main.I.Arg("move-sampler-stall-ms"),out int stall)&&stall is >0 and <=2000)
+            System.Threading.Thread.Sleep(stall); // controlled regression: a stalled wall frame must not spend movement time
+        ulong wallEnd=Time.GetTicksMsec()+(ulong)(Math.Max(30,limit*10)*1000);
         while (t < limit)
         {
+            if(Time.GetTicksMsec()>wallEnd)throw new TimeoutException("Sampled movement clock stopped before the run completed");
             bool more = step(t);
             await Frames(1);
             // (his own clock: the time his moves took, however the frames fell)
