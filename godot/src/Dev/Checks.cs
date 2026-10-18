@@ -28,7 +28,7 @@ public partial class Checks : Node
     private ulong frameStart;
     private double lastMainMs;
     private long frameAllocatedAt;
-    private bool timingConnected;
+    private bool timingConnected, beforeDrawConnected;
     private FrameCost.Scope processCost, submitCost;
     private readonly List<(string name, Rid rid)> renderViews = new();
     private sealed class Window(int capacity)
@@ -83,7 +83,7 @@ public partial class Checks : Node
             GetTree().ProcessFrame += BeginFrame;
             GetTree().PhysicsFrame += BeginFrame;
             RenderingServer.FramePostDraw += EndFrame;
-            if (Main.I.Flag("profile-parts")) RenderingServer.FramePreDraw += BeforeDraw;
+            if (Main.I.Flag("profile-parts")) { RenderingServer.FramePreDraw += BeforeDraw; beforeDrawConnected=true; }
             timingConnected = true;
         }
     }
@@ -134,7 +134,8 @@ public partial class Checks : Node
         if (!timingConnected) return;
         if (GetTree() != null) { GetTree().ProcessFrame -= BeginFrame; GetTree().PhysicsFrame -= BeginFrame; }
         RenderingServer.FramePostDraw -= EndFrame;
-        RenderingServer.FramePreDraw -= BeforeDraw;
+        if(beforeDrawConnected)RenderingServer.FramePreDraw -= BeforeDraw;
+        timingConnected=beforeDrawConnected=false;
     }
     public override void _Process(double delta)
     {
