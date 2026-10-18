@@ -9,20 +9,28 @@ public sealed partial class Crowd
 {
     private sealed class Lane
     {public double X,Z,Ux,Uz,Rx,Rz,HalfLength,HalfWidth,Look,Rank;public Puppet? Owner;}
-    private sealed class LanePrevious {public double X,Z,Vx,Vz;}
+    // (a body's name and parent are read once: each read of a Godot name made a StringName and a string a frame)
+    private sealed class LanePrevious {public double X,Z,Vx,Vz;public bool Named;public double NameRank;}
     private readonly List<Lane> lanes=new();
+    // lanes are reused frame to frame (#62: a new Lane each frame was most of the crowd's garbage)
+    private readonly List<Lane> laneStore=new();
+    private readonly List<(Node3D Node,Aabb World,Puppet? Owner)> transit=new();
     private readonly ConditionalWeakTable<Node3D,LanePrevious> laneWas=new();
     private void VehicleLanes(double dt)
     {
         lanes.Clear();
-        void Add(double x,double z,double vx,double vz,double ex,double ez,double rank,Puppet? owner=null){double speed=Hyp(vx,vz);if(speed<.35)return;double ux=vx/speed,uz=vz/speed;lanes.Add(new(){X=x,Z=z,Ux=ux,Uz=uz,Rx=-uz,Rz=ux,HalfLength=Math.Abs(ex*ux)+Math.Abs(ez*uz),HalfWidth=Math.Abs(ex*-uz)+Math.Abs(ez*ux),Look=Math.Min(12,Math.Max(3,speed*3.5)),Rank=rank,Owner=owner});}
-        foreach(var body in map.TransitBodies()){
+        void Add(double x,double z,double vx,double vz,double ex,double ez,double rank,Puppet? owner=null){double speed=Hyp(vx,vz);if(speed<.35)return;double ux=vx/speed,uz=vz/speed;
+            if(laneStore.Count<=lanes.Count)laneStore.Add(new());var l=laneStore[lanes.Count];
+            l.X=x;l.Z=z;l.Ux=ux;l.Uz=uz;l.Rx=-uz;l.Rz=ux;l.HalfLength=Math.Abs(ex*ux)+Math.Abs(ez*uz);l.HalfWidth=Math.Abs(ex*-uz)+Math.Abs(ez*ux);l.Look=Math.Min(12,Math.Max(3,speed*3.5));l.Rank=rank;l.Owner=owner;lanes.Add(l);}
+        map.TransitBodies(transit);
+        foreach(var body in transit){
             var centre=body.World.GetCenter();double vx=0,vz=0;
             if(laneWas.TryGetValue(body.Node,out var before)&&dt>0){double k=Math.Min(1,dt*6);vx=before.Vx+((centre.X-before.X)/dt-before.Vx)*k;vz=before.Vz+((centre.Z-before.Z)/dt-before.Vz)*k;if(Hyp(centre.X-before.X,centre.Z-before.Z)>3)vx=vz=0;}
             var was=laneWas.GetValue(body.Node,_=>new());was.X=centre.X;was.Z=centre.Z;was.Vx=vx;was.Vz=vz;
-            string bodyName=body.Owner==null?body.Node.Name.ToString():"";
-            // a portal crane's leg on its rails (Railway.RegisterLegs) outranks everything on the quay, like the train
-            double rank=body.Owner?.Vehicle?.Kind==3?2:body.Owner!=null?1:bodyName.StartsWith("omnibus",StringComparison.Ordinal)?2.5:bodyName.StartsWith("crane_leg",StringComparison.Ordinal)||body.Node.GetParent() is Scheldemist.Movers.Railway?3:2;
+            if(body.Owner==null&&!was.Named){string bodyName=body.Node.Name.ToString();was.Named=true;
+                // a portal crane's leg on its rails (Railway.RegisterLegs) outranks everything on the quay, like the train
+                was.NameRank=bodyName.StartsWith("omnibus",StringComparison.Ordinal)?2.5:bodyName.StartsWith("crane_leg",StringComparison.Ordinal)||body.Node.GetParent() is Scheldemist.Movers.Railway?3:2;}
+            double rank=body.Owner?.Vehicle?.Kind==3?2:body.Owner!=null?1:was.NameRank;
             Add(centre.X,centre.Z,vx,vz,body.World.Size.X/2,body.World.Size.Z/2,rank,body.Owner);
         }
         foreach(var p in people){if(p.Vehicle==null||p.State!="walk"||p.Remote)continue;double fx=Math.Sin(p.Yaw),fz=Math.Cos(p.Yaw);int before=lanes.Count;Add(p.X+fx*p.Nose*.5,p.Z+fz*p.Nose*.5,fx*p.Pace,fz*p.Pace,0,0,p.Vehicle.Kind==3?2:1,p);if(lanes.Count>before){lanes[^1].HalfLength=Math.Max(.6,p.Nose/2+.4);lanes[^1].HalfWidth=Math.Max(.45,p.Reach);}}

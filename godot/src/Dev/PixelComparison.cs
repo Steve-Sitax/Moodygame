@@ -118,6 +118,10 @@ public static class PixelComparison
             if (Main.I.Flag("route-speed-proof")) {
                 var proof = people.Crowd!.CompareRouteLinks(); routeSpeed.Add(proof);
                 routeChecks++; if (!System.Text.Json.JsonSerializer.SerializeToElement(proof).GetProperty("ok").GetBoolean()) routeDifferences++;
+                var budget = people.Crowd.CompareRouteBudget(); routeSpeed.Add(budget);
+                if (routeSpeed.Count <= 2) { var dice = Scheldemist.World.Mist.DiceProof(); routeSpeed.Add(dice); routeChecks++; if (!System.Text.Json.JsonSerializer.SerializeToElement(dice).GetProperty("ok").GetBoolean()) routeDifferences++; }
+                if (routeSpeed.Count <= 3 && People.HallPeople.I is { } halls) { var hallRoutes = halls.CompareHallRoutes(); routeSpeed.Add(hallRoutes); routeChecks++; if (!System.Text.Json.JsonSerializer.SerializeToElement(hallRoutes).GetProperty("ok").GetBoolean()) routeDifferences++; }
+                routeChecks++; if (!System.Text.Json.JsonSerializer.SerializeToElement(budget).GetProperty("ok").GetBoolean()) routeDifferences++;
                 if (Play.Walkups.I is { } walkup) {
                     var starts = walkup.CompareHiddenStarts(); walkups.Add(starts);
                     routeChecks++; if (!System.Text.Json.JsonSerializer.SerializeToElement(starts).GetProperty("ok").GetBoolean()) routeDifferences++;

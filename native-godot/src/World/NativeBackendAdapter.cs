@@ -27,7 +27,10 @@ public sealed class NativeBackendAdapter : ILocalGameBackend
     public string Translate(string json)
     {
         if (profile == null) return json;
-        var shown = profile.ShownSnapshot(PlayerId);
+        // the original Jef reads every text as it is: no parse and copy of the whole reply (garbage for the GC, #62)
+        var stored = profile.Stored(PlayerId);
+        if (NativeTownProfile.AsIs(stored)) return json;
+        Func<string, string> shown = text => NativeTownProfile.About(stored!, text);
         JsonNode? Translate(JsonNode? node) => node switch {
             JsonObject obj => new JsonObject(obj.Select(p => new System.Collections.Generic.KeyValuePair<string,JsonNode?>(p.Key, Translate(p.Value)))),
             JsonArray array => new JsonArray(array.Select(Translate).ToArray()),
@@ -37,7 +40,7 @@ public sealed class NativeBackendAdapter : ILocalGameBackend
         return Translate(JsonNode.Parse(json))!.ToJsonString();
     }
     public Task<string> TranslateAsync(string json) => backend is NativeServiceHost host ? host.WithState(_ => Translate(json)) : Task.FromResult(Translate(json));
-    private void OnPush(string json) { if (Volatile.Read(ref disposed) == 0) Push?.Invoke(Translate(json)); }
+    private void OnPush(string json) { Scheldemist.Dev.EnginePhases.CountCall("PUSH", "push", json.Length); if (Volatile.Read(ref disposed) == 0) Push?.Invoke(Translate(json)); }
     private void OnRoutedPush(int? recipient, string json) { if (recipient == null || recipient == PlayerId) OnPush(json); }
     public async Task<string> Call(string method, string path, string? body)
     {
@@ -45,6 +48,7 @@ public sealed class NativeBackendAdapter : ILocalGameBackend
         {
             if (Volatile.Read(ref disposed) != 0) throw new NativeServiceException("the game has closed", 503);
             string reply = await backend.Call(method, path, body, PlayerId).ConfigureAwait(false);
+            Scheldemist.Dev.EnginePhases.CountCall(method, path, reply.Length);
             if (profile == null || path.TrimStart('/').StartsWith("api/player/",StringComparison.Ordinal)) return reply;
             return await TranslateAsync(reply).ConfigureAwait(false);
         }

@@ -14,19 +14,61 @@ public sealed class NavGrid
     public int X0, Z0, Cx, Cz;
     public bool Built;
     private readonly byte[] open;
-    private readonly float[] g, f;
-    private readonly int[] from, stamp, closed, heap;
-    private int search;
     private WalkMap? map;
     private readonly List<(double x, double z)> pathCells = new(512);
-    private readonly record struct RouteKey(double Sx, double Sz, double Tx, double Tz, int Limit);
+    private readonly record struct RouteKey(double Sx, double Sz, double Tx, double Tz, int Limit, bool Stand);
     private sealed class RouteAnswer { public bool Found; public readonly List<(double x, double z)> Points = new(32); }
     private readonly Dictionary<RouteKey, int> routeCache = new();
     private readonly RouteAnswer[] routeAnswers = new RouteAnswer[32];
     private ulong routeFrame = ulong.MaxValue, routeBodies, routeTopology;
     public int RouteCacheHits { get; private set; }
 
-    private void ClearRoutes() { routeCache.Clear(); routeFrame = ulong.MaxValue; }
+    /// <summary>One A* search's working state: the frame's synchronous search, or one carried over frames (#133).</summary>
+    private sealed class Work
+    {
+        public readonly float[] G, F;
+        public readonly int[] From, Stamp, Closed, Heap;
+        public int Id, Size, Expanded, S, T, Revision;
+        public bool Running;
+        public RouteKey Key;
+        public Func<double, double, bool>? StandAt;
+        public Work(int n2) { G = new float[n2]; F = new float[n2]; From = new int[n2]; Stamp = new int[n2]; Closed = new int[n2]; Heap = new int[n2]; }
+    }
+    private Work now, carried;
+    private int revision;
+    private ulong searchTopology;
+    /// <summary>
+    /// The cells all route searches together may look at in one frame (#133); 0: no limit (proofs). A cell costs about
+    /// a microsecond: one 9,000-cell search took up to 8 ms, and several in one frame stalled it. A search that runs out
+    /// of the frame's cells keeps its state and goes on in the next frames (at least CarriedSlice cells a frame); its
+    /// caller is told to ask again (Deferred) and keeps its old way meanwhile. Asked again, it gets the same answer the
+    /// whole search would have given in one go (the grid unchanged; the grid or the walk map changing starts it again).
+    /// </summary>
+    public static int FrameBudget = 3000;
+    private sealed class Restore(int budget) : IDisposable { public void Dispose() => FrameBudget = budget; }
+    /// <summary>For proofs and fixtures that compare whole searches: no frame budget until disposed.</summary>
+    public static IDisposable Unbudgeted() { var restore = new Restore(FrameBudget); FrameBudget = 0; return restore; }
+    public const int CarriedSlice = 1500;
+    private ulong budgetFrame = ulong.MaxValue;
+    private int spent;
+    private readonly RouteAnswer carriedAnswer = new();
+    private RouteKey carriedAnswerKey;
+    private bool carriedAnswerReady;
+    private ulong carriedAnswerFrame;
+    /// <summary>The last Path call was put off: no answer yet (not "no way"); ask the same again next frame.</summary>
+    public bool Deferred { get; private set; }
+    /// <summary>For checks: the most cells looked at in one frame, searches put off, answers given after frames.</summary>
+    public int MostSpent { get; private set; }
+    public int DeferredSearches { get; private set; }
+    public int CarriedAnswers { get; private set; }
+    public bool Carrying => carried.Running;
+
+    private void ClearRoutes()
+    {
+        routeCache.Clear(); routeFrame = ulong.MaxValue;
+        // the grid changed: a search carried over frames starts again on the new cells, a finished one is void
+        revision++; carriedAnswerReady = false;
+    }
 
     public NavGrid(int half)
     {
@@ -34,12 +76,8 @@ public sealed class NavGrid
         N = half * 2;
         int n2 = N * N;
         open = new byte[n2];
-        g = new float[n2];
-        f = new float[n2];
-        from = new int[n2];
-        stamp = new int[n2];
-        closed = new int[n2];
-        heap = new int[n2];
+        now = new Work(n2);
+        carried = new Work(n2);
     }
 
     /// <summary>Rebuild round (cx, cz): the cells of the baked walk map (WalkMap.Open is the browser's own test per cell).</summary>
@@ -117,14 +155,15 @@ public sealed class NavGrid
     }
 
     /// <summary>
-    /// A* over the open cells, straightened into a few waypoints. Null if there is no way. The way ends on the target
+    /// A* over the open cells, straightened into a few waypoints. Null if there is no way, or, with Deferred set, when
+    /// the frame's budget of cells is spent (FrameBudget): then the output is left as it was. The way ends on the target
     /// itself, or where the target is off the grid and `standAt` says no body stands there, on the open cell nearest.
     /// </summary>
     public List<(double x, double z)>? Path(double sx, double sz, double tx, double tz, int maxExpand = 9000, Func<double, double, bool>? standAt = null, List<(double x, double z)>? output = null)
     {
         using var cost = Scheldemist.Dev.FrameCost.Track("NavGrid.Path");
-        output?.Clear();
-        var key = new RouteKey(sx, sz, tx, tz, maxExpand);
+        Deferred = false;
+        var key = new RouteKey(sx, sz, tx, tz, maxExpand, standAt != null);
         // Caller predicates may depend on bridges or people changed later in this same frame.
         bool cache = WalkMap.CachedRouteLinks && standAt == null;
         if (cache) {
@@ -132,80 +171,212 @@ public sealed class NavGrid
             if (routeFrame != frame || routeBodies != bodies || routeTopology != topology) { routeCache.Clear(); routeFrame = frame; routeBodies = bodies; routeTopology = topology; }
             if (routeCache.TryGetValue(key, out int saved)) {
                 RouteCacheHits++;
-                var answer = routeAnswers[saved];
-                if (!answer.Found) return null;
-                var result = output ?? new List<(double x, double z)>(answer.Points.Count);
-                result.AddRange(answer.Points); return result;
+                return Give(routeAnswers[saved], output);
             }
         }
-        List<(double x, double z)>? Remember(List<(double x, double z)>? answer) {
-            if (cache && routeCache.Count < routeAnswers.Length) {
-                int index = routeCache.Count;
-                var saved = routeAnswers[index] ??= new RouteAnswer();
-                saved.Found = answer != null; saved.Points.Clear();
-                if (answer != null) saved.Points.AddRange(answer);
-                routeCache.Add(key, index);
+        CheckTopology();
+        StartFrame();
+        // a search carried over the last frames: its answer, or it goes on now with what is left of this frame
+        if (carriedAnswerReady && carriedAnswerKey == key && budgetFrame - carriedAnswerFrame <= 2) {
+            carriedAnswerReady = false; CarriedAnswers++;
+            return Remember(key, cache, Give(carriedAnswer, output));
+        }
+        if (carried.Running && carried.Key == key) {
+            if (carried.Revision == revision && Allowance() > 0 && Run(carried, Allowance(), out bool done)) {
+                carried.Running = false; CarriedAnswers++;
+                var o = done ? Finish(carried, sx, sz, tx, tz, standAt, output ?? new List<(double x, double z)>()) : null;
+                if (!done) output?.Clear();
+                return Remember(key, cache, o);
             }
-            return answer;
+            Deferred = true; return null;
         }
-        var s0 = NearestOpen(sx, sz, 2, standAt);
-        var t0 = NearestOpen(tx, tz, 2, standAt);
-        if (s0 == null || t0 == null) return Remember(null);
-        int s = Cell(s0.Value.x, s0.Value.z), t = Cell(t0.Value.x, t0.Value.z);
-        int n = N, tix = t % n, tiz = t / n;
-        float H(int c)
-        {
-            int dx = Math.Abs(c % n - tix), dz = Math.Abs(c / n - tiz);
-            return Math.Max(dx, dz) + 0.4142f * Math.Min(dx, dz);
+        if (Allowance() <= 0) { Deferred = true; DeferredSearches++; return null; }
+        if (!Begin(now, key, standAt)) { output?.Clear(); return Remember(key, cache, null); }
+        if (!Run(now, Allowance(), out bool found)) {
+            // out of this frame's cells: carried on over the next frames when nothing else is, else asked again
+            if (!carried.Running) (now, carried) = (carried, now);
+            now.Running = false;
+            Deferred = true; DeferredSearches++; return null;
         }
-        int id = ++search;
-        int size = 0;
-        void Push(int c)
+        now.Running = false;
+        if (!found) { output?.Clear(); return Remember(key, cache, null); }
+        return Remember(key, cache, Finish(now, sx, sz, tx, tz, standAt, output ?? new List<(double x, double z)>()));
+    }
+
+    private static List<(double x, double z)>? Give(RouteAnswer answer, List<(double x, double z)>? output)
+    {
+        if (!answer.Found) { output?.Clear(); return null; }
+        var result = output ?? new List<(double x, double z)>(answer.Points.Count);
+        result.Clear(); result.AddRange(answer.Points); return result;
+    }
+
+    private List<(double x, double z)>? Remember(RouteKey key, bool cache, List<(double x, double z)>? answer)
+    {
+        if (cache && routeCache.Count < routeAnswers.Length && !routeCache.ContainsKey(key)) {
+            int index = routeCache.Count;
+            var saved = routeAnswers[index] ??= new RouteAnswer();
+            saved.Found = answer != null; saved.Points.Clear();
+            if (answer != null) saved.Points.AddRange(answer);
+            routeCache.Add(key, index);
+        }
+        return answer;
+    }
+
+    private int Allowance() => FrameBudget > 0 ? FrameBudget - spent : int.MaxValue;
+
+    private void StartFrame()
+    {
+        ulong frame = Engine.GetProcessFrames() + proofFrames;
+        if (budgetFrame == frame) return;
+        budgetFrame = frame; spent = 0;
+        // an answer carried over frames that nobody asked for again within two frames is dropped
+        if (carriedAnswerReady && frame - carriedAnswerFrame > 2) carriedAnswerReady = false;
+    }
+
+    private ulong proofFrames;
+    /// <summary>
+    /// For a proof (#133): the same search whole, then under a budget of `slice` cells a frame over simulated frames
+    /// (asked again each frame, the carried search going on between), on the same unchanged grid. True when both give
+    /// the same answer; `frames` is how many frames the sliced one took.
+    /// </summary>
+    internal bool SlicedEqualsWhole(double sx, double sz, double tx, double tz, int maxExpand, Func<double, double, bool>? standAt, int slice, out int frames, out bool found)
+    {
+        int budget = FrameBudget;
+        var whole = new List<(double x, double z)>(); var sliced = new List<(double x, double z)>();
+        try
         {
-            int i = size++;
-            heap[i] = c;
-            while (i > 0)
+            carried.Running = false; carriedAnswerReady = false;
+            FrameBudget = 0; routeCache.Clear(); routeFrame = ulong.MaxValue;
+            found = Path(sx, sz, tx, tz, maxExpand, standAt, whole) != null;
+            FrameBudget = slice; frames = 1;
+            List<(double x, double z)>? answer = null;
+            for (; frames < 1000; frames++)
             {
-                int p = (i - 1) >> 1;
-                if (f[heap[p]] <= f[heap[i]]) break;
-                (heap[p], heap[i]) = (heap[i], heap[p]);
-                i = p;
+                routeCache.Clear(); routeFrame = ulong.MaxValue;
+                proofFrames++;
+                answer = Path(sx, sz, tx, tz, maxExpand, standAt, sliced);
+                if (!Deferred) break;
+                Pump();
             }
+            if (Deferred || (answer != null) != found) return false;
+            if (answer == null) return true;
+            if (whole.Count != sliced.Count) return false;
+            for (int i = 0; i < whole.Count; i++) if (whole[i] != sliced[i]) return false;
+            return true;
         }
-        int Pop()
+        finally { FrameBudget = budget; proofFrames++; routeCache.Clear(); routeFrame = ulong.MaxValue; carried.Running = false; carriedAnswerReady = false; }
+    }
+
+    private void CheckTopology()
+    {
+        ulong topology = map?.TopologyRevision ?? 0;
+        if (topology != searchTopology) { searchTopology = topology; revision++; carriedAnswerReady = false; }
+    }
+
+    /// <summary>
+    /// The search carried over frames goes on: with what is left of the frame's budget, at least CarriedSlice cells.
+    /// Called once a frame by the crowd, after its people thought; its answer waits for its caller's next ask.
+    /// </summary>
+    public void Pump()
+    {
+        if (!Built || !carried.Running) return;
+        CheckTopology();
+        StartFrame();
+        if (carried.Revision != revision) { var k = carried.Key; if (!Begin(carried, k, carried.StandAt)) { carried.Running = false; return; } }
+        int allowance = FrameBudget > 0 ? Math.Max(CarriedSlice, FrameBudget - spent) : int.MaxValue;
+        if (!Run(carried, allowance, out bool found)) return;
+        carried.Running = false;
+        var key = carried.Key;
+        carriedAnswer.Found = found;
+        if (found) Finish(carried, key.Sx, key.Sz, key.Tx, key.Tz, carried.StandAt, carriedAnswer.Points);
+        carriedAnswerKey = key; carriedAnswerReady = true; carriedAnswerFrame = budgetFrame;
+    }
+
+    /// <summary>Sets a search up in w; false when either end has no open cell (no way).</summary>
+    private bool Begin(Work w, RouteKey key, Func<double, double, bool>? standAt)
+    {
+        var s0 = NearestOpen(key.Sx, key.Sz, 2, standAt);
+        var t0 = NearestOpen(key.Tx, key.Tz, 2, standAt);
+        if (s0 == null || t0 == null) return false;
+        w.Key = key; w.StandAt = standAt; w.Revision = revision;
+        w.S = Cell(s0.Value.x, s0.Value.z); w.T = Cell(t0.Value.x, t0.Value.z);
+        w.Id++; w.Size = 0; w.Expanded = 0; w.Running = true;
+        w.Stamp[w.S] = w.Id;
+        w.G[w.S] = 0;
+        w.F[w.S] = H(w, w.S);
+        w.From[w.S] = -1;
+        Push(w, w.S);
+        return true;
+    }
+
+    /// <summary>Step with the cells it used taken from the frame's budget.</summary>
+    private bool Run(Work w, int allowance, out bool found)
+    {
+        int before = w.Expanded;
+        bool over = Step(w, allowance, out found);
+        spent += w.Expanded - before;
+        if (spent > MostSpent) MostSpent = spent;
+        return over;
+    }
+
+    private float H(Work w, int c)
+    {
+        int n = N, dx = Math.Abs(c % n - w.T % n), dz = Math.Abs(c / n - w.T / n);
+        return Math.Max(dx, dz) + 0.4142f * Math.Min(dx, dz);
+    }
+
+    private static void Push(Work w, int c)
+    {
+        var heap = w.Heap; var f = w.F;
+        int i = w.Size++;
+        heap[i] = c;
+        while (i > 0)
         {
-            int top = heap[0];
-            heap[0] = heap[--size];
-            int i = 0;
-            for (;;)
-            {
-                int l = i * 2 + 1, r = l + 1, m = i;
-                if (l < size && f[heap[l]] < f[heap[m]]) m = l;
-                if (r < size && f[heap[r]] < f[heap[m]]) m = r;
-                if (m == i) break;
-                (heap[m], heap[i]) = (heap[i], heap[m]);
-                i = m;
-            }
-            return top;
+            int p = (i - 1) >> 1;
+            if (f[heap[p]] <= f[heap[i]]) break;
+            (heap[p], heap[i]) = (heap[i], heap[p]);
+            i = p;
         }
-        stamp[s] = id;
-        g[s] = 0;
-        f[s] = H(s);
-        from[s] = -1;
-        Push(s);
-        bool found = false;
-        int expanded = 0;
-        while (size > 0 && expanded < maxExpand)
+    }
+
+    private static int Pop(Work w)
+    {
+        var heap = w.Heap; var f = w.F;
+        int top = heap[0];
+        heap[0] = heap[--w.Size];
+        int i = 0, size = w.Size;
+        for (;;)
         {
-            int c = Pop();
-            if (closed[c] == id) continue;
+            int l = i * 2 + 1, r = l + 1, m = i;
+            if (l < size && f[heap[l]] < f[heap[m]]) m = l;
+            if (r < size && f[heap[r]] < f[heap[m]]) m = r;
+            if (m == i) break;
+            (heap[m], heap[i]) = (heap[i], heap[m]);
+            i = m;
+        }
+        return top;
+    }
+
+    /// <summary>
+    /// A* in w for at most `allowance` more cells (its key's limit in all). True when the search is over: found, or no
+    /// way (nothing left to look at, or the limit reached). False: out of allowance, its open set kept for later.
+    /// </summary>
+    private bool Step(Work w, int allowance, out bool found)
+    {
+        found = false;
+        int n = N, id = w.Id, t = w.T, maxExpand = w.Key.Limit;
+        var g = w.G; var f = w.F; var from = w.From; var stamp = w.Stamp; var closed = w.Closed;
+        long stop = Math.Min((long)w.Expanded + allowance, maxExpand);
+        while (w.Size > 0 && w.Expanded < maxExpand)
+        {
+            int c = w.Heap[0];
+            if (closed[c] == id) { Pop(w); continue; }
+            if (c == t) { Pop(w); closed[c] = id; found = true; return true; }
+            // the next cell would be one more than this frame allows: stop, the open set as it is
+            if (w.Expanded >= stop) return false;
+            Pop(w);
             closed[c] = id;
-            if (c == t)
-            {
-                found = true;
-                break;
-            }
-            expanded++;
+            w.Expanded++;
             int cx = c % n, cz = c / n;
             for (int dz = -1; dz <= 1; dz++)
                 for (int dx = -1; dx <= 1; dx++)
@@ -222,19 +393,25 @@ public sealed class NavGrid
                     if (stamp[nc] == id && ng >= g[nc]) continue;
                     stamp[nc] = id;
                     g[nc] = ng;
-                    f[nc] = ng + H(nc);
+                    f[nc] = ng + H(w, nc);
                     from[nc] = c;
-                    Push(nc);
+                    Push(w, nc);
                 }
         }
-        if (!found) return Remember(null);
+        return true;
+    }
+
+    /// <summary>The way found in w, straightened into its corners, written to o.</summary>
+    private List<(double x, double z)> Finish(Work w, double sx, double sz, double tx, double tz, Func<double, double, bool>? standAt, List<(double x, double z)> o)
+    {
+        int n = N;
         var cells = pathCells;
         cells.Clear();
-        for (int c = t; c != -1; c = from[c]) cells.Add((X0 + c % n + 0.5, Z0 + c / n + 0.5));
+        for (int c = w.T; c != -1; c = w.From[c]) cells.Add((X0 + c % n + 0.5, Z0 + c / n + 0.5));
         cells.Reverse();
         if (standAt != null ? standAt(tx, tz) : IsOpen(tx, tz)) cells[^1] = (tx, tz);
         // string pulling: keep only the corners
-        var o = output ?? new List<(double x, double z)>();
+        o.Clear();
         var anchor = (x: sx, z: sz);
         for (int i = 1; i < cells.Count; i++)
         {
@@ -245,7 +422,7 @@ public sealed class NavGrid
             }
         }
         o.Add(cells[^1]);
-        return Remember(o);
+        return o;
     }
 }
 
@@ -366,6 +543,8 @@ public sealed partial class Crowd
         standFree = (x, z) => map.Free(x, z) && !Bridges.OnRaised(x, z);
         noPerson = NoPersonAt;
         grid = new NavGrid(radius + 12);
+        // the route budget (#133): `--route-budget 0` turns it off for A/B timing
+        if (int.TryParse(Main.I?.Arg("route-budget", "") ?? "", out int routeBudget) && routeBudget >= 0) NavGrid.FrameBudget = routeBudget;
         // a bridge does not go up while anyone is on its deck (the browser's peopleOn); those waiting at its ends do not count
         onDeck = PeopleOn;
         Bridges.Busy.Add(onDeck);
@@ -380,7 +559,7 @@ public sealed partial class Crowd
     public void Update(double dt, double vx, double vz, (double x, double z)? playerBody, Camera3D? camera)
     {
         using var profileCost = Scheldemist.Dev.FrameCost.Track("Town.Crowd");
-        map.RefreshBodies();
+        using (Scheldemist.Dev.FrameCost.Track("Crowd.Bodies")) map.RefreshBodies();
         viewX = vx;
         viewZ = vz;
         body = playerBody;
@@ -399,10 +578,12 @@ public sealed partial class Crowd
             for (int i = 0; i < 6; i++) frustum[i] = transform * projection.GetProjectionPlane((Projection.Planes)i);
         }
         pathBudget = 3;
-        VehicleLanes(dt);
-        foreach (var p in people) if (!p.Remote) Think(p, dt);
-        KeepApart(dt);
+        using (Scheldemist.Dev.FrameCost.Track("Crowd.Lanes")) VehicleLanes(dt);
+        using (Scheldemist.Dev.FrameCost.Track("Crowd.Think")) foreach (var p in people) if (!p.Remote) Think(p, dt);
+        using (Scheldemist.Dev.FrameCost.Track("Crowd.Apart")) KeepApart(dt);
+        grid.Pump();
         int drawn = 0, animated = 0;
+        using var drawCost = Scheldemist.Dev.FrameCost.Track("Crowd.Draw");
         foreach (var p in people)
         {
             double d = Hyp(p.X - vx, p.Z - vz);
@@ -419,7 +600,7 @@ public sealed partial class Crowd
                 p.AnimAcc += dt;
                 if (p.AnimAcc >= (d < 8 ? 1.0 / 120 : d < AnimNear ? 1.0 / 60 : d < AnimFar ? 1.0 / 15 : 1.0 / 8))
                 {
-                    p.Human.Update((float)p.AnimAcc);
+                    using (Scheldemist.Dev.FrameCost.Track("Crowd.Animate")) p.Human.Update((float)p.AnimAcc);
                     p.AnimAcc = 0;
                     animated++;
                 }
@@ -751,15 +932,23 @@ public sealed partial class Crowd
     /// search (cells looked at): a caller with a frame budget (the animals) gives a small one and tries again later.</summary>
     public List<(double x, double z)>? PathOn(double ax, double az, double bx, double bz, List<(double x, double z)>? output = null, int maxExpand = 6000)
     {
+        PathDeferred = false;
         if (!grid.Built || !grid.Inside(bx, bz, 2)) return null;
         var a = grid.NearestOpen(ax, az, 6);
-        return a != null ? grid.Path(a.Value.x, a.Value.z, bx, bz, maxExpand, null, output) : null;
+        var way = a != null ? grid.Path(a.Value.x, a.Value.z, bx, bz, maxExpand, null, output) : null;
+        PathDeferred = grid.Deferred;
+        return way;
     }
+    /// <summary>The last PathOn was put off by the frame's route budget (#133): no answer yet, ask the same again later.</summary>
+    public bool PathDeferred { get; private set; }
+    /// <summary>For checks: the route budget's most cells in a frame, searches put off, answers given after frames.</summary>
+    public object RouteBudget => new { NavGrid.FrameBudget, mostCellsInAFrame = grid.MostSpent, deferred = grid.DeferredSearches, carriedAnswers = grid.CarriedAnswers, bodies = WalkMap.BodyCount, stillBodies = WalkMap.StillBodyCount };
 
     /// <summary>Same-snapshot A/B proof: every open directed edge, plus whole routes in both caller forms.</summary>
     public object CompareRouteLinks()
     {
         bool enabled = WalkMap.CachedRouteLinks;
+        using var whole = NavGrid.Unbudgeted();
         int edges = 0, differences = 0, routes = 0;
         for (int z = 1; z < grid.N - 1; z++) for (int x = 1; x < grid.N - 1; x++) {
             double ax = grid.X0 + x + .5, az = grid.Z0 + z + .5;
@@ -798,6 +987,24 @@ public sealed partial class Crowd
             }
         } finally { WalkMap.CachedRouteLinks = enabled; }
         return new { edges, routes, differences, cachedLinks = map.HasCachedRouteLinks, originalMaxMs = oldMax, cachedMaxMs = newMax, originalTotalMs = oldTotal, cachedTotalMs = newTotal, ok = differences == 0 && map.HasCachedRouteLinks };
+    }
+
+    /// <summary>
+    /// The route budget's proof (#133): the routes CompareRouteLinks asks, each whole and in 300-cell slices over
+    /// frames; every answer must be the same.
+    /// </summary>
+    public object CompareRouteBudget()
+    {
+        int routes = 0, differences = 0, sliced = 0, mostFrames = 0, found = 0;
+        for (int i = 0; i < people.Count && i < 24; i++) {
+            var p = people[i]; var to = p.Dest ?? (grid.Cx + Math.Sin(i * 2.4) * 30, grid.Cz + Math.Cos(i * 2.4) * 30);
+            for (int pass = 0; pass < 2; pass++) {
+                bool same = grid.SlicedEqualsWhole(p.X, p.Z, to.Item1, to.Item2, pass == 0 ? 6000 : 9000, pass == 0 ? null : standFree, 300, out int frames, out bool way);
+                routes++; if (!same) differences++; if (frames > 1) sliced++; if (way) found++;
+                mostFrames = Math.Max(mostFrames, frames);
+            }
+        }
+        return new { routes, found, sliced, mostFrames, differences, ok = differences == 0 && routes > 0 && sliced > 0 };
     }
 
     /// <summary>The overlap check (the browser's `__scheldemist.overlaps()`): pairs whose middles are nearer than `min` m.</summary>
@@ -1413,11 +1620,19 @@ public sealed partial class Crowd
             return;
         }
         pathBudget--;
+        var path = grid.Inside(dest.x, dest.z, 4) || !map.IsNative
+            ? grid.Path(p.X, p.Z, dest.x, dest.z, 9000, standFree, p.Path) : null;
+        if (path == null && grid.Deferred)
+        {
+            // the frame's route cells are spent (#133): walk on the old way, or wait, and ask again next frame
+            // (from where the body then is: a way from an older place could start through someone)
+            if (p.State == "walk" && p.Pi < p.Path.Count) p.Repath = true;
+            else { p.State = "wait"; p.Human.Play(StillMotion(p), 0.3f); }
+            return;
+        }
         p.StandDetours = 0;
         p.DetourEnd = 0;
         p.NativeRouting = false;
-        var path = grid.Inside(dest.x, dest.z, 4) || !map.IsNative
-            ? grid.Path(p.X, p.Z, dest.x, dest.z, 9000, standFree, p.Path) : null;
         if (path is not { Count: > 0 } && map.IsNative) {
             p.NativeRoute ??= new NativeCrowdRoute(map);
             if (p.NativeRoute.Window(new Vector2((float)p.X, (float)p.Z), new Vector2((float)dest.x, (float)dest.z), p.Path)) {

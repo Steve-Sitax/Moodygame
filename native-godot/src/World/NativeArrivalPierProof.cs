@@ -51,6 +51,8 @@ public static class NativeArrivalPierProof
             var api = ServerLink.I!.Api!; var boat = Scheldemist.Movers.BoatLamps.I; const float x = -249;
             Check("the landing stage has its four lanterns", boat?.StageLanterns == 4);
             Check("each stage lantern's glass is found in the stage's mesh", boat?.StageGlassMeasured == 4);
+            // every boat lantern with modelled glass gets its glass lit at night (#167), not only the stage's
+            Check("the boats' lanterns with glass have their glass lit too", boat?.GlassLanterns > boat?.StageLanterns);
             // the lantern pool hides lanterns past the fog from the player's own eye, so the player stands mid-pier
             Jef.I.Place(x, -30, 0); await Frames(5);
             foreach (var (name, hour, weather) in new[] { ("night", 22, "clear"), ("night-fog", 22, "fog"), ("rain", 13, "rain"), ("day", 13, "clear") })
@@ -64,9 +66,11 @@ public static class NativeArrivalPierProof
                 await Shot($"lamps-{name}-head", new(x - 1.2f, w + 3.4f, -52), new(x + 1.5f, w + 4.4f, -58.9f), 60);
                 await Shot($"lamps-{name}-post-quay", new(x + .6f, w + 4.4f, -12.5f), new(x - 1.55f, w + 4.5f, -8.5f), 40);
                 await Shot($"lamps-{name}-post-mid", new(x - 1.2f, w + 4.4f, -26), new(x + 1.55f, w + 4.5f, -30), 40);
-                notes.Add(new { mode = "lanterns", name, hour, weather, level = boat?.LampLevel, burning = boat?.StageBurning });
+                notes.Add(new { mode = "lanterns", name, hour, weather, level = boat?.LampLevel, burning = boat?.StageBurning, glassLanterns = boat?.GlassLanterns, glassBurning = boat?.GlassBurning });
                 if (hour == 22) Check($"the stage's lanterns burn at {name}", boat?.LampLevel > .9f && boat.StageBurning > 0);
                 else Check($"the stage's lanterns are out at midday ({name})", boat?.StageBurning == 0);
+                if (hour == 22) Check($"boat lantern glass glows beyond the stage's at {name}", boat?.GlassBurning > boat?.StageBurning);
+                else Check($"no lantern glass glows at midday ({name})", boat?.GlassBurning == 0);
             }
             GameState.I.Apply(await api.Post<JobsPayload>("api/dev/set", new { day = 1, hour = 12, minute = 0, weather = "clear" }));
             Scheldemist.Movers.MoverClock.Hold(12, 1); Daylight.I.SetTime(12); Daylight.I.SetWeather("clear"); Daylight.I.Settle(); await Frames(30);

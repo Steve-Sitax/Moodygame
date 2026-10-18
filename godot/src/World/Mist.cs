@@ -81,15 +81,44 @@ void fragment() {
     }
 
     /// <summary>share.ts hash32 / dice: 0..1 from a key and numbers, the same on every PC.</summary>
-    private static float Dice(string key, params float[] n)
+    // (#62: the same hash with three or four numbers, without a params array each call: 40 kB of garbage a frame)
+    private static float Dice(string key, float a, float b, float c) => Finish(Mix(Mix(Mix(Key(key), a), b), c));
+    private static float Dice(string key, float a, float b, float c, float d) => Finish(Mix(Mix(Mix(Mix(Key(key), a), b), c), d));
+    private static uint Key(string key)
     {
         uint h = 0x811c9dc5;
         foreach (char ch in key) h = (h ^ ch) * 0x01000193;
-        foreach (var v in n)
+        return h;
+    }
+    private static uint Mix(uint h, float v)
+    {
+        h = (h ^ (uint)(int)v) * 0x01000193;
+        return (h ^ (uint)(int)(v * 4096)) * 0x85ebca6b;
+    }
+    /// <summary>The speed proof: the fixed-argument hash against the original params form, on many cells and times.</summary>
+    public static object DiceProof()
+    {
+        static float Original(string key, params float[] n)
         {
-            h = (h ^ (uint)(int)v) * 0x01000193;
-            h = (h ^ (uint)(int)(v * 4096)) * 0x85ebca6b;
+            uint h = 0x811c9dc5;
+            foreach (char ch in key) h = (h ^ ch) * 0x01000193;
+            foreach (var v in n) { h = (h ^ (uint)(int)v) * 0x01000193; h = (h ^ (uint)(int)(v * 4096)) * 0x85ebca6b; }
+            h = (h ^ (h >> 15)) * 0x2c1b3c6d; h = (h ^ (h >> 12)) * 0x297a2d39;
+            return (h ^ (h >> 15)) / 4294967296f;
         }
+        int checks = 0, differences = 0; var rng = new Random(1873);
+        foreach (string key in new[] { "mistP", "mistph", "mistok", "mistx", "mistz", "misty", "mists" })
+            for (int t = 0; t < 4000; t++)
+            {
+                int i = rng.Next(-400, 400), j = rng.Next(-400, 400), k = rng.Next(0, 3); float c = MathF.Floor((float)rng.NextDouble() * 9000);
+                checks += 2;
+                if (Dice(key, i, j, k) != Original(key, i, j, k)) differences++;
+                if (Dice(key, i, j, k, c) != Original(key, i, j, k, c)) differences++;
+            }
+        return new { checks, differences, ok = differences == 0 };
+    }
+    private static float Finish(uint h)
+    {
         h = (h ^ (h >> 15)) * 0x2c1b3c6d;
         h = (h ^ (h >> 12)) * 0x297a2d39;
         return (h ^ (h >> 15)) / 4294967296f;

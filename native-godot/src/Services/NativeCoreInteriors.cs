@@ -60,7 +60,9 @@ public sealed partial class NativeCoreInteriors : INativeServiceModule
     public IReadOnlyList<JsonObject> Patrons(string place)
     {
         var result=new List<JsonObject>();var tempest=C.World("tempest");bool storm=S(tempest,"phase") is "coming" or "peak" or "easing";int ran=0;
-        var places=Places;foreach(var r in Residents) {if(N(r["age"])<14)continue;var now=Activity(r,Day,Hour);if(now.Act=="tavern"&&now.Place==place || storm&&StormTavern(r,now,places,(int)N(tempest?["event"]))==place&&ran++<24)result.Add(r);}return result;
+        // the clock read once, not twice a resident (#62: thousands of database reads and parsed clocks a request)
+        int day=Day;double hour=Hour;
+        var places=Places;foreach(var r in Residents) {if(N(r["age"])<14)continue;var now=Activity(r,day,hour);if(now.Act=="tavern"&&now.Place==place || storm&&StormTavern(r,now,places,(int)N(tempest?["event"]))==place&&ran++<24)result.Add(r);}return result;
     }
     private JsonObject NeedPatron(string place,string id) => Patrons(place).FirstOrDefault(r=>S(r,"id")==id) ?? throw new NativeServiceException("they are not drinking here now",409);
     private static JsonObject PublicPerson(JsonObject r,bool full=true) {var answer=new JsonObject();foreach(string f in full?new[]{"id","name","first","kind","sex","age"}:new[]{"id","name","first","kind"})answer[f]=r[f]?.DeepClone();return answer;}
@@ -183,8 +185,8 @@ public sealed partial class NativeCoreInteriors : INativeServiceModule
     }
     public IReadOnlyList<JsonObject> Audience()
     {
-        var want=new HashSet<string>(new[]{"child","street_child","errand_boy","docker","natie","sailor","boatman","porter"});uint hash(string id){uint x=(uint)(Day*7919);foreach(char ch in id)x=unchecked(x*31+ch);return x;}
-        var sorted=Residents.Where(r=>want.Contains(S(r,"trade"))&&N(r["age"])>=6&&Activity(r,Day,20).Act is "home" or "play" or "loiter").OrderBy(r=>hash(S(r,"id"))).ToArray();var kids=sorted.Where(r=>N(r["age"])<16).Take(6).ToArray();return kids.Concat(sorted.Where(r=>N(r["age"])>=16).Take(14-kids.Length)).ToArray();
+        var want=new HashSet<string>(new[]{"child","street_child","errand_boy","docker","natie","sailor","boatman","porter"});int day=Day;uint hash(string id){uint x=(uint)(day*7919);foreach(char ch in id)x=unchecked(x*31+ch);return x;}
+        var sorted=Residents.Where(r=>want.Contains(S(r,"trade"))&&N(r["age"])>=6&&Activity(r,day,20).Act is "home" or "play" or "loiter").OrderBy(r=>hash(S(r,"id"))).ToArray();var kids=sorted.Where(r=>N(r["age"])<16).Take(6).ToArray();return kids.Concat(sorted.Where(r=>N(r["age"])>=16).Take(14-kids.Length)).ToArray();
     }
     public JsonObject Admit(int who)
     {

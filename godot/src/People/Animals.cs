@@ -505,6 +505,8 @@ public partial class Animals : Node
         var q = crowd.OpenNear(x, z);
         if (q == null || !crowd.CanStand(q.Value.x, q.Value.z)) return false;
         var way = crowd.PathOn(b.X, b.Z, q.Value.x, q.Value.z, routeScratch, PathCells);
+        // the frame's route cells are spent (#133): try again next frame
+        if (way == null && crowd.PathDeferred) { outOfBudget = true; return false; }
         if (way == null || way.Count == 0) return false;
         // the grid keeps half a metre off the walls: from a doorstep, first out onto it
         if (!crowd.CanStand(b.X, b.Z))

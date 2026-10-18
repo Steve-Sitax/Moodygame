@@ -14,6 +14,9 @@ Bugs and loose ends are tracked as [issues](https://github.com/Steve-Sitax/Moody
 - People stop, face you and wait during conversations, including workers and resident riders/cart drivers. Walking away or closing lets them continue; after a long conversation they excuse themselves. Other players see the same held person (#168).
 - Tavern and shop patrons use the street people's detailed models and keep the entrance and serving route clear. De Vliet's frozen doorway keeper no longer appears or blocks entry (#158).
 - Reduced hitches when townspeople and omnibus passengers first appear, and reduced repeated route work and memory churn in boats and the railway (#62, #133, #135).
+- The long freeze near the Vismarkt is gone: people inside the halls no longer stop the game for up to half a second while they plan a walk. Route searches now share a fixed amount of work each frame, so many people starting to walk at once no longer stall a frame (#135, #133).
+- Less memory churn from the crowd, the river mist and the game's own server, so the short pauses for memory clean-up come less often (#62, #32).
+- Every boat lantern with glass now glows at night, like the landing stage's lanterns, including the tall mast lantern by the arrival pier head (#167).
 
 - Parked family handcarts can be taken: walk up and press E. The owner's cart is gone from his round, and the cart keeps its load, which you can push, unload and load again; a second player cannot copy it. The frozen handcart and horse dray that stood all day on the Rijnkaai are gone; the real drays there have a carter and a walking horse.
 
