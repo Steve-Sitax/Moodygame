@@ -186,6 +186,7 @@ public partial class Boats : Node
             if (n is "moored" or "small_boats") Rows((Node3D)top);
         }
         FillMissingCaps();
+        MooringRopes();
         GD.Print($"boats: {floats.Count} single vessels, {rows.Count} rows of moored and small boats ({MooredBoats} boats), models in the bake: {string.Join(", ", templates.Keys.OrderBy(k => k))}");
         if (MoversTest.On) Probes();
     }
@@ -225,6 +226,8 @@ public partial class Boats : Node
             var ex = outer.GetMeta("extras").AsGodotDictionary();
             if (ex.TryGetValue("floor", out var fl)) f.Floor = (float)fl.AsDouble();
         }
+        // a single ship the bake laid on something lies where MooredRespace moves her (issue 109); her lines go with her
+        if (!prepared && outer.GetParent() == Mv.Town && MooredRespace.At(outer.Position.X, outer.Position.Z) is var (rx, rz) && (rx != 0 || rz != 0)) outer.Position += new Vector3(rx, 0, rz);
         var inverse = inner.GlobalTransform.AffineInverse();
         BoatGround.Register(kind, BakedWorld.All(inner).OfType<MeshInstance3D>()
             .Where(m => m.Mesh != null && !m.Name.ToString().EndsWith("_cap"))
@@ -465,7 +468,7 @@ public partial class Boats : Node
                 {
                     row.WakeKeys[i] = (row, i); // Box this same dictionary key once, rather than on every water update.
                     var t = mm.GetInstanceTransform(i);
-                    row.Gone[i] = MathF.Abs(t.Basis.Determinant()) < 1e-9f;
+                    row.Gone[i] = MathF.Abs(t.Basis.Determinant()) < 1e-9f || MooredRespace.Removed(t.Origin.X, t.Origin.Z); // (issue 87: off her mooring)
                     if (!row.Gone[i] && row.Ref < 0) row.Ref = i;
                     var (dx, dz) = MooredRespace.At(t.Origin.X, t.Origin.Z); // (issue 98: boats the bake laid too close)
                     t.Origin += new Vector3(dx, 0, dz);

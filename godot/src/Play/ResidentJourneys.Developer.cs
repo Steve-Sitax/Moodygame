@@ -10,7 +10,7 @@ namespace Scheldemist.Play;
 public partial class ResidentJourneys
 {
     private static void RequireJourneyTest()
-    {if(Main.I.Arg("ridetest")==""&&Main.I.Arg("native-journey-proof")=="")throw new InvalidOperationException("Journey controls require a disposable journey proof world.");}
+    {if(Main.I.Arg("ridetest")==""&&Main.I.Arg("native-journey-proof")==""&&Main.I.Arg("movetest")=="")throw new InvalidOperationException("Journey controls require a disposable journey proof world.");}
     public string JourneyTestGo(string id,Vector2 destination,JourneyRules.Load? load=null,string previous="home",bool fromHome=true)
     {
         RequireJourneyTest();var s=town.ActionPerson(id);if(s==null||transport==null)return "no such resident";

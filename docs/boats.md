@@ -172,7 +172,23 @@ These change together with a model: `shared/smallBoats.ts HULLS` (and the extra 
 `boats_sack_sockets.json` (written by the build), `rijnkaai.ts DECK` and `RAMP`, `railway.ts` crane
 holds, `lifeAboard.ts`, the lantern extras (`boats.ts lamps()`, Godot `BoatLamps.cs`), Godot
 `ShipWater.cs` (riding lights and pumps), `ShipWalk.cs` and `MeshDeck.cs` (decks from the model),
-`RowPhysics.cs` (the nine small hulls).
+`RowPhysics.cs` (the nine small hulls), `BoatCrews.cs` (where the crew stands, from the deck).
+
+## Floors, crews and moorings (issues 155, 154, 87, 2026-10-18)
+
+- Every kind has a floor (`ShipWalk.FloorFor`, `MeshDeck.Hull`), measured from the drawn model at load: in each
+  cell the lowest flat top with headroom (a thwart over the bottom boards, a cabin roof over the deck); under the
+  deck line only open and shallow floors (a lighter's hold, a cockpit), never a deep hold under an open hatch, which
+  is bridged at deck height; cloth, bilge water, nets and lettering are never a floor. Small boats (under 9 m) are
+  measured under their sheer (thwart + 0.15 m). Walking steps up at most 0.36 m. A model change moves its floor
+  with it; run `--movetest <dir> --moveonly boatdeck` (drops on every kind, a hole scan over each hull).
+- `BoatCrews` puts people on every single vessel underway (river, anchorage tows, lock): a rower with oars on a
+  small hull (`Rowing.Oarsman`), else a steersman aft and a hand forward (and a third amidships from 30 m), on the
+  deck. `--moveonly crews` (`--crewhour 19.25` for dusk).
+- `MooredRespace` (Boats.Respace.cs) is the one list of moored boats moved or taken off their moorings (bake places
+  as keys). The rows, `ShipLines`, the baked mooring ropes (`Boats.Moorings.cs`), and the engine's mooring list
+  (`MooredRespace.Boats/Transport`, wired in `NativeTownGame`) all read it. `--moveonly ladders` checks every
+  ladder and flight landing for a hull on its hold and prints a plan for any that are blocked.
 
 ## The fleet registry
 

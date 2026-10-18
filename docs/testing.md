@@ -81,6 +81,13 @@ For example, `--dev-command 'hour 13 clear; go vismarkt; summon fishwife'`. Cons
 (W1: holds the river at a level whatever the clock says; `World/Tide.cs Hold`). They use the
 normal server dev routes, crowd and job-taking path. Four of them are exercised by `--devtest <dir>`.
 
+Boats (issues 155, 87, 154, 156; opt-in parts of the move check): `--movetest <dir> --moveonly boatdeck` (a 2 m drop
+onto every kind of boat, a hole scan over each hull, a walk on a deck underway, quay to boat, quay to barge, low water),
+`ladders` (no hull on any ladder's or landing's hold; prints a mooring plan when one is blocked), `crews` (every boat
+underway within 140 m has her people; `--crewhour H`), `takeboat` (take an owned and a nobody's moored boat, row out
+and back, tie up). `--mptest <dir> --mpboat` adds the boat to the two-game check: the host takes a moored boat and
+rows; the guest must see her gone from her mooring, the host at her oars, and her lying where the host left her.
+
 Direct check options go after Godot's `--`: `--paths <dir>`, `--stuck <dir>`, `--shaders <dir>`,
 `--perfcheck <dir>`, `--clocks --check-out <dir>`, `--interiors --check-out <dir>`. Each writes its named JSON and
 quits. These modes bypass the menus. Give each a fresh `--db`, `--prefs`, `--author-root` and `SCHELDEMIST_USER_DATA`

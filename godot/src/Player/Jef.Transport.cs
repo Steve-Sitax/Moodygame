@@ -31,6 +31,15 @@ public partial class Jef
         Body.GlobalPosition = new Vector3(X, Y, Z);
         Landed?.Invoke();
     }
+    /// <summary>A ride that walks him (a ship's deck, a boat's bottom boards) counts his steps as the street does: a footstep each stride.</summary>
+    public void WalkedOn(float moved, bool hurry)
+    {
+        if (moved < 1e-4f) return;
+        bobPhase += moved / StepLen * MathF.PI;
+        int side = (int)MathF.Floor(bobPhase / MathF.PI);
+        if (side != lastStepSide) Stepped?.Invoke(hurry);
+        lastStepSide = side;
+    }
     /// <param name="turnView">The view turns with the floor at once (a turning crane deck: browser carryTo), not after the look's easing.</param>
     public void Carry(Vector3 at, float yawDelta = 0, bool turnView = false)
     {

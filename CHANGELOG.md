@@ -11,6 +11,12 @@ Bugs and loose ends are tracked as [issues](https://github.com/Steve-Sitax/Moody
 
 ## [Unreleased]
 
+- Every boat now has a floor you can stand on: jump from the quay into a moored rowing boat, stand on her bottom boards or a thwart, step up onto a barge, land on a cabin roof or an open lighter's hold, and walk the deck of a ship while she sails. Your steps sound like wood on board. A drop from the quay into a boat at low water is about 4.5 m and hurts (#155).
+- The quay ladders and stone steps are free again: the small boats that lay across them now lie beside them, and 15 boats that had no room are gone. A swimmer can climb out at the nearest ladder (#87).
+- The Rhine barges WILHELMINA and ST. NIKOLAUS lie a little further out from the landing stage; its mooring chains no longer run through their hulls (#109).
+- Boats underway have people aboard: a rower at his oars, a steersman aft and a hand forward, a third on the big ships. Families walk down the steps into their boat before they cast off, and step out and walk up the steps when they come in. The boats at the steps go out twice a day, and more households use their boats (#154).
+- You can take a boat: stand in it and press E. The prompt says whose boat it is. Taking someone else's boat is theft: her owner and anyone who sees it react. Row her with W/S/A/D and get out at a ladder or steps; tie her up at her own mooring and the matter is settled. Other players see her gone from her mooring, see you rowing her, and see her where you leave her (#156).
+
 - People stop, face you and wait during conversations, including workers and resident riders/cart drivers. Walking away or closing lets them continue; after a long conversation they excuse themselves. Other players see the same held person (#168).
 - Tavern and shop patrons use the street people's detailed models and keep the entrance and serving route clear. De Vliet's frozen doorway keeper no longer appears or blocks entry (#158).
 - Reduced hitches when townspeople and omnibus passengers first appear, and reduced repeated route work and memory churn in boats and the railway (#62, #133, #135).

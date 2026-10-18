@@ -69,6 +69,12 @@ public partial class MoveTest : Node
             if (Wants("flood")) await FloodCheck();
             if (Wants("crane")) await CraneCheck();
             if (Wants("look")) await LookCheck();
+            if (Main.I.Arg("moveonly").Split(',').Contains("boatdeck")) await BoatDeckCheck();
+            if (Main.I.Arg("moveonly").Split(',').Contains("boatdump")) BoatDump();
+            if (Main.I.Arg("moveonly").Split(',').Contains("ladders")) await LadderCheck();
+            if (Main.I.Arg("moveonly").Split(',').Contains("crews")) await CrewCheck();
+            if (Main.I.Arg("moveonly").Split(',').Contains("takeboat")) await TakeBoatCheck();
+            if (Main.I.Arg("moveonly").Split(',').Contains("resboat")) await ResidentBoatCheck();
         }
         catch (Exception e) { error = e.ToString(); GD.PrintErr("movetest: " + error); failed = true; }
         finally

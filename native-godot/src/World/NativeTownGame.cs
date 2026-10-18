@@ -112,12 +112,15 @@ public partial class NativeTownGame : Scheldemist.Main
             new NativeTownEmigrantsPopulation(population, emigrants).Ensure(townSeed);
             var populationLifecycle = new NativeTownPopulationLifecycle(population, emigrants);
             deeds.Stealables = populationLifecycle.Assets.Stealables;
-            rowing.BoatDefinitions = populationLifecycle.Assets.Boats;
-            rowing.PublicBoats = populationLifecycle.Assets.PublicBoats;
+            // the small boats moved off the ladders or taken off their moorings (issue 87): the same list the drawn rows read
+            rowing.BoatDefinitions = () => Scheldemist.Movers.MooredRespace.Boats(populationLifecycle.Assets.Boats());
+            rowing.PublicBoats = () => Scheldemist.Movers.MooredRespace.Boats(populationLifecycle.Assets.PublicBoats());
             rowing.LandingWaterman = populationLifecycle.Assets.Waterman;
-            transport.TransportRecord = populationLifecycle.Transport.Record;
+            // (issue 154) the households' boats: the family boats, and the residents' boats moored at steps; out twice a day
+            var boatOutings = new NativeBoatOutings(population, populationLifecycle.Transport, () => Scheldemist.Movers.MooredRespace.Boats(populationLifecycle.Assets.Boats()));
+            transport.TransportRecord = boatOutings.Record;
             transport.TripPoints = populationLifecycle.Transport.TripPoints;
-            transport.Errands = populationLifecycle.Transport.Errands;
+            transport.Errands = boatOutings.Errands;
             transport.ParkedCartSnapshot = id => Scheldemist.Play.ResidentJourneys.I?.CartSnapshot(id);
             events.EventPeopleMax = populationLifecycle.EventPeopleMax;
             surprises.SaveVisitor = populationLifecycle.Visitors.SaveVisitor;
