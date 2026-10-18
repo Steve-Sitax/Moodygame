@@ -1,19 +1,22 @@
 # Plays chapter 1 of the Antigoon story through in a disposable save with AI off: the offer, the lamps, the clues,
 # a save and load, the staged sighting, the report and the door note. Pictures and checks stay in .scratch.
-param([string]$Godot, [ValidateRange(9140,9239)][int]$Port=9229)
+param([string]$Godot, [ValidateRange(8800,9239)][int]$Port=9229, [string]$Output, [switch]$SkipBuild)
 $ErrorActionPreference='Stop'
 . (Join-Path $PSScriptRoot 'engine-tools.ps1')
 $project=[IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
 $workspace=Split-Path $project
-$proof=Join-Path $workspace ('.scratch/story-'+(Get-Date -Format 'yyyyMMdd-HHmmss'))
+$proof=if($Output){[IO.Path]::GetFullPath($Output)}else{Join-Path $workspace ('.scratch/story-'+[guid]::NewGuid().ToString('N'))}
+if(Test-Path -LiteralPath $proof){throw 'Use a fresh story proof folder.'}
 [void](New-Item -ItemType Directory -Path $proof)
 $engine=Resolve-WorkshopGodot $Godot
 $previous=$env:SCHELDEMIST_USER_DATA
 $previousSeed=$env:SCHELDEMIST_TOWN_SEED
 try {
     $env:SCHELDEMIST_USER_DATA=Join-Path $proof 'userdata'; $env:SCHELDEMIST_TOWN_SEED='1873'
-    & dotnet build (Join-Path $project 'Scheldemist.Native.csproj') --nologo -v quiet
-    if($LASTEXITCODE -ne 0){throw 'Build failed'}
+    if(-not $SkipBuild){
+        & dotnet build (Join-Path $project 'Scheldemist.Native.csproj') --nologo -v quiet
+        if($LASTEXITCODE -ne 0){throw 'Build failed'}
+    }
     Update-WorkshopImports $engine $project
     $arguments=@('--rendering-method','forward_plus','--audio-driver','Dummy','--path',$project,'--log-file',(Join-Path $proof 'live.log'),'res://town.tscn','--','--no-ai','--dev','--port',"$Port",'--db',(Join-Path $proof 'game.sqlite'),'--prefs',(Join-Path $proof 'settings.json'),'--author-root',(Join-Path $proof 'layouts'),'--story-proof',$proof)
     Invoke-WorkshopEngine -Engine $engine -Project $project -EngineArguments $arguments -Log (Join-Path $proof 'engine.log') -LimitSeconds 1200

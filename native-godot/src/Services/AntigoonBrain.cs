@@ -77,7 +77,7 @@ public sealed class AntigoonBrain
     // The way his body points while he walks: it comes round at a giant's pace, and he slows until it has.
     private double heading,noLeapUntil;
     /// <summary>False for a while after a leap he could not make: his routes then go round every obstacle.</summary>
-    public bool LeapsAllowed=>now>=noLeapUntil;
+    public bool LeapsAllowed=>State!="shield"&&now>=noLeapUntil;
     private string jumpThen="walk";
     /// <summary>Proof aid: where he is heading while shielding, and the next patrol spot.</summary>
     public (Point Shield,Point Patrol) Goals=>(shieldGoal,RoamGoal());

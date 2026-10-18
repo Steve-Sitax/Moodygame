@@ -30,6 +30,7 @@ public static class NativeStoryProof
         var checks=new JsonArray();
         async Task Frames(int count){for(int i=0;i<count;i++)await game.ToSignal(game.GetTree(),SceneTree.SignalName.ProcessFrame);}
         async Task Seconds(double s){var until=DateTime.UtcNow.AddSeconds(s);while(DateTime.UtcNow<until)await Frames(1);}
+        async Task<bool> Until(Func<Task<bool>> ready,double seconds){var end=DateTime.UtcNow.AddSeconds(seconds);do{if(await ready())return true;await Seconds(.1);}while(DateTime.UtcNow<end);return await ready();}
         async Task Shot(string name){await Frames(2);await game.ToSignal(RenderingServer.Singleton,RenderingServer.SignalName.FramePostDraw);game.GetViewport().GetTexture().GetImage().SavePng(Path.Combine(output,name+".png"));}
         void Check(string what,bool ok,string detail=""){checks.Add(new JsonObject{["check"]=what,["ok"]=ok,["detail"]=detail});GD.Print((ok?"STORY_PASS: ":"STORY_FAIL: ")+what+(detail==""?"":" ("+detail+")"));if(!ok)throw new Exception(what+(detail==""?"":": "+detail));}
         try
@@ -43,7 +44,7 @@ public static class NativeStoryProof
             async Task<StoryView> View(){GameState.I.Apply(await api.Jobs());return GameState.I.Payload!.Story!;}
             int Money()=>GameState.I.Payload!.Player.MoneyC;
             void Face(float x,float z,float tx,float tz,float pitch=0)=>Jef.I.Place(x,z,MathF.Atan2(-(tx-x),-(tz-z)),pitch);
-            async Task<bool> Press(string prompt){for(int i=0;i<30;i++){Interact.I.RepeatPrompt();if(Interact.I.Text.Contains(prompt,StringComparison.OrdinalIgnoreCase))return Interact.I.Press(Key.E);await Frames(2);}return false;}
+            async Task<bool> Press(string prompt){var end=DateTime.UtcNow.AddSeconds(5);do{Interact.I.RepeatPrompt();if(Interact.I.Text.Contains(prompt,StringComparison.OrdinalIgnoreCase))return Interact.I.Press(Key.E);await Frames(2);}while(DateTime.UtcNow<end);return false;}
             await Clock(13);
             var story=await View();
             Check("a new town offers chapter 1",story.Status=="offered"&&story.Chapter==1&&story.Lamps.Count==2&&story.Lowie!="",$"{story.Status}, lamplighter {story.LowieName}, lamps {string.Join(",",story.Lamps.Select(l=>l.Id))}");
@@ -80,9 +81,9 @@ public static class NativeStoryProof
             Check("Pieter's lamps are in the town's lights",k0>=0&&k1>=0,$"{k0},{k1}");
             Check("his lamps stay dark at 19:30",Lights.I.LampBright(k0)<.1f&&Lights.I.LampBright(k1)<.1f,$"{Lights.I.LampBright(k0):0.00} {Lights.I.LampBright(k1):0.00}");
             Face(first.Sx+.4f,first.Sz+.4f,first.X,first.Z,.35f);await Seconds(1);await Shot("04-dark-lamp-night");
-            Check("E lights the first lamp",await Press($"light {story.Helper}'s lamp"),Interact.I.Text);await Seconds(4);
-            story=await View();
-            Check("the first lamp is lit and burns",story.Lamps[0].Lit&&Lights.I.LampBright(k0)>.3f,$"{Lights.I.LampBright(k0):0.00}");
+            Check("E lights the first lamp",await Press($"light {story.Helper}'s lamp"),Interact.I.Text);
+            bool firstBurns=await Until(async()=>{story=await View();return story.Lamps[0].Lit&&Lights.I.LampBright(k0)>.3f;},30);
+            Check("the first lamp is lit and burns",firstBurns,$"lit {story.Lamps[0].Lit}, flame {Lights.I.LampBright(k0):0.00}");
             await Shot("05-lit-lamp-night");
 
             // Save in the middle; load; the chapter is where it was.
@@ -90,7 +91,7 @@ public static class NativeStoryProof
             var saved=await api.Save("slot1","story proof",client);Check("saved mid-chapter",saved.Ok,saved.Error??"");
             // Loaded the way the menu does it, then back into play.
             string outcome="";MainMenu.I!.Saves.Load("slot1",o=>outcome=o);
-            for(int i=0;i<600&&outcome=="";i++)await Frames(2);
+            await Until(()=>Task.FromResult(outcome!=""),60);
             Check("loaded it again from the menu",outcome=="loaded slot1",outcome);
             MainMenu.I.Start();Pause.Clear();await Frames(120);
             story=await View();
@@ -98,10 +99,9 @@ public static class NativeStoryProof
 
             Face(last.Sx+.4f,last.Sz-.4f,last.X,last.Z,.35f);await Seconds(1);
             bool lastPressed=await Press($"light {story.Helper}'s lamp");if(!lastPressed)await Shot("debug-last-lamp");
-            Check("E lights the last lamp",lastPressed,$"prompt \"{Interact.I.Text}\", playing {GameState.I.Playing}, paused {ServerLink.I?.Paused}, jef {Jef.I.X:0.0},{Jef.I.Z:0.0}, step {last.Sx:0.0},{last.Sz:0.0}, dialogs {Scheldemist.Windows.Dialogs.I?.Any}");await Seconds(4);
-            story=await View();
-            for(int i=0;i<40&&Lights.I.LampBright(k1)<=.3f;i++)await Seconds(.2);
-            Check("both lamps lit",story.Lamps.All(l=>l.Lit)&&Lights.I.LampBright(k1)>.3f,$"lit {string.Join(",",story.Lamps.Select(l=>l.Lit))}, flame {Lights.I.LampBright(k1):0.00}, hour {GameState.I.HourF:0.00}");
+            Check("E lights the last lamp",lastPressed,$"prompt \"{Interact.I.Text}\", playing {GameState.I.Playing}, paused {ServerLink.I?.Paused}, jef {Jef.I.X:0.0},{Jef.I.Z:0.0}, step {last.Sx:0.0},{last.Sz:0.0}, dialogs {Scheldemist.Windows.Dialogs.I?.Any}");
+            bool bothBurn=await Until(async()=>{story=await View();return story.Lamps.All(l=>l.Lit)&&Lights.I.LampBright(k1)>.3f;},30);
+            Check("both lamps lit",bothBurn,$"lit {string.Join(",",story.Lamps.Select(l=>l.Lit))}, flame {Lights.I.LampBright(k1):0.00}, hour {GameState.I.HourF:0.00}");
 
             // The staged sighting at the authored junction, when one is chosen.
             var junction=game.StoryService!.Junction;
@@ -118,11 +118,12 @@ public static class NativeStoryProof
                 // Facing away: the scrape must turn his head first.
                 Face((float)eye!.Value.X,(float)eye.Value.Z,(float)(2*eye.Value.X-j.X),(float)(2*eye.Value.Z-j.Z));
                 JsonObject state=new();bool appeared=false,locator=false,attacked=false;int frames=0;
-                for(int i=0;i<600&&!appeared;i++){state=JsonNode.Parse(await api.GetJson("api/antigoon"))!.AsObject();appeared=state["story_sound"]!=null;await Frames(3);}
-                Check("the scrape comes first",appeared);
+                appeared=await Until(async()=>{state=JsonNode.Parse(await api.GetJson("api/antigoon"))!.AsObject();return state["story_sound"]?["kind"]?.GetValue<string>()=="scrape";},60);
+                Check("the scrape comes first",appeared,state.ToJsonString());
                 Face((float)eye.Value.X,(float)eye.Value.Z,(float)j.X,(float)j.Z,.12f);
                 bool crossed=false;var shots=0;
-                for(int i=0;i<900;i++)
+                var crossingEnd=DateTime.UtcNow.AddSeconds(90);
+                while(DateTime.UtcNow<crossingEnd)
                 {
                     state=JsonNode.Parse(await api.GetJson("api/antigoon"))!.AsObject();
                     if(state["development_spawn"]?.GetValue<bool>()==true||Main.I.Ui.GetNodeOrNull<Control>("AntigoonDevPointer")?.Visible==true)locator=true;

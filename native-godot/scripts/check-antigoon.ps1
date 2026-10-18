@@ -1,20 +1,24 @@
-param([string]$Godot, [ValidateRange(9140,9239)][int]$Port=9227)
+param([string]$Godot, [ValidateRange(8800,9239)][int]$Port=9227, [string]$Output, [switch]$SkipBuild)
 $ErrorActionPreference='Stop'
 . (Join-Path $PSScriptRoot 'engine-tools.ps1')
 $project=[IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
 $workspace=Split-Path $project
-$proof=Join-Path $workspace ('.scratch/antigoon-'+[guid]::NewGuid().ToString('N'))
+$proof=if($Output){[IO.Path]::GetFullPath($Output)}else{Join-Path $workspace ('.scratch/antigoon-'+[guid]::NewGuid().ToString('N'))}
+if(Test-Path -LiteralPath $proof){throw 'Use a fresh Antigoon proof folder.'}
 [void](New-Item -ItemType Directory -Path $proof)
 $engine=Resolve-WorkshopGodot $Godot
 $previous=$env:SCHELDEMIST_USER_DATA
 $previousSeed=$env:SCHELDEMIST_TOWN_SEED
 try {
     $env:SCHELDEMIST_USER_DATA=Join-Path $proof 'userdata'; $env:SCHELDEMIST_TOWN_SEED='1873'
-    & dotnet build (Join-Path $project 'Scheldemist.Native.csproj') --nologo -v quiet
-    if($LASTEXITCODE -ne 0){throw 'Build failed'}
+    if(-not $SkipBuild){
+        & dotnet build (Join-Path $project 'Scheldemist.Native.csproj') --nologo -v quiet
+        if($LASTEXITCODE -ne 0){throw 'Build failed'}
+    }
     Update-WorkshopImports $engine $project
     $arguments=@('--rendering-method','forward_plus','--audio-driver','Dummy','--path',$project,'--log-file',(Join-Path $proof 'live.log'),'res://town.tscn','--','--no-ai','--dev','--port',"$Port",'--db',(Join-Path $proof 'game.sqlite'),'--prefs',(Join-Path $proof 'settings.json'),'--author-root',(Join-Path $proof 'layouts'),'--antigoon-event-proof',$proof)
-    Invoke-WorkshopEngine -Engine $engine -Project $project -EngineArguments $arguments -Log (Join-Path $proof 'engine.log') -LimitSeconds 900
+    # Startup alone may take 600 seconds; the live roam/combat/feeding stages have their own bounded waits.
+    Invoke-WorkshopEngine -Engine $engine -Project $project -EngineArguments $arguments -Log (Join-Path $proof 'engine.log') -LimitSeconds 1800
     if(Test-Path -LiteralPath (Join-Path $proof 'failure.txt')){throw ('Antigoon proof failed: '+(Get-Content -LiteralPath (Join-Path $proof 'failure.txt') -Raw))}
     Write-Output "PROOF: $proof"
 } finally {

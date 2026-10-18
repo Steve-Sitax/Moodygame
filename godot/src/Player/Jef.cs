@@ -257,6 +257,7 @@ public partial class Jef : Node, Mantle.IWorld
         Look(0, 0, 0);
     }
     private bool placing;
+    public bool PlacementPending => placing || Engine.GetPhysicsFrames() <= holdTick;
 
     public void SetKey(Key k, bool down)
     {

@@ -12,7 +12,9 @@ function Invoke-WorkshopEngine([string]$Engine, [string]$Project, [string[]]$Eng
     $engineStart = [Diagnostics.ProcessStartInfo]::new()
     $engineStart.FileName = $Engine; $engineStart.WorkingDirectory = $Project
     $engineStart.UseShellExecute = $false; $engineStart.CreateNoWindow = $true
-    $engineStart.WindowStyle = [Diagnostics.ProcessWindowStyle]::Hidden
+    # Hide console/headless helpers, but let a rendered proof create its actual game window.
+    # SW_HIDE inherited by the engine can leave it minimized: FramePostDraw then never arrives.
+    $engineStart.WindowStyle = if($EngineArguments -contains '--headless'){[Diagnostics.ProcessWindowStyle]::Hidden}else{[Diagnostics.ProcessWindowStyle]::Normal}
     $engineStart.RedirectStandardOutput = $true; $engineStart.RedirectStandardError = $true
     foreach ($argument in $EngineArguments) { $engineStart.ArgumentList.Add($argument) }
     $engineChild = [Diagnostics.Process]::new(); $engineChild.StartInfo = $engineStart

@@ -92,7 +92,9 @@ public static class NativeAntigoonEventProof
             // Move only this disposable proof camera/player to inspect the remote encounter after checking no teleport.
             var view=new[]{9.0,7,12,5,15}.SelectMany(r=>Enumerable.Range(0,16).Select(i=>new P(home.X+Math.Sin(i*Math.PI/8)*r,home.Z+Math.Cos(i*Math.PI/8)*r)))
                 .Where(q=>encounter.HumanClear(q)&&encounter.Sight(q,home)).Select(p=>new Vector2((float)p.X,(float)p.Z)).First();
-            Jef.I.Place(view.X,view.Y,0,0,(float)encounter.Ground(home));
+            // The camera may be close; the witness must stay outside attack range until the combat assertions.
+            var observer=new[]{60.0,55,65}.SelectMany(r=>Enumerable.Range(0,32).Select(i=>new P(home.X+Math.Sin(i*Math.PI/16)*r,home.Z+Math.Cos(i*Math.PI/16)*r))).First(encounter.HumanClear);
+            Jef.I.Place((float)observer.X,(float)observer.Z,0,0,(float)encounter.Ground(observer));
             game.Cam.SetProcess(false);game.Cam.SetPhysicsProcess(false);game.Cam.SetProcessInput(false);game.Cam.SetProcessUnhandledInput(false);
             // A free mouse pauses play (the menu takes over); live play keeps it captured.
             Input.MouseMode=Input.MouseModeEnum.Captured;Pause.Clear();
@@ -199,21 +201,47 @@ public static class NativeAntigoonEventProof
     /// <summary>Left alone he goes to food: a fish stall, the butcher, a bakery, a stray or a cat, and eats.</summary>
     private static async Task Feeds(NativeTownGame game,Scheldemist.Net.Api api,Scheldemist.Native.Services.NativeAntigoon encounter,Vector2 far,string output,Func<int,Task> frames)
     {
+        // This is a remote observation; the original arrival position can be over water after the ferry has left.
+        if(!Jef.I.Fly)Jef.I.ToggleFly();game.Cam.SetProcess(false);
         Jef.I.Drive=null;Jef.I.Place(far.X,far.Y,0,0);
+        GameState.I.Apply(await api.Jobs());
+        if(GameState.I.Health<=0||GameState.I.Ending!=null)throw new Exception("Combat killed the proof's witness; a game-over picture cannot prove eating.");
         GD.Print($"ANTIGOON_FOOD {await encounter.WithState(e=>e.FoodTrace())}");
-        var until=DateTime.UtcNow.AddSeconds(120);string meal="";int ticks=0;
+        // The randomized developer stage can start across town. Budget the actual street route at his slower
+        // shielding speed, with margin for corners, lamp-throw windups and polling; straight-line/120 s was not a route budget.
+        double seconds=await encounter.WithState(e=>e.FoodWaitSeconds());
+        File.WriteAllText(Path.Combine(output,"food-plan.json"),System.Text.Json.JsonSerializer.Serialize(await encounter.WithState(e=>e.FoodPlan()),new System.Text.Json.JsonSerializerOptions{WriteIndented=true}));
+        GD.Print($"ANTIGOON_FOOD_WAIT: {seconds:0.0} seconds for the selected street route");
+        var began=DateTime.UtcNow;var hardEnd=began.AddSeconds(Scheldemist.Native.Services.NativeAntigoon.FoodProofMaximumSeconds);
+        var until=began.AddSeconds(seconds);string meal="";int ticks=0;
+        string? goal=await encounter.WithState(e=>e.FoodTarget);
         while(DateTime.UtcNow<until)
         {
             await frames(20);if(Pause.Paused){Input.MouseMode=Input.MouseModeEnum.Captured;Pause.Clear();}
             var v=await Sample(api);
             if(v["state"]!.GetValue<string>()=="eat"&&v["meal"]?.GetValue<string>() is {} m){meal=m;break;}
+            var plan=await encounter.WithState(e=>(Target:e.FoodTarget,Seconds:e.FoodTarget!=goal?e.FoodWaitSeconds():0));
+            if(plan.Target!=goal)
+            {
+                goal=plan.Target;var changed=DateTime.UtcNow.AddSeconds(plan.Seconds);if(changed>until)until=changed<hardEnd?changed:hardEnd;
+                GD.Print($"ANTIGOON_FOOD_REPLANNED {goal??"none"}: {(until-DateTime.UtcNow).TotalSeconds:0.0} seconds remain (bounded overall)");
+            }
             if(++ticks%15==0)GD.Print($"ANTIGOON_FOOD_TRACE {await encounter.WithState(e=>e.DevelopmentTrace()+" | "+e.FoodGoal())}");
         }
         GD.Print($"ANTIGOON_FOOD {await encounter.WithState(e=>e.FoodTrace())}");
-        if(meal=="")throw new Exception("Left alone for 120 s, Antigoon never went to food");
+        if(meal=="")throw new Exception($"Left alone for {(DateTime.UtcNow-began).TotalSeconds:0.0} s, Antigoon never went to food: {await encounter.WithState(e=>e.FoodGoal())}");
+        GameState.I.Apply(await api.Jobs());
+        if(GameState.I.Health<=0||GameState.I.Ending!=null)throw new Exception("The remote witness died while waiting for food");
         var at=At(await Sample(api));
-        game.Cam.SetProcess(false);game.Cam.GlobalPosition=new((float)at.X+9,(float)encounter.Ground(at)+3,(float)at.Z+4);game.Cam.LookAt(new((float)at.X,(float)encounter.Ground(at)+2.5f,(float)at.Z));
-        await frames(50);await game.ToSignal(RenderingServer.Singleton,RenderingServer.SignalName.FramePostDraw);
+        // Jef's on-foot Look also owns the camera. Release it before framing the remote meal.
+        if(!Jef.I.Fly)Jef.I.ToggleFly();
+        var view=new[]{9.0,7,12,5,15}.SelectMany(r=>Enumerable.Range(0,24).Select(i=>new P(at.X+Math.Sin(i*Math.PI/12)*r,at.Z+Math.Cos(i*Math.PI/12)*r))).First(p=>encounter.HumanClear(p)&&encounter.BodyVisible(p,at));
+        game.Cam.GlobalPosition=new((float)view.X,(float)encounter.Ground(view)+3,(float)view.Z);game.Cam.LookAt(new((float)at.X,(float)encounter.Ground(at)+2.5f,(float)at.Z));
+        var actor=(Scheldemist.Native.Characters.AntigoonActor)game.FindChild("Antigoon",true,false);
+        var renderedDeadline=DateTime.UtcNow.AddSeconds(4);
+        while(actor.State!="eat"&&DateTime.UtcNow<renderedDeadline)await frames(1);
+        if(actor.State!="eat")throw new Exception("The giant's renderer did not adopt the eating state");
+        await frames(2);await game.ToSignal(RenderingServer.Singleton,RenderingServer.SignalName.FramePostDraw);
         game.GetViewport().GetTexture().GetImage().SavePng(Path.Combine(output,"antigoon-eating.png"));
         GD.Print($"ANTIGOON_FOOD_PASS: he went to {meal} and ate.");
     }
@@ -225,34 +253,56 @@ public static class NativeAntigoonEventProof
     private static async Task<(P Giant,P Spot)> StandBefore(Scheldemist.Net.Api api,Scheldemist.Native.Services.NativeAntigoon encounter,Func<int,Task> frames,string what)
     {
         P giant=default,spot=default;
-        for(int attempt=0;attempt<8&&spot.X==0&&spot.Z==0;attempt++)
+        var selectionDeadline=DateTime.UtcNow.AddSeconds(30);
+        while(spot==default&&DateTime.UtcNow<selectionDeadline)
         {
-            if(attempt>0)await frames(90);
-            giant=At(await Sample(api));var g=giant;
-            bool DarkWay(P q){int n=(int)Math.Ceiling(q.Distance(g));return Enumerable.Range(0,n+1).All(k=>encounter.Light(new(g.X+(q.X-g.X)*k/n,g.Z+(q.Z-g.Z)*k/n))<.4);}
-            bool Behind(P q){double dx=q.X-g.X,dz=q.Z-g.Z,d=Math.Sqrt(dx*dx+dz*dz);return Enumerable.Range(1,6).All(k=>encounter.HumanClear(new(q.X+dx/d*k*.5,q.Z+dz/d*k*.5)));}
-            spot=new[]{9.0,7,11,13,6,16,20}.SelectMany(r=>Enumerable.Range(0,24).Select(i=>encounter.Snap(new(g.X+Math.Sin(i*Math.PI/12)*r,g.Z+Math.Cos(i*Math.PI/12)*r))))
-                .Where(p=>p is {} q&&encounter.HumanClear(q)&&encounter.Clear(q)&&encounter.Sight(q,g)&&encounter.Light(q)<.38&&Behind(q)&&DarkWay(q)).Select(p=>p!.Value).FirstOrDefault();
+            // Light reads the authoritative clock/rounds. Keep the search serialized with live API requests.
+            var pick=await encounter.WithState(e=>
+            {
+                var g=e.DevelopmentPosition??throw new Exception("The developer giant disappeared");
+                bool Dark(P a,P b){int n=Math.Max(1,(int)Math.Ceiling(a.Distance(b)*2));return Enumerable.Range(0,n+1).All(k=>e.Light(new(a.X+(b.X-a.X)*k/n,a.Z+(b.Z-a.Z)*k/n))<.4);}
+                bool DarkRoute(P q){if(e.Path(g,q) is not {Count:>0} path)return false;var a=g;double length=0;foreach(var b in path){if(!Dark(a,b))return false;length+=a.Distance(b);a=b;}return length+a.Distance(q)<g.Distance(q)*1.2&&Dark(a,q);}
+                // A reachable endpoint can be across a crane or a wall. This combat fixture needs a straight open
+                // approach, not a street detour during which the witness leaves the giant's sight.
+                bool Corridor(P q){int n=(int)Math.Ceiling(g.Distance(q)*4);return Enumerable.Range(1,n).All(k=>e.Fits(new(g.X+(q.X-g.X)*k/n,g.Z+(q.Z-g.Z)*k/n)));}
+                bool Behind(P q){double dx=q.X-g.X,dz=q.Z-g.Z,d=Math.Sqrt(dx*dx+dz*dz);return d>.01&&Enumerable.Range(1,6).All(k=>e.HumanClear(new(q.X+dx/d*k*.5,q.Z+dz/d*k*.5)));}
+                var q=new[]{9.0,7,6,4,3,2}.SelectMany(r=>Enumerable.Range(0,24).OrderBy(i=>Math.Abs(Math.IEEERemainder(i*Math.PI/12,Math.PI*2))).Select(i=>e.Snap(new(g.X+Math.Sin(e.DevelopmentYaw+i*Math.PI/12)*r,g.Z+Math.Cos(e.DevelopmentYaw+i*Math.PI/12)*r))))
+                    .Where(p=>p is {} q&&e.HumanClear(q)&&e.Clear(q)&&e.Reach(g,q)&&e.Sight(q,g)&&e.Light(q)<.38&&Behind(q)&&Corridor(q)&&DarkRoute(q)).Select(p=>p!.Value).FirstOrDefault();
+                return (Giant:g,Spot:q);
+            });
+            giant=pick.Giant;spot=pick.Spot;
+            if(spot==default)await Task.Delay(250);
         }
         if(spot.X==0&&spot.Z==0)throw new Exception($"No dark open spot on his map near {giant} for the {what} proof");
+        // Prepare the destination before placing Jef. Sixty fixed frames could conceal an entire attack under load.
+        var ready=DateTime.UtcNow.AddSeconds(20);var feet=new Vector3((float)spot.X,(float)encounter.Ground(spot),(float)spot.Z);
+        while(Scheldemist.World.Solid.I.Ensure(feet,14)>0&&DateTime.UtcNow<ready)await frames(1);
         Jef.I.Drive=null;
-        Jef.I.Place((float)spot.X,(float)spot.Z,(float)Math.Atan2(-(giant.X-spot.X),-(giant.Z-spot.Z)),-.12f);await frames(30);
-        for(int i=0;i<600&&Scheldemist.World.Solid.I.Ensure(new Vector3(Jef.I.X,Jef.I.Y,Jef.I.Z),14)>0;i++)await frames(1);
-        await frames(30);
+        Jef.I.Place((float)spot.X,(float)spot.Z,(float)Math.Atan2(-(giant.X-spot.X),-(giant.Z-spot.Z)),-.12f,feet.Y);
+        while(Jef.I.PlacementPending&&DateTime.UtcNow<ready)await frames(1);
+        if(Jef.I.PlacementPending)throw new Exception($"Jef's {what} placement did not settle");
+        GD.Print($"ANTIGOON_COMBAT_READY {what}: giant {giant}, witness {spot}, health {GameState.I.Health}");
         return (giant,spot);
     }
     /// <summary>The attack after a kick is a grab: Jef is lifted by the neck before his face, then thrown about 6 m.</summary>
     private static async Task Grabs(NativeTownGame game,Scheldemist.Net.Api api,Scheldemist.Native.Services.NativeAntigoon encounter,string output,Func<int,Task> frames)
     {
+        // Each combat assertion needs a living witness, independently of the damage in the preceding assertion.
+        GameState.I.Apply(await api.Post<JobsPayload>("api/dev/set",new{health=10,food=10,warmth=10,sleep=10}));
         float Face(P from,P to)=>(float)Math.Atan2(-(to.X-from.X),-(to.Z-from.Z));
         // Up again where the kick threw him: back on a dark spot before the giant for his next attack, the grab.
-        await StandBefore(api,encounter,frames,"grab");
+        var before=await Sample(api);
+        GD.Print("ANTIGOON_GRAB_START "+before.ToJsonString());
+        if(before["state"]?.GetValue<string>()!="grab"||(before["target"]?.GetValue<int>()??0)<=0)await StandBefore(api,encounter,frames,"grab");
         var deadline=DateTime.UtcNow.AddSeconds(40);bool held=false,thrown=false,shot=false;Vector2 release=Vector2.Zero;
+        int ticks=0;JsonObject last=new();
         while(!thrown)
         {
-            if(DateTime.UtcNow>deadline)throw new Exception($"No grab and throw on Jef (held {held})");
+            if(DateTime.UtcNow>deadline)throw new Exception($"No grab and throw on Jef (held {held}): {last.ToJsonString()}");
             await frames(2);if(Pause.Paused){Input.MouseMode=Input.MouseModeEnum.Captured;Pause.Clear();}
             var v=await Sample(api);var g=At(v);var me=new P(Jef.I.X,Jef.I.Z);
+            last=v;
+            if(++ticks%15==0)GD.Print($"ANTIGOON_GRAB_TRACE {v["state"]} {v["state_time"]} target {v["target"]} held {v["held"]}, giant {g}, Jef {me}, health {GameState.I.Health}, fly {Jef.I.Fly}, pending {Jef.I.PlacementPending}");
             if(!held&&v["state"]!.GetValue<string>() is not ("grab" or "attack"))Jef.I.Yaw=Face(me,g);
             bool now=v["held"]?.GetValue<int>()>0;
             if(now&&!held)held=true;
@@ -264,7 +314,9 @@ public static class NativeAntigoonEventProof
             }
             if(held&&!now){thrown=true;release=new(Jef.I.X,Jef.I.Z);}
         }
-        await frames(120);
+        double releasedAt=Jef.I.Clock;var landedDeadline=DateTime.UtcNow.AddSeconds(10);
+        while((Jef.I.Clock-releasedAt<Scheldemist.Native.Services.AntigoonNightEvent.FlightTime+.25||!Jef.I.Grounded)&&DateTime.UtcNow<landedDeadline)await frames(1);
+        if(!Jef.I.Grounded)throw new Exception("The thrown witness did not land");
         await game.ToSignal(RenderingServer.Singleton,RenderingServer.SignalName.FramePostDraw);
         game.GetViewport().GetTexture().GetImage().SavePng(Path.Combine(output,"antigoon-after-throw.png"));
         float flown=release.DistanceTo(new(Jef.I.X,Jef.I.Z));
@@ -278,16 +330,17 @@ public static class NativeAntigoonEventProof
     /// <summary>Jef on foot in the dark in front of him: a bellow, a lunge, a landed kick that throws Jef back.</summary>
     private static async Task Kicks(NativeTownGame game,Scheldemist.Net.Api api,Scheldemist.Native.Services.NativeAntigoon encounter,string output,Func<int,Task> frames)
     {
+        GameState.I.Apply(await api.Post<JobsPayload>("api/dev/set",new{health=10,food=10,warmth=10,sleep=10}));
         if(Jef.I.Fly)Jef.I.ToggleFly();
         // The new game's ferry arrival may still be carrying the proof's Jef: he is on foot in the street now.
         Jef.I.Drive=null;
         game.Cam.SetProcess(true);
+        var previous=await Sample(api);int beforeKick=previous["kicked"]?.GetValue<int>()??0;
+        var client=(Scheldemist.Native.Characters.NativeAntigoonClient)game.FindChild("AntigoonEncounter",true,false);int felt=client.KicksFelt;
         var (giant,spot)=await StandBefore(api,encounter,frames,"kick");
         float Face(P from,P to)=>(float)Math.Atan2(-(to.X-from.X),-(to.Z-from.Z));
-        await frames(30);
-        var client=(Scheldemist.Native.Characters.NativeAntigoonClient)game.FindChild("AntigoonEncounter",true,false);int felt=client.KicksFelt;
-        int kicked=0;var landed=Vector2.Zero;var hit=Vector2.Zero;var deadline=DateTime.UtcNow.AddSeconds(45);var shots=new System.Collections.Generic.HashSet<string>();
-        while(kicked==0)
+        int kicked=beforeKick;var landed=Vector2.Zero;var hit=Vector2.Zero;var deadline=DateTime.UtcNow.AddSeconds(45);var shots=new System.Collections.Generic.HashSet<string>();
+        while(kicked<=beforeKick)
         {
             if(DateTime.UtcNow>deadline)throw new Exception("Antigoon never landed a kick on Jef in the dark");
             await frames(2);if(Pause.Paused){Input.MouseMode=Input.MouseModeEnum.Captured;Pause.Clear();}var v=await Sample(api);kicked=v["kicked"]?.GetValue<int>()??0;
@@ -295,7 +348,7 @@ public static class NativeAntigoonEventProof
             // Hold Jef still, facing the giant, so the boot finds him.
             Jef.I.Yaw=Face(me,g);
             string state=v["state"]!.GetValue<string>();double time=v["state_time"]!.GetValue<double>();
-            if(shots.Add("log"+(int)(DateTime.UtcNow-deadline).TotalSeconds))GD.Print($"ANTIGOON_KICK_TRACE {state} {time:0.00} at {g} jef {me} light {encounter.Light(me):0.00}");
+            if(shots.Add("log"+(int)(DateTime.UtcNow-deadline).TotalSeconds))GD.Print($"ANTIGOON_KICK_TRACE {state} {time:0.00} target {v["target"]} at {g} jef {Jef.I.Body.GlobalPosition} light {encounter.Light(me):0.00}; {await encounter.WithState(e=>e.PlayerTrace(1))}");
             foreach(var (name,at) in new[]{("notice",.8),("attack",.35),("attack",.6)})
                 if(state==name&&time>=at&&shots.Add(name+at))
                 {

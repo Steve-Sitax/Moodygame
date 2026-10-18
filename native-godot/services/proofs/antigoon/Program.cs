@@ -82,6 +82,17 @@ var lamps=new[]{new P(10,1),new P(30,1),new P(50,1),new P(70,1),new P(80,1),new 
 var bridged=AntigoonReach.Build(Halves,p=>p.X>=59&&p.X<=60.5||p.X>=90&&p.X<=94,lamps,-2,-2,122,24);
 Check(bridged.Area(new(30,5))==bridged.Area(new(80,5))&&bridged.Jumpable(new(60,5))&&!bridged.Reachable(new(60,5)),"a cart he can leap joins the street; he cannot stand on it");
 Check(!bridged.Jumpable(new(92,5))&&bridged.Area(new(110,5))!=bridged.Area(new(80,5)),"a block too deep to leap keeps the streets apart");
+// Fractional positions must not shift the routing grid across a blocked corner. Walk every smoothed segment
+// at centimetre intervals, using the same clearance predicate as the moving giant.
+var corner=AntigoonReach.Build(p=>p.X>=0&&p.X<=150&&p.Z>=0&&p.Z<=14&&!(p.X>=30&&p.X<=40&&p.Z<=8),_=>false,lit,-2,-2,160,20);
+foreach(double offset in new[]{0.0,.001,.249,.251})
+{
+    var route=AntigoonPath.Find(corner,new(26+offset,4+offset),new(44+offset,4+offset),_=>0,false);
+    Check(route is {Length:>1},$"fractional corner {offset}: route exists");
+    bool clear=true;
+    for(int i=1;i<route!.Length;i++){var from=route[i-1];var to=route[i];int count=(int)Math.Ceiling(from.Distance(to)/.01);for(int j=0;j<=count;j++)clear&=corner.NearAny(from.Toward(to,from.Distance(to)*j/count),.36);}
+    Check(clear,$"fractional corner {offset}: every movement step stays on his map");
+}
 string file=Path.Combine(Path.GetTempPath(),"antigoon-reach-proof-"+Guid.NewGuid().ToString("N")+".bin");
 try{reach.Save(file,"world-a");Check(AntigoonReach.Load(file,"world-a")?.Count==reach.Count&&AntigoonReach.Load(file,"world-b")==null,"reach map is kept per world and rebuilt for another");}
 finally{File.Delete(file);}
@@ -126,6 +137,7 @@ Tick(shield,3,true);Check(shield.State=="shield"&&shield.Position.Z>2.5,"light-b
 int shieldHits=0;shield.HurtPlayer=(_,_)=>shieldHits++;
 Tick(shield,1,true,new AntigoonBrain.Player(1,new(1,shield.Position.Z+1)));Check(shield.State=="shield"&&shield.Target==0&&shieldHits==0,"shielding ignores nearby targets and causes no attacks");
 Check(!shield.BeginThrow(new(0,9)),"shielding cannot throw a stone");
+Check(!shield.LeapsAllowed,"shielding routes exclude obstacles he cannot leap with his eyes covered");
 Tick(shield,8,true);Check(shield.Position.Z>6&&shield.State!="shield","shielding crosses a lit street and returns to roaming in darkness");
 var roam=Make();Tick(roam,2,true);Check(roam.State=="walk"&&roam.Position.Distance(new(0,0))>3,"unoccupied giant keeps walking rather than freezing");
 // A resident in his fist hangs at his hand, flies about 6 m when thrown, lies sprawled, then gets up.

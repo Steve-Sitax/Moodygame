@@ -89,6 +89,14 @@ public partial class Emigrants : Node
             foreach(var key in camps.Keys.ToArray()) if(!next.Families.Any(f=>f.Household==key)){camps[key].Group.QueueFree();camps.Remove(key);}
         }catch(ApiException){poll=2;}finally{loading=false;}
     }
+    /// <summary>After a fixture/command changes the world, a pre-command poll is not a fresh response.</summary>
+    public async Task Refresh()
+    {
+        var end=DateTime.UtcNow.AddSeconds(30);
+        while(loading&&!dead&&DateTime.UtcNow<end)await ToSignal(GetTree(),SceneTree.SignalName.ProcessFrame);
+        if(loading)throw new TimeoutException("Emigrant poll did not finish");
+        if(!dead)await Load();
+    }
     public override void _Process(double dt)
     {
         using var frameCost = Scheldemist.Dev.FrameCost.Track("Play.Emigrants");
