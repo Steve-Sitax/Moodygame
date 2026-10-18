@@ -1,0 +1,533 @@
+{
+  "native_size": [
+    2048,
+    2048
+  ],
+  "output_size": [
+    2048,
+    2048
+  ],
+  "cells": [
+    {
+      "name": "fender_oak",
+      "native_cell": [
+        8,
+        8,
+        96,
+        1024
+      ],
+      "output_cell": [
+        8,
+        8,
+        96,
+        1024
+      ],
+      "source_set": "wood_dark",
+      "metres_per_tile": [
+        1,
+        1
+      ],
+      "relief_range_metres": 0.018
+    },
+    {
+      "name": "iron",
+      "native_cell": [
+        120,
+        8,
+        256,
+        256
+      ],
+      "output_cell": [
+        120,
+        8,
+        256,
+        256
+      ],
+      "source_set": "iron_painted",
+      "metres_per_tile": [
+        0.5,
+        0.5
+      ],
+      "relief_range_metres": 0.018
+    },
+    {
+      "name": "bluestone",
+      "native_cell": [
+        392,
+        8,
+        256,
+        256
+      ],
+      "output_cell": [
+        392,
+        8,
+        256,
+        256
+      ],
+      "source_set": "stone_petit_granit",
+      "metres_per_tile": [
+        1,
+        1
+      ],
+      "relief_range_metres": 0.018
+    },
+    {
+      "name": "iron_rust",
+      "native_cell": [
+        664,
+        8,
+        256,
+        256
+      ],
+      "output_cell": [
+        664,
+        8,
+        256,
+        256
+      ],
+      "source_set": "iron_painted",
+      "metres_per_tile": [
+        0.5,
+        0.5
+      ],
+      "relief_range_metres": 0.018
+    },
+    {
+      "name": "iron_green",
+      "native_cell": [
+        936,
+        8,
+        256,
+        256
+      ],
+      "output_cell": [
+        936,
+        8,
+        256,
+        256
+      ],
+      "source_set": "iron_painted",
+      "metres_per_tile": [
+        0.5,
+        0.5
+      ],
+      "relief_range_metres": 0.018
+    },
+    {
+      "name": "iron_black",
+      "native_cell": [
+        1208,
+        8,
+        256,
+        256
+      ],
+      "output_cell": [
+        1208,
+        8,
+        256,
+        256
+      ],
+      "source_set": "iron_painted",
+      "metres_per_tile": [
+        0.5,
+        0.5
+      ],
+      "relief_range_metres": 0.018
+    },
+    {
+      "name": "hull_bottom",
+      "native_cell": [
+        1752,
+        8,
+        128,
+        256
+      ],
+      "output_cell": [
+        1752,
+        8,
+        128,
+        256
+      ],
+      "source_set": "wood_dark",
+      "metres_per_tile": [
+        1,
+        1
+      ],
+      "relief_range_metres": 0.018
+    },
+    {
+      "name": "shed_planks",
+      "native_cell": [
+        1896,
+        8,
+        128,
+        256
+      ],
+      "output_cell": [
+        1896,
+        8,
+        128,
+        256
+      ],
+      "source_set": "wood_dark",
+      "metres_per_tile": [
+        1,
+        1
+      ],
+      "relief_range_metres": 0.018
+    },
+    {
+      "name": "hut_planks",
+      "native_cell": [
+        8,
+        1048,
+        128,
+        256
+      ],
+      "output_cell": [
+        8,
+        1048,
+        128,
+        256
+      ],
+      "source_set": "wood_dark",
+      "metres_per_tile": [
+        1,
+        1
+      ],
+      "relief_range_metres": 0.018
+    },
+    {
+      "name": "wood",
+      "native_cell": [
+        152,
+        1048,
+        256,
+        128
+      ],
+      "output_cell": [
+        152,
+        1048,
+        256,
+        128
+      ],
+      "source_set": "wood_single",
+      "metres_per_tile": [
+        1,
+        0.17
+      ],
+      "relief_range_metres": 0.018
+    },
+    {
+      "name": "wood_dark",
+      "native_cell": [
+        424,
+        1048,
+        256,
+        128
+      ],
+      "output_cell": [
+        424,
+        1048,
+        256,
+        128
+      ],
+      "source_set": "wood_single",
+      "metres_per_tile": [
+        1,
+        0.17
+      ],
+      "relief_range_metres": 0.018
+    },
+    {
+      "name": "wood_grey",
+      "native_cell": [
+        696,
+        1048,
+        256,
+        128
+      ],
+      "output_cell": [
+        696,
+        1048,
+        256,
+        128
+      ],
+      "source_set": "wood_single",
+      "metres_per_tile": [
+        1,
+        0.17
+      ],
+      "relief_range_metres": 0.018
+    },
+    {
+      "name": "oak",
+      "native_cell": [
+        968,
+        1048,
+        256,
+        128
+      ],
+      "output_cell": [
+        968,
+        1048,
+        256,
+        128
+      ],
+      "source_set": "wood_single",
+      "metres_per_tile": [
+        1,
+        0.17
+      ],
+      "relief_range_metres": 0.018
+    },
+    {
+      "name": "desk",
+      "native_cell": [
+        1240,
+        1048,
+        256,
+        128
+      ],
+      "output_cell": [
+        1240,
+        1048,
+        256,
+        128
+      ],
+      "source_set": "wood_single",
+      "metres_per_tile": [
+        1,
+        0.17
+      ],
+      "relief_range_metres": 0.018
+    },
+    {
+      "name": "iron_light",
+      "native_cell": [
+        1512,
+        1048,
+        128,
+        128
+      ],
+      "output_cell": [
+        1512,
+        1048,
+        128,
+        128
+      ],
+      "source_set": "iron_painted",
+      "metres_per_tile": [
+        0.5,
+        0.5
+      ],
+      "relief_range_metres": 0.018
+    },
+    {
+      "name": "whitestone",
+      "native_cell": [
+        1656,
+        1048,
+        128,
+        128
+      ],
+      "output_cell": [
+        1656,
+        1048,
+        128,
+        128
+      ],
+      "source_set": "sandstone_plain",
+      "metres_per_tile": [
+        1,
+        1
+      ],
+      "relief_range_metres": 0.018
+    },
+    {
+      "name": "zinc",
+      "native_cell": [
+        1800,
+        1048,
+        128,
+        128
+      ],
+      "output_cell": [
+        1800,
+        1048,
+        128,
+        128
+      ],
+      "source_set": "zinc_sheet",
+      "metres_per_tile": [
+        0.5,
+        0.5
+      ],
+      "relief_range_metres": 0.018
+    },
+    {
+      "name": "slate",
+      "native_cell": [
+        8,
+        1320,
+        128,
+        128
+      ],
+      "output_cell": [
+        8,
+        1320,
+        128,
+        128
+      ],
+      "source_set": "slate_ardennes",
+      "metres_per_tile": [
+        2,
+        2
+      ],
+      "relief_range_metres": 0.018
+    },
+    {
+      "name": "canvas",
+      "native_cell": [
+        584,
+        1320,
+        128,
+        128
+      ],
+      "output_cell": [
+        584,
+        1320,
+        128,
+        128
+      ],
+      "source_set": "tarpaulin",
+      "metres_per_tile": [
+        1,
+        1
+      ],
+      "relief_range_metres": 0.018
+    },
+    {
+      "name": "jute",
+      "native_cell": [
+        1592,
+        1320,
+        128,
+        128
+      ],
+      "output_cell": [
+        1592,
+        1320,
+        128,
+        128
+      ],
+      "source_set": "sackcloth",
+      "metres_per_tile": [
+        0.5,
+        0.5
+      ],
+      "relief_range_metres": 0.018
+    },
+    {
+      "name": "hull_side",
+      "native_cell": [
+        1880,
+        1320,
+        128,
+        128
+      ],
+      "output_cell": [
+        1880,
+        1320,
+        128,
+        128
+      ],
+      "source_set": "wood_dark",
+      "metres_per_tile": [
+        1,
+        1
+      ],
+      "relief_range_metres": 0.018
+    },
+    {
+      "name": "brick",
+      "native_cell": [
+        8,
+        1464,
+        128,
+        128
+      ],
+      "output_cell": [
+        8,
+        1464,
+        128,
+        128
+      ],
+      "source_set": "brick_english",
+      "metres_per_tile": [
+        1.84,
+        1.56
+      ],
+      "relief_range_metres": 0.018
+    },
+    {
+      "name": "plank",
+      "native_cell": [
+        8,
+        1608,
+        512,
+        64
+      ],
+      "output_cell": [
+        8,
+        1608,
+        512,
+        64
+      ],
+      "source_set": "wood_dark",
+      "metres_per_tile": [
+        1,
+        1
+      ],
+      "relief_range_metres": 0.018
+    }
+  ],
+  "preserved_cells": [
+    "checker",
+    "paint_green",
+    "paint_red",
+    "paint_white",
+    "sail",
+    "endgrain",
+    "rope",
+    "hawser",
+    "wicker",
+    "wicker_dark",
+    "coal",
+    "door_brown",
+    "fish",
+    "door_green",
+    "glass",
+    "ledger",
+    "sign_toll",
+    "sign_nomoor",
+    "sign_nosmoke",
+    "sign_nofire",
+    "brass",
+    "grain",
+    "black",
+    "tar",
+    "ash",
+    "window",
+    "fire",
+    "sign_weigh",
+    "sign_notices",
+    "sign_harbour",
+    "sign_name_bassin",
+    "sign_name_steenplein",
+    "sign_name_vismarkt",
+    "sign_name_rijnkaai",
+    "sign_customs",
+    "sign_name_werf"
+  ]
+}

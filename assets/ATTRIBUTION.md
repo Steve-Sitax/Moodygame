@@ -660,3 +660,26 @@ not used.
 | Rusty Metal 03 (colour, normal, roughness, 1k JPEG): `art-source/third_party/polyhaven-furniture/rusty_metal_03/` | https://polyhaven.com/a/rusty_metal_03 | Amal Kumar | CC0 1.0 | 2026-10-14 | `rusty_metal_03_diff_1k.jpg` `6bb9ede80978c6c679cef3babec452157f3638c6a90526db617644e06ba1c068`; `rusty_metal_03_nor_gl_1k.jpg` `9c9bb22e4e432e8460bcc3157c76b2a3072e7faa64ed8fe4bc213e8f2175c126`; `rusty_metal_03_rough_1k.jpg` `f8c33af71fcd8bf6325517022bd6b703e76550cff5047df4e7a6a662c389c77a` |
 | Wood Cabinet Worn Long (colour, normal, roughness, 1k JPEG): `art-source/third_party/polyhaven-furniture/wood_cabinet_worn_long/` | https://polyhaven.com/a/wood_cabinet_worn_long | Dimitrios Savva, Rico Cilliers | CC0 1.0 | 2026-10-14 | `wood_cabinet_worn_long_diff_1k.jpg` `97edb74098efc27ca9891cb9dbab6d74b91f635d9fad5eba4f317b1e8e408a55`; `wood_cabinet_worn_long_nor_gl_1k.jpg` `3e77e82f34f5d527f63299c8154905a7e3e9a87644b2054ab6194ac776adc7db`; `wood_cabinet_worn_long_rough_1k.jpg` `4a3201cdc2b1e6d0e20532fc1249998ff7a4f312601590e46fb58c0fb26315cb` |
 | Wood Table Worn (colour, normal, roughness, 1k JPEG): `art-source/third_party/polyhaven-furniture/wood_table_worn/` | https://polyhaven.com/a/wood_table_worn | Dimitrios Savva, Rico Cilliers | CC0 1.0 | 2026-10-14 | `wood_table_worn_diff_1k.jpg` `092ab3465a6a24b24d092ea86865f332c3bd239b8eb2fd664b70357082031a3f`; `wood_table_worn_nor_gl_1k.jpg` `0d494f3fe08320a05f0f966a7a3ca3c4cd6e3f7cde5b176b9bc167b5593fd00d`; `wood_table_worn_rough_1k.jpg` `ebc4a15d7d3495ee1b67ba18f67bffcefac3f93881d1394fa3e22a25f9fe5c72` |
+
+## Plan 84 texture-picture handoff (2026-10-18)
+
+Original photographic-style pictures generated with the built-in imagegen tool, without third-party references. Exact prompts: `art-source/plan-84/generated/prompts.json`. Lossless map files, scales and target native material names: `native-godot/assets/textures/plan-84/manifest.json`. This is a picture handoff; native installation and contextual acceptance remain outstanding.
+
+| Retained source | Origin / author | Licence | SHA-256 |
+|---|---|---|---|
+| `art-source/plan-84/generated/bark.png` | OpenAI built-in imagegen, project prompts | Original generated project artwork | `b0d6930ae129b3db8302f7716dd57dd0425c42ce4d876cb055a536d8b0282d64` |
+| `art-source/plan-84/generated/bronze.png` | OpenAI built-in imagegen, project prompts | Original generated project artwork | `0c155bbf826e4beac432a3547029e168db28c58384d5288b18dfc4752a111ad8` |
+| `art-source/plan-84/generated/lead.png` | OpenAI built-in imagegen, project prompts | Original generated project artwork | `e37dfd3d94d8bd795c1e58d9c5bcd09e196d7464da3ed87bb268516131fa597d` |
+| `art-source/plan-84/generated/leaves.png` | OpenAI built-in imagegen, project prompts | Original generated project artwork | `fd146aedf750b452bee9745ff65b88de3d2cd028e46909f9272fb36d52d0587e` |
+| `art-source/plan-84/generated/litter-v2.png` | OpenAI built-in imagegen, correction of our retained litter source | Original generated project artwork | `c1d69bb0c4add02b4782d02394ca845f253fbea15ae686e4a3d1e5eb3b059c81` |
+| `art-source/plan-84/generated/litter.png` | OpenAI built-in imagegen, project prompts | Original generated project artwork | `564ba6279c6c276357a29e25fb707e82bac5e00f3a14ef6d3f5c17d76e2fa673` |
+| `art-source/plan-84/generated/park.png` | OpenAI built-in imagegen, project prompts | Original generated project artwork | `9058930dfb5a6ebc92285743c1ecbe68e70b912c642596611f5c2269420dc67a` |
+| `art-source/plan-84/generated/sandstone.png` | OpenAI built-in imagegen, project prompts | Original generated project artwork | `eb064e6d8f34c65a195cfb1229a3874e984d6c77c0aeeee0a1d642cff46b0801` |
+
+The iron and prop colour/height PNGs in `art-source/plan-84/reused/` are reused verbatim from commits `042db687` and `73a5fb50`; row 13 JSON recipes from `4997474b` are references only. Full per-file SHA-256 and provenance for retained pictures and current-native pixel snapshots: `art-source/plan-84/SOURCES.json`. No retired GLBs, materials, scenes or builders were installed. Rejected repeating sources: the numbered sign and circular mud boundary; the latter contributes only a central continuous soil crop.
+
+| Download / retained original | Item URL | Author | Licence | Downloaded | SHA-256 as downloaded |
+|---|---|---|---|---|---|
+| `art-source/third_party/ambientcg-bark012/Bark012_1K-PNG.zip` | https://ambientcg.com/view?id=Bark012 | ambientCG / Lennart Demes | CC0 1.0 | 2026-10-18 | `9b7c6f949b179b132593364990d900d7dd50ffb8ccda9b14131491f47c34af3d` |
+
+Licence checked on the item page itself: its “Are the assets really free for any purpose?” section states the CC0 licence. The page is retained as `item-page.html`; `SOURCES.json` records the exact download URL. Only PNG colour/displacement/roughness data were extracted; no bundled script, Blender file or material was executed. The fissured-bark half is graded to a subdued period palette and registered with the plane-bark half; all maps use the same crop and scale.

@@ -1,0 +1,355 @@
+{
+  "native_size": [
+    256,
+    128
+  ],
+  "output_size": [
+    2048,
+    1024
+  ],
+  "cells": [
+    {
+      "name": "wood",
+      "native_cell": [
+        96,
+        0,
+        32,
+        32
+      ],
+      "output_cell": [
+        768,
+        0,
+        256,
+        256
+      ],
+      "source_set": "wood_single",
+      "metres_per_tile": [
+        1,
+        0.17
+      ],
+      "relief_range_metres": 0.018
+    },
+    {
+      "name": "planks",
+      "native_cell": [
+        128,
+        0,
+        32,
+        32
+      ],
+      "output_cell": [
+        1024,
+        0,
+        256,
+        256
+      ],
+      "source_set": "wood_dark",
+      "metres_per_tile": [
+        1,
+        1
+      ],
+      "relief_range_metres": 0.018
+    },
+    {
+      "name": "slate",
+      "native_cell": [
+        160,
+        0,
+        32,
+        32
+      ],
+      "output_cell": [
+        1280,
+        0,
+        256,
+        256
+      ],
+      "source_set": "slate_ardennes",
+      "metres_per_tile": [
+        2,
+        2
+      ],
+      "relief_range_metres": 0.018
+    },
+    {
+      "name": "wood_dark",
+      "native_cell": [
+        224,
+        0,
+        16,
+        16
+      ],
+      "output_cell": [
+        1792,
+        0,
+        128,
+        128
+      ],
+      "source_set": "wood_single",
+      "metres_per_tile": [
+        1,
+        0.17
+      ],
+      "relief_range_metres": 0.018
+    },
+    {
+      "name": "wood_light",
+      "native_cell": [
+        240,
+        0,
+        16,
+        16
+      ],
+      "output_cell": [
+        1920,
+        0,
+        128,
+        128
+      ],
+      "source_set": "wood_single",
+      "metres_per_tile": [
+        1,
+        0.17
+      ],
+      "relief_range_metres": 0.018
+    },
+    {
+      "name": "tarred",
+      "native_cell": [
+        0,
+        52,
+        16,
+        16
+      ],
+      "output_cell": [
+        0,
+        416,
+        128,
+        128
+      ],
+      "source_set": "wood_dark",
+      "metres_per_tile": [
+        1,
+        1
+      ],
+      "relief_range_metres": 0.018
+    },
+    {
+      "name": "iron",
+      "native_cell": [
+        16,
+        52,
+        16,
+        16
+      ],
+      "output_cell": [
+        128,
+        416,
+        128,
+        128
+      ],
+      "source_set": "iron_painted",
+      "metres_per_tile": [
+        0.5,
+        0.5
+      ],
+      "relief_range_metres": 0.018
+    },
+    {
+      "name": "sack",
+      "native_cell": [
+        0,
+        68,
+        16,
+        16
+      ],
+      "output_cell": [
+        0,
+        544,
+        128,
+        128
+      ],
+      "source_set": "sackcloth",
+      "metres_per_tile": [
+        0.5,
+        0.5
+      ],
+      "relief_range_metres": 0.018
+    },
+    {
+      "name": "cloth_blue",
+      "native_cell": [
+        0,
+        84,
+        16,
+        16
+      ],
+      "output_cell": [
+        0,
+        672,
+        128,
+        128
+      ],
+      "source_set": "tarpaulin",
+      "metres_per_tile": [
+        1,
+        1
+      ],
+      "relief_range_metres": 0.018
+    },
+    {
+      "name": "cloth_red",
+      "native_cell": [
+        16,
+        84,
+        16,
+        16
+      ],
+      "output_cell": [
+        128,
+        672,
+        128,
+        128
+      ],
+      "source_set": "tarpaulin",
+      "metres_per_tile": [
+        1,
+        1
+      ],
+      "relief_range_metres": 0.018
+    },
+    {
+      "name": "cloth_grey",
+      "native_cell": [
+        32,
+        84,
+        16,
+        16
+      ],
+      "output_cell": [
+        256,
+        672,
+        128,
+        128
+      ],
+      "source_set": "tarpaulin",
+      "metres_per_tile": [
+        1,
+        1
+      ],
+      "relief_range_metres": 0.018
+    },
+    {
+      "name": "cloth_brown",
+      "native_cell": [
+        48,
+        84,
+        16,
+        16
+      ],
+      "output_cell": [
+        384,
+        672,
+        128,
+        128
+      ],
+      "source_set": "tarpaulin",
+      "metres_per_tile": [
+        1,
+        1
+      ],
+      "relief_range_metres": 0.018
+    },
+    {
+      "name": "stone",
+      "native_cell": [
+        144,
+        84,
+        16,
+        16
+      ],
+      "output_cell": [
+        1152,
+        672,
+        128,
+        128
+      ],
+      "source_set": "stone_petit_granit",
+      "metres_per_tile": [
+        1,
+        1
+      ],
+      "relief_range_metres": 0.018
+    },
+    {
+      "name": "leather",
+      "native_cell": [
+        32,
+        100,
+        16,
+        16
+      ],
+      "output_cell": [
+        256,
+        800,
+        128,
+        128
+      ],
+      "source_set": "leather",
+      "metres_per_tile": [
+        0.5,
+        0.5
+      ],
+      "relief_range_metres": 0.018
+    }
+  ],
+  "preserved_cells": [
+    "prints",
+    "wicker",
+    "copper",
+    "brass",
+    "green_paint",
+    "red_paint",
+    "blue_paint",
+    "bread",
+    "crust",
+    "meat",
+    "fat",
+    "ham",
+    "delft",
+    "delft_blue",
+    "clay",
+    "stoneware",
+    "grain",
+    "coal",
+    "coal_sack",
+    "candle",
+    "wax",
+    "flame",
+    "flower_red",
+    "flower_white",
+    "flower_yellow",
+    "leaf",
+    "terracotta",
+    "apple",
+    "cabbage",
+    "carrot",
+    "onion",
+    "linen",
+    "bristle",
+    "birch",
+    "straw",
+    "rope",
+    "beads",
+    "gilt",
+    "hen",
+    "hen_red",
+    "beak",
+    "goat",
+    "goat_dark",
+    "horn",
+    "sign_prints",
+    "sign_rosaries",
+    "sign_candles"
+  ]
+}

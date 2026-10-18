@@ -1,0 +1,494 @@
+{
+  "native_size": [
+    256,
+    512
+  ],
+  "output_size": [
+    1024,
+    2048
+  ],
+  "cells": [
+    {
+      "name": "iron",
+      "native_cell": [
+        64,
+        0,
+        32,
+        32
+      ],
+      "output_cell": [
+        256,
+        0,
+        128,
+        128
+      ],
+      "source_set": "iron_painted",
+      "metres_per_tile": [
+        0.5,
+        0.5
+      ],
+      "relief_range_metres": 0.018
+    },
+    {
+      "name": "bluestone",
+      "native_cell": [
+        96,
+        0,
+        32,
+        32
+      ],
+      "output_cell": [
+        384,
+        0,
+        128,
+        128
+      ],
+      "source_set": "stone_petit_granit",
+      "metres_per_tile": [
+        1,
+        1
+      ],
+      "relief_range_metres": 0.018
+    },
+    {
+      "name": "whitestone",
+      "native_cell": [
+        128,
+        0,
+        32,
+        32
+      ],
+      "output_cell": [
+        512,
+        0,
+        128,
+        128
+      ],
+      "source_set": "sandstone_plain",
+      "metres_per_tile": [
+        1,
+        1
+      ],
+      "relief_range_metres": 0.018
+    },
+    {
+      "name": "plaster",
+      "native_cell": [
+        160,
+        0,
+        32,
+        32
+      ],
+      "output_cell": [
+        640,
+        0,
+        128,
+        128
+      ],
+      "source_set": "sandstone_plain",
+      "metres_per_tile": [
+        1,
+        1
+      ],
+      "relief_range_metres": 0.018
+    },
+    {
+      "name": "wood",
+      "native_cell": [
+        192,
+        0,
+        32,
+        32
+      ],
+      "output_cell": [
+        768,
+        0,
+        128,
+        128
+      ],
+      "source_set": "wood_single",
+      "metres_per_tile": [
+        1,
+        0.17
+      ],
+      "relief_range_metres": 0.018
+    },
+    {
+      "name": "wood_dark",
+      "native_cell": [
+        224,
+        0,
+        32,
+        32
+      ],
+      "output_cell": [
+        896,
+        0,
+        128,
+        128
+      ],
+      "source_set": "wood_single",
+      "metres_per_tile": [
+        1,
+        0.17
+      ],
+      "relief_range_metres": 0.018
+    },
+    {
+      "name": "stripes_0",
+      "native_cell": [
+        0,
+        64,
+        32,
+        32
+      ],
+      "output_cell": [
+        0,
+        256,
+        128,
+        128
+      ],
+      "source_set": "awning_red",
+      "metres_per_tile": [
+        1,
+        1
+      ],
+      "relief_range_metres": 0.018
+    },
+    {
+      "name": "stripes_1",
+      "native_cell": [
+        32,
+        64,
+        32,
+        32
+      ],
+      "output_cell": [
+        128,
+        256,
+        128,
+        128
+      ],
+      "source_set": "awning_blue",
+      "metres_per_tile": [
+        1,
+        1
+      ],
+      "relief_range_metres": 0.018
+    },
+    {
+      "name": "stripes_2",
+      "native_cell": [
+        64,
+        64,
+        32,
+        32
+      ],
+      "output_cell": [
+        256,
+        256,
+        128,
+        128
+      ],
+      "source_set": "awning_blue",
+      "metres_per_tile": [
+        1,
+        1
+      ],
+      "relief_range_metres": 0.018
+    },
+    {
+      "name": "ticking",
+      "native_cell": [
+        128,
+        64,
+        32,
+        32
+      ],
+      "output_cell": [
+        512,
+        256,
+        128,
+        128
+      ],
+      "source_set": "tarpaulin",
+      "metres_per_tile": [
+        1,
+        1
+      ],
+      "relief_range_metres": 0.018
+    },
+    {
+      "name": "iron_green",
+      "native_cell": [
+        209,
+        96,
+        16,
+        16
+      ],
+      "output_cell": [
+        836,
+        384,
+        64,
+        64
+      ],
+      "source_set": "iron_painted",
+      "metres_per_tile": [
+        0.5,
+        0.5
+      ],
+      "relief_range_metres": 0.018
+    },
+    {
+      "name": "pewter",
+      "native_cell": [
+        16,
+        116,
+        16,
+        16
+      ],
+      "output_cell": [
+        64,
+        464,
+        64,
+        64
+      ],
+      "source_set": "zinc_sheet",
+      "metres_per_tile": [
+        0.5,
+        0.5
+      ],
+      "relief_range_metres": 0.018
+    },
+    {
+      "name": "slate",
+      "native_cell": [
+        160,
+        116,
+        16,
+        16
+      ],
+      "output_cell": [
+        640,
+        464,
+        64,
+        64
+      ],
+      "source_set": "slate_ardennes",
+      "metres_per_tile": [
+        2,
+        2
+      ],
+      "relief_range_metres": 0.018
+    },
+    {
+      "name": "linen_white",
+      "native_cell": [
+        176,
+        116,
+        16,
+        16
+      ],
+      "output_cell": [
+        704,
+        464,
+        64,
+        64
+      ],
+      "source_set": "tarpaulin",
+      "metres_per_tile": [
+        1,
+        1
+      ],
+      "relief_range_metres": 0.018
+    },
+    {
+      "name": "linen_cream",
+      "native_cell": [
+        192,
+        116,
+        16,
+        16
+      ],
+      "output_cell": [
+        768,
+        464,
+        64,
+        64
+      ],
+      "source_set": "tarpaulin",
+      "metres_per_tile": [
+        1,
+        1
+      ],
+      "relief_range_metres": 0.018
+    },
+    {
+      "name": "cloth_blue",
+      "native_cell": [
+        208,
+        116,
+        16,
+        16
+      ],
+      "output_cell": [
+        832,
+        464,
+        64,
+        64
+      ],
+      "source_set": "tarpaulin",
+      "metres_per_tile": [
+        1,
+        1
+      ],
+      "relief_range_metres": 0.018
+    },
+    {
+      "name": "cloth_red",
+      "native_cell": [
+        224,
+        116,
+        16,
+        16
+      ],
+      "output_cell": [
+        896,
+        464,
+        64,
+        64
+      ],
+      "source_set": "tarpaulin",
+      "metres_per_tile": [
+        1,
+        1
+      ],
+      "relief_range_metres": 0.018
+    },
+    {
+      "name": "cloth_grey",
+      "native_cell": [
+        240,
+        116,
+        16,
+        16
+      ],
+      "output_cell": [
+        960,
+        464,
+        64,
+        64
+      ],
+      "source_set": "tarpaulin",
+      "metres_per_tile": [
+        1,
+        1
+      ],
+      "relief_range_metres": 0.018
+    },
+    {
+      "name": "cloth_brown",
+      "native_cell": [
+        0,
+        132,
+        16,
+        16
+      ],
+      "output_cell": [
+        0,
+        528,
+        64,
+        64
+      ],
+      "source_set": "tarpaulin",
+      "metres_per_tile": [
+        1,
+        1
+      ],
+      "relief_range_metres": 0.018
+    }
+  ],
+  "preserved_cells": [
+    "glass",
+    "stripes_3",
+    "board_chandler",
+    "board_ropemaker",
+    "board_grocer",
+    "board_hatter",
+    "gold",
+    "brass",
+    "robe_blue",
+    "robe_white",
+    "skin",
+    "black",
+    "red_paint",
+    "green_paint",
+    "water_dark",
+    "rope",
+    "canopy_blue",
+    "flower_red",
+    "flower_white",
+    "leaf",
+    "bronze",
+    "polychrome",
+    "board_wine",
+    "plate_17",
+    "plate_18",
+    "plate_23",
+    "board_draper",
+    "plate_9",
+    "plate_6",
+    "plate_13",
+    "plate_19",
+    "board_corn",
+    "plate_10",
+    "plate_15",
+    "board_tavern_schip",
+    "board_coffee",
+    "plate_11",
+    "plate_12",
+    "board_tavern_zwaan",
+    "plate_20",
+    "board_fish",
+    "board_clockmaker",
+    "plate_4",
+    "plate_7",
+    "plate_8",
+    "plate_14",
+    "plate_16",
+    "plate_22",
+    "plate_0",
+    "board_bootmaker",
+    "board_locksmith",
+    "plate_1",
+    "plate_3",
+    "plate_5",
+    "board_bakery",
+    "board_butcher",
+    "board_tobacco",
+    "board_cooper",
+    "board_chemist",
+    "plate_21",
+    "plate_24",
+    "plate_2",
+    "plate_25",
+    "number_3",
+    "number_4",
+    "number_5",
+    "number_6",
+    "number_7",
+    "number_8",
+    "number_9",
+    "number_10",
+    "number_11",
+    "number_12",
+    "number_13",
+    "number_0",
+    "number_1",
+    "number_2",
+    "valance_0",
+    "valance_1",
+    "valance_2",
+    "valance_3"
+  ]
+}

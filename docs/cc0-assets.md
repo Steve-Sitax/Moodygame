@@ -65,3 +65,7 @@ colour), Awesome Blender (a list of Blender tools), The Public Domain Review (a 
 are used only to make assets, never as a game dependency; check each tool's own licence before installing it.
 
 The list comes from the awesome-cc0 collection (an "awesome list" of CC0 asset sources), given by Steve on 2026-10-13.
+
+## Issue 84 bark donor (2026-10-18)
+
+[Bark 012, ambientCG](https://ambientcg.com/view?id=Bark012): CC0 1.0 confirmed on its own item page before download. The oak/fissured-bark colour, displacement and roughness are adapted together for row 9; the plane-tree half is original generated artwork. Original archive, saved item page and download/checksum ledger: `art-source/third_party/ambientcg-bark012/`. Archive SHA-256: `9b7c6f949b179b132593364990d900d7dd50ffb8ccda9b14131491f47c34af3d`. No bundled code was run. Per-file source and native material mappings are in `art-source/plan-84/SOURCES.json` and `native-godot/assets/textures/plan-84/manifest.json`.

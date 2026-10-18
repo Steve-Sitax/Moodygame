@@ -1,0 +1,514 @@
+{
+  "native_size": [
+    256,
+    256
+  ],
+  "output_size": [
+    2048,
+    2048
+  ],
+  "cells": [
+    {
+      "name": "roof_planks",
+      "native_cell": [
+        0,
+        0,
+        32,
+        64
+      ],
+      "output_cell": [
+        0,
+        0,
+        256,
+        512
+      ],
+      "source_set": "wood_dark",
+      "metres_per_tile": [
+        1,
+        1
+      ],
+      "relief_range_metres": 0.018
+    },
+    {
+      "name": "iron_rust",
+      "native_cell": [
+        32,
+        0,
+        32,
+        32
+      ],
+      "output_cell": [
+        256,
+        0,
+        256,
+        256
+      ],
+      "source_set": "iron_painted",
+      "metres_per_tile": [
+        0.5,
+        0.5
+      ],
+      "relief_range_metres": 0.018
+    },
+    {
+      "name": "wood",
+      "native_cell": [
+        64,
+        0,
+        32,
+        32
+      ],
+      "output_cell": [
+        512,
+        0,
+        256,
+        256
+      ],
+      "source_set": "wood_single",
+      "metres_per_tile": [
+        1,
+        0.17
+      ],
+      "relief_range_metres": 0.018
+    },
+    {
+      "name": "wood_dark",
+      "native_cell": [
+        96,
+        0,
+        32,
+        32
+      ],
+      "output_cell": [
+        768,
+        0,
+        256,
+        256
+      ],
+      "source_set": "wood_single",
+      "metres_per_tile": [
+        1,
+        0.17
+      ],
+      "relief_range_metres": 0.018
+    },
+    {
+      "name": "wood_grey",
+      "native_cell": [
+        128,
+        0,
+        32,
+        32
+      ],
+      "output_cell": [
+        1024,
+        0,
+        256,
+        256
+      ],
+      "source_set": "wood_single",
+      "metres_per_tile": [
+        1,
+        0.17
+      ],
+      "relief_range_metres": 0.018
+    },
+    {
+      "name": "oak",
+      "native_cell": [
+        160,
+        0,
+        32,
+        32
+      ],
+      "output_cell": [
+        1280,
+        0,
+        256,
+        256
+      ],
+      "source_set": "wood_single",
+      "metres_per_tile": [
+        1,
+        0.17
+      ],
+      "relief_range_metres": 0.018
+    },
+    {
+      "name": "new_wood",
+      "native_cell": [
+        192,
+        0,
+        32,
+        32
+      ],
+      "output_cell": [
+        1536,
+        0,
+        256,
+        256
+      ],
+      "source_set": "wood_single",
+      "metres_per_tile": [
+        1,
+        0.17
+      ],
+      "relief_range_metres": 0.018
+    },
+    {
+      "name": "jute",
+      "native_cell": [
+        32,
+        64,
+        32,
+        32
+      ],
+      "output_cell": [
+        256,
+        512,
+        256,
+        256
+      ],
+      "source_set": "sackcloth",
+      "metres_per_tile": [
+        0.5,
+        0.5
+      ],
+      "relief_range_metres": 0.018
+    },
+    {
+      "name": "brick",
+      "native_cell": [
+        192,
+        64,
+        32,
+        32
+      ],
+      "output_cell": [
+        1536,
+        512,
+        256,
+        256
+      ],
+      "source_set": "brick_english",
+      "metres_per_tile": [
+        1.84,
+        1.56
+      ],
+      "relief_range_metres": 0.018
+    },
+    {
+      "name": "hull_side",
+      "native_cell": [
+        224,
+        64,
+        32,
+        32
+      ],
+      "output_cell": [
+        1792,
+        512,
+        256,
+        256
+      ],
+      "source_set": "wood_dark",
+      "metres_per_tile": [
+        1,
+        1
+      ],
+      "relief_range_metres": 0.018
+    },
+    {
+      "name": "hull_in",
+      "native_cell": [
+        0,
+        96,
+        32,
+        32
+      ],
+      "output_cell": [
+        0,
+        768,
+        256,
+        256
+      ],
+      "source_set": "wood_dark",
+      "metres_per_tile": [
+        1,
+        1
+      ],
+      "relief_range_metres": 0.018
+    },
+    {
+      "name": "hull_tar",
+      "native_cell": [
+        32,
+        96,
+        32,
+        32
+      ],
+      "output_cell": [
+        256,
+        768,
+        256,
+        256
+      ],
+      "source_set": "wood_dark",
+      "metres_per_tile": [
+        1,
+        1
+      ],
+      "relief_range_metres": 0.018
+    },
+    {
+      "name": "canvas_seams",
+      "native_cell": [
+        96,
+        96,
+        32,
+        32
+      ],
+      "output_cell": [
+        768,
+        768,
+        256,
+        256
+      ],
+      "source_set": "tarpaulin",
+      "metres_per_tile": [
+        1,
+        1
+      ],
+      "relief_range_metres": 0.018
+    },
+    {
+      "name": "shoes",
+      "native_cell": [
+        116,
+        150,
+        32,
+        16
+      ],
+      "output_cell": [
+        928,
+        1200,
+        256,
+        128
+      ],
+      "source_set": "leather",
+      "metres_per_tile": [
+        0.5,
+        0.5
+      ],
+      "relief_range_metres": 0.018
+    },
+    {
+      "name": "iron",
+      "native_cell": [
+        148,
+        150,
+        16,
+        16
+      ],
+      "output_cell": [
+        1184,
+        1200,
+        128,
+        128
+      ],
+      "source_set": "iron_painted",
+      "metres_per_tile": [
+        0.5,
+        0.5
+      ],
+      "relief_range_metres": 0.018
+    },
+    {
+      "name": "iron_light",
+      "native_cell": [
+        164,
+        150,
+        16,
+        16
+      ],
+      "output_cell": [
+        1312,
+        1200,
+        128,
+        128
+      ],
+      "source_set": "iron_painted",
+      "metres_per_tile": [
+        0.5,
+        0.5
+      ],
+      "relief_range_metres": 0.018
+    },
+    {
+      "name": "cloth_red",
+      "native_cell": [
+        16,
+        172,
+        16,
+        16
+      ],
+      "output_cell": [
+        128,
+        1376,
+        128,
+        128
+      ],
+      "source_set": "tarpaulin",
+      "metres_per_tile": [
+        1,
+        1
+      ],
+      "relief_range_metres": 0.018
+    },
+    {
+      "name": "cloth_blue",
+      "native_cell": [
+        32,
+        172,
+        16,
+        16
+      ],
+      "output_cell": [
+        256,
+        1376,
+        128,
+        128
+      ],
+      "source_set": "tarpaulin",
+      "metres_per_tile": [
+        1,
+        1
+      ],
+      "relief_range_metres": 0.018
+    },
+    {
+      "name": "leather",
+      "native_cell": [
+        64,
+        172,
+        16,
+        16
+      ],
+      "output_cell": [
+        512,
+        1376,
+        128,
+        128
+      ],
+      "source_set": "leather",
+      "metres_per_tile": [
+        0.5,
+        0.5
+      ],
+      "relief_range_metres": 0.018
+    },
+    {
+      "name": "stone",
+      "native_cell": [
+        96,
+        172,
+        16,
+        16
+      ],
+      "output_cell": [
+        768,
+        1376,
+        128,
+        128
+      ],
+      "source_set": "stone_petit_granit",
+      "metres_per_tile": [
+        1,
+        1
+      ],
+      "relief_range_metres": 0.018
+    },
+    {
+      "name": "bluestone",
+      "native_cell": [
+        112,
+        172,
+        16,
+        16
+      ],
+      "output_cell": [
+        896,
+        1376,
+        128,
+        128
+      ],
+      "source_set": "stone_petit_granit",
+      "metres_per_tile": [
+        1,
+        1
+      ],
+      "relief_range_metres": 0.018
+    },
+    {
+      "name": "canvas",
+      "native_cell": [
+        240,
+        172,
+        16,
+        16
+      ],
+      "output_cell": [
+        1920,
+        1376,
+        128,
+        128
+      ],
+      "source_set": "tarpaulin",
+      "metres_per_tile": [
+        1,
+        1
+      ],
+      "relief_range_metres": 0.018
+    }
+  ],
+  "preserved_cells": [
+    "wicker",
+    "wicker_dark",
+    "fish",
+    "potato",
+    "apple",
+    "cabbage",
+    "horse",
+    "sign_boatyard",
+    "sign_ropewalk",
+    "sign_nets",
+    "sign_farrier",
+    "sign_sailmaker",
+    "sign_cooper",
+    "black",
+    "tar",
+    "ash",
+    "water",
+    "paper",
+    "cloth_white",
+    "copper",
+    "gull",
+    "gull_grey",
+    "beak",
+    "hoof",
+    "mane",
+    "carrot",
+    "bread",
+    "sail_tan",
+    "hemp",
+    "oakum",
+    "shavings",
+    "endgrain",
+    "rope",
+    "yarn",
+    "cheese",
+    "cheese_rind",
+    "coal_glow",
+    "fire"
+  ]
+}
