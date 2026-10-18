@@ -11,6 +11,16 @@ Bugs and loose ends are tracked as [issues](https://github.com/Steve-Sitax/Moody
 
 ## [Unreleased]
 
+- Workers carry one load at a time, with both hands on it whatever they do; a box no longer floats beside a worker with hanging arms, and a body reused for another person no longer brings the last owner's crate (#148).
+- The dockers' sack piles are real sacks now: a docker lifts the top sack, the pile shrinks, and it is filled again while nobody looks and at dawn. The sack on his shoulder is the pile's own sack, with its mark (#130).
+- The emigrants on the Rijnkaai have real luggage: a painted trunk with iron corners and straps, a checked cloth bundle, a striped featherbed and a lidded basket. Jobs' trunks, hides and parcels and the carts' tubs, baskets and chairs are real models too (#151).
+- A fishwife guts with a knife and a herring in her hands, a clerk writes in an open ledger, a guide holds his book (#131).
+- The knife grinder parks his barrow, steps in between its handles and holds the knife to the stone; the fishwife stands close to her table (#129).
+- A woman scrubbing her doorstep kneels on the pavement with her brush on the step; her basket stands on the ground beside her and her bucket stands on the ground. Children at marbles and crouching women rest on the ground too (#169).
+- Bicycle riders hold the handlebar grips (#172).
+- The portal cranes' winch drum, gears and flywheel turn while they hoist. The wall works have their crew again, and a navvy cranks a new crab winch there; its crank and drum turn with his hands (#128).
+- Peyrot's cellarmen roll wine casks from the canal quay to the Vleeshuis cellar, and the brewer rolls his from the canal to the brewery. Street sweepers sweep the squares on weekday mornings, and men sweep before their doors and shops (#132).
+
 - People stop, face you and wait during conversations, including workers and resident riders/cart drivers. Walking away or closing lets them continue; after a long conversation they excuse themselves. Other players see the same held person (#168).
 - Tavern and shop patrons use the street people's detailed models and keep the entrance and serving route clear. De Vliet's frozen doorway keeper no longer appears or blocks entry (#158).
 - Reduced hitches when townspeople and omnibus passengers first appear, and reduced repeated route work and memory churn in boats and the railway (#62, #133, #135).

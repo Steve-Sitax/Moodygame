@@ -46,9 +46,40 @@ public partial class Townspeople
         }
         return kit;
     }
+    private static readonly StringName GroundedAt = "grounded_at";
+    /// <summary>The pieces of a kit set on the ground (a bucket, a brush, a chair) stand on the real ground under each
+    /// one, not at the height of the body that kneels or sits beside them (#169): placed once where she stops.</summary>
+    private void GroundLifeKit(Sim s, Node3D kit)
+    {
+        if (s.P is not { } p || kit.GetParent() != p.Group) return;
+        var here = new Vector2((float)p.X, (float)p.Z);
+        if (kit.HasMeta(GroundedAt) && kit.GetMeta(GroundedAt).AsVector2().DistanceTo(here) < 0.05f) return;
+        kit.SetMeta(GroundedAt, here);
+        var space = p.Group.GetWorld3D()?.DirectSpaceState;
+        var frame = new Transform3D(new Basis(Vector3.Up, (float)p.Yaw).Scaled(Vector3.One * (float)p.Size), new Vector3((float)p.X, (float)Walk!.BaseAt(p.X, p.Z), (float)p.Z));
+        var own = new Godot.Collections.Array<Rid>();
+        foreach (var n in World.BakedWorld.All(kit)) if (n is CollisionObject3D body) own.Add(body.GetRid());
+        foreach (var child in kit.GetChildren())
+        {
+            if (child is not Node3D piece || piece.Name.ToString() is not ("bucket" or "brush" or "chair" or "lace_stand")) continue;
+            if (!piece.HasMeta("kit_at")) piece.SetMeta("kit_at", piece.Position);
+            var local = kit.Position + piece.GetMeta("kit_at").AsVector3();
+            var at = frame * new Vector3(local.X, 0, local.Z);
+            float ground = (float)Walk.BaseAt(at.X, at.Z);
+            if (space != null)
+            {
+                var hit = space.IntersectRay(PhysicsRayQueryParameters3D.Create(at + Vector3.Up * 0.9f, at + Vector3.Down * 1.2f, World.Solid.Layer, own));
+                if (hit.Count > 0) ground = ((Vector3)hit["position"]).Y;
+            }
+            piece.TopLevel = true;
+            piece.GlobalTransform = new Transform3D(frame.Basis * piece.Basis.Orthonormalized(), new Vector3(at.X, ground + local.Y * (float)p.Size, at.Z));
+        }
+    }
+
     private void AnimateLifeKit(Sim s, double dt)
     {
         if (!lifeProps.TryGetValue(s.R.Id, out var kit) || !GodotObject.IsInstanceValid(kit.prop)) return;
+        if (s.Goal.Mode == "stand" && s.P != null && !Crowd!.PuppetBusy(s.P)) GroundLifeKit(s, kit.prop);
         if (s.Goal.Mode != "play") return;
         string kind = s.GameKind;
         if (kind == "tops"&&kit.prop.GetChildCount()>0&&kit.prop.GetChild(0) is Node3D top) top.RotateY((float)dt*12);

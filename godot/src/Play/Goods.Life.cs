@@ -14,13 +14,12 @@ public partial class Goods
         if (item.Obj is { } obj)
         {
             Solidify(item, false);
-            actor.Load(item.Kind);
-            p.LoadNode?.QueueFree();
-            obj.Reparent(p.Group, false);
-            obj.Position = new(0, 1.05f * p.Human.Scale, .52f);
-            obj.Rotation = Vector3.Zero; obj.Scale = Vector3.One * .8f; obj.Visible = true;
-            p.LoadNode = obj; p.LoadKind = item.Kind; item.Obj = null;
+            // the item's own model (its stencil) in the actor's arms, with the hold pose; his old load goes (#148)
+            if (actor.Owner.Crowd is { } crowd) crowd.PuppetLoad(p, true, item.Kind, node: obj);
+            else obj.QueueFree();
+            item.Obj = null;
         }
+        else actor.Load(item.Kind);
         _ = carried ? Ask(new { op = "drop", id = item.Id, why }) : Ask(new { op = "take", id = item.Id });
     }
 }

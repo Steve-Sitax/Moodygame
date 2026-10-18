@@ -1,0 +1,1 @@
+{"crab_winch":{"crank_axle":[0.0,1.02,0.0],"crank_radius":0.24,"drum_axle":[0.475,0.78,0.08],"gear_ratio":4.0,"rope_leaves":[0.383,0.78,0.181],"rope_leaves_dir":[0.0,1.0,0.0],"crank_handle_rest":[-0.2,1.26,0.0],"turning":"winch_crank and winch_drum turn about their local x; the drum turns by -crank_angle / gear_ratio; at rest the crank arm points up (\u002By)"}}

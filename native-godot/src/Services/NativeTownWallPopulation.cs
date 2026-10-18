@@ -48,7 +48,12 @@ public sealed class NativeTownWallPopulation
         }
         {
             var works = k.Facts["WORKS"]!; string segment = S(works, "seg"); double s0 = N(works["s0"]), s1 = N(works["s1"]); var seg = Segment(segment);
-            var heap = OnWalk(segment, s0 + 2.5, thickness - .65 - 1.25); var heap2 = OnWalk(segment, s1 - 2.5, thickness - .65 - 1.25); var stack = OnWalk(segment, s0 - 2.3, 1.75); var stack2 = OnWalk(segment, s1 + 2.2, 1.75); var winch = OnWalk(segment, (s0 + s1) / 2 + .6, thickness - .65 - 1); var sorter = OnWalk(segment, s0 - 3.2, 2.1); var boss = OnWalk(segment, s0 - 5.6, 2.2);
+            // (the rebuilt wall's own heaps, shear legs and winch stand on some of the original spots: the nearest free
+            // walk along the wall is taken there, so the works keep their crew)
+            (double x, double z)? Near(double along, double offset) { foreach (double d in new[] { 0, .5, -.5, 1, -1, 1.5, -1.5 }) if (OnWalk(segment, along + d, offset) is { } p) return p; return null; }
+            var heap = Near(s0 + 2.5, thickness - .65 - 1.25); var heap2 = Near(s1 - 2.5, thickness - .65 - 1.25); var stack = OnWalk(segment, s0 - 2.3, 1.75); var stack2 = OnWalk(segment, s1 + 2.2, 1.75); var winch = Near((s0 + s1) / 2 + .6, thickness - .65 - 1); var sorter = OnWalk(segment, s0 - 3.2, 2.1); var boss = OnWalk(segment, s0 - 5.6, 2.2);
+            if (seg == null || heap == null || heap2 == null || stack == null || stack2 == null || winch == null || sorter == null || boss == null)
+                Godot.GD.Print("wall works: no crew; no free walk for: " + string.Join(", ", new (string, object?)[] { ("segment", seg), ("heap", heap), ("heap2", heap2), ("stack", stack), ("stack2", stack2), ("winch", winch), ("sorter", sorter), ("boss", boss) }.Where(p => p.Item2 == null).Select(p => p.Item1)));
             if (seg != null && heap != null && heap2 != null && stack != null && stack2 != null && winch != null && sorter != null && boss != null) {
                 var mid = At(segment, (s0 + s1) / 2, 3.5)!.Value; There("wall:works", "the town's works on the ramparts, where the old wall comes down", (NativeTownBackGeometry.R1(mid.x), NativeTownBackGeometry.R1(mid.z)), 12); double field = FieldYaw(segment), along = Math.Atan2(N(seg["t"]?[0]), N(seg["t"]?[1])); string? tavern = TavernNear(stack.Value.x, stack.Value.z);
                 JsonArray Week(double from, double to, bool evening) { var day = new JsonArray(Seg(k.J(from, 0), 12, "work"), Seg(13, k.J(to, 0), "work")); if (evening && tavern != null) day.Add(Seg(k.J(18.5), k.J(21), "tavern", tavern)); return day; }

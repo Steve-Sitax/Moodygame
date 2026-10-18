@@ -274,6 +274,9 @@ public sealed class Puppet
     public Puppet? Lead, Follower;
     internal bool TownFollow;
     internal double Drop;
+    /// <summary>Kneeling or crouched (people2): how far to lower the body so its knees and toes rest on the real
+    /// ground under each (#169), and when that was last measured.</summary>
+    internal double KneelLift, KneelClock;
     public bool Shown;
     public bool Remote;
     public bool Conversing;
@@ -425,7 +428,7 @@ public sealed partial class Crowd
                 }
             }
             // down on the knees, on a chair, crouched (eased), or a hop (at once)
-            double lift = p.State == "sit" ? 0 : p.Human.MotionLift() * p.Size;
+            double lift = p.State == "sit" ? 0 : p.Human.IsPeople2 ? KneelLift(p, ground, dt) : p.Human.MotionLift() * p.Size;
             double want = p.State == "sit" ? p.Human.SitDrop() * p.Size : Math.Min(0, lift);
             p.Drop += (want - p.Drop) * Math.Min(1, dt * 4);
             if (inView) y = p.Drop + Math.Max(0, lift) + (p.State == "sit" ? 0 : p.Human.Bob() * p.Size);
@@ -443,6 +446,35 @@ public sealed partial class Crowd
         }
         Drawn = drawn;
         Animated = animated;
+    }
+
+    private readonly PhysicsRayQueryParameters3D kneelRay = new() { CollisionMask = World.Solid.Layer };
+
+    /// <summary>A people2 body kneeling or crouched: lowered (or raised) until the lowest of its knees and toes
+    /// rests on the ground under it, a step, the pavement or the cobbles (#169). Measured four times a second.</summary>
+    private double KneelLift(Puppet p, double ground, double dt)
+    {
+        Span<Vector3> points = stackalloc Vector3[6];
+        if (!p.Human.KneelContacts(points)) { p.KneelLift = 0; p.KneelClock = 0; return 0; }
+        if ((p.KneelClock -= dt) > 0) return p.KneelLift;
+        p.KneelClock = 0.25;
+        var space = p.Group.GetWorld3D()?.DirectSpaceState;
+        var frame = new Transform3D(new Basis(Vector3.Up, (float)p.Yaw).Scaled(Vector3.One * (float)p.Size), new Vector3((float)p.X, (float)ground, (float)p.Z));
+        double lowest = double.MaxValue;
+        foreach (var local in points)
+        {
+            var at = frame * local;
+            double under = map.BaseAt(at.X, at.Z);
+            if (space != null)
+            {
+                kneelRay.From = at + Vector3.Up * 0.7f; kneelRay.To = at + Vector3.Down * 1.2f;
+                var hit = space.IntersectRay(kneelRay);
+                if (hit.Count > 0) under = ((Vector3)hit["position"]).Y;
+            }
+            lowest = Math.Min(lowest, at.Y - under);
+        }
+        p.KneelLift = Math.Clamp(-lowest, -0.7, 0.3);
+        return p.KneelLift;
     }
 
     // ---------------------------------------------------------------- puppets
@@ -512,34 +544,80 @@ public sealed partial class Crowd
         GoTo(p, (tx, tz));
     }
 
-    /// <summary>A load in the arms: a sack, a crate, a box of fish, a keg (crowd.ts puppetLoad); off: put down.</summary>
-    public void PuppetLoad(Puppet p, bool on, string kind = "sack", int crate = 0)
+    /// <summary>What a person carries for a goods kind or a carry kind: "sack" (the shoulder), "keg", "fishbox", or
+    /// "crate" (anything else boxed or bundled is held in both arms like a crate).</summary>
+    public static string CarryKindOf(string kind) => kind switch
+    {
+        "sack" or "sacks" => "sack",
+        "keg" or "barrels" or "barrel" => "keg",
+        "fishbox" or "fish" => "fishbox",
+        "cask" => "cask",
+        _ => "crate",
+    };
+
+    /// <summary>A load in the arms: a sack, a crate, a box of fish, a keg (crowd.ts puppetLoad); off: put down.
+    /// One load per person (#148): a new load replaces the old one, which goes. `node`: the goods item's own model
+    /// (a job's crate with its stencil), held instead of a made one; the caller gives it up.</summary>
+    public void PuppetLoad(Puppet p, bool on, string kind = "sack", int crate = 0, Node3D? node = null)
     {
         p.HandCarry = true;
-        if (p.Human.IsPeople2)
+        kind = CarryKindOf(kind);
+        bool same = on && p.Loaded && p.LoadKind == kind && (node == null || node == p.LoadNode) && (kind == "sack" || p.LoadNode != null);
+        if (same) return;
+        // the old load goes (people2: a sack let go is set down from the shoulder by Human2)
+        if (p.LoadNode != null && p.LoadNode != node)
         {
-            // people2 (package D3): the sack rides the shoulder (the kit's one sack, set down when let go); other
-            // loads are the game's node held against the belly. A local choice: the wire still says "loaded"
-            if (p.LoadNode != null && (!on || p.LoadKind != kind || kind == "sack"))
-            {
-                p.LoadNode.QueueFree();
-                p.LoadNode = null;
-                p.Human.CarryNode(null);
-            }
-            p.LoadKind = kind;
-            p.Loaded = on;
-            if (on && kind != "sack" && p.LoadNode == null && (p.LoadNode = Carried.Load(kind, p.Human.Scale, crate)) != null) p.Human.CarryNode(p.LoadNode);
-            p.Human.CarryLoad(on ? kind : null);
-            return;
-        }
-        if (p.LoadNode != null && (!on || p.LoadKind != kind))
-        {
-            p.LoadNode.QueueFree();
+            if (p.Human.IsPeople2) p.Human.CarryNode(null);
+            if (GodotObject.IsInstanceValid(p.LoadNode)) p.LoadNode.QueueFree();
             p.LoadNode = null;
         }
         p.LoadKind = kind;
         p.Loaded = on;
-        if (on && p.LoadNode == null && (p.LoadNode = Carried.Load(kind, p.Human.Scale, crate)) != null) p.Group.AddChild(p.LoadNode);
+        // a purchase is put away while both arms carry (one load at a time)
+        if (p.BoughtNode != null) p.BoughtNode.Visible = !on;
+        if (p.Human.IsPeople2)
+        {
+            // people2 (package D3): the sack rides the shoulder (the kit's one sack, set down when let go); other
+            // loads are the game's node held against the belly with the hold clips. A local choice: the wire still says "loaded"
+            // (a cask is rolled along the ground before him: the kit's quay cask, no node in the arms)
+            if (on && kind is not ("sack" or "cask"))
+            {
+                if (node != null) { node.Visible = true; node.Scale = Vector3.One; p.LoadNode = node; }
+                else p.LoadNode ??= Carried.Load(kind, p.Human.Scale, crate);
+                p.Human.CarryNode(p.LoadNode);
+            }
+            p.Human.CarryLoad(on ? kind : null);
+            return;
+        }
+        if (!on) return;
+        if (kind == "cask") kind = "keg"; // (the old kit has no rolled cask: a keg in the arms)
+        if (node != null)
+        {
+            // the item's own model where the made one would be held
+            var at = Carried.Load(kind, p.Human.Scale, crate);
+            if (node.GetParent() != p.Group) { if (node.GetParent() is { } old) old.RemoveChild(node); p.Group.AddChild(node); }
+            node.Position = at?.Position ?? new Vector3(0, 0.74f * p.Human.Scale, 0.36f * p.Human.Scale);
+            node.Rotation = Vector3.Zero; node.Scale = Vector3.One; node.Visible = true;
+            at?.Free();
+            p.LoadNode = node;
+        }
+        else if (p.LoadNode == null && (p.LoadNode = Carried.Load(kind, p.Human.Scale, crate)) != null) p.Group.AddChild(p.LoadNode);
+    }
+
+    /// <summary>Everything a person holds goes before the body returns to the pool (#148: a load left on a pooled
+    /// body came back on the next person who used it).</summary>
+    private static void EmptyHands(Puppet p)
+    {
+        if (p.LoadNode != null)
+        {
+            if (p.Human.IsPeople2) p.Human.CarryNode(null);
+            if (GodotObject.IsInstanceValid(p.LoadNode)) p.LoadNode.QueueFree();
+            p.LoadNode = null;
+        }
+        p.Human.ClearLoad();
+        p.BoughtNode?.QueueFree();
+        p.BoughtNode = null; p.Bought = null;
+        p.Loaded = false; p.HandCarry = false;
     }
 
     /// <summary>A lantern in hand (police at night, people going home after dark).</summary>
@@ -671,6 +749,7 @@ public sealed partial class Crowd
         DropVehicle(p);
         p.Cart?.Dispose();
         p.Cart = null;
+        EmptyHands(p);
         p.Group.RemoveChild(p.Human.Root);
         p.Group.QueueFree();
         if (!pool.TryGetValue(p.Kind, out var list)) pool[p.Kind] = list = new List<Human>();

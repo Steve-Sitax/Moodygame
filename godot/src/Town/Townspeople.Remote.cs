@@ -28,7 +28,15 @@ public partial class Townspeople
         puppet.PMotion = motion; puppet.State = (pose.Gear & 1) != 0 ? "sit" : motion is "walk" or "carry" or "push" or "ride" ? "walk" : "stand";
         puppet.Human.SetPace(Math.Max(.3f, pose.Speed));
         Crowd.PuppetLantern(puppet, (pose.Gear & 2) != 0);
-        Crowd.PuppetLoad(puppet, (pose.Gear & 4) != 0);
+        // the wire only says "loaded": what is carried is worked out here as on the host (a haul route's load), and
+        // kept until it is put down (#148)
+        bool loaded = (pose.Gear & 4) != 0;
+        if (!loaded) Crowd.PuppetLoad(puppet, false);
+        else if (!puppet.Loaded || !puppet.HandCarry)
+        {
+            var route = HaulRoute.Near(pose.X, pose.Z);
+            Crowd.PuppetLoad(puppet, true, route?.CarryKind ?? "sack", route != null ? Scheldemist.Play.CrateModel.LabelFor($"haul:{route.Id}a:0") : 0);
+        }
         Crowd.PuppetCarry(puppet, EventPuppets.Bought[Math.Clamp(pose.PuppetBought, 0, EventPuppets.Bought.Length - 1)]);
         Crowd.PuppetVehicle(puppet, pose.PuppetVehicle, pose.PuppetLoad, pose.PuppetGoods);
     }

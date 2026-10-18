@@ -104,6 +104,10 @@ public partial class Townspeople : Node
         public bool MillRun;
         /// <summary>An action owns this resident until it releases him; his day must not pull him away.</summary>
         public bool ActionHeld;
+        /// <summary>A docker's haul (#130): the goods item he took up from his route's pile (the server's), and a lift
+        /// asked for and not yet answered.</summary>
+        public string? HaulGid;
+        public bool HaulAsking;
         public bool ServerEventDriven;
         public object? ActionOwner;
         public Scheldemist.Play.ResidentJourneys.Trip? Journey;
@@ -1301,6 +1305,17 @@ public partial class Townspeople : Node
 
     // ------------------------------------------------------------------ what they do there
 
+    /// <summary>The goods when this route's pile is drawn as goods items (a sack pile, a crate pile of the server's;
+    /// not the casks rolled by the clock's runs), else null: the haul stays a look.</summary>
+    private static Scheldemist.Play.Goods? PileGoods(HaulRoute route)
+    {
+        var goods = Scheldemist.Play.Goods.I;
+        if (goods == null || !goods.Loaded || route.Carry == "cask") return null;
+        string lot = $"haul:{route.Id}a:";
+        foreach (var id in goods.All.Keys) if (id.StartsWith(lot, StringComparison.Ordinal)) return goods;
+        return null;
+    }
+
     private void Behave(Sim s, double dt, (double x, double z)? body)
     {
         if (s.ActionHeld || Scheldemist.Talks.ConversationHold.I?.Held(s.R.Id)==true) return;
@@ -1377,22 +1392,37 @@ public partial class Townspeople : Node
                     bool nearA = At(a.X, a.Z, 2.5), nearB = !nearA && At(b.X, b.Z, 2.5);
                     double? yaw = null;
                     bool bend = false;
+                    // (at an empty pile of goods he does not bend: he waits for it to be filled)
+                    bool emptyPile = route != null && nearA && !bare && s.HaulGid == null && !s.HaulAsking && PileGoods(route) is { } piled && piled.TopOf($"haul:{route.Id}a:") == null;
                     if (route != null && nearA)
                     {
                         yaw = route.AYaw;
-                        bend = true;
+                        bend = !emptyPile;
                     }
                     else if (route != null && nearB)
                     {
                         var to = route.Door ?? route.Drop;
                         yaw = to != null ? Math.Atan2(to.Value.X - route.B.X, to.Value.Z - route.B.Z) : null;
                         bend = route.Into == "pile";
-                        // set down: in at the door, onto the pile, at the fish bank
+                        // set down: in at the door, onto the pile, at the fish bank (the pile's own item, when he took one)
                         crowd.PuppetLoad(p, false, carry);
+                        if (s.HaulGid != null) { Scheldemist.Play.Goods.I?.HaulIn(s.R.Id, s.HaulGid); s.HaulGid = null; }
+                    }
+                    // at his pile: he takes up its top load, the very goods item (#130: the pile shrinks; the server
+                    // fills it again while nobody looks, and at dawn)
+                    if (route != null && nearA && !bare && s.HaulGid == null && !s.HaulAsking && PileGoods(route) is { } goods)
+                    {
+                        var top = goods.TopOf($"haul:{route.Id}a:");
+                        if (top != null)
+                        {
+                            s.HaulAsking = true;
+                            string npc = s.R.Id, gid = top.Id;
+                            goods.NpcLift(npc, gid, ok => { s.HaulAsking = false; if (ok) s.HaulGid = gid; });
+                        }
                     }
                     // people2 (package D3): at a sack pile he takes the sack up onto his shoulder, at the door he sets
                     // it down from there; he stays for the work's length (a local look: positions are the host's)
-                    p.Human.Work = route != null && nearA && carry == "sack" && !bare ? "haul_sack" : null;
+                    p.Human.Work = route != null && nearA && carry == "sack" && !bare && !emptyPile ? "haul_sack" : null;
                     crowd.PuppetStand(p, bend ? "crouch" : "idle", yaw);
                     s.Wait = Math.Max(s.Wait, p.Human.WorkSeconds + 0.3);
                     return;
@@ -1406,12 +1436,20 @@ public partial class Townspeople : Node
                     else Retry(s);
                     return;
                 }
+                // an empty pile (his own, drawn as goods): he waits by it until it is filled again
+                if (atA && route != null && !bare && PileGoods(route) is { } shown && (s.HaulAsking || s.HaulGid == null && shown.TopOf($"haul:{route.Id}a:") == null))
+                {
+                    s.Wait = s.HaulAsking ? 0.5 : Rnd(5, 9);
+                    if (!s.HaulAsking) { s.Arrived = false; crowd.PuppetStand(p, Hash01(s.R.Id + "wait") < 0.5 ? "fold" : "idle", route.AYaw); }
+                    return;
+                }
                 // loaded from the pile to the door, back empty
                 s.ToB = atA;
                 s.Tries = 0;
                 crowd.PuppetLoad(p, s.ToB && !bare, carry, route != null ? Scheldemist.Play.CrateModel.LabelFor($"haul:{route.Id}a:0") : 0);
                 var dest = s.ToB ? b : a;
-                crowd.PuppetGo(p, dest.X, dest.Z);
+                // (a cask is rolled at a walk: cask_roll's own pace)
+                crowd.PuppetGo(p, dest.X, dest.Z, carry == "cask" && s.ToB ? 0.8 : null);
                 return;
             }
             case "patrol":
@@ -1426,11 +1464,14 @@ public partial class Townspeople : Node
                 if (!s.Arrived)
                 {
                     s.Arrived = true;
-                    s.Wait = g.Mode == "patrol" ? Rnd(1, 4) : Rnd(3, 12);
+                    // a knife grinder stops a while at each corner of his round: he parks his barrow and works
+                    // the stone (#129, StreetTrades.Grind)
+                    s.Wait = g.Mode == "patrol" ? (s.R.Trade == "grinder" ? Rnd(20, 45) : g.Motion == "scrub" ? Rnd(10, 22) : Rnd(1, 4)) : Rnd(3, 12);
                     // two soldiers walking out stop and talk, the one at his side listening
                     var mate = s.R.Trade == "soldier" && s.R.Mate != null ? byId.GetValueOrDefault(s.R.Mate) : null;
                     bool talk = mate?.P != null && Dist(mate.P.X, mate.P.Z, p.X, p.Z) < 2 && rng.NextDouble() < 0.6;
-                    crowd.PuppetStand(p, s.R.Trade == "police" ? "behind" : talk ? "talk" : "idle", talk ? Math.Atan2(mate!.P!.X - p.X, mate.P.Z - p.Z) : null);
+                    // (a street sweeper sweeps at each stop of his round: #132)
+                    crowd.PuppetStand(p, s.R.Trade == "police" ? "behind" : talk ? "talk" : g.Mode == "patrol" && g.Motion == "scrub" ? "scrub" : "idle", talk ? Math.Atan2(mate!.P!.X - p.X, mate.P.Z - p.Z) : null);
                     return;
                 }
                 if ((s.Wait -= dt) > 0) return;

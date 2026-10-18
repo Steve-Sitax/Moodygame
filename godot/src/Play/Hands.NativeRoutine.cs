@@ -3,6 +3,7 @@ using System.Linq;
 using System.Text.Json;
 using Scheldemist.Game;
 using Scheldemist.Player;
+using Scheldemist.Town;
 
 namespace Scheldemist.Play;
 
@@ -93,11 +94,15 @@ public partial class Hands
     private void SyncNativeLoad(Walk walk)
     {
         if (walk.Sim?.P is not {} body || town?.Crowd is not {} crowd) return;
-        var held = Goods.I.All.Values.FirstOrDefault(item => item.S.By is { ValueKind: JsonValueKind.Object } holder && holder.TryGetProperty("npc", out var npc) && npc.GetString() == walk.Info.Npc);
-        if (held != null && walk.Info.Cart == null && !body.Loaded) {
-            string kind = held.Kind switch { "crates" or "chests" => "crate", "barrels" => "keg", "fish" => "fishbox", _ => "sack" };
-            crowd.PuppetLoad(body, true, kind);
-        }
-        else if ((held == null || walk.Info.Cart != null) && body.Loaded && body.HandCarry) crowd.PuppetLoad(body, false);
+        string? kind = HeldKind(walk.Info.Npc);
+        if (kind != null && walk.Info.Cart == null && !body.Loaded) crowd.PuppetLoad(body, true, kind);
+        else if ((kind == null || walk.Info.Cart != null) && body.Loaded && body.HandCarry) crowd.PuppetLoad(body, false);
+    }
+
+    /// <summary>The carry kind of the goods item a hired hand holds now (null: none).</summary>
+    private static string? HeldKind(string npc)
+    {
+        var held = Goods.I.All.Values.FirstOrDefault(item => item.S.By is { ValueKind: JsonValueKind.Object } holder && holder.TryGetProperty("npc", out var who) && who.GetString() == npc);
+        return held == null ? null : Crowd.CarryKindOf(held.Kind);
     }
 }

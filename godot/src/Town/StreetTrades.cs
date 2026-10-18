@@ -18,6 +18,10 @@ public partial class StreetTrades : Node
         public readonly Vector2[] Trail=new Vector2[40];
         public int Count,DogsN;public double Roll,Speed,Spin;
         public bool Seen;
+        // the grinder (#129): pushing his barrow, stepping in between its handles, or at work there; where the barrow
+        // stands parked, his wheel's distance ahead of him now, and the barrow's solid box
+        public int State;public Vector3 ParkAt;public double ParkYaw,Ahead=GrinderWheelAhead;public Vector2 LastAt,StepTo;public double StepTime,SolidAhead=GrinderWheelAhead;
+        public CollisionShape3D? Shape;
         public bool Cart;public Node3D? Bundle;
     }
     // the cart dog: the Belgian draught dog (matin), fawn or brindle
@@ -25,6 +29,15 @@ public partial class StreetTrades : Node
     // The handles end 1.6 m behind the wheel. Leave them 30 cm in front of the
     // operator, with room for his body and a walking step before the kit updates.
     private const double GrinderWheelAhead=1.9;
+    // The stone's axle sits 0.55 m behind the wheel (barrow_stone below); the grind clip holds the knife to a stone
+    // 0.5 m before him (peopleRig.json work.clips.grind.stone): at work he stands between the handles (#129).
+    private const double GrinderStoneBehind=.55,GrinderStoneReach=.5;
+    private const int Pushing=0,SteppingIn=1,Grinding=2;
+    // the barrow's solid while pushed (frame, stone, handles before him) and while he stands in its handles (the
+    // frame and the stone before him; the handles beside him are no wall)
+    private static readonly (Vector3 Size,Vector3 Centre) GrinderPushed=(new(.7f,1,1.6f),new(0,.5f,-.7f));
+    // (it ends 0.6 m before where he stands at the stone: a walker's clearance, so he is never inside his own barrow)
+    private static (Vector3 Size,Vector3 Centre) GrinderWorked(double work){float d=.1f+(float)Math.Max(.12,work-.6);return(new(.7f,1,d),new(0,.5f,.1f-d/2));}
     private readonly Dictionary<string,Kit> kits=new();
     /// <summary>The cart dog's place in the cart's frame: its middle this far ahead of the axle (its hindquarters clear the
     /// cross bar at 1.2 m), the second dog this far beside the first (+x, the cart's left), outside the left shaft.</summary>
@@ -37,6 +50,8 @@ public partial class StreetTrades : Node
     internal bool HasKit(string id)=>kits.ContainsKey(id);
     /// <summary>For a check: the dog carts out now and their first dog.</summary>
     internal IEnumerable<(Node3D root,Animal? dog)> CartDogs{get{foreach(var k in kits.Values)if(k.DogsN>0&&k.Dogs[0]!=null&&k.Root.Visible)yield return(k.Root,k.Dogs[0]);}}
+    /// <summary>For a check: the grinder's stone (its axle) and whether he is at work at it.</summary>
+    internal (Vector3 Stone,bool Grinding)? GrinderStone(string id)=>kits.TryGetValue(id,out var k)&&k.Stone!=null?(k.Stone.GlobalPosition,k.State==Grinding):null;
     internal Vector3? KitPosition(string id)=>kits.TryGetValue(id,out var k)?k.Bundle!=null?k.Puppet.Group.GlobalPosition:k.Root.GlobalPosition:null;
     public int DogCarts {get;private set;}public int Grinders {get;private set;}
     public override void _Ready(){town=Main.I.GetNodeOrNull<Townspeople>("Townspeople");ModelLibrary.Get("lively",new(TwoSided:true,Affine:0,VertexColor:true));if(Menu.MainMenu.I is {} menu)menu.WorldReplaced+=Reset;}
@@ -72,7 +87,8 @@ public partial class StreetTrades : Node
         }
         var solid=new StaticBody3D{CollisionLayer=Solid.Layer,CollisionMask=0};
         var shape=new BoxShape3D{Size=cart?new(1.1f,1,1.7f):grinder?new(.7f,1,1.6f):new(.84f,1,1.1f)};var center=grinder?new Vector3(0,.5f,-.7f):new Vector3(0,.5f,-.1f);
-        solid.AddChild(new CollisionShape3D{Shape=shape,Position=center});root.AddChild(solid);WalkMap.RegisterBody(solid,new Aabb(center-shape.Size/2,shape.Size),owner:p);
+        var collision=new CollisionShape3D{Shape=shape,Position=center};solid.AddChild(collision);root.AddChild(solid);WalkMap.RegisterBody(solid,new Aabb(center-shape.Size/2,shape.Size),owner:p);
+        if(grinder){kit.Shape=collision;kit.LastAt=new((float)p.X,(float)p.Z);}
         return kit;
     }
     private static Vector2 Behind(Kit k,double distance)
@@ -92,14 +108,7 @@ public partial class StreetTrades : Node
             bool moving=town.Crowd.PuppetBusy(p);double dt=Math.Min(.1,delta);
             if(k.Cart){town.Crowd.PuppetLantern(p,s.R.Trade=="mussel_seller"&&town.Hour>=18.25);continue;}
             if(s.R.Trade=="broom_seller")continue;
-            if(s.R.Trade=="grinder")
-            {
-                double x=p.X+Math.Sin(p.Yaw)*GrinderWheelAhead,z=p.Z+Math.Cos(p.Yaw)*GrinderWheelAhead;
-                var at=new Vector3((float)x,(float)town.Walk!.BaseAt(x,z),(float)z);double step=k.Root.Position.DistanceTo(at);k.Root.Position=at;k.Root.Rotation=new(0,(float)p.Yaw,0);
-                k.Roll+=moving?step/.3:0;k.Spin+=moving?0:dt*14;
-                if(k.Wheel!=null)k.Wheel.Rotation=new((float)k.Roll,0,0);if(k.Stone!=null)k.Stone.Rotation=new((float)k.Spin,0,0);if(k.Fly!=null)k.Fly.Rotation=new((float)(k.Spin*.6),0,0);
-                if(!moving)town.Crowd.PuppetStand(p,"grind",p.Yaw);
-            }
+            if(s.R.Trade=="grinder")Grind(k,p,moving,dt);
             else
             {
                 var current=new Vector2((float)p.X,(float)p.Z);double step=current.DistanceTo(k.Trail[0]);k.Speed+=(Math.Min(3,step/Math.Max(.001,dt))-k.Speed)*Math.Min(1,dt*5);
@@ -116,6 +125,62 @@ public partial class StreetTrades : Node
             k.Root.Visible=p.Shown;
         }
         gone.Clear();foreach(var pair in kits)if(!pair.Value.Seen)gone.Add(pair.Key);foreach(var id in gone)Remove(id);
+    }
+    /// <summary>The knife grinder and his barrow (#129). He pushes it by its handles' ends; where he stops he parks it,
+    /// steps in between its handles to the stone and grinds there with the knife on the stone; going on, he pushes
+    /// it out ahead of him again.</summary>
+    private void Grind(Kit k,Puppet p,bool moving,double dt)
+    {
+        var here=new Vector2((float)p.X,(float)p.Z);double walked=here.DistanceTo(k.LastAt);k.LastAt=here;
+        double work=GrinderStoneBehind+GrinderStoneReach*p.Human.WorkRatio("grind");
+        Vector3 at;double yaw;
+        if(k.State==Pushing)
+        {
+            // the barrow goes out ahead of him to the pushing reach (at once once it is there)
+            k.Ahead=Math.Min(GrinderWheelAhead,k.Ahead+walked);
+            // (its solid grows back to the handles' ends only as he falls back behind them)
+            if(k.State==Pushing&&Math.Abs(k.Ahead-k.SolidAhead)>.1&&k.SolidAhead<GrinderWheelAhead){k.SolidAhead=k.Ahead>=GrinderWheelAhead-.01?GrinderWheelAhead:k.Ahead;BarrowSolid(k,k.SolidAhead>=GrinderWheelAhead?GrinderPushed:GrinderWorked(k.SolidAhead));}
+            double x=p.X+Math.Sin(p.Yaw)*k.Ahead,z=p.Z+Math.Cos(p.Yaw)*k.Ahead;
+            at=new((float)x,(float)town!.Walk!.BaseAt(x,z),(float)z);yaw=p.Yaw;
+            if(!moving&&k.Ahead>=GrinderWheelAhead-.01)
+            {
+                // stopped: the barrow stays; he steps in to the stone
+                k.ParkAt=at;k.ParkYaw=yaw;k.State=SteppingIn;k.StepTime=0;
+                // (where the ground there is no place to stand, as close to the stone as it lets him)
+                while(work<GrinderWheelAhead-.05&&!town.Walk.FreeFor(p,x-Math.Sin(yaw)*work,z-Math.Cos(yaw)*work))work+=.1;
+                k.StepTo=new((float)(x-Math.Sin(yaw)*work),(float)(z-Math.Cos(yaw)*work));
+                if(!p.Remote)town.Crowd!.PuppetGo(p,k.StepTo.X,k.StepTo.Y,.6); // (a guest sees the host's step)
+                k.SolidAhead=work;BarrowSolid(k,GrinderWorked(work));
+            }
+            else if(!moving&&!p.Remote)town.Crowd!.PuppetStand(p,"idle",p.Yaw);
+        }
+        else
+        {
+            at=k.ParkAt;yaw=k.ParkYaw;
+            if(k.State==SteppingIn)
+            {
+                k.StepTime+=dt;
+                if(!moving&&(here.DistanceTo(k.StepTo)<.15||k.StepTime>4)){k.State=Grinding;if(!p.Remote){p.X=k.StepTo.X;p.Z=k.StepTo.Y;k.LastAt=k.StepTo;}}
+            }
+            if(k.State==Grinding)
+            {
+                if(moving)
+                {
+                    // on his way again: he pushes the barrow out before him from where it stands
+                    k.State=Pushing;k.Ahead=Math.Max(0,(new Vector2(at.X,at.Z)-here).Length());
+                }
+                else if(!p.Remote)town.Crowd!.PuppetStand(p,"grind",yaw);
+            }
+        }
+        double step=k.Root.Position.DistanceTo(at);k.Root.Position=at;k.Root.Rotation=new(0,(float)yaw,0);
+        k.Roll+=step/.3;k.Spin+=k.State==Grinding&&!moving?dt*14:0;
+        if(k.Wheel!=null)k.Wheel.Rotation=new((float)k.Roll,0,0);if(k.Stone!=null)k.Stone.Rotation=new((float)k.Spin,0,0);if(k.Fly!=null)k.Fly.Rotation=new((float)(k.Spin*.6),0,0);
+    }
+    private static void BarrowSolid(Kit k,(Vector3 Size,Vector3 Centre) box)
+    {
+        if(k.Shape?.Shape is not BoxShape3D shape)return;
+        shape.Size=box.Size;k.Shape.Position=box.Centre;
+        if(k.Shape.GetParent() is StaticBody3D body)WalkMap.ResizeBody(body,new Aabb(box.Centre-box.Size/2,box.Size));
     }
     private void Remove(string id){if(!kits.Remove(id,out var k))return;if(GodotObject.IsInstanceValid(k.Root))k.Root.QueueFree();if(GodotObject.IsInstanceValid(k.Bundle))k.Bundle!.QueueFree();if(k.Cart){k.Puppet.Pushes=false;k.Puppet.Nose=0;k.Puppet.Reach=.3;town?.Crowd?.PuppetLantern(k.Puppet,false);}foreach(var dog in k.Dogs)dog?.Dispose();if(k.Person.R.Trade=="grinder"){Grinders--;k.Puppet.Nose=0;k.Puppet.Reach=.3;}else if(k.DogsN>0)DogCarts--;}
     private void Reset(string how,Net.ClientState? state){gone.Clear();foreach(var id in kits.Keys)gone.Add(id);foreach(var id in gone)Remove(id);}

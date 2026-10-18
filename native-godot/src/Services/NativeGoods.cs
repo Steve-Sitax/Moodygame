@@ -216,7 +216,10 @@ public sealed class NativeGoods : INativeServiceModule
     private JsonObject? HaulForNpc(string npc)
     {
         var row=C.One("SELECT data_json FROM resident WHERE id=$p0",npc);if(row==null)return null;var work=JsonNode.Parse(S(row,"data_json","{}"))?["work"];if(S(work,"kind")!="haul")return null;
-        return A(Data["hauls"]).FirstOrDefault(route=>JsonNode.DeepEquals(route?["a"],work?["a"]) && JsonNode.DeepEquals(route?["b"],work?["b"]))as JsonObject;
+        // the docker's two ends as the client's HaulRoute.Of matches them: the route's own ends or an older town's ("was"),
+        // each within a metre (a docker of the route lifts its pile's loads, #130)
+        bool Near(JsonNode? p,JsonNode? q)=>A(p).Count>=2&&A(q).Count>=2&&Distance(Number(A(p)[0]),Number(A(p)[1]),Number(A(q)[0]),Number(A(q)[1]))<1;
+        return A(Data["hauls"]).FirstOrDefault(route=>Near(route?["a"],work?["a"])&&Near(route?["b"],work?["b"])||A(route?["was"]).Count>=2&&Enumerable.Range(0,A(route?["was"]).Count/2).Any(i=>Near(A(route?["was"])[2*i],work?["a"])&&Near(A(route?["was"])[2*i+1],work?["b"])))as JsonObject;
     }
     private bool MayNpc(string npc,JsonObject item){if(NpcMayLift?.Invoke(npc,item)==true)return true;var route=HaulForNpc(npc);return route!=null && S(item,"id").StartsWith("haul:"+S(route,"id")+"a:",StringComparison.Ordinal);}
     private JsonObject? HaulSlot(JsonObject state,JsonObject route,string tag)
@@ -262,7 +265,7 @@ public sealed class NativeGoods : INativeServiceModule
     private void Tick()
     {
         var state=State();foreach(int jid in Items(state).Where(i=>i["job"]!=null).Select(i=>(int)N(i,"job")).Distinct().ToList()){var row=C.One("SELECT status,task_json FROM job WHERE id=$p0",jid);if(row==null || S(row,"status")!="taken" || JsonNode.Parse(S(row,"task_json","{}"))?["held"]!=null){var result=End(state,jid);Commit(state,result.changed,result.gone,"end",new(){["world"]=true});}}
-        var changed=new List<JsonObject>();var gone=new List<string>();foreach(var it in Items(state)){string id=S(it,"id");if(it["by"]?["npc"] is JsonValue nv){string npc=nv.GetValue<string>();if(NpcHasErrand?.Invoke(npc)==true){state["orphan"]!.AsObject().Remove(id);continue;}if(state["orphan"]![id]==null)state["orphan"]![id]=C.Now;if(C.Now-Number(state["orphan"]![id])>=20000){var back=A(state["from"]![id]??it["home"]);if(back.Count>=2 && Rest(state,it,Number(back[0]),Number(back[1]),true))changed.Add(it);}}
+        var changed=new List<JsonObject>();var gone=new List<string>();foreach(var it in Items(state)){string id=S(it,"id");if(it["by"]?["npc"] is JsonValue nv){string npc=nv.GetValue<string>();if(NpcHasErrand?.Invoke(npc)==true){state["orphan"]!.AsObject().Remove(id);continue;}if(state["orphan"]![id]==null)state["orphan"]![id]=C.Now;if(C.Now-Number(state["orphan"]![id])>=(id.StartsWith("haul:",StringComparison.Ordinal)&&MayNpc(npc,it)?180000:20000)){var back=A(state["from"]![id]??it["home"]);if(back.Count>=2 && Rest(state,it,Number(back[0]),Number(back[1]),true))changed.Add(it);}}
             else if(it["by"]?["cart"] is JsonValue cv && CartContains?.Invoke(cv.GetValue<string>(),id)==false)gone.Add(id);}
         Commit(state,changed,gone,"sweep",new(){["world"]=true});var clock=host.Clock.View();int day=(int)N(clock,"day"),minute=(int)(N(clock,"hour")*60+N(clock,"minute"));foreach(var run in A(Data["cartRuns"]))RunCart(state,run!.AsObject(),day,minute);
         if(N(clock,"hour")>=5 && N(state,"lastDawn",-1)!=day){changed.Clear();state["lastDawn"]=day;foreach(var route in A(Data["hauls"]))foreach(string tag in new[]{"a","b"})for(int i=0;i<5;i++){var next=HaulSlot(state,route!.AsObject(),tag);if(next==null)break;changed.Add(next);}Commit(state,changed,Array.Empty<string>(),"dawn",new(){["world"]=true});}

@@ -218,7 +218,8 @@ public partial class Goods : Node
         if (PropOf(s.Look) is { } prop) return HaveProps && Scheldemist.Models.ModelLibrary.Get("props")?.Roots.ContainsKey(prop) == true;
         if (!string.IsNullOrEmpty(s.Look)) return false;
         // the town's own sacks lie in the bake's merged heap; a job's are new
-        if (s.Kind == "sacks") return s.Id.StartsWith("job:", StringComparison.Ordinal) || s.Id.StartsWith("spawn:", StringComparison.Ordinal);
+        // (the dockers' piles and the cart sacks are drawn as themselves too: HaulPiles took them out of the heap, #130)
+        if (s.Kind == "sacks") return s.Id.StartsWith("job:", StringComparison.Ordinal) || s.Id.StartsWith("spawn:", StringComparison.Ordinal) || HaulPiles.Drawn(s.Id);
         return GoodsRules.Info.ContainsKey(s.Kind);
     }
 
@@ -339,6 +340,22 @@ public partial class Goods : Node
         {
             var holder = new Node3D();
             holder.AddChild(one);
+            return holder;
+        }
+        // a sack is the one sack a docker carries on his shoulder and in his arms (People/Carried.cs), lying flat:
+        // the same model and mark on the pile, in the hands, on a cart (#130)
+        if (kind == "sacks" && Scheldemist.People.Carried.Sack(0.88f, 0.3f, 0.5f) is { } sack)
+        {
+            sack.Position = new Vector3(-0.07f * sack.Scale.X, 0, 0);
+            var lying = new Node3D();
+            lying.AddChild(sack);
+            return lying;
+        }
+        // a trunk, a bundle of hides, a parcel: the work goods' own (#151: no more plain shapes for job goods)
+        if (kind is "chests" or "hides" or "parcel" && WorkGoods.Copy(kind == "chests" ? "trunk" : kind) is { } work)
+        {
+            var holder = new Node3D();
+            holder.AddChild(work);
             return holder;
         }
         // The same decoded model lies on the ground and travels in the hands.
@@ -647,6 +664,25 @@ public partial class Goods : Node
     {
         sinking.Remove(obj);
         obj.QueueFree();
+    }
+
+    /// <summary>A docker takes this item up from his route's pile (the server's npc_lift); done: true when it is his.</summary>
+    public void NpcLift(string npc, string id, Action<bool>? done = null)
+    {
+        var ask = Ask(new { op = "npc_lift", npc, ids = new[] { id } });
+        ask.ContinueWith(t => { if (done != null) Callable.From(() => done(t.Result?.Ok == true)).CallDeferred(); });
+    }
+
+    /// <summary>A docker sets the load he took from his pile in at its door or onto its far pile (the server's haul_in).</summary>
+    public void HaulIn(string npc, string id) => _ = Ask(new { op = "haul_in", npc, id });
+
+    /// <summary>The top item of a pile of these goods that nobody holds and nothing lies on (the next to be lifted), or null.</summary>
+    public Item? TopOf(string lot)
+    {
+        Item? top = null;
+        foreach (var it in all.Values)
+            if (it.S.Lies && it.Id.StartsWith(lot, StringComparison.Ordinal) && !Above(it) && (top == null || it.Y > top.Y)) top = it;
+        return top;
     }
 
     /// <summary>A lying item of his own job taken off (a thief at the watch).</summary>

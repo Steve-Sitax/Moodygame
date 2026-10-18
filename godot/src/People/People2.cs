@@ -44,6 +44,23 @@ public static class People2
         /// <summary>Package D3: what the clip moves (a sack, a broom, a cask), and whether it is a work clip.</summary>
         public People2Things.Thing[] Things = Array.Empty<People2Things.Thing>();
         public bool Work;
+        /// <summary>On the knees or crouched (scrub, crouch): the game puts the knees and toes on the ground.</summary>
+        public bool Kneel;
+        /// <summary>What the clip's hands hold on a socket the whole time (work.clips.*.held: the gutting and
+        /// grinding knife on gripR).</summary>
+        public (string Model, string Socket)[] Held = Array.Empty<(string, string)>();
+        public string Name = "";
+    }
+
+    /// <summary>A copy of a held thing from people2's own held models (the ledger, the book, the rifle), with its
+    /// material, or null.</summary>
+    internal static Node3D? HeldCopy(string name)
+    {
+        if (model == null || !model.Roots.TryGetValue("people2_held", out var props) || props.GetNodeOrNull<Node3D>(name) is not { } source) return null;
+        var copy = (Node3D)source.Duplicate();
+        copy.Transform = Transform3D.Identity;
+        People2Material.Assign(copy, "people2_held");
+        return copy;
     }
     internal static Mesh? PreparedMesh
     {
@@ -175,9 +192,27 @@ public static class People2
         var reference = model.Roots["man_middling"].GetNode<Skeleton3D>("Skeleton3D");
         BoneNames = new string[reference.GetBoneCount()];
         for (int b = 0; b < BoneNames.Length; b++) BoneNames[b] = reference.GetBoneName(b);
-        foreach (var (name, animation) in model.Clips)
+        // A D3 work clip whose name an older clip already had was stored with a suffix ("scrub.001": scrub, crouch,
+        // lace, wash, grind, write, row, cross). The work tables mean the D3 one: it takes the name, and the older
+        // clip is kept under name + "_old_clip" (#169: the old scrub has no lowered hips and no brush of its own).
+        var names = new Dictionary<string, string>();
+        foreach (var (raw, animation) in model.Clips)
         {
-            if (name == "RESET") continue;
+            names.TryAdd(raw, raw);
+            foreach (string suffix in new[] { ".001", "_001" })
+            {
+                if (!raw.EndsWith(suffix, StringComparison.Ordinal)) continue;
+                string bare = raw[..^suffix.Length];
+                if (!model.Clips.ContainsKey(bare) || !work || !workMeta.TryGetProperty(bare, out var wanted) || !wanted.TryGetProperty("seconds", out var secs)) continue;
+                if (Math.Abs(animation.Length - secs.GetSingle()) > 0.1) continue;
+                names[raw] = bare;
+                names[bare] = bare + "_old_clip";
+            }
+        }
+        foreach (var (raw, animation) in model.Clips)
+        {
+            if (raw == "RESET") continue;
+            string name = names.GetValueOrDefault(raw, raw);
             var c = new Clip { Animation = animation, Length = (float)animation.Length, RotationTracks = new int[reference.GetBoneCount()] };
             Array.Fill(c.RotationTracks, -1);
             for (int t = 0; t < animation.GetTrackCount(); t++)
@@ -203,7 +238,14 @@ public static class People2
                 if (wm.TryGetProperty("stride", out var stride)) c.Stride = stride.GetSingle();
                 if (wm.TryGetProperty("speed", out var speed)) c.Speed = speed.GetSingle();
                 if (wm.TryGetProperty("duty", out var duty)) c.Duty = duty.GetSingle();
-                if (wm.TryGetProperty("things", out var things)) c.Things = People2Things.Parse(things);
+                if (wm.TryGetProperty("things", out var things)) c.Things = People2Things.Parse(things, name);
+                if (wm.TryGetProperty("kneel", out var kneel) && kneel.ValueKind == System.Text.Json.JsonValueKind.True) c.Kneel = true;
+                if (wm.TryGetProperty("held", out var heldIn) && heldIn.ValueKind == System.Text.Json.JsonValueKind.Array)
+                {
+                    var list = new List<(string, string)>();
+                    foreach (var h in heldIn.EnumerateArray()) list.Add((h.GetProperty("model").GetString()!, h.GetProperty("socket").GetString()!));
+                    c.Held = list.ToArray();
+                }
             }
             if (meta.TryGetProperty(name, out var m))
             {
@@ -215,6 +257,7 @@ public static class People2
                 c.Hips = Bodies[m.GetProperty("body").GetString()!].hips;
             }
             c.Rotations = new People2Rotations(animation);
+            c.Name = name;
             Clips[name] = c;
         }
         foreach (var root in model.Roots.Values)
