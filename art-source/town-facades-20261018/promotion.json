@@ -1,0 +1,13 @@
+{
+ "issue": 188,
+ "date": "2026-10-18",
+ "files": [
+  {
+   "path": "native-godot/world/town/resources/r000218.res",
+   "what": "grime decal shader: blend_mul, follows the wall's light",
+   "originalSha256": "d214b23acf8a6c29c5ee26ac1646c37fdef6290aa427a07479fc2d78f38b521b",
+   "installedSha256": "7483af2939483652ede166ae9e5846e92d6ab0bce2448bbdc3fb1e1afecc1567",
+   "originalKept": "outside the repository (D:/Code/_tmp_verify/H3-facades/record/original-resources) and in git at b8318586"
+  }
+ ]
+}

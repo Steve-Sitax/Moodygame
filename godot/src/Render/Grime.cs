@@ -416,11 +416,11 @@ vec3 bump_normal(vec3 surf_pos, vec3 surf_norm, vec2 dh) {
 
     /// <summary>
     /// The grime decals (houseGrime.ts grimeDecalMaterial): rust runs, soot, damp, corner grime, the ghost of a pulled-down
-    /// house's plaster. The tint laid over the wall as much as the cell's alpha times the house's wear; the fog washes
-    /// it out; lit by the day's light (the fog's colour); no depth written, pulled a little toward the eye.
+    /// house's plaster. The tint multiplied over the lit wall as much as the cell's alpha times the house's wear, so it follows
+    /// the wall's own light (issue #188); the fog washes it out; no depth written, pulled a little toward the eye.
     /// </summary>
     public const string DecalShader = @"shader_type spatial;
-render_mode unshaded, blend_mix, depth_draw_never, cull_disabled, fog_disabled;
+render_mode unshaded, blend_mul, depth_draw_never, cull_disabled, fog_disabled;
 global uniform vec4 psx_fog_color;
 global uniform float psx_fog_near;
 global uniform float psx_fog_far;
@@ -444,9 +444,10 @@ void fragment() {
 	if ((world.y < psx_mir0.w - 0.02 && distance(CAMERA_POSITION_WORLD, psx_mir0.xyz) < 0.02) || (world.y < psx_mir1.w - 0.02 && distance(CAMERA_POSITION_WORLD, psx_mir1.xyz) < 0.02)) discard;
 	float a = texture(tex, (floor(cell + 0.5) + fract(UV)) / cells).a * COLOR.a;
 	a *= 1.0 - smoothstep(psx_fog_near, psx_fog_far, fog_depth);
-	float light = clamp(dot(psx_fog_color.rgb, vec3(0.3, 0.59, 0.11)) / 0.125, 0.06, 1.0);
-	ALBEDO = COLOR.rgb * light;
-	ALPHA = a;
+	// #188: the stain follows the wall's light: multiplied over the lit wall (sun, shade, rain, lamps), it darkens the
+	// wall's own colour. The stain's colour is read against a light wall (0.55): soot and damp darken, rust darkens and reddens.
+	ALBEDO = mix(vec3(1.0), clamp(COLOR.rgb / 0.55, vec3(0.0), vec3(1.6)), a);
+	ALPHA = 1.0;
 }
 ";
 }

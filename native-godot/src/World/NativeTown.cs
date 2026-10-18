@@ -145,6 +145,8 @@ public partial class NativeTown : BakedWorld
         // Its footprint is cut out of the mesh, so what is drawn, what is walked on and what is solid agree with the steps.
         // (dev: --no-werf-cut leaves the ground as the bake has it, for a before-and-after)
         int werfCut = Scheldemist.Main.I.Flag("no-werf-cut") ? 0 : QuayNotch.Cut(town, "city_-4_0_3", QuayExits.WerfFrame, QuayExits.WerfNotchS0, QuayExits.WerfNotchS1, QuayExits.WerfNotchU0, QuayExits.WerfNotchU1);
+        // Issue #176: the shutters, copies of one model per kind where the bake's flat boards stood (before the razed houses' cut, which takes theirs)
+        Report["shutterCopies"] = NativeShutters.Install(town, Scheldemist.Main.I.Arg("shutters-file") is { Length: > 0 } shutterFile ? shutterFile : null);
         // Houses pulled down after the bake (city_build.json "razed"): cut out before collision and navigation read the meshes.
         // (dev: --keep-razed leaves them standing, for a before-and-after)
         razed = Scheldemist.Main.I.Flag("keep-razed") ? new NativeRazedHouses.Result(0, 0, 0, Array.Empty<string>()) : NativeRazedHouses.Cut(town, Scheldemist.Paths.Shared("city_build.json"));
@@ -226,6 +228,13 @@ public partial class NativeTown : BakedWorld
         if (town.GetNodeOrNull<Node3D>("wall_lamps") is { } wallLamps)
             foreach (var wallLamp in wallLamps.GetChildren().OfType<Node3D>()) wallLamp.Visible = true;
         var wallChunks = new NativeWallChunks { Name = "wall_chunk_culling" }; wallChunks.Collect(All(town)); AddChild(wallChunks);
+        // Issue #188: every block's near-only detail, within its near range (dev: --no-near-detail keeps the bake's state)
+        if (!Scheldemist.Main.I.Flag("no-near-detail"))
+        {
+            var (detailMeshes, detailHidden, detailSolid, detailHigh) = NativeNearDetail.Apply(All(town));
+            Report["nearDetailMeshes"] = detailMeshes; Report["nearDetailWereHidden"] = detailHidden;
+            Report["nearDetailSolidTriangles"] = detailSolid; Report["nearDetailOutOfReachTriangles"] = detailHigh;
+        }
         var registered = new HashSet<ulong>();
         foreach (var node in All(town))
         {
@@ -258,6 +267,7 @@ public partial class NativeTown : BakedWorld
         Solid.Leave.Add(n => n.HasMeta("native_replaced_event_snapshot"));
         Solid.Leave.Add(n => n.HasMeta(Scheldemist.Native.World.NativeQuayLadders.LeaveMeta));
         Solid.Leave.Add(n => n.HasMeta(NativeRazedHouses.DressingMeta));
+        Solid.Leave.Add(n => n.HasMeta(NativeNearDetail.NoCollision));
         Solid.Leave.Add(n => n.HasMeta(NativeBenches.SwapMeta));
         Report["benches"] = NativeBenches.Index(town);
         BuildLights();
