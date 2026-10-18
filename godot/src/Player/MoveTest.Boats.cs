@@ -244,6 +244,17 @@ public partial class MoveTest
             bool lowOk = !j.Swimming && sw.On?.Small == true;
             Check(lowOk, "at low water Jef drops off the quay into a moored boat and lands in her", new { on = sw.On?.Kind, fell = R(fell), j.Swimming, held = sw.AirHeld, water = j.Swimming ? j.LastWater : null, trace = lowOk ? null : lowTrace.ToArray() });
             sw.Clear();
+            // (#191) running off the quay: his way would carry him well past her far side before he comes down to her floor
+            int heldBefore = sw.AirHeld;
+            await Settle(low.From.X, low.From.Y, low.Yaw, -0.6f);
+            j.SetKey(Key.W, true); j.SetKey(Key.Shift, true);
+            var runTrace = new List<float[]>();
+            await Sampled(t => { var lp = low.Boat.World().AffineInverse() * new Vector3(j.X, j.Y, j.Z); runTrace.Add(new[] { R(t), R(j.Y), j.Grounded ? 1 : 0, j.Riding ? 1 : 0, R(lp.X), R(lp.Z), low.Boat.Mesh.Stand(lp.X, lp.Z, .1f) ? 1 : 0, Fin(low.Boat.Mesh.Floor(lp.X, lp.Z)), Fin(j.GroundAt(j.X, j.Z, j.Y)), sw.On == null ? 0 : 1, sw.AirHeld - heldBefore }); return t < 0.5f || !j.Grounded && !j.Swimming || t < 3 && sw.On == null && !j.Swimming; }, 6);
+            j.ClearKeys();
+            await Frames(15);
+            await Shot("deck-low-water-run-in-boat");
+            Check(!j.Swimming && sw.On?.Small == true, "at low water Jef runs off the quay into a moored boat and lands in her", new { on = sw.On?.Kind, j.Swimming, held = sw.AirHeld - heldBefore, feet = new[] { R(j.X), R(j.Y), R(j.Z) }, trace = sw.On?.Small == true ? null : runTrace.ToArray() });
+            sw.Clear();
         }
         Tide.Hold(null);
         await Until(() => MathF.Abs(Tide.River - Tide.Target) < 0.02f, 20);

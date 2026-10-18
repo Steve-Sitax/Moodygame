@@ -184,7 +184,9 @@ holds, `lifeAboard.ts`, the lantern extras (`boats.ts lamps()`, Godot `BoatLamps
   with it; run `--movetest <dir> --moveonly boatdeck` (drops on every kind, a hole scan over each hull).
 - A man in the air over a deck goes with her (#191, `ShipWalk.CarryFalling`): her move and turn since the last frame move
   him too, so a drop onto a boat under way lands where it was aimed (a rowing boat at 1.1 m/s used to sail 0.6 m on under a
-  2 m drop and leave him in the river behind her stern).
+  2 m drop and leave him in the river behind her stern). A drop from more than 1.2 m over a small boat does not drift past
+  her side while he falls, and landing on her floor near her side takes him aboard (at low water a walk or a run off the
+  quay 5 m over a boat against the wall used to carry him past her onto the mud).
 - `BoatCrews` puts people on every single vessel underway (river, anchorage tows, lock): a rower with oars on a
   small hull (`Rowing.Oarsman`), else a steersman aft and a hand forward (and a third amidships from 30 m), on the
   deck. `--moveonly crews` (`--crewhour 19.25` for dusk).

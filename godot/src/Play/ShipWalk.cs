@@ -127,7 +127,9 @@ public partial class ShipWalk:Node
         if(!j.Riding&&!j.Swimming&&!j.Climbing&&!j.Grounded&&!j.Fly)CarryFalling(j);else airDeck=null;
         if(j.Riding||j.Swimming||j.Climbing||!j.Grounded)return;
         if(float.IsFinite(RampFloor(j.X,j.Z))){j.Drive=rampDrive;return;}
-        foreach(var d in Decks){var xf=d.World();if(Math.Abs(xf.Origin.X-j.X)>65||Math.Abs(xf.Origin.Z-j.Z)>65||!d.Visible())continue;var p=xf.AffineInverse()*new Vector3(j.X,j.Y,j.Z);if(d.Mesh.Stand(p.X,p.Z)&&Math.Abs(p.Y-d.Mesh.Floor(p.X,p.Z))<.18f){Attach(d,new(p.X,p.Z));break;}}
+        // (a drop from on high that lands on her floor near her side: she takes him aboard from her edge too, at once, #191)
+        var landing=heldDeck;heldDeck=null;
+        foreach(var d in Decks){var xf=d.World();if(Math.Abs(xf.Origin.X-j.X)>65||Math.Abs(xf.Origin.Z-j.Z)>65||!d.Visible())continue;var p=xf.AffineInverse()*new Vector3(j.X,j.Y,j.Z);if(d.Mesh.Stand(p.X,p.Z,d==landing?.02f:.18f)&&Math.Abs(p.Y-d.Mesh.Floor(p.X,p.Z))<.18f){Attach(d,new(p.X,p.Z));break;}}
     }
     private Deck? airDeck;
     private Transform3D airFrom;
@@ -152,12 +154,13 @@ public partial class ShipWalk:Node
         // against the wall, his way carried him 1.4 m out, past her far side, before he came down to her floor, and onto
         // the mud beyond): over her he does not drift past her side while he falls. A jump out of her starts at her floor.
         if(under==null&&airDeck is {Small:true} held&&airHigh&&airLocalSet&&held.Visible())
-        {var xf=held.World();var w=xf*new Vector3(airLocal.X,(xf.AffineInverse()*at).Y,airLocal.Y);if((xf.AffineInverse()*at).Y>held.Mesh.Floor(airLocal.X,airLocal.Y)-.3f){AirHeld++;j.X=w.X;j.Z=w.Z;airFrom=xf;return;}}
+        {var xf=held.World();var w=xf*new Vector3(airLocal.X,(xf.AffineInverse()*at).Y,airLocal.Y);if((xf.AffineInverse()*at).Y>held.Mesh.Floor(airLocal.X,airLocal.Y)-.3f){AirHeld++;heldDeck=held;j.X=w.X;j.Z=w.Z;airFrom=xf;return;}}
         if(under!=null&&under==airDeck){var w=now*(airFrom.AffineInverse()*at);AirCarried+=new Vector2(w.X-at.X,w.Z-at.Z).Length();j.X=w.X;j.Z=w.Z;at=new(j.X,j.Y,j.Z);}
-        if(under!=null){var p=now.AffineInverse()*at;if(under!=airDeck){airHigh=p.Y-under.Mesh.Floor(p.X,p.Z)>1.2f;airLocalSet=false;}if(under.Mesh.Stand(p.X,p.Z,.25f)){airLocal=new(p.X,p.Z);airLocalSet=true;}}
+        if(under!=null){var p=now.AffineInverse()*at;if(under!=airDeck){airHigh=p.Y-under.Mesh.Floor(p.X,p.Z)>1.2f;airLocalSet=false;}if(under.Mesh.Stand(p.X,p.Z,.25f)){airLocal=new(p.X,p.Z);airLocalSet=true;}if(airHigh)heldDeck=under;}
         airDeck=under;airFrom=now;
     }
     private bool airHigh,airLocalSet;
+    private Deck? heldDeck;
     private Vector2 airLocal;
     /// <summary>For the checks (#191): how often a high drop over a small boat was kept from drifting past her side.</summary>
     public int AirHeld {get;private set;}
