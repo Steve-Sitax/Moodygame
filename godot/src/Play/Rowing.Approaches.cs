@@ -16,6 +16,9 @@ public partial class Rowing
         {
             if(e!=epoch||!IsInstanceValid(d.Root))return;
             var inverse=d.Frame().AffineInverse();var local=inverse*SeatOf(d);
+            // (issue 87: her ladder is beside her now, not over her thwart) a step across onto her nearest floor, then to the thwart
+            var foot=inverse*new Vector3(j.X,j.Y,j.Z);
+            if(ShipWalk.I?.FloorFor(d.Kind) is {} deck){var near=deck.Nearest(new(foot.X,foot.Z));var onto=new Vector3(near.X,deck.Floor(near.X,near.Y),near.Y);j.ClimbTo(new[]{(onto,.5f),(local,Math.Max(.45f,onto.DistanceTo(local)/1.2f))},Finish,d.Frame);return;}
             j.ClimbTo(new[]{(local,.45f)},Finish,d.Frame);
         }
         var keys=new List<(Vector3,float)>();

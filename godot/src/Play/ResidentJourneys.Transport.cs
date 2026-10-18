@@ -33,7 +33,7 @@ public partial class ResidentJourneys
         public FamilyBoat? BoatTrip;
     }
     public sealed class Carrier {public string Id="";public int Step;public double Go,Wait,Time;}
-    public sealed class FamilyBoat {public string Kind="rowboat";public List<string> Crew=new();public JourneyRules.Point[] Path=Array.Empty<JourneyRules.Point>();public Vector2 To,ToTop;public bool Home;}
+    public sealed class FamilyBoat {public string Kind="rowboat";public List<string> Crew=new();public JourneyRules.Point[] Path=Array.Empty<JourneyRules.Point>();public Vector2 To,ToTop,FromTop;public bool Home;}
     private sealed class ParkedCart {public Vector3 At;public int Items,Goods;public Handcart? Cart;public readonly List<Node3D> Cargo=new();public bool Pushed;}
     private ResidentTransport? transport;
     private readonly Dictionary<string,ParkedCart> parked=new();
@@ -174,6 +174,7 @@ public partial class ResidentJourneys
     {
         var s=t.Person;var p=s.P;
         if(t.Phase=="row"){RowTrip(t,dt);return;}
+        if(t.Phase=="landing"){if(Rowing.I.ResidentWalkersDone(t.Vehicle!.Id)||t.Time>45)LandRowTrip(t);return;}
         if(t.Phase=="toberth"){BerthTrip(t,dt);return;}
         if(t.Phase=="fetch"){var at=V(t.Fetch!);if(t.Mode=="handcart")at-=new Vector2((float)Math.Sin(t.Fetch![2]),(float)Math.Cos(t.Fetch[2]))*2.6f;if(Near(t,at,1.5))TakeVehicle(t);else Go(t,at,dt);return;}
         if(t.Phase=="load"){if(p==null){int rounds=(int)Math.Ceiling(Math.Max(1,(t.Load?.Items??1)-t.Loaded)/(1.0+t.Helpers.Count));if(t.Time>rounds*9/(6/1.3)){t.Loaded=t.Load?.Items??0;CartItems(t,t.Loaded);ReleaseHelpers(t);TakeVehicle(t);}else Go(t,t.Door,dt);}else Loading(t,dt);return;}

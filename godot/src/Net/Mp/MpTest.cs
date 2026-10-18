@@ -279,6 +279,7 @@ public partial class MpTest : Node
         }
         foreach (string f in new[] { "mptest-guest.json", "mptest-guest-home.json", "mptest-start.json", "mptest.json", "mp_host.png", "mp_guest.png" }) File.Delete(Path.Combine(dir, f));
         if (Main.I.Flag("mpmoving")) info.ArgumentList.Add("--mpmoving");
+        if (Main.I.Flag("mpboat")) { info.ArgumentList.Add("--mpboat"); info.ArgumentList.Insert(0, "--headless"); } // (the guest's side is data and gear: no second window)
         if(Main.I.Flag("mpconversation")){info.ArgumentList.Insert(0,"--headless");info.ArgumentList.Add("--mpconversation");info.Environment["SCHELDEMIST_USER_DATA"]=Path.Combine(dir,"guest","userdata");}
         if (Main.I.Arg("author-root") != "") { info.ArgumentList.Add("--author-root"); info.ArgumentList.Add(Main.I.Flag("mpconversation")?Path.Combine(dir,"guest","layouts"):Main.I.Arg("author-root")); }
         if (OS.GetCmdlineArgs().Contains("--verbose")) info.ArgumentList.Insert(0, "--verbose");
@@ -293,8 +294,10 @@ public partial class MpTest : Node
         // the start both walk from, on the server's clock
         double t0 = tg.ServerNow + 3000;
         File.WriteAllText(Path.Combine(dir, "mptest-start.json"), JsonSerializer.Serialize(new { t0 }));
-        bool ok = await Play(t0, 2, WalkS + 0.3, WalkS + 2.0, "mp_host.png");
+        // (--mpboat: the boat in place of the walk; its guest runs without a window)
+        bool ok = Main.I.Flag("mpboat") || await Play(t0, 2, WalkS + 0.3, WalkS + 2.0, "mp_host.png");
         if (ok && Main.I.Flag("mpmoving")) ok = await HostMoving();
+        if (ok && Main.I.Flag("mpboat")) ok = await HostBoat();
         if (!ok) return false;
 
         // the guest's own numbers, its going home, and its end
@@ -341,9 +344,10 @@ public partial class MpTest : Node
         if (!await Until(() => File.Exists(start), 60)) return Fail("the host gave no start");
         await Frames(5);
         double t0 = JsonSerializer.Deserialize<JsonElement>(File.ReadAllText(start)).GetProperty("t0").GetDouble();
-        bool ok = await Play(t0, 1, WalkS + 2.4, WalkS + 4.2, "mp_guest.png");
+        bool ok = Main.I.Flag("mpboat") || await Play(t0, 1, WalkS + 2.4, WalkS + 4.2, "mp_guest.png");
         if (!ok) return false;
         if (Main.I.Flag("mpmoving") && !await GuestMoving()) return false;
+        if (Main.I.Flag("mpboat") && !await GuestBoat()) return false;
         doc["ok"] = true;
         File.WriteAllText(Path.Combine(dir, "mptest-guest.json"), JsonSerializer.Serialize(doc, new JsonSerializerOptions(Api.Json) { WriteIndented = true }));
         // home again: his own game (the scene loads again, his own server starts)

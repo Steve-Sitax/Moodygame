@@ -62,6 +62,7 @@ public partial class RideTest : Node
             if(Main.I.Arg("ride-only")=="omnibus") {await OmnibusCheck(api);return;}
             if(Main.I.Arg("ride-only")=="saved-row") {await SavedRowCheck(api);return;}
             if(Main.I.Arg("ride-only")=="navigation") {await NavigationCheck(api);return;}
+            if(Main.I.Arg("ride-only")=="boats") {await RowCheck(api);await SavedRowCheck(api);await ShipCheck(api);await FerryCheck(api);return;} // (the rowing, ship and ferry parts alone)
             foreach (float height in new[] { 2.99f, 3, 5, 8, 12 })
             {
                 GameState.I.Apply(await api.Post<JobsPayload>("api/dev/set", new { hour = 13, minute = 45, weather = "clear", health = 10 }));

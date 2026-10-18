@@ -811,6 +811,9 @@ public partial class Together : Node
     // ------------------------------------------------------------------ for the other parts
 
     /// <summary>Where player `id` stands: this PC's own player, or another as drawn here (null: not in view, or gone).</summary>
+    /// <summary>What another player brings along now (MpProtocol.Gear* in the low two bits; the boat's kind above), from
+    /// his latest state as this game has it; 0 for nothing. (The boat check reads it on a guest with no window.)</summary>
+    public int GearOf(int id) => tracks.TryGetValue(id, out var t) && t.Sample(ServerNow) is { } p ? p.Gear : 0;
     public Vector3? PlayerAt(int id)
     {
         if (id == PlayerId && Jef.I != null) return new Vector3(Jef.I.X, Jef.I.Y, Jef.I.Z);

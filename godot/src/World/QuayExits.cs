@@ -58,6 +58,14 @@ public static class QuayExits
         return y + (LandY - y) * (s - SLast) / (FlightLen - SLast);
     }
 
+    /// <summary>A point on a flight (the residents walking up from a boat at its landing, issue 154): s down the flight from
+    /// its head, u out from the wall (Frame), at the height of the treads or the landing there.</summary>
+    public static Vector3 OnFlight(Frame f, float s, float u) { var (x, z) = f.On(s, u); return new Vector3(x, SlopeY(s), z); }
+    /// <summary>How far down the wall a flight's landing ends, and the middle of its treads out from the wall.</summary>
+    public const float FlightEnd = End, FlightMid = UMid, FlightTop = Top;
+    /// <summary>The flight whose head is at (x, z) on the quay line, or null.</summary>
+    public static Frame? FlightAt(float x, float z) { foreach (var f in Flights) if (MathF.Abs(f.Ox - x) < 1 && MathF.Abs(f.Oz - z) < 1) return f; return null; }
+
     private static float SlopeS(float y)
     {
         float yLast = CopeY - Treads * Rise;

@@ -19,6 +19,18 @@ public partial class Boats
         foreach(var f in floats)if(Dims(f.Kind).Length<9&&Math.Abs(f.Outer.GlobalPosition.X-x)<.12f&&Math.Abs(f.Outer.GlobalPosition.Z-z)<.12f)
         {if(hide&&f.Outer.Visible){playerHiddenFloats.Add(f);f.Outer.Visible=false;}else if(!hide&&playerHiddenFloats.Remove(f))f.Outer.Visible=true;}
     }
+    /// <summary>Every moored hull with whether her deck is there to stand on now: drawn, not one the bake hid, not taken
+    /// over as a rowed or loose copy of her own (issue 155: the floor goes with the look).</summary>
+    public IEnumerable<(string Kind,Func<Transform3D> World,Func<bool> Shown)> MooredDecks()
+    {
+        foreach(var row in rows)
+            for(int i=0;i<row.N;i++){int index=i;var r=row;yield return (r.Kind,()=>r.World[index],()=>!r.Gone[index]&&!playerHidden.Contains((r,index))&&(r.Node==null||r.Node.IsVisibleInTree()));}
+    }
+    /// <summary>Every moored hull's place as laid (kind, x, z, yaw; Gone: hidden by the bake or taken off its mooring).</summary>
+    public IEnumerable<(string Kind,float X,float Z,float Yaw,bool Gone)> MooredSpots()
+    {
+        foreach(var row in rows)for(int i=0;i<row.N;i++)yield return (row.Kind,row.X[i],row.Z[i],row.Yaw[i],row.Gone[i]);
+    }
     private Transform3D PlayerDraw(Row row,int i,Transform3D at)
     {if(playerHidden.Count!=0&&playerHidden.Contains((row,i)))at.Basis=new Basis(Vector3.Zero,Vector3.Zero,Vector3.Zero);return at;}
     /// <summary>Clearance of the live hulls, including the moving ships, without scene traversal or temporary lists.</summary>
@@ -28,7 +40,7 @@ public partial class Boats
         static bool Hits(float x,float z,float radius,Transform3D xf,float length,float beam)
         {var p=xf.AffineInverse()*new Vector3(x,xf.Origin.Y,z);return Math.Abs(p.Z)<length/2-.5f+radius&&Math.Abs(p.X)<beam/2-.15f+radius;}
         foreach(var row in rows)
-        {var d=Dims(row.Kind);for(int i=0;i<row.N;i++)if(!playerHidden.Contains((row,i))&&Math.Abs(row.X[i]-x)<d.Length/2+radius&&Math.Abs(row.Z[i]-z)<d.Length/2+radius&&Hits(x,z,radius,row.World[i],d.Length,d.Beam)){PlayerLastHull=(row.Kind,row.World[i].Origin,null);return false;}}
+        {var d=Dims(row.Kind);for(int i=0;i<row.N;i++)if(!row.Gone[i]&&!playerHidden.Contains((row,i))&&Math.Abs(row.X[i]-x)<d.Length/2+radius&&Math.Abs(row.Z[i]-z)<d.Length/2+radius&&Hits(x,z,radius,row.World[i],d.Length,d.Beam)){PlayerLastHull=(row.Kind,row.World[i].Origin,null);return false;}}
         foreach(var f in floats)
         {if(!f.Outer.Visible||f.Kind=="pontoon_section"&&z<-58.2f&&Math.Abs(x+249)<3)continue;var xf=f.Inner.GlobalTransform;var d=Dims(f.Kind);if(Math.Abs(xf.Origin.X-x)>d.Length/2+radius||Math.Abs(xf.Origin.Z-z)>d.Length/2+radius)continue;if(Hits(x,z,radius,xf,d.Length,d.Beam)){PlayerLastHull=(f.Kind,xf.Origin,f.Outer);return false;}}
         return true;

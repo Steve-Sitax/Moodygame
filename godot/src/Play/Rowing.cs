@@ -88,6 +88,21 @@ public partial class Rowing:Node,RowPhysics.IWorld
         // (her oars are out, not laid in; her water cap stays: Psx.Cap keeps the river out of the hull, rowing.ts)
         foreach(var n in BakedWorld.All(obj))if(n is Node3D c&&c.Name.ToString().EndsWith("_stow"))c.Visible=false;
         var d=new Drawn{Key=key,Kind=kind,X=x,Z=z,Yaw=yaw,Root=obj,Hull=RowPhysics.Hull.Of(kind),Oars=new Node3D{Name="row_oars"}};obj.AddChild(d.Oars);d.Frame=()=>d.Root.GlobalTransform;
+        BuildOars(d);
+        d.Oars.Visible=false;Drawings[key]=d;
+        // her bottom boards and thwarts to stand on, going with her (issue 155)
+        if(ShipWalk.I?.FloorFor(kind) is {} floor)ShipWalk.I.Add(kind,floor,()=>IsInstanceValid(d.Root)?d.Root.GlobalTransform:new Transform3D(Basis.Identity,new Vector3(1e6f,0,1e6f)),()=>IsInstanceValid(d.Root)&&!d.Root.IsQueuedForDeletion()&&d.Root.IsVisibleInTree(),()=>!IsInstanceValid(d.Root)||d.Root.IsQueuedForDeletion());
+        return d;
+    }
+    /// <summary>Oars for a boat of the town's traffic (Movers/BoatCrews: the river's rowing boats have a rower too, issue
+    /// 154): the same oars on her pins, posed with OarPhase. Null when this kind is not a rowed hull.</summary>
+    public Drawn? Oarsman(Node3D hull,string kind)
+    {
+        if(Array.IndexOf(Kinds,kind)<0||shaft==null)return null;
+        var d=new Drawn{Key="crew",Kind=kind,Root=hull,Hull=RowPhysics.Hull.Of(kind),Oars=new Node3D{Name="row_oars"}};hull.AddChild(d.Oars);BuildOars(d);d.Frame=()=>hull.GlobalTransform;return d;
+    }
+    private void BuildOars(Drawn d)
+    {
         for(int i=0;i<2;i++)
         {
             float side=i==0?1:-1;var pin=d.Hull.Pin;var p=new Node3D{Name=i==0?"port":"starboard",Position=new(pin.X*side,pin.Y,pin.Z)};var dip=new Node3D();var feather=new Node3D();d.Oars.AddChild(p);p.AddChild(dip);dip.AddChild(feather);d.Pivot[i]=p;d.Dip[i]=dip;d.Feather[i]=feather;
@@ -97,7 +112,6 @@ public partial class Rowing:Node,RowPhysics.IWorld
             feather.AddChild(new MeshInstance3D{Mesh=blade,MaterialOverride=dark,Position=new(Out-Blade/2,0,0)});
             feather.AddChild(new MeshInstance3D{Mesh=collar,MaterialOverride=iron,Rotation=new(0,0,MathF.PI/2)});
         }
-        d.Oars.Visible=false;Drawings[key]=d;return d;
     }
     public void Apply(RowWorld data)
     {
@@ -106,7 +120,15 @@ public partial class Rowing:Node,RowPhysics.IWorld
         {Boats.I.PlayerHideSmall(l.X,l.Z,true);string key="berth:"+l.Id;wanted.Add(key);if(!Drawings.TryGetValue(key,out var d))d=Make(key,l.Kind,l.X,l.Z,l.Yaw);if(d!=Boat){d.X=l.X;d.Z=l.Z;d.Yaw=l.Yaw;}d.Root.Visible=!(Boat?.Key==key||data.On=="hire"&&data.Hire?.Landing==l.Id);}
         foreach(var b in data.Boats)
         {
-            if(b.Lost||!b.Mine)continue;Boats.I.PlayerHideSmall(b.Home.X,b.Home.Z,true);wanted.Add(b.Id);if(!Drawings.TryGetValue(b.Id,out var d))d=Make(b.Id,b.Kind,b.X,b.Z,b.Yaw);if(d!=Boat&&!d.Drift){d.X=b.X;d.Z=b.Z;d.Yaw=b.Yaw;}d.Root.Visible=!b.Ridden;
+            // (issue 156) a wrecked boat is gone from her mooring; one somebody else has out is not at it either: rowed,
+            // she is that player's (Together draws the rower), left elsewhere she lies there for everyone
+            if(b.Lost){Boats.I.PlayerHideSmall(b.Home.X,b.Home.Z,true);continue;}
+            if(!b.Mine)
+            {
+                if(!b.Ridden&&new Vector2(b.X-b.Home.X,b.Z-b.Home.Z).Length()<.5f)continue;
+                Boats.I.PlayerHideSmall(b.Home.X,b.Home.Z,true);if(b.Ridden)continue;
+                wanted.Add(b.Id);if(!Drawings.TryGetValue(b.Id,out var other))other=Make(b.Id,b.Kind,b.X,b.Z,b.Yaw);if(other!=Boat&&!other.Drift){other.X=b.X;other.Z=b.Z;other.Yaw=b.Yaw;}other.Root.Visible=true;continue;
+            }Boats.I.PlayerHideSmall(b.Home.X,b.Home.Z,true);wanted.Add(b.Id);if(!Drawings.TryGetValue(b.Id,out var d))d=Make(b.Id,b.Kind,b.X,b.Z,b.Yaw);if(d!=Boat&&!d.Drift){d.X=b.X;d.Z=b.Z;d.Yaw=b.Yaw;}d.Root.Visible=!b.Ridden;
         }
         if(data.Hire?.Left is {} left&&data.On!="hire")
         {wanted.Add("mine");if(!Drawings.TryGetValue("mine",out var d))d=Make("mine",data.Hire.Kind,left.X,left.Z,0);}
@@ -124,8 +146,8 @@ public partial class Rowing:Node,RowPhysics.IWorld
     public bool SameKeys(float x,float z)=>Scheldemist.Dev.OfferComparison.Same(()=>KeysOriginal(x,z),()=>Busy||Boat!=null?KeysOriginal(x,z):WalkingKeys(x,z));
     private Offers WalkingKeys(float x,float z)
     {
-        var j=Jef.I;if(j.Riding||j.Climbing)return emptyOffers;
-        var options=walkingOffers.Options!;options.Clear();
+        var j=Jef.I;if(j.Riding&&!InSmallBoat||j.Climbing)return emptyOffers;
+        var options=walkingOffers.Options!;options.Clear();TakeOffer(options);
         foreach(var landing in Data.Landings)
         {
             float distance=new Vector2(x-landing.Landing[0],z-landing.Landing[1]).Length();
@@ -133,22 +155,49 @@ public partial class Rowing:Node,RowPhysics.IWorld
         }
         foreach(var drawing in Drawings.Values)
         {
-            if(drawing.Key.StartsWith("berth:")||drawing==Boat)continue;
+            if(drawing.Key.StartsWith("berth:")||drawing==Boat||!Yours(drawing))continue;
             var at=SeatOf(drawing);float distance=HullDistance(drawing,x,z),drop=j.Y-at.Y;
             if(distance<(j.Swimming?1.4f:drop>1.3f?2.2f:2)&&drop<3.6f)options.Add((distance,BoardAction(drawing,at,drop)));
         }
         return walkingOffers;
+    }
+    /// <summary>Standing in a small boat (ShipWalk's bottom boards), not rowing her.</summary>
+    private static bool InSmallBoat=>ShipWalk.I?.On is {Small:true};
+    /// <summary>A drawn boat Jef may get straight into: the one he hired, or one that is his to row now.</summary>
+    private bool Yours(Drawn d)=>d.Key=="mine"||Data.Boats.Any(b=>b.Id==d.Key&&b.Mine);
+    /// <summary>Issue 156: in somebody's moored boat (or one lying loose), E takes her: the engine's prompt names her owner,
+    /// and taking another's boat is a theft (NativeDeeds: her owner and those who see it react).</summary>
+    private void TakeOffer(List<(float,Act)> options)
+    {
+        if(ShipWalk.I?.On is not {Small:true} deck||Busy)return;var o=deck.World().Origin;
+        foreach(var b in Data.Boats)
+        {
+            if(b.Mine||b.Lost||b.Ridden||b.Kind!=deck.Kind||new Vector2(b.X-o.X,b.Z-o.Z).Length()>.7f)continue;
+            options.Add((.2f,Act.Me(Key.E,b.Prompt==""?"take the boat":b.Prompt,()=>_=TakeMoored(b))));return;
+        }
+    }
+    public async Task TakeMoored(RowLoose b)
+    {
+        if(Busy||Deeds.I==null||ServerLink.I?.Api is not {} api)return;Busy=true;int e=++epoch;
+        try
+        {
+            await Deeds.I.Take(b.Id);if(e!=epoch)return;
+            var w=await api.RowWorld();if(e!=epoch)return;Apply(w);
+            if(Data.Boats.FirstOrDefault(x=>x.Id==b.Id) is {Mine:true} mine&&Drawings.TryGetValue(b.Id,out var d))
+            {d.X=mine.X;d.Z=mine.Z;d.Yaw=mine.Yaw;ShipWalk.I.Clear();Sit(d);Answered?.Invoke("take",mine);GameState.I.Say("W pulls, S backs water, A/D turn, Shift pulls hard, E gets out at a ladder or steps.");}
+        }
+        catch(ApiException ex){GameState.I.Say(ex.Message);}finally{Busy=false;}
     }
     private Act HireAction(RowLanding landing)=>Act.At(Key.E,$"hire a {landing.Kind.Replace("rowboat","rowing boat")} from {landing.Waterman} ({Data.Fees.HireC} c)",new(landing.X,Water.Level(landing.X,landing.Z)+.7f,landing.Z),()=>_=Hire(landing));
     private Act BoardAction(Drawn drawing,Vector3 at,float drop)=>Act.At(Key.E,Jef.I.Swimming?"climb into your boat":drop>1.3f?"jump down into your boat":"get into your boat",new(at.X,at.Y+.35f,at.Z),()=>_=Board(drawing,drop>1.3f));
     private Offers KeysOriginal(float x,float z)
     {
         if(Busy)return new(){Only=new()};if(Boat!=null){var exit=ExitHere();return new(){Only=new(){Act.Me(Key.E,exit?.Ladder==true?"climb out up the ladder":exit!=null?"step out and tie up the boat":"go over the side into the water",()=>_=Leave(exit))}};}
-        var j=Jef.I;if(j.Riding||j.Climbing)return new();var options=new List<(float,Act)>();
+        var j=Jef.I;if(j.Riding&&!InSmallBoat||j.Climbing)return new();var options=new List<(float,Act)>();TakeOffer(options);
         foreach(var l in Data.Landings)
         {float d=new Vector2(x-l.Landing[0],z-l.Landing[1]).Length();if(!j.Swimming&&d<2.4f&&j.Y<Water.Level(x,z)+3.2f)options.Add((d,Act.At(Key.E,$"hire a {l.Kind.Replace("rowboat","rowing boat")} from {l.Waterman} ({Data.Fees.HireC} c)",new(l.X,Water.Level(l.X,l.Z)+.7f,l.Z),()=>_=Hire(l))));}
         foreach(var d in Drawings.Values)
-        {if(d.Key.StartsWith("berth:")||d==Boat)continue;var at=SeatOf(d);float dist=HullDistance(d,x,z),drop=j.Y-at.Y;
+        {if(d.Key.StartsWith("berth:")||d==Boat||!Yours(d))continue;var at=SeatOf(d);float dist=HullDistance(d,x,z),drop=j.Y-at.Y;
             if(dist<(j.Swimming?1.4f:drop>1.3f?2.2f:2)&&drop<3.6f)options.Add((dist,Act.At(Key.E,j.Swimming?"climb into your boat":drop>1.3f?"jump down into your boat":"get into your boat",new(at.X,at.Y+.35f,at.Z),()=>_=Board(d,drop>1.3f))));}
         return new(){Options=options};
     }
@@ -191,6 +240,8 @@ public partial class Rowing:Node,RowPhysics.IWorld
     {
         var seat=Rower.Seat;var exit=QuayExits.Near(seat.X,seat.Z,2.3f)??QuayExits.Near(Rower.X,Rower.Z,2);if(exit!=null)return exit;
         if(Data.On=="hire")foreach(var l in Data.Landings)if(new Vector2(Rower.X-l.X,Rower.Z-l.Z).Length()<9){exit=QuayExits.Near(l.Landing[0],l.Landing[1],3);if(exit!=null)return exit;}
+        // (issue 87) back at her own mooring: her ladder or her flight's landing lies beside her now, a step along her
+        if(Data.Boats.FirstOrDefault(b=>b.Id==Data.On) is {Landing.Length:>=2} own&&new Vector2(Rower.X-own.Home.X,Rower.Z-own.Home.Z).Length()<6){exit=QuayExits.Near(own.Landing[0],own.Landing[1],3);if(exit!=null&&new Vector2(exit.Gx-seat.X,exit.Gz-seat.Z).Length()<6.5f)return exit;}
         // The low pier is also reachable from a rowing boat. Higher decks need their own moving-frame handoff.
         for(int i=0;i<16;i++){float a=i*MathF.PI/8,tx=seat.X+MathF.Cos(a)*1.8f,tz=seat.Z+MathF.Sin(a)*1.8f;if(tx>5.3f&&tx<8.7f&&tz>-11.7f&&tz<-.3f&&Water.Level(tx,tz)>-2&&Jef.I.StandFree(tx,tz,0))return new(){Gx=seat.X,Gz=seat.Z,Tx=tx,Tz=tz,Ty=0};}
         return null;
@@ -200,7 +251,10 @@ public partial class Rowing:Node,RowPhysics.IWorld
         var d=Boat;if(d==null||Busy)return;Busy=true;int e=++epoch;float x=Rower.X,z=Rower.Z,yaw=Rower.Heading;var seat=Rower.Seat;
         Clear();d.X=x;d.Z=z;d.Yaw=yaw;d.Oars.Visible=false;
         if(exit!=null)
-        {var keys=new List<(Vector3,float)>();keys.Add((new(exit.Gx,seat.Y-.3f,exit.Gz),.5f));if(exit.Ladder)keys.Add((new(exit.Gx,exit.Ty+.15f,exit.Gz),Math.Max(.3f,(exit.Ty+.15f-seat.Y+.3f)/.9f)));keys.Add((new(exit.Tx,exit.Ty,exit.Tz),.7f));Jef.I.ClimbTo(keys,null);}
+        {var keys=new List<(Vector3,float)>();
+            // a ladder or landing a few steps along her: first along her floor to her end nearest it
+            if(new Vector2(exit.Gx-seat.X,exit.Gz-seat.Z).Length()>1.3f&&ShipWalk.I?.FloorFor(d.Kind) is {} deck){var hull=d.Root.GlobalTransform;var l=hull.AffineInverse()*new Vector3(exit.Gx,seat.Y,exit.Gz);var p=deck.Nearest(new(l.X,l.Z));var end=hull*new Vector3(p.X,deck.Floor(p.X,p.Y),p.Y);keys.Add((end,Math.Max(.5f,end.DistanceTo(seat-Vector3.Up*.4f)/1.2f)));}
+            keys.Add((new(exit.Gx,seat.Y-.3f,exit.Gz),.5f));if(exit.Ladder)keys.Add((new(exit.Gx,exit.Ty+.15f,exit.Gz),Math.Max(.3f,(exit.Ty+.15f-seat.Y+.3f)/.9f)));keys.Add((new(exit.Tx,exit.Ty,exit.Tz),.7f));Jef.I.ClimbTo(keys,null);}
         else{float side=d.Hull.Beam+.55f;for(int i=0;i<2;i++){float s=i==0?1:-1,xx=seat.X+MathF.Cos(yaw)*side*s,zz=seat.Z-MathF.Sin(yaw)*side*s;if(Jef.I.SwimFree(xx,zz)){Jef.I.DropFromBoat(new(xx,Water.Level(xx,zz)-.3f,zz));break;}}d.Drift=z<-1;}
         try{var r=await ServerLink.I!.Api!.RowLeave(x,z,yaw,exit!=null);if(e!=epoch)return;GameState.I.Apply(r);if(r.Row.Hire?.Left!=null){Drawings.Remove(d.Key);if(Drawings.TryGetValue("mine",out var old)&&old!=d)old.Root.QueueFree();d.Key="mine";Drawings["mine"]=d;}Apply(r.Row);Answered?.Invoke("leave",r);if(r.Text!="")GameState.I.Say(r.Text);}
         catch(ApiException ex){GameState.I.Say(ex.Message);}finally{Busy=false;}
