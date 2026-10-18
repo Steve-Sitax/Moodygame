@@ -172,10 +172,13 @@ It writes `furniture-size.json` (each item: how it was fitted, `fit`, `sized`, `
 size, the kit piece's own size and stretch) and 13:00 pictures of the items that were stretched before;
 `--furniture-size-shots id,id` picks others. Exit 1 on a failure.
 
-`--leftovers-proof <dir>` (issues 186 and 187, same flags) checks, at 13:00 clear: no frozen bake figure on or at a bench
-(`figures`), the Sint-Jansplein open in the walk map with its four benches joined to the streets (`rond`), and Jef climbing the
-Vleeshuis stair to the theatre floor with his own body (`theatre`). `--leftovers-only a,b` picks stages. It writes
-`leftovers.json` and pictures; exit 1 on a failure.
+`--leftovers-proof <dir>` (issues 180, 182, 186 and 187, same flags) checks, at 13:00 clear: no frozen bake figure on or at a
+bench (`figures`), the Sint-Jansplein open in the walk map with its four benches joined to the streets (`rond`), Jef climbing the
+Vleeshuis oak stair to the theatre floor with his own body (`theatre`), the evening audience walking up it to the high seats
+(`audience`, day 7 18:05), each landing's family-boat berth and whether her people step out at the landing (`berths`), Jef
+swimming in the far river (`river`), the small boats' mooring ropes following the tide (`ropes`), the wall works' basket
+moving with the navvy's winch (`works`, 10:00), the fish tables' herring, cod and plaice models (`fish`) and the three tavern
+fireplaces (`fireplace`). `--leftovers-only a,b` picks stages. It writes `leftovers.json` and pictures; exit 1 on a failure.
 
 ## Market, work board, warmth, benches and room keepers
 

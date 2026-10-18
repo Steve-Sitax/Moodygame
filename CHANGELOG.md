@@ -15,6 +15,15 @@ Bugs and loose ends are tracked as [issues](https://github.com/Steve-Sitax/Moody
 - The Sint-Jansplein is open again: townspeople walk across it and can reach its four benches (#187).
 - The Steen's sailor no longer sits frozen on a bench by the Steen; the benches are for the town's live people (#187).
 - Someone you are talking to holds his spot: a passer-by who bumps into him walks round him instead of shoving him aside mid-talk (#185).
+- Mooring ropes of small boats follow the tide: the rope runs from the quay's ring to the boat at high water and at low water (#182).
+- The far river past the town's edge is water: if you fall in there, you swim, as in the docks (#182).
+- A family boat that cannot lie by the landing puts her people ashore at the landing first; she goes on to her own berth when you are not near (#182).
+- The decks of the barque and the brig have no more holes at their edges to fall through (#182).
+- The Vismarkt's fish tables show real herring, cod and plaice, one model for each kind, instead of big flat fish shapes (#180).
+- The emigrant mother carries a real baby in a shawl (#180).
+- The town wall works' shear-legs lift and lower their basket on a moving rope as the navvy turns the winch (#180).
+- The Ankere, the Schipke and the Zwarte Kat have a real brick tavern fireplace with a mantel, hearth and fire (#187).
+- The Vleeshuis theatre has an oak stair up to its high seats; you and the audience walk up it (#186).
 - The town's houses drain their rain now: half-round iron gutters on hangers under the eaves and on the cornices, downpipes with a swan neck, cast brackets and a shoe, rainwater heads where two gables meet, an iron channel across the pavement to the street gutter and grated gullies, with rust and damp streaks down the wall. Rain darkens the iron and makes it shine. A few old houses throw the water clear from a spout, and the broken gutters the rain pours from are broken in the gutter too (#163).
 - A clear day looks clear: a blue sky over a light haze, the fog lighter and further off, a stronger sun on the walls, and real sun shadows of people, trees, stalls and eaves near you (the Shadows setting, formerly Lantern shadows, turns them off). Mist, fog, rain and night look as before (#97).
 - Taverns, shops and homes follow the time of day inside: by day a cool light from the windows with the lamps out and only the stove burning; after dark the room's own light drops and its lamps and stove light it in warm pools (#137).
