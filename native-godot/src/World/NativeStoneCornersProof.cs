@@ -102,7 +102,13 @@ public static class NativeStoneCornersProof
                     capture = new Camera3D { Name = "StoneCornersCapture", Fov = view.Fov > 0 ? view.Fov : 62, Near = .05f, Far = game.Cam.Far, CullMask = game.Cam.CullMask, Environment = game.Cam.Environment };
                     game.Cam.GetParent().AddChild(capture);
                     capture.GlobalTransform = new Transform3D(Basis.Identity, eye).LookingAt(focus, Vector3.Up); capture.MakeCurrent();
+                    // (#184) the clock, the weather and the light are this view's before the picture (the game's own clock
+                    // sync could still be on the last one), and a night view waits until the street lamps and the lit
+                    // windows burn: a picture in a paused game (another window took the focus) had them all dark
+                    Daylight.I.SetTime(weather == "night" ? 22 : 13); Daylight.I.SetWeather(weather == "rain" ? "rain" : "clear");
+                    if (Pause.Paused) { notes.Add(new { mode = "pause", view = view.Name, weather, reasons = Pause.Reasons }); Pause.Clear(); }
                     Daylight.I.Settle(); await Frames(90);
+                    if (weather == "night") Check($"{view.Name}: night lights on before the picture", await Until(() => !Pause.Paused && Lights.I?.NightReady == true, 30));
                     // --stone-corners-pick fx,fy (0..1 of the picture): which drawn thing makes that pixel? Each one whose
                     // box the pixel's ray meets is hidden in turn; the ones that change the pixel are listed.
                     if (Option("stone-corners-pick") is { Length: > 0 } pick && weather == "day")
