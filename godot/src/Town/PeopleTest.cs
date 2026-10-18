@@ -51,7 +51,6 @@ public partial class PeopleTest : Node
     private Dev.PerformanceLease? timingLease;
     private readonly List<object> timingReports=new();
     private bool timingsIsolated=true;
-    public override void _ExitTree()=>timingLease?.Dispose();
     private bool aimed;
     private readonly Dictionary<string, object> jefRow = new();
     private readonly Dictionary<string, object> postedRow = new();
@@ -137,6 +136,7 @@ public partial class PeopleTest : Node
     }
     public override void _ExitTree()
     {
+        timingLease?.Dispose();
         if (!profileConnected) return;
         if (GetTree() is { } tree) { tree.PhysicsFrame -= BeginProfileFrame; tree.ProcessFrame -= BeginProfileFrame; }
         RenderingServer.FramePreDraw -= BeforeProfileDraw; RenderingServer.FramePostDraw -= EndProfileFrame;
