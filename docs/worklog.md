@@ -10,12 +10,12 @@ coordinator merges into main after checks and `test-icons.ps1 -Full`. Town chunk
 | 1 | A. Checks that fail at random | merged; #49 #47 wait for an exclusive timing after C2 |
 | 1 | B. Talk and doorways | #168 #158 (merged 69187d20) |
 | 1 | C. Speed | parts 1 and 2 merged (#133 #135 #167 closed); left: #181 heap, #62 #32 #47 #49 (exclusive timing) |
-| 2 (running) | D. Boats | #155 #87 #109 #154 #156 |
+| 2 | D. Boats | merged (#182 leftovers) |
 | 2 | E. Carried loads and work poses | merged 2bc9d394 |
 | 2 (running) | F. Market, work board, warmth, benches (rules), room keepers | #150 #153 #162 #165 #177 #178 |
 | 2 (running) | L. Routes | #139 #120 #179 |
 | 3 | G. Street furniture models | #160 #149 #164 #180 |
-| 3 | H. Town fabric (one at a time) | #161, #171 with #173, #163, #170 with #91 |
+| 3 | H. Town fabric (one at a time) | H1 running: #161 #171 #173; then H2 #163; then H3 #170 #91 |
 | 3 | M. Shop fronts, signs, shutters (after H, same files) | #174 #175 #176 |
 | 3 | I. Light and look | #97 #137 #28 (cheap fix) |
 | 3 | J. People kit | #82 #138 #140 |
