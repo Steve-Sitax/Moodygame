@@ -1,0 +1,8 @@
+# Rebuilt from scripts/ (textures.py, build.py); too large for git.
+ruien-o2.blend
+ruien-o2.blend1
+work/
+textures/*
+!textures/codex/
+renders/*
+!renders/round-7/
