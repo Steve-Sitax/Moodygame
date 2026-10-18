@@ -148,8 +148,18 @@ public partial class ShipWalk:Node
             var p=xf.AffineInverse()*at;if(!d.Mesh.Stand(p.X,p.Z,.05f))continue;float above=p.Y-d.Mesh.Floor(p.X,p.Z);
             if(above>-.3f&&above<8&&(under==null||d==airDeck)){under=d;now=xf;}
         }
-        if(under!=null&&under==airDeck){var w=now*(airFrom.AffineInverse()*at);AirCarried+=new Vector2(w.X-at.X,w.Z-at.Z).Length();j.X=w.X;j.Z=w.Z;}
+        // a drop from on high into a small boat lands in her (#191: at low water, walking off the quay 5 m over a boat lying
+        // against the wall, his way carried him 1.4 m out, past her far side, before he came down to her floor, and onto
+        // the mud beyond): over her he does not drift past her side while he falls. A jump out of her starts at her floor.
+        if(under==null&&airDeck is {Small:true} held&&airHigh&&airLocalSet&&held.Visible())
+        {var xf=held.World();var w=xf*new Vector3(airLocal.X,(xf.AffineInverse()*at).Y,airLocal.Y);if((xf.AffineInverse()*at).Y>held.Mesh.Floor(airLocal.X,airLocal.Y)-.3f){AirHeld++;j.X=w.X;j.Z=w.Z;airFrom=xf;return;}}
+        if(under!=null&&under==airDeck){var w=now*(airFrom.AffineInverse()*at);AirCarried+=new Vector2(w.X-at.X,w.Z-at.Z).Length();j.X=w.X;j.Z=w.Z;at=new(j.X,j.Y,j.Z);}
+        if(under!=null){var p=now.AffineInverse()*at;if(under!=airDeck){airHigh=p.Y-under.Mesh.Floor(p.X,p.Z)>1.2f;airLocalSet=false;}if(under.Mesh.Stand(p.X,p.Z,.25f)){airLocal=new(p.X,p.Z);airLocalSet=true;}}
         airDeck=under;airFrom=now;
     }
+    private bool airHigh,airLocalSet;
+    private Vector2 airLocal;
+    /// <summary>For the checks (#191): how often a high drop over a small boat was kept from drifting past her side.</summary>
+    public int AirHeld {get;private set;}
     public override void _ExitTree(){Clear();if(Scheldemist.Menu.MainMenu.I is {} menu)menu.WorldReplaced-=Replaced;Jef.I.OnJump=oldJump;Jef.I.TransportFloor=oldFloor;}
 }

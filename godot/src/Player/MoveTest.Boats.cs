@@ -242,7 +242,7 @@ public partial class MoveTest
             j.Fell -= OnFell;
             await Shot("deck-low-water-in-boat");
             bool lowOk = !j.Swimming && sw.On?.Small == true;
-            Check(lowOk, "at low water Jef drops off the quay into a moored boat and lands in her", new { on = sw.On?.Kind, fell = R(fell), j.Swimming, water = j.Swimming ? j.LastWater : null, trace = lowOk ? null : lowTrace.ToArray() });
+            Check(lowOk, "at low water Jef drops off the quay into a moored boat and lands in her", new { on = sw.On?.Kind, fell = R(fell), j.Swimming, held = sw.AirHeld, water = j.Swimming ? j.LastWater : null, trace = lowOk ? null : lowTrace.ToArray() });
             sw.Clear();
         }
         Tide.Hold(null);
