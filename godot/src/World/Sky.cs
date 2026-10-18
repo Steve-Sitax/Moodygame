@@ -32,6 +32,9 @@ uniform vec2 sun_xz = vec2(-1.0, 0.0);
 uniform float fog_sky = 0.0;
 uniform float deck = 16.0;
 uniform float lift = 0.0;
+uniform float blue = 0.0;
+uniform vec3 blue_top = vec3(0.09, 0.2, 0.52);
+uniform vec3 cloud_lit = vec3(0.62, 0.63, 0.65);
 global uniform float psx_time;
 global uniform float psx_fog_near;
 global uniform float psx_fog_far;
@@ -76,6 +79,9 @@ void fragment() {
 	float shade = mix(1.3, 0.74, dens) - 0.16 * smoothstep(0.55, 0.95, c) * dens + 0.1 * (n - 0.5);
 	shade = mix(shade, shade * 0.82, dark);
 	vec3 col = air * shade;
+	// a clear day (#97): blue between the clouds, deeper overhead, the haze of the air low down; the clouds lit white
+	vec3 gap = mix(air, blue_top, smoothstep(0.0, 0.45, e));
+	col = mix(col, mix(gap, mix(air, cloud_lit, 0.6) * shade, dens), blue);
 	// the evening's warm band where the sun goes down; the dawn's cold band opposite
 	vec2 hz = normalize(d.xz + 1e-5);
 	float to_sun = max(0.0, dot(hz, sun_xz));
@@ -105,6 +111,8 @@ void fragment() {
 	// by day the light comes down through the air: overhead it is a shade brighter than at the horizon, so the far
 	// roofs and masts fogged to the air's colour stand as dark shapes against it
 	vec3 a = air * (1.0 + lift * smoothstep(0.05, 0.8, e)) + warm_col * warm * pow(to_sun, 2.5) * 0.35;
+	// (a clear day: the clear sky behind the fogged clouds as well)
+	a = mix(a, gap + warm_col * warm * pow(to_sun, 2.5) * 0.35, blue);
 	a = mix(a, a * 0.8 + cold_col * 0.5, cold * away * 0.6);
 	// the lamps' glow in the air in front of the sky, as in front of the far houses
 	float glow = psx_glow(CAMERA_POSITION_WORLD, rd, glow_reach(1e4, psx_fog_far, rd));
@@ -126,6 +134,8 @@ void fragment() {
     private const float DayDeck = 60, AirDeck = 16;
     /// <summary>The day's air overhead against the horizon's (sky.ts SKY_LIFT).</summary>
     private const float Lift = 0.14f;
+    /// <summary>How much less cloud a clear day has by day (#97).</summary>
+    private const float ClearCloudsOff = 0.28f;
 
     private MeshInstance3D dome = null!;
     private ShaderMaterial mat = null!;
@@ -189,7 +199,8 @@ void fragment() {
         float open = Math.Max(day.Clear, day.Weather == "mist" ? 0.45f : day.Weather == "fog" ? 0.15f : 0);
         Scheldemist.Render.UniformUpdates.Material(mat, "air", new Vector3(air.R, air.G, air.B));
         Scheldemist.Render.UniformUpdates.Material(mat, "drift", drift);
-        Scheldemist.Render.UniformUpdates.Material(mat, "cover", cur.cover);
+        // (#97: a clear day by day has broken fair-weather cloud and much blue between, not a deck of grey)
+        Scheldemist.Render.UniformUpdates.Material(mat, "cover", cur.cover - ClearCloudsOff * day.ClearDay);
         Scheldemist.Render.UniformUpdates.Material(mat, "dark", cur.dark);
         Scheldemist.Render.UniformUpdates.Material(mat, "night", night);
         Scheldemist.Render.UniformUpdates.Material(mat, "stars", night * day.Clear * (1 - cur.dark));
@@ -199,6 +210,7 @@ void fragment() {
         // night; the day's air a shade brighter overhead (sky.ts the same)
         Scheldemist.Render.UniformUpdates.Material(mat, "deck", DayDeck + (AirDeck - DayDeck) * fogSky);
         Scheldemist.Render.UniformUpdates.Material(mat, "lift", Lift * (1 - fogSky));
+        Scheldemist.Render.UniformUpdates.Material(mat, "blue", day.ClearDay);
         Scheldemist.Render.UniformUpdates.Material(mat, "warm", Bump(hour, 16.2f, 17.3f, 18.3f, 19.1f) * open * (1 - cur.dark * 0.8f));
         Scheldemist.Render.UniformUpdates.Material(mat, "cold", Bump(hour, 5.4f, 6.4f, 7.4f, 8.6f) * open * (1 - cur.dark * 0.8f));
         var s = new Vector2(day.SunDir.X, day.SunDir.Z);

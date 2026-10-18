@@ -59,6 +59,8 @@ public partial class Daylight : Node
 
     private static readonly Color ClearSky = Psx.Hex(0x8b9398), GoldAir = Psx.Hex(0xdca868), SunWhite = Psx.Hex(0xfff0d8), SunGold = Psx.Hex(0xffa24a);
     private static readonly Color SkyCold = Psx.Hex(0x8494a6), SkyWarm = Psx.Hex(0xb49a7c), Ground = Psx.Hex(0x2a2822);
+    /// <summary>The light haze low over a clear day's town (#97): the air at the horizon under a blue sky.</summary>
+    private static readonly Color ClearHaze = Psx.Hex(0xa9b5bf);
     /// <summary>The lamps' glow in the air on a fog day (psx.ts uScatter at the start).</summary>
     private const float Scatter = 0.55f;
     private static readonly float SunDecl = Mathf.DegToRad(-6), SunLat = Mathf.DegToRad(51.22f);
@@ -85,6 +87,12 @@ public partial class Daylight : Node
     public float Air => Mathf.Clamp((wNow[2] - 0.2f) / 0.8f, 0, 1);
     /// <summary>The clear sky's weight, eased (0 fog .. 0.6 clear).</summary>
     public float Clear => wNow[3];
+    /// <summary>
+    /// A clear day's own look (#97, Steve 2026-10-18 through the coordinator: a clear midday should read as clear), 0..1:
+    /// a blue sky over a light haze, the fog lighter and further off, a stronger sun with its shadows. Only a clear day by
+    /// day: mist (its clear weight 0.25), fog, rain, storm and the night keep exactly the look they had.
+    /// </summary>
+    public float ClearDay { get; private set; }
     /// <summary>The way to the sun (world).</summary>
     public Vector3 SunDir { get; private set; } = Vector3.Up;
     /// <summary>Dark outside 0-1 (ambient.ts NIGHT_BY_HOUR; a dark day lights up earlier): lit windows follow it.</summary>
@@ -147,7 +155,12 @@ public partial class Daylight : Node
         };
         main.View.AddChild(new WorldEnvironment { Environment = env, Name = "air" });
         // the one sun: always there, dark at night (light counts never change: docs/rendering.md)
-        sun = new DirectionalLight3D { Name = "sun", ShadowEnabled = false, LightEnergy = 0 };
+        // (#97: its shadow map only on a clear day, near the eye: the houses' shadows further off are the sky map's)
+        sun = new DirectionalLight3D
+        {
+            Name = "sun", ShadowEnabled = false, LightEnergy = 0,
+            DirectionalShadowMode = DirectionalLight3D.ShadowMode.Orthogonal, DirectionalShadowMaxDistance = SunShadowReach,
+        };
         main.View.AddChild(sun);
 
         // the cathedral's stone takes a fill light from the sky (cathedralOutside.ts skyFill), baked as it was at the
@@ -304,6 +317,11 @@ public partial class Daylight : Node
 
     private static void rs0(string n, float v) => Psx.Set(n, v);
 
+    /// <summary>A clear day at its full (#97): how far toward the haze the air goes, how much stronger the sun, how much further the fog, how much more light from the blue sky in the shade.</summary>
+    private const float ClearDayHaze = 0.6f, ClearDaySun = 0.6f, ClearDayReach = 0.5f, ClearDaySky = 0.25f;
+    /// <summary>How far from the eye the clear day's sun draws its shadow map (m).</summary>
+    private const float SunShadowReach = 40;
+
     /// <summary>The picture's light again at once, within this frame (the eye went through the water's surface).</summary>
     public void Restep() => Step(1e-5f);
 
@@ -332,6 +350,9 @@ public partial class Daylight : Node
 
         // a clear day: the air lighter (by day only); the golden hour: warm air, a low warm sun from the west
         var fog = baseFog.Lerp(ClearSky, wNow[3] * sunDay * 0.6f);
+        // (#97) a clear day by day: a light haze over the town, not the grey of a dull day
+        ClearDay = Smooth(wNow[3], 0.3f, 0.6f) * Mathf.Clamp(sunDay / 0.6f, 0, 1);
+        fog = fog.Lerp(ClearHaze, ClearDayHaze * ClearDay);
         float gold = GoldenAt(Hour) * wNow[3];
         fog = fog.Lerp(GoldAir, gold * 0.3f);
         // the great storm: the air goes dark and slate-blue under the black cloud
@@ -341,12 +362,12 @@ public partial class Daylight : Node
         SunDir = SunAt(Hour).Normalized();
         // a clear or misty day: less light from the sky, more from the sun; a fog day keeps its even grey light
         float bright = Mathf.Clamp(wNow[3] / 0.6f, 0, 1);
-        SkyIntensity = skyBase * (1 - 0.28f * sunDay * bright);
-        SunIntensity = sunDay * (1.35f - wNow[2]) * 2.6f * (1 + 0.8f * gold) * (1 + 0.25f * bright) * (1 - 0.7f * Storm);
+        SkyIntensity = skyBase * (1 - 0.28f * sunDay * bright) * (1 + ClearDaySky * ClearDay);
+        SunIntensity = sunDay * (1.35f - wNow[2]) * 2.6f * (1 + 0.8f * gold) * (1 + 0.25f * bright) * (1 - 0.7f * Storm) * (1 + ClearDaySun * ClearDay);
         // (the settings' view distance; the great storm's rain in sheets closes the far end in to about two thirds)
         float viewFar = Menu.Tuning.ViewFar;
-        FogNear = Mathf.Lerp(3 * wNow[0] * viewFar, 1.5f, fogMix) * (1 - 0.45f * Storm);
-        FogFar = Mathf.Lerp(dayFar * wNow[1] * viewFar, 11, fogMix) * (1 - 0.32f * Storm);
+        FogNear = Mathf.Lerp(3 * wNow[0] * viewFar * (1 + ClearDayReach * ClearDay), 1.5f, fogMix) * (1 - 0.45f * Storm);
+        FogFar = Mathf.Lerp(dayFar * wNow[1] * viewFar * (1 + ClearDayReach * ClearDay), 11, fogMix) * (1 - 0.32f * Storm);
         // the lightning (Lightning.cs, alive/air.ts): the air and the sky light up for the flash's flickers
         if (Flash > 0)
         {
@@ -387,6 +408,11 @@ public partial class Daylight : Node
 
         // to the picture. three's lights give colour x intensity / pi on a matt face; Godot's give colour x energy
         SendLight(fog.LinearToSrgb(), sunCol, SunIntensity / MathF.PI, SunDir);
+        // (#97) a clear day's sun throws real shadows near the eye (the people, the carts, the stalls, the eaves), faded
+        // in with the clear day; the settings' "shadows" turns them off. Still the one sun: no light comes or goes
+        bool shadows = ClearDay > 0.1f && Under <= 0 && Menu.Prefs.Bool("shadows");
+        if (sun.ShadowEnabled != shadows) sun.ShadowEnabled = shadows;
+        if (shadows && MathF.Abs(sun.ShadowOpacity - ClearDay) > 0.005f) sun.ShadowOpacity = ClearDay;
         Action<string, Variant> rs = Psx.Set;
         rs("psx_fog_color", fog);
         rs("psx_fog_near", FogNear);

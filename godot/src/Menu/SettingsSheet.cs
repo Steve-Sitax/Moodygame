@@ -245,7 +245,7 @@ public static class SettingsSheet
         body.AddChild(Row("Rooms seen through windows", Range("rooms", 0, 8, 1, v => v > 0 ? v.ToString("0") : "none"), "Taverns, shops and homes drawn inside while you look in from the street."));
         body.AddChild(Row("People in the street", SegOf("street", Prefs.StreetLevels.Select(l => (l.id, l.label)).ToArray()), $"How many townspeople walk round you at once ({string.Join(", ", Prefs.StreetLevels.Select(l => l.cap))})."));
         body.AddChild(Row("Reflections", SegOf("reflections", new[] { ("off", "Off"), ("coarse", "Coarse"), ("full", "Full") }), "The river and the puddles as mirrors: the town drawn a second time."));
-        body.AddChild(Row("Lantern shadows", Toggle("shadows"), "The nearest carried lantern throws shadows."));
+        body.AddChild(Row("Shadows", Toggle("shadows"), "The sun on a clear day and the nearest carried lantern throw shadows."));
         body.AddChild(Row("Light from windows and lamps", SegOf("lightBudget", new[] { ("low", "Low"), ("medium", "Medium"), ("high", "High") }), "How many lights are worked out for every pixel; the rest light the ground only."));
         body.AddChild(Row("Leaves, birds and mist", SegOf("particles", new[] { ("off", "Off"), ("some", "Some"), ("all", "All") }), "The town's small life in the air and on the roofs."));
         body.AddChild(Kit.Heading("Frames"));

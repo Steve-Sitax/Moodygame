@@ -11,6 +11,8 @@ Bugs and loose ends are tracked as [issues](https://github.com/Steve-Sitax/Moody
 
 ## [Unreleased]
 
+- A clear day looks clear: a blue sky over a light haze, the fog lighter and further off, a stronger sun on the walls, and real sun shadows of people, trees, stalls and eaves near you (the Shadows setting, formerly Lantern shadows, turns them off). Mist, fog, rain and night look as before (#97).
+- Taverns, shops and homes follow the time of day inside: by day a cool light from the windows with the lamps out and only the stove burning; after dark the room's own light drops and its lamps and stove light it in warm pools (#137).
 - The corner stones of houses with wooden shop fronts now run down to the plinth beside the shop front, as on the floors above (#173).
 - The rest of the town houses' stone is dressed too: bands and cornices are single stones with joints, pilasters stand in courses, arched window heads are rings of voussoirs, and every stone keeps its house's own colour. The grime at the foot of brick and plaster walls now follows how worn the house is, and is patchy rather than an even band (#171).
 - The Vleeshuis has its steep slate roof again: one wine keg stretched over the whole building hid it as a dark blob. The same fault drew a giant keg over the Oostershuis and a giant clock over the prison. The rooms' leaded windows no longer glow grey at night; they are dark and catch the sky by day (#161).
