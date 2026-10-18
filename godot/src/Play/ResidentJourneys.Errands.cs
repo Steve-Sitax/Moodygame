@@ -15,6 +15,8 @@ public partial class ResidentJourneys
     /// <summary>Where a boat ties up at a flight (issue 87): her own home when it is her household's flight, else the first
     /// place along the wall past the foot of the landing (or behind its head) where a rowing boat lies clear of every ladder
     /// and landing, of the flight and of the moored hulls. Found once a flight.</summary>
+    /// <summary>(#195) The quay ladder whose head is at `top` (a boat's mooring board), or null.</summary>
+    private static Exit? HomeLadder(Vector2 top)=>QuayExits.Exits.Where(x=>x.Ladder&&new Vector2(x.Wx,x.Wz).DistanceTo(top)<1.5f).OrderBy(x=>new Vector2(x.Wx,x.Wz).DistanceTo(top)).FirstOrDefault();
     private Vector2 Berth(Flight f,Net.ResidentVehicle? home=null)
     {
         if(home?.Home is {Length:>=2} h&&home.Boat is {Flight.Length:>=2} b&&V(b.Flight).DistanceTo(f.Top)<1)return new((float)h[0],(float)h[1]);
@@ -114,15 +116,23 @@ public partial class ResidentJourneys
         if(e.Kind=="boat"&&Rowing.I?.Data.Boats.FirstOrDefault(b=>b.Id==vehicle.Id) is {} rb&&(rb.Ridden||rb.Lost||rb.Mine||new Vector2(rb.X-rb.Home.X,rb.Z-rb.Home.Z).Length()>.5f))return false;
         var to=home?new Vector2((float)s.R.HomeSx,(float)s.R.HomeSz):V(e.To);
         var t=new Trip{Person=s,To=to,Key=s.Key,Mode=e.Kind,Phase="toberth",Vehicle=vehicle,Load=new(e.Load.What,e.Load.Items),Errand=e.Id,Returning=home,Why=home?"home with the vehicle":"an errand to "+e.ToLabel};
-        if(e.Kind=="boat"&&vehicle.Boat is {} boat){if(boat.Flight.Length<2)return false;var homeFlight=Flights.FirstOrDefault(f=>f.Top.DistanceTo(V(boat.Flight))<1);if(homeFlight==null)return false;var there=Flights.FirstOrDefault(f=>f.Top.DistanceTo(V(e.To))<1)??homeFlight;var from=home?there:homeFlight;var dest=home?homeFlight:there;var b0=Berth(from,vehicle);var b1=Berth(dest,vehicle);
+        if(e.Kind=="boat"&&vehicle.Boat is {} boat){if(boat.Flight.Length<2)return false;var homeFlight=Flights.FirstOrDefault(f=>f.Top.DistanceTo(V(boat.Flight))<1);
+            // (#195) she lies at a quay ladder: her people go down its rungs into her and come up them at her home
+            Exit? ladder=null;if(homeFlight==null){if(boat.Board!="ladder"||vehicle.Home.Length<3||HomeLadder(V(boat.Flight)) is not {} l)return false;ladder=l;}
+            var there=Flights.FirstOrDefault(f=>f.Top.DistanceTo(V(e.To))<1)??homeFlight;if(there==null)return false;
+            var from=home||ladder!=null?there:homeFlight!;var dest=home&&ladder==null?homeFlight!:there;var mooring=new Vector2((float)vehicle.Home[0],(float)vehicle.Home[1]);
+            Exit? fromLadder=ladder!=null&&!home?ladder:null,toLadder=ladder!=null&&home?ladder:null;
+            var b0=fromLadder!=null?mooring:Berth(from,vehicle);var b1=toLadder!=null?mooring:Berth(dest,vehicle);
             // (#182) her own berth out of her people's reach from the landing (her home along the wall, or further along when the
             // places by the landing were taken): she comes alongside the landing first, they step out, she is taken on later
             Vector2? land=null;
-            if(b1.DistanceTo(LandingFoot(dest))>LandingReach&&(NearBerth(dest)??LandingStop(dest)) is {} nb&&nb.DistanceTo(b1)>.5f)land=nb;
+            if(toLadder==null&&b1.DistanceTo(LandingFoot(dest))>LandingReach&&(NearBerth(dest)??LandingStop(dest)) is {} nb&&nb.DistanceTo(b1)>.5f)land=nb;
             var end=land??b1;
             var path=JourneyRules.WaterPath((x,z)=>Rowing.I.ResidentWaterFree((float)x,(float)z),Point(b0),Point(end),2,40);if(path==null){abandonedErrands.Add(e.Id);Note(s.R.Name+": no open water; walks");return false;}path[^1]=Point(end);
             var crew=e.Who.Where(id=>town.ActionPerson(id) is {} person&&!person.ActionHeld&&town.MaySimulate?.Invoke(id)!=false).ToList();
-            t.BoatTrip=new(){Kind=boat.Kind,Path=path,Crew=crew,To=b1,ToTop=dest.Top,FromTop=from.Top,Home=home,Land=land,LandYaw=MathF.Atan2(dest.Tangent.X,dest.Tangent.Y)};var fetch=from.Top+from.Tangent*.8f;t.Fetch=new double[]{fetch.X,fetch.Y,0};
+            static Vector2 Behind(Exit x)=>new(x.Tx,x.Tz);
+            t.BoatTrip=new(){Kind=boat.Kind,Path=path,Crew=crew,To=b1,ToTop=toLadder!=null?Behind(toLadder):dest.Top,FromTop=fromLadder!=null?Behind(fromLadder):from.Top,Home=home,Land=land,LandYaw=MathF.Atan2(dest.Tangent.X,dest.Tangent.Y),FromLadder=fromLadder,ToLadder=toLadder};
+            var fetch=fromLadder!=null?Behind(fromLadder):from.Top+from.Tangent*.8f;t.Fetch=new double[]{fetch.X,fetch.Y,0};
         }else if(e.Kind=="dray"&&vehicle.Route is {} route){var yard=Traffic.I?.ResidentYards().FirstOrDefault(y=>y.Route==route);if(yard==null)return false;t.Fetch=new double[]{yard.At.X,yard.At.Y,yard.Yaw};t.Park=t.Fetch;t.Unload=home?0:e.Load.Items;t.To=home?yard.At:V(e.To);}
         else return false;
         if(!town.ActionHold(s,this))return false;s.Journey=t;Trips.Add(t);Note(s.R.Name+": "+t.Why);
@@ -152,7 +162,7 @@ public partial class ResidentJourneys
         foreach(var s in crew){s.InTrip=s.Aboard=true;town.ActionInside(s,s.X,s.Z);}
         Rowing.I.ResidentBoatOut(t.Vehicle!.Id,boat.Kind,boat.Path,crew.Select(s=>(s.R.Id,s.Kind)).ToArray(),boat.Home?0:t.Load?.Items??0,boat.Home);
         // (issue 154) near the player they come down the steps and take their places before she casts off
-        if(NearEye(t))Rowing.I.ResidentBoatBoard(t.Vehicle.Id,boat.FromTop);
+        if(NearEye(t)){if(boat.FromLadder is {} ladder)Rowing.I.ResidentBoatBoardLadder(t.Vehicle.Id,ladder);else Rowing.I.ResidentBoatBoard(t.Vehicle.Id,boat.FromTop);}
         t.Phase="row";t.Time=0;
     }
     private void RowTrip(Trip t,double dt)
@@ -162,7 +172,7 @@ public partial class ResidentJourneys
         if(at!=null)foreach(string id in boat.Crew){var s=town.ActionPerson(id);if(s!=null){s.X=at.Value.At.X;s.Z=at.Value.At.Y;}}
         if(at is {Done:false}&&t.Time<=400)return;
         // (issue 154) near the player they step out onto the landing and walk up the steps before they go on
-        if(NearEye(t)&&at is {Done:true}){Rowing.I.ResidentBoatLand(t.Vehicle!.Id,boat.ToTop);t.Phase="landing";t.Time=0;return;}
+        if(NearEye(t)&&at is {Done:true}){if(boat.ToLadder is {} ladder)Rowing.I.ResidentBoatLandLadder(t.Vehicle!.Id,ladder);else Rowing.I.ResidentBoatLand(t.Vehicle!.Id,boat.ToTop);t.Phase="landing";t.Time=0;return;}
         LandRowTrip(t);
     }
     /// <summary>Boats left lying at a landing (#182) and the berth each is taken on to once the player is away from both.</summary>
@@ -180,7 +190,7 @@ public partial class ResidentJourneys
         var boat=t.BoatTrip!;
         if(boat.Land is {} land){Rowing.I.ResidentBoatEnd(t.Vehicle!.Id,new Vector3(land.X,land.Y,boat.LandYaw),false);takenOn.Add((t.Vehicle.Id,land,boat.To,boat.Home));}
         else Rowing.I.ResidentBoatEnd(t.Vehicle!.Id,new Vector3(boat.To.X,boat.To.Y,0),boat.Home);
-        for(int i=0;i<boat.Crew.Count;i++){var s=town.ActionPerson(boat.Crew[i]);if(s==null)continue;s.X=boat.ToTop.X+(i-1)*.8;s.Z=boat.ToTop.Y+1.5;s.InTrip=s.Aboard=false;s.OutAt=Time.GetTicksMsec();town.ActionOutside(s);if(s!=t.Person)town.ActionRelease(s,this);}
+        for(int i=0;i<boat.Crew.Count;i++){var s=town.ActionPerson(boat.Crew[i]);if(s==null)continue;if(boat.ToLadder is {} l){s.X=l.Tx-l.Nx*.7*i;s.Z=l.Tz-l.Nz*.7*i;}else{s.X=boat.ToTop.X+(i-1)*.8;s.Z=boat.ToTop.Y+1.5;}s.InTrip=s.Aboard=false;s.OutAt=Time.GetTicksMsec();town.ActionOutside(s);if(s!=t.Person)town.ActionRelease(s,this);}
         t.Phase="walkon";t.Time=t.Go=0;
     }
 }

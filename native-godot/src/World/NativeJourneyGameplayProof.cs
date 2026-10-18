@@ -60,13 +60,14 @@ public static class NativeJourneyGameplayProof
             foreach(var shape in shapes){if(shape.GetParent() is not CollisionObject3D body||body.CollisionLayer==0)continue;var centre=shape.GlobalPosition;using var ray=PhysicsRayQueryParameters3D.Create(centre+Vector3.Up*3,centre-Vector3.Up*2,Solid.Layer);var hit=space.IntersectRay(ray);if(hit.Count>0&&hit["collider"].AsGodotObject()==body)return true;}return false;}
         Dictionary<string,Quaternion> LegPose(Puppet person){var result=new Dictionary<string,Quaternion>();var skeleton=BakedWorld.All(person.Human.Root).OfType<Skeleton3D>().First();for(int bone=0;bone<skeleton.GetBoneCount();bone++){string name=skeleton.GetBoneName(bone);if(name.Contains("leg",StringComparison.OrdinalIgnoreCase)||name.Contains("thigh",StringComparison.OrdinalIgnoreCase)||name.Contains("shin",StringComparison.OrdinalIgnoreCase)||name.Contains("foot",StringComparison.OrdinalIgnoreCase))result[name]=skeleton.GetBonePoseRotation(bone);}return result;}
         try{
-            if(scope is not("full"or"cart-dray"or"cart-theft"or"boat"))throw new ArgumentException("native-journey-scope is full, cart-dray, cart-theft or boat");
+            if(scope is not("full"or"cart-dray"or"cart-theft"or"boat"or"ladder-boat"))throw new ArgumentException("native-journey-scope is full, cart-dray, cart-theft, boat or ladder-boat");
             Check("journey proof uses its own disposable database",Path.GetFullPath(Paths.Database).StartsWith(Path.GetFullPath(output)+Path.DirectorySeparatorChar,StringComparison.OrdinalIgnoreCase)&&Main.I.Flag("no-ai"));
             Check("native town and services become ready",await Until(()=>game.Loaded&&!Loading.Busy&&ServerLink.I?.Up==true&&GameState.I.Live&&game.GetNodeOrNull<Townspeople>("Townspeople")?.Sims.Count>500,100));
             float wheel=0;var api=ServerLink.I!.Api!;MainMenu.I?.Start();Jef.I.TestInput=true;Pause.Clear();var town=game.GetNode<Townspeople>("Townspeople");var journeys=ResidentJourneys.I!;
             GameState.I.Apply(await api.Post<JobsPayload>("api/dev/set",new{day=1,hour=6,minute=0,weather="clear",money_c=1000}));Scheldemist.Movers.MoverClock.Hold(6,1);await Frames(20);await journeys.LoadTransport();await Velocipedes.I.Load();
             Check("source-authored vehicle and errand records reach native client",journeys.Transport is {} data&&data.Vehicles.Count>10&&data.Errands.Count>0);
             if(scope=="boat")goto familyBoat; // (issue 154: the family boat alone)
+            if(scope=="ladder-boat"){await NativeLadderBoatProof.Run(game,output,Check,Frames,Until,observations,pictures);stages.Add("ladder boat");return;} // (#195)
             if(scope=="cart-theft"){
                 var leftovers=BakedWorld.All(game.World).OfType<Node3D>().Where(n=>n.HasMeta("source_node_index")&&n.GetMeta("source_node_index").AsInt32() is 4854 or 4867).ToArray();
                 Check("both unowned quay snapshots stay preserved but hidden",leftovers.Length==2&&leftovers.All(n=>!n.IsVisibleInTree()));

@@ -18,6 +18,9 @@ public partial class Rowing
         public string Id="",Kind="rowboat";public Drawn Hull=null!;
         public JourneyRules.Point[] Path=Array.Empty<JourneyRules.Point>();public int Point;
         public float Phase,Wait;public bool Done,Near;public double Pace=1.35;
+        /// <summary>(#195) Coming in to her own ladder: she is drawn the last of the way into her mooring before her people
+        /// climb out (Rowing.ResidentBoatLandLadder), from where the route ended (up to a few metres short of it).</summary>
+        public Exit? SettleAt;public Vector3 SettleFrom;public float Settle;
         public readonly List<(string Id,string Kind,Human Human,Node3D Frame)> Crew=new();
         public readonly List<Node3D> Cargo=new();
     }
@@ -76,7 +79,8 @@ public partial class Rowing
         var d=b.Hull;var eye=Main.I.Cam.GlobalPosition;bool shown=new Vector2(d.X-eye.X,d.Z-eye.Z).Length()<90;d.Root.Visible=shown;
         d.Root.Position=new(d.X,Water.Level(d.X,d.Z),d.Z);d.Root.Rotation=new(0,d.Yaw,MathF.Sin((float)MoverClock.T*1.3f+d.X)*.02f);
         if(!shown)return;OarPhase(d,phase);
-        for(int i=0;i<b.Crew.Count;i++){var h=b.Crew[i].Human;if(i==0){h.SetPhase("row",phase<0?.7f:phase);HoldOars(h,d);}h.Update((float)dt);}
+        // (her people walking to or from her, on a flight or a ladder, are posed by their walk: StepWalkers)
+        for(int i=0;i<b.Crew.Count;i++){var h=b.Crew[i].Human;if(b.Crew[i].Frame.GetParent()!=d.Root)continue;if(i==0){h.SetPhase("row",phase<0?.7f:phase);HoldOars(h,d);}h.Update((float)dt);}
     }
     /// <summary>A rower on her thwart. The old bodies face aft with their own clip; a people2 rower (#182) sits on the
     /// thwart's top facing the bow, as Jef rows, and pushes the oars with the row clip: the game sets its phase (the
@@ -117,7 +121,7 @@ public partial class Rowing
     }
     private void DropResidentHull(string id){if(!residentHulls.Remove(id,out var b))return;foreach(var q in b.Crew){q.Human.Dispose();q.Frame.QueueFree();}foreach(var item in b.Cargo)item.QueueFree();}
     private void ClearResidentBoats(){foreach(string id in residentHulls.Keys.ToArray())DropResidentHull(id);residentHomes.Clear();residentPending.Clear();}
-    private void UpdateResidentBoats(double dt){StepWalkers(dt);foreach(var b in residentHulls.Values){if(!ResidentRemote&&!b.Done)StepResidentBoat(b,dt);else PoseResidentBoat(b,dt,b.Phase);}foreach(var home in residentHomes.Values)Boats.I.PlayerHideSmall(home.X,home.Y,true);}
+    private void UpdateResidentBoats(double dt){StepWalkers(dt);SettleBoats(dt);foreach(var b in residentHulls.Values){if(!ResidentRemote&&!b.Done)StepResidentBoat(b,dt);else PoseResidentBoat(b,dt,b.Phase);}foreach(var home in residentHomes.Values)Boats.I.PlayerHideSmall(home.X,home.Y,true);}
     public JsonObject ResidentNetState()=>new(){
         ["boats"]=new JsonArray(residentHulls.Values.Select(b=>(JsonNode)new JsonObject{["id"]=b.Id,["kind"]=b.Kind,["x"]=b.Hull.X,["z"]=b.Hull.Z,["yaw"]=b.Hull.Yaw,["_point"]=b.Point,["phase"]=b.Phase,["_done"]=b.Done,["_pace"]=b.Pace,["_near"]=b.Near,["_path"]=new JsonArray(b.Path.Select(p=>(JsonNode)new JsonArray(p.X,p.Z)).ToArray()),["_crew"]=new JsonArray(b.Crew.Select(q=>(JsonNode)new JsonObject{["id"]=q.Id,["kind"]=q.Kind}).ToArray()),["_sacks"]=b.Cargo.Count}).ToArray()),
         ["lying"]=new JsonArray(Drawings.Values.Where(d=>d.Key.StartsWith("town:",StringComparison.Ordinal)&&!residentHulls.ContainsKey(d.Key[5..])).Select(d=>(JsonNode)new JsonObject{["id"]=d.Key[5..],["kind"]=d.Kind,["x"]=d.X,["z"]=d.Z,["yaw"]=d.Yaw}).ToArray()),
