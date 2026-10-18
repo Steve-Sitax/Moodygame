@@ -29,7 +29,7 @@ public partial class NativeMarket
         foreach(var root in model.Roots){var found=new List<ModelPart>();var pts=new List<double>();var spots=new List<MarketCatch.Spot>();
             void Read(Node node,Transform3D local){if(node is MeshInstance3D mi&&mi.Mesh!=null)for(int surface=0;surface<mi.Mesh.GetSurfaceCount();surface++){
                 var mat=mi.GetActiveMaterial(surface);string name=mat?.ResourceName??"";if(source=="stalls"&&name=="stall_sign")continue;if(mat!=null)materials[name]=mat;
-                var arrays=mi.Mesh.SurfaceGetArrays(surface);if(source=="stalls"&&root.Key=="mk2_fish_table")arrays=WithoutTableFish(arrays,local,name);arrays=MarketCatch.Take(source,root.Key,arrays,local,name,spots);var vertices=arrays[(int)Mesh.ArrayType.Vertex].AsVector3Array();if(name!="market_mud")foreach(var vertex in vertices){var p=local*vertex;pts.Add(p.X);pts.Add(p.Y);pts.Add(p.Z);}
+                var arrays=mi.Mesh.SurfaceGetArrays(surface);if(source=="stalls"&&root.Key=="mk2_fish_table")arrays=WithoutTableFish(arrays,local,name);arrays=MarketCatch.Take(source,root.Key,arrays,local,name,spots);if(MarketCatch.Empty(arrays))continue;var vertices=arrays[(int)Mesh.ArrayType.Vertex].AsVector3Array();if(name!="market_mud")foreach(var vertex in vertices){var p=local*vertex;pts.Add(p.X);pts.Add(p.Y);pts.Add(p.Z);}
                 var mesh=new ArrayMesh{ResourceName=source+"_"+root.Key+"_"+surface};mesh.AddSurfaceFromArrays(Mesh.PrimitiveType.Triangles,arrays);mesh.SurfaceSetMaterial(0,mat);found.Add(new(mesh,local,name));
             }foreach(var child in node.GetChildren())Read(child,child is Node3D n?local*n.Transform:local);}
             Read(root.Value,Transform3D.Identity);parts[(source,root.Key)]=found;modelPoints[(source,root.Key)]=pts.ToArray();if(spots.Count>0)catches[(source,root.Key)]=spots;
@@ -103,7 +103,7 @@ public partial class NativeMarket
         town.Walk!.RefreshBodies();
         foreach(var row in definitions["fields"]!.AsArray()){var def=row!.AsObject();string place=S(def["place"]);var own=circles.ToList();foreach(var s in town.Data!.Stalls)if(s.Place==place){own.Add(new(s.X,s.Z,2));own.Add(new(s.X+s.Face.X*1.4,s.Z+s.Face.Z*1.4,1.2));own.Add(new(s.X-s.Face.X*1.2,s.Z-s.Face.Z*1.2,1));}
             var f=new Field{Definition=def,Place=place,Centre=new(N(def["centre"]![0]),N(def["centre"]![1])),Entries=def["entries"]!.AsArray().Select(p=>new NativeMarketPoint(N(p![0]),N(p[1]))).ToArray(),Group=new(){Name="market_"+place}};
-            f.Items=layout.Layout(def,own,Array.Empty<NativeMarketRect>(),lanes,tracks,(x,z)=>town.Walk.Free(x,z)?0:1);f.Pitched=def["pitches"]!=null;f.Level=Enumerable.Repeat(-1,f.Items.Count).ToArray();Main.I.View.AddChild(f.Group);BuildBatches(f);BuildBodies(f);fields.Add(f);
+            f.Items=layout.Layout(def,own,Array.Empty<NativeMarketRect>(),lanes,tracks,(x,z)=>town.Walk.Free(x,z)?0:1);f.Pitched=def["pitches"]!=null;f.Prefix=def["pitches"]?["prefix"]?.GetValue<string>()??SellerPrefix;f.Level=Enumerable.Repeat(-1,f.Items.Count).ToArray();Main.I.View.AddChild(f.Group);BuildBatches(f);BuildBodies(f);fields.Add(f);
         }built=true;
     }
     private void BuildBatches(Field f)

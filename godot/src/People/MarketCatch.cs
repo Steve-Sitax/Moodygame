@@ -65,9 +65,10 @@ public static class MarketCatch
                 {
                     var material = mi.GetActiveMaterial(s);
                     var arrays = Take(source, root, mi.Mesh.SurfaceGetArrays(s), at, material?.ResourceName ?? "", spots);
-                    mesh.AddSurfaceFromArrays(Mesh.PrimitiveType.Triangles, arrays); mesh.SurfaceSetMaterial(s, material);
+                    if (Empty(arrays)) continue;
+                    mesh.AddSurfaceFromArrays(Mesh.PrimitiveType.Triangles, arrays); mesh.SurfaceSetMaterial(mesh.GetSurfaceCount() - 1, material);
                 }
-                found.Add((mesh, at));
+                if (mesh.GetSurfaceCount() > 0) found.Add((mesh, at));
             }
             foreach (var c in n.GetChildren()) Read(c, c is Node3D s ? at * s.Transform : at);
         }
@@ -155,6 +156,9 @@ public static class MarketCatch
         }
         var copy = (Godot.Collections.Array)arrays.Duplicate(); copy[(int)Mesh.ArrayType.Index] = keep.ToArray(); return copy;
     }
+
+    /// <summary>A surface left with no triangles (it was all fish): it is dropped, not built.</summary>
+    public static bool Empty(Godot.Collections.Array arrays) => arrays[(int)Mesh.ArrayType.Index].VariantType != Variant.Type.Nil && arrays[(int)Mesh.ArrayType.Index].AsInt32Array().Length == 0;
 
     /// <summary>The smallest rectangle round points in plan: its middle, its long side's direction, length and width.</summary>
     private static (Vector2 Mid, Vector2 Along, float Length, float Width) Plan(List<Vector3> pts)

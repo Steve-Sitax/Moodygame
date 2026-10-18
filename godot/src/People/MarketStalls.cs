@@ -111,7 +111,12 @@ public partial class MarketStalls : Node
         }
         if (!changed) return mesh;
         var copy = new ArrayMesh { ResourceName = mesh.ResourceName + "_no_fish" };
-        for (int i = 0; i < surfaces.Length; i++) { copy.AddSurfaceFromArrays(Mesh.PrimitiveType.Triangles, surfaces[i]); copy.SurfaceSetMaterial(i, mesh.SurfaceGetMaterial(i) ?? mi.GetActiveMaterial(i)); }
+        for (int i = 0; i < surfaces.Length; i++)
+        {
+            // (a surface that was all fish is left out)
+            if (MarketCatch.Empty(surfaces[i])) continue;
+            copy.AddSurfaceFromArrays(Mesh.PrimitiveType.Triangles, surfaces[i]); copy.SurfaceSetMaterial(copy.GetSurfaceCount() - 1, mesh.SurfaceGetMaterial(i) ?? mi.GetActiveMaterial(i));
+        }
         return copy;
     }
 
