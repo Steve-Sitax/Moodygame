@@ -35,8 +35,12 @@ public partial class FurnitureVisual : Node3D
         // A recovered wall rack or fixture group can span a room. Keep its authored
         // construction rather than stretching a standalone kit piece over the shell.
         if(Kind is "shelf" or "cupboard" or "table" && (Math.Max(ModelSize.X,ModelSize.Z)>4.2f || Kind=="table"&&ModelSize.Y>1.5f))id="";
+        // A recovered row or loft of casks, or a hall's clock group, spans many pieces (#161: one keg stretched over
+        // the whole Vleeshuis roof): it keeps its own casks rather than one stretched keg.
+        bool group=Kind switch {"cask"=>ModelSize[(int)ModelSize.MaxAxisIndex()]>2.2f,"clock"=>ModelSize[(int)ModelSize.MaxAxisIndex()]>3f,_=>false};
+        if(group){id="";}
         string path=Kind=="cask"?"res://assets/furniture/shared-keg.tscn":"res://assets/furniture/"+id+".tscn";
-        if((id!="" || Kind=="cask") && ResourceLoader.Exists(path))
+        if((id!="" || Kind=="cask"&&!group) && ResourceLoader.Exists(path))
         {
             var model=ResourceLoader.Load<PackedScene>(path).Instantiate<Node3D>();
             if(Kind=="clock" && GetChildren().OfType<MeshInstance3D>().FirstOrDefault(m=>m.Name.ToString().StartsWith("clock_hands")) is {} hands)

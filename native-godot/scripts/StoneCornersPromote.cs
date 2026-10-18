@@ -8,6 +8,9 @@ using System.Text.Json;
 
 // Issue #157: saves a reviewed corner-stone candidate into the town's resources. Run in Forward+ (not headless):
 //   godot --rendering-method forward_plus --path . res://scripts/stone-corners-promote.tscn -- --candidate <folder> --record <folder>
+//     [--reuse-material] [--backup <folder>]
+// A later pass (#171, #173) rebuilt from the originals reuses the dressed-stone material (--reuse-material) and keeps its
+// backups where --backup says (the replaced meshes are the earlier pass's, kept in git; the originals in its record).
 // The candidate is the repair's manifest.json and rows (world space, 16 floats per vertex). Every mesh must still be the
 // one the candidate was made from (its SHA-256); originals are copied to <record>/original-resources first and never
 // overwritten. Scene nodes, transforms and permanent ids are untouched: only the listed mesh resources and the new
@@ -30,13 +33,14 @@ public partial class StoneCornersPromote : Node
         var args = OS.GetCmdlineUserArgs();
         string Opt(string name) { int i = Array.IndexOf(args, "--" + name); return i >= 0 && i + 1 < args.Length ? args[i + 1] : throw new ArgumentException("--" + name); }
         string candidate = Opt("candidate"), record = Opt("record");
+        bool reuse = args.Contains("--reuse-material");
         var manifest = JsonDocument.Parse(File.ReadAllText(Path.Combine(candidate, "manifest.json"))).RootElement;
         var entries = manifest.EnumerateObject().Where(e => e.Name.StartsWith("res://", StringComparison.Ordinal)).ToArray();
         // every source must still be what the candidate was made from
         foreach (var e in entries)
             if (Hash(e.Name) != e.Value.GetProperty("sourceHash").GetString()) throw new IOException("Changed since the candidate was made: " + e.Name);
-        if (ResourceLoader.Exists(Material)) throw new IOException("The dressed-stone material exists already: " + Material);
-        string backup = Path.Combine(record, "original-resources"); Directory.CreateDirectory(backup);
+        if (ResourceLoader.Exists(Material) && !reuse) throw new IOException("The dressed-stone material exists already: " + Material);
+        string backup = Array.IndexOf(args, "--backup") >= 0 ? Opt("backup") : Path.Combine(record, "original-resources"); Directory.CreateDirectory(backup);
         foreach (var e in entries)
         {
             string target = Path.Combine(backup, Path.GetFileName(e.Name));
@@ -48,7 +52,7 @@ public partial class StoneCornersPromote : Node
         material.Shader = ResourceLoader.Load<Shader>(def.GetProperty("shader").GetString()!);
         foreach (var p in def.GetProperty("params").EnumerateObject()) material.SetShaderParameter(p.Name, ResourceLoader.Load<Texture2D>(p.Value.GetString()!));
         material.ResourceName = "dressed_stone";
-        if (ResourceSaver.Save(material, Material) != Error.Ok) throw new IOException(Material);
+        if (!(reuse && ResourceLoader.Exists(Material)) && ResourceSaver.Save(material, Material) != Error.Ok) throw new IOException(Material);
         var dressed = ResourceLoader.Load<Material>(Material, null, ResourceLoader.CacheMode.Replace);
         // the nodes' transforms: rows are world space
         var city = ResourceLoader.Load<PackedScene>("res://world/town/roots/node-00004.scn").Instantiate<Node3D>(); AddChild(city);

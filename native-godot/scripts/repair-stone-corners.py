@@ -6,8 +6,14 @@ wall-circuit format (manifest-<chunk>.json + .bin rows); the game builds it in m
 the promotion saves it. Scene nodes, transforms, permanent ids and every other triangle stay as they are: only the old
 stone boxes are replaced. Each stone finds its wall in the brick or plaster face behind it; on brick its joints sit on
 that wall's bed joints. The optional box limits the repair to one house (the first review: Steenplein 1).
+Pass 2 (#173, #171, 2026-10-18): ground-floor quoins beside shop fronts (measured from the stone's own face when its
+middle lies nearer the shop window's reveal), and the rest of the stone: bands, cornices, heads and sills cut into stones
+with joints, pilasters and strips in courses on the beds, mullions as long stones, arched heads as voussoirs, panels
+and fanlight bars as single bevelled stones; every other stone piece keeps its shape on the dressed stone with its
+sharp arrises chamfered (pavement aprons stay on the old stone). Each new stone keeps its old stone's colour.
+STONE_157_ONLY=1 builds the first pass only.
 """
-import array, hashlib, json, math, pathlib, random, sys
+import array, hashlib, json, math, os, pathlib, random, sys
 import bmesh
 from mathutils import Vector
 from mathutils.bvhtree import BVHTree
@@ -24,6 +30,15 @@ STONE, FACADE, DECAL = 'res://world/town/resources/r000209.res', 'res://world/to
 report = {'chunk': chunk, 'items': [], 'kept': [], 'removedTriangles': {}, 'addedTriangles': {}}
 rng = random.Random(int(hashlib.sha256(chunk.encode()).hexdigest()[:8], 16))
 CUR = {'wear': 0.26}
+# the house's own stone colour (#171): the old stone's vertex colour, kept on the new stone relative to the town's common
+# sandstone (the dressed shader's light stone); TINT by (mesh, first triangle) for the pieces built after the loop
+REF_TINT = (1.0, 1.0, 1.0)
+TINT = {}
+def tint_of(rows, idx):
+    cols = sorted((tuple(rows[i + k][10:13]) for i in idx for k in range(3)), key=lambda c: c[0] + c[1] + c[2])
+    return cols[int(len(cols) * 0.8)] if cols else REF_TINT
+# #171: also dress the stone #157 left as it was (bands, cornices, pilasters, arched heads, panels); STONE_157_ONLY=1: not
+DRESS_REST = os.environ.get('STONE_157_ONLY') != '1'
 
 class Front:
     """A wall's frame: s along it, y up, d out of it (d = 0 on the wall's face). layer: its wall picture."""
@@ -48,7 +63,7 @@ class Piece:
     """One stone being built: a bmesh in world space and the face codes the shader reads (UV2.x)."""
     def __init__(self, kind, blue=False):
         self.bm = bmesh.new(); self.kind = kind; self.blue = blue; self.rand = rng.random(); self.rand2 = rng.random()
-        self.group = GROUP[0]; self.wear = CUR['wear']
+        self.group = GROUP[0]; self.wear = CUR['wear']; self.tint = CUR.get('tint', REF_TINT)
         self.code = self.bm.faces.layers.int.new('code'); self.bev = self.bm.faces.layers.int.new('bevel')
         self.hidden = Hidden(self)
 
@@ -456,8 +471,10 @@ def quoin_corner(fa, fb, corner, courses, mesh):
     pitch_raw = (courses[1][0] - courses[0][0]) if len(courses) > 1 else courses[0][1] - courses[0][0] + 0.02
     GROUP[0] = mesh
     for k, (y0, y1, la, lb, pr, idx, wear) in enumerate(courses):
-        take(mesh, idx); CUR['wear'] = wear
-        c0 = fa.bed(y0) + joint / 2; c1 = fa.bed(y0 + pitch_raw) - joint / 2
+        take(mesh, idx); CUR['wear'] = wear; CUR['tint'] = TINT.get((mesh, idx[0]), REF_TINT)
+        # (each course to the next one's bed: a ground floor's courses beside a shop front can be set closer, #173)
+        pitch = courses[k + 1][0] - y0 if k + 1 < len(courses) and 0.12 < courses[k + 1][0] - y0 < 0.6 else pitch_raw
+        c0 = fa.bed(y0) + joint / 2; c1 = fa.bed(y0 + pitch) - joint / 2
         if not 0.12 < c1 - c0 < 0.6: c0, c1 = y0, y1
         p = Piece('quoin')
         sides, top, bottom = prism(p, ell(fa, fb, corner, la, lb, pr, e), c0, c1, [])
@@ -483,6 +500,407 @@ def plane_corner(fa, fb):
     o1, o2 = fa.a.dot(fa.n), fb.a.dot(fb.n)
     return Vector(((o1 * fb.n.z - o2 * fa.n.z) / det, 0, (fa.n.x * o2 - fb.n.x * o1) / det))
 
+# ---------------------------------------------------------------- #171: the rest of the stone, by its section
+def section_loop(tris, axis, tol=0.0015):
+    """If a piece is a prism along one axis of its front (0 s, 1 y, 2 d: every vertex at one of its two ends), its
+    section as an ordered loop of points in the other two axes, its ends, and whether the loop is open (a face left out
+    against the wall). None when it is no prism, or its section is no single loop."""
+    vals = [p[axis] for t in tris for p in t]
+    a0, a1 = min(vals), max(vals)
+    if a1 - a0 < 0.01 or any(min(abs(v - a0), abs(v - a1)) > tol for v in vals): return None
+    o = [k for k in range(3) if k != axis]
+    key = lambda p: (round(p[o[0]] * 1000), round(p[o[1]] * 1000))
+    adj = {}
+    for t in tris:
+        lo = [p for p in t if abs(p[axis] - a0) <= tol]
+        if len(lo) != 2: continue
+        ka, kb = key(lo[0]), key(lo[1])
+        if ka == kb or kb in adj.get(ka, ()): continue
+        adj.setdefault(ka, []).append(kb); adj.setdefault(kb, []).append(ka)
+    if len(adj) < 3 or any(len(v) > 2 for v in adj.values()): return None
+    ends = [k for k, v in adj.items() if len(v) == 1]
+    if len(ends) not in (0, 2): return None
+    start = ends[0] if ends else min(adj)
+    loop, prev, cur = [start], None, start
+    while True:
+        nxt = [k for k in adj[cur] if k != prev]
+        if not nxt or nxt[0] == start: break
+        prev, cur = cur, nxt[0]; loop.append(cur)
+    if len(loop) != len(adj): return None
+    return [(k[0] / 1000, k[1] / 1000) for k in loop], (a0, a1), bool(ends)
+
+def simplify(loop, closed):
+    """Drop points on a straight run (the old meshes split faces at windows and joints)."""
+    out = list(loop)
+    changed = True
+    while changed and len(out) > 3:
+        changed = False
+        n = len(out)
+        for i in range(n):
+            if not closed and (i == 0 or i == n - 1): continue
+            a, b, c = Vector(out[i - 1]), Vector(out[i]), Vector(out[(i + 1) % n])
+            u, w = b - a, c - b
+            if u.length < 1e-6 or w.length < 1e-6 or abs(u.x * w.y - u.y * w.x) < 1e-4 * u.length * w.length and u.dot(w) > 0:
+                del out[i]; changed = True; break
+    return out
+
+def wall_profile(loop, open_, back_index):
+    """The section ordered so that its last edge (last point to first) lies against the wall, the wall side pushed
+    12 mm into the wall like every other stone. back_index: which coordinate is d. None: no side lies on the wall."""
+    dmin = min(p[back_index] for p in loop)
+    on = lambda p: p[back_index] < dmin + 0.004
+    if open_:
+        if not (on(loop[0]) and on(loop[-1])): return None
+        prof = loop
+    else:
+        n = len(loop)
+        i = next((i for i in range(n) if on(loop[i]) and on(loop[(i + 1) % n])), None)
+        if i is None: return None
+        prof = loop[i + 1:] + loop[:i + 1]
+        # (a straight back made of several points: keep its two ends)
+        while len(prof) > 3 and on(prof[0]) and on(prof[1]): prof = prof[1:]
+        while len(prof) > 3 and on(prof[-1]) and on(prof[-2]): prof = prof[:-1]
+    prof = [tuple(min(v, -0.012) if k == back_index and on(p) else v for k, v in enumerate(p)) for p in prof]
+    return prof
+
+def chamfer_profile(prof, c0, back_index):
+    """Small chamfers on the section's convex arrises (not on the wall side): the long arrises of a band or a strip."""
+    n = len(prof); area = sum(prof[i][0] * prof[(i + 1) % n][1] - prof[(i + 1) % n][0] * prof[i][1] for i in range(n))
+    out = []
+    for i in range(n):
+        p, a, b = Vector(prof[i]), Vector(prof[i - 1]), Vector(prof[(i + 1) % n])
+        if i == 0 or i == n - 1: out.append(prof[i]); continue
+        u, w = p - a, b - p
+        cross = u.x * w.y - u.y * w.x
+        if u.length < 1e-4 or w.length < 1e-4 or cross * area <= 0 or u.normalized().dot(w.normalized()) > 0.94: out.append(prof[i]); continue
+        c = min(c0, 0.3 * u.length, 0.3 * w.length)
+        out += [tuple(p - u.normalized() * c), tuple(p + w.normalized() * c)]
+    return out
+
+def extruded_stone(fr, sec, axis, a0, a1, kind, arris=0.007, margin=True, chip=1, code=4):
+    """One stone: a section run from a0 to a1. axis 's': sec is [(d, y)], run along the wall; 'y': sec is [(s, d)],
+    run upwards. The section's last side lies against the wall (hidden); both ends closed, their arrises chamfered."""
+    W = (lambda u, v, a: fr.world(a, v, u)) if axis == 's' else (lambda u, v, a: fr.world(u, a, v))
+    p = Piece(kind); bm = p.bm
+    A = [bm.verts.new(W(u, v, a0)) for u, v in sec]; B = [bm.verts.new(W(u, v, a1)) for u, v in sec]
+    n = len(sec); sides = []
+    for i in range(n):
+        j = (i + 1) % n; f = bm.faces.new([A[i], A[j], B[j], B[i]]); f[p.code] = code; sides.append(f)
+    ca = bm.faces.new(list(reversed(A))); cb = bm.faces.new(B); ca[p.code] = cb[p.code] = code
+    bmesh.ops.recalc_face_normals(bm, faces=sides + [ca, cb])
+    p.hidden.add(sides[-1])
+    if code == 4:
+        low = min(v.co.y for v in bm.verts) < 2.2
+        bevel(p, visible_edges(p, [ca, cb]), arris * rng.uniform(0.8, 1.25), 2 if low else 1)
+        if margin:
+            across = (max(v for _, v in sec) - min(v for _, v in sec)) if axis == 's' else (max(u for u, _ in sec) - min(u for u, _ in sec))
+            dress(p, fr.n.copy(), margin=min(0.022, 0.2 * min(a1 - a0, across)))
+        chips(p, chip, (0.004, 0.01))
+    finish(p); pieces.append(p); return p
+
+def mortar_section(sec, back_index):
+    """The mortar of a joint across a section: set back 6 mm from every visible face."""
+    dmin = min(p[back_index] for p in sec); o = 1 - back_index
+    lo, hi = min(p[o] for p in sec), max(p[o] for p in sec); mid = (lo + hi) / 2
+    k = max(0.0, 1 - 0.012 / max(hi - lo, 0.02))
+    out = []
+    for p in sec:
+        q = list(p)
+        if p[back_index] > dmin + 0.004: q[back_index] = max(dmin, p[back_index] - 0.006)
+        q[o] = mid + (p[o] - mid) * k
+        out.append(tuple(q))
+    return out
+
+def arch_fit(poly):
+    """A segmental arch band: its outline's points on two concentric circles (intrados, extrados). (cx, cy, rin, rout,
+    t0, t1) or None."""
+    if len(poly) < 8: return None
+    cx, cy, r = circle_fit(poly)
+    rs = sorted(math.hypot(s - cx, y - cy) for s, y in poly)
+    gaps = [(rs[i + 1] - rs[i], i) for i in range(len(rs) - 1)]
+    g, i = max(gaps)
+    if g < 0.06: return None
+    inner = [(s, y) for s, y in poly if math.hypot(s - cx, y - cy) <= rs[i] + 1e-6]
+    outer = [(s, y) for s, y in poly if math.hypot(s - cx, y - cy) > rs[i] + 1e-6]
+    if len(inner) < 4 or len(outer) < 4: return None
+    ci, co_ = circle_fit(inner), circle_fit(outer)
+    if math.hypot(ci[0] - co_[0], ci[1] - co_[1]) > 0.04: return None
+    if max(abs(math.hypot(s - ci[0], y - ci[1]) - ci[2]) for s, y in inner) > 0.012: return None
+    if max(abs(math.hypot(s - co_[0], y - co_[1]) - co_[2]) for s, y in outer) > 0.012: return None
+    if not 0.06 < co_[2] - ci[2] < 0.6 or ci[1] > max(y for _, y in poly): return None
+    ang = [math.atan2(y - ci[1], s - ci[0]) for s, y in inner]
+    return ci[0], ci[1], ci[2], co_[2], max(ang), min(ang)
+
+def ground_slab(rows, idx):
+    """Pavement aprons, kerbs and door-step tops: mostly faces looking up below 0.8 m. They keep the old stone's slab
+    picture (its shader lays the pavement's slabs in world metres there)."""
+    up = tot = 0.0
+    for i in idx:
+        a, b, c = (Vector(rows[i + k][:3]) for k in range(3)); ar = (b - a).cross(c - a).length / 2
+        tot += ar
+        if sum(rows[i + k][4] for k in range(3)) / 3 > 0.7 and max(a.y, b.y, c.y) < 0.8: up += ar
+    return tot <= 0 or up > 0.6 * tot
+
+def reskin(rows, idx, kind='old stone'):
+    """A stone piece with no clean section (a scroll, a capital, a cornice's return, a reveal's lining): its own shape
+    on the dressed stone, smooth across shallow angles, its sharp arrises chamfered, so a front never shows two stones
+    side by side."""
+    p = Piece(kind); bm = p.bm; vmap = {}
+    for i in idx:
+        vs = []
+        for k in range(3):
+            co = tuple(round(x, 5) for x in rows[i + k][:3])
+            if co not in vmap: vmap[co] = bm.verts.new(co)
+            vs.append(vmap[co])
+        if len(set(vs)) < 3: continue
+        try: f = bm.faces.new(vs)
+        except ValueError: continue
+        old = sum((Vector(rows[i + k][3:6]) for k in range(3)), Vector())
+        if f.normal.dot(old) < 0: f.normal_flip()
+        f[p.code] = 4
+    p.normals = None; p.smooth = True
+    # its sharp arrises (faces meeting at over 40 degrees) get a small chamfer, where the old mesh is closed there
+    bmesh.ops.remove_doubles(bm, verts=bm.verts, dist=0.0005)
+    sharp = [e for e in bm.edges if len(e.link_faces) == 2 and e.calc_face_angle(0.0) > math.radians(40) and e.calc_length() > 0.02]
+    if sharp:
+        try: bevel(p, sharp, 0.004, 1)
+        except Exception: pass
+    pieces.append(p); return p
+
+def arc_sweep(tris):
+    """An arched hood or head: one section swept round an arc in the wall's plane. (cx, cy, profile [(r, d)] as a
+    loop, first angle, last angle) or None."""
+    pts = {(round(p[0], 4), round(p[1], 4), round(p[2], 4)) for t in tris for p in t}
+    if len(pts) < 12: return None
+    cx, cy, _ = circle_fit([(s, y) for s, y, _ in pts])
+    key = lambda p: (round(math.hypot(p[0] - cx, p[1] - cy) * 400), round(p[2] * 400))
+    ang = lambda p: math.atan2(p[1] - cy, p[0] - cx)
+    angs = {}
+    for p in pts: angs.setdefault(key(p), []).append(ang(p))
+    if not 3 <= len(angs) <= 24 or any(len(v) < 3 for v in angs.values()): return None
+    a_lo, a_hi = min(min(v) for v in angs.values()), max(max(v) for v in angs.values())
+    if a_hi - a_lo < 0.35 or a_hi - a_lo > math.pi + 0.2: return None
+    if any(min(v) - a_lo > 0.15 or a_hi - max(v) > 0.15 for v in angs.values()): return None
+    # the section's edges: the ones that come back at every ring (a cap's diagonals only at the ends)
+    count = {}
+    for t in tris:
+        for i in range(3):
+            p, q = t[i], t[(i + 1) % 3]
+            if abs(ang(p) - ang(q)) > 0.012: continue
+            kp, kq = key(p), key(q)
+            if kp == kq: continue
+            e = (min(kp, kq), max(kp, kq)); count[e] = count.get(e, 0) + 1
+    adj = {}
+    for (kp, kq), n in count.items():
+        if n < 3: continue
+        adj.setdefault(kp, []).append(kq); adj.setdefault(kq, []).append(kp)
+    if len(adj) != len(angs) or any(len(v) != 2 for v in adj.values()): return None
+    start = min(adj); loop, prev, cur = [start], None, start
+    while True:
+        nxt = [k for k in adj[cur] if k != prev]
+        if not nxt or nxt[0] == start: break
+        prev, cur = cur, nxt[0]; loop.append(cur)
+    if len(loop) != len(adj): return None
+    return cx, cy, [(k[0] / 400, k[1] / 400) for k in loop], a_lo, a_hi
+
+def swept_stone(fr, cx, cy, prof, a0, a1, kind, code=4, arris=0.006):
+    """One stone of an arched hood: the section [(r, d)] (its last side against the wall) swept from angle a0 to a1."""
+    p = Piece(kind); bm = p.bm; steps = max(2, int(math.ceil((a1 - a0) * max(r for r, _ in prof) / 0.06)))
+    rings = [[bm.verts.new(fr.world(cx + r * math.cos(a0 + (a1 - a0) * k / steps), cy + r * math.sin(a0 + (a1 - a0) * k / steps), d)) for r, d in prof] for k in range(steps + 1)]
+    n = len(prof); faces = []; walls = []
+    for k in range(steps):
+        for i in range(n):
+            j = (i + 1) % n; f = bm.faces.new([rings[k][i], rings[k][j], rings[k + 1][j], rings[k + 1][i]]); f[p.code] = code; faces.append(f)
+            if i == n - 1: walls.append(f)
+    ca = bm.faces.new(list(reversed(rings[0]))); cb = bm.faces.new(rings[-1]); ca[p.code] = cb[p.code] = code
+    bmesh.ops.recalc_face_normals(bm, faces=faces + [ca, cb])
+    p.hidden.update(walls)
+    if code == 4:
+        bevel(p, visible_edges(p, [ca, cb]), arris * rng.uniform(0.8, 1.25), 1)
+        chips(p, 1, (0.004, 0.01))
+    finish(p); pieces.append(p); return p
+
+def front_arch(tris):
+    """A segmental arched head seen from the front: the faces in its most proud plane outline a band whose lower and
+    upper edges are two arcs round one centre. (cx, cy, rin, rout, t_left, t_right, front d) or None."""
+    # the face's plane: the level most of the forward-facing area lies in (a rosette or a key stands further out)
+    area = {}
+    for t in tris:
+        if max(p[2] for p in t) - min(p[2] for p in t) > 0.002: continue
+        a, b, c = (Vector(p) for p in t); area[round(t[0][2] * 200)] = area.get(round(t[0][2] * 200), 0) + (b - a).cross(c - a).length / 2
+    if not area: return None
+    d1 = max(area, key=area.get) / 200
+    front = [t for t in tris if all(abs(p[2] - d1) < 0.006 for p in t)]
+    if len(front) < 6: return None
+    pts = sorted({(round(p[0], 4), round(p[1], 4)) for t in front for p in t})
+    s0, s1 = pts[0][0], pts[-1][0]; w = s1 - s0
+    if w < 0.5: return None
+    def inside(q):
+        for t in front:
+            (ax, ay), (bx, by), (cx_, cy_) = ((p[0], p[1]) for p in t)
+            d = (by - cy_) * (ax - cx_) + (cx_ - bx) * (ay - cy_)
+            if abs(d) < 1e-12: continue
+            l1 = ((by - cy_) * (q[0] - cx_) + (cx_ - bx) * (q[1] - cy_)) / d; l2 = ((cy_ - ay) * (q[0] - cx_) + (ax - cx_) * (q[1] - cy_)) / d
+            if l1 >= -1e-6 and l2 >= -1e-6 and l1 + l2 <= 1 + 1e-6: return True
+        return False
+    # the lower edge (face above, none below) and the upper edge, the vertical end cuts left out
+    lower = [(x, y) for x, y in pts if s0 + 0.03 < x < s1 - 0.03 and inside((x, y + 0.01)) and not inside((x, y - 0.01))]
+    upper = [(x, y) for x, y in pts if s0 + 0.03 < x < s1 - 0.03 and inside((x, y - 0.01)) and not inside((x, y + 0.01))]
+    if len(lower) < 4: return None
+    if max(y for _, y in lower) - min(y for _, y in lower) < 0.04: return None  # (a flat head)
+    cx, cy, rin = circle_fit(lower)
+    if not 0.3 < rin < 8.0 or cy > min(y for _, y in pts): return None
+    # the face's own outline: its edges used by one face only, in one loop (no hole)
+    cnt = {}
+    for t in front:
+        ks = [(round(p[0] * 2000), round(p[1] * 2000)) for p in t]
+        for i in range(3):
+            e = tuple(sorted((ks[i], ks[(i + 1) % 3])))
+            if e[0] != e[1]: cnt[e] = cnt.get(e, 0) + 1
+    adj = {}
+    for (ka, kb), c in cnt.items():
+        if c == 1: adj.setdefault(ka, []).append(kb); adj.setdefault(kb, []).append(ka)
+    if len(adj) < 6 or any(len(v) != 2 for v in adj.values()): return None
+    start = min(adj); loop, prev, cur = [start], None, start
+    while True:
+        nxt = [k for k in adj[cur] if k != prev]
+        if not nxt or nxt[0] == start: break
+        prev, cur = cur, nxt[0]; loop.append(cur)
+    if len(loop) != len(adj): return None
+    outline = [(k[0] / 2000, k[1] / 2000) for k in loop]
+    angs = [math.atan2(y - cy, x - cx) for x, y in outline]
+    if max(angs) - min(angs) > math.pi - 0.05: return None
+    return cx, cy, outline, max(angs), min(angs), d1
+
+def clip_wedge(poly, cx, cy, ta, tb):
+    """The part of a polygon between two rays from (cx, cy) at angles ta > tb (Sutherland-Hodgman, two half-planes)."""
+    def clip(pts, ux, uy, keep_left):
+        out = []
+        side = lambda p: (ux * (p[1] - cy) - uy * (p[0] - cx)) * (1 if keep_left else -1)
+        for i in range(len(pts)):
+            p, q = pts[i], pts[(i + 1) % len(pts)]
+            sp, sq = side(p), side(q)
+            if sp >= 0: out.append(p)
+            if (sp >= 0) != (sq >= 0):
+                k = sp / (sp - sq); out.append((p[0] + (q[0] - p[0]) * k, p[1] + (q[1] - p[1]) * k))
+        return out
+    pts = clip(poly, math.cos(tb), math.sin(tb), True)
+    if len(pts) >= 3: pts = clip(pts, math.cos(ta), math.sin(ta), False)
+    return pts if len(pts) >= 3 else None
+
+def extrude_poly(fr, poly, d0, d1, kind, code):
+    """A plain extrusion of a wall-plane polygon (the mortar of an arch's joint), its back hidden."""
+    p = Piece(kind); bm = p.bm
+    fv = [bm.verts.new(fr.world(x, y, d1)) for x, y in poly]; bv = [bm.verts.new(fr.world(x, y, d0)) for x, y in poly]
+    n = len(poly); fs = [bm.faces.new([fv[i], fv[(i + 1) % n], bv[(i + 1) % n], bv[i]]) for i in range(n)]
+    ff = bm.faces.new(fv); fb = bm.faces.new(list(reversed(bv))); fs += [ff, fb]
+    bmesh.ops.recalc_face_normals(bm, faces=fs)
+    for f in bm.faces: f[p.code] = code
+    p.hidden.add(fb); finish(p); pieces.append(p)
+
+def dress_section(fr, rows, idx, item):
+    """Bands, string courses and cornices (cut into stones with joints), pilasters and strips (cut into courses on the
+    brick beds), arched window heads (a ring of voussoirs) and other single stones (panels, blocks): any stone piece
+    that is a prism. None: kept as it was."""
+    tris = [[fr.local(Vector(rows[i + k][:3])) for k in range(3)] for i in idx]
+    s0, s1, y0, y1, d0, d1 = item['box']; wd, h = s1 - s0, y1 - y0
+    if min(wd, h, d1 - d0) < 0.008: return None
+    inside = d1 < 0.01  # (in an opening's reveal: a fanlight's bars, a mullion set back)
+    if inside and d0 > -0.03: return None
+    if y0 < 0.05 and h < 0.15 and d1 > 0.25: return None  # (a pavement apron, not a stone of the wall)
+    if sum(CUR['tint']) / 3 < 0.45: return None  # (a black or tarred front keeps its own look)
+    S, Y, D = (section_loop(tris, a) for a in (0, 1, 2))
+    order = []
+    if wd >= max(1.2, 2.5 * h): order = [('s', S), ('d', D), ('y', Y)]
+    elif h >= max(0.9, 2.5 * wd): order = [('y', Y), ('d', D), ('s', S)]
+    else: order = [('d', D), ('s', S), ('y', Y)]
+    if inside: order = [('d', D)]
+    for axis, sec in order:
+        if sec is None: continue
+        loop, (a0, a1), open_ = sec
+        if axis == 's':
+            prof = wall_profile(simplify([(d, y) for y, d in loop], not open_), open_, 0)
+            if prof is None or len(prof) < 3: continue
+            prof = chamfer_profile(prof, 0.007, 0)
+            n = 1 if a1 - a0 <= 1.7 else max(2, round((a1 - a0) / 1.15))
+            cuts = [a0] + sorted(a0 + (a1 - a0) * (k + rng.uniform(-0.1, 0.1)) / n for k in range(1, n)) + [a1]
+            for k, (a, b) in enumerate(zip(cuts, cuts[1:])):
+                extruded_stone(fr, prof, 's', a + (0.005 if k else 0), b - (0.005 if k < n - 1 else 0), 'band')
+                if k < n - 1: extruded_stone(fr, mortar_section(prof, 0), 's', b - 0.0055, b + 0.0055, 'mortar', code=5)
+            return 'cornice' if d1 - d0 > 0.18 and h > 0.25 else ('band' if wd > 1.7 else 'head or sill')
+        if axis == 'y':
+            prof = wall_profile(simplify([(s, d) for s, d in loop], not open_), open_, 1)
+            if prof is None or len(prof) < 3: continue
+            prof = chamfer_profile(prof, 0.008, 1)
+            # a mullion or a narrow jamb: long stones; a pilaster or a wide strip: courses on the beds
+            n = max(1, math.ceil((a1 - a0) / 1.6)) if wd < 0.2 else max(1, round((a1 - a0) / 0.42))
+            cuts = [a0] + [fr.bed(a0 + (a1 - a0) * k / n) for k in range(1, n)] + [a1]
+            cuts = [c for k, c in enumerate(cuts) if k == 0 or c - cuts[k - 1] > 0.12]
+            if cuts[-1] < a1 - 1e-4: cuts[-1] = a1
+            for k, (a, b) in enumerate(zip(cuts, cuts[1:])):
+                extruded_stone(fr, prof, 'y', a + (0.005 if k else 0), b - (0.005 if k < len(cuts) - 2 else 0), 'pilaster course')
+                if k < len(cuts) - 2: extruded_stone(fr, mortar_section(prof, 1), 'y', b - 0.0055, b + 0.0055, 'mortar', code=5)
+            return 'pilaster' if h > 2.0 else 'strip'
+        if axis == 'd':
+            if open_: continue
+            poly = simplify(loop, True)
+            if len(poly) < 3: continue
+            back = min(a0, -0.012)
+            arch = arch_fit(poly)
+            if arch:
+                cx, cy, rin, rout, t0, t1 = arch
+                span = t0 - t1; rmid = (rin + rout) / 2
+                count = max(3, int(round(span * rmid / 0.24)) | 1); half = 0.005 / rmid
+                for i in range(count):
+                    b0 = t0 - span * i / count - (half if i else 0); b1 = t0 - span * (i + 1) / count + (half if i < count - 1 else 0)
+                    arc_in = [(cx + rin * math.cos(b0 + (b1 - b0) * q / 3), cy + rin * math.sin(b0 + (b1 - b0) * q / 3)) for q in range(4)]
+                    arc_out = [(cx + rout * math.cos(b1 - (b1 - b0) * q / 3), cy + rout * math.sin(b1 - (b1 - b0) * q / 3)) for q in range(4)]
+                    arch_stone(fr, arc_in + arc_out, back, a1, 'arched head voussoir', arris=0.006)
+                    if i < count - 1: mortar_ring(fr, cx, cy, rin + 0.0015, rout - 0.004, b1 - half, b1 + half, back + 0.003, a1 - 0.004)
+                return 'arched head'
+            area = sum(poly[i][0] * poly[(i + 1) % len(poly)][1] - poly[(i + 1) % len(poly)][0] * poly[i][1] for i in range(len(poly)))
+            if area < 0: poly = list(reversed(poly))
+            thin = min(max(p[0] for p in poly) - min(p[0] for p in poly), max(p[1] for p in poly) - min(p[1] for p in poly))
+            arch_stone(fr, poly, back if not inside else a0, a1, 'fanlight bar' if inside else 'panel stone', arris=min(0.007, 0.25 * (a1 - (back if not inside else a0)), 0.2 * thin))
+            return 'fanlight bar' if inside else 'panel stone'
+    if inside: return None
+    # a segmental arched head: a ring of voussoirs from its back in the reveal to its face, radial joints
+    fa = front_arch(tris)
+    if fa:
+        cx, cy, outline, t0, t1, df = fa
+        back = min(d0, -0.012); span = t0 - t1
+        rmid = sum(math.hypot(x - cx, y - cy) for x, y in outline) / len(outline)
+        count = max(5, int(round(span * rmid / 0.24)) | 1); half = 0.005 / rmid
+        area = sum(outline[i][0] * outline[(i + 1) % len(outline)][1] - outline[(i + 1) % len(outline)][0] * outline[i][1] for i in range(len(outline)))
+        if area < 0: outline = list(reversed(outline))
+        stones = []
+        for i in range(count):
+            b0 = t0 - span * i / count - (half if i else 0); b1 = t0 - span * (i + 1) / count + (half if i < count - 1 else 0)
+            poly = clip_wedge(outline, cx, cy, b0 + (0.01 if i == 0 else 0), b1 - (0.01 if i == count - 1 else 0))
+            if poly is None: return None
+            stones.append((poly, b1))
+        for i, (poly, b1) in enumerate(stones):
+            arch_stone(fr, simplify(poly, True), back, df, 'voussoir', arris=0.006)
+            if i < count - 1:
+                joint = clip_wedge(outline, cx, cy, b1, b1 - 2 * half)
+                if joint: extrude_poly(fr, joint, back + 0.003, df - 0.004, 'mortar', 5)
+        return 'arched head'
+    # an arched hood or head over a window: its section swept round the arch, cut into stones with radial joints
+    sw = arc_sweep(tris)
+    if sw:
+        cx, cy, loop, t_lo, t_hi = sw
+        prof = wall_profile(simplify(loop, True), False, 1)
+        if prof and len(prof) >= 3:
+            prof = chamfer_profile(prof, 0.006, 1)
+            rmid = sum(r for r, _ in prof) / len(prof); span = t_hi - t_lo
+            count = max(3, int(round(span * rmid / 0.32)) | 1); half = 0.005 / rmid
+            for i in range(count):
+                b0 = t_lo + span * i / count + (half if i else 0); b1 = t_lo + span * (i + 1) / count - (half if i < count - 1 else 0)
+                swept_stone(fr, cx, cy, prof, b0, b1, 'arched hood stone')
+                if i < count - 1: swept_stone(fr, cx, cy, mortar_section(prof, 1), b1, b1 + 2 * half, 'mortar', code=5)
+            return 'arched head'
+    return None
+
 def classify_and_build():
     plinths, shops, heads = [], [], []
     for mesh, s in stone_meshes:
@@ -494,7 +912,7 @@ def classify_and_build():
             GROUP[0] = mesh
             pts = [Vector(rows[i + k][:3]) for i in idx for k in range(3)]
             lo = Vector((min(p.x for p in pts), min(p.y for p in pts), min(p.z for p in pts))); hi = Vector((max(p.x for p in pts), max(p.y for p in pts), max(p.z for p in pts)))
-            c = (lo + hi) / 2; wear = rows[idx[0]][13]
+            c = (lo + hi) / 2; wear = rows[idx[0]][13]; CUR['tint'] = TINT[(mesh, idx[0])] = tint_of(rows, idx)
             item = {'mesh': mesh, 'at': [round(c.x, 2), round(c.y, 2), round(c.z, 2)], 'triangles': len(idx), 'wear': round(wear, 2)}
             ns = normals_of(rows, idx)
             # a quoin course: two faces at right angles, both outward, one course high, round one corner
@@ -503,18 +921,25 @@ def classify_and_build():
             if pair and 0.2 < hi.y - lo.y < 0.45 and (Vector((hi.x - lo.x, hi.z - lo.z))).length < 1.2 and lo.y > 0.3:
                 (na, _), (nb, _) = sorted(pair, key=lambda x: math.atan2(x[0].z, x[0].x))
                 if abs(math.atan2(na.z, na.x) - math.atan2(nb.z, nb.x)) > math.pi: na, nb = nb, na  # (the pair across the -x axis)
-                wa, wb = wall_at(c, na, 0.6), wall_at(c, nb, 0.6)
-                if wa and wb:
-                    na, nb = wa[2], wb[2]
-                    fa0 = Front(na * wa[0], Vector((-na.z, 0, na.x)), na, wa[1]); fb0 = Front(nb * wb[0], Vector((-nb.z, 0, nb.x)), nb, wb[1])
+                # #173: a ground-floor quoin beside a shop front runs 0.2 m into the wall (it lines the shop window's
+                # reveal), so its middle lies nearer the reveal's plane than the wall's face: the first try measures from
+                # the middle (as #157 did), the second from the stone's own face, a few centimetres proud of the wall
+                tries = [(c, c)] + [(c + na * (max(p.dot(na) for p in pts) - c.dot(na) - 0.07), c + nb * (max(p.dot(nb) for p in pts) - c.dot(nb) - 0.07))]
+                placed = False
+                for ca, cb in tries:
+                    wa, wb = wall_at(ca, na, 0.6), wall_at(cb, nb, 0.6)
+                    if not (wa and wb): continue
+                    ma, mb = wa[2], wb[2]
+                    fa0 = Front(ma * wa[0], Vector((-ma.z, 0, ma.x)), ma, wa[1]); fb0 = Front(mb * wb[0], Vector((-mb.z, 0, mb.x)), mb, wb[1])
                     corner = plane_corner(fa0, fb0)
-                    key = (round(corner.x * 20), round(corner.z * 20), round(na.x, 1), round(na.z, 1), round(nb.x, 1), round(nb.z, 1))
-                    fa = Front(corner, -nb, na, wa[1]); fb = Front(corner, -na, nb, wb[1])
+                    key = (round(corner.x * 20), round(corner.z * 20), round(ma.x, 1), round(ma.z, 1), round(mb.x, 1), round(mb.z, 1))
+                    fa = Front(corner, -mb, ma, wa[1]); fb = Front(corner, -ma, mb, wb[1])
                     la = max(fa.local(p)[0] for p in pts); lb = max(fb.local(p)[0] for p in pts)
                     pr = max(max(fa.local(p)[2] for p in pts), max(fb.local(p)[2] for p in pts))
                     if 0.1 < la < 0.8 and 0.1 < lb < 0.8 and 0.03 < pr < 0.15:
                         quoin_groups.setdefault(key, (fa, fb, corner, []))[3].append((lo.y, hi.y, la, lb, pr, idx, wear))
-                        continue
+                        placed = True; break
+                if placed: continue
             # the piece's front: the area-weighted outward normal of its upright faces
             tot = sum((n * a for n, a in ns), Vector())
             n = None
@@ -525,11 +950,15 @@ def classify_and_build():
                 for cand in (Vector((side.z, 0, -side.x)), Vector((-side.z, 0, side.x))):
                     w = wall_at(c, cand, 0.4)
                     if w and -0.02 < max(p.dot(w[2]) for p in pts) - w[0] < 0.02 and min(p.dot(w[2]) for p in pts) - w[0] < -0.1: n = cand; break
-            if n is None: report['kept'].append(dict(item, kind='no front')); continue
+            if n is None:
+                if DRESS_REST and not ground_slab(rows, idx): reskin(rows, idx); take(mesh, idx); report['items'].append(dict(item, kind='reskinned (no front)')); continue
+                report['kept'].append(dict(item, kind='no front')); continue
             w = wall_at(c, n, 0.45)
             if not w and abs(abs(n.x) - abs(n.z)) > 0.3:
                 cand = Vector((round(n.x), 0, round(n.z))).normalized(); w = wall_at(c, cand, 0.45)
-            if not w: report['kept'].append(dict(item, kind='no wall')); continue
+            if not w:
+                if DRESS_REST and not ground_slab(rows, idx): reskin(rows, idx); take(mesh, idx); report['items'].append(dict(item, kind='reskinned (no wall)')); continue
+                report['kept'].append(dict(item, kind='no wall')); continue
             fr = front_for(w[2], w[0], w[1]); s0, s1, y0, y1, d0, d1 = local_box(rows, idx, fr)
             wd, h = s1 - s0, y1 - y0
             item.update(box=[round(x, 3) for x in (s0, s1, y0, y1, d0, d1)], layer=w[1], n=[round(fr.n.x, 3), round(fr.n.z, 3)])
@@ -562,9 +991,11 @@ def classify_and_build():
                 lintel(fr, s0, s1, y0, y1, d1); kind = 'door lintel'
             elif h < 0.1 and 0.15 < d1 < 0.2 and y0 > 2.0 and d0 > -0.02:
                 hood(fr, s0, s1, y0, y1, d1); kind = 'door hood'
+            if kind is None and DRESS_REST: kind = dress_section(fr, rows, idx, item)
+            if kind is None and DRESS_REST and not ground_slab(rows, idx): reskin(rows, idx); kind = 'reskinned'
             if kind is None: report['kept'].append(dict(item, kind='unclassified')); continue
             if kind == 'plinth': continue  # (built, taken and reported with its corner below)
-            take(mesh, idx); item['kind'] = kind; report['items'].append(item)
+            take(mesh, idx); item['kind'] = kind; item['tint'] = [round(x, 3) for x in CUR['tint']]; report['items'].append(item)
         # the halves of one course meet at a corner: one L stone round it, as on the welded corners
         used = set()
         for i, (fr, s0, s1, y0, y1, d1, idx, wear, pts) in enumerate(singles):
@@ -589,7 +1020,7 @@ def classify_and_build():
         for i, (fr, s0, s1, y0, y1, d1, idx, wear, pts) in enumerate(singles):
             if i in used: continue
             # a quoin whose other face is no front: one dressed stone on the brick beds
-            CUR['wear'] = wear; a0, a1 = fr.bed(y0) + 0.005, fr.bed(y1 + 0.02) - 0.005
+            CUR['wear'] = wear; CUR['tint'] = TINT.get((mesh, idx[0]), REF_TINT); a0, a1 = fr.bed(y0) + 0.005, fr.bed(y1 + 0.02) - 0.005
             if not 0.15 < a1 - a0 < 0.5: a0, a1 = y0, y1
             dressed_block(fr, s0, s1, a0, a1, -0.012, d1, 'quoin', arris=0.009, chip=2); take(mesh, idx)
             report['items'].append({'mesh': mesh, 'kind': 'single quoin', 'at': [round(x, 2) for x in fr.world((s0 + s1) / 2, y0, 0)], 'n': [round(fr.n.x, 3), round(fr.n.z, 3)]})
@@ -663,13 +1094,21 @@ def bake_rows(group):
     for p in (p for p in pieces if p.group == group):
         bm = p.bm
         def loop_normal(f, v):
-            """Flat on the stone's faces, rounded across a bevel's facets (and onto the faces they join)."""
+            """Flat on the stone's faces, rounded across a bevel's facets (and onto the faces they join); a reskinned
+            piece keeps the old mesh's normals."""
+            if getattr(p, 'smooth', False):
+                acc = Vector()
+                for g in v.link_faces:
+                    if g.normal.dot(f.normal) > math.cos(math.radians(35)): acc += g.normal * g.calc_area()
+                return acc.normalized() if acc.length > 1e-12 else f.normal.copy()
             if not f[p.bev]: return f.normal.copy()
             acc = Vector()
             for g in v.link_faces:
                 if g.normal.dot(f.normal) > math.cos(math.radians(50)): acc += g.normal * g.calc_area()
             return acc.normalized() if acc.length > 1e-12 else f.normal.copy()
         ou, ov = p.rand * 0.731, p.rand2 * 0.613
+        # (COLOR = sky light, the stone's colour as brightness and warmth, the house's wear)
+        lum = sum(p.tint) / 3; warm = (p.tint[0] - p.tint[2]) / max(lum, 0.05)
         for f in bm.faces:
             n = f.normal; code = f[p.code]
             if p.kind == 'mortar': code = code if code in (5, 15) else 5
@@ -681,7 +1120,7 @@ def bake_rows(group):
                 else:
                     across = Vector((n.z, 0, -n.x)).normalized(); u, v = co.dot(across) / 1.2, -co.y / 1.2
                 ao, rain = occlusion(co, nn)
-                tri.append([co.x, co.y, co.z, nn.x, nn.y, nn.z, u + ou, v + ov, float(code), p.rand, ao, ao, ao, p.wear, rain, p.rand2])
+                tri.append([co.x, co.y, co.z, nn.x, nn.y, nn.z, u + ou, v + ov, float(code), p.rand, ao, lum, warm, p.wear, rain, p.rand2])
             # Godot's front faces wind clockwise: (p2 - p0) x (p1 - p0) along the face normal
             if (Vector(tri[2][:3]) - Vector(tri[0][:3])).cross(Vector(tri[1][:3]) - Vector(tri[0][:3])).dot(n) < 0: tri[1], tri[2] = tri[2], tri[1]
             # integer tile offsets keep the picture's phase and the small faces' UVs precise

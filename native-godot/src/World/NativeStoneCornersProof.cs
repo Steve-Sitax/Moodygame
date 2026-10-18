@@ -52,6 +52,11 @@ public static class NativeStoneCornersProof
                     if (g.IsVisibleInTree() && (g.GlobalTransform * g.GetAabb()).Grow(0.01f).HasPoint(at))
                         notes.Add(new { mode = "probe", node = g.GetPath().ToString(), type = g.GetClass(), mesh = (g as MeshInstance3D)?.Mesh?.ResourcePath ?? "", size = (g.GlobalTransform * g.GetAabb()).Size.ToString() });
             }
+            // --stone-corners-hide a,b,...: every drawn thing whose path holds one of these is hidden (what draws that?)
+            if (Option("stone-corners-hide") is { Length: > 0 } hide)
+                foreach (var g in BakedWorld.All(game.GetTree().Root).OfType<GeometryInstance3D>().ToArray())
+                    if (hide.Split(',').Any(h => g.GetPath().ToString().Contains(h, StringComparison.Ordinal)))
+                    { g.Visible = false; notes.Add(new { mode = "hidden", node = g.GetPath().ToString() }); }
             notes.Add(new { mode = "memory", stage = "before candidate", bufferMemMB = Performance.GetMonitor(Performance.Monitor.RenderBufferMemUsed) / 1048576.0, videoMemMB = Performance.GetMonitor(Performance.Monitor.RenderVideoMemUsed) / 1048576.0 });
             var swaps = candidateFolder == "" ? new List<(MeshInstance3D node, Mesh before, Mesh after)>() : Candidate(game, Paths.Absolute(candidateFolder), notes);
             if (candidateFolder != "") Check("candidate meshes found in the town", swaps.Count > 0);
@@ -98,6 +103,25 @@ public static class NativeStoneCornersProof
                     game.Cam.GetParent().AddChild(capture);
                     capture.GlobalTransform = new Transform3D(Basis.Identity, eye).LookingAt(focus, Vector3.Up); capture.MakeCurrent();
                     Daylight.I.Settle(); await Frames(90);
+                    // --stone-corners-pick fx,fy (0..1 of the picture): which drawn thing makes that pixel? Each one whose
+                    // box the pixel's ray meets is hidden in turn; the ones that change the pixel are listed.
+                    if (Option("stone-corners-pick") is { Length: > 0 } pick && weather == "day")
+                    {
+                        var f = pick.Split(',').Select(v => float.Parse(v, System.Globalization.CultureInfo.InvariantCulture)).ToArray();
+                        var size = capture.GetViewport().GetVisibleRect().Size; var at = new Vector2(f[0] * size.X, f[1] * size.Y);
+                        Vector3 o = capture.ProjectRayOrigin(at), d = capture.ProjectRayNormal(at);
+                        async Task<Color> Pixel() { await Frames(4); await game.ToSignal(RenderingServer.Singleton, RenderingServer.SignalName.FramePostDraw); using var img = game.GetViewport().GetTexture().GetImage(); int px = (int)(f[0] * img.GetWidth()), py = (int)(f[1] * img.GetHeight()); var sum = new Color(0, 0, 0, 0); for (int dy = -7; dy <= 7; dy++) for (int dx = -7; dx <= 7; dx++) sum += img.GetPixel(Math.Clamp(px + dx, 0, img.GetWidth() - 1), Math.Clamp(py + dy, 0, img.GetHeight() - 1)); return sum / 225f; }
+                        var basePixel = await Pixel();
+                        foreach (var g in BakedWorld.All(game.GetTree().Root).OfType<VisualInstance3D>().Where(g => g.IsVisibleInTree()).ToArray())
+                        {
+                            if (!GodotObject.IsInstanceValid(g) || !g.IsVisibleInTree()) continue;
+                            var box = g.GlobalTransform * g.GetAabb();
+                            if (box.Size.LengthSquared() > 1e6f || !box.IntersectsSegment(o, o + d * 2000)) continue;
+                            g.Visible = false; var c = await Pixel(); g.Visible = true;
+                            float diff = Math.Abs(c.R - basePixel.R) + Math.Abs(c.G - basePixel.G) + Math.Abs(c.B - basePixel.B);
+                            notes.Add(new { mode = "pick", view = view.Name, node = g.GetPath().ToString(), mesh = (g as MeshInstance3D)?.Mesh?.ResourcePath ?? "", diff, before = basePixel.ToHtml(false), after = c.ToHtml(false) });
+                        }
+                    }
                     foreach (bool candidate in swaps.Count > 0 ? new[] { false, true } : new[] { false })
                     {
                         Use(candidate); await Frames(12);

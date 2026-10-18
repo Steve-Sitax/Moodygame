@@ -43,8 +43,9 @@ uniform float slab_tile = 2.6;
 uniform float slab_ymax = 0.8;
 uniform float slab_dome = 2.5;
 // Issue #157, dressed stone (UV2.x > 0): the house's quoins, door and window stones, plinth and step as single
-// blocks. UV2 = (face code, the stone's dice); CUSTOM0 = (how open to the falling rain, a second dice); COLOR.rgb =
-// sky light baked against the new stone and the wall; COLOR.a = the house's wear. Codes: 1 tooled field,
+// blocks. UV2 = (face code, the stone's dice); CUSTOM0 = (how open to the falling rain, a second dice); COLOR.r =
+// sky light baked against the new stone and the wall; COLOR.gb = the old stone's colour (brightness, warmth; #171);
+// COLOR.a = the house's wear. Codes: 1 tooled field,
 // 2 margin with upright strokes, 3 margin with level strokes, 4 rubbed (returns, beds, arrises), 5 lime mortar;
 // +10 Belgian blue stone. The picture is the 1.2 m blue-stone scan; light stone is ramped from its grain.
 uniform sampler2D stone_tex : source_color, filter_linear_mipmap_anisotropic, repeat_enable, hint_default_white;
@@ -438,6 +439,9 @@ void fragment() {
 			col = vec3(0.36, 0.345, 0.30) * (1.0 + grain * 2.2) * (0.94 + 0.9 * (soft - 0.13));
 			// every stone from its own bed: tone and warmth vary; now and then a newer replacement stone
 			col *= mix(vec3(1.03, 1.0, 0.93), vec3(0.96, 0.99, 1.03), dressed.w) * (0.82 + 0.24 * dressed.y) * (dressed.w > 0.92 ? 1.1 : 1.0);
+			// #171: the house's own stone colour, its old stone's tint (COLOR.g brightness, COLOR.b warmth): a guild
+			// front's warm sandstone stays warm, a tarred or black front stays dark
+			col *= clamp(COLOR.g * (vec3(1.0) + COLOR.b * vec3(0.44, 0.13, -0.56)), vec3(0.12), vec3(1.1));
 		}
 		if (dregion > 4.5) col = vec3(0.30, 0.29, 0.255) * (0.8 + 2.0 * lum) * (dblue ? 0.85 : 1.0);
 		c = vec4(col * albedo.rgb, 1.0);
@@ -507,7 +511,8 @@ void fragment() {
 			c.rgb *= mix(vec3(1.0), vec3(0.36, 0.32, 0.25), muck * (0.5 + 0.35 * a));
 			// rising damp: the porous light stone drinks from the ground, 0.2 m on a kept house, 0.9 m on a poor one,
 			// ragged, green-black, with the salts left as a pale line where it dries
-			float top = 0.16 + 0.95 * a + 0.16 * (n2 - 0.5) + 0.06 * (n1 - 0.5);
+			// (#171: a little below the wall's own damp beside it; the dense stone drinks less than brick or plaster)
+			float top = 0.2 + 1.05 * a + 0.16 * (n2 - 0.5) + 0.06 * (n1 - 0.5);
 			float damp = dblue ? 0.0 : (1.0 - smoothstep(top - 0.12, top, gy)) * vert;
 			float salts = dblue ? 0.0 : smoothstep(top - 0.06, top - 0.01, gy) * (1.0 - smoothstep(top, top + 0.04, gy)) * vert * a;
 			c.rgb *= mix(vec3(1.0), vec3(0.42, 0.47, 0.37), damp * (0.35 + 0.55 * a));
