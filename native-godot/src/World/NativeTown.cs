@@ -145,6 +145,10 @@ public partial class NativeTown : BakedWorld
         // Its footprint is cut out of the mesh, so what is drawn, what is walked on and what is solid agree with the steps.
         // (dev: --no-werf-cut leaves the ground as the bake has it, for a before-and-after)
         int werfCut = Scheldemist.Main.I.Flag("no-werf-cut") ? 0 : QuayNotch.Cut(town, "city_-4_0_3", QuayExits.WerfFrame, QuayExits.WerfNotchS0, QuayExits.WerfNotchS1, QuayExits.WerfNotchU0, QuayExits.WerfNotchU1);
+        // The Ruien's gates (docs/ruien-native.md): each area's outlet is cut through its quay wall here, before collision
+        // and navigation read the meshes. (dev: --no-ruien-gates leaves the walls whole, for a before-and-after)
+        if (!Scheldemist.Main.I.Flag("no-ruien-gates"))
+            foreach (var note in Scheldemist.World.Ruien.RuienGates.Cut(town)) GD.Print("ruien: " + note);
         // Issue #176: the shutters, copies of one model per kind where the bake's flat boards stood (before the razed houses' cut, which takes theirs)
         Report["shutterCopies"] = NativeShutters.Install(town, Scheldemist.Main.I.Arg("shutters-file") is { Length: > 0 } shutterFile ? shutterFile : null);
         // Houses pulled down after the bake (city_build.json "razed"): cut out before collision and navigation read the meshes.

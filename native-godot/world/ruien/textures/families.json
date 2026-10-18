@@ -1,0 +1,82 @@
+{
+  "brick_flemish": {
+    "tile": [
+      4.8,
+      2.4
+    ],
+    "relief": 0.097,
+    "variants": true
+  },
+  "brick_stretcher": {
+    "tile": [
+      4.8,
+      2.4
+    ],
+    "relief": 0.097,
+    "variants": true
+  },
+  "brick_header": {
+    "tile": [
+      4.8,
+      2.4
+    ],
+    "relief": 0.097,
+    "variants": true
+  },
+  "bluestone": {
+    "tile": [
+      2.4,
+      2.4
+    ],
+    "relief": 0.003,
+    "variants": false
+  },
+  "calcite": {
+    "tile": [
+      1.8,
+      1.8
+    ],
+    "relief": 0.012,
+    "variants": false
+  },
+  "oak": {
+    "tile": [
+      2,
+      5.399414
+    ],
+    "relief": 0.006,
+    "variants": false
+  },
+  "iron": {
+    "tile": [
+      0.9,
+      0.9
+    ],
+    "relief": 0.002,
+    "variants": false
+  },
+  "silt": {
+    "tile": [
+      4,
+      4
+    ],
+    "relief": 0.03,
+    "variants": false
+  },
+  "sandstone": {
+    "tile": [
+      1.6,
+      1.6
+    ],
+    "relief": 0.02,
+    "variants": false
+  },
+  "moss": {
+    "tile": [
+      1.2,
+      1.2
+    ],
+    "relief": 0.01,
+    "variants": false
+  }
+}

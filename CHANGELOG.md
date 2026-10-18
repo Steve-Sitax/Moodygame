@@ -11,6 +11,8 @@ Bugs and loose ends are tracked as [issues](https://github.com/Steve-Sitax/Moody
 
 ## [Unreleased]
 
+- The first stretch of the Ruien, the town's vaulted sewers, is under the streets: the vliet sluice's outlet in the vliet head wall with its tide doors, 38 m of giant gallery to the Vleeshuis and its great hall of brick groin vaults on piers. Wet, slimed, limed and sooty brick in deep relief, calcite curtains, murky water that mirrors the vault, a low rot mist over it, oil lamps in warm pools and cold daylight falling down the street grate, the air shaft and the hatch over the hall's stair; dark at every hour, its own close air once you are under the vaults. A grate in the street lifts for a ladder down onto the gallery's ledge, and back up.
+
 - Reworked the #84 texture handoff with CC0 photographed brick, slate, bark, stone, wood, cloth and soil maps, photographic goods/print samples and crisp sign lettering. Native installation and scene review remain pending.
 
 - Prepared photographic town-wall, church, prison, bronze, bark, foliage and litter pictures, plus shared prop and atlas surfaces (#84). These are a texture handoff for native integration; the installed town is unchanged.

@@ -77,6 +77,17 @@ public partial class Daylight : Node
     public Color FogColor { get; private set; }
     /// <summary>The eye under the water: 0 or 1 (a part may ease it), and how deep (m). World/Underwater.cs sets them.</summary>
     public float Under, UnderDepth;
+    /// <summary>
+    /// The eye under a vault of the Ruien: 0 in the open .. 1 inside (World/Ruien eases it in past a gate), the air
+    /// down there (linear) and its fog's near and far. Inside no sky light falls on people and loose things, no sun, no
+    /// street lamp's glow hangs in the air; the Ruien's own lamps light it (docs/ruien-native.md).
+    /// </summary>
+    public float Below;
+    public Color BelowAir = new(0.012f, 0.011f, 0.009f);
+    public float BelowNear = 2, BelowFar = 36;
+    /// <summary>The eye's adaptation to the dark under a vault: the picture's exposure there (1 in the open).</summary>
+    public float BelowExposure = 1.6f;
+    private float exposureSent = 1;
     /// <summary>The colour of the river's water close to, on a grey day (linear).</summary>
     private static readonly Color Murk = new(0.10f, 0.13f, 0.085f);
     public float FogNear { get; private set; } = 3;
@@ -387,6 +398,15 @@ public partial class Daylight : Node
             SkyIntensity *= 1 - 0.5f * Under * (1 - 0.5f * deep);
             SunIntensity *= 1 - 0.85f * Under;
         }
+        // under a vault (World/Ruien): the underground air, close and dark; the sky's light and the sun do not reach in
+        float skySeen = 1;
+        if (Below > 0)
+        {
+            fog = fog.Lerp(BelowAir, Below);
+            FogNear = Mathf.Lerp(FogNear, BelowNear, Below);
+            FogFar = Mathf.Lerp(FogFar, BelowFar, Below);
+            skySeen = 1 - 0.97f * Below;
+        }
         FogColor = fog;
 
         // the rain, the wet ground and the puddles (ambient.ts)
@@ -407,18 +427,20 @@ public partial class Daylight : Node
         Wind = new Vector2(MathF.Cos(wa) * ws, MathF.Sin(wa) * ws);
 
         // to the picture. three's lights give colour x intensity / pi on a matt face; Godot's give colour x energy
-        SendLight(fog.LinearToSrgb(), sunCol, SunIntensity / MathF.PI, SunDir);
+        SendLight(fog.LinearToSrgb(), sunCol, SunIntensity * skySeen / MathF.PI, SunDir);
+        float exposure = Mathf.Lerp(1, BelowExposure, Below);
+        if (MathF.Abs(exposure - exposureSent) > 1e-4f) { env.TonemapExposure = exposure; exposureSent = exposure; }
         // (#97) a clear day's sun throws real shadows near the eye (the people, the carts, the stalls, the eaves), faded
         // in with the clear day; the settings' "shadows" turns them off. Still the one sun: no light comes or goes
-        bool shadows = ClearDay > 0.1f && Under <= 0 && Menu.Prefs.Bool("shadows");
+        bool shadows = ClearDay > 0.1f && Under <= 0 && Below < 0.5f && Menu.Prefs.Bool("shadows");
         if (sun.ShadowEnabled != shadows) sun.ShadowEnabled = shadows;
         if (shadows && MathF.Abs(sun.ShadowOpacity - ClearDay) > 0.005f) sun.ShadowOpacity = ClearDay;
         Action<string, Variant> rs = Psx.Set;
         rs("psx_fog_color", fog);
         rs("psx_fog_near", FogNear);
         rs("psx_fog_far", FogFar);
-        rs("psx_hemi_sky", skyCol * (SkyIntensity / MathF.PI));
-        rs("psx_hemi_ground", Ground * (SkyIntensity / MathF.PI));
+        rs("psx_hemi_sky", skyCol * (SkyIntensity * skySeen / MathF.PI));
+        rs("psx_hemi_ground", Ground * (SkyIntensity * skySeen / MathF.PI));
         var fillNow = skyCol.Lerp(FillWarm, 0.6f) * SkyIntensity;
         var fillBake = SkyCold.Lerp(FillWarm, 0.6f) * bakeSky;
         rs("psx_fill", new Vector4(fillNow.R / fillBake.R, fillNow.G / fillBake.G, fillNow.B / fillBake.B, 1));
@@ -428,7 +450,7 @@ public partial class Daylight : Node
         rs("psx_sun_dir", SunDir);
         // the houses' shadows: hard in a clear day's sun, soft in the glow through fog
         rs("psx_sun_shade", 0.3f + 0.7f * bright);
-        rs("psx_scatter", Scatter * wNow[2]);
+        rs("psx_scatter", Scatter * wNow[2] * (1 - Below));
         rs("psx_wet", Wet);
         rs("psx_rain", Rain);
         rs("psx_puddle", Puddle);

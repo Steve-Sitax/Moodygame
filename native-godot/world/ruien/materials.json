@@ -1,0 +1,47 @@
+{
+ "about": "The Ruien's material families (docs/ruien-native.md): the shader kind each uses and its numbers. Textures: textures/<family>_*.res (families.json says the tile). A family without textures is plain colour (misc): its colour here. Every area shares these.",
+ "skip": ["misc_Paving_setts"],
+ "masonry": {
+  "brick_flemish":   { "pom": 0.32, "normal": 1.0, "rough": 1.0, "weather": 1.0 },
+  "brick_stretcher": { "pom": 0.32, "normal": 1.0, "rough": 1.0, "weather": 1.0 },
+  "brick_header":    { "pom": 0.32, "normal": 1.0, "rough": 1.0, "weather": 1.0 },
+  "sandstone":       { "pom": 0.4,  "normal": 1.1, "rough": 1.0, "weather": 0.9 },
+  "bluestone":       { "pom": 0.3,  "normal": 0.9, "rough": 0.95, "weather": 0.6 },
+  "calcite":         { "pom": 0.5,  "normal": 1.2, "rough": 1.0, "weather": 0.25, "wrap": 0.45 },
+  "oak":             { "pom": 0.25, "normal": 1.0, "rough": 1.0, "weather": 0.8 },
+  "oak_debris":      { "textures": "oak", "pom": 0.15, "normal": 0.8, "rough": 1.0, "weather": 0.8, "uvMetres": [1.0, 1.0] },
+  "iron":            { "pom": 0.0,  "normal": 1.0, "rough": 1.0, "weather": 0.5, "metal": 0.55 },
+  "silt":            { "pom": 0.45, "normal": 1.0, "rough": 1.0, "weather": 1.0 },
+  "moss":            { "pom": 0.2,  "normal": 1.0, "rough": 1.0, "weather": 0.3 }
+ },
+ "misc": {
+  "Brick_loose":  { "color": [0.2, 0.09, 0.05], "rough": 0.8 },
+  "Brass_lamp":   { "color": [0.32, 0.22, 0.09], "rough": 0.45, "metal": 0.7 },
+  "Lamp_gauze":   { "color": [0.05, 0.045, 0.04], "rough": 0.8 },
+  "Soot_black":   { "color": [0.008, 0.007, 0.006], "rough": 0.95 },
+  "Bone":         { "color": [0.3, 0.25, 0.17], "rough": 0.6, "wrap": 0.2 },
+  "Offal":        { "color": [0.12, 0.02, 0.02], "rough": 0.3 },
+  "Sacking":      { "color": [0.08, 0.06, 0.035], "rough": 0.95 },
+  "Weed_slime":   { "color": [0.025, 0.03, 0.01], "rough": 0.25 },
+  "Rat_fur":      { "color": [0.045, 0.04, 0.034], "rough": 0.9 },
+  "Rat_skin":     { "color": [0.24, 0.16, 0.14], "rough": 0.5 },
+  "Cork":         { "color": [0.26, 0.18, 0.1], "rough": 0.9 },
+  "Straw_wet":    { "color": [0.22, 0.17, 0.08], "rough": 0.6 },
+  "Glass_bottle": { "color": [0.03, 0.06, 0.03], "rough": 0.08 },
+  "Rope_hemp":    { "color": [0.14, 0.11, 0.07], "rough": 0.9 },
+  "Wicker":       { "color": [0.11, 0.08, 0.045], "rough": 0.9 },
+  "Runoff_lime":  { "color": [0.5, 0.48, 0.44], "rough": 0.9, "cover": 0.55 },
+  "Runoff_wet":   { "color": [0.02, 0.017, 0.012], "rough": 0.15, "cover": 0.45 },
+  "Runoff_iron":  { "color": [0.13, 0.055, 0.02], "rough": 0.7, "cover": 0.4 },
+  "Runoff_splash":{ "color": [0.42, 0.4, 0.34], "rough": 0.85, "cover": 0.5 }
+ },
+ "water": {
+  "misc_water":      { "murk": [0.075, 0.065, 0.035], "absorb": [2.2, 2.6, 3.4], "scum": 0.6, "drips": 1.0 },
+  "Water_film":      { "film": 1, "alpha": 0.4, "drips": 0, "scum": 0, "ripple": 0.4 },
+  "Water_drip_ring": { "film": 1, "alpha": 0.3, "drips": 1, "scum": 0, "ripple": 1.0 }
+ },
+ "air": {
+  "Lamp_flame": { "mode": 2, "color": [1.0, 0.6, 0.25], "strength": 6.0, "lamp": true },
+  "Lamp_glass": { "mode": 2, "color": [0.9, 0.75, 0.5], "strength": 0.18, "lamp": true }
+ }
+}
