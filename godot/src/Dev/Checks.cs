@@ -56,8 +56,9 @@ public partial class Checks : Node
                 if (dir == "" || dir.StartsWith("--")) dir = Main.I.Arg("check-out", ProjectSettings.GlobalizePath("res://baked/checks"));
             }
         if (mode == "") { SetProcess(false); return; }
-        // The shader check samples about 530 spots and the boat decks added load time: 240 s left no margin (2026-10-18).
-        if (int.TryParse(Main.I.Arg("check-timeout-seconds", mode == "shaders" ? "420" : "240"),out int seconds) && seconds is >=30 and <=900)
+        // The shader check samples about 530 spots and the stuck check plays three town hours: both took 210-240 s on a busy
+        // machine after the 2026-10-18 merges, so 240 s left no margin.
+        if (int.TryParse(Main.I.Arg("check-timeout-seconds", mode is "shaders" or "stuck" ? "420" : "240"),out int seconds) && seconds is >=30 and <=900)
             limit=(ulong)seconds*1000;
         else throw new ArgumentException("check-timeout-seconds must be 30..900");
         Directory.CreateDirectory(dir);

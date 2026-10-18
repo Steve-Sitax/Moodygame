@@ -24,7 +24,7 @@ dotnet build native-godot/Scheldemist.Native.csproj
 ```
 
 Use a free port from 8900 (never 8080, 8088 or 8090), a new `--db`, `--prefs` and `--author-root` for every run, and
-never Steve's own save or layouts. A run has a four-minute limit (seven for `--shaders`; `--check-timeout-seconds` sets 30-900); two at the same time are the most the
+never Steve's own save or layouts. A run has a four-minute limit (seven for `--shaders` and `--stuck`; `--check-timeout-seconds` sets 30-900); two at the same time are the most the
 machine keeps up with. The exit code is 1 when `ok` is false, and the line `stuck: PASS` or `stuck: FAIL` and
 the path of the report are in the output. Read the report: a walker listed under `stuck` has its last 14 samples.
 The report also includes `laneChecks`: controlled milk-woman fixtures exercise overlapping vehicle lanes at
