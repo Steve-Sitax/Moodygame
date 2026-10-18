@@ -38,6 +38,8 @@ public partial class Rooms : Node, Dev.IInteriorAuditSource
     {
         public OmniLight3D Light = null!;
         public float Day, Lit;
+        /// <summary>A stove's or a hearth's glow (the bake's orange fire light, low in the room): it burns by day too.</summary>
+        public bool Fire;
     }
 
     private sealed class Room
@@ -61,7 +63,7 @@ public partial class Rooms : Node, Dev.IInteriorAuditSource
         public float Level;
         // what its meshes and lamps were last given (set again only when it changes)
         public Vector3 SkyNow = new(-1, 0, 0);
-        public float LampK = -1;
+        public float LampK = -1, LampOn = -1;
         // the street's copy of the door: its transom glass (unlit) and its warm glow (additive), houseInWorld.ts
         public readonly List<ShaderMaterial> Transoms = new();
         public readonly List<(GeometryInstance3D g, ShaderMaterial m)> Glows = new();
@@ -164,7 +166,7 @@ public partial class Rooms : Node, Dev.IInteriorAuditSource
         else GD.Print($"rooms: {rooms.Count} in the world ({rooms.Sum(r => r.Meshes.Count)} meshes, {rooms.Sum(r => r.Lamps.Count)} lamps, {rooms.Count(r => r.Lining != null)} linings, {panes.Count} glass)");
         // (dev: --rooms-list prints each room's box, to find a place to look from)
         if (Main.I.Arg("rooms-list") != "")
-            foreach (var r in rooms) GD.Print($"room {r.Id} {r.Kind}: {r.Box.GetCenter().Round()} size {r.Box.Size.Round()}, door {(r.Openings.Count > 0 ? r.Openings[0].Round() : Vector3.Zero)}");
+            foreach (var r in rooms) GD.Print($"room {r.Id} {r.Kind}: {r.Box.GetCenter().Round()} size {r.Box.Size.Round()}, door {(r.Openings.Count > 0 ? r.Openings[0].Round() : Vector3.Zero)}; sky {r.SkyDay} / {r.SkyLit}, ambient {r.AmbDay} / {r.AmbLit}, lamps {string.Join(" ", r.Lamps.Select(l => $"{l.Day:0.##}/{l.Lit:0.##}@{l.Light.GlobalPosition.Y:0.#}"))}");
         Menu.Prefs.Changed += _ => maxRooms = (int)Menu.Prefs.Num("rooms");
         maxRooms = (int)Menu.Prefs.Num("rooms");
     }
@@ -378,7 +380,11 @@ public partial class Rooms : Node, Dev.IInteriorAuditSource
                 };
                 Main.I.View.AddChild(o);
                 o.GlobalPosition = new Vector3(p[0].GetSingle(), p[1].GetSingle(), p[2].GetSingle());
-                room.Lamps.Add(new Lamp { Light = o, Day = di / MathF.PI, Lit = ni / MathF.PI });
+                bool fire = o.LightColor.G < 0.62f;
+                // (#137) a lamp in a tavern, a shop or a home throws a pool round it, not an even light to the far wall
+                float gain = 1;
+                if (room.Kind != "hall" && !fire && o.OmniAttenuation < RoomLampDecay) { o.OmniAttenuation = RoomLampDecay; gain = RoomLampGain; }
+                room.Lamps.Add(new Lamp { Light = o, Day = di / MathF.PI * gain, Lit = ni / MathF.PI * gain, Fire = fire });
             }
         }
     }
@@ -398,6 +404,8 @@ public partial class Rooms : Node, Dev.IInteriorAuditSource
         float h = day.Hour, night = day.Night;
         RoomHours(h, delta);
         float dayK = Mathf.Clamp(h < 12 ? (h - 6.5f) / 3 : (18.5f - h) / 3, 0, 1);
+        // the daylight that comes in by a room's windows: the sky's cold light, as strong as the sky outside
+        var window = RoomWindowSky * (RoomWindowShare * day.SkyIntensity / MathF.PI * (1 - night));
         var eye = cam.GlobalPosition;
         // which rooms are shown: within reach of the eye (a house: the nearest few, the settings' "rooms"); the rest
         // show their dark lining. Looked at four times a second.
@@ -447,10 +455,15 @@ public partial class Rooms : Node, Dev.IInteriorAuditSource
                 continue;
             }
             float k = night * r.Level;
-            if (MathF.Abs(k - r.LampK) > 0.004f || r.Level is > 0.001f and < 0.999f)
+            // (#137) the bake gave every room the same lights by day and by night: by day the lamps are out and only a
+            // stove or a hearth burns; they are lit as the dark comes (a hall keeps its own light all day)
+            bool hall = r.Kind == "hall";
+            float lampsOn = hall ? 1 : night;
+            if (MathF.Abs(k - r.LampK) > 0.004f || MathF.Abs(lampsOn - r.LampOn) > 0.004f || r.Level is > 0.001f and < 0.999f)
             {
                 r.LampK = k;
-                foreach (var l in r.Lamps) l.Light.LightEnergy = off.Contains("lamps") ? 0 : Mathf.Lerp(l.Day * (r.Budgeted ? r.Level : 1), l.Lit, k);
+                r.LampOn = lampsOn;
+                foreach (var l in r.Lamps) l.Light.LightEnergy = off.Contains("lamps") ? 0 : Mathf.Lerp(l.Day * (r.Budgeted ? r.Level : 1), l.Lit, k) * (l.Fire ? 1 : lampsOn);
             }
             // from the bright street by day a room looks dim through its windows
             bool inside = r.Box.HasPoint(eye);
@@ -461,9 +474,21 @@ public partial class Rooms : Node, Dev.IInteriorAuditSource
                 foreach (var g in r.Shafts) g.Visible = inside;
             }
             float dim = inside ? 1 : 1 - 0.45f * dayK;
-            var sky = r.SkyDay.Lerp(r.SkyLit, night) * dim;
-            var ground = r.GroundDay.Lerp(r.GroundLit, night) * dim;
-            var amb = r.AmbDay.Lerp(r.AmbLit, night) * dim;
+            Vector3 sky, ground, amb;
+            if (hall)
+            {
+                sky = r.SkyDay.Lerp(r.SkyLit, night) * dim;
+                ground = r.GroundDay.Lerp(r.GroundLit, night) * dim;
+                amb = r.AmbDay.Lerp(r.AmbLit, night) * dim;
+            }
+            else
+            {
+                // (#137) by day the day's own cold light comes in by the windows over the room's warm half-light; after
+                // dark the room's fill drops, so the lamps and the stove light it in warm pools with dark corners
+                sky = (r.SkyDay * RoomDayKeep + window).Lerp(r.SkyLit * RoomNightFill, night) * dim;
+                ground = (r.GroundDay * RoomDayKeep + window * RoomWindowFloor).Lerp(r.GroundLit * RoomNightFill, night) * dim;
+                amb = (r.AmbDay * RoomDayKeep + window * RoomWindowAmbient).Lerp(r.AmbLit * RoomNightFill, night) * dim;
+            }
             if (sky.DistanceSquaredTo(r.SkyNow) < 1e-7f) continue;
             r.SkyNow = sky;
             foreach (var m in r.Meshes)
@@ -497,6 +522,16 @@ public partial class Rooms : Node, Dev.IInteriorAuditSource
         var glass = new Color(fog.R, fog.G, fog.B, 0.06f + 0.22f * dayK * dayK);
         foreach (var m in panes) Scheldemist.Render.UniformUpdates.Material(m, "albedo", glass);
     }
+
+    /// <summary>
+    /// A room by the clock (#137): by day it keeps this much of its own warm fill and takes the sky's light through its
+    /// windows (a share of the street's sky light, cold; some of it on the floor and in the air); after dark its fill
+    /// drops to RoomNightFill, so its lamps and stove show as warm pools.
+    /// </summary>
+    private const float RoomDayKeep = 0.55f, RoomWindowShare = 0.45f, RoomWindowFloor = 0.35f, RoomWindowAmbient = 0.2f, RoomNightFill = 0.22f;
+    /// <summary>A room lamp's fall-off (a pool of light: the square of the distance) and the strength that keeps it as bright under it.</summary>
+    private const float RoomLampDecay = 2.4f, RoomLampGain = 1.5f;
+    private static readonly Vector3 RoomWindowSky = new(0.235f, 0.296f, 0.381f);
 
     /// <summary>The sun's colour and the moon's in the halls' shafts (hallSun.ts SUN, MOON).</summary>
     private static readonly Vector3 ShaftSun = new(1.0f, 0.93f, 0.8f), ShaftMoon = new(0.42f, 0.55f, 0.85f);
