@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using Godot;
 
 namespace Scheldemist.People;
@@ -90,12 +91,16 @@ internal sealed class Human2
             if (name is "head" or "spine" or "upperChest" || name.StartsWith("thumb") || name.StartsWith("index") || name.StartsWith("middle") || name.StartsWith("ring")) cachePose[b] = false;
         }
     }
-    internal bool CanSit => !Humans.OwnClips.ContainsKey(kind);
+    internal bool CanSit => !Humans.OwnClips.ContainsKey(kind) && load == null;
+    /// <summary>The cask lying before a man who rolls one, when the clip does not move it itself (peopleRig.json
+    /// work.clips.cask_roll.cask.at: across before him, its middle 0.6 m ahead, on its side).</summary>
+    internal static readonly Vector3 CaskAt = new(0, 0.33f, 0.6f);
     private bool indoor;
     internal void SetIndoor(bool value){indoor=value;vehicle.UseExternal(value);}
     internal void UseExternalVehicle(bool external) => vehicle.UseExternal(external);
     private string? load;          // what is carried: "sack", "crate", "fishbox", "keg" (Crowd.PuppetLoad)
     private bool dropPending;      // a sack just let go: set it down before standing
+    private bool ownSack;          // the kind always carries its sack (docker_sack)
     private float roll;            // the distance walked (a rolled cask turns by it)
     private Vector3 lastAt;
     private bool hadAt;
@@ -152,7 +157,9 @@ internal sealed class Human2
                     basket.SetMeta("palm_local", basketPalm);
                 }
                 else if (att.BoneName.ToString() is "gripL" or "gripR") inHand.Add(att);
+                else if (att.GetChildCount() > 0 && att.GetChild(0) is Node3D bag && bag.Name.ToString() is "held_basket_cloth" or "held_mussels") setDown.Add((bag, bag.Transform));
             }
+        if (basket != null) setDown.Add((basket, basket.Transform));
         ShowHeld();
     }
 
@@ -160,7 +167,61 @@ internal sealed class Human2
     {
         bool busy = (clip?.Work ?? false) || load != null;
         foreach (var b in inHand) if (GodotObject.IsInstanceValid(b)) b.Visible = !busy;
-        if (basket != null) basket.Visible = !busy;
+        // a basket is set down beside her while she works on the spot (#169), put away while she carries
+        bool working = clip != null && clip.Work && load == null && !PacedLoop && motion is not ("walk" or "carry" or "push" or "ride");
+        foreach (var (bag, _) in setDown) if (GodotObject.IsInstanceValid(bag)) bag.Visible = load == null && (working || !busy);
+        if (!working) LiftBaskets();
+    }
+
+    private readonly List<(Node3D node, Transform3D hung)> setDown = new();
+    private bool basketsDown;
+    private float basketsClock;
+
+    /// <summary>The baskets she carries on her hip stand on the ground at her left while she works: the real
+    /// ground under each (a step, the pavement, the cobbles), upright, measured now and then.</summary>
+    private void SetBasketsDown(float dt)
+    {
+        if (setDown.Count == 0 || (basketsDown && (basketsClock -= dt) > 0)) return;
+        basketsClock = 0.5f;
+        basketsDown = true;
+        var space = root.GetWorld3D()?.DirectSpaceState;
+        float k = hips / 0.902f;
+        var body = root.GlobalTransform;
+        var upright = new Basis(Vector3.Right, Vector3.Down, Vector3.Forward);
+        for (int i = 0; i < setDown.Count; i++)
+        {
+            var (bag, _) = setDown[i];
+            if (!GodotObject.IsInstanceValid(bag)) continue;
+            bag.TopLevel = true;
+            // her left, a little ahead (clear of the knees), the next one further out
+            var spot = body * new Vector3((0.46f + 0.3f * i) * k, 0, 0.12f * k);
+            float ground = spot.Y;
+            if (space != null)
+            {
+                var hit = space.IntersectRay(PhysicsRayQueryParameters3D.Create(spot + Vector3.Up * 1.2f, spot + Vector3.Down * 1.5f, World.Solid.Layer));
+                if (hit.Count > 0) ground = ((Vector3)hit["position"]).Y;
+            }
+            var turn = body.Basis * upright;
+            float low = float.MaxValue;
+            foreach (var m in World.BakedWorld.All(bag).OfType<MeshInstance3D>())
+                if (m.Mesh != null)
+                {
+                    var box = m.Mesh.GetAabb();
+                    var t = Transform3D.Identity;
+                    for (Node? up = m; up != null && up != bag; up = up.GetParent()) if (up is Node3D q) t = q.Transform * t;
+                    for (int c = 0; c < 8; c++) low = Math.Min(low, (turn * (t * box.GetEndpoint(c))).Y);
+                }
+            if (low == float.MaxValue) low = 0;
+            bag.GlobalTransform = new Transform3D(turn, new Vector3(spot.X, ground - low, spot.Z));
+        }
+    }
+
+    private void LiftBaskets()
+    {
+        if (!basketsDown) return;
+        basketsDown = false;
+        foreach (var (bag, hung) in setDown)
+            if (GodotObject.IsInstanceValid(bag)) { bag.TopLevel = false; bag.Transform = hung; }
     }
     /// <summary>The height of the pile in front (m over the feet), when the game knows it: picks the lift.</summary>
     internal float PileTop = -1;
@@ -204,7 +265,7 @@ internal sealed class Human2
         fam = People2Moves.Of(People2.BaseBody.GetValueOrDefault(body, body));
         workFam = People2Moves.WorkOf(fam?.Name);
         // a kind that always carries its sack (docker_sack) has it on the shoulder from the start
-        if (People2Moves.KindClip(kind, "walk") == People2Moves.Loads.GetValueOrDefault("sack")?.Walk) load = "sack";
+        if (People2Moves.KindClip(kind, "walk") == People2Moves.Loads.GetValueOrDefault("sack")?.Walk) { load = "sack"; ownSack = true; }
         Seed(People2Moves.Hash(kind) ^ (uint)Humans.Rng.Next());
         Play("idle", 0);
     }
@@ -301,13 +362,14 @@ internal sealed class Human2
         if (People2Moves.KindClip(kind, m) is { } own && People2.Clips.ContainsKey(own)) return own;
         if (vehicle.Present && m is "talk" or "fold" or "behind" or "lean" or "sit")
             return People2Moves.KindClip(kind, "idle");
-        // a load decides how he walks and stands with it
+        // a cask is rolled along before him (#132): walking he rolls it; standing it lies at his feet, hands free
+        if (load == "cask")
+            return m is "walk" or "carry" or "push" && workFam?.Context("cask") is { Length: > 0 } rolls ? rolls[0] : null;
+        // a load decides how he walks and stands with it: every motion keeps both hands on it (#148), so a held
+        // load never floats before arms that do something else (a docker who always has his sack bends at the pile:
+        // he stands with it)
         if (load != null && People2Moves.Loads.TryGetValue(load == "sack" ? "sack" : "crate", out var spec))
-        {
-            if (m is "walk" or "carry") return spec.Walk;
-            // (a docker who always has his sack bends at the pile: he stands with it)
-            if (m is "idle" or "talk" or "fold" or "crouch") return spec.Hold;
-        }
+            return m is "walk" or "carry" or "push" or "ride" ? spec.Walk : spec.Hold;
         if (workFam == null) return null;
         if (Work == "haul_sack" && m == "crouch" && load == null)
         {
@@ -321,7 +383,9 @@ internal sealed class Human2
         }
         if (Work == "fish_stall" && m is "idle" or "fold")
         {
+            // (made on the stout woman; every body shares the skeleton, so any fishwife at a table guts with it)
             var gut = workFam.Context("fish_stall");
+            if (gut.Length == 0 && Female) gut = People2Moves.WorkOf("wstout")?.Context("fish_stall") ?? gut;
             if (gut.Length > 0) return gut[0];
         }
         if (Work is { } w && m == "pull" && workFam.Context(w) is { Length: > 0 } wl) return wl[0];
@@ -339,12 +403,16 @@ internal sealed class Human2
     /// sweeper's).</summary>
     internal string? Choose(string m) => WorkClip(m);
 
+    internal float RatioTo(string clipName) => People2.Clips.TryGetValue(clipName, out var c) && c.Hips > 0 ? hips / c.Hips : 1;
+
     /// <summary>How long the work clip now playing has still to run (a lift, a set-down; 0 for a loop).</summary>
     internal float WorkSeconds => clip != null && clip.Work && !clip.Loop ? Math.Max(0, clip.Length - time) + (queued != null ? 0.3f : 0) : 0;
 
     /// <summary>A load in his arms or on his shoulder (null: put down). A sack let go is set down first.</summary>
     internal void Load(string? kind_)
     {
+        // a kind that always carries its sack (docker_sack) keeps it when a job's load is taken off him
+        if (kind_ == null && ownSack) kind_ = "sack";
         if (kind_ == load) return;
         if (kind_ == null && load == "sack" && clip != null && !(clip.Work && !clip.Loop)) dropPending = true;
         if (kind_ == "sack") { things.DropClear(); dropPending = false; }
@@ -365,6 +433,42 @@ internal sealed class Human2
     internal string? Carrying => load;
 
     internal void CarryNode(Node3D? node) => things.Attach(node);
+
+    private Vector3? gripL, gripR;
+    private int gripBoneL = -2, gripBoneR = -2, handBoneL, handBoneR;
+    internal void GripTargets(Vector3? left, Vector3? right) { gripL = left; gripR = right; }
+
+    /// <summary>The grip sockets on their targets (a rider's hands on the grips), the clip's hand turn kept.</summary>
+    private void HoldGrips()
+    {
+        if (gripBoneL == -2)
+        {
+            gripBoneL = sk.FindBone("gripL"); gripBoneR = sk.FindBone("gripR");
+            handBoneL = sk.FindBone("handL"); handBoneR = sk.FindBone("handR");
+        }
+        var toSkeleton = sk.Transform.AffineInverse();
+        for (int side = 0; side < 2; side++)
+        {
+            var target = side == 0 ? gripL : gripR;
+            int grip = side == 0 ? gripBoneL : gripBoneR, hand = side == 0 ? handBoneL : handBoneR;
+            if (target == null || grip < 0 || hand < 0) continue;
+            var handPose = sk.GetBoneGlobalPose(hand);
+            var rotation = handPose.Basis.GetRotationQuaternion();
+            var offset = handPose.AffineInverse() * sk.GetBoneGlobalPose(grip).Origin;
+            layers.Arm(side, toSkeleton * target.Value - rotation * offset, rotation);
+        }
+        People2Shoulders.Apply(sk);
+    }
+
+    /// <summary>Empty hands now: no set-down, no sack left lying, no node held (a pooled body starts clean).</summary>
+    internal void ClearLoad()
+    {
+        things.Attach(null);
+        things.DropClear();
+        dropPending = false;
+        load = ownSack ? "sack" : null;
+        ShowHeld();
+    }
 
     private People2Moves.Seat? SeatFor(float s)
     {
@@ -420,6 +524,11 @@ internal sealed class Human2
     internal void Start()
     {
         Array.Clear(poseWritten);
+        gripL = gripR = null;
+        // a pooled body forgets its last owner's work (a fish table, a sack pile, a winch) and stands up its baskets
+        work = null; PileTop = -1;
+        things.Hidden.Clear();
+        LiftBaskets();
         Play("idle", 0);
         time = (float)Humans.Rng.NextDouble() * clip.Length; phase = 0; speeds.Clear();
         idleClock = (float)Humans.Rng.NextDouble() * 20;
@@ -453,7 +562,7 @@ internal sealed class Human2
             }
         }
         // sitting down and getting up (only with a fade: a placement with none is a figure put in its seat)
-        if (fam != null && fade > 0 && clip != null && settled)
+        if (fam != null && fade > 0 && clip != null && settled && load == null)
         {
             string seatKind = seatInfo != null ? SeatKind(seatInfo) : "bench";
             if (m == "sit" && (IsStanding(before) || before == "walk") && fam.Change(true, seatKind) is { } down && People2.Clips.ContainsKey(down)) { queued = name; name = down; }
@@ -501,6 +610,8 @@ internal sealed class Human2
     }
 
     internal int ThingsShown => things.Shown;
+    internal Transform3D? ThingPose(string model) => things.Pose(model, clip, time, hips / clip.Hips, roll);
+    internal void HideThing(string model, bool hide) { if (hide) things.Hidden.Add(model); else things.Hidden.Remove(model); }
 
     internal void ReleaseFeet() => layers.ReleaseFeet();
 
@@ -666,15 +777,19 @@ internal sealed class Human2
         var at = root.GlobalPosition;
         if (hadAt) roll += new Vector2(at.X - lastAt.X, at.Z - lastAt.Z).Length() / Math.Max(0.01f, root.GlobalBasis.Y.Length());
         lastAt = at; hadAt = true;
-        if (!externalWorkThings && (clip.Things.Length > 0 || load != null))
+        if (!externalWorkThings && (clip.Things.Length > 0 || clip.Held.Length > 0 || load != null))
         {
-            if (root.GlobalPosition.DistanceSquaredTo(Main.I.Cam.GlobalPosition) < 3600) things.Show(clip, time, bodyRatio, load, roll);
+            if (root.GlobalPosition.DistanceSquaredTo(Main.I.Cam.GlobalPosition) < 3600) { things.Show(clip, time, bodyRatio, load, roll); if (clipName == "gut") things.GutFish(time, bodyRatio); }
             else things.HideAll();
         }
         else if (things.Shown > 0) things.HideAll();
         if (root.GlobalPosition.DistanceSquaredTo(Main.I.Cam.GlobalPosition) < 3600)
             layers.Hands(clipName, time, bodyRatio, blend);
-        BasketPose();
+        if (gripL != null || gripR != null) HoldGrips();
+        if (clip.Kneel && fadeLeft <= 0 && root.GlobalPosition.DistanceSquaredTo(Main.I.Cam.GlobalPosition) < 3600) HandsOnSurface(dt);
+        else surfaceLift[0] = surfaceLift[1] = 0;
+        if (basketsDown || (clip.Work && load == null && setDown.Count > 0 && motion is not ("walk" or "carry" or "push" or "ride") && !PacedLoop && fadeLeft <= 0)) { if (clip.Work) SetBasketsDown(dt); }
+        else BasketPose();
         vehicle.Update(dt, clipName.StartsWith("truck_", StringComparison.Ordinal) || clipName.StartsWith("cart_", StringComparison.Ordinal));
         things.Tick(dt);
         Dev.PeopleTiming.ProfileEnd(propStart, 2);
@@ -700,9 +815,85 @@ internal sealed class Human2
         People2Shoulders.Apply(sk);
     }
 
-    /// <summary>The D3 clips put their own hips where the work needs them (on the knees, crouched, seated at the
-    /// lace pillow, in the air): no lift from the game.</summary>
+    /// <summary>The D3 clips put their own hips where the work needs them (seated at the lace pillow, in the air):
+    /// no lift from the game. A kneeling or crouching clip is authored over the feet's standing height: the game
+    /// puts its knees and toes on the real ground (KneelContacts, #169).</summary>
     internal float MotionLift() => 0;
+
+    private readonly float[] surfaceLift = new float[2], surfaceWant = new float[2];
+    private float surfaceClock;
+    /// <summary>On the knees, a hand at work low before her (a scrubbing brush, a hand propped) rests on what is
+    /// under it: the doorstep's top is higher than the pavement she kneels on (#169). The brush in that hand rises
+    /// with it.</summary>
+    private void HandsOnSurface(float dt)
+    {
+        if (gripBoneL == -2) { gripBoneL = sk.FindBone("gripL"); gripBoneR = sk.FindBone("gripR"); handBoneL = sk.FindBone("handL"); handBoneR = sk.FindBone("handR"); }
+        if (kneeL == -2) { Span<Vector3> unused = stackalloc Vector3[6]; KneelContacts(unused); }
+        if (gripBoneL < 0 || gripBoneR < 0 || kneeL < 0 || kneeR < 0) return;
+        var toWorld = sk.GlobalTransform;
+        if ((surfaceClock -= dt) <= 0)
+        {
+            surfaceClock = 0.1f;
+            var space = root.GetWorld3D()?.DirectSpaceState;
+            if (space == null) return;
+            var knees = toWorld * ((sk.GetBoneGlobalPose(kneeL).Origin + sk.GetBoneGlobalPose(kneeR).Origin) / 2);
+            var under = space.IntersectRay(PhysicsRayQueryParameters3D.Create(knees + Vector3.Up * 0.4f, knees + Vector3.Down * 0.6f, World.Solid.Layer));
+            if (under.Count == 0) return;
+            float ground = ((Vector3)under["position"]).Y;
+            for (int side = 0; side < 2; side++)
+            {
+                var grip = toWorld * sk.GetBoneGlobalPose(side == 0 ? gripBoneL : gripBoneR).Origin;
+                surfaceWant[side] = 0;
+                if (grip.Y - ground > 0.2f) continue;
+                var hit = space.IntersectRay(PhysicsRayQueryParameters3D.Create(new Vector3(grip.X, ground + 0.45f, grip.Z), new Vector3(grip.X, ground - 0.05f, grip.Z), World.Solid.Layer));
+                if (hit.Count > 0) surfaceWant[side] = Math.Clamp(((Vector3)hit["position"]).Y - ground, 0, 0.3f);
+            }
+        }
+        var up = toWorld.Basis.Inverse() * Vector3.Up; // a world metre up, in the skeleton frame
+        // the brush (a thing on its own track) goes up with the hand that holds it: the nearer one
+        var brush = sk.GetNodeOrNull<Node3D>("work_brush") is { Visible: true } b ? b : null;
+        int holder = -1;
+        if (brush != null)
+        {
+            float l = brush.Transform.Origin.DistanceTo(sk.GetBoneGlobalPose(handBoneL).Origin), r = brush.Transform.Origin.DistanceTo(sk.GetBoneGlobalPose(handBoneR).Origin);
+            holder = Math.Min(l, r) < 0.25f ? (l < r ? 0 : 1) : -1;
+        }
+        for (int side = 0; side < 2; side++)
+        {
+            surfaceLift[side] += (surfaceWant[side] - surfaceLift[side]) * Math.Min(1, dt * 10);
+            if (surfaceLift[side] < 0.004f) continue;
+            int hand = side == 0 ? handBoneL : handBoneR;
+            var pose = sk.GetBoneGlobalPose(hand);
+            var lift = up * surfaceLift[side];
+            layers.Arm(side, pose.Origin + lift, pose.Basis.GetRotationQuaternion());
+            if (side == holder) brush!.Transform = new Transform3D(brush.Transform.Basis, brush.Transform.Origin + lift);
+        }
+        People2Shoulders.Apply(sk);
+    }
+
+    private int kneeL = -2, kneeR, toeL, toeR, ankleL, ankleR;
+    /// <summary>A kneeling or crouching clip now (fully faded in)? Then the points that touch the ground in the
+    /// figure's own frame: both knees (their front, a knee's half thickness below the joint), both toes and the
+    /// heels' backs, the lowest first decide.</summary>
+    internal bool KneelContacts(Span<Vector3> points)
+    {
+        if (!clip.Kneel || fadeLeft > 0 || points.Length < 6) return false;
+        if (kneeL == -2)
+        {
+            kneeL = sk.FindBone("legLowL"); kneeR = sk.FindBone("legLowR"); toeL = sk.FindBone("toeL"); toeR = sk.FindBone("toeR");
+            ankleL = sk.FindBone("footL"); ankleR = sk.FindBone("footR");
+        }
+        if (kneeL < 0 || kneeR < 0 || toeL < 0 || toeR < 0 || ankleL < 0 || ankleR < 0) return false;
+        var t = sk.Transform;
+        float k = hips / 0.902f;
+        points[0] = t * sk.GetBoneGlobalPose(kneeL).Origin + Vector3.Down * 0.055f * k;
+        points[1] = t * sk.GetBoneGlobalPose(kneeR).Origin + Vector3.Down * 0.055f * k;
+        points[2] = t * sk.GetBoneGlobalPose(toeL).Origin + Vector3.Down * 0.02f * k;
+        points[3] = t * sk.GetBoneGlobalPose(toeR).Origin + Vector3.Down * 0.02f * k;
+        points[4] = t * sk.GetBoneGlobalPose(ankleL).Origin + Vector3.Down * 0.06f * k;
+        points[5] = t * sk.GetBoneGlobalPose(ankleR).Origin + Vector3.Down * 0.06f * k;
+        return true;
+    }
 
     internal void Dispose()
     {

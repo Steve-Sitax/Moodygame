@@ -89,6 +89,19 @@ Interior rays need the live room part's `IInteriorAuditSource` to certify room v
 fails and marks the probes diagnostic. Floor connectivity, seams, containment, shader-only cutouts and unmarked
 painted windows remain outside that fallback.
 
+## Loads and work poses
+
+`--carry-proof <dir>` (with `--no-ai --no-mainmenu --dev`, its own `--db`, `--prefs`, `--author-root`, port and
+`SCHELDEMIST_USER_DATA`) stages the carry and work fixes in the real town and writes `carry.json` and close 13:00
+pictures (`People/CarryProof.cs`). `--carry-proof-only` picks stages: `loads` (one load per person, hands on it,
+pooled bodies empty-handed), `ride` (grip sockets on the handlebar grips), `grinder`, `fish`, `scrub` (knees and toes
+on the ground, the brush on the step, baskets set down), `crane` (the portal crane's drum and crankshaft turn),
+`works` (the crab winch cranked, hands on its handle), `work` (cask runs, street and door sweepers), `piles` (the
+haul piles drawn as goods and shrinking), `held` (ledger, book, rifle, knife), `goods` (the work goods, the emigrants'
+camp), `clips`. Morning work keeps its own clock; the pictures' light is set to 13:00 clear. Exit 1 on a failed
+check. The work goods are built with `native-godot/scripts/build-workgoods.ps1` and stored with
+`replace-workgoods.ps1`.
+
 ## Conversations and indoor entrances
 
 Build/import the native project first. `pwsh -File native-godot/scripts/check-conversations.ps1 -Output <fresh-directory> -Port 8925`

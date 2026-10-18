@@ -52,6 +52,7 @@ public partial class Walkups : Node
     private readonly List<Call> calls = new();
     private readonly List<(double x, double z)> path = new();
     private Townspeople? town;
+    internal Crowd? Crowd => town?.Crowd;
     private Call? trouble;
     private int troubleId;
     public int Calls => calls.Count;

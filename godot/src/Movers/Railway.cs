@@ -280,6 +280,8 @@ public partial class Railway : Node
         public int Lifts, Trips, Yields;
         public float YieldT, Lend, AwayX, AwayZ;
         public bool MoveOn;
+        /// <summary>The winch's drum and crankshaft, turning while it hoists (#128).</summary>
+        public CraneMachinery.Parts? Winch;
     }
 
     private Node3D group = null!;
@@ -412,6 +414,9 @@ public partial class Railway : Node
         if (MoversTest.On) {Probes();CrewProbes();}
     }
 
+    /// <summary>For a check: each crane's turning part, its winch and its hook's height.</summary>
+    internal IEnumerable<(Node3D Jib, CraneMachinery.Parts? Winch, float Hy)> CraneWinches { get { foreach (var c in cranes) yield return (c.Jib, c.Winch, c.Hy); } }
+
     private AnimatableBody3D NewBox(string name, Vector3 size)
     {
         var b = new AnimatableBody3D { Name = name, SyncToPhysics = false, CollisionLayer = Solid.Layer, CollisionMask = 0, Position = new Vector3(0, -100, 0) };
@@ -486,6 +491,7 @@ public partial class Railway : Node
             else c.A = c.ShipA.Value;
             if (c.ShipA == null && c.Pile == null) continue;
             c.IdleTo = c.A;
+            c.Winch = CraneMachinery.Fit(c.Jib);
             cranes.Add(c);
         }
         foreach (var c in cranes)
@@ -1452,6 +1458,7 @@ public partial class Railway : Node
         {
             var c = cranes[i];
             c.Jib.Rotation = new Vector3(0, c.A, 0);
+            if (c.Winch != null) CraneMachinery.Turn(c.Winch, c.Hy);
             float co = MathF.Cos(c.Yaw), si = MathF.Sin(c.Yaw);
             for (int k = 0; k < 8; k++)
             {

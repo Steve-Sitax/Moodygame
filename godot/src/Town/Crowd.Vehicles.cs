@@ -16,7 +16,7 @@ internal sealed class NativePersonVehicle
     public int Kind, Load, Goods;
     public double X, Z, Distance, Speed, Nose, Reach;
     public float Size;
-    public Node3D? Root, Front, Rear;
+    public Node3D? Root, Front, Rear, Steer;
     public Handcart? Cart;
     public NativeLedDray? Dray;
     public readonly List<Node3D> Items = new();
@@ -54,6 +54,7 @@ public sealed partial class Crowd
                 parent.AddChild(v.Root);
                 v.Front = BakedWorld.All(v.Root).OfType<Node3D>().FirstOrDefault(n => n.Name == "velocipede_front");
                 v.Rear = BakedWorld.All(v.Root).OfType<Node3D>().FirstOrDefault(n => n.Name == "velocipede_rear");
+                v.Steer = BakedWorld.All(v.Root).OfType<Node3D>().FirstOrDefault(n => n.Name == "velocipede_steer");
             }
             p.Human.Play("ride", .2f);
         } else if (kind == 2) {
@@ -90,6 +91,7 @@ public sealed partial class Crowd
     {
         if (p.Vehicle is not { } v) return;
         v.Root?.QueueFree(); p.Nose = v.Nose; p.Reach = v.Reach; p.Size = v.Size;
+        p.Human.GripTargets(null, null);
         p.Group.Scale = Vector3.One * p.Size; p.Vehicle = null;
         p.Human.Play(p.PMotion, .3f);
     }
@@ -138,6 +140,10 @@ public sealed partial class Crowd
     {
         if (kind == "sack" && Carried.Sack(.88f,.3f,.5f) is { } sack) return sack;
         if (kind == "crate" && CrateModel.Make(i % CrateModel.Goods, false, CrateModel.Class["small"]) is { } crate) return crate;
+        // the household's tub and lidded basket are the work goods' own (#151), a little smaller to fit the cart's
+        // slots; the chair is the street's chair (lively.glb, the lace makers' and the stall keepers')
+        if (kind is "tub" or "basket" && WorkGoods.Copy(kind, kind == "tub" ? 0.7f : 0.78f) is { } goods) { var holder = new Node3D { Name = "cart_" + kind }; holder.AddChild(goods); return holder; }
+        if (kind == "chair" && Scheldemist.Models.ModelLibrary.Get("lively", WorkGoods.Look)?.Copy("chair") is { } chair) { chair.Transform = Transform3D.Identity; var holder = new Node3D { Name = "cart_chair" }; holder.AddChild(chair); return holder; }
         var root = new Node3D { Name = "cart_" + kind };
         if (kind is "basket" or "tub") {
             float r = kind == "tub" ? .22f : .2f, h = kind == "tub" ? .2f : .24f;
@@ -186,6 +192,9 @@ public sealed partial class Crowd
             if(v.Root!=null){v.Root.Visible=shown&&!v.InitialHeading;v.Root.Position=new((float)p.X,(float)ground,(float)p.Z);v.Root.Rotation=new(0,(float)p.Yaw,0);}
             if(v.Front!=null)v.Front.Rotation=new((float)(v.Distance/.46),0,0);
             if(v.Rear!=null)v.Rear.Rotation=new((float)(v.Distance/.38),0,0);
+            // both hands on the actual grips (#172): the grips' middles on the steering head (build_velocipede.py, as
+            // Velocipedes.PlayerGrip), in the rider's own frame so the hands follow on the next pose
+            if(v.Root!=null){var root=p.Human.Root.GlobalTransform.AffineInverse();Vector3 Grip(float x)=>v.Steer?.ToGlobal(new(x,.626f,-.11f))??v.Root.ToGlobal(new(x,1.086f,.45f));p.Human.GripTargets(root*Grip(.36f),root*Grip(-.36f));}
         } else if(v.Cart!=null) {
             // walking only while actually moving: held at a corner, the driver stands rather than walking on the spot
             bool going=p.State=="walk"&&v.Speed>.1;

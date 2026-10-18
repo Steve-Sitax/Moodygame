@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text.Json;
 using Godot;
 using Scheldemist.Models;
@@ -8,9 +9,11 @@ namespace Scheldemist.People;
 
 // Package D3: what a work clip moves (peopleRig.json work.clips.<clip>.things). One model per thing, the game's
 // own: the one sack (People/Carried.cs), the quay's cask, the alleys' birch broom, the lively scrubbing brush and
-// pipe. A thing rides a bone (an offset in the bone's frame) or follows a track in the person's frame (positions
-// for the clip's body, scaled by the hips). Things without a model in the game (a knife, a book, a rifle, a crank)
-// are left out. docs/godot-people2.md "Work".
+// pipe, the herring the fishwife guts and the clerk's open ledger (workgoods), the guide's book (people2's held
+// book). A thing rides a bone (an offset in the bone's frame) or follows a track in the person's frame (positions
+// for the clip's body, scaled by the hips). What the hands hold all through a clip (work.clips.*.held: the gutting
+// and grinding knife on gripR) rides its socket in the held models' frame (#131). The sentry's rifle is his own
+// held model (People2.Make), the oars are the boats'. docs/godot-people2.md "Work".
 internal sealed class People2Things
 {
     internal sealed class Thing
@@ -25,7 +28,7 @@ internal sealed class People2Things
         public float Radius = 0.33f;
     }
 
-    internal static Thing[] Parse(JsonElement things)
+    internal static Thing[] Parse(JsonElement things, string clip = "")
     {
         var list = new List<Thing>();
         foreach (var p in things.EnumerateObject())
@@ -34,6 +37,8 @@ internal sealed class People2Things
             // a pair's second man draws nothing: his partner's clip moves the thing between them (the sack passed)
             if (v.TryGetProperty("from", out var from) && from.GetString() == "partner") continue;
             var t = new Thing { Name = p.Name, Model = v.TryGetProperty("model", out var m) ? m.GetString()! : p.Name };
+            // the clerk writes in his open ledger; the guide holds a book
+            if (t.Model == "book" && clip == "write") t.Model = "ledger";
             if (v.TryGetProperty("roll", out var roll) && roll.ValueKind == JsonValueKind.True) t.Roll = true;
             if (v.TryGetProperty("radius", out var r)) t.Radius = r.GetSingle();
             if (v.TryGetProperty("size", out var sz) && sz.ValueKind == JsonValueKind.Array && sz.GetArrayLength() == 3)
@@ -61,9 +66,11 @@ internal sealed class People2Things
     }
 
     /// <summary>Does the game have a model for this thing?</summary>
-    internal static bool Has(string model) => model is "sack" or "cask" or "broom" or "brush" or "pipe" or "crank";
+    internal static bool Has(string model) => model is "sack" or "cask" or "broom" or "brush" or "pipe" or "crank" or "book"
+        || model is "fish" or "knife" or "ledger" && Models.ModelLibrary.Available("workgoods");
 
     private static Mesh? pipeStem, pipeBowl;
+    private static float caskLift;
     private static readonly ModelLibrary.Look Plain = new(TwoSided: true, Affine: 0, VertexColor: true);
 
     /// <summary>A copy of a thing's model in the thing's own frame (x along it, y up, middle at the origin).</summary>
@@ -106,6 +113,23 @@ internal sealed class People2Things
                     part.Scale = new Vector3(0.24f / 0.45f, 0.24f / 0.45f, 0.36f / 0.28f);
                 }
                 break;
+            case "knife":
+                // (the held models' frame: the grip at the origin, the tip along +y, the edge along -z)
+                part = ModelLibrary.Get("workgoods", Plain)?.Copy("held_knife");
+                break;
+            case "fish":
+                // one herring: x along it, its head toward +x, its back up (the thing's frame)
+                part = ModelLibrary.Get("workgoods", Plain)?.Copy("held_fish");
+                break;
+            case "ledger":
+                // open, its pages up, the right page's middle at the origin, the pages' length along z
+                part = ModelLibrary.Get("workgoods", Plain)?.Copy("ledger_open");
+                break;
+            case "book":
+                // people2's own book (the customs' port ledger, the priest's breviary), laid flat in the thing's
+                // frame: its thickness up, its length along z, its middle at the origin
+                part = People2.HeldCopy("held_book") is { } book ? Flat(book) : null;
+                break;
             case "pipe":
                 pipeStem ??= Town.StreetWindows.PipeStem;
                 pipeBowl ??= Town.StreetWindows.PipeBowl;
@@ -116,9 +140,51 @@ internal sealed class People2Things
                 break;
         }
         if (part == null) { holder.Free(); return null; }
+        if (model == "cask")
+        {
+            // the quay's cask is a little fatter at its bilge than the cask the rolling clip was made with (0.33 m):
+            // it rides that much higher, so it rolls on the ground
+            float r = 0;
+            foreach (var n in World.BakedWorld.All(part))
+                if (n is MeshInstance3D { Mesh: not null } m)
+                {
+                    var t = part.Transform;
+                    for (Node? up = m; up != null && up != part; up = up.GetParent()) if (up is Node3D q) t = t * q.Transform;
+                    var box = m.Mesh.GetAabb();
+                    for (int c = 0; c < 8; c++) { var w = t * box.GetEndpoint(c); r = Math.Max(r, new Vector2(w.Y, w.Z).Length()); }
+                }
+            caskLift = Math.Max(0, r - 0.33f);
+        }
         foreach (var n in World.BakedWorld.All(part))
             if (n is GeometryInstance3D g) g.CastShadow = GeometryInstance3D.ShadowCastingSetting.Off;
         holder.AddChild(part);
+        return holder;
+    }
+
+    /// <summary>A held model turned to lie in a thing's frame: its thinnest side up (y), its longest along z, its
+    /// middle at the origin.</summary>
+    private static Node3D Flat(Node3D model)
+    {
+        Aabb? box = null;
+        foreach (var n in World.BakedWorld.All(model))
+            if (n is MeshInstance3D { Mesh: not null } m)
+            {
+                var t = Transform3D.Identity;
+                for (Node? up = m; up != null && up != model; up = up.GetParent()) if (up is Node3D q) t = q.Transform * t;
+                var b = t * m.Mesh.GetAabb();
+                box = box is { } a ? a.Merge(b) : b;
+            }
+        if (box is not { } bb) return model;
+        var size = bb.Size;
+        var axes = new[] { (0, size.X), (1, size.Y), (2, size.Z) }.OrderBy(a => a.Item2).ToArray();
+        Vector3 Axis(int i) => i == 0 ? Vector3.Right : i == 1 ? Vector3.Up : Vector3.Back;
+        // rows of the turn: the thing's x, y, z taken from the model's middle, thinnest and longest sides
+        Vector3 r0 = Axis(axes[1].Item1), r1 = Axis(axes[0].Item1), r2 = Axis(axes[2].Item1);
+        if (r0.Cross(r1).Dot(r2) < 0) r0 = -r0; // (a turn, not a mirror)
+        var basis = new Basis(r0, r1, r2).Transposed();
+        var holder = new Node3D();
+        model.Transform = new Transform3D(basis, -(basis * bb.GetCenter()));
+        holder.AddChild(model);
         return holder;
     }
 
@@ -161,9 +227,24 @@ internal sealed class People2Things
             var n = Node(th.Model);
             if (n == null) continue;
             n.Transform = Place(th, t, ratio, roll, out var size);
+            // (a thing the world has itself, the works' winch its own crank: placed for the hands, not drawn)
+            if (Hidden.Contains(th.Model)) { n.Visible = false; used[th.Model] = true; continue; }
+            if (th.Model == "cask") n.Transform = n.Transform.Translated(Vector3.Up * caskLift);
             Size(n, th.Model, size ?? th.Size);
             n.Visible = true;
             used[th.Model] = true;
+            shown++;
+        }
+        // what the hands hold all through the clip, on its socket (the knife on gripR)
+        foreach (var (heldModel, socket) in clip.Held)
+        {
+            if (!Has(heldModel)) continue;
+            int bone = BoneOf(socket);
+            var n = Node(heldModel);
+            if (n == null || bone < 0) continue;
+            n.Transform = sk.GetBoneGlobalPose(bone);
+            n.Visible = true;
+            used[heldModel] = true;
             shown++;
         }
         // a load the clip does not move itself rides where the loads table says (the sack on the shoulder)
@@ -179,6 +260,14 @@ internal sealed class People2Things
                 used[load] = true;
                 shown++;
             }
+        }
+        // a cask he rolls lies at his feet while he stands (the roll clip moves it itself)
+        if (load == "cask" && !used.GetValueOrDefault("cask") && Node("cask") is { } cask)
+        {
+            cask.Transform = new Transform3D(Basis.Identity, Human2.CaskAt * ratio + Vector3.Up * caskLift);
+            cask.Visible = true;
+            used["cask"] = true;
+            shown++;
         }
         foreach (var (model, n) in nodes)
             if (n != null && !used.GetValueOrDefault(model)) n.Visible = false;
@@ -198,6 +287,49 @@ internal sealed class People2Things
     }
 
     private readonly Dictionary<string, bool> used = new();
+    /// <summary>Things of the clips not drawn for this body: the world has them (a winch's own crank).</summary>
+    internal readonly HashSet<string> Hidden = new();
+
+    /// <summary>The herring of the gutting clip (#131), whose path the rig does not carry: clips_work.py gut's
+    /// fish_m in the body's frame: two fish a loop, each taken from the heap at her left, laid on the board, held by
+    /// the head while she slits and scrapes it, then laid in the basket. ratio: this body's size over the clip's.</summary>
+    internal void GutFish(float t, float ratio)
+    {
+        if (!Has("fish") || Node("fish") is not { } fish) return;
+        float k = ratio, top = (0.85f + 0.03f) * k;
+        // (clip frame x left, y forward, z up: the body's x, z, y)
+        var board = new Vector3(0, top, 0.46f * k);
+        var heap = new Vector3(0.34f * k, top + 0.03f, 0.54f * k);
+        var basket = new Vector3(0.30f * k, top + 0.02f, 0.34f * k);
+        var lifted = heap + new Vector3(-0.05f * k, 0.12f * k, -0.06f * k);
+        var onBoard = board + new Vector3(0.03f * k, 0.035f * k, 0);
+        static float Ease(float x) { x = Math.Clamp(x, 0, 1); return x * x * x * (x * (6 * x - 15) + 10); }
+        (Vector3 at, float yaw)? where = null;
+        foreach (float t0 in new[] { 0.2f, 5.0f })
+        {
+            float u = t - t0;
+            if (u < 0 || u > 4.8f) continue;
+            // (a clip yaw of d degrees about up is a turn of -d about the body's y)
+            if (u < 0.7f) where = (heap.Lerp(lifted, Ease(u / 0.7f)), -15f);
+            else if (u < 1.2f) { float w = Ease((u - 0.7f) / 0.5f); where = (lifted.Lerp(onBoard, w), Mathf.Lerp(-15f, 90f, w)); }
+            else if (u < 3.8f) where = (onBoard, 90f);
+            else if (u < 4.5f) { float w = Ease((u - 3.8f) / 0.7f); where = (onBoard.Lerp(basket, w) + Vector3.Up * 0.1f * k * MathF.Sin(MathF.PI * w), Mathf.Lerp(90f, 20f, w)); }
+            else where = (basket, 20f);
+            break;
+        }
+        if (where is not { } w2) { fish.Visible = false; return; }
+        fish.Transform = new Transform3D(new Basis(Vector3.Up, Mathf.DegToRad(w2.yaw)), w2.at);
+        fish.Visible = true;
+        used["fish"] = true;
+        Shown++;
+    }
+
+    /// <summary>Where a clip's thing is at time t in the body's frame, drawn or not (null: the clip has none).</summary>
+    internal Transform3D? Pose(string model, People2.Clip clip, float t, float ratio, float roll)
+    {
+        foreach (var th in clip.Things) if (th.Model == model) return Place(th, t, ratio, roll, out _);
+        return null;
+    }
 
     private Transform3D Place(Thing th, float t, float ratio, float roll, out Vector3? size)
     {

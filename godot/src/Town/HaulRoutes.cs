@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace Scheldemist.Town;
 
@@ -44,7 +45,15 @@ public sealed class HaulRoute
         R("vm-2", "vismarkt", new double[] { -139, 34, -123.6, 33.2 }, -138.2, 33.17, -1.57, "crate", "stall", -123.6, 33.2),
         R("ca-1", "canal", new double[] { -65, 90, -65, 108 }, -65, 85.85, 3.14, "sack", "door", -60.9, 105.5, new[] { -60, 105.5 }),
         R("ca-2", "canal", new double[] { -87, 120, -87, 84 }, -87.68, 117.93, -0.02, "sack", "door", -90.8, 78.7, new[] { -92, 78.7 }),
+        // #132: casks rolled, not carried (no route of the server's: StreetLife's cask runs, client-side by the clock):
+        // Peyrot's cellarmen between the west quay of the Canal des Brasseurs and the wine cellar of the Vleeshuis, the
+        // brewer between the canal's east quay and his brewery door
+        R("ck-vh", "vleeshuis", Array.Empty<double>(), -92.0, 100.65, 0.0, "cask", "door", -116.0, 84.0, new[] { -117.0, 84.0 }),
+        R("ck-br", "brewery", Array.Empty<double>(), -65.0, 95.0, 0.0, "cask", "door", -62.0, 119.5, new[] { -62.0, 120.5 }),
     };
+
+    /// <summary>The cask run of a trade (#132), or null.</summary>
+    public static HaulRoute? CaskRunOf(string trade) => trade switch { "cellarman" => All.First(r => r.Id == "ck-vh"), "brewer" => All.First(r => r.Id == "ck-br"), _ => null };
 
     /// <summary>The route of a docker's two ends (haulRouteOf), or null.</summary>
     public static HaulRoute? Of(Pt? a, Pt? b, double near = 3)
@@ -62,6 +71,22 @@ public sealed class HaulRoute
 
     /// <summary>What a docker carries in his arms on this route: the Vismarkt's routes carry boxes of fish.</summary>
     public string CarryKind => Place == "vismarkt" ? "fishbox" : Carry;
+
+    /// <summary>The route whose way between its two ends passes within `near` of (x, z), nearest first, or null: a
+    /// guest who is only told "loaded" finds what a docker there carries (a crate, a box of fish, a sack).</summary>
+    public static HaulRoute? Near(double x, double z, double near = 3)
+    {
+        HaulRoute? best = null;
+        double bd = near;
+        foreach (var r in All)
+        {
+            double ex = r.B.X - r.A.X, ez = r.B.Z - r.A.Z, len2 = ex * ex + ez * ez;
+            double t = len2 > 0 ? Math.Clamp(((x - r.A.X) * ex + (z - r.A.Z) * ez) / len2, 0, 1) : 0;
+            double d = Whereabouts.Hypot(x - (r.A.X + ex * t), z - (r.A.Z + ez * t));
+            if (d < bd) { bd = d; best = r; }
+        }
+        return best;
+    }
 
     /// <summary>The route of a sack pile whose docker's end (A) is within `near` of (x, z), or null: there a docker
     /// bending down takes a sack up onto his shoulder (people2's lift). From the routes alone, so every PC finds

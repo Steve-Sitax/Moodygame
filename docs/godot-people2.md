@@ -142,25 +142,38 @@ against 0.37/0.29 ms with them bypassed in the same conditions (+0.1 ms); all an
 `People2Things` shows what they move. The wire is unchanged: the motion stays the game's word, the clip is chosen
 locally from the motion, the person's stable id, a load and a context every PC works out the same.
 
-- motions: a family's work clips for scrub (a woman sweeps one doorstep in three, from the id), lace, wash, cross,
-  call, smoke, beg, wall, lean, write, grind, row, ride, crouch, hop, rope (the skipping rope), pull (the rope haul),
-  point (pointing the way or up at the spire, from the id); the family's fallback (D3's) where it has none.
-- kinds: the sentry marches and stands with the rifle (`rifle_*`); docker_sack walks and stands with the sack.
-- loads (`Crowd.PuppetLoad`, people2 only): a sack rides the left shoulder (`sack_walk`, `sack_hold`, the one sack
-  model at `loads.sack`); a crate, a box of fish or a keg is the game's node held against the belly (`crate_walk`,
-  `crate_hold`). A sack let go is set down from the shoulder first (`sack_down`) and stays where it was put until the
-  docker takes up the next or for 30 s.
+- clip names: a D3 clip whose name an older clip had is stored as `name.001` (scrub, crouch, lace, wash, grind, write,
+  row, cross); `People2` gives it the name the work tables mean and keeps the older one as `name_old_clip` (#169).
+- motions: a family's work clips for scrub (a woman sweeps one doorstep in three, from the id; a man always sweeps),
+  lace, wash, cross, call, smoke, beg, wall, lean, write, grind, row, ride, crouch, hop, rope (the skipping rope), pull
+  (the rope haul; the winch at the wall works), point (pointing the way or up at the spire, from the id); the family's
+  fallback (D3's) where it has none.
+- kinds: the sentry marches and stands with the rifle (`rifle_*`, his own held rifle); docker_sack walks and stands
+  with the sack.
+- loads (`Crowd.PuppetLoad`, people2 only): one load per person (#148): a new load replaces the old one, a pooled body
+  comes back empty-handed (`Crowd.EmptyHands`), a purchase is put away while both arms carry. A sack rides the left
+  shoulder (`sack_walk`, `sack_hold`, the one sack model at `loads.sack`); a crate, a box of fish, a keg or a job's
+  own goods item (its stencil kept) is held against the belly (`crate_walk`, `crate_hold`), and every other motion
+  keeps those hands on it; a cask is rolled (`cask_roll`) and lies at his feet when he stands. A sack let go is set
+  down from the shoulder first (`sack_down`) and stays where it was put until the docker takes up the next or for 30 s.
 - contexts: `Human.Work` = `haul_sack` for a docker bending at a sack pile (HaulRoutes: the host's `Townspeople` and
   the guest's `RemotePose` find it from the routes alone): he lifts the sack onto his shoulder (`sack_lift`, or
-  `_high` when `PileTop` says the pile is at his waist). The host waits for the lift and the set-down
-  (`Human.WorkSeconds`; positions are the host's). `fish_stall`: a fishwife behind a market fish table guts (`gut`)
-  while idle or with folded arms; she stands 0.19 m nearer the table (`NativeMarket.People`).
+  `_high` when `PileTop` says the pile is at his waist), the pile's own top goods item when he is drawn (#130,
+  `Play/HaulPiles`). The host waits for the lift and the set-down (`Human.WorkSeconds`; positions are the host's).
+  `fish_stall`: a fishwife behind a market fish table guts (`gut`, knife and herring in her hands) while idle or with
+  folded arms; she stands with the table top's near edge 0.30 m before her, measured on the table model
+  (`NativeMarket.People`). `winch`: the works' navvy at the crab winch (`Town/WallWorks`).
+- kneeling and crouching (`kneel` in the work tables): the crowd lowers the body until its lowest knee or toe rests on
+  the real ground under it (`Crowd.KneelLift`); hands working low rest on a step's top (`Human2.HandsOnSurface`);
+  hip baskets are set down beside her on the ground while she works.
 - kits (`StreetLife`, `StreetKits`): a people2 scrubber's bucket at her left hand and no brush on the ground (it is in
-  her hand), the washer's bucket before her, a smoker's pipe in his hand (the kit's pipe meshes).
+  her hand), the washer's bucket before her, a smoker's pipe in his hand (the kit's pipe meshes); the pieces stand on
+  the ground under each one. A scrubber kneels where her strokes reach her step's top (`ScrubReach`).
 - things (`People2Things`): the one sack (sized per frame: lying, draped over the shoulder), the quay's cask (turned by
-  the distance walked), the alleys' birch broom, the lively scrubbing brush and the pipe; on a bone or on a track in
-  the node's frame, shown within 60 m. A knife, a book, a rifle, a crank and the oars have no game model and are not
-  drawn.
+  the distance walked), the alleys' birch broom, the lively scrubbing brush, the pipe, the herring and the clerk's
+  open ledger (workgoods), the guide's book (people2's held book); on a bone or on a track in the node's frame, shown
+  within 60 m. Held things of a clip (`held`: the gutting and grinding knife on gripR) ride their socket. The oars
+  are the boats'.
 - the D3 clips put their own hips where the work needs them: `Human.MotionLift` is 0 for people2. Paced loops (the
   carries, the cask, the march) play at the walker's pace (two strides a loop) and lock their planted feet as the
   walks do.

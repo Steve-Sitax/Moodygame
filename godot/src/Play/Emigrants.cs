@@ -54,11 +54,14 @@ public partial class Emigrants : Node
             foreach(var n in Scheldemist.World.BakedWorld.All(tow.Lighter.Boat.Outer))
                 if(n is GeometryInstance3D geometry && !n.Name.ToString().Contains("cap"))geometry.Visible=true;
         I=this;town=GetParent().GetNodeOrNull<Townspeople>("Townspeople");PrepareNotice();
-        // All prop meshes and materials exist before play; copies share them.
+        // All prop meshes and materials exist before play; copies share them. The camp's luggage is the work goods'
+        // own (#151): the trunk, the knotted bundle, the rolled featherbed and the lidded basket.
         templates["chest"]=Goods.I.MakeGoods("chests");
-        var bundle=new Node3D();bundle.AddChild(Part(new SphereMesh{Radius=.3f,Height=.6f,RadialSegments=6,Rings=3},Goods.I.Plain(0x7a7470),0,.22f,0));bundle.GetChild<Node3D>(0).Scale=new(1.25f,.75f,1);bundle.AddChild(Part(new SphereMesh{Radius=.08f,Height=.16f,RadialSegments=6,Rings=2},Goods.I.Plain(0x7a7470),0,.47f,0));templates["bundle"]=bundle;
-        var bed=new Node3D();var roll=Part(new CylinderMesh{TopRadius=.3f,BottomRadius=.3f,Height=1.15f,RadialSegments=7,Rings=1},Goods.I.Plain(0xa8a090),0,.3f,0);roll.Rotation=new(0,0,MathF.PI/2);bed.AddChild(roll);foreach(float x in new[]{-.35f,.35f}) {var band=Part(new CylinderMesh{TopRadius=.315f,BottomRadius=.315f,Height=.05f,RadialSegments=7,Rings=1},Goods.I.Plain(0x7a6646),x,.3f,0);band.Rotation=new(0,0,MathF.PI/2);bed.AddChild(band);}templates["featherbed"]=bed;
-        var basket=new Node3D();basket.AddChild(Part(new CylinderMesh{TopRadius=.22f,BottomRadius=.16f,Height=.26f,RadialSegments=7,Rings=1},Goods.I.Plain(0x9a8660),0,.13f,0));templates["basket"]=basket;
+        foreach(var (kind,model) in new[]{("bundle","bundle"),("featherbed","featherbed"),("basket","basket")})
+            if(WorkGoods.Copy(model) is {} work){var holder=new Node3D();holder.AddChild(work);templates[kind]=holder;}
+        if(!templates.ContainsKey("bundle")){var bundle=new Node3D();bundle.AddChild(Part(new SphereMesh{Radius=.3f,Height=.6f,RadialSegments=6,Rings=3},Goods.I.Plain(0x7a7470),0,.22f,0));bundle.GetChild<Node3D>(0).Scale=new(1.25f,.75f,1);bundle.AddChild(Part(new SphereMesh{Radius=.08f,Height=.16f,RadialSegments=6,Rings=2},Goods.I.Plain(0x7a7470),0,.47f,0));templates["bundle"]=bundle;}
+        if(!templates.ContainsKey("featherbed")){var bed=new Node3D();var roll=Part(new CylinderMesh{TopRadius=.3f,BottomRadius=.3f,Height=1.15f,RadialSegments=7,Rings=1},Goods.I.Plain(0xa8a090),0,.3f,0);roll.Rotation=new(0,0,MathF.PI/2);bed.AddChild(roll);foreach(float x in new[]{-.35f,.35f}) {var band=Part(new CylinderMesh{TopRadius=.315f,BottomRadius=.315f,Height=.05f,RadialSegments=7,Rings=1},Goods.I.Plain(0x7a6646),x,.3f,0);band.Rotation=new(0,0,MathF.PI/2);bed.AddChild(band);}templates["featherbed"]=bed;}
+        if(!templates.ContainsKey("basket")){var basket=new Node3D();basket.AddChild(Part(new CylinderMesh{TopRadius=.22f,BottomRadius=.16f,Height=.26f,RadialSegments=7,Rings=1},Goods.I.Plain(0x9a8660),0,.13f,0));templates["basket"]=basket;}
         babyTemplate=new Node3D();babyTemplate.AddChild(Part(new CapsuleMesh{Radius=.1f,Height=.4f,RadialSegments=8,Rings=3},Goods.I.Plain(0x9a7a6a),0,0,0));babyTemplate.GetChild<Node3D>(0).Rotation=new(MathF.PI/2,0,0);babyTemplate.AddChild(Part(new SphereMesh{Radius=.065f,Height=.13f,RadialSegments=6,Rings=3},Goods.I.Plain(0xc69a7a),0,.04f,.17f));babyTemplate.Visible=false;AddChild(babyTemplate);
         foreach(var t in templates.Values){t.Visible=false;AddChild(t);}
         if(Scheldemist.Menu.MainMenu.I is {} menu)menu.WorldReplaced+=Reset;

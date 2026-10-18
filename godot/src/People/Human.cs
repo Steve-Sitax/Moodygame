@@ -290,6 +290,10 @@ public sealed class Human
         _ => 0,
     };
 
+    /// <summary>The points of a people2 body that touch the ground while it kneels or crouches (its own frame);
+    /// false: not kneeling now.</summary>
+    internal bool KneelContacts(Span<Vector3> points) => newer?.KneelContacts(points) ?? false;
+
     /// <summary>How far the hips dip below standing height right now (walking only).</summary>
     public float Bob()
     {
@@ -321,6 +325,10 @@ public sealed class Human
     /// <summary>How long the work clip now playing still runs (a lift, a set-down): the game waits for it.</summary>
     public float WorkSeconds => newer?.WorkSeconds ?? 0;
 
+    /// <summary>This body's size over the body a work clip was made on (people2; 1 for the old kit): a work place
+    /// laid out for the clip (a table's edge, a stone) scales by it.</summary>
+    internal float WorkRatio(string clip) => newer?.RatioTo(clip) ?? 1;
+
     /// <summary>The clip a motion would play for this person (people2), to lay out the kit for it.</summary>
     public string? WorkChoice(string motion) => newer?.Choose(motion);
 
@@ -332,10 +340,26 @@ public sealed class Human
     /// the belly by a people2 body.</summary>
     public void CarryNode(Node3D? node) => newer?.CarryNode(node);
 
+    /// <summary>Hold these points (the figure's own frame) in the grip sockets, left and right: a rider's hands on
+    /// the handlebar grips (people2 only); null lets go.</summary>
+    public void GripTargets(Vector3? left, Vector3? right) => newer?.GripTargets(left, right);
+
+    /// <summary>Empty hands at once, without a set-down (the body goes back to the pool).</summary>
+    public void ClearLoad() => newer?.ClearLoad();
+
+    /// <summary>What a people2 body carries now ("sack", "crate", "keg", "fishbox"; null: nothing).</summary>
+    internal string? Carrying => newer?.Carrying;
+
     /// <summary>The proofs: play a work clip from t (frozen: held there).</summary>
     internal void WorkClipNow(string clip, float t, bool frozen = false) { if (newer != null) { newer.PlayClip(clip, t, frozen); Motion = "work:" + clip; } }
 
     internal int ThingsShown => newer?.ThingsShown ?? 0;
+
+    /// <summary>Where the clip now playing has a thing (a winch's crank) in the body's frame; null: none.</summary>
+    internal Transform3D? WorkThing(string model) => newer?.ThingPose(model);
+
+    /// <summary>Leave a clip's thing undrawn on this body: the world has it (the works' winch has its own crank).</summary>
+    internal void HideWorkThing(string model, bool hide) => newer?.HideThing(model, hide);
 
     /// <summary>The proofs: a figure put somewhere else lets its planted feet go.</summary>
     internal void ReleaseFeet() => newer?.ReleaseFeet();

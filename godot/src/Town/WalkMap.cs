@@ -30,6 +30,8 @@ public sealed class WalkMap
     private int bodyWords;
     /// <summary>Live boxes absent from the static browser dump: piles, carts and posted people.</summary>
     public static void RegisterBody(Node3D node, Aabb box, bool transit = false, Puppet? owner = null, bool moves = false) => bodies.Add(new() { Node = node, Box = box, Transit = transit, Owner = owner, Moves = moves });
+    /// <summary>A registered body's box changes (a barrow worked from between its handles).</summary>
+    public static void ResizeBody(Node3D node, Aabb box) { foreach (var b in bodies) if (b.Node == node) b.Box = box; }
     public IEnumerable<(Node3D Node,Aabb World,Puppet? Owner)> TransitBodies()
     {foreach(var b in bodies)if(b.Transit&&b.Active&&GodotObject.IsInstanceValid(b.Node))yield return(b.Node,b.World,b.Owner);}
     public void RefreshBodies()

@@ -273,7 +273,8 @@ public partial class Hands : Node
         {
             if (sim.P == null && town.ActionClaim(sim) == null) return;
             town.Crowd.PuppetGo(sim.P!,tx,tz,r.Purpose == "hire" ? 1.6 : 1.4);
-            if (r.Holding > 0 && !sim.P!.Loaded) town.Crowd.PuppetLoad(sim.P,true,"sack");
+            // what he holds decides how it is carried (#148: a crate is not a sack)
+            if (r.Holding > 0 && !sim.P!.Loaded) town.Crowd.PuppetLoad(sim.P,true,HeldKind(r.Npc) ?? "sack");
             else if (r.Holding == 0 && sim.P!.Loaded && sim.P.HandCarry) town.Crowd.PuppetLoad(sim.P,false);
         }
     }

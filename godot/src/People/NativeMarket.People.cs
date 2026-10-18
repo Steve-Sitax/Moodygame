@@ -11,14 +11,47 @@ public partial class NativeMarket
 {
     public static double Share(string place,int day,double hour,double soldOutAt=double.NaN)=>NativeMarketCalendar.Share(place,day,hour,soldOutAt);
     // people2 (package D3): a fishwife behind a fish table guts the catch while she stands there (her idle and her
-    // folded arms; calling stays a call); she stands at the board's edge (gut: the table's near edge 0.30 before
-    // her, the layout puts the seller 0.49 back). A local look: the sellers are drawn from the layout on every PC.
+    // folded arms; calling stays a call). She stands where the gutting reaches the board (#129): the table's top's
+    // near edge 0.30 m before her (gut's table.near, for her body's size), measured on the table model itself; the
+    // layout keeps its own seller spot (the original market's). A local look: the sellers are drawn from the layout
+    // on every PC.
     private static void FishTable(NativeMarketItem it,Puppet p)
     {
         if(it.Kind!="fishtable"||!p.Human.IsPeople2)return;
         p.Human.Work="fish_stall";
-        p.X+=Math.Sin(it.Yaw)*.19;p.Z+=Math.Cos(it.Yaw)*.19;
+        double move=FishTableNear()-GutNear*p.Human.WorkRatio("gut")-it.SellerAt.Z;
+        p.X+=Math.Sin(it.Yaw)*move;p.Z+=Math.Cos(it.Yaw)*move;
     }
+    /// <summary>peopleRig.json work.clips.gut.table.near: the board's edge this far before the gutting woman.</summary>
+    private const double GutNear=.30;
+    private static Aabb? fishBox;
+    private static bool fishMeasured;
+    /// <summary>The fish table's top in its own frame (stalls.glb mk2_fish_table): the bounds of the model's points
+    /// within a hand of the gutting height (gut's table.top, 0.85 m), not its sign, trestles or baskets; null without
+    /// the model.</summary>
+    internal static Aabb? FishTableBox()
+    {
+        if(fishMeasured)return fishBox;
+        fishMeasured=true;
+        if(Scheldemist.Models.ModelLibrary.Get("stalls")?.Roots.GetValueOrDefault("mk2_fish_table") is {} table)
+        {
+            void Bounds(Node node,Transform3D at)
+            {
+                var here=node==table?Transform3D.Identity:at*((Node3D)node).Transform;
+                if(node is MeshInstance3D{Mesh:not null}m)
+                    for(int surface=0;surface<m.Mesh.GetSurfaceCount();surface++)
+                        foreach(var v in m.Mesh.SurfaceGetArrays(surface)[(int)Mesh.ArrayType.Vertex].AsVector3Array())
+                        {var w=here*v;if(w.Y<.74f||w.Y>.96f)continue;var b=new Aabb(w,Vector3.Zero);fishBox=fishBox is{}a?a.Expand(w):b;}
+                foreach(var child in node.GetChildren())if(child is Node3D)Bounds(child,here);
+            }
+            Bounds(table,Transform3D.Identity);
+        }
+        return fishBox;
+    }
+    /// <summary>The seller's side of the fish table's top in the table's own frame.</summary>
+    internal static double FishTableNear()=>FishTableBox()?.Position.Z??-.46;
+    /// <summary>Every market item laid out now (the proofs).</summary>
+    internal IEnumerable<NativeMarketItem> LaidOut=>fields.SelectMany(f=>f.Items);
 
     private void DrawSellers(Field f,double distance,Vector3 me)
     {
