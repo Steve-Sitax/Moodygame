@@ -16,10 +16,10 @@ coordinator merges into main after checks and `test-icons.ps1 -Full`. Town chunk
 | 2 | L. Routes | merged (#186 theatre stair, #185 talk check flake) |
 | 3 | G. Street furniture models | #160 #149 #164 #180 |
 | 3 | H. Town fabric (one at a time) | H1 merged (#161 #173; #171 part); H2 merged (#163); H3 running: #188 #176 #175 #28; then H4 #174 shop fronts; then H5 #170 #91 paving |
-| 3 (running) | I. Light and look | #97 #137 #184 |
+| 3 | I. Light and look | merged ed978ca9 |
 | 3 (running) | J. People kit | #82 #138 #140, rowing and climbing from #182 |
 | 3 | K. Textures | #84 |
-| 4 | N. Leftovers | #171 rest, #180 #182 #183 #185 #186 #187, #181 heap with #62 #32 #47 #49 |
+| 4 (N1 running) | N. Leftovers | N1: #180 #182 #183 #185 #186 #187; later: #171 rest, #181 heap with #62 #32 #47 #49 |
 | - | Parked by Steve (play first) | #141 |
 
 Helpers: Claude Opus 5.5 high for the work; Codex for generated pictures (textures) and picture checks (Steve 2026-10-18).
