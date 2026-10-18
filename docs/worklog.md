@@ -19,8 +19,9 @@ coordinator merges into main after checks and `test-icons.ps1 -Full`. Town chunk
 | 3 | I. Light and look | merged ed978ca9 |
 | 3 (running) | J. People kit | #82 #138 #140, rowing and climbing from #182 |
 | 3 | K. Textures | #84 |
-| 4 (N1 running) | N. Leftovers | N1: #180 #182 #183 #185 #186 #187; later: #171 rest, #181 heap with #62 #32 #47 #49 |
+| 4 (N2 running) | N. Leftovers | N1 merged c9bf70c3; N2: #190 #191 #192; later: #171 rest, #181 heap with #62 #32 #47 #49 |
 | - | Parked by Steve (play first) | #141 |
+| - | Steve's decisions (other session) | #189 Ruien plan |
 
 Helpers: Claude Opus 5.5 high for the work; Codex for generated pictures (textures) and picture checks (Steve 2026-10-18).
 Rules for helpers: one Godot window at a time, own `--db`/`--prefs`/`--author-root`/user data and port range,
