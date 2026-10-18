@@ -149,12 +149,13 @@ public partial class NativeTown : BakedWorld
         quayLadders = ladders.Ladders;
         foreach (var note in ladders.Notes) GD.Print("quay ladders: " + note);
         AddChild(town);
-        // Static room portraits are source snapshots, never a second resident model.
+        // Static room portraits are source snapshots, never a second resident model. The Vleeshuis's
+        // recovered figures (old kit, #178) give way to its live hall workers (HallPeople, people2).
         int roomPeople=0;
         foreach(var skeleton in All(town).OfType<Skeleton3D>())
         {
             bool room=false;for(Node? n=skeleton.GetParent();n!=null;n=n.GetParent())
-                if(n.Name.ToString().StartsWith("ROOM_tavern_")||n.Name.ToString().StartsWith("ROOM_shop_")){room=true;break;}
+                if(n.Name.ToString().StartsWith("ROOM_tavern_")||n.Name.ToString().StartsWith("ROOM_shop_")||n.Name.ToString()=="ROOM_vleeshuis"){room=true;break;}
             if(!room||skeleton.GetParent() is not Node3D model)continue;
             model.Visible=false;roomPeople++;
             foreach(var player in All(model).OfType<AnimationPlayer>()){player.Autoplay="";player.Stop();}

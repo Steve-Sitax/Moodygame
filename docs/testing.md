@@ -137,6 +137,17 @@ camp), `clips`. Morning work keeps its own clock; the pictures' light is set to 
 check. The work goods are built with `native-godot/scripts/build-workgoods.ps1` and stored with
 `replace-workgoods.ps1`.
 
+## Market, work board, warmth, benches and room keepers
+
+`--market-proof <dir>` (with `--no-ai --no-mainmenu --dev`, its own `--db`, `--prefs`, `--author-root`, port and
+`SCHELDEMIST_USER_DATA`) stages these fixes in the real town and writes `market.json` and pictures
+(`Play/MarketProof.cs`). `--market-proof-only` picks stages: `keepers` (every tavern and shop keeper stands behind
+the counter, customers still reach it; De Vliet at 13:00 and 20:00), `vleeshuis` (no old-kit figure shows or blocks
+in the Vleeshuis, its workers are people2 and out of the doorways), `warmth` (real clock ticks with Jef's own place:
+warmth rises by a burning fire basket at night and by an open tavern's hearth, not ten metres away, not by day, not
+by a shut tavern's cold hearth; the fires burn or go out to match), `facts` (a survey: fire spots, benches, rooms).
+Exit 1 on a failed check.
+
 ## Conversations and indoor entrances
 
 Build/import the native project first. `pwsh -File native-godot/scripts/check-conversations.ps1 -Output <fresh-directory> -Port 8925`

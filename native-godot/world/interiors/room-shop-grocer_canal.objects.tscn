@@ -23,7 +23,7 @@
 [node name="Objects" type="Node3D" unique_id=1285679747]
 
 [node name="object_counter" type="Node3D" parent="." unique_id=622600468]
-transform = Transform3D(-4.371139e-08, 0, 1, 0, 1, 0, -1, 0, -4.371139e-08, -56.65, 0.18, 80.240005)
+transform = Transform3D(-4.371139e-08, 0, 1, 0, 1, 0, -1, 0, -4.371139e-08, -56.65, 0.18, 79.94)
 script = ExtResource("1_tgbqm")
 ObjectId = "room-shop-grocer_canal-counter"
 Asset = ExtResource("2_hnd4j")

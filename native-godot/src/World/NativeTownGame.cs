@@ -53,6 +53,14 @@ public partial class NativeTownGame : Scheldemist.Main
                 definition["fire"]=furniture.Any(p=>p.Room==room.District.RoomId&&p.Kind=="stove");
             }
         }
+        // #162: the fires that warm, from the scene: tavern hearths and stoves, and the outdoor fire baskets.
+        var heat=new System.Collections.Generic.List<NativeHeatSource>();
+        foreach(var (at,size,room) in Scheldemist.World.Fires.BakedSpots(World))
+            if(room!=null||Scheldemist.World.Fires.IsBasket(size,room,at))heat.Add(new((room??"basket")+"@"+heat.Count,room,at.X,at.Y,at.Z));
+        foreach(var stove in ((NativeTown)World).NativeFurniture!.Where(p=>p.Kind=="stove"&&p.Room.StartsWith("tavern:")))
+        {var at=stove.Node.GlobalPosition;heat.Add(new(stove.Id,stove.Room,at.X,at.Y,at.Z));}
+        host.Clock.HeatSources=heat;
+        GD.Print($"warmth: {heat.Count(h=>h.Place!=null)} tavern fires, {heat.Count(h=>h.Place==null)} fire baskets");
         try
         {
             var town = new Services.NativeTown(host); host.AddModule(town);

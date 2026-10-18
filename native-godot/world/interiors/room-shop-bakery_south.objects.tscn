@@ -24,7 +24,7 @@
 [node name="Objects" type="Node3D" unique_id=122488319]
 
 [node name="object_counter" type="Node3D" parent="." unique_id=1916766546]
-transform = Transform3D(-0.09962947, 0, 0.9950246, 0, 1, 0, -0.9950246, 0, -0.09962947, -206.86313, 0.18, 239.60356)
+transform = Transform3D(-0.09962947, 0, 0.9950246, 0, 1, 0, -0.9950246, 0, -0.09962947, -206.8931, 0.18, 239.3036)
 script = ExtResource("1_rxotm")
 ObjectId = "room-shop-bakery_south-counter"
 Asset = ExtResource("2_fybbq")

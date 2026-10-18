@@ -29,8 +29,11 @@ public sealed partial class NativeCoreRest : INativeServiceModule
     public void Clear(){rests.Clear();seen.Clear();woken.Clear();}
     public void ReportPosition(int id,JsonNode? node)
     {
-        if(node is JsonObject p&&Try(p,"x",out double x)&&Try(p,"z",out double z))seen[id]=(x,z,C.Now);
+        if(node is JsonObject p&&Try(p,"x",out double x)&&Try(p,"z",out double z)){seen[id]=(x,z,C.Now);if(Try(p,"y",out double y))heights[id]=y;else heights.Remove(id);}
     }
+    private readonly Dictionary<int,double> heights=new();
+    /// <summary>The player's last reported place (25 s at most), its height when he sent one.</summary>
+    public (double x,double? y,double z)? PositionOf(int id)=>seen.TryGetValue(id,out var p)&&C.Now-p.ms<25000?(p.x,heights.TryGetValue(id,out var y)?y:null,p.z):null;
     private static bool Try(JsonObject p,string key,out double value)
     {
         value=0;if(p[key] is not JsonValue node)return false;

@@ -311,6 +311,10 @@ public sealed record WhereNow
     public string? Place { get; init; }
     public string Label { get; init; } = "";
     public bool Lantern { get; init; }
+    /// <summary>#162: 0 no fire, 1 in a lit tavern or near a burning fire basket, 2 close to the fire.</summary>
+    public int Warming { get; init; }
+    /// <summary>#162: the fire baskets burn now (the engine's hours).</summary>
+    public bool? Fires { get; init; }
 }
 
 public sealed record TickReply : JobsPayload

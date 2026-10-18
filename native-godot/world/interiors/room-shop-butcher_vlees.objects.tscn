@@ -39,7 +39,7 @@
 [node name="Objects" type="Node3D" unique_id=242603040]
 
 [node name="object_counter" type="Node3D" parent="." unique_id=175680604]
-transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -95.35, 0.18, 66.42)
+transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -95.35, 0.18, 66.82)
 script = ExtResource("1_d2r6v")
 ObjectId = "room-shop-butcher_vlees-counter"
 Asset = ExtResource("2_efyfb")

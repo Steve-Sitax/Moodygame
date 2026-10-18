@@ -28,12 +28,21 @@ public partial class Fires : Node
     /// <summary>Counts for a check: the fires, the spots.</summary>
     public (int fires, int spots) Info => (fires.Count, fires.Sum(f => f.Spots));
 
+    /// <summary>Every burning spot (world metres, its size), with the group that made it.</summary>
+    public IEnumerable<(Vector3 at, float size, string group)> Spots =>
+        fires.Where(f => GodotObject.IsInstanceValid(f.Root) && f.Root.IsInsideTree())
+            .SelectMany(f => f.Places.Select(p => (f.Root.GetParent<Node3D>().GlobalTransform * p.at, p.size, f.Group)));
+
     /// <summary>One set of fires made together: its level and its smoke.</summary>
     public sealed class Fire
     {
         internal readonly List<ShaderMaterial> Mats = new();
         internal Node3D Root = null!;
         internal int Spots;
+        internal List<(Vector3 at, float size)> Places = new();
+        internal string Group = "";
+        internal Func<bool>? Burning;
+        internal bool Lit = true;
         /// <summary>How fierce (0 out .. 1 full), and how thick the smoke (0..1.5; steam when the water hits).</summary>
         public void SetLevel(float flame, float smoke = 1)
         {
@@ -220,6 +229,70 @@ void fragment() {
         if (I == this) I = null;
     }
 
+    /// <summary>The bake's fires in world metres, with their size and the tavern room each stands in (null outside).
+    /// The engine's warmth rule (#162) and the fires' burning share this one list.</summary>
+    public static List<(Vector3 at, float size, string? room)> BakedSpots(Node world)
+    {
+        var list = new List<(Vector3, float, string?)>();
+        foreach (var n in BakedWorld.All(world))
+        {
+            if (n is not Node3D g || !n.Name.ToString().StartsWith("fires") || !n.HasMeta("extras")) continue;
+            var ex = n.GetMeta("extras").AsGodotDictionary();
+            if (!ex.ContainsKey("fire")) continue;
+            var frame = g.IsInsideTree() ? g.GlobalTransform : g.Transform;
+            foreach (var s in ex["fire"].AsGodotDictionary()["spots"].AsGodotArray())
+            {
+                var a = s.AsGodotArray();
+                var at = frame * new Vector3(a[0].AsSingle(), a[1].AsSingle(), a[2].AsSingle());
+                list.Add((at, a[3].AsSingle(), TavernAt(at)));
+            }
+        }
+        return list;
+    }
+
+    /// <summary>The tavern room this point stands in, or null.</summary>
+    public static string? TavernAt(Vector3 at)
+    {
+        foreach (var id in Main.I.World.NativeFurnitureRooms ?? (IReadOnlySet<string>)new HashSet<string>())
+        {
+            if (!id.StartsWith("tavern:", StringComparison.Ordinal) || Main.I.World.NativeRoom(id) is not { } r) continue;
+            var local = r.Frame.AffineInverse() * at;
+            if (r.Bounds.HasPoint(new Vector2(local.X, local.Z)) && local.Y > -.5f && local.Y < 3f) return id;
+        }
+        return null;
+    }
+
+    /// <summary>A fire basket outdoors: a tar barrel's size, not in a room.</summary>
+    public static bool IsBasket(float size, string? room, Vector3 at) => room == null && size >= .8f && at.Y < 2f;
+
+    private double burnT;
+    /// <summary>The fires burn as the engine says (#162): the baskets from dusk to the morning shift (the server's
+    /// word with each tick), a tavern's hearth while the tavern is open. A home's hearth keeps burning.</summary>
+    public override void _Process(double delta)
+    {
+        if ((burnT -= delta) > 0) return;
+        burnT = 1;
+        bool? baskets = Game.GameState.I?.WhereNow?.Fires;
+        foreach (var f in fires)
+        {
+            if (!GodotObject.IsInstanceValid(f.Root) || f.Group == "fires_made" || f.Places.Count == 0) continue;
+            if (f.Burning == null)
+            {
+                var frame = f.Root.GetParent<Node3D>().GlobalTransform;
+                var at = frame * f.Places[0].at;
+                string? room = TavernAt(at);
+                f.Burning = room != null ? () => Rooms.I?.IsOpen(room) ?? true : f.Places.All(p => IsBasket(p.size, TavernAt(frame * p.at), frame * p.at)) ? () => basketsLit : () => true;
+            }
+            basketsLit = baskets ?? basketsLit;
+            bool lit = f.Burning();
+            if (lit != f.Lit) { f.Lit = lit; f.SetLevel(lit ? 1 : 0, lit ? 1 : 0); }
+        }
+    }
+    private bool basketsLit = true;
+    /// <summary>For checks: each made fire's first place and whether it burns now.</summary>
+    public IEnumerable<(Vector3 at, bool lit)> Burning() => fires.Where(f => GodotObject.IsInstanceValid(f.Root) && f.Root.IsInsideTree() && f.Places.Count > 0)
+        .Select(f => (f.Root.GetParent<Node3D>().GlobalTransform * f.Places[0].at, f.Lit));
+
     /// <summary>Fires at these places (world metres; size 1 a tar barrel, 0.6 a brazier, 1.5 a big bonfire), `smoke` points each.</summary>
     public Fire Create(IEnumerable<(Vector3 at, float size)> spots, int smoke = 10)
     {
@@ -254,7 +327,7 @@ void fragment() {
         var box = new Aabb(spots[0].at, Vector3.Zero);
         foreach (var (at, size) in spots) box = box.Expand(at);
         quads.CustomAabb = box.Grow(5);
-        var fire = new Fire { Root = new Node3D { Name = "fire" }, Spots = spots.Count };
+        var fire = new Fire { Root = new Node3D { Name = "fire" }, Spots = spots.Count, Places = spots, Group = parent.Name };
         parent.AddChild(fire.Root);
         var flameMat = new ShaderMaterial { Shader = flameShader, RenderPriority = 5 };
         var smokeMat = new ShaderMaterial { Shader = smokeShader, RenderPriority = 4 };

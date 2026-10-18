@@ -39,7 +39,7 @@
 [node name="Objects" type="Node3D" unique_id=306171728]
 
 [node name="object_counter" type="Node3D" parent="." unique_id=400163094]
-transform = Transform3D(0.96002305, 0, 0.27992088, 0, 1, 0, -0.27992088, 0, 0.96002305, -197.65103, 0.18, 91.86459)
+transform = Transform3D(0.96002305, 0, 0.27992088, 0, 1, 0, -0.27992088, 0, 0.96002305, -196.931, 0.18, 91.6546)
 script = ExtResource("1_vladn")
 ObjectId = "room-shop-clock_markt-counter"
 Asset = ExtResource("2_n6dbo")
