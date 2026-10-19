@@ -11,7 +11,7 @@ The run resumed in queue order. Existing work stays in its original worktree; fa
 
 | Helper | Issues | Worktree (the T3 worktrees folder, MoodyGame/...) | Branch | Current state |
 |---|---|---|---|---|
-| H6 textures into the town, altar marble, floating litter | #84 #198 part #200 | t3-7156f1fb | t3/town-textures-altar-litter | resumed from 62 changed and 47 new files; review and rendered checks in progress |
+| H6 textures into the town, altar marble, floating litter | #84 #198 part #200 | t3-7156f1fb | t3/town-textures-altar-litter | 2b637138 committed, NOT merged: stone geometry/mapping and row 7 atlas unfinished; altar cornice sliver remains; tidal litter checks pass |
 | J3 people clothes edges | #82 #138 | t3-a4b824d0 | t3/people-cloth-layer-fix | 1 commit 24cd2a49 (J2 kit, still the rejected jagged edges) + 178 changed files uncommitted |
 | N5 cathedral stalls, high altar, organ, transept altars, epitaphs | #198 | t3-1309ddf6 | t3/cathedral-furniture-detail-1 | no commit; 83 changed, 76 new files (church model) |
 | S managed heap and GC pauses | #181 (#62) | t3-6b308632 | t3/reduce-managed-heap | 055d2fd7 committed, NOT merged: smaller heap, but play GC max/p95 72.062 ms exceeds 5 ms; pixel check blocked by #205 |
@@ -21,7 +21,11 @@ the baseline briefly overlapped another game, so this is not an exclusive timing
 152 transport checks, 79 Antigoon fixtures and four crane behaviors pass. Server GC worsened pauses and was rejected.
 The unchanged baseline also fails exact pixels (5 pixels; revised 6), tracked in #205. No issue closed; no GC config changed.
 
-After H6: #171 rest (landmark stone) with #199 paving leftovers and #203 washing, then N5, then J3.
+H6 evidence: `D:/Code/_tmp_verify/H6-textures/`. Build, 13 cathedral assertions, 372 litter level assertions and shader
+baseline (41 programs, 153 kinds, zero new kinds/findings) pass. Day/rain/night and low-angle pictures expose the remaining
+stone and cornice defects; shader checks do not override those failures. No H6 issue closed or runtime change merged.
+
+Next: #171 rest (landmark stone) with #199 paving leftovers and #203 washing, then N5, then J3.
 Exclusive speed gates remain for a quiet PC: #181 #62 #32 #47 #49 and the people timing gate.
 Not ours: #141 (Steve parked), #189 #201 #202 (Ruien session).
 
