@@ -1,5 +1,5 @@
 """Issue #175: the town's street name plates, shop boards, painted lettering and hanging trade signs, rebuilt. Usage:
-    python scripts/sign_art.py <art>; python scripts/repair-signs.py <audit folder> <art> <candidate folder>
+    python scripts/sign_art.py <art> [streets.json]; python scripts/repair-signs.py <audit folder> <art> <candidate folder> [streets.json]
 The audit is audit-facades.gd's export of the streetlife root (suffixes 0,1: each block's solid and wall-decal meshes).
 The bake drew a plate as a 16 mm box with a 11-texel picture of its name on the front (cell plate_i of the streetlife
 atlas), a shop board as a 50 mm box with the trade's 11- or 20-texel picture and two trims, lettering on plaster as one
@@ -11,6 +11,9 @@ with the trims and iron of its box, and built again at the same place and size:
 - a board: a 25 mm painted panel on the wall, the lettering from sign_art.py, a moulded cornice over it with a weathered
   top (a drip edge), a bead under it and returned ends, in the board's own ground colour, a gilt bead on a gilt board;
 - painted lettering: the same quad, its picture from sign_art.py (letters.png), on a copy of the wall-decal material.
+Issue #193: with world/town/facades/streets.json (scripts/town_streets.py) each plate names the street it stands on: the
+plate is built as long as its new name needs (the bake's rule: 6 letter cells of 22 mm and 7 for the margins), its end by
+the corner where the old one's was.
 The hanging signs (wrought-iron bracket and the trade's sign: boot, pretzel, key, tankard, basin, hat) come from
 build_signs.py (see there) and are placed where the bake's stood.
 Writes manifest.json (each changed mesh as rows, world space, and its new surfaces), report.json and signs.json (every
@@ -26,6 +29,17 @@ LAY = json.loads((ART / "layout.json").read_text())
 SIGNS_MAT = "res://assets/materials/town-facades-20261018/signs.tres"
 LETTERS_MAT = "res://assets/materials/town-facades-20261018/letters.tres"
 NAMES = META["streetNames"][:META["plates"]]
+# (#193) each plate's own street: its name by the plate's place (the old plate's middle), the corners to keep its end by
+STREETS = json.loads(pathlib.Path(sys.argv[4]).read_text()) if len(sys.argv) > 4 else None
+if STREETS:
+    assert STREETS["names"][:len(NAMES)] == list(NAMES); NAMES = STREETS["names"]
+def street_plate(at):
+    """The new name for the plate whose middle is at (world): its index, the plate's new length and its new middle (town_streets.py:
+    its end by the corner kept, slid on past a sign or a pipe where it must be); None without streets.json."""
+    if not STREETS: return None
+    best = min(STREETS["plates"], key=lambda q: math.dist(q["at"], at))
+    if math.dist(best["at"], at) > 0.05: raise SystemExit(f"no street for the plate at {at}")
+    return best["nameIndex"], best["length"], np.array(best["middle"], float)
 TRADES = {t["sign"]: t for t in META["trades"]}
 GILT = set()  # boards whose letters are gilt get a gilt bead (sign_art.py: fg brighter than 1.9 in sum)
 
@@ -258,8 +272,18 @@ def build(hangs):
                       box = np.zeros(len(T), bool); box[[k, j]] = True; ok = box
                   drop |= box & ok
                   if n.startswith("plate_"):
-                      plate(new, P, L, H, int(n.split("_")[1])); report["plates"] += 1
-                      signs.append({"kind": "plate", "text": NAMES[int(n.split("_")[1])], "at": [round(float(x), 2) for x in P(L / 2, H / 2, 0)], "size": [round(L, 3), round(H, 3)]})
+                      idx = int(n.split("_")[1])
+                      sp = street_plate([round(float(x), 2) for x in P(L / 2, H / 2, 0)])
+                      if sp:
+                          # (#193) the street's own name, the plate as long as it needs, its middle where town_streets.py put it
+                          idx, Ln, mid_new = sp
+                          wall = wall + ex * (L / 2 + float(np.dot(mid_new - P(L / 2, H / 2, 0), ex)) - Ln / 2)
+                          P = lambda x, y, z, wall=wall, ex=ex, ey=ey, nrm=nrm: wall + ex * x + ey * y + nrm * z
+                          if abs(Ln - L) > 0.01: report["plates resized"] += 1
+                          if NAMES[idx] != NAMES[int(n.split("_")[1])]: report["plates renamed"] += 1
+                          L = Ln
+                      plate(new, P, L, H, idx); report["plates"] += 1
+                      signs.append({"kind": "plate", "text": NAMES[idx], "at": [round(float(x), 2) for x in P(L / 2, H / 2, 0)], "size": [round(L, 3), round(H, 3)]})
                   elif n.startswith("board_"):
                       key = n[len("board_"):]
                       board(new, P, L, H, key, SIGN_GILT.get(key, False)); report["boards"] += 1

@@ -8,12 +8,17 @@ using System.Text.Json;
 
 // Issues #176 #175: saves a reviewed town-fronts candidate (repair-shutters.py, repair-signs.py) into the town's
 // resources. Run in Forward+ (not headless):
-//   godot --rendering-method forward_plus --path . res://scripts/facades-promote.tscn -- --candidate <folder> --record <folder> --backup <folder> [--root streetlife]
+//   godot --rendering-method forward_plus --path . res://scripts/facades-promote.tscn -- --candidate <folder> --record <folder> --backup <folder> [--root streetlife | --root city,streetlife]
 // Every mesh must still be the one the candidate was made from (its SHA-256). Originals are copied to --backup first and
 // never overwritten. Each mesh in the manifest is rebuilt from its rows (world space; the bake's flat shutters or plates
 // taken out), keeping the old mesh's metadata; "standInAdd" adds plain collision boxes (world space) to its stand-in.
 // The candidate's "install" list copies new data files into the project (e.g. world/town/facades/shutters.json).
 // Scene nodes, transforms and permanent ids are untouched. promotion.json records every hash and count.
+// (#174) A rebuilt surface keeps the old one's box: its compressed positions are stored on a grid in that box, so a
+// different box moves every corner by up to half a step (1 mm in a 130 m chunk) and faces cut apart can meet again. Two
+// unused vertices (no triangle uses them: nothing draws or collides) at the old box's corners keep the grid, and each
+// corner is put in the middle of its grid step (Godot packs a position by cutting off, not rounding: a corner read back
+// exactly on a step would drop to the step below), so an unchanged corner is stored as it was, to the bit.
 public partial class FacadesPromote : Node
 {
     static string Hash(string path) => Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(ProjectSettings.GlobalizePath(path)))).ToLowerInvariant();
@@ -40,11 +45,17 @@ public partial class FacadesPromote : Node
             if (Hash(e.Name) != e.Value.GetProperty("sourceHash").GetString()) throw new IOException("Changed since the candidate was made: " + e.Name);
             if (File.Exists(Path.Combine(backup, Path.GetFileName(e.Name)))) throw new IOException("A backup exists already (an earlier promotion?): " + e.Name);
         }
-        // the root the meshes are in (--root, default city), by its name in the town's roots list
-        int ri = Array.IndexOf(args, "--root"); string rootName = ri >= 0 && ri + 1 < args.Length ? args[ri + 1] : "city";
-        string rootPath = JsonDocument.Parse(Godot.FileAccess.GetFileAsString("res://world/town/roots.json")).RootElement.EnumerateArray().First(r => r.GetProperty("godotName").GetString() == rootName).GetProperty("path").GetString()!;
-        var city = ResourceLoader.Load<PackedScene>(rootPath).Instantiate<Node3D>(); AddChild(city);
-        var nodes = All(city).OfType<MeshInstance3D>().ToDictionary(m => m.Name.ToString());
+        // the roots the meshes are in (--root, default city; several comma-separated: #174 changes city and streetlife
+        // meshes in one promotion), by their names in the town's roots list
+        int ri = Array.IndexOf(args, "--root"); string rootNames = ri >= 0 && ri + 1 < args.Length ? args[ri + 1] : "city";
+        var roots = JsonDocument.Parse(Godot.FileAccess.GetFileAsString("res://world/town/roots.json")).RootElement.EnumerateArray().ToArray();
+        var nodes = new Dictionary<string, MeshInstance3D>();
+        foreach (string rootName in rootNames.Split(','))
+        {
+            string rootPath = roots.First(r => r.GetProperty("godotName").GetString() == rootName).GetProperty("path").GetString()!;
+            var root = ResourceLoader.Load<PackedScene>(rootPath).Instantiate<Node3D>(); AddChild(root);
+            foreach (var m in All(root).OfType<MeshInstance3D>()) nodes.Add(m.Name.ToString(), m);
+        }
         var made = new List<(string path, ArrayMesh mesh)>(); var counts = new Dictionary<string, object>();
         foreach (var e in entries)
         {
@@ -54,11 +65,16 @@ public partial class FacadesPromote : Node
             var mesh = new ArrayMesh { ResourceName = old.ResourceName };
             foreach (var key in old.GetMetaList()) mesh.SetMeta(key, old.GetMeta(key));
             int triangles = 0;
+            int si = -1, boxesKept = 0;
             foreach (var s in e.Value.GetProperty("surfaces").EnumerateArray())
             {
+                si++;
                 if (s.GetProperty("vertices").GetInt32() == 0) continue;
                 bool custom = s.GetProperty("custom0").GetBoolean();
                 var (arrays, t) = Rows(Path.Combine(candidate, s.GetProperty("file").GetString()!), custom, xf);
+                // (the old surface of the same place and material: its box, if every new corner is in it)
+                if (si < old.GetSurfaceCount() && old.SurfaceGetMaterial(si)?.ResourcePath == s.GetProperty("material").GetString()
+                    && RenderingServer.MeshGetSurface(old.GetRid(), si)["aabb"].AsAabb() is var box && KeepBox(arrays, box, custom)) boxesKept++;
                 // the town's meshes keep compressed attributes (16-bit positions in the surface's box, octahedral normals)
                 var flags = (custom ? (Mesh.ArrayFormat)((long)Mesh.ArrayCustomFormat.RgFloat << (int)Mesh.ArrayFormat.FormatCustom0Shift) : 0) | Mesh.ArrayFormat.FlagCompressAttributes;
                 mesh.AddSurfaceFromArrays(Mesh.PrimitiveType.Triangles, arrays, null, null, flags);
@@ -81,7 +97,7 @@ public partial class FacadesPromote : Node
                 mesh.SetMeta("native_solid_stand_in", had.Concat(faces).ToArray()); standIn = faces.Length / 3;
             }
             made.Add((e.Name, mesh));
-            counts[e.Name] = new { node = node.Name.ToString(), surfaces = mesh.GetSurfaceCount(), oldTriangles = Enumerable.Range(0, old.GetSurfaceCount()).Sum(i => old.SurfaceGetArrayIndexLen(i) > 0 ? old.SurfaceGetArrayIndexLen(i) / 3 : old.SurfaceGetArrayLen(i) / 3), triangles, standInTriangles = standIn };
+            counts[e.Name] = new { node = node.Name.ToString(), surfaces = mesh.GetSurfaceCount(), boxesKept, oldTriangles = Enumerable.Range(0, old.GetSurfaceCount()).Sum(i => old.SurfaceGetArrayIndexLen(i) > 0 ? old.SurfaceGetArrayIndexLen(i) / 3 : old.SurfaceGetArrayLen(i) / 3), triangles, standInTriangles = standIn };
         }
         var originals = new Dictionary<string, string>(); var installed = new Dictionary<string, string>();
         foreach (var (path, mesh) in made)
@@ -108,6 +124,32 @@ public partial class FacadesPromote : Node
         File.WriteAllText(Path.Combine(record, "promotion.json"), JsonSerializer.Serialize(new { date = DateTime.UtcNow.ToString("u"), candidate, backup, resources = made.Select(m => m.path), installs = installs.Select(i => i.Name), originalHashes = originals, installedHashes = installed, counts },
             new JsonSerializerOptions { WriteIndented = true }));
         GD.Print($"Facades promoted: {made.Count} meshes, {installs.Length} files; originals in {backup}");
+    }
+
+    // two unused vertices at the box's corners (a copy of vertex 0's other attributes), when every vertex lies in the box
+    static bool KeepBox(Godot.Collections.Array a, Aabb box, bool custom0)
+    {
+        var pos = a[(int)Mesh.ArrayType.Vertex].AsVector3Array();
+        if (pos.Length == 0 || box.Size == Vector3.Zero) return false;
+        var grown = box.Grow(1e-4f);
+        if (pos.Any(p => !grown.HasPoint(p))) return false;
+        Vector3[] P(Vector3[] v, Vector3 x, Vector3 y) => v.Append(x).Append(y).ToArray();
+        T[] Two<T>(T[] v) => v.Append(v[0]).Append(v[0]).ToArray();
+        float Mid(float v, float lo, float size)
+        {
+            if (size <= 0) return v;
+            double q = Math.Clamp(Math.Round((v - lo) / (double)size * 65535.0), 0, 65535);
+            return q >= 65535 ? lo + size : (float)(lo + (q + 0.5) / 65535.0 * size);
+        }
+        for (int i = 0; i < pos.Length; i++)
+            pos[i] = new Vector3(Mid(pos[i].X, box.Position.X, box.Size.X), Mid(pos[i].Y, box.Position.Y, box.Size.Y), Mid(pos[i].Z, box.Position.Z, box.Size.Z));
+        a[(int)Mesh.ArrayType.Vertex] = P(pos, box.Position, box.End);
+        a[(int)Mesh.ArrayType.Normal] = Two(a[(int)Mesh.ArrayType.Normal].AsVector3Array());
+        a[(int)Mesh.ArrayType.TexUV] = Two(a[(int)Mesh.ArrayType.TexUV].AsVector2Array());
+        a[(int)Mesh.ArrayType.TexUV2] = Two(a[(int)Mesh.ArrayType.TexUV2].AsVector2Array());
+        a[(int)Mesh.ArrayType.Color] = Two(a[(int)Mesh.ArrayType.Color].AsColorArray());
+        if (custom0) { var c = a[(int)Mesh.ArrayType.Custom0].AsFloat32Array(); a[(int)Mesh.ArrayType.Custom0] = c.Append(c[0]).Append(c[1]).Append(c[0]).Append(c[1]).ToArray(); }
+        return true;
     }
 
     // rows -> indexed arrays in the node's space: identical rows share one vertex
