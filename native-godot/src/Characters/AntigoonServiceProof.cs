@@ -17,7 +17,7 @@ internal static class AntigoonServiceProof
         using var host=new NativeServiceHost(new NativeServiceOptions(":memory:",data,Path.Combine(Path.GetTempPath(),"antigoon-proof-unused"),()=>now));
         host.MultiplayerEnabled=()=>multiplayer;host.Saves.EnsurePlayer(2,"Second player");host.OnlinePlayers=()=>multiplayer?new[]{1,2}:new[]{1};
         host.Clock.SetTime(1,22,0);
-        var position=new P(0,2);
+        var position=new P(0,1.4);
         var service=new NativeAntigoon(host){PositionOf=_=>position,Clear=_=>true,Light=_=>0,Ground=_=>0,Sight=(_,_)=>true,Path=(_,b)=>new[]{b},DevelopmentStage=_=>(new P(0,0),new P(0,10))};
         host.AddModule(service);
         async Task<JsonObject> Call(string method,string path,int player=1)=>JsonNode.Parse(await host.Call(method,"/api/antigoon"+path,"{}",player))!.AsObject();

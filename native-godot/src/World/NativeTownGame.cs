@@ -276,6 +276,7 @@ public partial class NativeTownGame : Scheldemist.Main
             if (Arg("native-package-smoke") is { Length: > 0 } packageProof) _ = NativePackageProof.Run(this, Paths.Absolute(packageProof));
             if (Arg("native-journey-proof") is { Length: > 0 } journeyProof) _ = RunJourneyProof(Paths.Absolute(journeyProof));
             if (Arg("native-extras-proof") is { Length: > 0 } extrasProof) _ = RunExtrasProof(Paths.Absolute(extrasProof));
+            if (Arg("antigoon-size-proof") is { Length: > 0 } sizeProof) _ = NativeAntigoonSizeProof.Run(this, Paths.Absolute(sizeProof));
             if (Arg("antigoon-event-proof") is { Length: > 0 } antigoonProof) _ = NativeAntigoonEventProof.Run(this, Paths.Absolute(antigoonProof));
             if (Arg("antigoon-story-map") is { Length: > 0 } storyMap) _ = NativeAntigoonStoryMap.Run(this, Paths.Absolute(storyMap));
             if (Arg("story-proof") is { Length: > 0 } storyProof) _ = NativeStoryProof.Run(this, Paths.Absolute(storyProof));

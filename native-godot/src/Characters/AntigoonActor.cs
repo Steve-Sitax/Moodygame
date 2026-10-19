@@ -1,4 +1,5 @@
 using Godot;
+using Scheldemist.Native.Services;
 using System;
 using System.Linq;
 using System.IO;
@@ -38,7 +39,7 @@ public partial class AntigoonActor : Node3D
     internal Rid BodyRid=>body.GetRid();
     public Vector3 ThrowOrigin()
     {
-        int hand=Skeleton.FindBone("hand.R");return hand<0?GlobalPosition+Vector3.Up*4.1f:Skeleton.GlobalTransform*Skeleton.GetBoneGlobalPose(hand).Origin;
+        int hand=Skeleton.FindBone("hand.R");return hand<0?GlobalPosition+Vector3.Up*AntigoonSize.ThrowHeight:Skeleton.GlobalTransform*Skeleton.GetBoneGlobalPose(hand).Origin;
     }
     private StaticBody3D body = null!;
     private AudioStreamPlayer3D feet = null!;
@@ -59,7 +60,7 @@ public partial class AntigoonActor : Node3D
             mesh.Mesh.GenerateLods(60,60,new Godot.Collections.Array());
             for(int s=0;s<mesh.Mesh.GetSurfaceCount();s++)LodCount+=mesh.Mesh.GetSurfaceLodCount(s);
         }
-        var model = document.GenerateScene(data); model.Name = "AntigoonModel"; AddChild(model);
+        var model = (Node3D)document.GenerateScene(data); model.Name = "AntigoonModel"; model.Scale = Vector3.One * AntigoonSize.Scale; AddChild(model);
         if(TownLighting) AntigoonTownMaterials.Apply(model);
         Animations = model.FindChildren("*", "AnimationPlayer", true, false).OfType<AnimationPlayer>().First();
         Skeleton = model.FindChildren("*", "Skeleton3D", true, false).OfType<Skeleton3D>().First();
@@ -91,11 +92,11 @@ public partial class AntigoonActor : Node3D
         // CC0 Quaternius clips fitted to this rig (scripts/AntigoonRetarget.cs); they keep their own loop modes.
         if (ResourceLoader.Exists(Tools.AntigoonRetarget.Output)) Animations.AddAnimationLibrary("ual", ResourceLoader.Load<AnimationLibrary>(Tools.AntigoonRetarget.Output));
         body = new StaticBody3D { Name = "TorsoCollision", CollisionLayer = 1, CollisionMask = 0 }; AddChild(body);
-        body.AddChild(new CollisionShape3D { Position = new Vector3(0, 2.6f, 0), Shape = new CapsuleShape3D { Radius = .62f, Height = 5.2f } });
+        body.AddChild(new CollisionShape3D { Position = new Vector3(0, AntigoonSize.BodyHeight / 2, 0), Shape = new CapsuleShape3D { Radius = AntigoonSize.BodyRadius, Height = AntigoonSize.BodyHeight } });
         Pose=new AntigoonPose{Actor=this};Skeleton.AddChild(Pose);
         // A footfall is heard when a boot lands, not on a clock.
         Pose.Landed+=_=>{if(State is not ("hidden" or "death"))feet.Play();};
-        feet = new AudioStreamPlayer3D { MaxDistance = 45, UnitSize = 7, VolumeDb = -5, PitchScale = .58f };
+        feet = new AudioStreamPlayer3D { MaxDistance = 45 * AntigoonSize.Scale, UnitSize = 7 * AntigoonSize.Scale, VolumeDb = -5, PitchScale = .58f };
         feet.Stream = ResourceLoader.Load<AudioStream>("res://world/data/public/audio/kenney-impact/footstep_concrete_003.ogg");
         AddChild(feet);
         var sound=new AntigoonSound {Name="ThreatAudio"};AddChild(sound);
@@ -111,7 +112,7 @@ public partial class AntigoonActor : Node3D
     {
         int head = Skeleton.FindBone("head");
         var face = Skeleton.GlobalTransform * Skeleton.GetBoneGlobalRest(head).Origin;
-        return face + GlobalBasis.Z * 1.15f - GlobalBasis.Y * .35f;
+        return face + (GlobalBasis.Z * 1.15f - GlobalBasis.Y * .35f) * AntigoonSize.Scale;
     }
     /// <summary>His right fist in the world.</summary>
     public Vector3 Fist() => Pose.FistWorld;
@@ -201,7 +202,7 @@ public partial class AntigoonActor : Node3D
     {
         "hidden" or "idle" or "notice" => ("ual/idle", 1),
         "walk" => ("ual/walk", 1.15f),
-        // The library jog, scaled to his size, is a 15 m/s run: at his 4.8 m/s chase it would crawl in slow motion.
+        // The library jog is faster than his 4.8 m/s chase; slowing it to that speed would look like slow motion.
         // He hurries in long walking strides instead; the pose matches the stride to his speed.
         "run" or "retreat" => ("ual/walk", 1.5f),
         "shield" => ("ual/walk", (float)(Services.AntigoonBrain.ShieldSpeed / Services.AntigoonBrain.WalkSpeed) * 1.15f),
@@ -243,7 +244,7 @@ public partial class AntigoonActor : Node3D
     /// <summary>The kicking boot lands: the street shakes under anyone close.</summary>
     public void Stomped()
     {
-        if(Scheldemist.Player.Jef.I?.Body is {} body&&body.GlobalPosition.DistanceTo(GlobalPosition) is var d&&d<14)Scheldemist.Player.Jef.I.Jolt(.45f*(1-d/14),1.6f*(1-d/14));
+        if(Scheldemist.Player.Jef.I?.Body is {} body&&body.GlobalPosition.DistanceTo(GlobalPosition) is var d&&d<AntigoonSize.ShakeReach)Scheldemist.Player.Jef.I.Jolt(.45f*AntigoonSize.Scale*(1-d/AntigoonSize.ShakeReach),1.6f*AntigoonSize.Scale*(1-d/AntigoonSize.ShakeReach));
     }
     public void Pause(bool on)
     {

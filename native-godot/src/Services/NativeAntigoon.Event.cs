@@ -49,7 +49,7 @@ public sealed partial class NativeAntigoon
             ["id"]=p.Id,["x"]=p.At.X,["z"]=p.At.Z,["yaw"]=p.Yaw,["phase"]=p.Phase,["time"]=p.Time,["scream"]=p.Scream,
             ["target"]=p.TargetId,["fx"]=p.From.X,["fz"]=p.From.Z,["tx"]=p.To.X,["tz"]=p.To.Z,["wall"]=p.Wall,["throw"]=p.Throw}).ToArray());
         v["rocks"]=new JsonArray((street?.Rocks??Enumerable.Empty<AntigoonNightEvent.Rock>()).Select(r=>(JsonNode)new JsonObject{
-            ["serial"]=r.Serial,["lamp"]=r.Lamp,["x"]=r.From.X,["z"]=r.From.Z,["y"]=Ground(r.From)+4.1,["tx"]=r.To.X,["tz"]=r.To.Z,["ty"]=r.Height,
+            ["serial"]=r.Serial,["lamp"]=r.Lamp,["x"]=r.From.X,["z"]=r.From.Z,["y"]=Ground(r.From)+AntigoonSize.ThrowHeight,["tx"]=r.To.X,["tz"]=r.To.Z,["ty"]=r.Height,
             ["started"]=r.Started,["release"]=r.Release,["impact"]=r.Impact}).ToArray());
     }
 }

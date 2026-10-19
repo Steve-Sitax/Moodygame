@@ -48,6 +48,21 @@ Conversion (headless, once per export; it writes under `res://world/ruien` and q
 
 ## Dev
 
+Antigoon is 3.85 m tall (#189, decision 2026-10-19). His model is uniformly scaled from the authored 5.4 m rig;
+collision, clearance, reach and world-space pose offsets use `AntigoonSize`. His feet stand on the channel bed:
+0.5 m of water surrounds his legs, leaving 0.15 m below a 4 m crown. The raised human walkway is too low for him.
+The red gallery gives 1.35 m above his head on its bed; its maximum 2.4 m water is now above his waist.
+
+**Route limit:** only O2/C2 is built. C1 under the Grote Markt and the connecting galleries are plan data, and
+Antigoon's live encounter still uses a street-only X/Z route map that excludes water. A complete refuge-to-Ruien
+route is not implemented or accepted. It needs separate underground footing/navigation and the missing areas.
+The installed O2 scan also finds two blocked centre-line samples at the C2 throat (x about -149.5, z 110 and
+110.5), after allowing for C2's 0.25 m higher bed. Resolve that junction before accepting giant transit there.
+`--antigoon-size-proof <output>` captures him in daylight and on O2's bed, measures the model/collision, checks a
+street route and records blocked upright samples in the installed gallery in `size.json`. Supply isolated `--db`,
+`--prefs`, `--author-root`, `SCHELDEMIST_USER_DATA`, an unused `--port`, and `--no-ai`. Its O2 witness is a placement
+for inspection, not proof of an autonomous underground route.
+
 - Kit command `ruien [area]`: Jef on the area's dev entry (a gallery ledge).
 - `--ruien-live`: `areas.json` and `materials.json` are read again when they change (light, air, material numbers).
 - `--ruien-lod 0|1`: every key at one level (for measuring). `--ruien-always`: always drawn. `--no-ruien` turns the

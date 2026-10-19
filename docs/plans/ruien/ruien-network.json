@@ -11,7 +11,7 @@
     "canalAndVlietBed": -5.05,
     "canalStillWaterAtLowTide": -4.75,
     "petitBassin": -0.7,
-    "antigoonHeight": 4.4,
+    "antigoonHeight": 3.85,
     "lowestInsideWater": -4.6
   },
   "classes": {
@@ -25,7 +25,7 @@
       "sill": -4.6,
       "colour": "#b0203a",
       "stroke": 7,
-      "note": "Steve 2026-10-18: water at most to Antigoon's waist. Bed -6.1, normal water 1.5 m, at most 2.4 m; ledges -3.6 on both sides; Antigoon (4.4 m) upright with 0.8 m over his head.",
+      "note": "Bed -6.1, normal water 1.5 m, at most 2.4 m; ledges -3.6 on both sides. Antigoon is 3.85 m, upright on the bed with 1.35 m below the crown (decision 2026-10-19, #189).",
       "wall": 0.6,
       "maxWaterAboveBed": 2.4,
       "bed": -6.1
@@ -38,7 +38,7 @@
       "ledgeAboveBed": 1.0,
       "colour": "#1f5fa8",
       "stroke": 4,
-      "note": "Steve 2026-10-18: 4 m from the water bottom to the roof, water in the channel, the walkway higher. Bed -4.9, water about 0.5 m, walkway -3.9; Antigoon (4.4 m) passes bent about 0.5 m.",
+      "note": "Steve 2026-10-18: 4 m from the water bottom to the roof, water in the channel, the walkway higher. Bed -4.9, water about 0.5 m, walkway -3.9; Antigoon (3.85 m) wades upright on the bed, 0.15 m below the crown (decision 2026-10-19, #189).",
       "wall": 0.45,
       "channelWidth": 2.8,
       "bed": -4.9

@@ -13,19 +13,19 @@ public sealed class AntigoonBrain
         public Point Toward(Point p,double distance) { double d=Distance(p); return d<1e-6?this:new(X+(p.X-X)*Math.Min(1,distance/d),Z+(p.Z-Z)*Math.Min(1,distance/d)); }
     }
     public sealed record Player(int Id,Point At,bool Available=true);
-    public const double WalkSpeed=1.8, RunSpeed=4.8, AttackRange=2.2, ContactTime=.62, AttackDuration=1.35, SafeLight=.45, ShieldSpeed=1.3;
+    public const double WalkSpeed=1.8, RunSpeed=4.8, AttackRange=2.2*AntigoonSize.Scale, ContactTime=.62, AttackDuration=1.35, SafeLight=.45, ShieldSpeed=1.3;
     // Prey spotted from afar: he stops dead and stares, then charges. Close prey gets the boot at once.
     public const double NoticeTime=1.6, NoticeDistance=7, NoticeRest=14, LungeSpeed=2.6;
     public const int KickDamage=3;
     // Every second attack he grabs instead: bends to seize the neck, lifts the prey to his face, stares, throws.
-    public const double GrabContact=.8, GrabRelease=3.1, GrabDuration=3.9, GrabRange=2.4, ThrowDistance=6;
+    public const double GrabContact=.8, GrabRelease=3.1, GrabDuration=3.9, GrabRange=2.4*AntigoonSize.Scale, ThrowDistance=6;
     public const int ThrowDamage=3, WallDamage=2;
     public sealed record Throw(int Serial,int Victim,Point From,Point To,bool Wall);
     // Hunger: with no one to hunt he goes from food to food: fish and flesh first, grain only when nothing better is
     // near. Cats and dogs run from him; one he catches, he eats.
     public sealed record Food(string Id,string Kind,Point At,Point Stand,double Worth);
     public sealed record Beast(string Id,string Species,Point At);
-    public const double EatTime=8, FoodRest=600, HuntRange=16, SeizeRange=2.2;
+    public const double EatTime=8, FoodRest=600, HuntRange=16, SeizeRange=2.2*AntigoonSize.Scale;
     public List<Food> Foods { get; }=new();
     public Func<IReadOnlyList<Beast>> Beasts = ()=>Array.Empty<Beast>();
     /// <summary>What he is eating: "food:&lt;id&gt;" or "beast:&lt;id&gt;" (null when not eating).</summary>
@@ -39,7 +39,7 @@ public sealed class AntigoonBrain
     public string? GoingFor=>goingFor;
     private int stuck;
     // A leap over an obstacle he cannot step over: crouch and spring, clear it, land and walk on.
-    public const double JumpTime=.95, JumpTakeoff=.3, JumpHeight=1.7;
+    public const double JumpTime=.95, JumpTakeoff=.3, JumpHeight=1.7*AntigoonSize.Scale;
     /// <summary>Cells he can leap across but not stand on.</summary>
     public Func<Point,bool> Jumpable = _=>false;
     /// <summary>His height above the street now (in a leap).</summary>
@@ -102,7 +102,7 @@ public sealed class AntigoonBrain
     }
     private void Release(double distance,bool flung)
     {
-        var dir=new Point(Math.Sin(Yaw),Math.Cos(Yaw));var from=new Point(Position.X+dir.X*.9,Position.Z+dir.Z*.9);
+        var dir=new Point(Math.Sin(Yaw),Math.Cos(Yaw));var from=new Point(Position.X+dir.X*.9*AntigoonSize.Scale,Position.Z+dir.Z*.9*AntigoonSize.Scale);
         var want=new Point(from.X+dir.X*distance,from.Z+dir.Z*distance);var to=flung?Landing(from,want):want;
         LastThrow=new(++throws,Held,from,to,flung&&to.Distance(from)<distance-.3);Held=0;Thrown?.Invoke(LastThrow);
     }
@@ -161,7 +161,7 @@ public sealed class AntigoonBrain
             if(Held==0&&!contacted&&prey!=null)
             {
                 Yaw=Math.Atan2(prey.At.X-Position.X,prey.At.Z-Position.Z);
-                if(Position.Distance(prey.At)>1.8)Move(prey.At,Target<0?RunSpeed*.7:LungeSpeed,dt,false);
+                if(Position.Distance(prey.At)>1.8*AntigoonSize.Scale)Move(prey.At,Target<0?RunSpeed*.7:LungeSpeed,dt,false);
                 if(State!="grab")return;
             }
             if(!contacted&&StateTime>=GrabContact)
@@ -178,7 +178,7 @@ public sealed class AntigoonBrain
         {
             var victim=players.FirstOrDefault(p=>p.Id==Target&&p.Available);
             // He lunges into the wind-up: a fleeing resident gets the running kick, a player a heavy step.
-            if(StateTime<ContactTime&&victim!=null&&Position.Distance(victim.At)>1.9)
+            if(StateTime<ContactTime&&victim!=null&&Position.Distance(victim.At)>1.9*AntigoonSize.Scale)
             {
                 Move(victim.At,Target<0?RunSpeed*.8:LungeSpeed,dt,false);
                 if(State!="attack")return;
@@ -315,7 +315,8 @@ public sealed class AntigoonBrain
     }
     private bool Move(Point goal,double speed,double dt,bool allowLight)
     {
-        if(route==null||routeAge>1.2||routeGoal.Distance(goal)>2)
+        // A moving target must not outrun the cached endpoint beyond the smaller giant's reach.
+        if(route==null||routeAge>1.2||routeGoal.Distance(goal)>AttackRange*.5)
         {
             route=Path(Position,goal);routeGoal=goal;routeAge=0;routeIndex=0;
             // A fresh route starts on the grid spot nearest him, which may lie behind: never step back to it.

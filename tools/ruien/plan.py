@@ -284,7 +284,7 @@ def section():
     figure(cx + .3 * m, g["bed"], ah, "#e8c060")
     out.append(f'<text x="{cx + .9 * m:.0f}" y="{Y(g["bed"] + 4.0):.0f}" font-size="10" fill="#e8c060">Antigoon {ah} m, upright</text>')
     figure(cx - (r_ - .5) * m, led, 1.8, "#9ad0ff", "Jef")
-    out.append(f'<text x="{cx - r_ * m - 18:.0f}" y="{Y(g["bed"] + g["maxWaterAboveBed"]) + 4:.0f}" text-anchor="end" font-size="10" fill="#4a7ab0">at most 2.4 m (his waist)</text>'
+    out.append(f'<text x="{cx - r_ * m - 18:.0f}" y="{Y(g["bed"] + g["maxWaterAboveBed"]) + 4:.0f}" text-anchor="end" font-size="10" fill="#4a7ab0">at most 2.4 m</text>'
                f'<text x="{cx - r_ * m - 18:.0f}" y="{Y(g["bed"] + 1.5) + 14:.0f}" text-anchor="end" font-size="10" fill="#4a7ab0">usually 1.5 m</text>')
     # rui with a ladder shaft and grate
     cx = 620; r_ = mm["innerWidth"] / 2; led = mm["bed"] + mm["ledgeAboveBed"]
@@ -294,7 +294,7 @@ def section():
     for k_ in range(int((0 - led) / .3)):
         yy = led + .3 * (k_ + 1); out.append(f'<line x1="{cx - r_ * m + 6:.0f}" y1="{Y(yy):.0f}" x2="{cx - r_ * m + .8 * m - 2:.0f}" y2="{Y(yy):.0f}" stroke="#999"/>')
     vault(cx, mm["innerWidth"], mm["bed"], crown, mm["bed"] + .5, None, [(cx - r_ * m, mm["ledgeWidth"], led)], f'Rui {mm["innerWidth"]} x {mm["bedToCrown"]:.0f} m')
-    stoop(cx + .2 * m, mm["bed"], ah, crown - .15, "#e8c060", f"Antigoon bends {ah - (mm['bedToCrown'] - .15):.1f} m")
+    figure(cx, mm["bed"], ah, "#e8c060", f"Antigoon {ah} m, upright")
     figure(cx - (r_ - .4) * m, led, 1.8, "#9ad0ff", "Jef")
     out.append(f'<text x="{cx + r_ * m + 20:.0f}" y="{Y(mm["bed"] + .5) + 4:.0f}" font-size="10" fill="#4a7ab0">water about 0.5 m</text>'
                f'<text x="{cx + r_ * m + 20:.0f}" y="{Y(led) + 4:.0f}" font-size="10" fill="#7a6a5a">walkway {led:.1f} m</text>')

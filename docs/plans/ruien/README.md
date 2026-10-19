@@ -1,7 +1,7 @@
 # The Ruien: 2D plan, second draft (2026-10-18)
 
 Steve redrew the network for gameplay (`steve-plan-2026-10-18.png`): red is a giant gallery, blue a rui, thick
-patches are halls, rooms and gates. This folder works that drawing out. Nothing in the game changes yet.
+patches are halls, rooms and gates. This folder records that plan; [native construction](../../ruien-native.md) starts with O2/C2.
 
 - `ruien-plan.html`: the plan over the town map. Layers switch on and off; hover anything for details. It also has
   the sections to scale and tables of the halls and lines. `ruien-plan.png` is the same as one flat picture.
@@ -17,19 +17,19 @@ patches are halls, rooms and gates. This folder works that drawing out. Nothing 
 
 ## Sizes (Steve, 2026-10-18)
 
-Antigoon becomes 4.4 m tall (1 m less; not yet changed in the game).
+Antigoon is 3.85 m tall (decision 2026-10-19, #189). He wades upright on the channel bed; the raised walkways are for people.
 
 | Kind | Inside | Floor, water, walkway | Antigoon |
 |---|---|---|---|
-| Giant gallery (red) | 6 m wide, 5.2 m from the floor to the roof | Floor -6.1 m. Water 1.5 m deep as a rule, 2.4 m at most (his waist). A 1.5 m ledge on each side at -3.6 m. | Upright, 0.8 m to spare |
+| Giant gallery (red) | 6 m wide, 5.2 m from the floor to the roof | Floor -6.1 m. Water 1.5 m deep as a rule, 2.4 m at most. A 1.5 m ledge on each side at -3.6 m. | Upright on the bed, 1.35 m to spare |
 | Hall (red patch) | As wide as drawn, same depth as the galleries | Brick piers carry the vaults. Big by its area, not its height. | Upright |
-| Rui (blue) | 3.6 m wide, 4 m from the water's bottom to the roof | Floor -4.9 m. Water about 0.5 m deep. A 0.8 m walkway at -3.9 m, above the water. | Bends about 0.6 m |
-| Junction room (blue patch) | As drawn, rui depth | Where ruien meet; a stair down from the street. | Bends |
+| Rui (blue) | 3.6 m wide, 4 m from the water's bottom to the roof | Floor -4.9 m. Water about 0.5 m deep. A 0.8 m walkway at -3.9 m, above the water. | Upright on the bed, 0.15 m below the crown |
+| Junction room (blue patch) | As drawn, rui depth | Where ruien meet; a stair down from the street. | Upright on the bed |
 | Side drain (green) | 1 m wide, 1.6 m high, egg shape | Carries the street gullies to the ruien. | Does not fit |
 
 Why the giant galleries are not higher: the roof must stay 0.9 m under the street, and the river at low tide lets
 the water inside go down to about -4.6 m and no lower. A floor deeper than that always has water on it. A 6.5 m
-gallery would have 2.8 m of water; a 5.2 m one keeps it at his waist.
+gallery would have 2.8 m of water; a 5.2 m one limits that depth to 2.4 m.
 
 All sizes sit inside the real range: Antwerp's vaults run from about 3 x 2 m to 9 x 6 m; the main Paris collectors of
 the time were 5 to 6 m wide with a 3.5 m water channel (`references.md`).
@@ -65,6 +65,7 @@ the time were 5 to 6 m wide with a 3.5 m water channel (`references.md`).
 
 ## Open questions for Steve
 
-1. Antigoon bends about 0.6 m in a rui. That needs a bent-over walk. Or he becomes 3.85 m and walks upright.
+1. **Decided (2026-10-19, #189):** Antigoon is 3.85 m and walks upright on the submerged bed. No bent-over walk. The 0.5 m water surrounds his legs; it does not raise his feet.
+   Native route gap: only O2/C2 is built. C1 and its connecting galleries are still planned, and the encounter currently routes on streets. See [native notes](../../ruien-native.md).
 2. Confirm the Bassin boat door (P1).
 3. The names are a first guess (`ruiNames` in the network file); change any.

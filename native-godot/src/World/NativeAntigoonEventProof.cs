@@ -1,4 +1,5 @@
 using Godot;
+using Scheldemist.Native.Services;
 using System;
 using System.IO;
 using System.Linq;
@@ -98,7 +99,7 @@ public static class NativeAntigoonEventProof
             game.Cam.SetProcess(false);game.Cam.SetPhysicsProcess(false);game.Cam.SetProcessInput(false);game.Cam.SetProcessUnhandledInput(false);
             // A free mouse pauses play (the menu takes over); live play keeps it captured.
             Input.MouseMode=Input.MouseModeEnum.Captured;Pause.Clear();
-            game.Cam.GlobalPosition=new(view.X,(float)encounter.Ground(home)+3.2f,view.Y);game.Cam.LookAt(new((float)home.X,(float)encounter.Ground(home)+2.7f,(float)home.Z));
+            game.Cam.GlobalPosition=new(view.X,(float)encounter.Ground(home)+3.2f*AntigoonSize.Scale,view.Y);game.Cam.LookAt(new((float)home.X,(float)encounter.Ground(home)+AntigoonSize.Height/2,(float)home.Z));
             await Frames(8);
             // Database-backed eligibility shares the service gate with the client's polling requests.
             // He roams now: the witness stands beside where the giant is, not where he was staged.
@@ -236,7 +237,7 @@ public static class NativeAntigoonEventProof
         // Jef's on-foot Look also owns the camera. Release it before framing the remote meal.
         if(!Jef.I.Fly)Jef.I.ToggleFly();
         var view=new[]{9.0,7,12,5,15}.SelectMany(r=>Enumerable.Range(0,24).Select(i=>new P(at.X+Math.Sin(i*Math.PI/12)*r,at.Z+Math.Cos(i*Math.PI/12)*r))).First(p=>encounter.HumanClear(p)&&encounter.BodyVisible(p,at));
-        game.Cam.GlobalPosition=new((float)view.X,(float)encounter.Ground(view)+3,(float)view.Z);game.Cam.LookAt(new((float)at.X,(float)encounter.Ground(at)+2.5f,(float)at.Z));
+        game.Cam.GlobalPosition=new((float)view.X,(float)encounter.Ground(view)+3,(float)view.Z);game.Cam.LookAt(new((float)at.X,(float)encounter.Ground(at)+2.5f*AntigoonSize.Scale,(float)at.Z));
         var actor=(Scheldemist.Native.Characters.AntigoonActor)game.FindChild("Antigoon",true,false);
         var renderedDeadline=DateTime.UtcNow.AddSeconds(4);
         while(actor.State!="eat"&&DateTime.UtcNow<renderedDeadline)await frames(1);

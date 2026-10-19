@@ -1,4 +1,5 @@
 using Godot;
+using Scheldemist.Native.Services;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -87,7 +88,7 @@ public partial class AntigoonPose : SkeletonModifier3D
     /// <summary>Where his boots point, on average (a swinging boot counts where it will land).</summary>
     public float FeetYaw{get{float a=boots[0].Swinging?boots[0].ToYaw:boots[0].Yaw,b=boots[1].Swinging?boots[1].ToYaw:boots[1].Yaw;return a+Mathf.AngleDifference(a,b)*.5f;}}
     private Vector3 Home(int i)=>rig.GlobalTransform*restFeet[i].Origin;
-    private float AnkleLift(int i)=>restFeet[i].Origin.Y;
+    private float AnkleLift(int i)=>restFeet[i].Origin.Y * AntigoonSize.Scale;
 
     public override void _ProcessModificationWithDelta(double delta)=>ApplyPose(delta);
     public void ApplyPose(double delta)
@@ -224,7 +225,7 @@ public partial class AntigoonPose : SkeletonModifier3D
     {
         if(Grip is not {} grip||grip.Weight<=0)return;
         float shoulder=(rig.GlobalTransform*rig.GetBoneGlobalPose(arms[GripHand]).Origin).Y;
-        float s=Smooth((shoulder-grip.Target.Y-1.1f)/1.7f)*Smooth(grip.Weight);if(s<=0)return;
+        float s=Smooth((shoulder-grip.Target.Y-1.1f*AntigoonSize.Scale)/(1.7f*AntigoonSize.Scale))*Smooth(grip.Weight);if(s<=0)return;
         var hipsPose=rig.GetBoneGlobalPose(pelvis);hipsPose.Origin+=new Vector3(0,-.9f*s,-.25f*s);rig.SetBoneGlobalPose(pelvis,hipsPose);
         Turn(spine,Vector3.Right,.8f*s);Turn(neck,Vector3.Right,-.35f*s);
     }
@@ -289,7 +290,7 @@ public partial class AntigoonPose : SkeletonModifier3D
         var gait=GaitOf(clip)!;
         // Play the stride at the pace that matches his ground speed, so a planted foot keeps still in the street.
         // Eased: a pace that jumps with every position update makes the stride stutter.
-        float pace=Math.Clamp(speed/Math.Max(.1f,gait.Speed),.35f,2.2f);
+        float pace=Math.Clamp(speed/Math.Max(.1f,gait.Speed * AntigoonSize.Scale),.35f,2.2f);
         Actor.Animations.SpeedScale=Mathf.Lerp(Actor.Animations.SpeedScale,pace,1-Mathf.Exp(-dt*4));
         var a=Actor.Animations.GetAnimation(clip);int at=(int)(Actor.Animations.CurrentAnimationPosition/a.Length*gait.Samples)%gait.Samples;
         for(int i=0;i<2;i++)
@@ -306,7 +307,7 @@ public partial class AntigoonPose : SkeletonModifier3D
         }
     }
     /// <summary>Proof aid: the stride a clip is read as: its ground speed and how many samples each foot is down.</summary>
-    public string GaitReport(string clip)=>GaitOf(clip) is {} g?$"{clip}: {g.Speed:0.00} m/s, left down {g.Down[0].Count(d=>d)}/{g.Samples}, right down {g.Down[1].Count(d=>d)}/{g.Samples}":clip+": not a stride";
+    public string GaitReport(string clip)=>GaitOf(clip) is {} g?$"{clip}: {g.Speed*AntigoonSize.Scale:0.00} m/s, left down {g.Down[0].Count(d=>d)}/{g.Samples}, right down {g.Down[1].Count(d=>d)}/{g.Samples}":clip+": not a stride";
     /// <summary>The library walk is upright; only never let the trunk fall behind the hips.</summary>
     private void Upright()
     {
@@ -324,9 +325,9 @@ public partial class AntigoonPose : SkeletonModifier3D
     {
         var b=boots[i];if(!b.Swinging)return b.At;
         float e=Smooth(b.T);var p=b.From.Lerp(b.To,e);
-        p.Y+=Mathf.Sin(Mathf.Pi*b.T)*Math.Clamp(.1f+b.Length*.2f,.1f,.6f);
+        p.Y+=Mathf.Sin(Mathf.Pi*b.T)*Math.Clamp(.1f*AntigoonSize.Scale+b.Length*.2f,.1f*AntigoonSize.Scale,.6f*AntigoonSize.Scale);
         // A long stride folds the heel up behind before the knee drives it forward.
-        if(b.Length>1.6f){var back=(b.From-b.To);back.Y=0;float curl=Mathf.Sin(Mathf.Pi*Math.Min(1,b.T*1.6f))*(1-b.T);p+=back.Normalized()*curl*.5f+Vector3.Up*curl*.55f;}
+        if(b.Length>1.6f*AntigoonSize.Scale){var back=(b.From-b.To);back.Y=0;float curl=Mathf.Sin(Mathf.Pi*Math.Min(1,b.T*1.6f))*(1-b.T);p+=back.Normalized()*curl*.5f*AntigoonSize.Scale+Vector3.Up*curl*.55f*AntigoonSize.Scale;}
         return p;
     }
     private float BootYaw(int i){var b=boots[i];return b.Swinging?Mathf.LerpAngle(b.FromYaw,b.ToYaw,Smooth(b.T)):b.Yaw;}
@@ -341,7 +342,7 @@ public partial class AntigoonPose : SkeletonModifier3D
             b.T+=dt/swing;if(b.T>=1){Plant(b,b.To,b.ToYaw,i);Landed?.Invoke(i);}
         }
         // A boot left beyond any stride (a jump in the host's position) is set back under him.
-        for(int i=0;i<2;i++)if(!boots[i].Swinging&&new Vector2(Home(i).X-boots[i].At.X,Home(i).Z-boots[i].At.Z).Length()>2.4f)Plant(boots[i],Home(i),BodyYaw,i);
+        for(int i=0;i<2;i++)if(!boots[i].Swinging&&new Vector2(Home(i).X-boots[i].At.X,Home(i).Z-boots[i].At.Z).Length()>2.4f*AntigoonSize.Scale)Plant(boots[i],Home(i),BodyYaw,i);
         // Running has a flight: the next boot may lift once the other is past the top of its swing.
         bool Busy(Boot b)=>b.Swinging&&!(speed>3&&b.T>.5f);
         if(!start||Busy(boots[0])||Busy(boots[1]))return;
@@ -392,7 +393,7 @@ public partial class AntigoonPose : SkeletonModifier3D
         var catchAt=icp+velocity*swing+flank;catchAt.Y=to.Y;
         to=to.Lerp(catchAt,speed>=2.5f?.15f:tip>0?.8f:.35f);
         var reachFrom=Home(pick);var stride=new Vector2(to.X-reachFrom.X,to.Z-reachFrom.Z);
-        if(stride.Length()>1.9f){stride=stride.Normalized()*1.9f;to=new(reachFrom.X+stride.X,to.Y,reachFrom.Z+stride.Y);}
+        if(stride.Length()>1.9f*AntigoonSize.Scale){stride=stride.Normalized()*1.9f*AntigoonSize.Scale;to=new(reachFrom.X+stride.X,to.Y,reachFrom.Z+stride.Y);}
         boot.Swinging=true;boot.T=0;boot.From=boot.At;boot.FromYaw=boot.Yaw;boot.ToYaw=BodyYaw+ahead;
         boot.To=new(to.X,Ground(to)+AnkleLift(pick),to.Z);boot.Length=new Vector2(boot.To.X-boot.From.X,boot.To.Z-boot.From.Z).Length();
     }
@@ -407,7 +408,7 @@ public partial class AntigoonPose : SkeletonModifier3D
         var hips=rig.GlobalTransform*rig.GetBoneGlobalPose(pelvis).Origin;var trunk=rig.GlobalTransform*rig.GetBoneGlobalPose(chest).Origin;
         var mass=hips.Lerp(trunk,.35f);float height=Math.Max(.5f,mass.Y-Actor.GlobalPosition.Y);
         var capture=mass+velocity/Mathf.Sqrt(9.8f/height);capture.Y=Actor.GlobalPosition.Y;
-        const float Sole=.4f;
+        const float Sole=.4f * AntigoonSize.Scale;
         var planted=boots.Where(b=>!b.Swinging).Select(b=>b.At).ToArray();
         if(planted.Length==0)return (capture,0);
         float d;

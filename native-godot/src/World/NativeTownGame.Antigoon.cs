@@ -28,7 +28,7 @@ public partial class NativeTownGame
         // Capture actual solid triangles once; requests never access scene nodes or physics.
         var geometry=new AntigoonGeometry(World);
         // He steps over crates, benches and low walls a man must climb; anything taller below his crown stops him.
-        const float Step=1.1f,Radius=.65f,Crown=5.5f,Leap=2.3f;
+        const float Step=AntigoonSize.Step,Radius=AntigoonSize.ClearanceRadius,Crown=AntigoonSize.ClearanceHeight,Leap=AntigoonSize.Leap;
         int Quarter(double v,double origin)=>(int)Math.Floor((v-origin)*4);
         // Street level beside a crate or bench: the walk map's own footing within 1.25 m, never the top of the thing.
         (double X,double Z)? Footing(P p)
@@ -162,7 +162,7 @@ public partial class NativeTownGame
             return null;
         };
         // Any of him in a man's line of sight: legs, chest or head, from eyes at 1.6 m.
-        bool BodyVisible(P eye,P giant)=>geometry.Visible(At(eye,1.6f),At(giant,1.3f))||geometry.Visible(At(eye,1.6f),At(giant,2.9f))||geometry.Visible(At(eye,1.6f),At(giant,4.5f));
+        bool BodyVisible(P eye,P giant)=>geometry.Visible(At(eye,1.6f),At(giant,1.3f*AntigoonSize.Scale))||geometry.Visible(At(eye,1.6f),At(giant,2.9f*AntigoonSize.Scale))||geometry.Visible(At(eye,1.6f),At(giant,4.5f*AntigoonSize.Scale));
         double Walked(IReadOnlyList<P> path){double sum=0;for(int i=1;i<path.Count;i++)sum+=path[i].Distance(path[i-1]);return sum;}
         encounter.BodyVisible=BodyVisible;
         encounter.Roofed=p=>!geometry.Visible(At(p,2),At(p,60));

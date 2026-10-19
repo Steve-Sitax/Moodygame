@@ -4,7 +4,14 @@ int checks=0;
 void Check(bool condition,string name){if(!condition)throw new Exception(name);checks++;Console.WriteLine("PASS "+name);}
 void Tick(AntigoonBrain b,double seconds,bool night,params AntigoonBrain.Player[] players){for(int i=0;i<(int)Math.Round(seconds/.05);i++)b.Step(.05,night,players);}
 AntigoonBrain Make(){var b=new AntigoonBrain(new(0,0));b.Reveal();return b;}
-var victim=new AntigoonBrain.Player(1,new(0,2));
+Check(Math.Abs(AntigoonSize.Height-3.85)<.0001,"height decision is 3.85 m");
+Check(AntigoonSize.ClearanceHeight<4&&AntigoonSize.Height>3,"upright on the 4 m rui bed, not the raised walkway");
+Check(Math.Abs(AntigoonSize.BodyHeight/5.2-AntigoonSize.Scale)<.0001&&Math.Abs(AntigoonSize.BodyRadius/.62-AntigoonSize.Scale)<.0001,"collision scales uniformly with the authored model");
+// A wall pins the attacker: his old 2 m reach must not survive the visual resize.
+var shortArms=Make();shortArms.Clear=_=>false;int phantomHits=0;shortArms.HurtPlayer=(_,_)=>phantomHits++;
+Tick(shortArms,2,true,new AntigoonBrain.Player(1,new(0,2)));
+Check(phantomHits==0,"resized reach cannot hit at the old distance without approaching");
+var victim=new AntigoonBrain.Player(1,new(0,1.4));
 var a=Make();int damage=0;a.HurtPlayer=(_,d)=>damage+=d;
 Tick(a,.6,true,victim);Check(damage==0,"attack wind-up does not damage early");
 Tick(a,.15,true,victim);Check(damage==AntigoonBrain.KickDamage&&a.Kicks[1]==1,"attack makes contact once at 0.62 seconds");
@@ -20,12 +27,12 @@ var g=Make();g.Clear=p=>p.Z<3;Tick(g,2,true,new AntigoonBrain.Player(1,new(0,20)
 var h=Make();Check(!h.Strike(new(1,new(0,7))),"remote melee rejected");Check(h.Strike(victim),"nearby melee accepted");Check(!h.Strike(victim)&&h.Health==105,"duplicate melee is rate limited");
 for(int i=0;i<7;i++){Tick(h,.85,true);h.Strike(new(1,new(h.Position.X,h.Position.Z+1)));}Check(h.Health==0&&h.State=="death","eight valid strikes defeat Antigoon");Tick(h,2,true,victim);Check(h.State=="death"&&!h.Strike(victim),"death persists and rejects more strikes");
 var k=Make();Tick(k,2,true,new AntigoonBrain.Player(1,new(0,20)));Tick(k,3,false);Check(k.State=="hidden"&&k.Position.Distance(k.Home)<.45,"returns home and hides in daylight");
-var m=Make();damage=0;int target=0;m.HurtPlayer=(id,v)=>{target=id;damage+=v;};Tick(m,.8,true,new(7,new(0,2)),new(9,new(0,2.2)));Check(damage==AntigoonBrain.KickDamage&&target==7,"one shared swing hits only its selected multiplayer target");
+var m=Make();damage=0;int target=0;m.HurtPlayer=(id,v)=>{target=id;damage+=v;};Tick(m,.8,true,new(7,new(0,1.4)),new(9,new(0,1.5)));Check(damage==AntigoonBrain.KickDamage&&target==7,"one shared swing hits only its selected multiplayer target");
 var n=Make();n.Sight=(_,_)=>false;Check(!n.Strike(victim),"player cannot strike through a wall");
 var dazzled=Make();dazzled.Light=p=>Math.Abs(p.X)<4&&Math.Abs(p.Z)<4?1:.3;Tick(dazzled,.2,true);Check(dazzled.State=="shield","a lamp's light makes him shield his eyes");
 Tick(dazzled,8,true);Check(dazzled.State!="shield"&&dazzled.Position.Distance(new(0,0))>3.5,"he gropes out of the light and stops shielding in dim light");
 // Grab: every second attack. He seizes, lifts, stares and throws about 6 m; a wall cuts the flight short.
-var grabber=Make();AntigoonBrain.Throw? flung=null;grabber.Thrown=t=>flung=t;var held=new AntigoonBrain.Player(5,new(0,2));
+var grabber=Make();AntigoonBrain.Throw? flung=null;grabber.Thrown=t=>flung=t;var held=new AntigoonBrain.Player(5,new(0,1.4));
 Tick(grabber,1.2,true,held);Check(grabber.State=="attack"&&flung==null,"the first attack is a kick");
 Tick(grabber,.4,true,held);Check(grabber.State=="grab","the next attack is a grab");
 Tick(grabber,.8,true,held);Check(grabber.Held==5,"he seizes prey within reach at contact");
@@ -42,7 +49,7 @@ Tick(missed,.4,true,held with {At=new(0,7)});Tick(missed,.7,true);Check(missed.H
 var leaper=Make();leaper.Clear=p=>!(p.Z>4&&p.Z<5.5);leaper.Jumpable=p=>p.Z>4&&p.Z<5.5;leaper.Path=(_,to)=>new[]{to};
 leaper.Patrol.Add(new(0,12));bool leapt=false;double top=0;
 for(int i=0;i<200;i++){leaper.Step(.05,true,Array.Empty<AntigoonBrain.Player>());leapt|=leaper.State=="jump";top=Math.Max(top,leaper.Lift);}
-Check(leapt&&leaper.Position.Z>6&&top>1.2,"he leaps an obstacle too tall to step over and walks on");
+Check(leapt&&leaper.Position.Z>6&&top>1.1,"he leaps an obstacle too tall to step over and walks on");
 var walled2=Make();walled2.Clear=p=>p.Z<4;walled2.Jumpable=p=>p.Z>4&&p.Z<5.5;walled2.Path=(_,to)=>new[]{to};walled2.Patrol.Add(new(0,12));
 for(int i=0;i<100;i++)walled2.Step(.05,true,Array.Empty<AntigoonBrain.Player>());
 Check(walled2.Position.Z<4.1&&walled2.State!="jump","no leap without street to land on beyond");
@@ -67,7 +74,7 @@ var boxed=Make();boxed.Patrol.Add(new(0,10));boxed.Patrol.Add(new(-10,0));boxed.
 for(int i=0;i<200;i++)boxed.Step(.05,true,Array.Empty<AntigoonBrain.Player>());
 Check(boxed.Position.Distance(new(0,0))>3,"a blocked goal does not freeze him: he gives it up and walks on");
 var safe=Make();safe.Reach=p=>p.Z<10;Tick(safe,2,true,new AntigoonBrain.Player(1,new(0,12)));Check(safe.Target==0&&safe.State!="notice","a spot he cannot reach is a safe place");
-var lunge=Make();damage=0;lunge.HurtPlayer=(_,v)=>damage+=v;Tick(lunge,.55,true,new AntigoonBrain.Player(1,new(0,2.1)));Check(lunge.Position.Z>.15&&lunge.Position.Z<.3&&lunge.State=="attack","he lunges into the kick's wind-up and stops at kicking distance");
+var lunge=Make();damage=0;lunge.HurtPlayer=(_,v)=>damage+=v;Tick(lunge,.55,true,new AntigoonBrain.Player(1,new(0,1.5)));Check(lunge.Position.Z>0&&lunge.Position.Z<.3&&lunge.State=="attack","he lunges into the kick's wind-up and stops at kicking distance");
 // Reachability map: a lit street, a lit square cut off from it by a gate, a small yard, and open land at the edge.
 bool Fits(P p)=>(p.X>=0&&p.X<=150&&p.Z>=0&&p.Z<=12)||(p.X>=0&&p.X<=60&&p.Z>=20&&p.Z<=50)||(p.X>=80&&p.X<=86&&p.Z>=20&&p.Z<=26)||p.Z>=60;
 var lit=new[]{new P(10,1),new P(50,1),new P(100,1),new P(10,21),new P(30,21),new P(50,21),new P(82,21),new P(82,25),new P(83,23)};
@@ -142,9 +149,9 @@ Tick(shield,8,true);Check(shield.Position.Z>6&&shield.State!="shield","shielding
 var roam=Make();Tick(roam,2,true);Check(roam.State=="walk"&&roam.Position.Distance(new(0,0))>3,"unoccupied giant keeps walking rather than freezing");
 // A resident in his fist hangs at his hand, flies about 6 m when thrown, lies sprawled, then gets up.
 var crowd=new AntigoonNightEvent();var thrower2=Make();thrower2.Thrown=crowd.Thrown;
-crowd.Step(.05,true,thrower2,new[]{new AntigoonNightEvent.Witness("victim",new(0,2),new(0,60))});
+crowd.Step(.05,true,thrower2,new[]{new AntigoonNightEvent.Witness("victim",new(0,1.4),new(0,60))});
 var victim2=crowd.Residents["victim"];
-for(int i=0;i<200&&victim2.Phase!="held";i++){victim2.At=new(thrower2.Position.X,thrower2.Position.Z+2);crowd.Step(.05,true,thrower2,Array.Empty<AntigoonNightEvent.Witness>());thrower2.Step(.05,true,new[]{new AntigoonBrain.Player(victim2.TargetId,victim2.At)});}
+for(int i=0;i<200&&victim2.Phase!="held";i++){victim2.At=new(thrower2.Position.X,thrower2.Position.Z+1.3);crowd.Step(.05,true,thrower2,Array.Empty<AntigoonNightEvent.Witness>());thrower2.Step(.05,true,new[]{new AntigoonBrain.Player(victim2.TargetId,victim2.At)});}
 Check(victim2.Phase=="held"&&victim2.At.Distance(thrower2.Position)<1.2,"a seized resident hangs at the giant's hand");
 for(int i=0;i<80&&victim2.Phase=="held";i++){crowd.Step(.05,true,thrower2,Array.Empty<AntigoonNightEvent.Witness>());thrower2.Step(.05,true,crowd.Targets());}
 Check(victim2.Phase=="thrown","he throws the resident");

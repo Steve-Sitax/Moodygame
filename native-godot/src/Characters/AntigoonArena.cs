@@ -58,12 +58,12 @@ public partial class AntigoonArena : Node3D
         Reset();
         if(!proof&&output==""&&filmDir=="")Input.MouseMode=Input.MouseModeEnum.Captured;
         if(filmDir!=""){hud.Visible=false;System.IO.Directory.CreateDirectory(filmDir);AddChild(new OmniLight3D {Position=new Vector3(6,6,-6),LightColor=new Color(1,.88f,.73f),LightEnergy=4,OmniRange=30});}
-        if(output!="") {player.Position=new Vector3(4,0,.5f);camera.GlobalPosition=new Vector3(4,3.1f,.5f);camera.Fov=43;camera.LookAt(new Vector3(0,2.7f,-8));hud.Visible=false;
+        if(output!="") {player.Position=new Vector3(4,0,.5f);camera.GlobalPosition=new Vector3(4,3.1f*AntigoonSize.Scale,.5f);camera.Fov=43;camera.LookAt(new Vector3(0,AntigoonSize.Height/2,-8));hud.Visible=false;
             AddChild(new OmniLight3D {Position=new Vector3(2,5,-3),LightColor=new Color(1,.88f,.73f),LightEnergy=4,OmniRange=13});
             // A man's-eye camera from the side, with a 1.3 m chest-height post beside the giant as a ruler.
             if(Array.IndexOf(OS.GetCmdlineUserArgs(),"--antigoon-low")>=0)
             {camera.GlobalPosition=new Vector3(9,1.3f,-8);camera.Fov=60;camera.LookAt(new Vector3(0,2.2f,-8));Box("ChestPost",new Vector3(0,.65f,-5.6f),new Vector3(.12f,1.3f,.12f),new Color(.8f,.2f,.1f));}
-            if(faceShot){camera.GlobalPosition=new Vector3(.6f,5.05f,-5.6f);camera.Fov=32;camera.LookAt(new Vector3(0,4.96f,-8));}
+            if(faceShot){camera.GlobalPosition=new Vector3(.6f*AntigoonSize.Scale,5.05f*AntigoonSize.Scale,-8+2.4f*AntigoonSize.Scale);camera.Fov=32;camera.LookAt(new Vector3(0,4.96f*AntigoonSize.Scale,-8));}
         }
     }
     // Ragdoll proof: a real dressed docker hangs by the neck 4.3 m up, is flung 7 m/s at a wall 6 m away, and comes to
@@ -211,6 +211,8 @@ public partial class AntigoonArena : Node3D
                     for(int i=0;i<46;i++)if(!giant.Skeleton.GetBoneGlobalPose(i).Origin.IsFinite())throw new Exception("Invalid pose "+clip);
                 }
                 if(giant.LodCount<1)throw new Exception("Distance LODs missing");
+                try { ProveClearance(); }
+                catch(Exception error) { GD.PrintErr(error);SetPhysicsProcess(false);GetTree().Quit(1);return; }
                 var gait=ProveGait();
                 if(gait!=""){GD.PrintErr(gait);SetPhysicsProcess(false);GetTree().Quit(1);return;}
                 giant.SetState("shield");giant.Animations.Advance(.25);giant.Pose.ApplyPose(.01);
@@ -239,6 +241,18 @@ public partial class AntigoonArena : Node3D
     /// Drive the real pose frame by frame: walking, running, a turn on the spot and a kick. Boots must hold their
     /// ground while planted, reach their holds, step in turn; the trunk must not lean back; the knee must fold only forward.
     /// </summary>
+    private void ProveClearance()
+    {
+        // Native section triangles: 4 m bed-to-roof and a raised human ledge, without a town singleton.
+        using var roof=new BoxMesh {Size=new Vector3(3.6f,.1f,8)};
+        var faces=roof.GetFaces();var offset=new Vector3(70,4.05f,0);
+        var geometry=new Scheldemist.Native.World.AntigoonGeometry(Enumerable.Range(0,faces.Length/3)
+            .Select(i=>(faces[i*3]+offset,faces[i*3+1]+offset,faces[i*3+2]+offset)));
+        bool Fits(float feet,float height)=>geometry.Clear(new Vector3(70,feet,0),AntigoonSize.ClearanceRadius,height,AntigoonSize.Step);
+        if(!Fits(0,AntigoonSize.ClearanceHeight)||Fits(0,5.5f)||Fits(.5f,AntigoonSize.ClearanceHeight)||Fits(1,AntigoonSize.ClearanceHeight))
+            throw new Exception("Rui clearance: only the resized giant on the submerged bed must fit upright");
+        GD.Print("ANTIGOON_CLEARANCE_PASS: native triangle checks allow the 3.85 m giant under a 4 m roof on the bed, reject the old giant and raised water/walkway footing.");
+    }
     private string ProveGait()
     {
         const float dt=1/60f;giant.Pose.GroundAt=_=>0f;
@@ -288,7 +302,7 @@ public partial class AntigoonArena : Node3D
         if(lowest<-.02f)return $"kick: the knee bends backwards by {-lowest:0.000} rad";
         giant.Animations.Seek(.62,true);giant.Pose.ApplyPose(dt);
         var boot=giant.ToLocal(giant.Skeleton.GlobalTransform*giant.Skeleton.GetBoneGlobalPose(giant.Skeleton.FindBone("foot.R")).Origin);
-        if(boot.Y<.85f||boot.Y>1.6f||boot.Z<1.3f)return $"kick: the boot meets {boot} instead of a man's chest ahead";
+        if(boot.Y<.85f*AntigoonSize.Scale||boot.Y>1.6f*AntigoonSize.Scale||boot.Z<1.3f*AntigoonSize.Scale)return $"kick: the boot meets {boot} instead of the scaled kick contact ahead";
         GD.Print($"ANTIGOON_GAIT kick: knee folds only forward; boot at {boot.Y:0.00} m high and {boot.Z:0.00} m ahead at contact");
         giant.Pose.GroundAt=null!;return "";
     }

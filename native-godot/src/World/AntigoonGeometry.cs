@@ -11,10 +11,13 @@ internal sealed class AntigoonGeometry
 {
     private sealed record Triangle(Vector3 A,Vector3 B,Vector3 C,Aabb Bounds);
     private readonly Dictionary<(int,int),List<Triangle>> cells=new();
-    public AntigoonGeometry(Node world)
+    internal AntigoonGeometry(IEnumerable<(Vector3 A,Vector3 B,Vector3 C)> triangles)
     {
-        var triangles = Solid.I is { } solid ? solid.WorldTriangles() : Solid.CaptureWorldTriangles(world);
         foreach(var (a,b,c) in triangles)Add(a,b,c);
+    }
+    public AntigoonGeometry(Node world)
+        : this(Solid.I is { } solid ? solid.WorldTriangles() : Solid.CaptureWorldTriangles(world))
+    {
         foreach(var shape in world.FindChildren("*","CollisionShape3D",true,false).OfType<CollisionShape3D>())
         {
             if(shape.Disabled||shape.Shape==null||!shape.IsVisibleInTree()||shape.GetParent() is not CollisionObject3D body||(body.CollisionLayer&Solid.Layer)==0)continue;

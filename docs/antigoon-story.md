@@ -26,7 +26,7 @@ the current creature to a one-handed model. Keep his two-handed shielding.
 
 ## Fixed user requirements
 
-- A slender giant roughly three times human height, living in the Ruien and roaming streets at night.
+- A slender giant 3.85 m tall, roughly twice human height, living in the Ruien and roaming streets at night.
 - He runs faster than Jef, occasionally kills residents, and must be frightening to encounter.
 - The player must be able to fight him. The campaign builds towards a substantial confrontation.
 - He avoids strong light. He can cross it slowly while shielding his head with his hands, without

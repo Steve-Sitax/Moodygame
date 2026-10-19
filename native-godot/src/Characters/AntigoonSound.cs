@@ -1,4 +1,5 @@
 using Godot;
+using Scheldemist.Native.Services;
 using System;
 
 namespace Scheldemist.Native.Characters;
@@ -23,11 +24,11 @@ public partial class AntigoonSound : Node
             short sample=(short)(15000*(Beat(.025,1)+Beat(.205,.6)));bytes[i*2]=(byte)(sample&255);bytes[i*2+1]=(byte)(sample>>8);
         }
         pulse=new AudioStreamPlayer {Stream=new AudioStreamWav {Format=AudioStreamWav.FormatEnum.Format16Bits,MixRate=rate,Stereo=false,Data=bytes,LoopMode=AudioStreamWav.LoopModeEnum.Forward,LoopBegin=0,LoopEnd=count},VolumeDb=-80};AddChild(pulse);pulse.Play();
-        kick=new AudioStreamPlayer3D {Stream=ResourceLoader.Load<AudioStream>("res://world/data/public/audio/kenney-impact/impactSoft_heavy_001.ogg"),PitchScale=.5f,VolumeDb=-2,MaxDistance=35,UnitSize=6};actor.AddChild(kick);
-        stomp=new AudioStreamPlayer3D {Stream=ResourceLoader.Load<AudioStream>("res://world/data/public/audio/kenney-impact/impactSoft_heavy_000.ogg"),PitchScale=.42f,VolumeDb=-1,MaxDistance=50,UnitSize=8};actor.AddChild(stomp);
+        kick=new AudioStreamPlayer3D {Stream=ResourceLoader.Load<AudioStream>("res://world/data/public/audio/kenney-impact/impactSoft_heavy_001.ogg"),PitchScale=.5f,VolumeDb=-2,MaxDistance=35*AntigoonSize.Scale,UnitSize=6*AntigoonSize.Scale};actor.AddChild(kick);
+        stomp=new AudioStreamPlayer3D {Stream=ResourceLoader.Load<AudioStream>("res://world/data/public/audio/kenney-impact/impactSoft_heavy_000.ogg"),PitchScale=.42f,VolumeDb=-1,MaxDistance=50*AntigoonSize.Scale,UnitSize=8*AntigoonSize.Scale};actor.AddChild(stomp);
         // A slow, heavy breath out through the nose when he spots you; the air the boot moves on the swing.
-        breath=new AudioStreamPlayer3D {Stream=Air(1.5,180,520,.55,1),MaxDistance=40,UnitSize=7,VolumeDb=-4,Position=Vector3.Up*4.9f};actor.AddChild(breath);
-        swish=new AudioStreamPlayer3D {Stream=Air(.42,300,1400,.25,2),MaxDistance=25,UnitSize=5,VolumeDb=-6,Position=Vector3.Up*1.2f};actor.AddChild(swish);
+        breath=new AudioStreamPlayer3D {Stream=Air(1.5,180,520,.55,1),MaxDistance=40*AntigoonSize.Scale,UnitSize=7*AntigoonSize.Scale,VolumeDb=-4,Position=Vector3.Up*(4.9f*AntigoonSize.Scale)};actor.AddChild(breath);
+        swish=new AudioStreamPlayer3D {Stream=Air(.42,300,1400,.25,2),MaxDistance=25*AntigoonSize.Scale,UnitSize=5*AntigoonSize.Scale,VolumeDb=-6,Position=Vector3.Up*(1.2f*AntigoonSize.Scale)};actor.AddChild(swish);
     }
     /// <summary>Band-limited noise with a breath envelope: rises over `attack` of the length, then dies away.</summary>
     private static AudioStreamWav Air(double seconds,double low,double high,double attack,int seed)

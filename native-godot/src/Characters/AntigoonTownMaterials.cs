@@ -16,11 +16,15 @@ public static class AntigoonTownMaterials
     {
         var converted=new Dictionary<Material,Material>();
         foreach(var mesh in model.FindChildren("*","MeshInstance3D",true,false).OfType<MeshInstance3D>())
-        for(int i=0;i<(mesh.Mesh?.GetSurfaceCount()??0);i++)
         {
-            if(mesh.Mesh!.SurfaceGetMaterial(i) is not BaseMaterial3D source)continue;
-            if(!converted.TryGetValue(source,out var result))converted[source]=result=Convert(source);
-            mesh.SetSurfaceOverrideMaterial(i,result);
+            // Reuse the Ruien's existing nearby lamp pool for this dynamic body as well as the player's body.
+            mesh.Layers |= Scheldemist.Player.Arms.BodyLayer;
+            for(int i=0;i<(mesh.Mesh?.GetSurfaceCount()??0);i++)
+            {
+                if(mesh.Mesh!.SurfaceGetMaterial(i) is not BaseMaterial3D source)continue;
+                if(!converted.TryGetValue(source,out var result))converted[source]=result=Convert(source);
+                mesh.SetSurfaceOverrideMaterial(i,result);
+            }
         }
     }
     public static ShaderMaterial Convert(BaseMaterial3D source)

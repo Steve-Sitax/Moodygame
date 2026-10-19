@@ -51,7 +51,7 @@ public sealed class AntigoonNightEvent
         // A resident in his fist hangs where his hand is.
         foreach(var p in Residents.Values)
         {
-            if(giant.Held==p.TargetId&&p.Phase is "flee" or "held"){p.Phase="held";p.At=new(giant.Position.X+Math.Sin(giant.Yaw)*.9,giant.Position.Z+Math.Cos(giant.Yaw)*.9);p.Yaw=giant.Yaw+Math.PI;}
+            if(giant.Held==p.TargetId&&p.Phase is "flee" or "held"){p.Phase="held";p.At=new(giant.Position.X+Math.Sin(giant.Yaw)*.9*AntigoonSize.Scale,giant.Position.Z+Math.Cos(giant.Yaw)*.9*AntigoonSize.Scale);p.Yaw=giant.Yaw+Math.PI;}
         }
         Rocks.RemoveAll(r=>Now<r.Release&&giant.State!="throw");
         foreach(var rock in Rocks.Where(r=>Now>=r.Impact).ToArray()) {Extinguish?.Invoke(rock.Lamp);Rocks.Remove(rock);}

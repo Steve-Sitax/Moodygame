@@ -38,7 +38,7 @@ internal static class AntigoonEventAudio
     /// <summary>One of his footfalls where he cannot be seen: the same boot on stone as his walking feet.</summary>
     public static void Step(Node parent,Vector3 at)
     {
-        var sound=new AudioStreamPlayer3D{Position=at,MaxDistance=55,UnitSize=7,VolumeDb=-5,PitchScale=.58f,Stream=ResourceLoader.Load<AudioStream>("res://world/data/public/audio/kenney-impact/footstep_concrete_003.ogg")};
+        var sound=new AudioStreamPlayer3D{Position=at,MaxDistance=55*Services.AntigoonSize.Scale,UnitSize=7*Services.AntigoonSize.Scale,VolumeDb=-5,PitchScale=.58f,Stream=ResourceLoader.Load<AudioStream>("res://world/data/public/audio/kenney-impact/footstep_concrete_003.ogg")};
         parent.AddChild(sound);sound.Finished+=sound.QueueFree;sound.Play();
     }
     public static void Impact(Node parent,Vector3 at)
