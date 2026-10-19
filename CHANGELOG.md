@@ -11,6 +11,8 @@ Bugs and loose ends are tracked as [issues](https://github.com/Steve-Sitax/Moody
 
 ## [Unreleased]
 
+- Two households keep their boat at a quay ladder (one on the river by the Vismarkt, one in the Petit Bassin): the owner climbs down the ladder into her, rows to a flight of steps and back, and climbs up the ladder again (#195).
+- The bench and hiring-board models no longer stay loaded when a dedicated game closes (#195).
 - Reworked the #84 texture handoff with CC0 photographed brick, slate, bark, stone, wood, cloth and soil maps, photographic goods/print samples and crisp sign lettering. Native installation and scene review remain pending.
 
 - Prepared photographic town-wall, church, prison, bronze, bark, foliage and litter pictures, plus shared prop and atlas surfaces (#84). These are a texture handoff for native integration; the installed town is unchanged.

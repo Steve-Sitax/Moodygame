@@ -11,7 +11,8 @@ public sealed record ResidentVehicle
     public double[] Home{get;init;}=Array.Empty<double>();public Dictionary<string,double[]> Parks{get;init;}=new();
     public string? Route{get;init;}public ResidentBoat? Boat{get;init;}public string Label{get;init;}="";public bool Gone{get;init;}public string At{get;init;}="home";
 }
-public sealed record ResidentBoat {public string Kind{get;init;}="rowboat";public double[] Landing{get;init;}=Array.Empty<double>();public double[] Flight{get;init;}=Array.Empty<double>();}
+public sealed record ResidentBoat {public string Kind{get;init;}="rowboat";public double[] Landing{get;init;}=Array.Empty<double>();public double[] Flight{get;init;}=Array.Empty<double>();/// <summary>"ladder" (#195): she lies at a quay ladder, whose head is Flight; else at a flight of steps.</summary>
+public string Board{get;init;}="steps";}
 public sealed record ResidentLoad {public string What{get;init;}="goods";public int Items{get;init;}}
 public sealed record ResidentErrand
 {

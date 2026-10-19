@@ -639,8 +639,11 @@ Local handoff receipts and reviewed-picture manifest: `.scratch/batch2-review/`;
   are posed. `Rowing.OarPhase` eases the blades out and in as Jef's oars do. The old kit's rowers are unchanged.
 - `Human.ClimbLadder(height)` plays the `ladder` clip at the phase of the node's height over the rungs (two rungs a
   loop; a climb down plays it backward). The work proof climbs the quay ladder nearest its stage up and down
-  (`ladder-*.png`, `work.json ladder.worstHandToRung`). Residents' boats at ladders are not yet boarded: the resident
-  journeys only choose boats at flights (`ResidentJourneys`, `Rowing.Landing`).
+  (`ladder-*.png`, `work.json ladder.worstHandToRung`). Residents' boats moored at a ladder (#195): one person-owned boat per open water
+  (river, Petit Bassin; `NativeBoatOutings`, within 35 m of a flight) is her household's boat; her people climb down
+  her ladder into her and up it again (`Rowing.ResidentBoatBoardLadder`/`LandLadder`: walk legs, the climb leg plays
+  `ClimbLadder` facing the rungs, one climber on the rungs at a time). Coming home she is drawn the last metres into
+  her mooring first. Proof: `--native-journey-proof <dir> --native-journey-scope ladder-boat` (15 checks, pictures).
 - A skirted kind's near copy carries a live `sit` shape beside blink, brow and smile (`People2Faces.LiveKeysSit`);
   `People2Eyes` sets it from `Human2.SitWeight` (sit, lace, row and ride, eased over 0.6 s). Far copies have none.
 - A kind drawn in another's place by `--people2-map` takes the drawn kind's face and hair (`people2_face_kind`).

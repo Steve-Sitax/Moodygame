@@ -312,6 +312,9 @@ public partial class NativeTownGame : Scheldemist.Main
     public override void _ExitTree()
     {
         dedicatedBackend?.Dispose(); dedicatedBackend = null;
+        // the town's benches and hiring board load their model files without Townspeople (the dedicated server has
+        // none), so the kept scenes are freed here too (#195); after Townspeople's own FreeAll this is a no-op
+        Scheldemist.Models.ModelLibrary.FreeAll();
         base._ExitTree();
     }
     public override void _Process(double delta)
