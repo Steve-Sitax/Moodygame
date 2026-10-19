@@ -12,7 +12,7 @@ The run resumed in queue order. Under the revised acceptance rule, working parts
 | Helper | Issues | Worktree (the T3 worktrees folder, MoodyGame/...) | Branch | Current state |
 |---|---|---|---|---|
 | Landmark stone, paving leftovers and washing | #171 #199 #203 | t3-e3e6d0ae | t3/landmark-paving-geometry | ffefa404 committed, NOT merged: stone construction and paving tops/junctions unfinished; washing 11/11 and conversations 170/170 pass |
-| H6 textures into the town, altar marble, floating litter | #84 #198 part #200 | t3-7156f1fb | t3/town-textures-altar-litter | 2b637138 committed, NOT merged: stone geometry/mapping and row 7 atlas unfinished; altar cornice sliver remains; tidal litter checks pass |
+| H6 textures into the town, altar marble, floating litter | #84 #198 part #200 | t3-7156f1fb | t3/town-textures-altar-litter | Clean litter 4ecd32e1 merged as ea4f1203; bark 427f8f4d/22c9f476 merged as 52806d12. Altar marble superseded by N5. Full 2b637138 remains unmerged; main build, exact shaders and stuck pass; package 2b2dfcb1 and test-icons -Full pass |
 | J3 people clothes edges | #82 #138 | t3-a4b824d0 | t3/people-cloth-layer-fix | Source-only 5a645432 merged as 02602f0b; four Blender fixtures pass. Rejected 24cd2a49 and rebuilt neckline/shoulder defects remain off main; original uncommitted assets preserved |
 | N5 cathedral stalls, high altar, organ, transept altars, epitaphs | #198 | t3-1309ddf6 | t3/cathedral-furniture-detail-1 | c6005ab1 merged as 50a87168; furniture/rail 21/21 pass. Stall-corner clearance fixed in 799b283d; main build, exact shader baseline, conversations 170/170 and stuck pass. Existing glass detail stays under #198 for play review |
 | S managed heap and GC pauses | #181 (#62) | t3-6b308632 | t3/reduce-managed-heap | 055d2fd7 committed, NOT merged: smaller heap; pause nonregression and exact pixels unproved. The 5 ms pause target stays under #181; #205 diagnosis continues |
@@ -24,7 +24,7 @@ The unchanged baseline also fails exact pixels, tracked in #205. Opt-in diagnost
 
 H6 evidence: `D:/Code/_tmp_verify/H6-textures/`. Build, 13 cathedral assertions, 372 litter level assertions and shader
 baseline (41 programs, 153 kinds, zero new kinds/findings) pass. Day/rain/night and low-angle pictures expose the remaining
-stone and cornice defects; shader checks do not override those failures. No H6 issue closed or runtime change merged.
+stone and cornice defects in the full candidate. The clean litter split passes 372/372 level checks; the bark split passes six fresh day/rain/night views with unchanged foliage coverage. Full candidate 2b637138 remains off main; the two accepted subsets are merged.
 
 Landmark/paving evidence: `D:/Code/_tmp_verify/landmark-paving/`; 61 resource hashes and exact collision support,
 four focused paving fixtures and build pass. Capitals/statues/soffits, 917 square metres of step/plinth tops,
