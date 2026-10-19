@@ -25,7 +25,7 @@ size = Vector3(0.9494934, 3.399933, 2.1489506)
 
 [node name="fitting" type="Node3D" unique_id=341048940]
 script = ExtResource("1_sh13j")
-ModelParts = PackedStringArray("church/altar_frame -0.2947 3.4500 -0.0001 1.5708", "church/altar_dressing -0.2947 1.4480 -0.0001 1.5708")
+ModelParts = PackedStringArray("church/altar_frame -0.2947 3.4500 -0.0001 1.5708", "church/altar_dressing -0.2947 1.4480 -0.0001 1.5708", "church/altar_marble -0.2947 0.3000 -0.0001 1.5708")
 GeometryCollision = true
 Kind = "fitting"
 ModelSize = Vector3(0.9494934, 3.399933, 2.1489506)

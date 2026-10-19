@@ -13,6 +13,9 @@ public static class BoatGround
     private static readonly Dictionary<(string, float, float, float), float> floors = new();
     private static (int, int) Key(float x, float z) => ((int)MathF.Floor(x / Cell), (int)MathF.Floor(z / Cell));
 
+    /// <summary>Drawn mud height for small floating scraps; no bed where there is no sampled mud.</summary>
+    public static float MudAt(float x, float z) => mud.GetValueOrDefault(Key(x, z), float.NegativeInfinity);
+
     public static void ReadMud(Node root)
     {
         mud.Clear(); floors.Clear();

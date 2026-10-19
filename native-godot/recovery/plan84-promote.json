@@ -1,0 +1,1460 @@
+{
+ "textures": {
+  "1868fb063ddf5848": {
+   "png": "res://assets/textures/plan-84/3/brick_english_colour.png",
+   "kind": "colour",
+   "out": "res://assets/materials/plan84-20261019/3-brick_english-colour.res",
+   "sha256": "1868fb063ddf58481e29d6e18a46100e658874ee9abe840f5987847f3370ff56"
+  },
+  "19ad0a5a6b3ed316": {
+   "png": "res://assets/textures/plan-84/3/brick_english_height.png",
+   "kind": "height",
+   "out": "res://assets/materials/plan84-20261019/3-brick_english-height.res",
+   "sha256": "19ad0a5a6b3ed316db63e62542e930dd11bef29691bb4cc21c8197f771c010d1"
+  },
+  "9ecc0a7ddd5d8306": {
+   "png": "res://assets/textures/plan-84/8/brick_brabant_colour.png",
+   "kind": "colour",
+   "out": "res://assets/materials/plan84-20261019/8-brick_brabant-colour.res",
+   "sha256": "9ecc0a7ddd5d83064686a2c3acad55d922d215bb506519a105414c66134dc0c7"
+  },
+  "2a083c2ce22a6adf": {
+   "png": "res://assets/textures/plan-84/8/sandstone_ashlar_colour.png",
+   "kind": "colour",
+   "out": "res://assets/materials/plan84-20261019/8-sandstone_ashlar-colour.res",
+   "sha256": "2a083c2ce22a6adf67282b94fdecf439b83505811c8b149926a5b1fab60f0ea9"
+  },
+  "bb1f879fe16f5660": {
+   "png": "res://assets/textures/plan-84/8/sandstone_ashlar_height.png",
+   "kind": "height",
+   "out": "res://assets/materials/plan84-20261019/8-sandstone_ashlar-height.res",
+   "sha256": "bb1f879fe16f5660237a3ce198b368af1374e0dcebf823adb2f25936441112a7"
+  },
+  "9a6bc4ea8034625a": {
+   "png": "res://assets/textures/plan-84/3/bluestone_ashlar_colour.png",
+   "kind": "colour",
+   "out": "res://assets/materials/plan84-20261019/3-bluestone_ashlar-colour.res",
+   "sha256": "9a6bc4ea8034625a5771298bc77344e792ed1c500ee159633a86a187dfaef8f0"
+  },
+  "a18b68b1aaf891ad": {
+   "png": "res://assets/textures/plan-84/10/stone_petit_granit_colour.png",
+   "kind": "colour",
+   "out": "res://assets/materials/plan84-20261019/10-stone_petit_granit-colour.res",
+   "sha256": "a18b68b1aaf891ad77e0f62c0a49ce8468140162a4cc78cb4612c7231cc2ce99"
+  },
+  "bda070cf4a049605": {
+   "png": "res://assets/textures/plan-84/10/stone_petit_granit_height.png",
+   "kind": "height",
+   "out": "res://assets/materials/plan84-20261019/10-stone_petit_granit-height.res",
+   "sha256": "bda070cf4a049605d4cf1a0922b83dfb65062b314b9c15ddfa71e5527141ecbe"
+  },
+  "644431aae034a7d1": {
+   "png": "res://assets/textures/plan-84/3/coping_bluestone_colour.png",
+   "kind": "colour",
+   "out": "res://assets/materials/plan84-20261019/3-coping_bluestone-colour.res",
+   "sha256": "644431aae034a7d1d9fe02efb0b7ef685ecf87ae388197274142bb15b032a8c7"
+  },
+  "902d5d29222e02a4": {
+   "png": "res://assets/textures/plan-84/3/coping_bluestone_height.png",
+   "kind": "height",
+   "out": "res://assets/materials/plan84-20261019/3-coping_bluestone-height.res",
+   "sha256": "902d5d29222e02a496658b4f68e4821b3a4dd3c0e9e78d6efa0d1c98eb734668"
+  },
+  "34af5727f1026e0d": {
+   "png": "res://assets/textures/plan-84/3/slate_ardennes_colour.png",
+   "kind": "colour",
+   "out": "res://assets/materials/plan84-20261019/3-slate_ardennes-colour.res",
+   "sha256": "34af5727f1026e0d5a0132c4fcd95e45ea79889fe67c2d99c606b6755e00bcd2"
+  },
+  "b20ad59091bb4fc2": {
+   "png": "res://assets/textures/plan-84/3/slate_ardennes_height.png",
+   "kind": "height",
+   "out": "res://assets/materials/plan84-20261019/3-slate_ardennes-height.res",
+   "sha256": "b20ad59091bb4fc265c6cac9c253683273ebb5fc91f217fcc54e6c6b81d7b8d2"
+  },
+  "46be1e93e9df1a7c": {
+   "png": "res://assets/textures/plan-84/8/lead_roof_colour.png",
+   "kind": "colour",
+   "out": "res://assets/materials/plan84-20261019/8-lead_roof-colour.res",
+   "sha256": "46be1e93e9df1a7cd4f12d0e02d02ccdf1488a645ca9579f1252707d25b4f79b"
+  },
+  "15f40f519d3b1a21": {
+   "png": "res://assets/textures/plan-84/8/lead_roof_height.png",
+   "kind": "height",
+   "out": "res://assets/materials/plan84-20261019/8-lead_roof-height.res",
+   "sha256": "15f40f519d3b1a2198d3ad3b757e381d9d2bb0b1b9a044b034fe0b72934fad33"
+  },
+  "6826e2109d63db0b": {
+   "png": "res://assets/textures/plan-84/8/sandstone_plain_colour.png",
+   "kind": "colour",
+   "out": "res://assets/materials/plan84-20261019/8-sandstone_plain-colour.res",
+   "sha256": "6826e2109d63db0b9a4767c041488ff83998e3ab7623e8e120ca4ad3c5b6064d"
+  },
+  "b651adcaddaebb2e": {
+   "png": "res://assets/textures/plan-84/10/bronze_cast_colour.png",
+   "kind": "colour",
+   "out": "res://assets/materials/plan84-20261019/10-bronze_cast-colour.res",
+   "sha256": "b651adcaddaebb2ea8cf0a67327071c8d9949fb5d6983aee1f27faf4ac2079d2"
+  },
+  "99a0dca57c2c32b1": {
+   "png": "res://assets/textures/plan-84/10/bronze_cast_height.png",
+   "kind": "height",
+   "out": "res://assets/materials/plan84-20261019/10-bronze_cast-height.res",
+   "sha256": "99a0dca57c2c32b198b85fc8d531e6477a2da30f3eacbac4a8afdfeba712421a"
+  },
+  "9c2a57c88d863d1b": {
+   "png": "res://assets/textures/plan-84/10/iron_painted_colour.png",
+   "kind": "colour",
+   "out": "res://assets/materials/plan84-20261019/10-iron_painted-colour.res",
+   "sha256": "9c2a57c88d863d1b43bb72d51e23703767cff034ff6ea1ca6e55f5a988803e0e"
+  },
+  "84f0e90fd1fddb4b": {
+   "png": "res://assets/textures/plan-84/10/iron_painted_height.png",
+   "kind": "height",
+   "out": "res://assets/materials/plan84-20261019/10-iron_painted-height.res",
+   "sha256": "84f0e90fd1fddb4b6b2123df69860aa0cfe1e387421d229863067594c1608907"
+  },
+  "e1389841755ae179": {
+   "png": "res://assets/textures/plan-84/10/zinc_sheet_colour.png",
+   "kind": "colour",
+   "out": "res://assets/materials/plan84-20261019/10-zinc_sheet-colour.res",
+   "sha256": "e1389841755ae179742e8994cf77040f97d019f47ff23cf93c4cb4bcc50fa315"
+  },
+  "6286150fc4e391cb": {
+   "png": "res://assets/textures/plan-84/10/zinc_sheet_height.png",
+   "kind": "height",
+   "out": "res://assets/materials/plan84-20261019/10-zinc_sheet-height.res",
+   "sha256": "6286150fc4e391cbd26595c23b8d838167e16cc000d13b0aafa6d4343735392a"
+  },
+  "1c12d039ff527683": {
+   "png": "res://assets/textures/plan-84/10/earth_bare_colour.png",
+   "kind": "colour",
+   "out": "res://assets/materials/plan84-20261019/10-earth_bare-colour.res",
+   "sha256": "1c12d039ff527683b62153103319d8a9d11bfc4936495d7d6ad4a838f861b0d0"
+  },
+  "240869c499ded9e4": {
+   "png": "res://assets/textures/plan-84/10/earth_bare_height.png",
+   "kind": "height",
+   "out": "res://assets/materials/plan84-20261019/10-earth_bare-height.res",
+   "sha256": "240869c499ded9e47610f422e19eb4a9b9b7e207aafac457cddef8fbe55924a4"
+  },
+  "964599c9b404e633": {
+   "png": "res://assets/textures/plan-84/10/water_base_colour.png",
+   "kind": "colour",
+   "out": "res://assets/materials/plan84-20261019/10-water_base-colour.res",
+   "sha256": "964599c9b404e63389c69a4cb1f9155cc226904b614b91553398ffe05c5cc0ff"
+  },
+  "2164add83ac7c3f5": {
+   "png": "res://assets/textures/plan-84/10/wood_oak_colour.png",
+   "kind": "colour",
+   "out": "res://assets/materials/plan84-20261019/10-wood_oak-colour.res",
+   "sha256": "2164add83ac7c3f5e07c2559c8ac68f24d952b42a7c06805f21afbd343e8c3f1"
+  },
+  "41eaeeecda87cd9d": {
+   "png": "res://assets/textures/plan-84/10/wood_oak_height.png",
+   "kind": "height",
+   "out": "res://assets/materials/plan84-20261019/10-wood_oak-height.res",
+   "sha256": "41eaeeecda87cd9d06791b9864ba69d573a4fd5686ff5c49ddab561fa9e27313"
+  },
+  "7adc27faec2bf396": {
+   "png": "res://assets/textures/plan-84/6/barrel_colour.png",
+   "kind": "colour",
+   "out": "res://assets/materials/plan84-20261019/6-barrel-colour.res",
+   "sha256": "7adc27faec2bf396d97d6942a2dd9b66eaadcd8929a7f38de158902a2af05a31"
+  },
+  "70101b6ba39e46b5": {
+   "png": "res://assets/textures/plan-84/6/barrel_height.png",
+   "kind": "height",
+   "out": "res://assets/materials/plan84-20261019/6-barrel-height.res",
+   "sha256": "70101b6ba39e46b552f964f324d4fc4b6fa3b6a93fc5842ea82d917dd7d2c6da"
+  },
+  "698f8da1c121c095": {
+   "png": "res://assets/textures/plan-84/6/leather_colour.png",
+   "kind": "colour",
+   "out": "res://assets/materials/plan84-20261019/6-leather-colour.res",
+   "sha256": "698f8da1c121c0958c2ea8aa6d182209b04efd8c1e9076d8f0097e30b886cc38"
+  },
+  "e49257086ad7e2e8": {
+   "png": "res://assets/textures/plan-84/6/leather_height.png",
+   "kind": "height",
+   "out": "res://assets/materials/plan84-20261019/6-leather-height.res",
+   "sha256": "e49257086ad7e2e805f6a58798f6759894bce58acd74f40b021f05d21a70f905"
+  },
+  "2996c65f43306627": {
+   "png": "res://assets/textures/plan-84/6/awning_blue_colour.png",
+   "kind": "colour",
+   "out": "res://assets/materials/plan84-20261019/6-awning_blue-colour.res",
+   "sha256": "2996c65f433066275c8b1b7491450fd956590d8af2be7954127538c38deb1527"
+  },
+  "9f03af3792d20e37": {
+   "png": "res://assets/textures/plan-84/6/awning_blue_height.png",
+   "kind": "height",
+   "out": "res://assets/materials/plan84-20261019/6-awning_blue-height.res",
+   "sha256": "9f03af3792d20e37bd0803e192c7fc2c0a7b51d5a13c485f9a381213d4e73557"
+  },
+  "ced1fffe840d1824": {
+   "png": "res://assets/textures/plan-84/6/awning_red_colour.png",
+   "kind": "colour",
+   "out": "res://assets/materials/plan84-20261019/6-awning_red-colour.res",
+   "sha256": "ced1fffe840d18245810750fc166dd25caad9a7063b1e2c5cbadde60ab39de34"
+  },
+  "c758532f2848969c": {
+   "png": "res://assets/textures/plan-84/6/tarpaulin_colour.png",
+   "kind": "colour",
+   "out": "res://assets/materials/plan84-20261019/6-tarpaulin-colour.res",
+   "sha256": "c758532f2848969c5a5b1a30045423191637671e736579cf7f1fff66923eed84"
+  },
+  "1cd3c9a4e4886a58": {
+   "png": "res://assets/textures/plan-84/6/canvas_patched_colour.png",
+   "kind": "colour",
+   "out": "res://assets/materials/plan84-20261019/6-canvas_patched-colour.res",
+   "sha256": "1cd3c9a4e4886a582679187fd67b1b8e53fce1ca45f823e0b3257b26caeb7faa"
+  },
+  "2075eb10c61190f4": {
+   "png": "res://assets/textures/plan-84/6/wood_single_colour.png",
+   "kind": "colour",
+   "out": "res://assets/materials/plan84-20261019/6-wood_single-colour.res",
+   "sha256": "2075eb10c61190f45c1c454c19006b6347e9161072e3dce4049eca72036bac7c"
+  },
+  "a62b1e17f241ecbd": {
+   "png": "res://assets/textures/plan-84/6/wood_single_height.png",
+   "kind": "height",
+   "out": "res://assets/materials/plan84-20261019/6-wood_single-height.res",
+   "sha256": "a62b1e17f241ecbd22bd634a9c161db24cd55ebaf41f94227841ca480cff0034"
+  },
+  "6f76bf0503cae8ff": {
+   "png": "res://assets/textures/plan-84/9/bark_atlas_colour.png",
+   "kind": "colour",
+   "out": "res://assets/materials/plan84-20261019/9-bark_atlas-colour.res",
+   "sha256": "6f76bf0503cae8ffc81a3cc0e5556df1faa2a18fc450e57b5d6b8a4003f83982"
+  },
+  "22b721e9d3016d86": {
+   "png": "res://assets/textures/plan-84/9/bark_atlas_height.png",
+   "kind": "height",
+   "out": "res://assets/materials/plan84-20261019/9-bark_atlas-height.res",
+   "sha256": "22b721e9d3016d864306149aadd716812ad8984a21e22ef3786bbe4989fe1705"
+  },
+  "0216dd0b84ab97e0": {
+   "png": "res://assets/textures/plan-84/9/tree_leaves_colour.png",
+   "kind": "colour",
+   "out": "res://assets/materials/plan84-20261019/9-tree_leaves-colour.res",
+   "sha256": "0216dd0b84ab97e04f975dd047869e18a63ff9a772b33cd9026ce087f9c7c353"
+  },
+  "26b48538d4d50709": {
+   "png": "res://assets/textures/plan-84/9/tree_leaves_height.png",
+   "kind": "height",
+   "out": "res://assets/materials/plan84-20261019/9-tree_leaves-height.res",
+   "sha256": "26b48538d4d507092482336ca6d1e0ac1e737b9361c9df2998cfc9bc6efce56d"
+  },
+  "9231ce086798f188": {
+   "png": "res://assets/textures/plan-84/9/park_leaves_colour.png",
+   "kind": "colour",
+   "out": "res://assets/materials/plan84-20261019/9-park_leaves-colour.res",
+   "sha256": "9231ce086798f18801c17c63b842b5cf04c706dfc26d420b98374e09d809feb1"
+  },
+  "29e7e2184725fe99": {
+   "png": "res://assets/textures/plan-84/9/park_leaves_height.png",
+   "kind": "height",
+   "out": "res://assets/materials/plan84-20261019/9-park_leaves-height.res",
+   "sha256": "29e7e2184725fe99a13d2eb35ef89238b8f08a228b735b279838ced6aba91003"
+  },
+  "d4bdad2ba4aa0757": {
+   "png": "res://assets/textures/plan-84/13/clutter_colour.png",
+   "kind": "colour",
+   "out": "res://assets/materials/plan84-20261019/13-clutter-colour.res",
+   "sha256": "d4bdad2ba4aa0757045b7ae62b35ed58d3ca60600e22f78dbba2fa7a44981b51"
+  },
+  "ef2629013c60c8e2": {
+   "png": "res://assets/textures/plan-84/13/clutter_height.png",
+   "kind": "height",
+   "out": "res://assets/materials/plan84-20261019/13-clutter-height.res",
+   "sha256": "ef2629013c60c8e2223580c1ce281adb5e8a3e7b571c2cfb6894cfb03dbcf889"
+  },
+  "1c3acffd078f3991": {
+   "png": "res://assets/textures/plan-84/13/lively_colour.png",
+   "kind": "colour",
+   "out": "res://assets/materials/plan84-20261019/13-lively-colour.res",
+   "sha256": "1c3acffd078f399112e41876bf431fa9f1b8b3e9a1eda0470cc6e4651aab1e2a"
+  },
+  "cda2eaaf40786de1": {
+   "png": "res://assets/textures/plan-84/13/lively_height.png",
+   "kind": "height",
+   "out": "res://assets/materials/plan84-20261019/13-lively-height.res",
+   "sha256": "cda2eaaf40786de1e8116e4f44caf7cc070c4468c328cb2bf1bd8704d8096fa6"
+  },
+  "dd24ec4ff1b08046": {
+   "png": "res://assets/textures/plan-84/13/trades_colour.png",
+   "kind": "colour",
+   "out": "res://assets/materials/plan84-20261019/13-trades-colour.res",
+   "sha256": "dd24ec4ff1b080466cfd9b06f32447882984f94cf67201b41990d0440f3cb1f3"
+  },
+  "2f377126a3ad2496": {
+   "png": "res://assets/textures/plan-84/13/trades_height.png",
+   "kind": "height",
+   "out": "res://assets/materials/plan84-20261019/13-trades-height.res",
+   "sha256": "2f377126a3ad2496d408c98ee308a1a4343cb75892df934c2561b178c0b318f7"
+  },
+  "03fdc60f1f939237": {
+   "png": "res://assets/textures/plan-84/13/quayfurniture_colour.png",
+   "kind": "colour",
+   "out": "res://assets/materials/plan84-20261019/13-quayfurniture-colour.res",
+   "sha256": "03fdc60f1f939237ea11cd4384816a1388d8752c8dc86b078c15184796bb300c"
+  },
+  "394c85fcae23c93f": {
+   "png": "res://assets/textures/plan-84/13/quayfurniture_height.png",
+   "kind": "height",
+   "out": "res://assets/materials/plan84-20261019/13-quayfurniture-height.res",
+   "sha256": "394c85fcae23c93f91cd080242481053b19a1a99994e6e6ace070d8230b7c00f"
+  },
+  "e9998bd4ac6ea8c4": {
+   "png": "res://assets/textures/plan-84/13/streetlife_colour.png",
+   "kind": "colour",
+   "out": "res://assets/materials/plan84-20261019/13-streetlife-colour.res",
+   "sha256": "e9998bd4ac6ea8c4a36073e82774c94573168a1119ba03e9721b63ca6a308df8"
+  },
+  "837746c7626b0fa1": {
+   "png": "res://assets/textures/plan-84/13/streetlife_height.png",
+   "kind": "height",
+   "out": "res://assets/materials/plan84-20261019/13-streetlife-height.res",
+   "sha256": "837746c7626b0fa108f266f28e3640cbb1c0168fb7ca405ce3711d601c3a23a1"
+  },
+  "8cb1dec52ce98b81": {
+   "png": "res://assets/textures/plan-84/13/omnibus_colour.png",
+   "kind": "colour",
+   "out": "res://assets/materials/plan84-20261019/13-omnibus-colour.res",
+   "sha256": "8cb1dec52ce98b81068880a6d7c5ba0e8de18af6ca8ff1621687b2f17ff6823e"
+  },
+  "9ecdee15ed8fdda9": {
+   "png": "res://assets/textures/plan-84/13/omnibus_height.png",
+   "kind": "height",
+   "out": "res://assets/materials/plan84-20261019/13-omnibus-height.res",
+   "sha256": "9ecdee15ed8fdda9cd5c2520c5cc30d4602b1b3ec97ea585b76638d9bfac6eb1"
+  },
+  "93981406e35caafc": {
+   "png": "res://assets/textures/plan-84/13/wagons_colour.png",
+   "kind": "colour",
+   "out": "res://assets/materials/plan84-20261019/13-wagons-colour.res",
+   "sha256": "93981406e35caafca6a4ad05585c181444531245ec1a36471c8d2501c26d5016"
+  },
+  "4507f358054b2a7a": {
+   "png": "res://assets/textures/plan-84/13/wagons_height.png",
+   "kind": "height",
+   "out": "res://assets/materials/plan84-20261019/13-wagons-height.res",
+   "sha256": "4507f358054b2a7a63521d84107e4d08ae345b392f733a744a0db88a9499d57c"
+  }
+ },
+ "materials": [
+  {
+   "material": "res://world/town/resources/r000630.res",
+   "name": "wall_brick",
+   "set": "3/brick_english",
+   "sourceHash": "acc532a19349913cd18ab05e00fb28b5498cf84fd788ae2d3d7525e25e077458",
+   "tex": "1868fb063ddf5848",
+   "uv_scale": [
+    0.76667,
+    1.3
+   ],
+   "bump": "19ad0a5a6b3ed316",
+   "bump_scale": 0.0778,
+   "albedo": [
+    1,
+    1,
+    1,
+    1.0
+   ]
+  },
+  {
+   "material": "res://world/town/resources/r000972.res",
+   "name": "church_brick",
+   "set": "8/brick_brabant",
+   "sourceHash": "14472148db145d2f07f8c576ed91008ea0726c3ee555d0ce7eb2fd41a3415843",
+   "tex": "9ecc0a7ddd5d8306",
+   "uv_scale": [
+    1.0006,
+    1.50095
+   ],
+   "bump": "19ad0a5a6b3ed316",
+   "bump_scale": 0.5722,
+   "albedo": [
+    1,
+    1,
+    1,
+    1.0
+   ]
+  },
+  {
+   "material": "res://world/town/resources/r001089.res",
+   "name": "pj_brick",
+   "set": "8/brick_brabant",
+   "sourceHash": "58ab2f90ce3a569dbc6f727744d4fe1911c7084198e8abd66cf348b74226ed3f",
+   "tex": "9ecc0a7ddd5d8306",
+   "uv_scale": [
+    0.83328,
+    1.6667
+   ],
+   "bump": "19ad0a5a6b3ed316",
+   "bump_scale": 1.5048,
+   "albedo": [
+    1,
+    1,
+    1,
+    1.0
+   ]
+  },
+  {
+   "material": "res://world/town/resources/r001190.res",
+   "name": "pr_brick",
+   "set": "8/brick_brabant",
+   "sourceHash": "e0370912c050a00903a48a9a24d7213ff3a80c7cd278b5cf1b575c0deec198ee",
+   "tex": "9ecc0a7ddd5d8306",
+   "uv_scale": [
+    0.79168,
+    1.58334
+   ],
+   "bump": "19ad0a5a6b3ed316",
+   "bump_scale": 2.4265,
+   "albedo": [
+    1,
+    1,
+    1,
+    1.0
+   ]
+  },
+  {
+   "material": "res://world/town/resources/r000966.res",
+   "name": "church_stone",
+   "set": "8/sandstone_ashlar",
+   "sourceHash": "1025e4e039fbff1d9515998a90f84f1ad4cffd0e8ee85524763fc920c8b38841",
+   "tex": "2a083c2ce22a6adf",
+   "uv_scale": [
+    1.20207,
+    1.19954
+   ],
+   "bump": "bb1f879fe16f5660",
+   "bump_scale": 0.4192,
+   "albedo": [
+    1,
+    1,
+    1,
+    1.0
+   ]
+  },
+  {
+   "material": "res://world/town/resources/r001002.res",
+   "name": "carolus_sand",
+   "set": "8/sandstone_ashlar",
+   "sourceHash": "301be3b765ed68ee792ee6df60ded857f05ee4fcd7a509bbd69229685f19f9b3",
+   "tex": "2a083c2ce22a6adf",
+   "uv_scale": [
+    1.80048,
+    1.80037
+   ],
+   "bump": "bb1f879fe16f5660",
+   "bump_scale": 0.13561,
+   "albedo": [
+    1,
+    1,
+    1,
+    1.0
+   ]
+  },
+  {
+   "material": "res://world/town/resources/r001054.res",
+   "name": "pj_white",
+   "set": "8/sandstone_ashlar",
+   "sourceHash": "07655584bc77685b985d831e15aec48dd2a856d9be6a77f778f6f36240f69087",
+   "tex": "2a083c2ce22a6adf",
+   "uv_scale": [
+    1.59717,
+    1.59904
+   ],
+   "bump": "bb1f879fe16f5660",
+   "bump_scale": 1.2083,
+   "albedo": [
+    1,
+    1,
+    1,
+    1.0
+   ]
+  },
+  {
+   "material": "res://world/town/resources/r001060.res",
+   "name": "pj_brabant",
+   "set": "8/sandstone_ashlar",
+   "sourceHash": "fd475442078e13d4bcea8b04d73d8f33c85d17dc8d440169a37ea298ba52b8ae",
+   "tex": "2a083c2ce22a6adf",
+   "uv_scale": [
+    1.7,
+    1.69887
+   ],
+   "bump": "bb1f879fe16f5660",
+   "bump_scale": 1.3635,
+   "albedo": [
+    1,
+    1,
+    1,
+    1.0
+   ]
+  },
+  {
+   "material": "res://world/town/resources/r000636.res",
+   "name": "wall_quoin",
+   "set": "3/bluestone_ashlar",
+   "sourceHash": "c32b3b2aee658ebc8eba0505a395f0c04a45243fda09b47c49ff5ac190d276ae",
+   "tex": "9a6bc4ea8034625a",
+   "uv_scale": [
+    0.6,
+    0.60002
+   ],
+   "bump": "bb1f879fe16f5660",
+   "bump_scale": 0.42,
+   "albedo": [
+    1,
+    1,
+    1,
+    1.0
+   ]
+  },
+  {
+   "material": "res://world/town/resources/r000642.res",
+   "name": "wall_plinth",
+   "set": "3/bluestone_ashlar",
+   "sourceHash": "37c041ade381b0eb9f63e8b6b6a0cf763d4c7a478ecb8f95f9e370d26d5af80d",
+   "tex": "9a6bc4ea8034625a",
+   "uv_scale": [
+    1.33523,
+    1.2419
+   ],
+   "bump": "bb1f879fe16f5660",
+   "bump_scale": 0.0546,
+   "albedo": [
+    1,
+    1,
+    1,
+    1.0
+   ]
+  },
+  {
+   "material": "res://world/town/resources/r000648.res",
+   "name": "wall_stone",
+   "set": "3/bluestone_ashlar",
+   "sourceHash": "070b39de71781025cfb28fad889e9be28ca8ec847f3a966edc9f30ba7ae54906",
+   "tex": "9a6bc4ea8034625a",
+   "uv_scale": [
+    0.6,
+    0.6
+   ],
+   "bump": "bb1f879fe16f5660",
+   "bump_scale": 0.42,
+   "albedo": [
+    1,
+    1,
+    1,
+    1.0
+   ]
+  },
+  {
+   "material": "res://world/town/resources/r000729.res",
+   "name": "wall_stone",
+   "set": "3/bluestone_ashlar",
+   "sourceHash": "bb9c35c9421df4539a90241b4887a1015c3e16e9e45b2430284974958a9e23e0",
+   "tex": "9a6bc4ea8034625a",
+   "uv_scale": [
+    1.64998,
+    1.25011
+   ],
+   "bump": "bb1f879fe16f5660",
+   "bump_scale": 0.42,
+   "albedo": [
+    1,
+    1,
+    1,
+    1.0
+   ]
+  },
+  {
+   "material": "res://world/town/resources/r001196.res",
+   "name": "pr_blue",
+   "set": "8/prison_bluestone",
+   "sourceHash": "b35f9d25a2f19a5167242d7d79181047ac4eb37715079f6b10aeb8d24f6f736e",
+   "tex": "9a6bc4ea8034625a",
+   "uv_scale": [
+    1.59998,
+    1.6
+   ],
+   "bump": "bb1f879fe16f5660",
+   "bump_scale": 1.7099,
+   "albedo": [
+    1,
+    1,
+    1,
+    1.0
+   ]
+  },
+  {
+   "material": "res://world/town/resources/r001299.res",
+   "name": "pl_stone",
+   "set": "10/stone_petit_granit",
+   "sourceHash": "786ecca421c9e0bf6f75455f57ecb0c714eaca1ab3db3676b406264ea3b100f1",
+   "tex": "a18b68b1aaf891ad",
+   "uv_scale": [
+    1.60006,
+    1.60008
+   ],
+   "bump": "bda070cf4a049605",
+   "bump_scale": 0.578,
+   "albedo": [
+    1,
+    1,
+    1,
+    1.0
+   ]
+  },
+  {
+   "material": "res://world/town/resources/r000735.res",
+   "name": "wall_coping",
+   "set": "3/coping_bluestone",
+   "sourceHash": "0751635927b07944db3d8306ebda6c2d7e089b06b458fa86773f4a41e8cc2398",
+   "tex": "644431aae034a7d1",
+   "uv_scale": [
+    0.40001,
+    1.60451
+   ],
+   "bump": "902d5d29222e02a4",
+   "bump_scale": 0.3,
+   "albedo": [
+    1,
+    1,
+    1,
+    1.0
+   ]
+  },
+  {
+   "material": "res://world/town/resources/r000663.res",
+   "name": "wall_slate",
+   "set": "3/slate_ardennes",
+   "sourceHash": "453248f51c3f1370025c85e2f79744223e6e4b56da6496b1148ed9a601f2f3de",
+   "tex": "34af5727f1026e0d",
+   "uv_scale": [
+    0.40197,
+    0.40143
+   ],
+   "bump": "b20ad59091bb4fc2",
+   "bump_scale": 0.0677,
+   "albedo": [
+    1,
+    1,
+    1,
+    1.0
+   ]
+  },
+  {
+   "material": "res://world/town/resources/r000978.res",
+   "name": "church_slate",
+   "set": "8/slate_ardennes",
+   "sourceHash": "f484649dade101849d4791ffd58b6ae1e8f16eef01e82a880d9ee3477ee5c69c",
+   "tex": "34af5727f1026e0d",
+   "uv_scale": [
+    0.53333,
+    0.5332
+   ],
+   "bump": "b20ad59091bb4fc2",
+   "bump_scale": 0.051,
+   "albedo": [
+    1,
+    1,
+    1,
+    1.0
+   ]
+  },
+  {
+   "material": "res://world/town/resources/r001203.res",
+   "name": "pr_slate",
+   "set": "8/slate_ardennes",
+   "sourceHash": "84fa5a03d6422a7a7fce8de3e2e4d2460d2aaa11d215a09deb8d8000e331aaa1",
+   "tex": "34af5727f1026e0d",
+   "uv_scale": [
+    0.53333,
+    0.53333
+   ],
+   "bump": "b20ad59091bb4fc2",
+   "bump_scale": 0.051,
+   "albedo": [
+    1,
+    1,
+    1,
+    1.0
+   ]
+  },
+  {
+   "material": "res://world/town/resources/r000984.res",
+   "name": "church_lead",
+   "set": "8/lead_roof",
+   "sourceHash": "077d2560e2e34934e8e8157b06636c4919929efdadbd5bef7a4210d45c19d937",
+   "tex": "46be1e93e9df1a7c",
+   "uv_scale": [
+    0.80026,
+    0.79998
+   ],
+   "bump": "15f40f519d3b1a21",
+   "bump_scale": 0.8936,
+   "albedo": [
+    1,
+    1,
+    1,
+    1.0
+   ]
+  },
+  {
+   "material": "res://world/town/resources/r001209.res",
+   "name": "pr_lead",
+   "set": "8/lead_roof",
+   "sourceHash": "af404879d7c0d7eafed2b265b66f3b13d41469ec77a5db70881a1c5a000461b6",
+   "tex": "46be1e93e9df1a7c",
+   "uv_scale": [
+    0.89999,
+    0.8996
+   ],
+   "bump": "15f40f519d3b1a21",
+   "bump_scale": 1.3191,
+   "albedo": [
+    1,
+    1,
+    1,
+    1.0
+   ]
+  },
+  {
+   "material": "res://world/town/resources/r001030.res",
+   "name": "carolus_pale",
+   "set": "8/sandstone_plain",
+   "sourceHash": "4b90bda4619bbd8aaba48006ac49c50d0dd41eb2a6f028303720f8e2b9cadf85",
+   "tex": "6826e2109d63db0b",
+   "uv_scale": [
+    1.19979,
+    1.20106
+   ],
+   "bump": "bda070cf4a049605",
+   "bump_scale": 0.1295,
+   "albedo": [
+    1,
+    1,
+    1,
+    1.0
+   ]
+  },
+  {
+   "material": "res://world/town/resources/r001305.res",
+   "name": "pl_bronze",
+   "set": "10/bronze_cast",
+   "sourceHash": "80eba43dfcd6eaa91a1c378cdb099b4b1f669c30b5f519308117d7bd5f7ce5a3",
+   "tex": "b651adcaddaebb2e",
+   "uv_scale": [
+    1.99996,
+    2.00051
+   ],
+   "bump": "99a0dca57c2c32b1",
+   "bump_scale": 0.0657,
+   "albedo": [
+    1,
+    1,
+    1,
+    1.0
+   ]
+  },
+  {
+   "material": "res://world/town/resources/r000996.res",
+   "name": "park_iron",
+   "set": "10/iron_painted",
+   "sourceHash": "bef22f462d224a0fede7528b5212a7c7676ac81890a1bf17d2375e497b724670",
+   "tex": "9c2a57c88d863d1b",
+   "uv_scale": [
+    2.00021,
+    1.99996
+   ],
+   "bump": "84f0e90fd1fddb4b",
+   "bump_scale": 0.04,
+   "albedo": [
+    1,
+    1,
+    1,
+    1.0
+   ]
+  },
+  {
+   "material": "res://world/town/resources/r001215.res",
+   "name": "pr_iron",
+   "set": "10/iron_painted",
+   "sourceHash": "a92e33db55f53d773ad7c3405a3572f2b5c86285e9db9d41ccdd6860d51dcc54",
+   "tex": "9c2a57c88d863d1b",
+   "uv_scale": [
+    1.99997,
+    2.00064
+   ],
+   "bump": "84f0e90fd1fddb4b",
+   "bump_scale": 0.04,
+   "albedo": [
+    1,
+    1,
+    1,
+    1.0
+   ]
+  },
+  {
+   "material": "res://world/town/resources/r001315.res",
+   "name": "pl_iron",
+   "set": "10/iron_painted",
+   "sourceHash": "9123433e6253ff04b7a4c4bdf8ec28cf309cacfd18ac8df5a0c5144641f6579f",
+   "tex": "9c2a57c88d863d1b",
+   "uv_scale": [
+    1.99995,
+    2.00025
+   ],
+   "bump": "84f0e90fd1fddb4b",
+   "bump_scale": 0.04,
+   "albedo": [
+    1,
+    1,
+    1,
+    1.0
+   ]
+  },
+  {
+   "material": "res://world/town/resources/r001327.res",
+   "name": "pl_zinc",
+   "set": "10/zinc_sheet",
+   "sourceHash": "fa4b536a8b0785907a6ee77563762bafa74bf6ce14b8079dee1ca9fde2058c81",
+   "tex": "e1389841755ae179",
+   "uv_scale": [
+    1.59994,
+    1.5999
+   ],
+   "bump": "6286150fc4e391cb",
+   "bump_scale": 0.0495,
+   "albedo": [
+    1,
+    1,
+    1,
+    1.0
+   ]
+  },
+  {
+   "material": "res://world/town/resources/r001344.res",
+   "name": "pl_earth",
+   "set": "10/earth_bare",
+   "sourceHash": "7d73c587e808cd9570463bdfbfaf910e085dba522d137a8516ce96c5a3dd6856",
+   "tex": "1c12d039ff527683",
+   "uv_scale": [
+    1.03815,
+    1.0382
+   ],
+   "bump": "240869c499ded9e4",
+   "bump_scale": 0.7506,
+   "albedo": [
+    1,
+    1,
+    1,
+    1.0
+   ]
+  },
+  {
+   "material": "res://world/town/resources/r001309.res",
+   "name": "pl_water",
+   "set": "10/water_base",
+   "sourceHash": "46573d75caa81a17c7e267ded8b2cdd9796177621fb9640b22912a92d821ed96",
+   "tex": "964599c9b404e633",
+   "uv_scale": [
+    2.00113,
+    1.99989
+   ],
+   "albedo": [
+    1,
+    1,
+    1,
+    0.85
+   ]
+  },
+  {
+   "material": "res://world/town/resources/r001321.res",
+   "name": "pl_wood",
+   "set": "10/wood_oak",
+   "sourceHash": "062ffdda446699021454b5698c3d4e2de17788f97c9b866b3fa78a5bec03fd6e",
+   "tex": "2164add83ac7c3f5",
+   "uv_scale": [
+    0.49999,
+    0.49972
+   ],
+   "bump": "41eaeeecda87cd9d",
+   "bump_scale": 1.7829,
+   "albedo": [
+    1,
+    1,
+    1,
+    1.0
+   ]
+  },
+  {
+   "material": "res://world/town/resources/r003232.res",
+   "name": "wood_dark",
+   "set": "6/wood_dark",
+   "sourceHash": "29be6d44e8b01ad0cad771d200ada8041b4cf8cdd07bf0aae67243c26def99b3",
+   "tex": "2164add83ac7c3f5",
+   "uv_scale": [
+    0.4002,
+    0.40604
+   ],
+   "bump": "41eaeeecda87cd9d",
+   "bump_scale": 1.7003,
+   "albedo": [
+    1,
+    1,
+    1,
+    1.0
+   ]
+  },
+  {
+   "material": "res://world/town/resources/r004584.res",
+   "name": "wood_dark",
+   "set": "6/wood_dark",
+   "sourceHash": "18cee96a7ef57159daf43fb7af5a6fb4091b9e12c043c33804fde342e5604668",
+   "tex": "2164add83ac7c3f5",
+   "uv_scale": [
+    0.50001,
+    0.50032
+   ],
+   "bump": "41eaeeecda87cd9d",
+   "bump_scale": 1.3749,
+   "albedo": [
+    1,
+    1,
+    1,
+    1.0
+   ]
+  },
+  {
+   "material": "res://world/town/resources/r003588.res",
+   "name": "barrel",
+   "set": "6/barrel",
+   "sourceHash": "33219ee4648de7125f5ea708b222783f1e689f600d0e871e36ed82d1d2df30a4",
+   "tex": "7adc27faec2bf396",
+   "uv_scale": [
+    0.63982,
+    0.77545
+   ],
+   "bump": "70101b6ba39e46b5",
+   "bump_scale": 1.0028,
+   "albedo": [
+    1,
+    1,
+    1,
+    1.0
+   ]
+  },
+  {
+   "material": "res://world/town/resources/r004618.res",
+   "name": "barrel",
+   "set": "6/barrel",
+   "sourceHash": "7f3d54134ca0941c9f5763d3f0fabf95dcccf626b81a573003288d36a39f59b4",
+   "tex": "7adc27faec2bf396",
+   "uv_scale": [
+    0.28439,
+    0.20157
+   ],
+   "bump": "70101b6ba39e46b5",
+   "bump_scale": 2.3243,
+   "albedo": [
+    1,
+    1,
+    1,
+    1.0
+   ]
+  },
+  {
+   "material": "res://world/town/resources/r006377.res",
+   "name": "barrel",
+   "set": "6/barrel",
+   "sourceHash": "1503deea0a6bf9887bad9086c1308e1577803fcb1324f4a3bc384fcc8708310f",
+   "tex": "7adc27faec2bf396",
+   "uv_scale": [
+    1.43691,
+    0.62016
+   ],
+   "bump": "70101b6ba39e46b5",
+   "bump_scale": 1.0011,
+   "albedo": [
+    1,
+    1,
+    1,
+    1.0
+   ]
+  },
+  {
+   "material": "res://world/town/resources/r003245.res",
+   "name": "leather",
+   "set": "6/leather",
+   "sourceHash": "9b5eeb24b5679f90a0e40015e9d5da9d089c5c9b545dd455ed43d67470a6bcb9",
+   "tex": "698f8da1c121c095",
+   "uv_scale": [
+    2.50286,
+    2.49481
+   ],
+   "bump": "e49257086ad7e2e8",
+   "bump_scale": 0.0564,
+   "albedo": [
+    1,
+    1,
+    1,
+    1.0
+   ]
+  },
+  {
+   "material": "res://world/town/resources/r004656.res",
+   "name": "leather",
+   "set": "6/leather",
+   "sourceHash": "7ffadef88af8f92b5f8ad9877a793c55410d7992318386469be91ce0fd550ae6",
+   "tex": "698f8da1c121c095",
+   "uv_scale": [
+    2.49951,
+    2.49981
+   ],
+   "bump": "e49257086ad7e2e8",
+   "bump_scale": 0.0564,
+   "albedo": [
+    1,
+    1,
+    1,
+    1.0
+   ]
+  },
+  {
+   "material": "res://world/town/resources/r004594.res",
+   "name": "awning_blue",
+   "set": "6/awning_blue",
+   "sourceHash": "46dadab29bf12bc17ee1564a0518d4786b723be1b5e11a45f564826f9f116ce3",
+   "tex": "2996c65f43306627",
+   "uv_scale": [
+    0.99805,
+    0.99867
+   ],
+   "bump": "9f03af3792d20e37",
+   "bump_scale": 0.0953,
+   "albedo": [
+    1,
+    1,
+    1,
+    1.0
+   ]
+  },
+  {
+   "material": "res://world/town/resources/r004649.res",
+   "name": "awning_red",
+   "set": "6/awning_red",
+   "sourceHash": "660edaf024384e8373122310666e506333585fb83ef30f75c464dae4ab041164",
+   "tex": "ced1fffe840d1824",
+   "uv_scale": [
+    0.91026,
+    0.99794
+   ],
+   "bump": "9f03af3792d20e37",
+   "bump_scale": 0.1014,
+   "albedo": [
+    1,
+    1,
+    1,
+    1.0
+   ]
+  },
+  {
+   "material": "res://world/town/resources/r004643.res",
+   "name": "tarpaulin",
+   "set": "6/tarpaulin",
+   "sourceHash": "228b6b174c200de322f7025744800adc90dfd36e5b65b4939b3f26ca971dc691",
+   "tex": "c758532f2848969c",
+   "uv_scale": [
+    1.2034,
+    1.20073
+   ],
+   "bump": "9f03af3792d20e37",
+   "bump_scale": 0.0812,
+   "albedo": [
+    1,
+    1,
+    1,
+    1.0
+   ]
+  },
+  {
+   "material": "res://world/town/resources/r004637.res",
+   "name": "canvas_patched",
+   "set": "6/canvas_patched",
+   "sourceHash": "10919a3ea2187ce20e0a638b685b21e8ea04311a4c205363547fc7da73dd34aa",
+   "tex": "1cd3c9a4e4886a58",
+   "uv_scale": [
+    0.99831,
+    0.99947
+   ],
+   "bump": "9f03af3792d20e37",
+   "bump_scale": 0.0966,
+   "albedo": [
+    1,
+    1,
+    1,
+    1.0
+   ]
+  },
+  {
+   "material": "res://world/town/resources/r003226.res",
+   "name": "wood",
+   "set": "6/wood_single",
+   "sourceHash": "dad0100baeac5b086a82c5abd289991cdd66e84932a1e8f13ff6bc8e10d9b5eb",
+   "tex": "2075eb10c61190f4",
+   "uv_scale": [
+    0.5,
+    8.52827
+   ],
+   "bump": "a62b1e17f241ecbd",
+   "bump_scale": 2.0418,
+   "albedo": [
+    1,
+    1,
+    1,
+    1.0
+   ]
+  },
+  {
+   "material": "res://world/town/resources/r004578.res",
+   "name": "wood",
+   "set": "6/wood_single",
+   "sourceHash": "09ead0c5eb1938f77d9c436b692a0a7d2a90d593405f0283ab9a50fdc1b42a1c",
+   "tex": "2075eb10c61190f4",
+   "uv_scale": [
+    0.49986,
+    8.55774
+   ],
+   "bump": "a62b1e17f241ecbd",
+   "bump_scale": 2.0353,
+   "albedo": [
+    1,
+    1,
+    1,
+    1.0
+   ]
+  },
+  {
+   "material": "res://world/town/resources/r009270.res",
+   "name": "wood",
+   "set": "6/wood_single",
+   "sourceHash": "dab0a8df7c03d42056ef534e40959c96ed8c95ea031eae9c7a1908ec7072bd0d",
+   "tex": "2075eb10c61190f4",
+   "uv_scale": [
+    0.39999,
+    6.82697
+   ],
+   "bump": "a62b1e17f241ecbd",
+   "bump_scale": 5.1987,
+   "albedo": [
+    1,
+    1,
+    1,
+    1.0
+   ]
+  },
+  {
+   "material": "res://world/town/resources/r000615.res",
+   "name": "wall_iron",
+   "set": "2/wrought_iron",
+   "sourceHash": "7da65614deaef8907bf76a4843710890efecb0191da275f22499e56868958350",
+   "tex": "9c2a57c88d863d1b",
+   "uv_scale": [
+    1.82563,
+    2.26679
+   ],
+   "bump": "84f0e90fd1fddb4b",
+   "bump_scale": 0.04,
+   "albedo": [
+    1,
+    1,
+    1,
+    1.0
+   ]
+  },
+  {
+   "material": "res://world/town/resources/r002509.res",
+   "name": "iron",
+   "set": "2/wrought_iron",
+   "sourceHash": "b260b2a0f6e5389ab28bd3c4578b80595ab841f737bcd30070cba8461d278844",
+   "tex": "9c2a57c88d863d1b",
+   "uv_scale": [
+    0.38987,
+    2.10735
+   ],
+   "bump": "84f0e90fd1fddb4b",
+   "bump_scale": 1.1837,
+   "albedo": [
+    1,
+    1,
+    1,
+    1.0
+   ]
+  },
+  {
+   "material": "res://world/town/resources/r004606.res",
+   "name": "iron",
+   "set": "2/wrought_iron",
+   "sourceHash": "ea2b38c613496aa5214eab4ed18c86b0ff81769f94be614fef647830f9d27643",
+   "tex": "9c2a57c88d863d1b",
+   "uv_scale": [
+    1.60749,
+    1.99758
+   ],
+   "bump": "84f0e90fd1fddb4b",
+   "bump_scale": 0.04,
+   "albedo": [
+    1,
+    1,
+    1,
+    1.0
+   ]
+  },
+  {
+   "material": "res://world/town/resources/r001169.res",
+   "name": "park_bark",
+   "set": "9/bark_atlas",
+   "sourceHash": "b40de2570089813eadc01f47cd10f72cc34d33c7059f035191c51b9d26cacfa9",
+   "tex": "6f76bf0503cae8ff",
+   "bump": "22b721e9d3016d86",
+   "bump_scale": 0.3877,
+   "albedo": [
+    1,
+    1,
+    1,
+    1.0
+   ]
+  },
+  {
+   "material": "res://world/town/resources/r009469.res",
+   "name": "trees_bark",
+   "set": "9/bark_atlas",
+   "sourceHash": "ce316f9d653715308ba8a65f9f0729c6dadc4c69be792e4b505501b7947e67d5",
+   "tex": "6f76bf0503cae8ff",
+   "bump": "22b721e9d3016d86",
+   "bump_scale": 0.0635,
+   "albedo": [
+    1,
+    1,
+    1,
+    1.0
+   ]
+  },
+  {
+   "material": "res://world/town/resources/r009495.res",
+   "name": "trees_bark",
+   "set": "9/bark_atlas",
+   "sourceHash": "24b34df16eb92f790ca9692524119e60fd8cacf3a3d7369a34d8b9c38f992992",
+   "tex": "6f76bf0503cae8ff",
+   "bump": "22b721e9d3016d86",
+   "bump_scale": 0.0635,
+   "albedo": [
+    1,
+    1,
+    1,
+    1.0
+   ]
+  },
+  {
+   "material": "res://world/town/resources/r009512.res",
+   "name": "trees_bark",
+   "set": "9/bark_atlas",
+   "sourceHash": "5a5c972d22c9432e96b6d2053c90a32c9ed3c93a38a79a37cb70314473ea6c01",
+   "tex": "6f76bf0503cae8ff",
+   "bump": "22b721e9d3016d86",
+   "bump_scale": 0.0635,
+   "albedo": [
+    1,
+    1,
+    1,
+    1.0
+   ]
+  },
+  {
+   "material": "res://world/town/resources/r009477.res",
+   "name": "trees_leaves",
+   "set": "9/tree_leaves",
+   "sourceHash": "83fdec6195b3f0f41796ae87b57577ca741050da976988875877ab7cb4712895",
+   "tex": "0216dd0b84ab97e0",
+   "bump": "26b48538d4d50709",
+   "bump_scale": 0.4,
+   "albedo": [
+    1,
+    1,
+    1,
+    1.0
+   ]
+  },
+  {
+   "material": "res://world/town/resources/r009502.res",
+   "name": "trees_leaves",
+   "set": "9/tree_leaves",
+   "sourceHash": "2ca3a5d3cb5583889b1ce73ab0d0737ffcb141b0924e37bc6b18a52ea0703fbf",
+   "tex": "0216dd0b84ab97e0",
+   "bump": "26b48538d4d50709",
+   "bump_scale": 0.4,
+   "albedo": [
+    1,
+    1,
+    1,
+    1.0
+   ]
+  },
+  {
+   "material": "res://world/town/resources/r009519.res",
+   "name": "trees_leaves",
+   "set": "9/tree_leaves",
+   "sourceHash": "fda8f23f0e86dae53624a86faa3ad30e046e14812df1422c54c7d29f46166a3e",
+   "tex": "0216dd0b84ab97e0",
+   "bump": "26b48538d4d50709",
+   "bump_scale": 0.4,
+   "albedo": [
+    1,
+    1,
+    1,
+    1.0
+   ]
+  },
+  {
+   "material": "res://world/town/resources/r001176.res",
+   "name": "park_leaves",
+   "set": "9/park_leaves",
+   "sourceHash": "6b16bd5ebcce829f19e6f07267ca6dabbffccec0c7ef6cf1c52df6a6f7e58545",
+   "tex": "9231ce086798f188",
+   "bump": "29e7e2184725fe99",
+   "bump_scale": 0.4,
+   "albedo": [
+    1,
+    1,
+    1,
+    1.0
+   ]
+  },
+  {
+   "material": "res://world/town/resources/r003027.res",
+   "name": "clutter_solid",
+   "set": "13/clutter",
+   "sourceHash": "e0e014cecd0cd1b459ad0a18db83c235973aadf2e8570741c3386806892e700f",
+   "tex": "d4bdad2ba4aa0757",
+   "bump": "ef2629013c60c8e2",
+   "bump_scale": 0.8293,
+   "albedo": [
+    1,
+    1,
+    1,
+    1.0
+   ]
+  },
+  {
+   "material": "res://world/town/resources/r002310.res",
+   "name": "lively_solid",
+   "set": "13/lively",
+   "sourceHash": "f799ece10a4a0b0f2151ced20337bc6286edd96981aa992b2e3427fcc6ccfe2f",
+   "tex": "1c3acffd078f3991",
+   "bump": "cda2eaaf40786de1",
+   "bump_scale": 2.0037,
+   "albedo": [
+    1,
+    1,
+    1,
+    1.0
+   ]
+  },
+  {
+   "material": "res://world/town/resources/r001532.res",
+   "name": "trades_solid",
+   "set": "13/trades",
+   "sourceHash": "ef209cf410805c0e785861d19e9d9dc46d36d53d5899430f0f05ce9c338b88d9",
+   "tex": "dd24ec4ff1b08046",
+   "bump": "2f377126a3ad2496",
+   "bump_scale": 1.3464,
+   "albedo": [
+    1,
+    1,
+    1,
+    1.0
+   ]
+  },
+  {
+   "material": "res://world/town/resources/r005196.res",
+   "name": "quay_solid",
+   "set": "13/quayfurniture",
+   "sourceHash": "ced94a49a0127627f7d63a7d57f3324cdbd80ad567903e8905340e1c9b901fa3",
+   "tex": "03fdc60f1f939237",
+   "bump": "394c85fcae23c93f",
+   "bump_scale": 2.4241,
+   "albedo": [
+    1,
+    1,
+    1,
+    1.0
+   ]
+  },
+  {
+   "material": "res://world/town/resources/r004924.res",
+   "name": "streetlife_solid",
+   "set": "13/streetlife",
+   "sourceHash": "19b2639813e731eb5deac360874d47cd093b704f0756ec8707ccd45feffc2237",
+   "tex": "e9998bd4ac6ea8c4",
+   "bump": "837746c7626b0fa1",
+   "bump_scale": 3.6305,
+   "albedo": [
+    1,
+    1,
+    1,
+    1.0
+   ]
+  },
+  {
+   "material": "res://world/town/resources/r004895.res",
+   "name": "omnibus",
+   "set": "13/omnibus",
+   "sourceHash": "6539acecb6ecffbd152ca18624779151986efdacf6d9f736231de9869e20aab3",
+   "tex": "8cb1dec52ce98b81",
+   "bump": "9ecdee15ed8fdda9",
+   "bump_scale": 1.6745,
+   "albedo": [
+    1,
+    1,
+    1,
+    1.0
+   ]
+  },
+  {
+   "material": "res://world/town/resources/r004898.res",
+   "name": "omnibus",
+   "set": "13/omnibus",
+   "sourceHash": "65e88aca16da576378968a71503fe3856e25a0e479e4847d340eff14e3aa1cbe",
+   "tex": "8cb1dec52ce98b81",
+   "bump": "9ecdee15ed8fdda9",
+   "bump_scale": 1.6745,
+   "albedo": [
+    1,
+    1,
+    1,
+    1.0
+   ]
+  },
+  {
+   "material": "res://world/town/resources/r004815.res",
+   "name": "wagons",
+   "set": "13/wagons",
+   "sourceHash": "0a5ac01a1a0c2b65eb155fcbfa752339fc7fe5d7c39a5e44121ba0b7d28f5621",
+   "tex": "93981406e35caafc",
+   "bump": "4507f358054b2a7a",
+   "bump_scale": 1.5812,
+   "albedo": [
+    1,
+    1,
+    1,
+    1.0
+   ]
+  }
+ ]
+}

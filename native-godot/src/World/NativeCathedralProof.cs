@@ -140,7 +140,26 @@ public static class NativeCathedralProof
                 var notDrawn = models.Where(m => m.v == null || m.v.KitFit != "model").Select(m => m.id).ToArray();
                 Check(notDrawn.Length == 0, $"the altars' capitals, crowns, cloths and saint, the pulpit's dove and urn draw their new models ({small.Length - notDrawn.Length} of {small.Length}; not: {string.Join(", ", notDrawn)})");
                 var retable = Piece("room-cathedral-source-8914-50");
-                Check(retable != null && retable.GetChildren().OfType<Node3D>().Count(n => n.Name.ToString().StartsWith("ModelPart")) == 2, "the west altar's own retable draws its frame and its cross and candlesticks");
+                Check(retable != null && retable.GetChildren().OfType<Node3D>().Count(n => n.Name.ToString().StartsWith("ModelPart")) == 3, "the west altar draws its frame, cross and candlesticks, and marble base");
+                Check(batch?.ModelParts.Count(p => p.StartsWith("church/altar_marble ")) == 4 && retable?.ModelParts.Count(p => p.StartsWith("church/altar_marble ")) == 1,
+                    "all five side altars use the carved marble model at their existing object placements");
+                using (var shellPlan = JsonDocument.Parse(File.ReadAllText(ProjectSettings.GlobalizePath("res://recovery/cathedral-198-shell.json"))))
+                {
+                    var shell = BakedWorld.All(game.World).OfType<MeshInstance3D>().Where(n => n.Mesh != null && (n.Name == "Mesh1135" || n.Name == "Mesh1136")).ToArray();
+                    int remaining = 0;
+                    foreach (var altar in shellPlan.RootElement.GetProperty("altars").EnumerateArray())
+                    {
+                        var b = altar.GetProperty("worldBox");
+                        var area = new Aabb(new Vector3(b[0].GetSingle(), b[2].GetSingle(), b[4].GetSingle()), new Vector3(b[1].GetSingle() - b[0].GetSingle(), b[3].GetSingle() - b[2].GetSingle(), b[5].GetSingle() - b[4].GetSingle()));
+                        foreach (var mesh in shell)
+                        {
+                            var faces = mesh.Mesh!.GetFaces();
+                            for (int i = 0; i < faces.Length; i += 3)
+                                if (area.HasPoint(mesh.GlobalTransform * ((faces[i] + faces[i + 1] + faces[i + 2]) / 3))) remaining++;
+                        }
+                    }
+                    Check(shell.Length == 2 && remaining == 0, $"both shared marble shells retain the choir but no coarse side altar triangles ({remaining} left)");
+                }
                 // no coarse old geometry left where the new pieces stand: the old oak boxes, figures, gilt crests and statues
                 string[] coarse = { "ct_oak", "ct_oak_d", "ct_oak_carved", "ct_red", "ct_black", "ct_statue", "ct_brass", "ct_wax", "ct_linen" };
                 var left = new Dictionary<string, int>();
