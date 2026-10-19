@@ -14,6 +14,8 @@ public partial class MovingSounds : Node
     private readonly List<VehicleSound> vehicles=new(64);
     private readonly List<MovingShip> ships=new(128);
     private readonly Dictionary<Boats.Float,MovingShip> hulls=new();
+    private readonly List<Boats.Float> retiredHulls=new();
+    private int nextHullId; // Pruning a retired boat must not reuse another live emitter's identity.
     private readonly MovingShip ferry=new(){Id="st_anna",Kind="paddle",Steam=true};
     private Vector2 previousCart;
     private bool hadCart;
@@ -27,7 +29,7 @@ public partial class MovingSounds : Node
     private void Register()
     {
         if(Boats.I==null)return;
-        for(int i=0;i<Boats.I.Floats.Count;i++){var boat=Boats.I.Floats[i];if(!hulls.ContainsKey(boat))hulls.Add(boat,new(){Id="hull_"+hulls.Count,Kind=boat.Kind,Steam=boat.Kind is "steamer" or "tug" or "paddle_tug",Anchored=boat.Kind=="liner"});}
+        for(int i=0;i<Boats.I.Floats.Count;i++){var boat=Boats.I.Floats[i];if(!hulls.ContainsKey(boat))hulls.Add(boat,new(){Id="hull_"+nextHullId++,Kind=boat.Kind,Steam=boat.Kind is "steamer" or "tug" or "paddle_tug",Anchored=boat.Kind=="liner"});}
     }
     public void Gather(double elapsed)
     {
@@ -39,13 +41,17 @@ public partial class MovingSounds : Node
         if(Handcarts.I?.Held is {} id&&Handcarts.I.Drawings.TryGetValue(id,out var c))
         {var p=new Vector2(c.X,c.Z);vehicles.Add(new("handcart",p.X,p.Y,hadCart&&p.DistanceTo(previousCart)>elapsed*.08?"go":"stop"));previousCart=p;hadCart=true;}else hadCart=false;
         if(Velocipedes.I?.Ridden is {} velo)vehicles.Add(new("handcart",velo.Root.GlobalPosition.X,velo.Root.GlobalPosition.Z,Math.Abs(Velocipedes.I.Speed)>.6f?"go":"stop"));
+        retiredHulls.Clear();
         foreach(var pair in hulls)
         {
-            var b=pair.Key;if(!b.Outer.IsVisibleInTree())continue;var s=pair.Value;var p=b.Inner.GlobalPosition;s.X=p.X;s.Z=p.Z;s.Heading=b.Outer.Rotation.Y;s.Speed=0;
+            var b=pair.Key;
+            if(!GodotObject.IsInstanceValid(b.Outer)||!GodotObject.IsInstanceValid(b.Inner)){retiredHulls.Add(b);continue;}
+            if(!b.Outer.IsVisibleInTree())continue;var s=pair.Value;var p=b.Inner.GlobalPosition;s.X=p.X;s.Z=p.Z;s.Heading=b.Outer.Rotation.Y;s.Speed=0;
             for(int i=0;i<River.I.Movers.Count;i++){var m=River.I.Movers[i];foreach(var part in m.Parts)if(part.Boat==b)s.Speed=m.V;}
             if(River.I.Anchorage is {} anchorage)foreach(var tow in anchorage.Tows)if(tow.Tug.Boat==b||tow.Lighter.Boat==b)s.Speed=tow.V;
             ships.Add(s);
         }
+        foreach(var b in retiredHulls)hulls.Remove(b);
         if(FerryArrival.I is {} f&&f.VisibleVessel){var p=f.VesselPosition;ferry.X=p.X;ferry.Z=p.Z;ferry.Heading=f.VesselHeading;ferry.Speed=f.VesselSpeed;ships.Add(ferry);}
     }
     public override void _Process(double delta)

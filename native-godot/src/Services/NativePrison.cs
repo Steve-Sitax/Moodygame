@@ -130,6 +130,7 @@ public sealed class NativePrison : INativeServiceModule
     public void Register(NativeServiceHost service)
     {
         Ensure(); // Custody schedules must exist before the client first requests the town.
+        service.NewGame += Ensure; service.Loaded += Ensure;
         service.Register("GET", "/api/prison", _ => View());
         service.Register("POST", "/api/prison/visit", r => Visit(r.PlayerId, r.Text("id", "")));
         service.Register("POST", "/api/prison/ask", r => new JsonObject { ["text"] = WarderLine(r.Text("role", "gate")) });

@@ -15,6 +15,8 @@ Bugs and loose ends are tracked as [issues](https://github.com/Steve-Sitax/Moody
 - Town and park trunks use the photographed bark colour and relief maps (#84, partial); foliage and tree shapes are retained. Isolated day/rain/night review remains pending.
 - Rounded landmark stone arrises and repaired narrow-face UVs while retaining original materials and collision support; capitals, statues and other construction details still need work (#171).
 - Aligned pavement flag joints to kerbs and side-street rows to junctions; remapped gate, railway and Sint-Jansplein paving. Step and plinth tops, park paving and final junction checks remain unfinished (#199).
+- Street and boat washing is taken in during rain and overnight, returning between 08:00 and 18:00 in dry weather; ropes and posts stay in place (#203).
+- Removing a boat no longer leaves its sound emitter trying to read the deleted vessel.
 
 - Authoring only: cloth clearance preserves lining thickness and ignores opposite-facing folds (#82, #138). The runtime people kit is unchanged; neckline and shoulder defects remain unaccepted on the separate rebuilt candidate.
 
