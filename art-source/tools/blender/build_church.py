@@ -25,24 +25,39 @@ ROOT = os.path.abspath(os.path.join(HERE, "..", "..", ".."))
 import workgoods  # noqa: E402,F401
 from workgoods import kit  # noqa: E402
 
-for mod in ("kit", "paint", "hallstair", "carving", "church", "shots", "verify"):
+for mod in ("kit", "paint", "hallstair", "carving", "church", "chancel", "shots", "verify"):
     importlib.reload(importlib.import_module("workgoods." + mod))
-from workgoods import church, shots, verify  # noqa: E402
+from workgoods import chancel, church, shots, verify  # noqa: E402
 
-ORDER = ["confessional", "pulpit", "pulpit_dove", "pulpit_urn", "altar_frame", "altar_capital", "altar_crown", "altar_dressing", "altar_cloth", "altar_saint", "altar_marble", "lamp_stand"]
+# round two (#198): the choir stalls, the organ case, the high altar's and the transept altars' fittings, the frames
+CHANCEL = ["choir_stalls_west", "choir_stalls_east_a", "choir_stalls_east_b", "picture_frame_high", "picture_frame_epitaph", "picture_frame_pillar", "triptych",
+           "high_tabernacle", "gilt_frieze", "glory", "altar_urn", "altar_crucifix_top", "altar_angel", "organ_case", "ihs_medallion", "altar_dressing_six", "votive_stand", "offering_box",
+           "picture_frame_supper", "sanctuary_lamp", "loft_panel", "choir_throne", "font_cover", "choir_lectern",
+           "choir_screen_west", "choir_screen_east", "triptych_chapel", "chandelier", "chandelier_ball", "church_door_west",
+           "church_door_transept", "rail_post", "rail_gate"]
+
+ORDER = ["confessional", "pulpit", "pulpit_dove", "pulpit_urn", "altar_frame", "altar_capital", "altar_crown", "altar_dressing", "altar_cloth", "altar_saint", "altar_marble", "lamp_stand"] + CHANCEL
+# Source experiments remain available via --only but are not yet placed in the town.
+UNPLACED = {"triptych_chapel", "chandelier", "chandelier_ball", "church_door_west", "church_door_transept"}
 # reach of the occlusion rays (metres) and whether the model stands on the ground
 SHADE = {"confessional": (0.30, True), "pulpit": (0.30, True), "pulpit_dove": (0.05, False), "pulpit_urn": (0.06, True), "altar_cloth": (0.08, False), "lamp_stand": (0.05, False), "altar_frame": (0.12, False), "altar_capital": (0.06, False),
          "altar_crown": (0.10, False), "altar_dressing": (0.10, False), "altar_saint": (0.10, True), "altar_marble": (0.30, True)}
 SIZES = {"confessional": (None, None, None), "pulpit": (None, None, None), "pulpit_dove": (None, None, None), "pulpit_urn": (None, None, None),
          "altar_cloth": (None, None, None), "lamp_stand": (None, None, None), "altar_frame": (None, None, None), "altar_capital": (None, None, None),
          "altar_crown": (None, None, None), "altar_dressing": (None, None, None), "altar_saint": (None, 1.49, None), "altar_marble": (None, None, None)}
-GROUNDED = {"confessional", "pulpit", "altar_saint", "altar_marble"}
+GROUNDED = {"confessional", "pulpit", "altar_saint", "altar_marble", "choir_stalls_west", "choir_stalls_east_a", "choir_stalls_east_b", "altar_angel", "altar_urn",
+            "altar_crucifix_top", "votive_stand", "offering_box", "choir_throne", "choir_lectern", "choir_screen_west", "choir_screen_east", "church_door_west",
+            "church_door_transept", "rail_post"}
+for _n in CHANCEL:
+    SHADE.setdefault(_n, (0.30 if _n.startswith("choir") or _n.startswith("organ") else 0.10, _n in GROUNDED))
+    SIZES.setdefault(_n, (None, None, None))
 
 
 def build(name, A):
-    out = [getattr(church, name)(A)]
-    if hasattr(church, name + "_hull"):
-        out.append(getattr(church, name + "_hull")(A))
+    mod = chancel if name in CHANCEL else church
+    out = [getattr(mod, name)(A)]
+    if hasattr(mod, name + "_hull"):
+        out.append(getattr(mod, name + "_hull")(A))
     return out
 
 
@@ -88,7 +103,7 @@ def main():
     bpy.ops.wm.read_factory_settings(use_empty=True)
     kit.OVER.clear()
     A = kit.Atlas(kit.SIZE)
-    names = [n for n in ORDER if (o["only"] is None or n in o["only"]) and hasattr(church, n)]
+    names = [n for n in ORDER if (n not in UNPLACED if o["only"] is None else n in o["only"]) and (hasattr(church, n) or n in CHANCEL)]
     meshes = {name: build(name, A) for name in names}
     os.makedirs(os.path.dirname(o["out"]), exist_ok=True)
     os.makedirs(o["shots"], exist_ok=True)
@@ -144,7 +159,19 @@ def main():
             "altar_cloth": [((0.5, -1.0, 0.5), (0.5, 0.5, 0.5), 1.4), ((0.2, -1.0, 0.0), (0.7, 0.1, 0.1), 0.3)],
             "altar_saint": [((0.3, -1.0, 0.1), (0.5, 0.5, 0.5), 1.6), ((0.2, -1.0, 0.05), (0.5, 0.15, 0.85), 0.35)],
             "altar_marble": [((0.45, -1.0, 0.2), (0.5, 0.5, 0.5), 1.4), ((0.3, -1.0, 0.1), (0.15, 0.2, 0.5), 0.4)],
+            "choir_stalls_east_b": [((0.45, -1.0, 0.25), (0.5, 0.5, 0.5), 2.2), ((0.25, -1.0, 0.1), (0.45, 0.5, 0.55), 0.30),
+                               ((0.3, -1.0, 0.15), (0.45, 0.5, 0.85), 0.25), ((1.0, -0.6, 0.1), (0.98, 0.3, 0.25), 0.25),
+                               ((0.35, -1.0, -0.2), (0.45, 0.3, 0.68), 0.22)],
+            "triptych": [((0.0, -1.0, 0.0), (0.5, 0.5, 0.5), 1.6), ((0.8, -1.0, 0.2), (0.85, 0.3, 0.6), 0.5), ((0.5, 1.0, 0.2), (0.85, 0.5, 0.5), 0.9)],
+            "picture_frame_high": [((0.0, -1.0, 0.0), (0.5, 0.5, 0.5), 1.5), ((0.4, -1.0, 0.3), (0.95, 0.5, 0.95), 0.25)],
+            "picture_frame_epitaph": [((0.0, -1.0, 0.0), (0.5, 0.5, 0.5), 1.5), ((0.4, -1.0, 0.3), (0.95, 0.5, 0.95), 0.3)],
+            "picture_frame_pillar": [((0.0, -1.0, 0.0), (0.5, 0.5, 0.5), 1.5), ((0.4, -1.0, 0.3), (0.5, 0.5, 0.95), 0.4)],
+            "glory": [((0.0, -1.0, 0.0), (0.5, 0.5, 0.5), 1.6)],
+            "altar_angel": [((0.3, -1.0, 0.1), (0.5, 0.5, 0.5), 1.6)],
+            "organ_case": [((0.2, -1.0, 0.1), (0.5, 0.5, 0.75), 1.3), ((0.4, -1.0, 0.2), (0.5, 0.3, 0.92), 0.25), ((0.5, -1.0, 0.0), (0.38, 0.1, 0.30), 0.22),
+                           ((0.4, -1.0, -0.3), (0.5, 0.1, 0.05), 0.3)],
         })
+        shots.LIFT.update({"triptych": 2.7, "picture_frame_high": 2.8, "picture_frame_epitaph": 1.3, "picture_frame_pillar": 1.0, "glory": 1.3})
         shots.render_all(built, names, o["shots"], mat)
     print("[church] %.0f s" % (time.time() - t0))
     if not ok:

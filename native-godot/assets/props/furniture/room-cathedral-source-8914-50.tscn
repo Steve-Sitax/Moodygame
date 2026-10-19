@@ -25,7 +25,7 @@ size = Vector3(0.9494934, 3.399933, 2.1489506)
 
 [node name="fitting" type="Node3D" unique_id=341048940]
 script = ExtResource("1_sh13j")
-ModelParts = PackedStringArray("church/altar_frame -0.2947 3.4500 -0.0001 1.5708", "church/altar_dressing -0.2947 1.4480 -0.0001 1.5708")
+ModelParts = PackedStringArray("church/altar_frame -0.2947 3.4500 -0.0001 1.5708", "church/altar_dressing -0.2947 1.4480 -0.0001 1.5708", "church/altar_marble -0.2947 0.3000 -0.0001 1.5708")
 GeometryCollision = true
 Kind = "fitting"
 ModelSize = Vector3(0.9494934, 3.399933, 2.1489506)
@@ -41,4 +41,3 @@ collision_mask = 0
 [node name="Shape" type="CollisionShape3D" parent="Solid" unique_id=741017717]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 5.722046e-06, 3.1399422, -4.7683716e-06)
 shape = SubResource("BoxShape3D_ylxfl")
-

@@ -35,6 +35,11 @@ public partial class StoneCornersPromote : Node
         string candidate = Opt("candidate"), record = Opt("record");
         bool reuse = args.Contains("--reuse-material");
         var manifest = JsonDocument.Parse(File.ReadAllText(Path.Combine(candidate, "manifest.json"))).RootElement;
+        if (manifest.TryGetProperty("surfaceRepairs", out var repairs))
+        {
+            PromoteSurfaces(candidate, record, Opt("backup"), repairs);
+            return;
+        }
         var entries = manifest.EnumerateObject().Where(e => e.Name.StartsWith("res://", StringComparison.Ordinal)).ToArray();
         // every source must still be what the candidate was made from
         foreach (var e in entries)
@@ -107,6 +112,89 @@ public partial class StoneCornersPromote : Node
         File.WriteAllText(Path.Combine(record, "promotion.json"), JsonSerializer.Serialize(new { date = DateTime.UtcNow.ToString("u"), candidate, resources = made.Select(m => m.path), originalHashes = originals, installedHashes = installed, counts },
             new JsonSerializerOptions { WriteIndented = true }));
         GD.Print($"Stone corners promoted: {made.Count} meshes and the dressed-stone material; originals in {backup}");
+    }
+
+    // Landmark/paving pass: replace only explicitly listed surfaces, copying all other packed surfaces verbatim.
+    // Preserve existing support stand-ins, and move each newly replaced surface's ORIGINAL local faces into them.
+    // This also permits a candidate rebuilt from an original dump after an earlier visual-only promotion.
+    void PromoteSurfaces(string candidate, string record, string backup, JsonElement repairs)
+    {
+        Directory.CreateDirectory(record); Directory.CreateDirectory(backup);
+        var scene = ResourceLoader.Load<PackedScene>("res://world/town/scene.tscn").Instantiate<Node3D>(); AddChild(scene);
+        var made = new List<(string path, ArrayMesh mesh, string before, int triangles)>();
+        foreach (var e in repairs.EnumerateArray())
+        {
+            string path = e.GetProperty("mesh").GetString()!;
+            if (Hash(path) != e.GetProperty("sourceHash").GetString()) throw new IOException("Source changed: " + path);
+            if (File.Exists(Path.Combine(backup, Path.GetFileName(path)))) throw new IOException("Backup exists: " + path);
+            var node = scene.GetNode<MeshInstance3D>(e.GetProperty("nodePath").GetString()!);
+            var old = ResourceLoader.Load<ArrayMesh>(path);
+            string before = SupportHash(old);
+            var mesh = new ArrayMesh { ResourceName = old.ResourceName };
+            foreach (var key in old.GetMetaList()) mesh.SetMeta(key, old.GetMeta(key));
+            var surfaces = new Godot.Collections.Array((Godot.Collections.Array)old.Get("_surfaces"));
+            var skip = old.HasMeta("native_solid_skip") ? old.GetMeta("native_solid_skip").AsInt32Array().ToList() : new List<int>();
+            var stand = old.HasMeta("native_solid_stand_in") ? old.GetMeta("native_solid_stand_in").AsVector3Array().ToList() : new List<Vector3>();
+            int triangles = 0;
+            foreach (var s in e.GetProperty("surfaces").EnumerateArray())
+            {
+                int si = s.GetProperty("index").GetInt32();
+                if (!skip.Contains(si)) { if (si < old.GetSurfaceCount()) stand.AddRange(SurfaceFaces(old, si)); skip.Add(si); }
+                var (arrays, _, tris) = Rows(Path.Combine(candidate, s.GetProperty("file").GetString()!), s.GetProperty("custom0").GetBoolean(), node.GlobalTransform);
+                // Full float positions retain millimetre arrises on large combined landmark meshes.
+                var temp = new ArrayMesh();
+                var flags = s.GetProperty("custom0").GetBoolean() ? (Mesh.ArrayFormat)((long)Mesh.ArrayCustomFormat.RgFloat << (int)Mesh.ArrayFormat.FormatCustom0Shift) : 0;
+                temp.AddSurfaceFromArrays(Mesh.PrimitiveType.Triangles, arrays, null, null, flags);
+                temp.SurfaceSetMaterial(0, ResourceLoader.Load<Material>(s.GetProperty("material").GetString()!));
+                if (si == surfaces.Count) surfaces.Add(((Godot.Collections.Array)temp.Get("_surfaces"))[0]);
+                else surfaces[si] = ((Godot.Collections.Array)temp.Get("_surfaces"))[0];
+                triangles += tris;
+            }
+            mesh.Set("_surfaces", surfaces);
+            mesh.SetMeta("native_solid_skip", skip.ToArray()); mesh.SetMeta("native_solid_stand_in", stand.ToArray());
+            if (SupportHash(mesh) != before) throw new IOException("Collision/support faces changed: " + path);
+            made.Add((path, mesh, before, triangles));
+        }
+        var report = new List<object>();
+        foreach (var (path, mesh, before, triangles) in made)
+        {
+            string source = Hash(path);
+            File.Copy(ProjectSettings.GlobalizePath(path), Path.Combine(backup, Path.GetFileName(path)), false);
+            if (ResourceSaver.Save(mesh, path, ResourceSaver.SaverFlags.Compress) != Error.Ok) throw new IOException(path);
+            var back = ResourceLoader.Load<ArrayMesh>(path, null, ResourceLoader.CacheMode.Ignore);
+            if (back.GetSurfaceCount() != mesh.GetSurfaceCount() || SupportHash(back) != before) throw new IOException("Reload/support differs: " + path);
+            report.Add(new { path, sourceHash = source, installedHash = Hash(path), supportHash = before, triangles });
+        }
+        File.WriteAllText(Path.Combine(record, "promotion.json"), JsonSerializer.Serialize(report, new JsonSerializerOptions { WriteIndented = true }));
+        GD.Print($"Surface repairs promoted: {made.Count} meshes; support faces identical before and after reload.");
+    }
+
+    static Vector3[] SurfaceFaces(ArrayMesh m, int s)
+    {
+        var a = m.SurfaceGetArrays(s); var p = a[(int)Mesh.ArrayType.Vertex].AsVector3Array();
+        return a[(int)Mesh.ArrayType.Index].VariantType == Variant.Type.Nil ? p : a[(int)Mesh.ArrayType.Index].AsInt32Array().Select(i => p[i]).ToArray();
+    }
+
+    static string SupportHash(ArrayMesh m)
+    {
+        // Sort whole triangles, never their corners: surface order may change, winding and every float must not.
+        var skip = m.HasMeta("native_solid_skip") ? m.GetMeta("native_solid_skip").AsInt32Array() : Array.Empty<int>();
+        var all = m.HasMeta("native_solid_stand_in") ? m.GetMeta("native_solid_stand_in").AsVector3Array().ToList() : new List<Vector3>();
+        for (int s = 0; s < m.GetSurfaceCount(); s++) if (!skip.Contains(s)) all.AddRange(SurfaceFaces(m, s));
+        var keys = new List<string>();
+        for (int i = 0; i < all.Count; i += 3)
+        {
+            var bytes = new byte[36];
+            for (int k = 0; k < 3; k++)
+            {
+                Buffer.BlockCopy(BitConverter.GetBytes(all[i + k].X), 0, bytes, k * 12, 4);
+                Buffer.BlockCopy(BitConverter.GetBytes(all[i + k].Y), 0, bytes, k * 12 + 4, 4);
+                Buffer.BlockCopy(BitConverter.GetBytes(all[i + k].Z), 0, bytes, k * 12 + 8, 4);
+            }
+            keys.Add(Convert.ToBase64String(bytes));
+        }
+        keys.Sort(StringComparer.Ordinal);
+        return Convert.ToHexString(SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(string.Join("\n", keys))));
     }
 
     // rows -> indexed arrays in the node's space: identical rows share one vertex

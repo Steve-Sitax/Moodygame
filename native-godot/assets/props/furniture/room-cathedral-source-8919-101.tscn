@@ -20,6 +20,10 @@ _surfaces = [{
 
 [node name="fitting" type="Node3D" unique_id=1592140931]
 script = ExtResource("1_wytvm")
+ModelScale = 0.455
+ModelYaw = -1.5708
+SceneOffset = Vector3(0, 5.65, 0)
+ModelScene = "church/altar_angel"
 GeometryCollision = true
 Kind = "fitting"
 ModelSize = Vector3(0.44984055, 0.8073168, 0.4473133)

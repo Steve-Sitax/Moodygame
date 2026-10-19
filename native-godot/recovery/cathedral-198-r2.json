@@ -1,0 +1,1314 @@
+{
+ "note": "#198 round two: the choir stalls and throne, the high altar and its lamp, the transept and crossing altars, epitaphs, pillar pictures, the organ and its loft, the font, the lectern. Apply with python -I native-godot/recovery/cut-recovered.py native-godot/recovery/cathedral-198-r2.json",
+ "plans": [
+  {
+   "scene": "res://assets/props/furniture/room-cathedral-source-8915-83.tscn",
+   "offset": [
+    0,
+    0,
+    0
+   ],
+   "props": {
+    "ModelScene": "church/choir_stalls_west",
+    "SceneOffset": [
+     0.014,
+     0.66,
+     0
+    ],
+    "ModelYaw": 1.5708
+   },
+   "model_parts": [
+    "church/choir_screen_west -0.99118 0.3 11.27027 1.5708"
+   ]
+  },
+  {
+   "scene": "res://assets/props/furniture/room-cathedral-source-8915-84.tscn",
+   "offset": [
+    0,
+    0,
+    0
+   ],
+   "props": {
+    "ModelScene": "church/choir_stalls_east_a",
+    "SceneOffset": [
+     0.0,
+     0.66,
+     0
+    ],
+    "ModelYaw": -1.5708
+   }
+  },
+  {
+   "scene": "res://assets/props/furniture/room-cathedral-source-8915-85.tscn",
+   "offset": [
+    0,
+    0,
+    0
+   ],
+   "props": {
+    "ModelScene": "church/choir_stalls_east_b",
+    "SceneOffset": [
+     0.0,
+     0.66,
+     0
+    ],
+    "ModelYaw": -1.5708
+   },
+   "model_parts": [
+    "church/choir_screen_east 0.99194 0.3 6.32608 1.5708"
+   ]
+  },
+  {
+   "scene": "res://assets/props/furniture/room-cathedral-source-8903-8.tscn",
+   "offset": [
+    0,
+    0,
+    0
+   ],
+   "props": {
+    "ModelScene": "church/high_tabernacle",
+    "SceneOffset": [
+     0,
+     2.26,
+     0
+    ],
+    "ModelYaw": 3.1416
+   }
+  },
+  {
+   "scene": "res://assets/props/furniture/room-cathedral-source-8914-27.tscn",
+   "offset": [
+    0,
+    0,
+    0
+   ],
+   "cuts": [
+    {
+     "name": "8914-27 frame",
+     "box": [
+      -10000.0,
+      10000.0,
+      -10000.0,
+      10000.0,
+      -10000.0,
+      10000.0
+     ],
+     "materials": [
+      "r005912"
+     ]
+    }
+   ],
+   "model_parts": [
+    "church/picture_frame_high 0 5.85 0.065 3.1416"
+   ]
+  },
+  {
+   "scene": "res://assets/props/furniture/room-cathedral-source-8914-28.tscn",
+   "offset": [
+    0,
+    0,
+    0
+   ],
+   "props": {
+    "ModelScene": "church/altar_capital",
+    "SceneOffset": [
+     0,
+     9.16,
+     0
+    ],
+    "ModelYaw": 3.1416,
+    "ModelScale": 1.85
+   }
+  },
+  {
+   "scene": "res://assets/props/furniture/room-cathedral-source-8914-29.tscn",
+   "offset": [
+    0,
+    0,
+    0
+   ],
+   "props": {
+    "ModelScene": "church/altar_capital",
+    "SceneOffset": [
+     0,
+     9.16,
+     0
+    ],
+    "ModelYaw": 3.1416,
+    "ModelScale": 1.85
+   }
+  },
+  {
+   "scene": "res://assets/props/furniture/room-cathedral-source-8914-30.tscn",
+   "offset": [
+    0,
+    0,
+    0
+   ],
+   "props": {
+    "ModelScene": "church/altar_capital",
+    "SceneOffset": [
+     0,
+     9.16,
+     0
+    ],
+    "ModelYaw": 3.1416,
+    "ModelScale": 1.85
+   }
+  },
+  {
+   "scene": "res://assets/props/furniture/room-cathedral-source-8914-31.tscn",
+   "offset": [
+    0,
+    0,
+    0
+   ],
+   "props": {
+    "ModelScene": "church/altar_capital",
+    "SceneOffset": [
+     0,
+     9.16,
+     0
+    ],
+    "ModelYaw": 3.1416,
+    "ModelScale": 1.85
+   }
+  },
+  {
+   "scene": "res://assets/props/furniture/room-cathedral-source-8914-32.tscn",
+   "offset": [
+    0,
+    0,
+    0
+   ],
+   "props": {
+    "ModelScene": "church/gilt_frieze",
+    "SceneOffset": [
+     0,
+     9.949,
+     0
+    ],
+    "ModelYaw": 3.1416
+   }
+  },
+  {
+   "scene": "res://assets/props/furniture/room-cathedral-source-8914-33.tscn",
+   "offset": [
+    0,
+    0,
+    0
+   ],
+   "props": {
+    "ModelScene": "church/glory",
+    "SceneOffset": [
+     0,
+     12.11,
+     0.053
+    ],
+    "ModelYaw": 3.1416
+   },
+   "model_parts": [
+    "church/altar_saint 0 10.83 -0.30 3.1416 1.33"
+   ]
+  },
+  {
+   "scene": "res://assets/props/furniture/room-cathedral-source-8914-34.tscn",
+   "offset": [
+    0,
+    0,
+    0
+   ],
+   "props": {
+    "ModelScene": "church/altar_urn",
+    "SceneOffset": [
+     0,
+     10.829,
+     0
+    ],
+    "ModelYaw": 3.1416
+   }
+  },
+  {
+   "scene": "res://assets/props/furniture/room-cathedral-source-8914-35.tscn",
+   "offset": [
+    0,
+    0,
+    0
+   ],
+   "props": {
+    "ModelScene": "church/altar_urn",
+    "SceneOffset": [
+     0,
+     10.829,
+     0
+    ],
+    "ModelYaw": 3.1416
+   }
+  },
+  {
+   "scene": "res://assets/props/furniture/room-cathedral-source-8914-36.tscn",
+   "offset": [
+    0,
+    0,
+    0
+   ],
+   "props": {
+    "ModelScene": "church/altar_crucifix_top",
+    "SceneOffset": [
+     0,
+     13.21,
+     0
+    ],
+    "ModelYaw": 3.1416
+   }
+  },
+  {
+   "scene": "res://assets/props/furniture/room-cathedral-source-8919-91.tscn",
+   "offset": [
+    0,
+    0,
+    0
+   ],
+   "props": {
+    "ModelScene": "church/altar_angel",
+    "SceneOffset": [
+     0,
+     10.83,
+     0
+    ],
+    "ModelYaw": 3.1416,
+    "ModelScale": 0.96
+   }
+  },
+  {
+   "scene": "res://assets/props/furniture/room-cathedral-source-8919-93.tscn",
+   "offset": [
+    0,
+    0,
+    0
+   ],
+   "props": {
+    "ModelScene": "church/altar_angel",
+    "SceneOffset": [
+     0,
+     10.83,
+     0
+    ],
+    "ModelYaw": 3.1416,
+    "ModelScale": 0.96
+   }
+  },
+  {
+   "scene": "res://assets/props/furniture/room-cathedral-source-8919-92.tscn",
+   "offset": [
+    0,
+    0,
+    0
+   ],
+   "props": {
+    "ModelScene": "church/altar_saint",
+    "SceneOffset": [
+     -0.5,
+     2.06,
+     -0.45
+    ],
+    "ModelYaw": 3.1416,
+    "ModelScale": 1.33
+   }
+  },
+  {
+   "scene": "res://assets/props/furniture/room-cathedral-source-8919-94.tscn",
+   "offset": [
+    0,
+    0,
+    0
+   ],
+   "props": {
+    "ModelScene": "church/altar_saint",
+    "SceneOffset": [
+     0.5,
+     2.06,
+     -0.45
+    ],
+    "ModelYaw": 3.1416,
+    "ModelScale": 1.33
+   }
+  },
+  {
+   "scene": "res://assets/props/furniture/room-cathedral-source-8914-37.tscn",
+   "offset": [
+    0,
+    0,
+    0
+   ],
+   "cuts": [
+    {
+     "name": "8914-37 frames",
+     "box": [
+      -10000.0,
+      10000.0,
+      -10000.0,
+      10000.0,
+      -10000.0,
+      10000.0
+     ],
+     "materials": [
+      "r005912",
+      "r005918"
+     ]
+    }
+   ],
+   "model_parts": [
+    "church/triptych 0 5.5 0.639 3.1416"
+   ]
+  },
+  {
+   "scene": "res://assets/props/furniture/room-cathedral-source-8914-40.tscn",
+   "offset": [
+    0,
+    0,
+    0
+   ],
+   "cuts": [
+    {
+     "name": "8914-40 frames",
+     "box": [
+      -10000.0,
+      10000.0,
+      -10000.0,
+      10000.0,
+      -10000.0,
+      10000.0
+     ],
+     "materials": [
+      "r005912",
+      "r005918"
+     ]
+    }
+   ],
+   "model_parts": [
+    "church/triptych 0 5.5 0.639 3.1416"
+   ]
+  },
+  {
+   "scene": "res://assets/props/furniture/room-cathedral-source-8914-38.tscn",
+   "offset": [
+    0,
+    0,
+    0
+   ],
+   "props": {
+    "ModelScene": "church/glory",
+    "SceneOffset": [
+     0,
+     10.2,
+     0
+    ],
+    "ModelYaw": 3.1416,
+    "ModelScale": 0.76
+   }
+  },
+  {
+   "scene": "res://assets/props/furniture/room-cathedral-source-8914-41.tscn",
+   "offset": [
+    0,
+    0,
+    0
+   ],
+   "props": {
+    "ModelScene": "church/glory",
+    "SceneOffset": [
+     0,
+     10.2,
+     0
+    ],
+    "ModelYaw": 3.1416,
+    "ModelScale": 0.76
+   }
+  },
+  {
+   "scene": "res://assets/props/furniture/room-cathedral-source-8914-39.tscn",
+   "offset": [
+    0,
+    0,
+    0
+   ],
+   "props": {
+    "ModelScene": "church/ihs_medallion",
+    "SceneOffset": [
+     0,
+     9.88,
+     -0.04
+    ],
+    "ModelYaw": 3.1416
+   }
+  },
+  {
+   "scene": "res://assets/props/furniture/room-cathedral-source-8914-42.tscn",
+   "offset": [
+    0,
+    0,
+    0
+   ],
+   "props": {
+    "ModelScene": "church/ihs_medallion",
+    "SceneOffset": [
+     0,
+     9.88,
+     -0.04
+    ],
+    "ModelYaw": 3.1416
+   }
+  },
+  {
+   "scene": "res://assets/props/furniture/room-cathedral-source-8919-95.tscn",
+   "offset": [
+    0,
+    0,
+    0
+   ],
+   "props": {
+    "ModelScene": "church/altar_angel",
+    "SceneOffset": [
+     0,
+     9.26,
+     0
+    ],
+    "ModelYaw": 3.1416,
+    "ModelScale": 0.74
+   }
+  },
+  {
+   "scene": "res://assets/props/furniture/room-cathedral-source-8919-96.tscn",
+   "offset": [
+    0,
+    0,
+    0
+   ],
+   "props": {
+    "ModelScene": "church/altar_angel",
+    "SceneOffset": [
+     0,
+     9.26,
+     0
+    ],
+    "ModelYaw": 3.1416,
+    "ModelScale": 0.74
+   }
+  },
+  {
+   "scene": "res://assets/props/furniture/room-cathedral-source-8919-97.tscn",
+   "offset": [
+    0,
+    0,
+    0
+   ],
+   "props": {
+    "ModelScene": "church/altar_angel",
+    "SceneOffset": [
+     0,
+     9.26,
+     0
+    ],
+    "ModelYaw": 3.1416,
+    "ModelScale": 0.74
+   }
+  },
+  {
+   "scene": "res://assets/props/furniture/room-cathedral-source-8919-98.tscn",
+   "offset": [
+    0,
+    0,
+    0
+   ],
+   "props": {
+    "ModelScene": "church/altar_angel",
+    "SceneOffset": [
+     0,
+     9.26,
+     0
+    ],
+    "ModelYaw": 3.1416,
+    "ModelScale": 0.74
+   }
+  },
+  {
+   "scene": "res://assets/props/furniture/room-cathedral-source-8914-60.tscn",
+   "offset": [
+    0,
+    0,
+    0
+   ],
+   "cuts": [
+    {
+     "name": "8914-60 frame",
+     "box": [
+      -10000.0,
+      10000.0,
+      -10000.0,
+      10000.0,
+      -10000.0,
+      10000.0
+     ],
+     "materials": [
+      "r005912"
+     ]
+    }
+   ],
+   "model_parts": [
+    "church/picture_frame_epitaph -0.02 3.9 0 1.5708"
+   ]
+  },
+  {
+   "scene": "res://assets/props/furniture/room-cathedral-source-8914-61.tscn",
+   "offset": [
+    0,
+    0,
+    0
+   ],
+   "cuts": [
+    {
+     "name": "8914-61 frame",
+     "box": [
+      -10000.0,
+      10000.0,
+      -10000.0,
+      10000.0,
+      -10000.0,
+      10000.0
+     ],
+     "materials": [
+      "r005912"
+     ]
+    }
+   ],
+   "model_parts": [
+    "church/picture_frame_epitaph 0.021 3.9 0 -1.5708"
+   ]
+  },
+  {
+   "scene": "res://assets/props/furniture/room-cathedral-source-8919-100.tscn",
+   "offset": [
+    0,
+    0,
+    0
+   ],
+   "props": {
+    "ModelScene": "church/altar_angel",
+    "SceneOffset": [
+     0,
+     5.65,
+     0
+    ],
+    "ModelYaw": 1.5708,
+    "ModelScale": 0.455
+   }
+  },
+  {
+   "scene": "res://assets/props/furniture/room-cathedral-source-8919-101.tscn",
+   "offset": [
+    0,
+    0,
+    0
+   ],
+   "props": {
+    "ModelScene": "church/altar_angel",
+    "SceneOffset": [
+     0,
+     5.65,
+     0
+    ],
+    "ModelYaw": -1.5708,
+    "ModelScale": 0.455
+   }
+  },
+  {
+   "scene": "res://assets/props/furniture/room-cathedral-source-8914-62.tscn",
+   "offset": [
+    0,
+    0,
+    0
+   ],
+   "cuts": [
+    {
+     "name": "8914-62 frame",
+     "box": [
+      -10000.0,
+      10000.0,
+      -10000.0,
+      10000.0,
+      -10000.0,
+      10000.0
+     ],
+     "materials": [
+      "r005912",
+      "r005975"
+     ]
+    }
+   ],
+   "model_parts": [
+    "church/picture_frame_pillar 0.01 4.5 0 1.5708"
+   ]
+  },
+  {
+   "scene": "res://assets/props/furniture/room-cathedral-source-8914-64.tscn",
+   "offset": [
+    0,
+    0,
+    0
+   ],
+   "cuts": [
+    {
+     "name": "8914-64 frame",
+     "box": [
+      -10000.0,
+      10000.0,
+      -10000.0,
+      10000.0,
+      -10000.0,
+      10000.0
+     ],
+     "materials": [
+      "r005912",
+      "r005975"
+     ]
+    }
+   ],
+   "model_parts": [
+    "church/picture_frame_pillar 0.01 4.5 0 1.5708"
+   ]
+  },
+  {
+   "scene": "res://assets/props/furniture/room-cathedral-source-8914-66.tscn",
+   "offset": [
+    0,
+    0,
+    0
+   ],
+   "cuts": [
+    {
+     "name": "8914-66 frame",
+     "box": [
+      -10000.0,
+      10000.0,
+      -10000.0,
+      10000.0,
+      -10000.0,
+      10000.0
+     ],
+     "materials": [
+      "r005912",
+      "r005975"
+     ]
+    }
+   ],
+   "model_parts": [
+    "church/picture_frame_pillar 0.01 4.5 0 1.5708"
+   ]
+  },
+  {
+   "scene": "res://assets/props/furniture/room-cathedral-source-8914-63.tscn",
+   "offset": [
+    0,
+    0,
+    0
+   ],
+   "cuts": [
+    {
+     "name": "8914-63 frame",
+     "box": [
+      -10000.0,
+      10000.0,
+      -10000.0,
+      10000.0,
+      -10000.0,
+      10000.0
+     ],
+     "materials": [
+      "r005912",
+      "r005975"
+     ]
+    }
+   ],
+   "model_parts": [
+    "church/picture_frame_pillar -0.01 4.5 0 -1.5708"
+   ]
+  },
+  {
+   "scene": "res://assets/props/furniture/room-cathedral-source-8914-65.tscn",
+   "offset": [
+    0,
+    0,
+    0
+   ],
+   "cuts": [
+    {
+     "name": "8914-65 frame",
+     "box": [
+      -10000.0,
+      10000.0,
+      -10000.0,
+      10000.0,
+      -10000.0,
+      10000.0
+     ],
+     "materials": [
+      "r005912",
+      "r005975"
+     ]
+    }
+   ],
+   "model_parts": [
+    "church/picture_frame_pillar -0.01 4.5 0 -1.5708"
+   ]
+  },
+  {
+   "scene": "res://assets/props/furniture/room-cathedral-source-8914-67.tscn",
+   "offset": [
+    0,
+    0,
+    0
+   ],
+   "cuts": [
+    {
+     "name": "8914-67 frame",
+     "box": [
+      -10000.0,
+      10000.0,
+      -10000.0,
+      10000.0,
+      -10000.0,
+      10000.0
+     ],
+     "materials": [
+      "r005912",
+      "r005975"
+     ]
+    }
+   ],
+   "model_parts": [
+    "church/picture_frame_pillar -0.01 4.5 0 -1.5708"
+   ]
+  },
+  {
+   "scene": "res://assets/props/furniture/room-cathedral-source-8914-26.tscn",
+   "offset": [
+    0,
+    0,
+    0
+   ],
+   "props": {
+    "ModelScene": "church/organ_case",
+    "SceneOffset": [
+     0,
+     0,
+     0
+    ],
+    "ModelYaw": 0.0
+   },
+   "model_parts": [
+    "fittings/confessional_angel 0 19.33 0.2 0 0.865",
+    "fittings/confessional_angel -3.8 15.40 0.2 0 0.70",
+    "fittings/confessional_angel 3.8 15.40 0.2 0 0.70 mirror"
+   ]
+  },
+  {
+   "scene": "res://assets/props/furniture/room-cathedral-source-8902-4.tscn",
+   "offset": [
+    -262.0005,
+    0.0,
+    212.29852
+   ],
+   "cuts": [
+    {
+     "name": "transept east dressing",
+     "box": [
+      -241.6,
+      -237.8,
+      1.1,
+      2.6,
+      225.3,
+      226.5
+     ],
+     "materials": [
+      "r005912",
+      "r005840",
+      "r005929",
+      "r005836",
+      "r005925"
+     ]
+    },
+    {
+     "name": "transept east votive stand",
+     "box": [
+      -236.7,
+      -235.5,
+      0.2,
+      2.5,
+      225.0,
+      225.9
+     ],
+     "materials": [
+      "r005834",
+      "r005929",
+      "r005868"
+     ]
+    },
+    {
+     "name": "transept west dressing",
+     "box": [
+      -286.2,
+      -282.4,
+      1.1,
+      2.6,
+      225.3,
+      226.5
+     ],
+     "materials": [
+      "r005912",
+      "r005840",
+      "r005929",
+      "r005836",
+      "r005925"
+     ]
+    },
+    {
+     "name": "transept west votive stand",
+     "box": [
+      -288.5,
+      -287.3,
+      0.2,
+      2.5,
+      225.0,
+      225.9
+     ],
+     "materials": [
+      "r005834",
+      "r005929",
+      "r005868"
+     ]
+    },
+    {
+     "name": "crossing west altar",
+     "box": [
+      -286.6,
+      -280.4,
+      1.1,
+      4.2,
+      211.9,
+      213.2
+     ],
+     "materials": [
+      "r005912",
+      "r005840",
+      "r005929",
+      "r005836",
+      "r005925"
+     ]
+    }
+   ],
+   "model_parts_add": [
+    "church/altar_dressing_six 22.3005 1.46 13.1215 3.1416",
+    "church/altar_dressing_six -22.2995 1.46 13.1215 3.1416",
+    "church/votive_stand 25.9005 0.3 13.1815 3.1416",
+    "church/votive_stand -25.8995 0.3 13.1815 3.1416",
+    "church/picture_frame_supper -21.4995 3.0 0.5515 3.1416",
+    "church/altar_dressing -21.4995 1.448 0.5515 3.1416",
+    "church/altar_saint -23.9495 1.25 0.3625 3.1416",
+    "church/altar_saint -19.0495 1.25 0.3625 3.1416 mirror",
+    "church/altar_marble 24.8105 0.3000 -35.1395 -1.5708",
+    "church/altar_marble 24.8105 0.3000 -17.2995 -1.5708",
+    "church/altar_marble -24.8095 0.3000 -26.2195 1.5708",
+    "church/altar_marble -24.8095 0.3000 -8.3895 1.5708"
+   ]
+  },
+  {
+   "scene": "res://assets/props/furniture/room-cathedral-source-8916-88.tscn",
+   "offset": [
+    0,
+    0,
+    0
+   ],
+   "props": {
+    "ModelScene": "church/offering_box",
+    "SceneOffset": [
+     0,
+     0,
+     0
+    ],
+    "ModelYaw": 3.1416
+   }
+  },
+  {
+   "scene": "res://assets/props/furniture/room-cathedral-source-8916-89.tscn",
+   "offset": [
+    0,
+    0,
+    0
+   ],
+   "props": {
+    "ModelScene": "church/offering_box",
+    "SceneOffset": [
+     0,
+     0,
+     0
+    ],
+    "ModelYaw": 3.1416
+   }
+  },
+  {
+   "scene": "res://assets/props/furniture/room-cathedral-source-8916-90.tscn",
+   "offset": [
+    0,
+    0,
+    0
+   ],
+   "props": {
+    "ModelScene": "church/offering_box",
+    "SceneOffset": [
+     0,
+     0,
+     0
+    ],
+    "ModelYaw": 3.1416
+   }
+  },
+  {
+   "scene": "res://assets/props/furniture/room-cathedral-source-8914-68.tscn",
+   "offset": [
+    0,
+    0,
+    0
+   ],
+   "props": {
+    "ModelScene": "church/altar_capital",
+    "SceneOffset": [
+     0,
+     5.49,
+     0
+    ],
+    "ModelYaw": 3.1416
+   }
+  },
+  {
+   "scene": "res://assets/props/furniture/room-cathedral-source-8914-69.tscn",
+   "offset": [
+    0,
+    0,
+    0
+   ],
+   "props": {
+    "ModelScene": "church/altar_capital",
+    "SceneOffset": [
+     0,
+     5.49,
+     0
+    ],
+    "ModelYaw": 3.1416
+   }
+  },
+  {
+   "scene": "res://assets/props/furniture/room-cathedral-source-8914-70.tscn",
+   "offset": [
+    0,
+    0,
+    0
+   ],
+   "props": {
+    "ModelScene": "church/altar_capital",
+    "SceneOffset": [
+     0,
+     3.939,
+     0
+    ],
+    "ModelYaw": 3.1416
+   }
+  },
+  {
+   "scene": "res://assets/props/furniture/room-cathedral-source-8914-71.tscn",
+   "offset": [
+    0,
+    0,
+    0
+   ],
+   "props": {
+    "ModelScene": "church/altar_capital",
+    "SceneOffset": [
+     0,
+     3.939,
+     0
+    ],
+    "ModelYaw": 3.1416
+   }
+  },
+  {
+   "scene": "res://assets/props/furniture/room-cathedral-source-8914-72.tscn",
+   "offset": [
+    0,
+    0,
+    0
+   ],
+   "props": {
+    "ModelScene": "church/altar_crown",
+    "SceneOffset": [
+     0,
+     4.72,
+     -0.12
+    ],
+    "ModelYaw": 3.1416
+   }
+  },
+  {
+   "scene": "res://assets/props/furniture/room-cathedral-source-8920-110.tscn",
+   "offset": [
+    0,
+    0,
+    0
+   ],
+   "props": {
+    "ModelScene": "church/altar_cloth",
+    "SceneOffset": [
+     0,
+     1.445,
+     0.045
+    ],
+    "ModelYaw": 3.1416,
+    "ModelScale": 1.32
+   }
+  },
+  {
+   "scene": "res://assets/props/furniture/room-cathedral-source-8920-111.tscn",
+   "offset": [
+    0,
+    0,
+    0
+   ],
+   "props": {
+    "ModelScene": "church/altar_cloth",
+    "SceneOffset": [
+     0,
+     1.445,
+     0.045
+    ],
+    "ModelYaw": 3.1416,
+    "ModelScale": 1.32
+   }
+  },
+  {
+   "scene": "res://assets/props/furniture/room-cathedral-source-8919-102.tscn",
+   "offset": [
+    0,
+    0,
+    0
+   ],
+   "props": {
+    "ModelScene": "church/altar_angel",
+    "SceneOffset": [
+     0,
+     6.4,
+     0
+    ],
+    "ModelYaw": 3.1416,
+    "ModelScale": 0.62
+   }
+  },
+  {
+   "scene": "res://assets/props/furniture/room-cathedral-source-8916-87.tscn",
+   "offset": [
+    0,
+    0,
+    0
+   ],
+   "props": {
+    "ModelScene": "church/sanctuary_lamp",
+    "SceneOffset": [
+     0,
+     0,
+     0
+    ],
+    "ModelYaw": 0.0
+   }
+  },
+  {
+   "scene": "res://assets/props/furniture/room-cathedral-source-8914-22.tscn",
+   "offset": [
+    0,
+    0,
+    0
+   ],
+   "props": {
+    "ModelScene": "church/loft_panel",
+    "SceneOffset": [
+     0,
+     6.949,
+     0
+    ],
+    "ModelYaw": 0.0
+   }
+  },
+  {
+   "scene": "res://assets/props/furniture/room-cathedral-source-8914-23.tscn",
+   "offset": [
+    0,
+    0,
+    0
+   ],
+   "props": {
+    "ModelScene": "church/loft_panel",
+    "SceneOffset": [
+     0,
+     6.949,
+     0
+    ],
+    "ModelYaw": 0.0
+   }
+  },
+  {
+   "scene": "res://assets/props/furniture/room-cathedral-source-8914-24.tscn",
+   "offset": [
+    0,
+    0,
+    0
+   ],
+   "props": {
+    "ModelScene": "church/loft_panel",
+    "SceneOffset": [
+     0,
+     6.949,
+     0
+    ],
+    "ModelYaw": 0.0
+   }
+  },
+  {
+   "scene": "res://assets/props/furniture/room-cathedral-source-8914-25.tscn",
+   "offset": [
+    0,
+    0,
+    0
+   ],
+   "props": {
+    "ModelScene": "church/loft_panel",
+    "SceneOffset": [
+     0,
+     6.949,
+     0
+    ],
+    "ModelYaw": 0.0
+   }
+  },
+  {
+   "scene": "res://assets/props/furniture/room-cathedral-source-8915-86.tscn",
+   "offset": [
+    0,
+    0,
+    0
+   ],
+   "props": {
+    "ModelScene": "church/choir_throne",
+    "SceneOffset": [
+     0.475,
+     0.66,
+     0
+    ],
+    "ModelYaw": 1.5708
+   }
+  },
+  {
+   "scene": "res://assets/props/furniture/room-cathedral-source-8914-73.tscn",
+   "offset": [
+    0,
+    0,
+    0
+   ],
+   "props": {
+    "ModelScene": "church/font_cover",
+    "SceneOffset": [
+     0,
+     1.49,
+     0
+    ],
+    "ModelYaw": 0.0
+   }
+  },
+  {
+   "scene": "res://assets/props/furniture/room-cathedral-source-8921-116.tscn",
+   "offset": [
+    0,
+    0,
+    0
+   ],
+   "props": {
+    "ModelScene": "church/choir_lectern",
+    "SceneOffset": [
+     0,
+     0.66,
+     0
+    ],
+    "ModelYaw": 0.0
+   }
+  },
+  {
+   "scene": "res://assets/props/furniture/room-cathedral-source-8914-50.tscn",
+   "offset": [
+    0,
+    0,
+    0
+   ],
+   "model_parts_add": [
+    "church/altar_marble -0.2947 0.3000 -0.0001 1.5708"
+   ]
+  },
+  {
+   "scene": "res://assets/props/furniture/room-cathedral-source-8921-113.tscn",
+   "offset": [
+    0,
+    0,
+    0
+   ],
+   "props": {
+    "ModelScene": "church/rail_post",
+    "SceneOffset": [
+     0,
+     0.42,
+     0
+    ],
+    "GeometryCollision": false
+   }
+  },
+  {
+   "scene": "res://assets/props/furniture/room-cathedral-source-8921-114.tscn",
+   "offset": [
+    0,
+    0,
+    0
+   ],
+   "props": {
+    "ModelScene": "church/rail_post",
+    "SceneOffset": [
+     0,
+     0.42,
+     0
+    ],
+    "GeometryCollision": false
+   }
+  },
+  {
+   "scene": "res://assets/props/furniture/room-cathedral-source-8921-115.tscn",
+   "offset": [
+    0,
+    0,
+    0
+   ],
+   "props": {
+    "ModelScene": "church/rail_gate",
+    "SceneOffset": [
+     0,
+     0.42,
+     0
+    ],
+    "GeometryCollision": false
+   }
+  }
+ ]
+}

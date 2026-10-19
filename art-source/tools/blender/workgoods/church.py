@@ -15,7 +15,7 @@ altar_frame, altar_capital, altar_crown, altar_dressing, altar_saint: a side alt
     its recovered painting): a deep carved and gilt frame round the 1.70 x 2.50 m picture, gilt capitals for its
     marble columns, a carved gilt cartouche on its pediment, the altar's cloth, cross and four candlesticks, and a
     white marble saint on each side. altar_marble: the altar's marble architecture, prepared for the day the town
-    shell's coarse boxes (town/ROOM_cathedral Mesh1135, Mesh1136) are cut; nothing places it yet.
+    shell's coarse boxes (town/ROOM_cathedral Mesh1135, Mesh1136) are cut; five authored furniture parts place it after the guarded shell cut.
 
 One material, one 2048 x 2048 atlas painted here (our own work: workgoods/paint.py and this file, nothing downloaded).
 Wood edges are chamfered 2-4 mm (AGENTS.md: wood 1-4 mm), marble arrises 6-10 mm, gilt carving rounded.
@@ -1604,11 +1604,23 @@ def altar_marble(A):
     # the entablature: a white architrave, a black frieze, a white cornice, breaking forward over the columns
     ent = [(-1.80, 0.30), (-1.80, -0.20), (-1.65, -0.20), (-1.65, -0.36), (-1.15, -0.36), (-1.15, -0.20), (1.15, -0.20), (1.15, -0.36), (1.65, -0.36),
            (1.65, -0.20), (1.80, -0.20), (1.80, 0.30)]
-    run(m, [(0.0, 0.0), (0.01, 0.0), (0.01, 0.05), (0.02, 0.06), (0.02, 0.11), (0.03, 0.12), (0.0, 0.12)], ent, lw, frame=at_z(4.84), tile=0.4)
-    run(m, [(0.0, 0.0), (0.0, 0.24), (0.0, 0.24)], ent, lb, frame=at_z(4.96), tile=0.4)
+    run(m, [(0.0, 0.0), (0.01, 0.0), (0.01, 0.05), (0.02, 0.06), (0.02, 0.11), (0.03, 0.12), (0.0, 0.12)], ent, lw, frame=at_z(4.84), tile=0.4, closed=True)
+    # One stepped frieze skin, including its back: the former straight backing
+    # overlapped this face between the columns and produced crossed coplanar slivers.
+    run(m, [(0.0, 0.0), (0.0, 0.24)], ent, lb, frame=at_z(4.96), tile=0.4, closed=True)
     run(m, [(0.0, 0.0), (0.02, 0.0), (0.04, 0.02), (0.06, 0.03), (0.06, 0.06), (0.12, 0.08), (0.13, 0.10), (0.13, 0.14), (0.15, 0.15), (0.15, 0.17), (0.0, 0.17)],
-        ent, lw, frame=at_z(5.20), tile=0.4)
-    member(m, (-1.80, -0.20, 4.96), (1.80, 0.30, 5.20), 0, lb, c=0.0, caps=(False, False))
+        ent, lw, frame=at_z(5.20), tile=0.4, closed=True)
+    # Close the stepped volume's full soffit and top. The swept section closes only
+    # its narrow perimeter lip; without this cap an underside view sees interior edges.
+    # Disjoint rectangles match the stepped outline exactly, with metric-sized UV tiles.
+    for x0, x1, y0, y1 in ((-1.80, 1.80, -0.20, 0.30), (-1.65, -1.15, -0.36, -0.20), (1.15, 1.65, -0.36, -0.20)):
+        xs = np.linspace(x0, x1, max(1, math.ceil((x1 - x0) / 0.4)) + 1)
+        ys = np.linspace(y0, y1, max(1, math.ceil((y1 - y0) / 0.4)) + 1)
+        for xa, xb in zip(xs[:-1], xs[1:]):
+            for ya, yb in zip(ys[:-1], ys[1:]):
+                for z, nz in ((4.84, -1), (5.37, 1)):
+                    points = [(xa, ya, z), (xb, ya, z), (xb, yb, z), (xa, yb, z)]
+                    m.face([m.vid(p) for p in points], points, wm, out=(0, 0, nz))
     # the broken segmental pediment: two curved halves of the cornice's moulding rising toward the middle, where the crown stands
     for sx in (-1, 1):
         arc = [(sx * (1.72 - 1.24 * t), 5.37 + 0.55 * math.sin(math.pi / 2 * t)) for t in np.linspace(0, 1, 9)]

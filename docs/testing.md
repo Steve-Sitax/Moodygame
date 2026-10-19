@@ -197,6 +197,10 @@ triangle round each piece as OBJ files with a list; `--survey-mesh Mesh1135,Mesh
 `cathedral.json`; exit 1 on a failure. The cuts and the parts' places are `native-godot/recovery/cathedral-198*.json`, applied with
 `python -I native-godot/recovery/cut-recovered.py <plan>`; the models are `art-source/tools/blender/build_church.py`
 (`native-godot/scripts/build-church.ps1`, stored with `replace-church.ps1`).
+The cathedral startup deadline defaults to 200 seconds; an explicit `--check-timeout-seconds N` accepts 30–900 seconds
+and reports readiness state on failure. Keep an external bound for the whole run. Round-two assertions also check expected
+visible model roots, retained paintings, exact model hulls, the organist's route, the closed communion gate's original collision
+and an actual walk through the authored east screen gate into the choir, after body/floor clearance sampling. `--cathedral-pick prefix,prefix` limits the rendered camera set.
 
 ## Market, work board, warmth, benches and room keepers
 

@@ -1,0 +1,94 @@
+{
+ "scene": "res://world/interiors/room-cathedral.structure.tscn",
+ "offset": [
+  0,
+  0,
+  0
+ ],
+ "cuts": [
+  {
+   "name": "west choir stalls' front (room-cathedral-source-8915-83 draws them)",
+   "box": [
+    -268.0,
+    -265.9,
+    0.5,
+    6.0,
+    228.9,
+    246.4
+   ],
+   "materials": [
+    "r005921"
+   ]
+  },
+  {
+   "name": "the old west stalls' ends and cresting (8915-83 draws the stalls)",
+   "box": [
+    -268.3,
+    -266.9,
+    0.3,
+    6.0,
+    227.0,
+    246.4
+   ],
+   "materials": [
+    "r005918"
+   ]
+  },
+  {
+   "name": "the old east stalls' back rail (8915-84, 8915-85 draw the stalls)",
+   "box": [
+    -256.4,
+    -255.7,
+    0.3,
+    6.0,
+    227.0,
+    246.4
+   ],
+   "materials": [
+    "r005918"
+   ]
+  },
+  {
+   "name": "the old organ's lower case and back (8914-26 draws the organ)",
+   "box": [
+    -267.0,
+    -257.0,
+    7.5,
+    20.0,
+    151.5,
+    153.5
+   ],
+   "materials": [
+    "r005918"
+   ]
+  },
+  {
+   "name": "the sanctuary's old screens (8915-83 and 8915-85 draw them)",
+   "box": [
+    -268.3,
+    -267.7,
+    0.2,
+    1.9,
+    227.0,
+    252.7
+   ],
+   "materials": [
+    "r005918"
+   ]
+  },
+  {
+   "name": "the sanctuary's old screens, east (8915-85 draws it)",
+   "box": [
+    -256.3,
+    -255.7,
+    0.2,
+    1.9,
+    227.0,
+    252.7
+   ],
+   "materials": [
+    "r005918"
+   ]
+  }
+ ]
+}

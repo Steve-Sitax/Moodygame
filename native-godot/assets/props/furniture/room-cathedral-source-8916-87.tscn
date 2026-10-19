@@ -33,6 +33,9 @@ size = Vector3(0.40048218, 24.450006, 0.40005493)
 
 [node name="stove" type="Node3D" unique_id=727885513]
 script = ExtResource("1_1a3ho")
+ModelYaw = 0
+SceneOffset = Vector3(0, 0, 0)
+ModelScene = "church/sanctuary_lamp"
 GeometryCollision = true
 Kind = "fitting"
 ModelSize = Vector3(0.40048218, 24.450006, 0.40005493)

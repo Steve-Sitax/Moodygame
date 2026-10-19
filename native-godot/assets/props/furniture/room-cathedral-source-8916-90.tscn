@@ -20,6 +20,9 @@ size = Vector3(0.39987564, 0.49984592, 0.2991333)
 
 [node name="fitting" type="Node3D" unique_id=573558997]
 script = ExtResource("1_nxjts")
+ModelYaw = 3.1416
+SceneOffset = Vector3(0, 0, 0)
+ModelScene = "church/offering_box"
 GeometryCollision = true
 Kind = "fitting"
 ModelSize = Vector3(0.39987564, 0.49984592, 0.2991333)

@@ -1,0 +1,92 @@
+{
+  "bounds": [
+    [
+      [
+        -269.0,
+        0.29,
+        226.65
+      ],
+      [
+        -255.0,
+        16.0,
+        257.85
+      ]
+    ],
+    [
+      [
+        -244.0,
+        0.29,
+        224.0
+      ],
+      [
+        -235.5,
+        11.5,
+        227.0
+      ]
+    ],
+    [
+      [
+        -288.5,
+        0.29,
+        224.0
+      ],
+      [
+        -280.0,
+        11.5,
+        227.0
+      ]
+    ],
+    [
+      [
+        -287.3,
+        2.3,
+        156.0
+      ],
+      [
+        -286.5,
+        5.8,
+        159.0
+      ]
+    ],
+    [
+      [
+        -237.5,
+        2.3,
+        156.0
+      ],
+      [
+        -236.8,
+        5.8,
+        159.0
+      ]
+    ]
+  ],
+  "surfaces": [
+    {
+      "mesh": "res://world/town/resources/r005889.res",
+      "material": "ct_marble_w",
+      "pieces": 81,
+      "roundedEdges": 3122,
+      "metricCharts": 34016,
+      "originalTriangles": 2486,
+      "finalTriangles": 34778,
+      "protectedTriangles": 762,
+      "protectedSha256": "1db2f5cf38762bd31696ed8f14f87627b04a50c2fd2cfd54f589353f4b332196",
+      "turnedBalusters": 39,
+      "splitRailCap": false
+    },
+    {
+      "mesh": "res://world/town/resources/r005895.res",
+      "material": "ct_marble_b",
+      "pieces": 104,
+      "roundedEdges": 348,
+      "metricCharts": 4832,
+      "originalTriangles": 960,
+      "finalTriangles": 5036,
+      "protectedTriangles": 204,
+      "protectedSha256": "bf6c31d2b7e1b66c56b4e2fcda1f38072c47a63bbb87ca0b3efe01b37ffc84ca",
+      "turnedBalusters": 0,
+      "splitRailCap": true
+    }
+  ]
+}

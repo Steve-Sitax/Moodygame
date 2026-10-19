@@ -4,7 +4,11 @@ optionally set its FurnitureVisual ModelParts. A plan (JSON) lists the cuts:
     {"scene": "res://assets/props/furniture/room-cathedral-source-8902-4.tscn", "offset": [x, y, z],
      "cuts": [{"name": "...", "box": [x0, x1, y0, y1, z0, z1], "materials": ["r005921", ...]},       # world boxes
               {"name": "...", "longer_than": 5.0, "materials": ["r005868"]}],                      # slivers
-     "model_parts": ["church/confessional x y z yaw", ...]}                                         # piece frame
+     "model_parts": ["church/confessional x y z yaw", ...],                                        # piece frame
+     "model_parts_add": ["church/triptych x y z yaw", ...],                                        # appended once
+     "props": {"ModelScene": "church/organ_case", "SceneOffset": [0, 2.26, 0], "ModelYaw": 3.1416}} # FurnitureVisual
+
+or {"plans": [plan, plan, ...]} for several pieces (#198 round two: recovery/cathedral-198-r2.json).
 
 A triangle goes when its centre lies in a cut's box (world = piece + offset) and its surface's material path contains
 one of the cut's materials (or the cut lists none), or when it is longer than `longer_than` metres. A mesh left with no
@@ -34,10 +38,26 @@ def b64(arg):
     return bytes(int(x) for x in arg.split(",") if x.strip())
 
 
+def value(v):
+    if isinstance(v, bool):
+        return "true" if v else "false"
+    if isinstance(v, str):
+        return '"%s"' % v
+    if isinstance(v, list):
+        return "Vector3(%s)" % ", ".join("%.9g" % x for x in v)
+    return "%.9g" % v
+
+
 def main():
-    plan = json.load(open(sys.argv[1], encoding="utf-8"))
+    whole = json.load(open(sys.argv[1], encoding="utf-8"))
     dry = "--dry" in sys.argv
+    for plan in whole.get("plans", [whole]):
+        apply(plan, dry)
+
+
+def apply(plan, dry):
     path = os.path.join(ROOT, plan["scene"].replace("res://", ""))
+    print("==", plan["scene"])
     txt = open(path, encoding="utf-8", newline="").read()
     mats = {i: p for p, i in re.findall(r'^\[ext_resource type="Material" path="([^"]+)" id="([^"]+)"\]', txt, re.M)}
     off = plan.get("offset", [0, 0, 0])
@@ -110,8 +130,19 @@ def main():
         # the mesh and the node that drew it
         txt = re.sub(r'\[sub_resource type="ArrayMesh" id="%s"\]\n_surfaces = \[\{\n.*?\n\}\]\n\n' % re.escape(sid), "", txt, flags=re.S)
         txt = re.sub(r'\[node name="[^"]+" type="MeshInstance3D" parent="\." unique_id=\d+\]\nmesh = SubResource\("%s"\)\n\n?' % re.escape(sid), "", txt)
-    if "model_parts" in plan:
-        line = "ModelParts = PackedStringArray(%s)" % ", ".join('"%s"' % p for p in plan["model_parts"])
+    parts = plan.get("model_parts")
+    if "model_parts_add" in plan:
+        have = re.search(r"^ModelParts = PackedStringArray\((.*)\)$", txt, re.M)
+        parts = list(parts if parts is not None else (re.findall(r'"([^"]*)"', have.group(1)) if have else []))
+        parts += [p for p in plan["model_parts_add"] if p not in parts]
+    for key, v in plan.get("props", {}).items():
+        line = "%s = %s" % (key, value(v))
+        if re.search(r"^%s = .*$" % key, txt, re.M):
+            txt = re.sub(r"^%s = .*$" % key, line.replace("\\", "\\\\"), txt, count=1, flags=re.M)
+        else:
+            txt = re.sub(r'(^\[node name="[^"]+" type="Node3D" unique_id=\d+\]\nscript = [^\n]+\n)', lambda mm: mm.group(1) + line + "\n", txt, count=1, flags=re.M)
+    if parts is not None:
+        line = "ModelParts = PackedStringArray(%s)" % ", ".join('"%s"' % p for p in parts)
         if re.search(r"^ModelParts = .*$", txt, re.M):
             txt = re.sub(r"^ModelParts = .*$", line.replace("\\", "\\\\"), txt, count=1, flags=re.M)
         else:

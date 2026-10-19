@@ -20,7 +20,9 @@ size = Vector3(0.90070534, 0.04996109, 0.04)
 
 [node name="fitting" type="Node3D" unique_id=724527753]
 script = ExtResource("1_lwsal")
-GeometryCollision = true
+SceneOffset = Vector3(0, 0.42, 0)
+ModelScene = "church/rail_gate"
+GeometryCollision = false
 Kind = "fitting"
 ModelSize = Vector3(0.90070534, 0.04996109, 0.04)
 ModelOffset = Vector3(-1.2397766e-05, 1.0749311, -3.8146973e-06)
