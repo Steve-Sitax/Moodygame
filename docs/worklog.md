@@ -2,46 +2,53 @@
 
 ## All open issues, 2026-10-18/19 (resumed 2026-10-19)
 
-Merged into main: checks, talk, speed parts 1-2, boats, carry, market, routes, light, people kit build 4, stone,
-gutters, facades, shop fronts, paving, street furniture, cathedral furniture round 1, stuck fixes, texture pictures.
-Helper brief: `D:/Code/_tmp_verify/fixall/brief.md`. Merge helpers: `D:/Code/_tmp_verify/coord/bin/` (changelog,
-intake JSON and shader-baseline three-way merges, run-mode.ps1 for --stuck/--shaders).
+The resumed queue is integrated where the main goal works. Minor leftovers remain on existing issues for play review;
+regressions, new shader kinds, stuck people and unproved speed changes stay off main. Steve has not played it yet.
+Helper brief: `D:/Code/_tmp_verify/fixall/brief.md`; merge/check helpers: `D:/Code/_tmp_verify/coord/bin/`.
 
-The run resumed in queue order. Under the revised acceptance rule, working parts land separately; minor leftovers wait for play review. Regressions, new shader kinds, stuck people and unproved speed changes stay off main.
+| Item | Issues | Branch / source commits | Main state |
+|---|---|---|---|
+| S managed heap | #181 #62 | t3/reduce-managed-heap: 055d2fd7, diagnostic 9b247cc8 | NOT merged: exact pixels and pause nonregression remain unproved; #205 remains open |
+| H6 textures, altar marble, litter | #84 #198 #200 | t3/split-floating-litter: 4ecd32e1; t3/promote-bark-subset: 427f8f4d, 22c9f476 | Litter ea4f1203 and bark 52806d12 merged and pushed; altar superseded by N5. #200 closed; #84 stays open |
+| Landmark, paving and washing | #171 #199 #203 | t3/review-landmark-paving: 275dcad1; t3/verify-washing-motion: 3e527600, 9ba3228c | Stone/paving 74480d95 and washing 9b30ef25 merged and pushed; #203 closed, #171/#199 stay open |
+| N5 cathedral furniture | #198 | t3/cathedral-furniture-detail-1: c6005ab1 | Merged 50a87168 and pushed; furniture/rail 21/21 pass. Existing stained-glass detail remains for play review |
+| J3 clothing edges | #82 #138 | t3/people-clothing-source-fixes: 5a645432 | Source-only fixes merged 02602f0b and pushed; four Blender fixtures pass. Runtime kit unchanged; rejected 24cd2a49 remains off main |
 
-| Helper | Issues | Worktree (the T3 worktrees folder, MoodyGame/...) | Branch | Current state |
-|---|---|---|---|---|
-| Landmark stone, paving leftovers and washing | #171 #199 #203 | t3-e3e6d0ae | t3/landmark-paving-geometry | ffefa404 committed, NOT merged: stone construction and paving tops/junctions unfinished; washing 11/11 and conversations 170/170 pass |
-| H6 textures into the town, altar marble, floating litter | #84 #198 part #200 | t3-7156f1fb | t3/town-textures-altar-litter | Clean litter 4ecd32e1 merged as ea4f1203; bark 427f8f4d/22c9f476 merged as 52806d12. Altar marble superseded by N5. Full 2b637138 remains unmerged; main build, exact shaders and stuck pass; package 2b2dfcb1 and test-icons -Full pass |
-| J3 people clothes edges | #82 #138 | t3-a4b824d0 | t3/people-cloth-layer-fix | Source-only 5a645432 merged as 02602f0b; four Blender fixtures pass. Rejected 24cd2a49 and rebuilt neckline/shoulder defects remain off main; original uncommitted assets preserved |
-| N5 cathedral stalls, high altar, organ, transept altars, epitaphs | #198 | t3-1309ddf6 | t3/cathedral-furniture-detail-1 | c6005ab1 merged as 50a87168; furniture/rail 21/21 pass. Stall-corner clearance fixed in 799b283d; main build, exact shader baseline, conversations 170/170 and stuck pass. Existing glass detail stays under #198 for play review |
-| S managed heap and GC pauses | #181 (#62) | t3-6b308632 | t3/reduce-managed-heap | 055d2fd7 committed, NOT merged: smaller heap; pause nonregression and exact pixels unproved. The 5 ms pause target stays under #181; #205 diagnosis continues |
+All three integration batches pass main build (22 existing warnings, zero errors), the exact shader baseline
+(41 programs / 153 first-kind identities), seed-1873 stuck (no stuck people, inside solids, overlaps or open crane-leg
+cells), native package refresh and test-icons -Full. Conversations pass 170/170 after both people/startup changes.
+The first N5 main stuck run exposed a Vismarkt stall-corner raster margin bug; c865b93b, merged 799b283d, fixes it.
+Its old-code fixture failed; the corrected navigation proof passes 38/38. No check threshold or shader baseline changed.
+Main package commits: 8482b645, 2b2dfcb1, 94b82c84. Main has no override.cfg or test data left behind.
 
-S evidence: `D:/Code/_tmp_verify/S-heap/finalreport.json`. Heap occupancy 1,940–2,053 to 1,549–1,624 MiB;
-the baseline briefly overlapped another game, so this is not an exclusive timing pass. Exact geometry/face reconstruction,
-152 transport checks, 79 Antigoon fixtures and four crane behaviors pass. Server GC worsened pauses and was rejected.
-The unchanged baseline also fails exact pixels, tracked in #205. Opt-in diagnostic 9b247cc8 proves a deterministic daylight A/B mismatch: 17 raw / 12 final pixels, A/A and B/B exact, restored A exact. Mirror and zero-light visibility switches need isolation; no tolerance or GC configuration changed. Existing pause samples do not establish nonregression.
+Evidence and remaining work:
+- S: `D:/Code/_tmp_verify/S-heap/`. Occupancy 1,940–2,053 to 1,549–1,624 MiB; brief baseline overlap means no
+  exclusive timing claim. Max GC pause improved 84.934 to 72.062 ms, but p95 across 20/18 collections does not
+  establish nonregression. Geometry/transport/Antigoon/crane fixtures pass. The diagnostic proves a deterministic
+  daylight A/B mismatch (17 raw / 12 final pixels) on the unchanged baseline; A/A, B/B and restored A are exact.
+  #205 needs isolation of mirror/visibility switches. The 5 ms pause target remains under #181, not a new issue.
+- H6: `D:/Code/_tmp_verify/fixall/{litter-split/tide-01,bark-views-01}/out/`. Litter passes 372/372 level checks;
+  day/rain/night pictures show tide following and low-water grounding. Six bark views retain foliage coverage.
+  Full texture candidate 2b637138 remains off main: foliage loss, barrel detail loss, brick repetition/brightness
+  and stone mapping/geometry need repair. Existing angular tree forks remain a minor play-review detail.
+- Landmark/paving: `D:/Code/_tmp_verify/landmark-paving/final-normal-views/out/`. All 61 resource hashes and
+  collision-support receipts match; four paving fixtures pass. Final day/rain/night/low views were inspected.
+  Remaining #171: coarse statues, capitals/scrolls/soffits, relief/grime bands. Remaining #199: 917 m² of step/plinth
+  tops, park paving and close junction/rail/drainage inspection. Added stone geometry has no timing acceptance.
+- Washing: `D:/Code/_tmp_verify/washing-203/motion-final/`. 50/50 actual-town checks, 11,520 motion comparisons,
+  new barges, rain/night/restored visibility and 36 pictures pass. Startup lifecycle ordering fixes the initial
+  route-plan retry. The proof found and fixed a disposed boat sound-cache entry; cabin curtains remain intact.
+- N5: `D:/Code/_tmp_verify/N5-cathedral/`. 21/21 includes 337 clearance samples and the actual east choir route;
+  original IDs, transforms and support remain. Day/rain/night close/low views and cornice flicker bursts pass.
+  #206 was consolidated into #198, not claimed fixed. Existing glass patches await play review.
+- J3: `D:/Code/_tmp_verify/J3-people/clean-split/`. Four actual Blender fixtures pass; source fixes preserve signed
+  lining thickness and exclude opposite folds. Candidate neckline/shoulder defects remain off main; original
+  uncommitted assets in t3-a4b824d0 are preserved. #82/#138 remain open.
 
-H6 evidence: `D:/Code/_tmp_verify/H6-textures/`. Build, 13 cathedral assertions, 372 litter level assertions and shader
-baseline (41 programs, 153 kinds, zero new kinds/findings) pass. Day/rain/night and low-angle pictures expose the remaining
-stone and cornice defects in the full candidate. The clean litter split passes 372/372 level checks; the bark split passes six fresh day/rain/night views with unchanged foliage coverage. Full candidate 2b637138 remains off main; the two accepted subsets are merged.
+This continuation closed 3 issues: #200 and #203 fixed, #206 consolidated; opened 2: #205 and #206. Net open count: -1.
+Exclusive quiet-PC speed gates remain: #181 #62 #32 #47 #49 and people timing; pixel equivalence is unresolved.
+Outside this queue: #141 (parked), #189 #201 #202 #204 (Ruien session). Antigoon changes were preserved.
 
-Landmark/paving evidence: `D:/Code/_tmp_verify/landmark-paving/`; 61 resource hashes and exact collision support,
-four focused paving fixtures and build pass. Capitals/statues/soffits, 917 square metres of step/plinth tops,
-park paving and connected junction/drainage acceptance remain incomplete. Added stone geometry is unmeasured.
-Washing evidence: `D:/Code/_tmp_verify/washing-203/candidate-5b/`; 11 real-town assertions pass, with front/back
-day/rain/night/restored pictures, 36 boat pieces and cabin curtains preserved. Conversation check: 170/170 pass.
-Newly spawned barge and continuous-motion visual acceptance remain open. No issue closed or runtime change merged.
-
-N5 evidence: `D:/Code/_tmp_verify/N5-cathedral/`. Furniture, marble, organ backing and communion rail repairs are preserved;
-63 permanent roots/transforms and original collision support remain. Build and 21 cathedral assertions pass, including
-337 clearance samples and the actual walk through the authored east entrance. Shader inventory: 41 programs, 153 baseline
-kinds, no additions; lights unchanged. Day/rain/night close views and cornice bursts pass for the repaired pieces.
-The existing stained-glass patches remain under #198 for play review. #206 was closed as consolidated, not fixed. Main build, exact shader baseline (41 programs / 153 kinds), conversations 170/170 and stuck pass after the stall-corner fix (799b283d). Package refreshed in 8482b645; test-icons -Full passes.
-
-Next: finish main validation, then land clean litter/washing splits and review the remaining texture/stone changes.
-Exclusive speed gates remain for a quiet PC: #181 #62 #32 #47 #49 and the people timing gate.
-Not ours: #141 (Steve parked), #189 #201 #202 (Ruien session).
 
 ## Ruien O2, 2026-10-18/19 (merged 04d2e632, waits for Steve's play)
 
@@ -50,7 +57,7 @@ Not ours: #141 (Steve parked), #189 #201 #202 (Ruien session).
   `docs/ruien-native.md`; three new shader kinds and four OmniLights by Steve's one-time OK (rule-overrides 2026-10-18).
 - In the game: the Vliet sluice O2 with tide doors, the Vlietrui and the Vleeshuis hall; ways in by the street grate
   ladder, the hall stair and the vliet bed at low tide. Fingerprint 4972710d, test-icons -Full passed.
-- Open: #200 (floating litter ignores the tide), #201 (vliet walls and water at the outlet), #202 (hall landing drop,
+- Fixed in the resumed run: #200 (floating litter follows the tide). Open: #201 (vliet walls and water at the outlet), #202 (hall landing drop,
   ladder facing, clean frame-time check, Antigoon height), #189 (Antigoon 4.4 m bends in a rui, or 3.85 m).
 
 ## People and animals in high detail, 2026-10-13 (art3, in progress)
