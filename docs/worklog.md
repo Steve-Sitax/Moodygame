@@ -14,7 +14,7 @@ The run resumed in queue order. Existing work stays in its original worktree; fa
 | Landmark stone, paving leftovers and washing | #171 #199 #203 | t3-e3e6d0ae | t3/landmark-paving-geometry | ffefa404 committed, NOT merged: stone construction and paving tops/junctions unfinished; washing 11/11 and conversations 170/170 pass |
 | H6 textures into the town, altar marble, floating litter | #84 #198 part #200 | t3-7156f1fb | t3/town-textures-altar-litter | 2b637138 committed, NOT merged: stone geometry/mapping and row 7 atlas unfinished; altar cornice sliver remains; tidal litter checks pass |
 | J3 people clothes edges | #82 #138 | t3-a4b824d0 | t3/people-cloth-layer-fix | 1 commit 24cd2a49 (J2 kit, still the rejected jagged edges) + 178 changed files uncommitted |
-| N5 cathedral stalls, high altar, organ, transept altars, epitaphs | #198 | t3-1309ddf6 | t3/cathedral-furniture-detail-1 | no commit; 83 changed, 76 new files (church model) |
+| N5 cathedral stalls, high altar, organ, transept altars, epitaphs | #198 | t3-1309ddf6 | t3/cathedral-furniture-detail-1 | c6005ab1 committed, NOT merged: furniture and rail checks 21/21 pass; connected stained-glass defect #206 blocks acceptance |
 | S managed heap and GC pauses | #181 (#62) | t3-6b308632 | t3/reduce-managed-heap | 055d2fd7 committed, NOT merged: smaller heap, but play GC max/p95 72.062 ms exceeds 5 ms; pixel check blocked by #205 |
 
 S evidence: `D:/Code/_tmp_verify/S-heap/finalreport.json`. Heap occupancy 1,940–2,053 to 1,549–1,624 MiB;
@@ -33,7 +33,13 @@ Washing evidence: `D:/Code/_tmp_verify/washing-203/candidate-5b/`; 11 real-town 
 day/rain/night/restored pictures, 36 boat pieces and cabin curtains preserved. Conversation check: 170/170 pass.
 Newly spawned barge and continuous-motion visual acceptance remain open. No issue closed or runtime change merged.
 
-Next: N5 cathedral furniture, then J3 clothes edges.
+N5 evidence: `D:/Code/_tmp_verify/N5-cathedral/`. Furniture, marble, organ backing and communion rail repairs are preserved;
+63 permanent roots/transforms and original collision support remain. Build and 21 cathedral assertions pass, including
+337 clearance samples and the actual walk through the authored east entrance. Shader inventory: 41 programs, 153 baseline
+kinds, no additions; lights unchanged. Day/rain/night close views and cornice bursts pass for the repaired pieces.
+The connected stained-glass patches remain (#206); no safe repair was established. No merge or issue closure.
+
+Next: J3 clothes edges.
 Exclusive speed gates remain for a quiet PC: #181 #62 #32 #47 #49 and the people timing gate.
 Not ours: #141 (Steve parked), #189 #201 #202 (Ruien session).
 
