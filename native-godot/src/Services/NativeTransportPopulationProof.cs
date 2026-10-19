@@ -26,6 +26,12 @@ public partial class NativeTransportPopulationProof : Node
                 Check("original current-town stealables " + label, test["baseAssets"], assets.Generate(current)); Check("original 61 mooring and family boat owners " + label, test["boats"], assets.GenerateRowing(current)["boats"]); Check("original landing watermen " + label, test["watermen"], assets.GenerateRowing(current)["watermen"]); Check("original named boat prompts " + label, test["publicBoats"], assets.PublicBoats());
                 Check("original native household transport " + label, test["record"], transport.Generate(current)); Check("original transport migration " + label, test["made"], transport.Ensure((uint)NativeTown.N(test["seed"]))); Check("current extra velocipede owners " + label, test["finalAssets"], assets.Stealables());
                 var points = new JsonObject(); foreach (var v in test["record"]!["vehicles"]!.AsArray()) points[NativeTown.S(v, "id")] = transport.TripPoints(NativeTown.S(v, "id")); Check("original current-owner weekly trip points " + label, test["tripPoints"], points);
+#if DEBUG
+                var vehicleRules = new NativeTransport(host, new NativeGoods(host));
+                var heapProof = vehicleRules.VehicleAtHeapProof(test["record"]!.AsObject(), points);
+                Check("same vehicle positions with bounded current-owner trip reads " + label, JsonValue.Create(true), heapProof["ok"]);
+                checks.Add(new { name = "vehicle position heap comparison " + label, passed = true, detail = heapProof });
+#endif
                 var errands = new JsonObject(); for (int day = 1; day <= 7; day++) errands[day.ToString()] = transport.Errands(day); Check("original seven-day boat and dray errands " + label, test["errands"], errands);
                 Check("transport saved state is preserved " + label, test["record"], transport.Record()); Check("matching transport remains idempotent " + label, new JsonObject { ["made"] = false, ["vehicles"] = test["record"]!["vehicles"]!.AsArray().Count }, transport.Ensure((uint)NativeTown.N(test["seed"])));
                 Check("transport does not change household identities " + label, test["input"]!["residents"], population.Snapshot()["residents"]);

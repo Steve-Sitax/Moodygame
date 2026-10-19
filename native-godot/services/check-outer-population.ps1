@@ -29,6 +29,7 @@ $extras=@'
     <Compile Include="SERVICES/NativeTownWalkPath.cs" />
     <Compile Include="SERVICES/NativeShops.cs" />
     <Compile Include="SERVICES/NativeGoods.cs" />
+    <Compile Include="SERVICES/NativeTransport*.cs" Exclude="SERVICES/NativeTransportPopulationProof.cs" />
   </ItemGroup>
 '@
 $project=$project.Replace('</Project>',$extras.Replace('ASSEMBLIES',$assemblies).Replace('SERVICES',$services)+'</Project>')

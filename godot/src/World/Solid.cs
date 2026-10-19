@@ -39,6 +39,10 @@ public partial class Solid : Node
     private readonly List<Item> items = new();
     private readonly List<Item> queue = new();
     private readonly Dictionary<Mesh, Vector3[]> faces = new();
+    private long faceBytes;
+    private bool faceCacheBounded;
+    private const long FaceCacheLimit = 16 * 1024 * 1024;
+    public long CachedFaceBytes => faceBytes;
     private readonly Dictionary<Shader, bool> seeThrough = new();
     private readonly List<ConcavePolygonShape3D> shapes = new();
     private readonly List<Rid> bodies = new();
@@ -202,6 +206,31 @@ public partial class Solid : Node
         }
     }
 
+    /// <summary>Drop scratch copies once the host has captured its immutable triangle index. Physics keeps its own
+    /// shapes; later geometry scans can reconstruct these exact faces from the unchanged meshes.</summary>
+    public void ReleaseFaceCache()
+    {
+        faces.Clear(); faceBytes = 0; faceCacheBounded = true;
+    }
+
+#if DEBUG
+    /// <summary>Opt-in storage proof: evict and reconstruct every cached face without changing any coordinate/order.</summary>
+    public object FaceCacheProof()
+    {
+        var original = faces.ToArray();
+        long beforeBytes = faceBytes, vertices = 0;
+        ReleaseFaceCache();
+        foreach (var (mesh, before) in original)
+        {
+            var after = FacesOf(mesh);
+            if (!before.AsSpan().SequenceEqual(after)) throw new InvalidOperationException("Solid face reconstruction changed");
+            if (faceBytes > FaceCacheLimit) throw new InvalidOperationException("Solid face cache exceeded its play limit");
+            vertices += before.Length;
+        }
+        return new { ok = true, meshes = original.Length, vertices, beforeBytes, afterBytes = faceBytes, limitBytes = FaceCacheLimit };
+    }
+#endif
+
     /// <summary>The same geometry scan for dedicated hosts, without a viewport or physics bodies.</summary>
     public static IEnumerable<(Vector3 A, Vector3 B, Vector3 C)> CaptureWorldTriangles(Node world)
     {
@@ -304,7 +333,11 @@ public partial class Solid : Node
                     list.Add(v[i]);
         }
         f = list.ToArray();
-        faces[mesh] = f;
+        long bytes = (long)f.Length * 12;
+        // A later navigation scan or --solidlazy build must not retain the whole town again. Keep modest
+        // shared meshes reusable; a single oversized extraction belongs only to its current caller.
+        if (faceCacheBounded && faceBytes + bytes > FaceCacheLimit) { faces.Clear(); faceBytes = 0; }
+        if (!faceCacheBounded || bytes <= FaceCacheLimit) { faces[mesh] = f; faceBytes += bytes; }
         return f;
     }
 

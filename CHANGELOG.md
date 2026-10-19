@@ -11,6 +11,8 @@ Bugs and loose ends are tracked as [issues](https://github.com/Steve-Sitax/Moody
 
 ## [Unreleased]
 
+- The town uses less managed memory for collision geometry and avoids repeated town-data reads during vehicle updates, with the same scenery and solid surfaces (#181).
+
 - The first Ruien, the town's vaulted sewers, lie under the streets: the Vliet sluice with its tide doors, the Vlietrui gallery and the Vleeshuis hall of brick groin vaults, wet, limed and sooty, lit by oil lamps and the cold daylight from the grates. Go down by the ladder under the street grate, by the hall's stair under its hatch, or at low tide over the vliet bed through the open tide doors.
 - The cathedral's furniture is carved oak and gilt at last (#198). The five confessionals have three arched bays with panelled pilasters hung with carved fruit, a frieze of acanthus scrolls, a moulded cornice, a crest with a carved IHS cartouche and a gilt glory, red curtains tied back in the priest's bay, grilles and kneeling steps for the penitents; each has its carved angels and saints. The pulpit stands on a carved oak tree with four carved figures, its tub has carved medallions, the sounding board a carved valance, a dove, urns and an angel, and its stair now climbs along the pillar to a landing (you can walk up it). The side altars' pictures hang in deep carved gilt frames under gilt capitals and crowns, with a linen cloth edged in lace, a cross, four brass candlesticks and white marble saints.
 - At night a standing oil lamp burns in each side aisle by the confessionals (#198).

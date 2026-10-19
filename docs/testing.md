@@ -40,6 +40,15 @@ measurement. A shared-window run or a lock timeout cannot pass an isolated perfo
 diagnostic. Never stop a player's or another helper's window to clear the gate. The lock is released after timing.
 Bound external runners to allow the lock wait as well as the check's own execution time.
 
+`--gc-watch <file>` records runtime suspension/resume events, collection kinds and heap samples during any bounded
+native check. It is opt-in; hold the same performance lock externally for checks without their own lease. Report
+warmup separately, every pause kind, and max/p95; concurrent game/import processes make timing diagnostic only.
+In a Debug build, add `--heap-proof --heap-proof-out <file>` to verify the compact triangle index against the original
+object index: every ordered triangle and cell, clearance/visibility queries, and exact reconstruction of all cached
+mesh faces. This deliberately retains both indices while proving them, so never use that run for heap/timing claims.
+The face cache is bounded to 16 MiB after capture, including later geometry scans. Vehicle trip-point reuse is covered
+by `pwsh -File native-godot/services/check-outer-population.ps1 -Proof Transport` against the original position query.
+
 Jobtest measures complete **wall** frames, including GPU/presentation waits and the native town's planar mirrors.
 Its clock response must confirm clear weather, and the local renderer settles before sampling; a local override alone
 can disagree with the server's fog state.
