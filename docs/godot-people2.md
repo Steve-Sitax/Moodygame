@@ -58,6 +58,27 @@ Copy the authored rig to `native-godot/world/data/shared/peopleRig.json` and reg
 cache version and fingerprints shipped resources, data and runtime source. `Paths.Shared`
 reads the extracted data cache. Host and guest must agree on this content identity.
 
+### Partial clothing-clearance correction (#82, #138)
+
+The authoring solver now moves each lining with its own outer triangle, preserving its signed thickness and
+recessed facing offset as that triangle turns. Clearance ignores opposite-facing folded panels and excludes
+mixed rim faces from outer-surface queries. The same lining binding follows the final cloth tucking step.
+`people2/check_layers.py` checks translated and rotated layers, a turning outer triangle, inward linings,
+opposite-facing panels, and unchanged relative shape-key offsets in Blender.
+
+This authoring-only split preserves the runtime people kit and fingerprints.
+The separate rebuilt candidate remains unaccepted. Its targeted renders still show retained skin
+through the fishwife's neckline and shoulders, plus broken old-woman shoulder edges. Symmetric cloth-over-skin
+and unchanged-skin experiments did not resolve these defects and are excluded. A coarse two-layer fixture also
+shows that vertex-only clearance can miss a face interior; general collision separation is not proved.
+No replacement native kit or day/rain/night runtime acceptance is included in this change.
+
+Run the source regression directly from the checkout, without building or importing a kit:
+
+```powershell
+& $blender --background --factory-startup --python-exit-code 1 -P art-source/tools/blender/people2/check_layers.py
+```
+
 ## Runtime contract
 
 `People2Material` uses `ModelLibrary.NativeScene` before ordinary material conversion.

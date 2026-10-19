@@ -306,6 +306,8 @@ def tuck(ob, body, order, covers, clearance=0.004, body_clearance=0.005, reach=0
     from mathutils.bvhtree import BVHTree
     raw = wt.parts(ob)
     piece = piece_of(raw)
+    from .clothes_kit import bind_linings
+    carry_linings = bind_linings(ob)
     me = ob.data
     vs = [v.co.copy() for v in me.vertices]
     outer = {}
@@ -360,9 +362,10 @@ def tuck(ob, body, order, covers, clearance=0.004, body_clearance=0.005, reach=0
             continue
         ogrp = {vgrp[f[0]] for f in outer[o]}
         for i in range(len(me.vertices)):
-            if piece[i] == u and limb[i] in ogrp:
+            if raw[i] == u and limb[i] in ogrp:
                 moved += pull(ob, i, trees[o], clearance)
     me.update()
+    carry_linings()
     return moved
 
 
