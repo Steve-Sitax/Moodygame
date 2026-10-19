@@ -253,10 +253,12 @@ void fragment() {
 	// glazing bars: a mullion and two transoms
 	float bars = step(abs(UV.x - 0.5), 0.04);
 	bars = max(bars, step(abs(UV.y - 0.333), 0.025) + step(abs(UV.y - 0.667), 0.025));
-	warm *= 1.0 - 0.7 * min(bars, 1.0);
+	// (#174: a shop window has its real frame and bars, and its goods lit by its own lamp behind the glass: on the
+	// glass only a little of the lamp's glow, and no painted bars)
+	warm *= 1.0 - 0.7 * min(bars, 1.0) * (1.0 - shop_front);
 	warm *= 0.94 + 0.06 * sin(psx_time * 3.1 + tone.x * 40.0) * sin(psx_time * 7.7 + tone.x * 13.0);
 	// by the kind of room: a shop or front room downstairs, upstairs, a garret's candle, a lantern
-	warm *= tone.y > 3.5 ? 0.75 : tone.y > 2.5 ? 1.0 : tone.y > 1.5 ? 0.6 : tone.y > 0.5 ? 1.15 : 0.9;
+	warm *= tone.y > 3.5 ? 0.75 : tone.y > 2.5 ? 1.0 : tone.y > 1.5 ? 0.6 : tone.y > 0.5 ? 0.05 : 0.9;
 	float f = smoothstep(psx_fog_near, psx_fog_far, fog_depth);
 	// a faint warm glow stays in the fog: lamplight carries further than the walls show
 	ALBEDO = warm * lit * (1.0 - f * 0.82) * 1.25;

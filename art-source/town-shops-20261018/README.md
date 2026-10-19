@@ -37,3 +37,62 @@ Issues #193 (street plates, wet paint), #174 (shop fronts) and #28 (the Carolus 
 
 Pictures: `193-plates-before-after-day.jpg`, `193-plates-before-after-rain-night.jpg` (Braderijstraat, rain and night),
 `193-wet-paint-day-rain.jpg`, `193-streets-map.png` (the named streets and the plates).
+
+## #174 Shop fronts, shop windows and front doors
+
+- Cause: the bake drew a shop window as one painted quad (a picture of a shelf of jars, 12 cm back in the wall), a front
+  door as one painted quad, and 893 wooden fronts as plain boxes; round them 18,563 pairs of faces lay in one plane (the
+  old stone boxes under the stone pass's dressed stone, reveals under wood, wall iron drawn twice): they flicker.
+- The kit (`native-godot/scripts/build_shopfronts.py`, 91 parts): pilasters with base and capital, a fascia with a
+  moulded cornice, a panelled stall riser and sill, a sash with glazing bars and a transom row, shop glass (a faint dust),
+  the display inside (bed, two shelves, back boards, a cloth and a valance), panelled front doors in six sizes (single and
+  double, 4 or 6 fielded panels) with a brass knob and letter plate. Every edge is bevelled; wood parts carry the town's
+  wood grain. Paint: the bake's own door and sash colours (dark green, oxblood, brown, deep blue, cream), a worn house's
+  copy faded and on the worn shutter paint.
+- The goods (`native-godot/scripts/shop_goods.py`, 58 models on one 2048 picture): loaves, tarts, cheeses, sugar loaves,
+  tea and coffee canisters, open sacks of beans and grain, globes and albarelli for the chemist, bottles, kegs, cigar
+  boxes and pipe racks, clocks and watches, boots, hats, bolts and folded cloth, hams, sausages and joints, lanterns,
+  rope, keys and padlocks, price cards ("4 c." to "2 fr. 50"), and a display lamp. The fishmonger shows the market's own
+  cod, plaice and herring models (one model per good).
+- `native-godot/scripts/repair-shopfronts.py <city audit> <streetlife audit> <kit> <goods> <candidate> <churches audit>
+  <Carolus room audit>`: finds the 1,758 windows and 977 door leaves by their atlas cells, takes out the painted quads and
+  the 33,934 triangles of the old wooden fronts, gives each window its trade (its shop board's words, else its
+  neighbours' and street's mix: 18 trades), lays out its display (bed, low and high shelf; price cards; hanging goods) and
+  its lamp hours (718 windows lit in the evening, from the bake's lit panes), and adds plain collision boxes to the
+  blocks' stand-ins. `native-godot/scripts/zfight_fix.py` cuts the lower of each pair of faces in one plane (within
+  1.2 mm, overlap over 2 cm2) round every window and door: 17,329 pairs, 10,792 triangles cut (every attribute read from
+  the old triangle), 2,330 dropped; again until none: 27, then 10 (10 pairs that cutting does not part are left).
+- In the game (`native-godot/src/World/NativeShopFronts.cs`, `world/town/facades/shopfronts.json`): the outside parts
+  merged into one mesh a town block (27 meshes, no collision of their own), the displays and goods as MultiMeshes a 30 m
+  cell (shadows off, shown within 20 m); 1,750 windows and 975 leaves (8 windows on razed houses left out). After dark,
+  in a shop's hours, its display is lit: lit copies of the materials give back the lamp's warm light times each part's
+  own colour, the lamp's chimney glows (same shader kinds). The bake's lit pane over a shop window now gives only a faint
+  glow and no glazing-bar shade (`Lights.cs` PaneCode: one kind changed in place, `E2C22237C9AA2E72` became
+  `411466874F248060`; baseline updated).
+- Promotion (`promotion-174-shops.json`): 138 meshes (98 city, 40 street life) and shopfronts.json; originals and hashes
+  kept outside the repository. `FacadesPromote.cs` takes several roots (`--root city,streetlife`) and now keeps each
+  surface's box and puts each corner in the middle of its packing step: Godot packs positions in 16 bits in the box and
+  cuts off, so a re-saved mesh moved 17-37 % of its corners one step (1.5 mm) and brought cut faces together again. Now
+  99.7 % of corners are stored to the bit; only new cut corners snap to the grid (under 0.9 mm).
+- After the bake (meshes exported again and scanned round every shop window and door): before 18,563 pairs, 102.5 m2
+  overlapping, 6,285 pairs over 50 cm2; after 907 slivers along cut edges, 0.52 m2 in all, none over 50 cm2 (thinner
+  than 1 mm); 134 more where one face lies outside the shop-front zone (2.6 m round a window or door, under 4.3 m).
+- Frame time (PERF-LOCK, same run, fronts hidden and shown twice each): Braderijstraat GPU 2.62 -> 2.92 ms, draw calls
+  +306; busiest shop street (x 39 z 244) GPU 2.44 -> 2.50 ms, +379 draws; Carolus square GPU 2.81 -> 2.90 ms, +146 draws.
+  The merged block meshes have no LODs yet (later speed pass).
+- Checks: shader check 150 kinds, baseline matched; stuck check (seed 1873) 907 watched, 0 stuck, 0 overlaps, 0 inside
+  solids.
+
+## #28 The Carolus doors, dome and dormers
+
+- The Carolus's painted doors (church_carolus_5 and _9 door cells): oak double doors (`church_door_l` / `_r`: three rows
+  of fielded panels, a proud meeting stile, wrought-iron ring pulls) over both side doors and the front's east door; the
+  Jesuit house's arched doorway a panelled double door under an arched fanlight with glazing bars. The dome's four dark
+  discs: a moulded stone ring round each, a cross of glazing bars and dark glass. The four nave dormers: louvres
+  (slats tipped to shed the rain) in a frame.
+- The Carolus room's shell stands 5-11 cm in front of the painted doors: what showed as a flat grey slab was the room's
+  wall. Each door stands 1 cm in front of that shell's face in its opening (the room is not changed).
+
+Pictures: `174-braderijstraat-before-after.jpg` (the Braderijstraat corner at x -207 z 130: day, rain, evening 19:45, night 22:00;
+the day "after" is from the first install, the same parts, as the omnibus stood in the final day shot),
+`174-shop-window-door-before-after.jpg`, `28-carolus-before-after.jpg`, `28-carolus-rain-night.jpg`.

@@ -151,6 +151,8 @@ public partial class NativeTown : BakedWorld
         // (dev: --keep-razed leaves them standing, for a before-and-after)
         razed = Scheldemist.Main.I.Flag("keep-razed") ? new NativeRazedHouses.Result(0, 0, 0, Array.Empty<string>()) : NativeRazedHouses.Cut(town, Scheldemist.Paths.Shared("city_build.json"));
         foreach (var note in razed.Notes) GD.Print("razed houses: " + note);
+        // Issue #174: the shop fronts, the shop windows with their goods, the front doors (none on a razed house)
+        Report["shopFronts"] = NativeShopFronts.Install(town, razed, Scheldemist.Main.I.Arg("shopfronts-file") is { Length: > 0 } shopFile ? shopFile : null);
         // The corner they leave gets a lime and a bench (only when the cut happened, so a re-baked town shows no tree in a house).
         var dressing = razed.Houses > 0 ? NativeRazedHouses.Dress(town) : Array.Empty<string>();
         // The bake's plain benches give way to the new bench models, turned and placed as they stood (#165).
