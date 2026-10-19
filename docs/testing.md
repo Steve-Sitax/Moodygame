@@ -185,6 +185,19 @@ hearth (`fireplace`), and the cathedral (`cathedral`, issue 192): its west end s
 and what holds a body at 7.25 m, `cathedral-loft-floor.txt`, `cathedral-body.txt`), Jef climbing the loft stair and walking the
 gallery into the loft, the organist's and the confessor's walks in (day, night and rain pictures), `confessional` (#196: the confessional's six carved oak figures drawn, each solid where drawn, day and night pictures from the aisle and close). `--leftovers-only a,b` picks stages. It writes `leftovers.json` and pictures; exit 1 on a failure.
 
+`--cathedral-proof <dir>` (#198; `res://town.tscn` with `--no-ai --no-mainmenu --native-services --dev`, its own `--db`, `--prefs`,
+`--author-root`, port and `SCHELDEMIST_USER_DATA`; about five minutes, bound it at 15) checks the cathedral's rebuilt furniture
+(`NativeCathedralProof.cs`). `--cathedral-only` picks stages: `furniture` (the batch room-cathedral-source-8902-4 draws all its
+stored parts and its five confessionals and pulpit take their collision from their hulls; the altars' capitals, crowns, cloths and
+saint and the pulpit's dove and urn draw their models; no coarse old oak, figures, gilt, brass, wax or linen is drawn where the new
+pieces stand; each confessional holds a body before its ends and lets it into its middle bay; the confessor's walk in; the preacher's
+waiting place and the pulpit's foot clear; Jef climbing the pulpit stair to its landing; the two added room lamps at the lamp stands'
+flames, lit at night and out by day), `pictures` (each piece and close looks by day, in rain and at night) and `survey` (every drawn
+triangle round each piece as OBJ files with a list; `--survey-mesh Mesh1135,Mesh1136` writes whole meshes). It writes
+`cathedral.json`; exit 1 on a failure. The cuts and the parts' places are `native-godot/recovery/cathedral-198*.json`, applied with
+`python -I native-godot/recovery/cut-recovered.py <plan>`; the models are `art-source/tools/blender/build_church.py`
+(`native-godot/scripts/build-church.ps1`, stored with `replace-church.ps1`).
+
 ## Market, work board, warmth, benches and room keepers
 
 `--market-proof <dir>` (with `--no-ai --no-mainmenu --dev`, its own `--db`, `--prefs`, `--author-root`, port and
@@ -210,7 +223,7 @@ place for each seller behind her stall and a place for her cart; writes the corr
 `marketsurvey` (the old random layout, to choose pitches from), `facts` (a survey: fire spots, benches, rooms, the
 town's places). `--market-place grote_markt` runs `market` on the Grote Markt's twenty pitches (issue 192: the same day,
 a sale of her own wares, no fish checks); `--pitch-place grote_markt` with `pitchspots`, and with `pitchplan` and
-`--pitch-keep 0,2,5` (or `all`), plan another market's pitches. `cartclear` (#196; `--market-place`, the Grote Markt by default): every cart parked at a pitch, drawn as
+`--pitch-keep 0,2,5` (or `all`), plan another market's pitches. `carthome` (#198; `--market-place`, the Vismarkt by default): a seller at her stall at 10:00, her cart parked at her pitch, is sent to a tavern (no place for her cart there): she pushes the cart home first and it stands at home after. `cartclear` (#196; `--market-place`, the Grote Markt by default): every cart parked at a pitch, drawn as
 DrawParked draws it, keeps 0.75 m from each seller's place, each stall's front and the townspeople's spots there.
 The stuck report's `cartTrips` lists how each handcart trip ended (arrived, gave up, taken on out of sight). Decisions: `docs/town-life-decisions.md`.
 Exit 1 on a failed check.

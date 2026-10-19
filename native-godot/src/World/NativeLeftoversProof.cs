@@ -369,12 +369,15 @@ public static class NativeLeftoversProof
                 if (Jef.I.Fly) Jef.I.ToggleFly();
                 Jef.I.Place(-243f, 186f, MathF.PI / 2, 0, .3f); await Frames(60);
                 var piece = BakedWorld.All(game.GetTree().Root).OfType<Native.Interiors.FurnitureVisual>().FirstOrDefault(v => v.GetParent() is Node3D o && o.Name.ToString().EndsWith("room-cathedral-source-8902-4"));
-                var parts = piece == null ? new List<Node3D>() : piece.GetChildren().OfType<Node3D>().Where(n => n.Name.ToString().StartsWith("ModelPart")).ToList();
+                // (#198: the batch draws all five rebuilt confessionals, the pulpit and the altars' parts; these are the south aisle
+                // confessional's six carved figures)
+                var parts = piece == null ? new List<Node3D>() : piece.GetChildren().OfType<Node3D>().Where(n => n.Name.ToString().StartsWith("ModelPart")
+                    && piece.ModelParts[int.Parse(n.Name.ToString()[9..])].StartsWith("fittings/confessional_") && new Vector2(n.GlobalPosition.X + 238.3f, n.GlobalPosition.Z - 186.08f).Length() < 2.3f).ToList();
                 facts["confessionalParts"] = parts.Select(n => new { name = n.Name.ToString(), at = new[] { MathF.Round(n.GlobalPosition.X, 2), MathF.Round(n.GlobalPosition.Y, 2), MathF.Round(n.GlobalPosition.Z, 2) }, visible = n.IsVisibleInTree(), meshes = BakedWorld.All(n).OfType<MeshInstance3D>().Count(m => m.Mesh != null) }).ToArray();
                 Check(parts.Count == 6 && parts.All(n => n.IsVisibleInTree() && BakedWorld.All(n).OfType<MeshInstance3D>().Any(m => m.Mesh != null)), $"the confessional draws its six carved figures ({parts.Count})");
                 // what holds a body before the confessional: the figures are solid, as drawn
                 // (a body walked along the aisle floor toward each figure is held by its carving, before the confessional's own front)
-                var held = new[] { 184.5f, 185.48f, 186.68f, 187.66f }.Select(z => { Solid.I.Ensure(new Vector3(-238.5f, 1f, z), 4); for (float x = -240.5f; x < -237.6f; x += .05f) if (!Jef.I.BodyFree(x, .3f, z)) return MathF.Round(x, 2); return float.NaN; }).ToArray();
+                var held = new[] { 184.2f, 185.5f, 186.66f, 187.96f }.Select(z => { Solid.I.Ensure(new Vector3(-238.5f, 1f, z), 4); for (float x = -240.5f; x < -237.6f; x += .05f) if (!Jef.I.BodyFree(x, .3f, z)) return MathF.Round(x, 2); return float.NaN; }).ToArray();
                 facts["confessionalFigureHeld"] = held;
                 Check(held.All(x => x > -239.4f && x < -238.45f), $"the confessional's figures are solid where they are drawn (a body is held at x {string.Join(", ", held)})");
                 foreach (var (when, hour) in new[] { ("day", 13), ("night", 21) })

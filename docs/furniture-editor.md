@@ -32,7 +32,12 @@ triangles moved out of furniture batches. Empty historical markers retain their 
 bevels and UVs follow the kit contract in `docs/furniture.md`. Unreplaced recovered fittings keep their original edges as
 a reference-preservation exception; they are not a new geometry-quality sign-off. Architectural shells stay fixed.
 
-`FurnitureVisual` upgrades the original aliases using native kit scenes, preserving transforms and gameplay anchors.
+`FurnitureVisual` upgrades the original aliases using native kit scenes, preserving transforms and gameplay anchors. A recovered piece can also draw stored models: `ModelScene` in its place, `ModelParts` beside it (#196, #198). The
+cathedral's confessionals, pulpit and side-altar fittings are such models (`assets/game-models/church.scn`, built by
+`art-source/tools/blender/build_church.py`); their coarse recovered triangles were cut from the batch with
+`native-godot/recovery/cut-recovered.py` and the plans `recovery/cathedral-198*.json` (a re-intake of the batch would bring
+them back: apply the plans again). A model with a `<name>_hull` child gives the piece's collision from that hull of plain
+solids instead of every carved triangle.
 Oversized racks/fixture groups retain their construction. Source sprites retain conservative fallback collision;
 ordinary geometry uses nondegenerate triangle collision. Replaced bodies are removed rather than consuming physics
 slots. The global shader-variable instance buffer is 262,144 entries because of the additional separate instances.
