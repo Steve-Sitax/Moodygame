@@ -246,6 +246,8 @@ public partial class Checks : Node
         var laneChecks = Crowd.CheckVehicleLanes(Main.I);
         GD.Print("vehicle lane checks: " + JsonSerializer.Serialize(laneChecks));
         var watch = new StuckWatch();
+        // (every body's route changes kept for the report's stuck and solid entries)
+        Crowd.TraceRoutes = true;
         watch.ReplaySolids(Town, Path.Combine(dir, "original-solid-cases.json"));
         double simulated = 0, sample = 0;
         // Fixed simulation delta: keep the crowd's integration normal while running faster than real time.
@@ -260,7 +262,7 @@ public partial class Checks : Node
                 Town.SetProcess(false);
                 Town.SetClock(1, 13 + simulated / 120);
                 Town._Process(0.05);
-                simulated += 0.05; sample += 0.05;
+                simulated += 0.05; sample += 0.05; Crowd.TraceClock = simulated;
                 if (sample >= 0.25) { watch.SampleTown(Town, simulated, Places[place]); sample = 0; }
                 await Frames(1);
             }

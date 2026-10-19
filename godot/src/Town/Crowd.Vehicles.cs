@@ -202,6 +202,8 @@ public sealed partial class Crowd
         double wx=x-px,wz=z-pz,s=Math.Sin(yaw),c=Math.Cos(yaw),along=wx*s+wz*c,across=Math.Abs(wx*c-wz*s);
         return Math.Max(0,Math.Min(.35+r-across,Math.Min(along-.4+r,2.0+r-along)));
     }
+    /// <summary>Whom CartOnSomeone last found in the way (for the route notes).</summary>
+    private Puppet? cartOnWho;
     /// <summary>Would what this body pushes (a handcart, the grinder's barrow), moved by (dx, dz) (as it stands, and swung round to
     /// yaw), come onto someone, or further onto him? (#192: a handcart rolled on over a seller, a standing man and a child who had
     /// no room to step out of its lane; the grinder's barrow over a woman pushing her cart.)</summary>
@@ -218,12 +220,13 @@ public sealed partial class Crowd
         foreach(var q in people){
             if(q==p||Math.Abs(q.X-p.X)>5||Math.Abs(q.Z-p.Z)>5)continue;
             double now=cart!=null?CartDepth(ax,az,dir,q.X,q.Z,CartRoom):BarrowDepth(p.X,p.Z,p.Yaw,q.X,q.Z,CartRoom),after;
-            if(cart==null)after=BarrowDepth(p.X+dx,p.Z+dz,yaw,q.X,q.Z,CartRoom);
+            // (the barrow turns with him, his heading coming round to the step's over the next frames: every heading on the way, #197)
+            if(cart==null){double bt=Math.Atan2(Math.Sin(yaw-p.Yaw),Math.Cos(yaw-p.Yaw));int bn=Math.Max(1,(int)Math.Ceiling(Math.Abs(bt)/.15));after=0;for(int i=0;i<=bn;i++)after=Math.Max(after,BarrowDepth(p.X+dx,p.Z+dz,p.Yaw+bt*i/bn,q.X,q.Z,CartRoom));}
             else{
                 after=CartDepth(ax+dx,az+dz,dir,q.X,q.Z,CartRoom);
                 for(int i=0;i<=turns;i++){double h=dir+turn*i/turns;after=Math.Max(after,CartDepth(hx+Math.Sin(h)*reach,hz+Math.Cos(h)*reach,h,q.X,q.Z,CartRoom));}
             }
-            if(after>0&&after>now-1e-6)return true;
+            if(after>0&&after>now-1e-6){cartOnWho=q;return true;}
         }
         return false;
     }
@@ -297,7 +300,9 @@ public sealed partial class Crowd
             if(p.Conversing){v.Cart.Root.Visible=shown;return;}
             var hands=Carters.Hands(p.Human,p.Group,new((float)p.X,(float)p.Z),(float)p.Yaw);
             if(going){double hx=hands.X-p.X,hz=hands.Z-p.Z,sy=Math.Sin(p.Yaw),cy=Math.Cos(p.Yaw);v.GripAlong=hx*sy+hz*cy;v.GripAcross=hx*cy-hz*sy;}
-            v.Cart.Push(dt,hands.X,hands.Z,hands.Y-ground,p.Yaw,going?1:0,ground);v.Cart.Root.Visible=shown;
+            // (it comes round behind his turn only as he walks on: swung on after he stopped for someone in its way, the cart came onto
+            // her, a seller pushing her own cart past it, whom nothing could shove out, #197)
+            v.Cart.Push(dt,hands.X,hands.Z,hands.Y-ground,step>1e-4?p.Yaw:v.Cart.Yaw,going?1:0,ground);v.Cart.Root.Visible=shown;
         } else if(v.Dray!=null) {
             bool going=p.State=="walk"&&v.Speed>.1;
             p.Human.Play(p.Conversing?"talk":going?"walk":"idle",.25f);

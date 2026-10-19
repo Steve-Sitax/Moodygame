@@ -267,6 +267,12 @@ public partial class Townspeople : Node
     public void Refill() => filled = false;
 
     private double Rnd(double a, double b) => a + rng.NextDouble() * (b - a);
+    /// <summary>How near the corner of his round the knife grinder must be to set his barrow down there (the crowd's arrival,
+    /// 1.2 m, and his step in to the stone, 1.35 m).</summary>
+    private const double GrinderStopReach = 3;
+    /// <summary>Is (x, z) at the corner of his round a grinder is walking to (#197)?</summary>
+    internal static bool AtGrinderStop(Sim s, double x, double z) =>
+        s.Goal.Route is not { Length: > 0 } stops || Dist(stops[s.Step % stops.Length].X, stops[s.Step % stops.Length].Z, x, z) <= GrinderStopReach;
     private static double Dist(double ax, double az, double bx, double bz) => Math.Sqrt((ax - bx) * (ax - bx) + (az - bz) * (az - bz));
     private static double NowMs => Time.GetTicksMsec();
     private static double Hash01(string s) => Whereabouts.HashId(s) / 4294967296.0;
@@ -1467,6 +1473,18 @@ public partial class Townspeople : Node
                 if (!s.Arrived)
                 {
                     s.Arrived = true;
+                    // a knife grinder held short of his corner (the crowd gave up the way: a cart in the street) stands a moment
+                    // with his barrow and tries again, three times, then goes on to the next corner; he sets it down only at a
+                    // corner (#197: given up in the gap west of the Grote Markt, he worked there half a minute and no cart got by)
+                    if (s.R.Trade == "grinder" && g.Mode == "patrol" && !AtGrinderStop(s, p.X, p.Z))
+                    {
+                        if (s.Tries++ < 3) s.Step += g.Route!.Length - 1;
+                        else s.Tries = 0;
+                        s.Wait = Rnd(1, 2);
+                        crowd.PuppetStand(p, "idle", null);
+                        return;
+                    }
+                    s.Tries = 0;
                     // a knife grinder stops a while at each corner of his round: he parks his barrow and works
                     // the stone (#129, StreetTrades.Grind)
                     s.Wait = g.Mode == "patrol" ? (s.R.Trade == "grinder" ? Rnd(20, 45) : g.Motion == "scrub" ? Rnd(10, 22) : Rnd(1, 4)) : Rnd(3, 12);

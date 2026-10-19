@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using Godot;
 using Bridges = Scheldemist.Movers.Bridges;
 using Scheldemist.People;
@@ -508,6 +509,9 @@ public sealed class Puppet
     /// <summary>The way home after a lane: the distance left at best, and how long no ground was gained on it (another rule,
     /// a street game's place, holding the body where it is).</summary>
     internal double WayHomeLeft = double.PositiveInfinity, WayHomeStall;
+    /// <summary>The body's last route changes (new goal, plan, refused step, no gain, way round), kept only while
+    /// Crowd.TraceRoutes is on, for the stuck check's report.</summary>
+    internal readonly List<string> RouteNotes = new();
 }
 
 /// <summary>
@@ -522,6 +526,30 @@ public sealed partial class Crowd
 {
     private const double BodyGap = 0.6, BodyShove = 1.2, LoadGap = 0.15, MaxGap = BodyGap + 2 * LoadGap;
     private const double AnimNear = 25, AnimFar = 45;
+    /// <summary>Seconds a refused walker stands before going round a standing body or planning anew, and how long he waits for a
+    /// passing one (#197).</summary>
+    private const double RefusedWait = 0.25, PassingWait = 2;
+    /// <summary>A body's radius against live boxes (the stuck check's body is 0.25 m round).</summary>
+    private const double BodyRoom = 0.26;
+    /// <summary>Keep each body's route changes in Puppet.RouteNotes (the stuck check turns it on, and sets the clock to its own).</summary>
+    public static bool TraceRoutes;
+    public static double TraceClock;
+    private void RouteNote(Puppet p, string what)
+    {
+        if (!TraceRoutes) return;
+        if (p.RouteNotes.Count >= 24) p.RouteNotes.RemoveAt(0);
+        p.RouteNotes.Add($"{TraceClock:0.00} {p.X:0.00},{p.Z:0.00} {what}");
+    }
+    /// <summary>What refused a step, for the route notes: the bodies at the step and at the nose, and anyone a pushed cart would come onto.</summary>
+    private string RefusedNote(Puppet p, (double x, double z) t, double ux, double uz, double step)
+    {
+        double nx = p.X + ux * step, nz = p.Z + uz * step;
+        var nose = p.Nose == 0 ? (x: nx, z: nz) : NosePoint(p, nx, nz, ux, uz);
+        string onto = PushedOnSomeone(p, nx, nz, Math.Atan2(ux, uz)) ? $", cart onto puppet {cartOnWho?.Id} {cartOnWho?.State}" : "";
+        return $"step refused towards {t.x:0.0},{t.z:0.0}: stepFree {StepFree(p, nx, nz)}, bodies at step [{map.BlockedBy(p, nx, nz)}], nose {nose.x:0.0},{nose.z:0.0} free {p.Nose == 0 || map.FreeFor(p, nose.x, nose.z)} [{(p.Nose == 0 ? "" : map.BlockedBy(p, nose.x, nose.z))}]{onto}, passing {PassingHolds(p, ux, uz, step)}";
+    }
+    private static string Points(List<(double x, double z)> path, int from = 0) =>
+        string.Join(" ", path.Skip(from).Take(6).Select(q => $"{q.x:0.0},{q.z:0.0}")) + (path.Count - from > 6 ? $" .. {path[^1].x:0.0},{path[^1].z:0.0}" : "");
     private static readonly HashSet<string> Children = new() { "boy", "girl" };
     /// <summary>People whose load is part of their build: the sack truck, the shoulder sack, the handcart.</summary>
     public static readonly HashSet<string> Laden = new() { "porter", "docker_sack", "carter" };
@@ -727,6 +755,7 @@ public sealed partial class Crowd
         bool walking = p.State == "walk" && p.Pi < p.Path.Count;
         // the same goal while on the way there: keep the way (a new one each time made them stutter)
         if (walking && p.Dest != null && Hyp(p.Dest.Value.x - tx, p.Dest.Value.z - tz) < 0.5) return;
+        if (TraceRoutes) RouteNote(p, $"goal {tx:0.0},{tz:0.0} (was {(p.Dest is { } was ? $"{was.x:0.0},{was.z:0.0}" : "none")}, {p.State})");
         p.Replans = 0;
         p.Held = 0;
         // no way can be worked out this frame: walk on the old one, change over when one can
@@ -1129,7 +1158,10 @@ public sealed partial class Crowd
     {
         if(p.Conversing){if(p.PYaw is {} a)Face(p,a,dt);return;}
         p.SinceDetour += dt;
-        if(GiveWay(p,dt))return;
+        string yieldWas = p.Yield;
+        bool gaveWay = GiveWay(p, dt);
+        if (TraceRoutes && p.Yield != yieldWas && p.Yield != "") RouteNote(p, $"{p.Yield} ({p.State})");
+        if (gaveWay) return;
         if (p.Role == "follow")
         {
             Follow(p, dt);
@@ -1297,12 +1329,35 @@ public sealed partial class Crowd
         }
         if (map.FreeFor(p, x, z)) return true;
         if (map.FreeFor(p, p.X, p.Z)) return false;
+        // (but not into a live body's own room: walking out past a cart's or barrow's corner, the step on came into it, #197)
+        if (!map.BodyRoomFor(p, x, z, BodyRoom) && map.BodyRoomFor(p, p.X, p.Z, BodyRoom)) return false;
         // (the browser lets a thinner body through there; the bake has one body's width: towards ground a body fits on within a metre)
         double dx = x - p.X, dz = z - p.Z, d = Hyp(dx, dz);
         if (d < 1e-6) return false;
+        // (out towards the free ground nearest to him only: beyond a stall's thin board the ground is free too, and a child at play
+        // was shoved on through it, into the board, #197)
+        if (NearestFreeWay(p) is { } way && dx * way.x + dz * way.z <= 0) return false;
         for (int k = 1; k <= 4; k++)
             if (map.FreeFor(p, p.X + dx / d * 0.25 * k, p.Z + dz / d * 0.25 * k)) return true;
         return false;
+    }
+
+    /// <summary>The way (a unit vector) to the free ground nearest to a body standing where it does not fit, within a metre, every
+    /// sixteenth of a turn; null when there is none.</summary>
+    private (double x, double z)? NearestFreeWay(Puppet p)
+    {
+        for (int k = 1; k <= 4; k++)
+        {
+            double sx = 0, sz = 0;
+            for (int a = 0; a < 16; a++)
+            {
+                double c = Math.Cos(a * Math.PI / 8), s = Math.Sin(a * Math.PI / 8);
+                if (map.FreeFor(p, p.X + c * 0.25 * k, p.Z + s * 0.25 * k)) { sx += c; sz += s; }
+            }
+            double l = Hyp(sx, sz);
+            if (l > 1e-6) return (sx / l, sz / l);
+        }
+        return null;
     }
 
     /// <summary>Standing people step aside when the player walks into them.</summary>
@@ -1439,6 +1494,7 @@ public sealed partial class Crowd
             p.BestD = double.PositiveInfinity;
             p.Human.Play(StillMotion(p), 0.3f);
             grid.Block(p.X + dx / len * 0.8, p.Z + dz / len * 0.8);
+            if (TraceRoutes) RouteNote(p, $"no gain 2.5 s towards {t.x:0.0},{t.z:0.0} (leg {p.Pi}/{p.Path.Count}); closed {p.X + dx / len * 0.8:0.0},{p.Z + dz / len * 0.8:0.0}");
             p.Replans++;
             if (p.Replans > 3 || p.Dest == null) Next(p);
             else GoTo(p, p.Dest.Value);
@@ -1509,6 +1565,7 @@ public sealed partial class Crowd
         // over a seller at her stall, a man standing and a child at a street game who had no room to step aside)
         if ((p.Vehicle?.Cart != null || p.Barrow) && CartOnSomeone(p, mx * step, mz * step, Math.Atan2(mx, mz)) && CartOnSomeone(p, ux * step, uz * step, Math.Atan2(ux, uz)))
         {
+            if (TraceRoutes && p.CartWait == 0) RouteNote(p, $"cart waits for puppet {cartOnWho?.Id} {cartOnWho?.State} at {cartOnWho?.X:0.00},{cartOnWho?.Z:0.00}");
             if ((p.CartWait += dt) < CartPatience)
             {
                 p.StuckT = 0;
@@ -1556,16 +1613,29 @@ public sealed partial class Crowd
             // nobody stands for ever at a place the walk map and the colliders never agreed on.
             double heldBefore = p.Failed;
             if ((p.Failed += dt) > 1 && heldBefore <= 1 && WedgeLog.Count < 200) WedgeLog.Add(WedgeNote(p, "first step refused", ux, uz, step));
+            if (TraceRoutes && heldBefore == 0) RouteNote(p, RefusedNote(p, t, ux, uz, step));
             // a pusher held by something passing (another cart, someone in his cart's way) waits for it a while, standing, rather than
             // planning a new way every frame: carts going home from the Grote Markt met in the narrow streets west of it and pushed
             // to and fro on the spot (#192)
             if ((p.Vehicle?.Cart != null || p.Barrow) && p.Failed < CartPatience && PassingHolds(p, ux, uz, step)) { p.StuckT = 0; return; }
+            // a moment's standing before a new plan (#197: a walker whose step a cart just parked in his lane refused planned a new way
+            // at once, round the block, and turned back the way he came: a body walking to and fro; a way round it comes first)
+            if (p.Failed <= RefusedWait) { p.StuckT = 0; return; }
             // a body that stays put holds the step: go round its corners (a passing one is waited for)
-            if (p.Failed > 0.25 && DetourStanding(p, p.X + ux * step, p.Z + uz * step, ux, uz, step)) return;
+            if (DetourStanding(p, p.X + ux * step, p.Z + uz * step, ux, uz, step)) return;
+            // one passing (a cart, a cyclist): wait for it to go by, a while, rather than turn back on a new way
+            if (p.Failed < PassingWait && p.DetourWhy.StartsWith("no standing body", StringComparison.Ordinal) && PassingHolds(p, ux, uz, step)) { p.StuckT = 0; return; }
             // a standing body with no way round its corners (a cart parked across a lane): the next plan goes another way
-            if (p.Failed > 0.25 && p.DetourWhy.StartsWith("no free corner", StringComparison.Ordinal)) p.RoundStanding = true;
+            if (p.DetourWhy.StartsWith("no free corner", StringComparison.Ordinal))
+            {
+                p.RoundStanding = true;
+                // a pusher waits a while for it before he turns his cart round for another way (#197: a cart parked across the lane
+                // home; turned back at once, the cart that met it went to and fro)
+                if ((p.Vehicle?.Cart != null || p.Barrow) && p.Failed < CartPatience) { p.StuckT = 0; return; }
+            }
             if (p.Failed > (p.Shown ? 6 : 3) && Unwedge(p, ux, uz, step)) return;
             grid.Block(p.X + ux * 0.6, p.Z + uz * 0.6);
+            if (TraceRoutes) RouteNote(p, $"step refused towards {t.x:0.0},{t.z:0.0} (leg {p.Pi}/{p.Path.Count}, failed {p.Failed:0.00}, bodies [{map.BlockedBy(p, p.X + ux * step, p.Z + uz * step)}], round: {p.DetourWhy}); closed {p.X + ux * 0.6:0.0},{p.Z + uz * 0.6:0.0}");
             p.Replans++;
             if (p.Replans > 3 || p.Dest == null) Next(p);
             else GoTo(p, p.Dest.Value);
@@ -1615,6 +1685,7 @@ public sealed partial class Crowd
         // (a pusher set on: his handcart or barrow comes with him, and must not come down on anyone)
         if (PushedOnSomeone(p, to.Value.x, to.Value.z, Math.Atan2(to.Value.x - p.X, to.Value.z - p.Z))) return false;
         if (WedgeLog.Count < 200) WedgeLog.Add(WedgeNote(p, "safety net used", ux, uz, step));
+        if (TraceRoutes) RouteNote(p, $"safety net to {to.Value.x:0.0},{to.Value.z:0.0}");
         p.X = to.Value.x;
         p.Z = to.Value.z;
         p.Pi++;
@@ -1690,6 +1761,7 @@ public sealed partial class Crowd
             {
                 p.Path.Insert(p.Pi, b);
                 p.Path.Insert(p.Pi, a);
+                if (TraceRoutes) RouteNote(p, $"round the player by {a.x:0.0},{a.z:0.0} and {b.x:0.0},{b.z:0.0}");
                 p.State = "walk";
                 p.SinceDetour = 0;
                 return true;
@@ -1769,6 +1841,7 @@ public sealed partial class Crowd
         }
         if (path is { Count: > 0 })
         {
+            if (TraceRoutes) RouteNote(p, $"{(p.NativeRouting ? "native" : "grid")} way to {dest.x:0.0},{dest.z:0.0} (replans {p.Replans}): {Points(path)}");
             p.Path = path;
             p.Pi = 0;
             p.BestD = double.PositiveInfinity;
@@ -1778,6 +1851,7 @@ public sealed partial class Crowd
         else
         {
             p.Replans++;
+            if (TraceRoutes) RouteNote(p, $"no way to {dest.x:0.0},{dest.z:0.0} (replans {p.Replans})");
             p.State = "pause";
             p.Timer = Rnd(1, 3);
             if (p.Replans > 3) p.Dest = null;

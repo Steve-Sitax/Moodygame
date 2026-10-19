@@ -11,6 +11,7 @@ Bugs and loose ends are tracked as [issues](https://github.com/Steve-Sitax/Moody
 
 ## [Unreleased]
 
+- Townspeople no longer walk to and fro in the street (#197): someone whose way is suddenly blocked by a cart just parked, or by a cart going by, stops a moment and goes round it or lets it pass instead of turning back on a long way round. The knife grinder sets his barrow down only at the corners of his round, never in a narrow street where he happened to stop, and steps in to his stone without stumbling. The Grote Markt's handcarts take the roomy street past the gas lamp west of the market instead of squeezing through beside it, a cart held by another parked across its lane waits a while before it turns round, and a cart no longer swings round onto someone after its pusher has stopped. People are no longer pushed into a stall's boards or a barrow's corner.
 - Two households keep their boat at a quay ladder (one on the river by the Vismarkt, one in the Petit Bassin): the owner climbs down the ladder into her, rows to a flight of steps and back, and climbs up the ladder again (#195).
 - The bench and hiring-board models no longer stay loaded when a dedicated game closes (#195).
 - The cathedral's confessional has carved oak figures: an angel with raised wings at each end, one hand on its breast and the other turned toward the penitents, and between the booths two veiled penitent saints with bowed heads and crossed hands; small angels stand on its cornice. They replace the coarse brown figures (#196).

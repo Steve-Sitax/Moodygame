@@ -135,6 +135,8 @@ public sealed class WalkMap
         return true;
     }
     /// <summary>The live bodies whose boxes (with a body's margin) take this point, by name, for reports. Main thread only.</summary>
+    /// <summary>For reports: the body that owns a registered node (a pushed cart's pusher), or null.</summary>
+    public static Puppet? OwnerOf(Node node) { foreach (var b in bodies) if (b.Node == node) return b.Owner; return null; }
     public string BlockedBy(Puppet owner, double x, double z)
     {
         var names = new List<string>();
@@ -181,6 +183,8 @@ public sealed class WalkMap
     }
     /// <summary>A thin part at its actual point, against live boxes only; static ground already carries body-radius clearance.</summary>
     public bool BodyClearanceFor(Puppet owner,double x,double z)=>BodyFree(x,z,owner:owner,margin:.025);
+    /// <summary>Is (x, z) this far (a body's radius) from every live box but the owner's own?</summary>
+    public bool BodyRoomFor(Puppet owner,double x,double z,double margin)=>BodyFree(x,z,owner:owner,margin:margin);
     public double X0, Z0;
     public int W, D;
     public byte[] BrowserReached = Array.Empty<byte>();
