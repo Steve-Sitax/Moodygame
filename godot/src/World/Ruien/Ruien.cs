@@ -214,7 +214,7 @@ public partial class Ruien : Node
         foreach (var w in area.Ways)
         {
             if (w.Kind == "ladder") Main.I.View.AddChild(RuienKit.Grate(w));
-            if (w.Kind == "rungs") root.AddChild(RuienKit.StepIrons(w));
+            if (w.Kind == "rungs" && w.Irons) root.AddChild(RuienKit.StepIrons(w));
         }
         foreach (var mb in area.Mist)
         {

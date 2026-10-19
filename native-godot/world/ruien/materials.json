@@ -9,9 +9,9 @@
   "bluestone":       { "pom": 0.3,  "normal": 0.9, "rough": 0.95, "weather": 0.6 },
   "calcite":         { "pom": 0.5,  "normal": 1.2, "rough": 1.0, "weather": 0.25, "wrap": 0.45 },
   "oak":             { "pom": 0.25, "normal": 1.0, "rough": 1.0, "weather": 0.8 },
-  "oak_debris":      { "textures": "oak", "pom": 0.15, "normal": 0.8, "rough": 1.0, "weather": 0.8, "uvMetres": [1.0, 1.0] },
-  "iron":            { "pom": 0.0,  "normal": 1.0, "rough": 1.0, "weather": 0.5, "metal": 0.55 },
-  "silt":            { "pom": 0.45, "normal": 1.0, "rough": 1.0, "weather": 1.0 },
+  "oak_debris":      { "textures": "oak", "pom": 0.15, "normal": 0.8, "rough": 1.0, "weather": 0.8, "moss": 0.3, "uvMetres": [1.0, 1.0] },
+  "iron":            { "pom": 0.0,  "normal": 1.0, "rough": 1.0, "weather": 0.12, "metal": 0.45 },
+  "silt":            { "pom": 0.45, "normal": 1.0, "rough": 1.0, "weather": 1.0, "moss": 0.12 },
   "moss":            { "pom": 0.2,  "normal": 1.0, "rough": 1.0, "weather": 0.3 }
  },
  "misc": {

@@ -1,7 +1,7 @@
 {
   "sourceCommit": "249f8613",
   "scope": "Native town, default people2, no AI, fresh seed 1873; first processed frame after game parts are attached",
-  "reason": "Reviewed signature inventory after the native materials, clothing, furniture, pier and dressed-stone merges. Kind identity is checked, rather than a historical count. 2026-10-18 (#161, #171): three kinds changed code in place and keep their place: the dressed stone (old stone colour, damp line), the town houses' walls (foot damp follows the house's wear) and the rooms' window glass (follows the sky's light). 2026-10-18 (#97): the sky dome's kind changed code in place and keeps its place (a clear day's blue between the clouds). 2026-10-18 (#188): the town's grime decal kind changed code in place and keeps its place: the stain is multiplied over the lit wall, so it follows the wall's light. 2026-10-18 (#140): the people2 kind changed code in place and keeps its place (a finer grain octave on Jef's own close arms, shader:210BC5FD2B591133 -> shader:69C8B5EB8F249373). 2026-10-19 (Ruien O2, Steve's one-time approval of 2026-10-18 for up to three new kinds and a fixed set of underground lamps): three new kinds, the Ruien's masonry, water and air (native-godot/shaders/ruien_*.gdshader, docs/ruien-native.md), and four OmniLights (ruien_lamp_pool_*, cull mask the player's arms and body) that never come or go; the Ruien's lamps and daylight openings are a uniform list in those kinds, not Godot lights. 2026-10-19 (Ruien O2 round 2): the three Ruien kinds changed code in place and keep their place (smaller lamp halo, darker mirror-like water with lamp streaks, wet-film sheen).",
+  "reason": "Reviewed signature inventory after the native materials, clothing, furniture, pier and dressed-stone merges. Kind identity is checked, rather than a historical count. 2026-10-18 (#161, #171): three kinds changed code in place and keep their place: the dressed stone (old stone colour, damp line), the town houses' walls (foot damp follows the house's wear) and the rooms' window glass (follows the sky's light). 2026-10-18 (#97): the sky dome's kind changed code in place and keeps its place (a clear day's blue between the clouds). 2026-10-18 (#188): the town's grime decal kind changed code in place and keeps its place: the stain is multiplied over the lit wall, so it follows the wall's light. 2026-10-18 (#140): the people2 kind changed code in place and keeps its place (a finer grain octave on Jef's own close arms, shader:210BC5FD2B591133 -> shader:69C8B5EB8F249373). 2026-10-19 (Ruien O2, Steve's one-time approval of 2026-10-18 for up to three new kinds and a fixed set of underground lamps): three new kinds, the Ruien's masonry, water and air (native-godot/shaders/ruien_*.gdshader, docs/ruien-native.md), and four OmniLights (ruien_lamp_pool_*, cull mask the player's arms and body) that never come or go; the Ruien's lamps and daylight openings are a uniform list in those kinds, not Godot lights. 2026-10-19 (Ruien O2 round 2): the three Ruien kinds changed code in place and keep their place (smaller lamp halo, darker mirror-like water with lamp streaks, wet-film sheen). 2026-10-19 (Ruien O2 round 3): the masonry kind changed code in place and keeps its place (the baked colour of the study without its weather twice, moss per family).",
   "firstKinds": [
     "shader:03DB7241DFC388D2",
     "shader:06ECECA2573809AB",
@@ -39,7 +39,6 @@
     "shader:419344C18B4CA777",
     "shader:420881D8A09D1DC4",
     "shader:4273B1C686F395BF",
-    "shader:454F3A37F3E55C3A",
     "shader:45CC40DC29BCFF45",
     "shader:45EC16852364F1B8",
     "shader:4796101468EE3321",
@@ -53,6 +52,7 @@
     "shader:61015D7C67050809",
     "shader:627511B53C4A68AB",
     "shader:6726DCD50BAD18AE",
+    "shader:67F1081D8785A715",
     "shader:68312621D7B013C0",
     "shader:683DB29423986FBE",
     "shader:68CAEC9869078442",

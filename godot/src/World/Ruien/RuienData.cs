@@ -138,6 +138,8 @@ public sealed class RuienData
         public Rect2 Hole;
         /// <summary>Step irons in a channel wall: the wall's foot (x, z) and the way out of it into the channel.</summary>
         public Vector2 Wall, Out;
+        /// <summary>Step irons drawn on the wall (false: a climb over a stone's edge, a sill or a coping, needs none).</summary>
+        public bool Irons = true;
     }
 
     public sealed class Area
@@ -276,7 +278,7 @@ public sealed class RuienData
                     var outw = V2(r.GetProperty("out")).Normalized();
                     var ledge = V2(r.GetProperty("ledge"));
                     float bot = F(r, "bottom", -6.1f), top = F(r, "top", -3.6f);
-                    area.Ways.Add(new Way { Id = S(r, "id"), Kind = "rungs", Wall = wall, Out = outw, Bottom = new Vector3(wall.X + outw.X * 0.55f, bot, wall.Y + outw.Y * 0.55f), Top = new Vector3(ledge.X, top, ledge.Y) });
+                    area.Ways.Add(new Way { Id = S(r, "id"), Kind = "rungs", Wall = wall, Out = outw, Irons = !(r.TryGetProperty("irons", out var ir) && ir.ValueKind == JsonValueKind.False), Bottom = new Vector3(wall.X + outw.X * 0.55f, bot, wall.Y + outw.Y * 0.55f), Top = new Vector3(ledge.X, top, ledge.Y) });
                 }
             if (own.TryGetProperty("movers", out var mvs) && mvs.ValueKind == JsonValueKind.Array)
                 foreach (var m in mvs.EnumerateArray())

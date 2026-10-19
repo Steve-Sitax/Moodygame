@@ -38,6 +38,8 @@ uniform float cover = 1.0;
 uniform vec2 tile_m = vec2(1.0);
 uniform float uv_metres = 0.0;
 uniform float moss_tile = 1.2;
+// how much the moss mask grows moss on this family (silt banks: hardly; the study's moss is on lit masonry joints)
+uniform float moss_k = 1.0;
 // a layer's depth bias (as psx: a share of the distance toward the eye)
 uniform float depth_bias = 0.0;
 
@@ -117,27 +119,28 @@ void fragment() {
 	}
 	c *= mix(vec3(1.0), vec3(0.16, 0.14, 0.12), soot * (0.55 + 0.45 * h));
 	vec3 nt = texture(normal_tex, uv).xyz * 2.0 - 1.0;
-	float mk = moss * smoothstep(0.75, 0.15, h + moss * 0.35 - 0.2);
+	float mk = moss * moss_k * smoothstep(0.75, 0.15, h + moss * 0.35 - 0.2);
 	if (mk > 0.001) {
 		vec2 muv = world.xz / moss_tile + world.y * 0.37;
 		vec3 mc = texture(moss_albedo, muv).rgb;
-		c = mix(c, mc, mk);
+		c = mix(c, mc * 0.5, mk);
 		nt = mix(nt, texture(moss_normal, muv).xyz * 2.0 - 1.0, mk);
 	}
 	c *= tint.rgb;
 	if (bake.a > 0.5 && bake_k > 0.0) {
 		// the study's colour at this point, the pictures' variation round their own average (their smallest mip)
-		vec3 avg = textureLod(albedo_tex, uv, 11.0).rgb * tint.rgb;
-		if (variants > 0.5) avg = mix(avg, textureLod(lime_tex, uv, 11.0).rgb * tint.rgb, smoothstep(0.03, 0.5, lime * 1.3));
-		vec3 detail = clamp(c / max(avg, vec3(0.02)), 0.0, 3.0);
-		c = mix(c, bake.rgb * detail, bake_k);
+		vec3 avg = textureLod(albedo_tex, uv, 11.0).rgb;
+		vec3 detail = clamp(dry / max(avg, vec3(0.02)), 0.0, 3.0);
+		// (lime and moss keep their own pictures' grain over the bake's colour)
+		if (variants > 0.5) detail = mix(detail, clamp(texture(lime_tex, uv).rgb / max(textureLod(lime_tex, uv, 11.0).rgb, vec3(0.02)), 0.0, 3.0), smoothstep(0.03, 0.5, lime * 1.3));
+		c = mix(c, bake.rgb * detail * tint.rgb, bake_k);
 	}
 	nt.xy *= normal_k;
 	nt.z = sqrt(max(1.0 - dot(nt.xy, nt.xy), 0.0));
 	vec3 n = normalize(tbn * nt);
 	// wet: darker (as porous stone goes) and glossy; lime and moss are matt
 	float wet_all = clamp(wet + (1.0 - covered) * psx_wet * 0.6, 0.0, 1.0);
-	c *= 1.0 - 0.35 * wet_all * (1.0 - lime);
+	c *= 1.0 - 0.35 * wet_all * (1.0 - lime) * (bake.a > 0.5 ? 1.0 - bake_k : 1.0);
 	float rough = clamp(hra.g * rough_k * (1.0 - 0.88 * wet_all) + 0.5 * lime * (1.0 - wet) + 0.3 * mk, 0.04, 1.0);
 	float gloss = (1.0 - rough) * (1.0 - smoothstep(25.0, 45.0, len));
 	// (the bake's AO is taken softly: it came from a 0.6 m reach and would black out every joint and corner)

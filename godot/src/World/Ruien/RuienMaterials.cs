@@ -134,6 +134,7 @@ public static class RuienMaterials
                 m.SetShaderParameter("wrap", F(p, "wrap", 0));
                 m.SetShaderParameter("weather_k", F(p, "weather", 1));
                 m.SetShaderParameter("cover", F(p, "cover", 1));
+                m.SetShaderParameter("moss_k", F(p, "moss", 1));
                 if (p.TryGetProperty("uvMetres", out var um)) { m.SetShaderParameter("uv_metres", 1f); m.SetShaderParameter("tile_m", new Vector2(um[0].GetSingle(), um[1].GetSingle())); }
                 if (F(p, "cover", 1) < 1) m.SetShaderParameter("depth_bias", 2.5e-4f);
             }

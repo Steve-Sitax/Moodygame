@@ -59,7 +59,9 @@ Conversion (headless, once per export; it writes under `res://world/ruien` and q
   `penstockRaise` (its travel's top), so the channel can be waded under it.
 - **The outlet** at low water: the vliet bed, the apron and the sill (-5.05) lead down into the channel (-6.1, the water
   about chest deep); **step irons** up the north channel wall past the penstock (`rungs` in areas.json, E to climb)
-  lead onto the ledge. The old small outfall in the head wall is cleared out of the opening (`clear`).
+  lead onto the ledge; the 40 cm step back up onto the sill is a climb too (`irons`: false). The old small outfall
+  in the head wall is cleared out of the opening (`clear`), and the study's own brick head wall (`outlet_headwall`)
+  takes the place of the town's head wall face below the coping (the gate's `opening` is its rectangle).
 - **The street grate** over the ladder shaft (O2 x -146.9, z 92.5): the street is cut under it, a bevelled cast-iron
   grate (one shared model) stands over the hole, solid to walk on; E lifts it and climbs down the ladder, E at the
   ladder's foot climbs up and out (`Jef.ClimbTo`, the quay ladders' motion).

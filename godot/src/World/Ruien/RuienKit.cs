@@ -58,8 +58,8 @@ public static class RuienKit
             float h = w.Top.Y - w.Bottom.Y;
             for (float y = 0.35f; y < h - 0.1f; y += 0.3f)
             {
-                Bar(st, new Vector3(0, y, 0.13f), new Vector3(0.4f, 0.024f, 0.024f));
-                foreach (float x in new[] { -0.19f, 0.19f }) Bar(st, new Vector3(x, y, 0.065f), new Vector3(0.024f, 0.024f, 0.13f));
+                Bar(st, new Vector3(0, y, 0.13f), new Vector3(0.42f, 0.032f, 0.032f));
+                foreach (float x in new[] { -0.195f, 0.195f }) Bar(st, new Vector3(x, y, 0.045f), new Vector3(0.032f, 0.032f, 0.2f));
             }
             irons = st.Commit();
             irons.SurfaceSetMaterial(0, RuienMaterials.Get("ruien_iron"));
@@ -81,7 +81,14 @@ public static class RuienKit
         void Tri(Vector3 a, Vector3 b, Vector3 d, Vector3 nn)
         {
             if ((b - a).Cross(d - a).Dot(nn) > 0) (b, d) = (d, b);
-            foreach (var vtx in new[] { a, b, d }) { st.SetNormal(nn); st.AddVertex(vtx); }
+            foreach (var vtx in new[] { a, b, d })
+            {
+                // (no weather but a little damp and grime, and the rust picture boxed on in metres)
+                st.SetColor(new Color(0.35f, 0, 0.15f, 0));
+                st.SetUV(MathF.Abs(nn.Y) > 0.7f ? new Vector2(vtx.X, vtx.Z) / 0.9f : MathF.Abs(nn.X) > 0.7f ? new Vector2(vtx.Z, vtx.Y) / 0.9f : new Vector2(vtx.X, vtx.Y) / 0.9f);
+                st.SetNormal(nn);
+                st.AddVertex(vtx);
+            }
         }
         for (int i = 0; i < ring.Count; i++)
         {

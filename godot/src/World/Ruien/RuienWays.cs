@@ -53,9 +53,9 @@ public partial class RuienWays : Node
         {
             var at = new Vector2(x, z);
             if (MathF.Abs(j.Y - w.Bottom.Y) < 0.5f && at.DistanceTo(new Vector2(w.Bottom.X, w.Bottom.Z)) < 1.0f)
-                return new Offers { Options = new() { (0.5f, Act.At(Key.E, "climb onto the ledge", new Vector3(w.Wall.X, w.Bottom.Y + 1.4f, w.Wall.Y), () => RungsUp(w))) } };
+                return new Offers { Options = new() { (0.5f, Act.At(Key.E, w.Irons ? "climb onto the ledge" : "climb up onto the sill", new Vector3(w.Wall.X, w.Bottom.Y + 1.4f, w.Wall.Y), () => RungsUp(w))) } };
             if (MathF.Abs(j.Y - w.Top.Y) < 0.35f && at.DistanceTo(new Vector2(w.Top.X, w.Top.Z)) < 0.9f)
-                return new Offers { Options = new() { (0.5f, Act.At(Key.E, "climb down into the channel", new Vector3(w.Wall.X, w.Top.Y + 0.4f, w.Wall.Y), () => RungsDown(w))) } };
+                return new Offers { Options = new() { (0.5f, Act.At(Key.E, w.Irons ? "climb down into the channel" : "climb down into the channel", new Vector3(w.Wall.X, w.Top.Y + 0.4f, w.Wall.Y), () => RungsDown(w))) } };
         }
         foreach (var (w, off, stand) in ladders)
         {

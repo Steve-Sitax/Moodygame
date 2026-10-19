@@ -141,10 +141,12 @@ vec3 ruien_haze(vec3 ro, vec3 rd, float len) {
 		if (dperp > D.x) continue;
 		float h = dperp + 0.12;
 		float s = ruien_half_scatter(min(len, 40.0) - t0, h) - ruien_half_scatter(-t0, h);
-		// (the glow grows with the root of the strength: a bright lamp lights the stone far more than it hazes the air)
-		g += texelFetch(ruien_lights, ivec2(i, 2), 0).rgb * (sqrt(A.w) * D.w * s);
+		// (the glow grows with the root of the strength: a bright lamp lights the stone far more than it hazes the air;
+		// and it is rolled off, so a lamp by the eye is a soft warm glow, never a white disc)
+		float x = sqrt(A.w) * D.w * s * ruien_air.a;
+		g += texelFetch(ruien_lights, ivec2(i, 2), 0).rgb * (x / (1.0 + x * 5.0));
 	}
-	return g * ruien_air.a;
+	return g;
 }
 
 // a lamp mirrored in water or a wet film: a streak drawn out toward the eye by the ripples (psx wet_streak's shape)
@@ -163,7 +165,8 @@ vec3 ruien_streaks(vec3 P, vec3 rr, float stretch) {
 		float da = dot(perp, across);
 		float dv = length(perp - across * da);
 		float k = 1.0 / (1.0 + da * da * 60.0 + dv * dv * 6.0 / stretch) / (1.0 + t0 * 0.15);
-		s += texelFetch(ruien_lights, ivec2(i, 2), 0).rgb * (sqrt(A.w) * k);
+		float x = sqrt(A.w) * k;
+		s += texelFetch(ruien_lights, ivec2(i, 2), 0).rgb * (x / (1.0 + x * 0.5));
 	}
 	return s;
 }

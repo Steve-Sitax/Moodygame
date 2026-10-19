@@ -7,10 +7,11 @@
    "id": "o2",
    "name": "Vliet sluice O2, the Vlietrui and the Vleeshuis hall C2",
    "export": "res://world/ruien/o2",
-   "skipKeys": ["outlet_vliet", "outlet_headwall"],
+   "skipKeys": ["outlet_vliet"],
    "penstockRaise": 1.25,
    "rungs": [
-    { "id": "gate_north", "wall": [-145.991, 79.081], "out": [-0.832, -0.554], "ledge": [-145.409, 79.469], "bottom": -6.1, "top": -3.6, "note": "step irons up the north channel wall past the penstock: the way out of the channel for one who waded in from the vliet at low water" }
+    { "id": "gate_north", "wall": [-145.991, 79.081], "out": [-0.832, -0.554], "ledge": [-145.409, 79.469], "bottom": -6.1, "top": -3.6, "note": "step irons up the north channel wall past the penstock: the way out of the channel for one who waded in from the vliet at low water" },
+    { "id": "gate_sill", "irons": false, "wall": [-146.1, 73.62], "out": [0, 1], "ledge": [-146.1, 73.15], "bottom": -5.55, "top": -5.05, "note": "the step up from the channel's bed onto the bluestone sill at the gate (40 cm, a little over a walking step)" }
    ],
    "kit": [
     { "piece": "lamp_bracket_safety_lamp", "at": [-146.434, -2.12, 84.118], "yaw": 25.32, "note": "a second lamp on the north wall over the pipe end, across the channel from the south wall the study lit with a lantern of its own (v5)" }
@@ -25,7 +26,7 @@
    "gates": [
     { "id": "O2", "origin": [-146.1, 72.0], "normal": [0, -1], "depth": 1.6, "sill": -5.05,
       "meshes": ["quay_walls"], "clear": ["outfall_dark", "outfall_stones", "outfall_runs"],
-      "opening": [[-3.0, -5.05], [-3.0, -3.1], [-2.9424, -2.6708], [-2.7716, -2.2581], [-2.4944, -1.8777], [-2.1213, -1.5444], [-1.6667, -1.2708], [-1.1481, -1.0675], [-0.5853, -0.9423], [0.0, -0.9], [0.5853, -0.9423], [1.1481, -1.0675], [1.6667, -1.2708], [2.1213, -1.5444], [2.4944, -1.8777], [2.7716, -2.2581], [2.9424, -2.6708], [3.0, -3.1], [3.0, -5.05]] }
+      "opening": [[-3.92, -5.5], [4.08, -5.5], [4.08, -0.3], [-3.92, -0.3]], "openingNote": "the study's own brick head wall (outlet_headwall: its arch, slime and weed) takes the place of the town's head wall face below the coping" }
    ],
    "water": [
     { "id": "gallery", "zone": "vlietrui", "width": 3.0, "flow": [0.0, -0.04] },
