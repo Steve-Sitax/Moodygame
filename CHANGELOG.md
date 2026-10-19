@@ -11,6 +11,9 @@ Bugs and loose ends are tracked as [issues](https://github.com/Steve-Sitax/Moody
 
 ## [Unreleased]
 
+- Rounded landmark stone arrises and repaired narrow-face UVs while retaining original materials and collision support; capitals, statues and other construction details still need work (#171).
+- Aligned pavement flag joints to kerbs and side-street rows to junctions; remapped gate, railway and Sint-Jansplein paving. Step and plinth tops, park paving and final junction checks remain unfinished (#199).
+
 - Authoring only: cloth clearance preserves lining thickness and ignores opposite-facing folds (#82, #138). The runtime people kit is unchanged; neckline and shoulder defects remain unaccepted on the separate rebuilt candidate.
 
 - Antigoon is now 3.85 m tall, with matching collision and reach, small enough to stand upright on the bed of a 4 m rui (#189).

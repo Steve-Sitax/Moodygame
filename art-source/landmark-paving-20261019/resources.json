@@ -1,0 +1,434 @@
+{
+  "sourceCommit": "ffefa404286065ad9de07f834c86eb60de66376a",
+  "baseCommit": "0d8b8ca2c0f453f306a84b2844b8f528ca46d29e",
+  "reviewedMain": "02602f0b3ec1bd279aaf5a5ac73e7d5f873bc23f",
+  "resources": [
+    {
+      "path": "native-godot/world/town/resources/r000025.res",
+      "group": "junction",
+      "baseSha256": "f6b40b264c15b6a1192a7699b1dcbb0355925f20e3bfa769084bc1af7babb870",
+      "installedSha256": "6ceb1f02ef3790e018d1f55ac95d168b7b41d2055158b460175e8b3e993bed93",
+      "historicalSupportSha256": "D09B77F8DD8772292C128A5F9AAFAB4FA830CBF71B6D81791B911E6947A68F05"
+    },
+    {
+      "path": "native-godot/world/town/resources/r000039.res",
+      "group": "junction",
+      "baseSha256": "c15f823b9418676f88546dc5f7b29baf39441f567bc48783161d1c0fd0881316",
+      "installedSha256": "641dd1a08bbb735b99444c043f30551c233f2fafd0105862dc76e32b4b4c0276",
+      "historicalSupportSha256": "880D8EA2377E6D0A27E8A5CD67BCC041767D23643D7866BA5A92FF115C5853A4"
+    },
+    {
+      "path": "native-godot/world/town/resources/r000210.res",
+      "group": "flags",
+      "baseSha256": "38f0e020e7d6084b7045035e46fc70c3d51c7f491f9e271dc932c4161184e65e",
+      "installedSha256": "a20afcae1ccbd8cccdcbc0b073f15256012f7239e5092301516d4acd044b4c88",
+      "historicalSupportSha256": "DDE9951146223E665B0C7DC3D43BBC6A5EDCF70892C447AC24010EB0D927CC4F"
+    },
+    {
+      "path": "native-godot/world/town/resources/r000235.res",
+      "group": "flags",
+      "baseSha256": "564508626e157fae8d87b7d13f109e688d9d175707655625fbb9f53c1e8c6567",
+      "installedSha256": "93577bc3b0fcbddf762e403f6c5d0c58c42d84db135e129983d47fa016a03622",
+      "historicalSupportSha256": "E87177A60C8D7C6CA7B2D28C924286ECCBCB4453840E9434D6B1C2BC16FF7883"
+    },
+    {
+      "path": "native-godot/world/town/resources/r000245.res",
+      "group": "flags",
+      "baseSha256": "728346e5c7fcc1f57ec229a243097768a2409417cdcbdff18773050200a6c646",
+      "installedSha256": "91bb05dee6baea8707ec8c86932fca10c4ab7f31d60f27cd79bce1158f869907",
+      "historicalSupportSha256": "6D38F45175782CF6861EED45EB4BABDE2B07E702A2004A6D83876EFA73F74DC2"
+    },
+    {
+      "path": "native-godot/world/town/resources/r000255.res",
+      "group": "flags",
+      "baseSha256": "019569fee7a6644463f7c3438d6f0f771c66239d00bd4ec8bc516c134bed4f44",
+      "installedSha256": "355fcc5565b502d36e25cbafe3dfbd226c5a3663927e5454baa31ba5fb61643a",
+      "historicalSupportSha256": "2B8FD5F73514B71E4F52F6E3E64C9B84584939F11064DD4A0A32CB29E9B5D1F0"
+    },
+    {
+      "path": "native-godot/world/town/resources/r000265.res",
+      "group": "flags",
+      "baseSha256": "c35b99a6a7431ed6f5365e502b6b8c7a61195f109ac63a0ffb96860f3d46bfa8",
+      "installedSha256": "c45cbcb256f0063572822133e501dfab77fef1636b2ba5c1c01757e87799d69b",
+      "historicalSupportSha256": "E96289F376C8699B3BB974DEAD35A926E02AFFE26E09CA712CE6E2755E14D91C"
+    },
+    {
+      "path": "native-godot/world/town/resources/r000274.res",
+      "group": "flags",
+      "baseSha256": "b4f3e651a99cfcad61c0900548a27656b3f35ab77296ff218b6909012b8429c4",
+      "installedSha256": "45354f3cf414c19598b47dc8135557de23cd680d763f2e3a79062a3a85172368",
+      "historicalSupportSha256": "10DE06DF11F960B79563F41F73185ECD875F6A6E5B8C08D60B37BFBE1007D6CA"
+    },
+    {
+      "path": "native-godot/world/town/resources/r000284.res",
+      "group": "flags",
+      "baseSha256": "081ceb975147dbfbb4d8d06609f8699fbd9cac5a9b18b8579628384c5d348f0e",
+      "installedSha256": "4502846ca1d1ce46fb8aae291dd21abf2443ba860de4d3146ccb72712ab6fc73",
+      "historicalSupportSha256": "16716BCFEAB3618A5EC77AB430D0B52DADEF4A73FA8068F90FF4ADB7694BFA2B"
+    },
+    {
+      "path": "native-godot/world/town/resources/r000294.res",
+      "group": "flags",
+      "baseSha256": "22934eae7287136dc91d419b6d47c9a9a50856c83babdcae0b4d004cd94c3917",
+      "installedSha256": "e78e6276640bb04008db75cee48031c8f62041a2bf7d55be762a153729352e3f",
+      "historicalSupportSha256": "CEC323391B0FAEF74897A6D09A6D93A2B58E6D3C979450CC1049E0A05CE5FB59"
+    },
+    {
+      "path": "native-godot/world/town/resources/r000304.res",
+      "group": "flags",
+      "baseSha256": "a3ff2640307a39a96290c46d827895828c0d8c04f6acbc11d4046a0dbcb054f8",
+      "installedSha256": "0b27350a0b00204789b2a4b416c84af88b56ed80cd833a3aa564a1e7c064a155",
+      "historicalSupportSha256": "8111DB9849D4FD2C9CB1526C1082748CA618520C1FF643E3A068935EF0255FB5"
+    },
+    {
+      "path": "native-godot/world/town/resources/r000313.res",
+      "group": "flags",
+      "baseSha256": "999e0410f09afda8d409d71427b6f9f2ea1d7b59ddfa1b87f1d2f9c9c256761b",
+      "installedSha256": "898fb94f160570446237de323f804a3e4d83519b5d4961f1a4bc1ef06c11df33",
+      "historicalSupportSha256": "9C50095AC98DA3332FA874834727453B55709794EB764D5A1C05C07E91E29328"
+    },
+    {
+      "path": "native-godot/world/town/resources/r000322.res",
+      "group": "flags",
+      "baseSha256": "98e9ffead136823e2fa0af64295039eeda805ca5bb4210e283056ba9cdb83ffd",
+      "installedSha256": "c3101a8f6f5971c7f173c79f77c85539b2faaf313b7c3bee13df3f27ff50435e",
+      "historicalSupportSha256": "B871BA5CF98425FA8B256F45834E89825BBE67A772BE9DBA69B44F303FC967D7"
+    },
+    {
+      "path": "native-godot/world/town/resources/r000331.res",
+      "group": "flags",
+      "baseSha256": "ff30d2c22bff5fac971d44cc64b5fa66c016aabc738b00918c9ae709474d4796",
+      "installedSha256": "35668ede9cab0d8c665a9d4525e608ddc0557244d52b230bfda4d37f943470c5",
+      "historicalSupportSha256": "2E2045093364CCAB28510612B6C0F1A0F0D228AC7F62BE6226D939EA78361CEF"
+    },
+    {
+      "path": "native-godot/world/town/resources/r000338.res",
+      "group": "flags",
+      "baseSha256": "a110bbe676e179fce550eb76d549a0569f08cb5adf1e5a0dbaf75e0afec4c442",
+      "installedSha256": "0b8f23e197093b5caaf45b9009f17f72de98e78b02f6867ed1fdf146a96276ce",
+      "historicalSupportSha256": "FD7AAB22E1DB95138410CC8F17158F4FC75239CE8F633A88FEF4AD9F92F91014"
+    },
+    {
+      "path": "native-godot/world/town/resources/r000348.res",
+      "group": "flags",
+      "baseSha256": "9b4ead818888e24783b38f090cff3659d3cd4fc816ce4941c116ca4683d8a0e1",
+      "installedSha256": "9be20fe6e3078ed83c1478fe3d7d9dfc681b1692ed687fac81866965fcc851ce",
+      "historicalSupportSha256": "1C3CA844C67F16533BDC153F77021621CD75DF4C1B24D91721A6439C8D4EC5D9"
+    },
+    {
+      "path": "native-godot/world/town/resources/r000357.res",
+      "group": "flags",
+      "baseSha256": "182f8198ea4ac529b63dfa47d3a7565e918d8fa3bff5bef87554c5fba5958329",
+      "installedSha256": "680dc658aa8db5f3576145b7a2d198c7d681794b4fda854aed8b57e5daa2d3e7",
+      "historicalSupportSha256": "78D0E887E9790F5D29DBE3C61AADAA630110ED11D78DC9418CCBB27212591A0E"
+    },
+    {
+      "path": "native-godot/world/town/resources/r000367.res",
+      "group": "flags",
+      "baseSha256": "4f44b5984eaf7f56767c55c3828852068908e4cbee082997d7327f107463a560",
+      "installedSha256": "21e5a55d2c00fc1ec93f1d3dd12b20322e982c8e6114a8837cb12c28ec010f78",
+      "historicalSupportSha256": "9A289456218430BE7FACE5ABB0D6DFF1B00EC8A28CEA1CD51EB0FD8071B7E2CE"
+    },
+    {
+      "path": "native-godot/world/town/resources/r000377.res",
+      "group": "flags",
+      "baseSha256": "f5a608cb2b0fd5d979f87d5a7eed5d46cbb78da2a6ba4d17ca06829f8a32b594",
+      "installedSha256": "4fa5adddd927b386a0d21dca82c46a67f8da83d7fc7179db3ebadb4336d62e17",
+      "historicalSupportSha256": "E93FDF2A9582216760680C28FC3852F9F5A7D13FC1EAABCE09A7BFFDE6708138"
+    },
+    {
+      "path": "native-godot/world/town/resources/r000386.res",
+      "group": "flags",
+      "baseSha256": "ab535ffc01a85157518fedc271f33e9c620bbd016b171188fea1c1dd331d7b3e",
+      "installedSha256": "15f7ee198d1665f0cfd896fc250afde3ac1c0ca26a007f39e90b0acbe0032f6e",
+      "historicalSupportSha256": "0B58856A6C752066D5B3EEE98C33940ACEEF4BB9826CFD565E5FBCC08337B29B"
+    },
+    {
+      "path": "native-godot/world/town/resources/r000395.res",
+      "group": "flags",
+      "baseSha256": "1d6862b7ab2c36394fdaf743e307ca00b856264eec37425ff61c3337521d2e40",
+      "installedSha256": "d34bb4f6bd527a13aad5081183bde90eeec7bca255803e9b1ed4727c1191c8da",
+      "historicalSupportSha256": "9E90A58D88C2365C04BAA0BAEED89C3E82E6439486EACD56D05C19D4E7726F3D"
+    },
+    {
+      "path": "native-godot/world/town/resources/r000405.res",
+      "group": "flags",
+      "baseSha256": "ee0da2ea4cba018be62065342281055d3be08e82e8bdc5749e30ed8b6de384c1",
+      "installedSha256": "c7424601bb427329aefdabbec9cb8854d7a3a005d6e0f1f097c747eba8a782fa",
+      "historicalSupportSha256": "CECFAD61DF22EE2831A5D3EC84D599B364E8D18B58AA7AA3BDA96626ABB5E659"
+    },
+    {
+      "path": "native-godot/world/town/resources/r000415.res",
+      "group": "flags",
+      "baseSha256": "8f60ed80c11701c34235233090f356c6189872fdeb5d20ef85881e13fda3ec6d",
+      "installedSha256": "d0d25d1f72861a0f9c5b0dd4116fe0101d0b33ea18b88952316e70dbef90a7c6",
+      "historicalSupportSha256": "FC02C7329AD34FA889404E4B334D94078F14B0BDA0009F82641E92A1BB16296F"
+    },
+    {
+      "path": "native-godot/world/town/resources/r000425.res",
+      "group": "flags",
+      "baseSha256": "2d224a5613ef676f4a670459bc0d2386588fc60087c6481a3529ab42e6ad815f",
+      "installedSha256": "a41a0a3eb52fdf0653a3c2b16b9884b567dbc2e559ff85fcf64de8d5d55b95ba",
+      "historicalSupportSha256": "7622728AB35D07046CD9FE75EEC01C6B40202E9FA51433F9219CC33B1B2209E0"
+    },
+    {
+      "path": "native-godot/world/town/resources/r000434.res",
+      "group": "flags",
+      "baseSha256": "f3193e1fef13fc2ba100b00ced94c9ed09ce5ca91a88c2b32c70f08f8e3e9df6",
+      "installedSha256": "9db218285cb837d54a062bf3bb4d90bc06229adbd0eba81e69b8f5a6b7203342",
+      "historicalSupportSha256": "350CDEFB911D1DB38083EAA53F8EE8909768A0DB6DF362F40010458747EF3EB3"
+    },
+    {
+      "path": "native-godot/world/town/resources/r000443.res",
+      "group": "flags",
+      "baseSha256": "e22943b5ac95b2f858e5f2f683681400ba1ce7b01f8dec132611eece8f1d51e7",
+      "installedSha256": "e61796b223f252073f92a1372ff50e8f58996ba320dc580175f34a028b7faf3c",
+      "historicalSupportSha256": "8CC34041A54A0B4B409475647A8F40E14A33ECE311AC6D23DCB8282A607EB1F7"
+    },
+    {
+      "path": "native-godot/world/town/resources/r000453.res",
+      "group": "flags",
+      "baseSha256": "f14b3041d91768c69701b7b172c468e1c737aa621d3b35d70f2dea5813935fc2",
+      "installedSha256": "c928f4ad3d51b2c9ec7a9c3cba4cec3d0889070d9683c9dd5c5f84afa7eee89c",
+      "historicalSupportSha256": "874C9CCF6925E034045A4D4247E7C2B8787B0AD4D72D7B16A77FFC36F9826752"
+    },
+    {
+      "path": "native-godot/world/town/resources/r000463.res",
+      "group": "flags",
+      "baseSha256": "8af0a027d35dfd2b31e24512ae7d0f5630a09a1cfb8701d7d15b83083a183a66",
+      "installedSha256": "7394e4d2b0af7becd33c4e90ec3d8971b672aa4bcaaded690510ea22d26596f5",
+      "historicalSupportSha256": "D45E8D7AB5C2D28DE7ECF2AFBE7E59B6CC7D7CFB4FB26D7A1FD9C46ACA0D0ECC"
+    },
+    {
+      "path": "native-godot/world/town/resources/r000473.res",
+      "group": "flags",
+      "baseSha256": "29874ae53048c171ea6c558259a4982584a4feee3c36e08b6bd25811f7361cf7",
+      "installedSha256": "7c5a80fcc9d33c9b011f921dff59b13faa5fc73d6c71286b4efc7fee46be3010",
+      "historicalSupportSha256": "582AF869F2E2B1592151ABCA34013E6E99F5A7648CBA00F8E3F698D9D1581355"
+    },
+    {
+      "path": "native-godot/world/town/resources/r000553.res",
+      "group": "regions",
+      "baseSha256": "7bd8c969190331589b3b32d53a0465424cfd8c6988810b1081a8f3a4f5f99cfa",
+      "installedSha256": "b19a7df3848c65e2be50cc6d6d3f9de49557cd87fede881754c3667b25e2f012",
+      "historicalSupportSha256": "4B36F9EE437AC90F4DF248BAC7D5CD0AFA14E1180A09DCCC5F5F0FDEF4F4A57E"
+    },
+    {
+      "path": "native-godot/world/town/resources/r000658.res",
+      "group": "regions",
+      "baseSha256": "c538d64242f7ea962094a65ec91a7f764fee7868cc53d0c1ddac42f24c85a0c3",
+      "installedSha256": "8e50165c7e7673f9204271a5b7ff8a05543bd0927b1e05c89c23b544d6364461",
+      "historicalSupportSha256": "64865CFABD84620B9C0FBFE0C97D1919CE7862FE9FBD824AAD665CB31BBC2161"
+    },
+    {
+      "path": "native-godot/world/town/resources/r000688.res",
+      "group": "regions",
+      "baseSha256": "d7921b65e5d6cbcf8bfea875f04adbae44466a11b9b710f18b5397fc2046edee",
+      "installedSha256": "9cf7a578a94366c96a41c9b402233b91992b1cfa457d8f9b1abf4bf788b76e90",
+      "historicalSupportSha256": "FD81C0AD07954F993DDEABE41895DB5DD2F2B6557D17A680C926B4ED481F6603"
+    },
+    {
+      "path": "native-godot/world/town/resources/r000699.res",
+      "group": "regions",
+      "baseSha256": "d5e4446b195aa102e277b624ce06bd25e7525ece757ce7f56df82cdd9b677731",
+      "installedSha256": "3d3e5f6f7f801d9aa47128ec8873d41ed46761d8124308e3078d5935445efe03",
+      "historicalSupportSha256": "C05C06C4A74921AC8B762CB1768BB1770819C3B14CE95867A7586A883F2FF16F"
+    },
+    {
+      "path": "native-godot/world/town/resources/r000710.res",
+      "group": "regions",
+      "baseSha256": "d6329441582e46194a5f93d6c376f97cb1eacd2899d7d8cc3d460bf59237a5f8",
+      "installedSha256": "645dc1c301e6422e7ec4b63b8787b919cc3c363d118eb1cc855bc857b9e569ac",
+      "historicalSupportSha256": "727D55260B2FA7B4F559DCF4119F8ABEF6E487C8942064D8D8128F3AC76C6E0A"
+    },
+    {
+      "path": "native-godot/world/town/resources/r000967.res",
+      "group": "stone-final",
+      "baseSha256": "807015a7936261f927fa069928b46770d1e95dfaaed2d154e25040dd817f453a",
+      "installedSha256": "cf98ad5c06494d5c46a7d076c86142342e9dabd69edc14f07dc644b179eed31a",
+      "historicalSupportSha256": "148C9E7AB7B24E2FCD75249A7700B798FB5402175148063F8C46B2C77FB6A71F"
+    },
+    {
+      "path": "native-godot/world/town/resources/r001003.res",
+      "group": "stone-final",
+      "baseSha256": "4259589a8db90dc07343af01b4ed30ee9e98d369c99425fd25fd4f02fe5501db",
+      "installedSha256": "d98330c743fde871534968218070e5701bb0193907a6757e9f2597097a741259",
+      "historicalSupportSha256": "EA5D2D002859642D75D5BDBA555D09154CD24276AF34D2C9DC4E7766F73ED6BB"
+    },
+    {
+      "path": "native-godot/world/town/resources/r001009.res",
+      "group": "stone-final",
+      "baseSha256": "b88cb17b13af9a86616107753bfb1addb2cff44bf534dba481a867fc146d0f9a",
+      "installedSha256": "704d0eeb21d4bb467d9021b6338ff3535a93cce1afc666f89a3ff5032064a7da",
+      "historicalSupportSha256": "FD491ACD0759B57647A023B60609BF028092151AA2B2DC19D165AD19BD057B6D"
+    },
+    {
+      "path": "native-godot/world/town/resources/r001031.res",
+      "group": "stone-final",
+      "baseSha256": "4f9b6d1a0ae295a7ec06b8827629eeea6df3186aa735f222c7285e1211277a40",
+      "installedSha256": "f003c0210bcea89db0b03931695c87607fc7365616343550c27ad87fbcf0043e",
+      "historicalSupportSha256": "91B8AE1B3CEA001C6D353C5BE5E59CE02AD47DB941D106EB3D262A3416867B7C"
+    },
+    {
+      "path": "native-godot/world/town/resources/r001042.res",
+      "group": "stone-final",
+      "baseSha256": "1d6c0f723d9f1aa50e9a9140e87d1e3211b2d9cf2e8770063e829b498dca37ae",
+      "installedSha256": "28b24fa8a5ed231055413abdaf712d0205bfe63c44ced4ebbf2848aa927cc3a0",
+      "historicalSupportSha256": "01E28FFB021C8A1BE22A00FC8D8AF56DED4A3AA733DEECD3DC3BE4697E7C25E7"
+    },
+    {
+      "path": "native-godot/world/town/resources/r001047.res",
+      "group": "stone-final",
+      "baseSha256": "ebdc208551ba13389c4a9b418ce0bc6916661622f34a0a9adf7ccaf753dad31c",
+      "installedSha256": "07bb712dfa598e7cf1d202b0ca73a72d90c4a149f788ce34cb55ba97d75a06c8",
+      "historicalSupportSha256": "030F0BD4BECD69502300DD202C4E686F011F37282A92D7DE22EDBDC3F1FCACF8"
+    },
+    {
+      "path": "native-godot/world/town/resources/r001049.res",
+      "group": "stone-final",
+      "baseSha256": "e93e503b1870d3ce5efecd410bf682b7a090ad7c1d7fe9f0b4ab181af5764781",
+      "installedSha256": "36921025ba5a324025ddba4841fd847e1e2f9946f78e73c6f74b0de0dc21f9b9",
+      "historicalSupportSha256": "D89BCEE9D15762A64717919CFE58518ED7AC924BFFE133E18782B6EDEFC2B996"
+    },
+    {
+      "path": "native-godot/world/town/resources/r001055.res",
+      "group": "stone-final",
+      "baseSha256": "deb5df0897cdff1ac79c99a1e0b3ecc204f8e208f7eddf48d64549f0e2a8f821",
+      "installedSha256": "f10105109e2393d82337ebbff9a2695c62fa8b11b2ad0cffd185ce1056b80edc",
+      "historicalSupportSha256": "CEB5E4BBCEC98E2B18B067B9D5513C1747A5F52C8D77CCD2968626DEAB99C773"
+    },
+    {
+      "path": "native-godot/world/town/resources/r001061.res",
+      "group": "stone-final",
+      "baseSha256": "94c8df708dfa022d9c4c5dc467f2603c70e479510dec48357b9c2c383ef3e456",
+      "installedSha256": "c5bd66e5f4730484aae66e9bc31074625bb9b2c8f3ccfd932d75b71394a35d11",
+      "historicalSupportSha256": "BCB07C0120428A7451B211B827920356F33A54CE77713FD4540DA1B0075FC731"
+    },
+    {
+      "path": "native-godot/world/town/resources/r001068.res",
+      "group": "stone-final",
+      "baseSha256": "e19f0f270fddd0892d8309c4b2dc49e826cd685719e96f0efd23646751170b58",
+      "installedSha256": "290ab5ac21b35b9e0d0b7aa8a38ba4915d8f963e459371aefb824a8f9f7bb279",
+      "historicalSupportSha256": "134302840D25BD9614BEA6B18D0C6926E3E6BF609563B41E0975AD6929DA7539"
+    },
+    {
+      "path": "native-godot/world/town/resources/r001081.res",
+      "group": "stone-final",
+      "baseSha256": "ee4536bd0d21ae9f65784df5528508cd94c1b26277fe4f780c51b786ffc3c561",
+      "installedSha256": "e163d66fbbf5429a908eb2a742048e48226deebdbeb06901e5943be743ada30f",
+      "historicalSupportSha256": "3C90CD5787C72906E053DDB9ADAC88ABAFC28DB14F01B91F3DADD434220A17A7"
+    },
+    {
+      "path": "native-godot/world/town/resources/r001084.res",
+      "group": "stone-final",
+      "baseSha256": "781e0b0b390b5ec5a9bdbb0580dc85ef977d4c866b5124d4ecbcdc1dc49582f9",
+      "installedSha256": "f417b789b565648d2c8d1f3764a1d7e65e721e9844c035e13347862c29f2775b",
+      "historicalSupportSha256": "1C0017EAE185FBBAEC3D6F25FE8D68CFB0B63D5BDCAB0431D8A1ED951254AA5B"
+    },
+    {
+      "path": "native-godot/world/town/resources/r001091.res",
+      "group": "stone-final",
+      "baseSha256": "f0f44016f1196f05a3829848486af4a22f38f935c304dfbe0fcf7921403281e1",
+      "installedSha256": "1f13487257806d42f6177dab15ad8556c6dffc1b951b5a3d222dd25e7611bd69",
+      "historicalSupportSha256": "9A42408644539B6B6619197371F5B9817AB62FAEB0D2F5C3C87D15B8E67B6A14"
+    },
+    {
+      "path": "native-godot/world/town/resources/r001103.res",
+      "group": "stone-final",
+      "baseSha256": "9bccb1a91a8af9ae64caafa406dd337a869f73e7c4ef600cde046a970425b11e",
+      "installedSha256": "7956912115d405e03f248e4a6317b42d63134d3d6898dc1c5453f6fd28b8095f",
+      "historicalSupportSha256": "88091B67D8A2398DEB2BD9E14CAF66506C2857B3A0195D53901F8948BB31588C"
+    },
+    {
+      "path": "native-godot/world/town/resources/r001133.res",
+      "group": "stone-final",
+      "baseSha256": "12ff3b92ce722436013dbe05edc02acba366a566c0ddae224d596aade3c100eb",
+      "installedSha256": "3c8ce8e4b8c155bb81fe6622ba2e8386653af792e628500a7995107ed8f7f80b",
+      "historicalSupportSha256": "2CD5D6B4B2AB424CFFDBCC96A5F866399E799810BDA03BF677000D997917DE53"
+    },
+    {
+      "path": "native-godot/world/town/resources/r001197.res",
+      "group": "stone-final",
+      "baseSha256": "bc3165693234e09cf39061a950564c5c2083373bd4403efa404d1acffefaa0e7",
+      "installedSha256": "e69d3cf1cac055bafc3ea3d71e8b6a90a153df06f35d6b9d1fd0e1b4adec0b29",
+      "historicalSupportSha256": "3D5C276F25609F2D49F243B5ECB1FDAC2373425203D04994415704D352C5F9D5"
+    },
+    {
+      "path": "native-godot/world/town/resources/r001218.res",
+      "group": "stone-final",
+      "baseSha256": "56a1a250cfc133753a20c9ffc8c1aab1625ccc38f4ef1d92dd9078d503f2cca0",
+      "installedSha256": "4848fe795151d5e25049587641bda12f0fcb3384ba550168ee6c79c1c51ed009",
+      "historicalSupportSha256": "DDBBC580347EEB5ECF40D47814DCBDC0FE319052DCE7C12C5EECB948915561F3"
+    },
+    {
+      "path": "native-godot/world/town/resources/r001234.res",
+      "group": "stone-final",
+      "baseSha256": "0373bc3952c69e761248bc2b9dec57024579b849e77f11e3a675c0d1e404e31f",
+      "installedSha256": "2faa20dc9297429f3f42a64cc1de46108afc422d192adb3d810eb670b208e1a2",
+      "historicalSupportSha256": "92D66BEFC153FC3F69AF975D12ED27CE5E7CD5B0F138F70A17BBA6C8474B4C7D"
+    },
+    {
+      "path": "native-godot/world/town/resources/r001246.res",
+      "group": "stone-final",
+      "baseSha256": "7fcc726271589d5b2b11f444be2f2636fd36d02ca53c85e93ac6bd958131b7b5",
+      "installedSha256": "4311f20b605a09db1686b82bff01b45bb166c48a7108d156a14aecd95f53b3dd",
+      "historicalSupportSha256": "9BC3E77A8C28B00644A6DAD17B00FD4E6656803C5C7ECAD8714CCEACEA0D9E38"
+    },
+    {
+      "path": "native-godot/world/town/resources/r001253.res",
+      "group": "stone-final",
+      "baseSha256": "d52febca38f1b8bda75b2f357fc876d9b2e3058f98b9f0b668822d0d31ebf0c9",
+      "installedSha256": "35b6a03243c0edff8265484e0231a9d0f671d1ecdef6e8252553e2cd3682cdb1",
+      "historicalSupportSha256": "31365357056FAF59579AC7B586DF78342234D2E62F87D798EA62C73E8B9DA90D"
+    },
+    {
+      "path": "native-godot/world/town/resources/r001256.res",
+      "group": "stone-final",
+      "baseSha256": "3698a466fe8fa20bd2e4c5377ce528a3ba45ae4ed6aa2785eb2c4d9cb0877a4e",
+      "installedSha256": "4279a625ee00836d5d3a259a124d71421479ae19b1397ae7a41de53a0419466e",
+      "historicalSupportSha256": "17492A0DCE239D9C27FB907504496C9D2741DC3C979DBD8783F76BB3F9463851"
+    },
+    {
+      "path": "native-godot/world/town/resources/r001262.res",
+      "group": "stone-final",
+      "baseSha256": "794895b4f07cb9965cb4b83ec914d42e13954a82c37f4a0f2b6dd162c6ac7834",
+      "installedSha256": "d346b32c83bc1ea4f276d81ede8b99902171915029dc901b53af76823e3e31cc",
+      "historicalSupportSha256": "D38FE1196C6AC224825A21D68AA2AC641185BFDD5CBC57713158EB5C17EEDCAB"
+    },
+    {
+      "path": "native-godot/world/town/resources/r001276.res",
+      "group": "regions",
+      "baseSha256": "656739d204e91cebf2b81347bf519aae05aa7118c242eb27de47c1b9e4f009a7",
+      "installedSha256": "b0bf6db1347e12039b5d10c8e9182f4d18954f6dfef51d20ef83913a403322c2",
+      "historicalSupportSha256": "79AC184AB76BA16D44F1B2BD15ACF0ED9F27BBD280BBE82B454A9B9E1B83319F"
+    },
+    {
+      "path": "native-godot/world/town/resources/r001285.res",
+      "group": "regions",
+      "baseSha256": "2c623375cfa89c7ea88b46a2e27c5da90d5100a09a4234e53e725ef812f4c684",
+      "installedSha256": "542862e2a1e652f6f131eed169065c336552e94d6eb18b680070a245d69b01ac",
+      "historicalSupportSha256": "3887D081AC107CD4EE30523FE38139D3EC60E7AAE90552D211BF96CFC8A95C70"
+    },
+    {
+      "path": "native-godot/world/town/resources/r001300.res",
+      "group": "stone-final",
+      "baseSha256": "354e555a238b567b3063bf44840c4ba1a260cc1179e7e7446ee292e3ae1185fa",
+      "installedSha256": "d0b6234c853d37448cafa7fdd69d333d63490c1acde0dae1818b27a5c959c40f",
+      "historicalSupportSha256": "942FDFC3E2440C3694E443B0AD5F785C1E7CDED300160CFDD5D3C997DB10619B"
+    },
+    {
+      "path": "native-godot/world/town/resources/r001352.res",
+      "group": "stone-final",
+      "baseSha256": "21a44dc5d3d79169743f7f9b271bef01c6cc6e149b54683f2445b6df6274d100",
+      "installedSha256": "aefc01cc6e59ea6a3c702b8505bcb9d22a1f6c25e3ef343485a325cd64ade439",
+      "historicalSupportSha256": "3EEBE83C8583DAEFAD2EF372E3CFC3715C12F08567217D417FB5AD61E13B21F2"
+    },
+    {
+      "path": "native-godot/world/town/resources/r001359.res",
+      "group": "stone-final",
+      "baseSha256": "f120e29d07bae08b250ebef56c3526e2f7f91a292ac6e00831d12d761bc7aac5",
+      "installedSha256": "63d64f6ceced62dd3fff8c00a64768eabd05c9b2eacdd4c93eb08aa410a672c2",
+      "historicalSupportSha256": "D86446E750A0541C820FD17951ED91F99DFAF835D700885F69FE9A16BD827A61"
+    }
+  ]
+}

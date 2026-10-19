@@ -14,6 +14,11 @@ sharp arrises chamfered (pavement aprons stay on the old stone). Each new stone 
 STONE_157_ONLY=1 builds the first pass only.
 """
 import array, hashlib, json, math, os, pathlib, random, sys
+if '--landmarks' in sys.argv:
+    # Landmark stone retains its materials; the town-house pass assumes brick beds.
+    import runpy
+    runpy.run_path(str(pathlib.Path(__file__).with_name('repair-landmark-stone.py')), run_name='__main__')
+    sys.exit(0)
 import bmesh
 from mathutils import Vector
 from mathutils.bvhtree import BVHTree
