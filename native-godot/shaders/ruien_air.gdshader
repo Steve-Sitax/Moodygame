@@ -105,7 +105,8 @@ void fragment() {
 				vec3 d, s;
 				ruien_lights_at(q, vec3(0.0, 1.0, 0.0), -rd, 0.0, 1.0, d, s);
 				float cq = ruien_covered(q);
-				light += (d * 0.5 + ruien_fill.rgb * cq + psx_hemi_sky.rgb * (1.0 - cq)) * (dens + 1e-4);
+				// (a lamp close by lights the mist round it softly, never a white blot: its light rolled off)
+				light += (d * 0.35 / (1.0 + dot(d, vec3(0.3))) + ruien_fill.rgb * cq + psx_hemi_sky.rgb * (1.0 - cq)) * (dens + 1e-4);
 				wsum += dens + 1e-4;
 			}
 		}

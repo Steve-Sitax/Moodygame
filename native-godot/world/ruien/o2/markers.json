@@ -14,27 +14,6 @@
       "range": 14.5
     },
     {
-      "id": "L_hatch_daylight",
-      "kind": "hatch",
-      "at": [
-        -158.9,
-        -0.3,
-        136.375
-      ],
-      "dir": [
-        0,
-        -1,
-        0
-      ],
-      "size": [
-        1.199997,
-        3.0499878
-      ],
-      "power": 8,
-      "range": 16,
-      "beam": 3.3
-    },
-    {
       "id": "gal_lamp_far1_light",
       "kind": "lamp",
       "at": [
@@ -167,17 +146,17 @@
       "range": 6
     },
     {
-      "id": "L_grate_daylight",
+      "id": "grate_shaft",
       "kind": "grate",
       "at": [
-        -147.20288,
-        -1.5441924,
-        92.38656
+        -146.903,
+        -1.782,
+        92.536
       ],
       "dir": [
-        -0.1952,
-        -0.9759,
-        -0.0976
+        0,
+        -1,
+        0
       ],
       "size": [
         0.66,
@@ -187,30 +166,53 @@
       "bars": 6,
       "power": 6,
       "range": 14,
-      "beam": 2.157821
+      "beam": 1.8679997
     },
     {
-      "id": "L_air_daylight",
+      "id": "air_shaft",
       "kind": "shaft",
       "at": [
-        -149.69102,
-        -1,
-        120.71499
+        -149.5,
+        -0.95,
+        120.81
       ],
       "dir": [
-        -0.1952,
-        -0.9759,
-        -0.0976
+        0,
+        -1,
+        0
       ],
       "size": [
-        0.7,
-        0.7
+        0.6,
+        0.6
       ],
       "round": true,
       "bars": 5,
       "power": 5,
       "range": 14,
-      "beam": 3.740155
+      "beam": 3.6999998
+    },
+    {
+      "id": "vleeshuis_hatch",
+      "kind": "hatch",
+      "at": [
+        -158.9,
+        -1.134,
+        133.55
+      ],
+      "dir": [
+        0,
+        -1,
+        0
+      ],
+      "size": [
+        1.2,
+        3.05
+      ],
+      "round": false,
+      "bars": 0,
+      "power": 8,
+      "range": 16,
+      "beam": 1.796
     },
     {
       "id": "L_opening_cool",
@@ -511,6 +513,47 @@
         0,
         -0.01
       ]
+    }
+  ],
+  "movers": [
+    {
+      "id": "outlet_door_n",
+      "kind": "tide_door_leaf",
+      "pivot": [
+        -142.92,
+        -5.05,
+        71.8
+      ],
+      "openDeg": -40,
+      "travel": null,
+      "collision": "collision_outlet_door_n.res"
+    },
+    {
+      "id": "outlet_door_s",
+      "kind": "tide_door_leaf",
+      "pivot": [
+        -149.28,
+        -5.05,
+        71.8
+      ],
+      "openDeg": 32.8,
+      "travel": null,
+      "collision": "collision_outlet_door_s.res"
+    },
+    {
+      "id": "gallery_penstock_door",
+      "kind": "penstock_door_and_racks",
+      "pivot": [
+        -146.1,
+        -4.85,
+        75
+      ],
+      "openDeg": 0,
+      "travel": [
+        -1.25,
+        1.25
+      ],
+      "collision": null
     }
   ],
   "ladders": [

@@ -11,7 +11,7 @@ global uniform sampler2D psx_wave_n : filter_linear_mipmap_anisotropic, repeat_e
 uniform sampler2D screen_tex : hint_screen_texture, filter_linear_mipmap, repeat_disable;
 uniform sampler2D depth_tex : hint_depth_texture, filter_nearest, repeat_disable;
 // the silt in the water, lit (its own colour), and how fast each colour is lost per metre of water
-uniform vec3 murk : source_color = vec3(0.075, 0.065, 0.035);
+uniform vec3 murk : source_color = vec3(0.03, 0.026, 0.015);
 uniform vec3 absorb = vec3(2.2, 2.6, 3.4);
 // the way it flows (m/s, world x and z): the ripples and the scum drift with it
 uniform vec2 flow = vec2(0.0, 0.0);
@@ -98,8 +98,8 @@ void fragment() {
 		vec2 sp = p * 0.7 - flow * t * 0.7;
 		float sk = smoothstep(0.55, 0.75, ruien_noise(sp) * 0.65 + ruien_noise(sp * 3.3 + 7.7) * 0.35) * scum;
 		sk *= 0.6 + 0.4 * ruien_noise(sp * 11.0);
-		col = mix(col, vec3(0.16, 0.14, 0.09) * lit, sk * 0.75);
-		fres *= 1.0 - sk * 0.7;
+		col = mix(col, vec3(0.07, 0.06, 0.035) * lit, sk * 0.6);
+		fres *= 1.0 - sk * 0.45;
 	}
 
 	// the mirror: march the reflected ray in the view and take the picture where it meets something
@@ -121,19 +121,22 @@ void fragment() {
 			float qd = -q.z;
 			if (qd > sd + 0.02 && qd < sd + 0.35 + step_l * 1.5) {
 				vec2 edge = smoothstep(0.0, 0.08, uv) * smoothstep(1.0, 0.92, uv);
-				refl = textureLod(screen_tex, uv, 1.5).rgb;
+				refl = textureLod(screen_tex, uv, 0.5).rgb;
 				hit = edge.x * edge.y * (1.0 - float(i) / 28.0 * 0.4);
 				break;
 			}
 		}
 	}
 	// where the picture has nothing: the dark air of the vault, the street's sky in the open
-	vec3 miss = mix(psx_fog_color.rgb, ruien_air.rgb, covered) * 0.6;
+	vec3 miss = mix(psx_fog_color.rgb * 0.6, ruien_air.rgb * 0.3, covered);
 	refl = mix(miss, refl, hit);
 	// the lamps' and the openings' glints on the ripples
 	vec3 d2, glint;
 	ruien_lights_at(world, n, V, 0.93, 0.0, d2, glint);
-	col = mix(col, refl, fres) + glint * (1.0 - hit * 0.6);
+	// the lamps drawn out into bright broken streaks by the ripples (D3 style), and their glints
+	vec3 rr = reflect(rd, n);
+	vec3 streak = ruien_streaks(world, rr, 1.0 + 3.0 * ripple) * (0.55 + 0.45 * smoothstep(0.35, 0.75, ruien_noise(p * 3.1 + t * 0.4)));
+	col = mix(col, refl, fres) + glint * (1.0 - hit * 0.6) + streak * (0.25 + 0.75 * fres) * 0.6;
 
 	vec4 fog = ruien_fog(fog_depth, covered);
 	vec3 halo = ruien_haze(CAMERA_POSITION_WORLD, rd, len);

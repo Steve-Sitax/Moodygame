@@ -50,7 +50,7 @@ public static class QuayNotch
     /// the face from `origin`, height) points. Returns the triangles cut or dropped. Collision and navigation made from
     /// the meshes afterwards follow.
     /// </summary>
-    public static int CutConvex(Node3D world, ICollection<string> meshNames, Vector2 origin, Vector2 outward, Vector2[] opening, float n0, float n1)
+    public static int CutConvex(Node3D world, ICollection<string> meshNames, Vector2 origin, Vector2 outward, Vector2[] opening, float n0, float n1, ICollection<string>? clear = null)
     {
         int changed = 0;
         var poly = opening.ToList();
@@ -61,7 +61,7 @@ public static class QuayNotch
         float smin = poly.Min(p => p.X), smax = poly.Max(p => p.X), ymin = poly.Min(p => p.Y), ymax = poly.Max(p => p.Y);
         foreach (var node in BakedWorld.All(world))
         {
-            if (node is not MeshInstance3D { Mesh: ArrayMesh mesh } mi || !meshNames.Contains(mi.Name.ToString())) continue;
+            if (node is not MeshInstance3D { Mesh: ArrayMesh mesh } mi || !meshNames.Contains(mi.Name.ToString()) && clear?.Contains(mi.Name.ToString()) != true) continue;
             var xf = Transform3D.Identity;
             for (Node? n = mi; n is Node3D n3; n = n.GetParent()) xf = n3.Transform * xf;
             var cut = new ArrayMesh { ResourceName = mesh.ResourceName };
@@ -74,13 +74,15 @@ public static class QuayNotch
                 {
                     float S(Vector3 w) => (w.X - origin.X) * along.X + (w.Z - origin.Y) * along.Y;
                     float N(Vector3 w) => -((w.X - origin.X) * outward.X + (w.Z - origin.Y) * outward.Y);
+                    // (a mesh to clear out of the opening, an old outfall's dark throat and stones: every face of it, any way it faces)
+                    bool any = clear != null && clear.Contains(mi.Name.ToString());
                     here += CutSurfaceWith(arrays, xf, tri =>
                     {
                         var (a, b, c) = tri;
                         float na = N(a), nb = N(b), nc = N(c);
                         if (Math.Min(na, Math.Min(nb, nc)) < n0 || Math.Max(na, Math.Max(nb, nc)) > n1) return false;
                         var fn = (b - a).Cross(c - a);
-                        if (fn.LengthSquared() < 1e-12f || MathF.Abs(fn.Normalized().Dot(new Vector3(outward.X, 0, outward.Y))) < 0.35f) return false;
+                        if (fn.LengthSquared() < 1e-12f || !any && MathF.Abs(fn.Normalized().Dot(new Vector3(outward.X, 0, outward.Y))) < 0.35f) return false;
                         float s0 = Math.Min(S(a), Math.Min(S(b), S(c))), s1 = Math.Max(S(a), Math.Max(S(b), S(c)));
                         float y0 = Math.Min(a.Y, Math.Min(b.Y, c.Y)), y1 = Math.Max(a.Y, Math.Max(b.Y, c.Y));
                         return s1 > smin && s0 < smax && y1 > ymin && y0 < ymax;

@@ -44,6 +44,8 @@ public partial class Ruien : Node
         public float Level;
         public bool Shown;
         public RuienArea? Export;
+        /// <summary>The tide doors: their meshes (every level), their own solid body, how open now (0 shut .. 1).</summary>
+        public readonly List<(RuienData.Mover m, List<MeshInstance3D> meshes, StaticBody3D? body, float[] open)> Doors = new();
     }
 
     private readonly List<Drawn> drawn = new();
@@ -116,6 +118,27 @@ public partial class Ruien : Node
                 Main.I.View.AddChild(body);
             }
             Dress(d, root);
+            // the penstock stands raised (its travel's top), so the channel under it can be waded at low water
+            if (d.Export != null && area.PenstockRaise != 0)
+                foreach (var mv in area.Movers.Where(m => m.Kind.StartsWith("penstock")))
+                    if (d.Export.Keys.FirstOrDefault(k => k.Name == mv.Id) is { } pk)
+                        foreach (var mi in pk.Lods.SelectMany(l => l)) mi.Position = new Vector3(0, area.PenstockRaise, 0);
+            // the tide doors: the export's leaves, each turned on its hinge by the tide (Doors below)
+            if (d.Export != null)
+                foreach (var mv in area.Movers.Where(m => m.Kind == "tide_door_leaf"))
+                {
+                    var key = d.Export.Keys.FirstOrDefault(k => k.Name == mv.Id);
+                    if (key == null) continue;
+                    StaticBody3D? body = null;
+                    string colPath = area.Export + "/" + mv.Collision;
+                    if (mv.Collision != "" && ResourceLoader.Exists(colPath))
+                    {
+                        body = new StaticBody3D { Name = "ruien_" + mv.Id + "_solid", CollisionLayer = Solid.Layer, CollisionMask = 0 };
+                        body.AddChild(new CollisionShape3D { Shape = ResourceLoader.Load<ConcavePolygonShape3D>(colPath) });
+                        Main.I.View.AddChild(body);
+                    }
+                    d.Doors.Add((mv, key.Lods.SelectMany(l => l).ToList(), body, new[] { -1f }));
+                }
             drawn.Add(d);
             sources.AddRange(area.Sources);
             GD.Print($"ruien: {area.Id} ({area.Name}) from the {how}: {root.GetChildCount()} parts, {area.Sources.Count} sources, {area.Zones.Count} zones in {Time.GetTicksMsec() - t0} ms");
@@ -183,9 +206,16 @@ public partial class Ruien : Node
             root.AddChild(mi);
             d.Beams.Add((m, s));
         }
-        // the street grates over the ladder shafts: on the street, drawn with the town (not with the area)
+        // the kit pieces the area places (shared models)
+        foreach (var (piece, at, yaw) in area.Kit)
+            if (RuienKit.Piece(piece, at, yaw) is { } pn) root.AddChild(pn);
+        // the street grates over the ladder shafts: on the street, drawn with the town (not with the area); the step
+        // irons up a channel wall
         foreach (var w in area.Ways)
+        {
             if (w.Kind == "ladder") Main.I.View.AddChild(RuienKit.Grate(w));
+            if (w.Kind == "rungs") root.AddChild(RuienKit.StepIrons(w));
+        }
         foreach (var mb in area.Mist)
         {
             var m = RuienMaterials.Mist(mb.Min, mb.Max, mb.Density);
@@ -268,6 +298,21 @@ public partial class Ruien : Node
             float target = river < a.WaterMin ? a.WaterMin : a.WaterMin + a.WaterRise * Mathf.Clamp((river - a.WaterMin) / 3.5f, 0, 1);
             d.Level += (target - d.Level) * Math.Min(1, dt * 0.05f + (dt <= 0 ? 1 : 0));
             foreach (var w in d.Water) w.Position = new Vector3(0, d.Level, 0);
+            // the tide doors: the rising river pushes them shut; they swing open (about a minute) once it falls below
+            // the water inside, and the trapped water runs out
+            bool open = river < d.Level - 0.02f;
+            foreach (var (mv, meshes, body, f) in d.Doors)
+            {
+                float want = open ? 1 : 0;
+                // (a held tide, the dev kit's or a test picture's, puts them where it says at once)
+                float now = f[0] < 0 || dt <= 0 || Tide.Held != null ? want : Mathf.MoveToward(f[0], want, dt / 60f);
+                if (now == f[0]) continue;
+                f[0] = now;
+                var b = new Basis(Vector3.Up, Mathf.DegToRad(mv.OpenDeg * Mathf.SmoothStep(0, 1, now)));
+                var xf = new Transform3D(b, mv.Pivot - b * mv.Pivot);
+                foreach (var mi in meshes) mi.Transform = xf;
+                if (body != null) body.Transform = xf;
+            }
         }
         if (lodT <= 0) lodT = 0.25f;
         if (lid != null)

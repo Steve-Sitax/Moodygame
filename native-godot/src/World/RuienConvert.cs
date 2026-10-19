@@ -24,6 +24,8 @@ public partial class RuienConvert : Node
                 GD.Print("ruien convert: textures " + string.Join(", ", RuienTextures.Convert(tex)));
             if (Arg("ruien-area") is { Length: > 0 } area)
                 GD.Print("ruien convert: area " + RuienImport.Convert(area, Arg("area") is { Length: > 0 } id ? id : "o2", Arg("lods") is { Length: > 0 } ls ? ls : "0"));
+            if (Arg("ruien-kit") is { Length: > 0 } kit)
+                GD.Print("ruien convert: kit " + RuienImport.ConvertKit(kit, Arg("pieces")));
             if (args.Contains("--ruien-shader-check"))
             {
                 // (dev: the three kinds compiled on a quad each in a real window, a few frames, then quit)

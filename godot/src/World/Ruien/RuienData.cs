@@ -90,6 +90,8 @@ public sealed class RuienData
         public Vector2[] Opening = Array.Empty<Vector2>(); // (along the face from Origin, y)
         public float Sill;
         public string[] Meshes = Array.Empty<string>();
+        /// <summary>Meshes cleared out of the opening whatever way their faces turn (an old outfall's throat).</summary>
+        public string[] Clear = Array.Empty<string>();
     }
 
     /// <summary>A light source of an area (a marker): a lamp, or an opening that lets daylight in.</summary>
@@ -120,6 +122,13 @@ public sealed class RuienData
         public Vector2 Flow;
     }
 
+    public sealed class Mover
+    {
+        public string Id = "", Kind = "", Collision = "";
+        public Vector3 Pivot;
+        public float OpenDeg;
+    }
+
     /// <summary>A way between the street and an area: a ladder up a grate's shaft, or a stair under a hatch.</summary>
     public sealed class Way
     {
@@ -127,11 +136,19 @@ public sealed class RuienData
         public Vector3 Bottom, Top;
         /// <summary>The street's hole over it (x0, z0, size).</summary>
         public Rect2 Hole;
+        /// <summary>Step irons in a channel wall: the wall's foot (x, z) and the way out of it into the channel.</summary>
+        public Vector2 Wall, Out;
     }
 
     public sealed class Area
     {
         public readonly List<Way> Ways = new();
+        /// <summary>The export's moving parts: tide door leaves (turned about a hinge), the penstock (raised).</summary>
+        public readonly List<Mover> Movers = new();
+        /// <summary>How far the penstock's door stands raised over its exported rest (m; its travel's top lets one wade under it).</summary>
+        public float PenstockRaise;
+        /// <summary>Kit pieces placed in the area (shared models: the lamp brackets the export does not carry).</summary>
+        public readonly List<(string piece, Vector3 at, float yaw)> Kit = new();
         /// <summary>Export keys not drawn (the vliet's own walls and bed: the town draws its vliet).</summary>
         public readonly HashSet<string> SkipKeys = new();
         public string Id = "", Name = "", Export = "";
@@ -195,6 +212,8 @@ public sealed class RuienData
         {
             if (a.TryGetProperty("enabled", out var en) && en.ValueKind == JsonValueKind.False) continue;
             var area = new Area { Id = S(a, "id"), Name = S(a, "name"), Export = S(a, "export"), WaterMin = F(a, "waterMin", -4.6f), WaterRise = F(a, "waterRise", 0.12f) };
+            if (a.TryGetProperty("kit", out var kp))
+                foreach (var k in kp.EnumerateArray()) area.Kit.Add((S(k, "piece"), V3(k.GetProperty("at")), F(k, "yaw", 0)));
             if (a.TryGetProperty("skipKeys", out var sk)) foreach (var k in sk.EnumerateArray()) area.SkipKeys.Add(k.GetString()!);
             if (a.TryGetProperty("devEntry", out var de)) area.DevEntry = new Vector4(de[0].GetSingle(), de[1].GetSingle(), de[2].GetSingle(), de[3].GetSingle());
             foreach (var z in a.GetProperty("zones").EnumerateArray())
@@ -223,6 +242,7 @@ public sealed class RuienData
                         Id = S(g, "id"), Origin = V2(g.GetProperty("origin")), Normal = V2(g.GetProperty("normal")).Normalized(), Depth = F(g, "depth", 1.6f), Sill = F(g, "sill", -5.05f),
                         Opening = g.GetProperty("opening").EnumerateArray().Select(V2).ToArray(),
                         Meshes = g.TryGetProperty("meshes", out var ms) ? ms.EnumerateArray().Select(m => m.GetString()!).ToArray() : Array.Empty<string>(),
+                        Clear = g.TryGetProperty("clear", out var cl) ? cl.EnumerateArray().Select(m => m.GetString()!).ToArray() : Array.Empty<string>(),
                     });
             // the export's own markers (its converted markers.json) take the place of the stand-in's lists; a source
             // marked "always" (the outlet's daylight, which Blender lit with its sky) stays
@@ -248,6 +268,19 @@ public sealed class RuienData
                         Flow = w.TryGetProperty("flow", out var fw) ? V2(fw) : Vector2.Zero,
                     });
             area.Exported = exported;
+            area.PenstockRaise = F(a, "penstockRaise", 0);
+            if (a.TryGetProperty("rungs", out var rg))
+                foreach (var r in rg.EnumerateArray())
+                {
+                    var wall = V2(r.GetProperty("wall"));
+                    var outw = V2(r.GetProperty("out")).Normalized();
+                    var ledge = V2(r.GetProperty("ledge"));
+                    float bot = F(r, "bottom", -6.1f), top = F(r, "top", -3.6f);
+                    area.Ways.Add(new Way { Id = S(r, "id"), Kind = "rungs", Wall = wall, Out = outw, Bottom = new Vector3(wall.X + outw.X * 0.55f, bot, wall.Y + outw.Y * 0.55f), Top = new Vector3(ledge.X, top, ledge.Y) });
+                }
+            if (own.TryGetProperty("movers", out var mvs) && mvs.ValueKind == JsonValueKind.Array)
+                foreach (var m in mvs.EnumerateArray())
+                    area.Movers.Add(new Mover { Id = S(m, "id"), Kind = S(m, "kind"), Pivot = V3(m.GetProperty("pivot")), OpenDeg = F(m, "openDeg", 0), Collision = S(m, "collision") });
             if (own.TryGetProperty("ladders", out var lds))
                 foreach (var l in lds.EnumerateArray())
                 {

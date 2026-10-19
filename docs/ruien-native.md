@@ -51,12 +51,19 @@ Conversion (headless, once per export; it writes under `res://world/ruien` and q
   part off; `--no-ruien-gates` leaves the walls whole.
 - Snap views take `fov=N` (vertical degrees) to match a Blender lens.
 
-## Ways in (plan)
+## Moving parts and ways in
 
-1. The outlet: at low tide the vliet bed reaches the sill (-5.05); the doors open when the river falls below the water
-   inside. Needs the door leaves as their own objects in the export (requested) and a walkable apron.
-2. The ladder shaft under the street grate (O2 at x -146.9, z 92.5): a hole cut in the street ground like the gates
-   (horizontal), the kit grate over it, and a dry ladder climb with `Jef.ClimbTo` (the quay ladder's motion) offered
-   at the foot and at the grate.
-3. The stair into the hall under the Vleeshuis hatch (x -159.5..-158.3, z 134.85..137.9): the same street cut, the
-   kit hatch, and the export's stair collision (already walkable).
+- **Tide doors** (the export's movers, `markers.json` movers): each leaf turns on its hinge, shut while the river stands
+  above the water inside, swinging open over about a minute once it falls below it; its own collision turns with it.
+  A held tide (the dev kit, a test picture) puts them there at once. The **penstock** stands raised by the area's
+  `penstockRaise` (its travel's top), so the channel can be waded under it.
+- **The outlet** at low water: the vliet bed, the apron and the sill (-5.05) lead down into the channel (-6.1, the water
+  about chest deep); **step irons** up the north channel wall past the penstock (`rungs` in areas.json, E to climb)
+  lead onto the ledge. The old small outfall in the head wall is cleared out of the opening (`clear`).
+- **The street grate** over the ladder shaft (O2 x -146.9, z 92.5): the street is cut under it, a bevelled cast-iron
+  grate (one shared model) stands over the hole, solid to walk on; E lifts it and climbs down the ladder, E at the
+  ladder's foot climbs up and out (`Jef.ClimbTo`, the quay ladders' motion).
+- **The hall's stair** under the open Vleeshuis hatch: the street is cut over it (15 cm further over the flight, for the
+  head), the export's treads are walked.
+- **Kit pieces** (`export/kit`, converted one by one with `--ruien-kit <kit> --pieces a,b`) are shared meshes placed
+  by an area's `kit` list (O2 adds a second safety lamp on its bracket where the study lit v5 with a lantern).

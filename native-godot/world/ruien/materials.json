@@ -36,12 +36,12 @@
   "Runoff_splash":{ "color": [0.42, 0.4, 0.34], "rough": 0.85, "cover": 0.5 }
  },
  "water": {
-  "misc_water":      { "murk": [0.075, 0.065, 0.035], "absorb": [2.2, 2.6, 3.4], "scum": 0.6, "drips": 1.0 },
+  "misc_water":      { "murk": [0.03, 0.026, 0.015], "absorb": [2.2, 2.6, 3.4], "scum": 0.35, "drips": 1.0 },
   "Water_film":      { "film": 1, "alpha": 0.4, "drips": 0, "scum": 0, "ripple": 0.4 },
   "Water_drip_ring": { "film": 1, "alpha": 0.3, "drips": 1, "scum": 0, "ripple": 1.0 }
  },
  "air": {
-  "Lamp_flame": { "mode": 2, "color": [1.0, 0.6, 0.25], "strength": 6.0, "lamp": true },
-  "Lamp_glass": { "mode": 2, "color": [0.9, 0.75, 0.5], "strength": 0.18, "lamp": true }
+  "Lamp_flame": { "mode": 2, "color": [1.0, 0.6, 0.25], "strength": 3.0, "lamp": true },
+  "Lamp_glass": { "mode": 2, "color": [0.9, 0.75, 0.5], "strength": 0.05, "lamp": true }
  }
 }

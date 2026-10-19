@@ -72,7 +72,8 @@ void ruien_light_one(int i, vec3 P, vec3 N, vec3 V, float gloss, float wrap, ino
 		// a lamp: the square of the distance, a soft core so the wall by the flame has no hot spot
 		float dl = sqrt(dd);
 		L = d / max(dl, 1e-4);
-		e = A.w / (dd + max(D.z, 0.2));
+		// (the lamp's own cap, frame and gauze shade the stone nearest it: no blown-out patch round the flame)
+		e = A.w / (dd + max(D.z, 0.2)) * (dd / (dd + 0.6));
 	} else {
 		// an opening: daylight from a patch of sky (a grate, a hatch, the outlet's arch), from its nearest point, thrown
 		// out along its way as a lit cloth would be (cos at both ends over the distance squared, softened by its size)
@@ -138,12 +139,33 @@ vec3 ruien_haze(vec3 ro, vec3 rd, float len) {
 		float t0 = dot(q, rd);
 		float dperp = length(q - rd * t0);
 		if (dperp > D.x) continue;
-		float h = dperp + 0.45;
+		float h = dperp + 0.12;
 		float s = ruien_half_scatter(min(len, 40.0) - t0, h) - ruien_half_scatter(-t0, h);
 		// (the glow grows with the root of the strength: a bright lamp lights the stone far more than it hazes the air)
 		g += texelFetch(ruien_lights, ivec2(i, 2), 0).rgb * (sqrt(A.w) * D.w * s);
 	}
 	return g * ruien_air.a;
+}
+
+// a lamp mirrored in water or a wet film: a streak drawn out toward the eye by the ripples (psx wet_streak's shape)
+vec3 ruien_streaks(vec3 P, vec3 rr, float stretch) {
+	vec3 s = vec3(0.0);
+	for (int i = 0; i < ruien_light_n; i++) {
+		vec4 B = texelFetch(ruien_lights, ivec2(i, 1), 0);
+		if (B.w > 0.5) continue;
+		vec4 A = texelFetch(ruien_lights, ivec2(i, 0), 0);
+		if (A.w <= 0.0) continue;
+		vec3 q = A.xyz - P;
+		float t0 = dot(q, rr);
+		if (t0 < 0.0) continue;
+		vec3 perp = q - rr * t0;
+		vec3 across = normalize(vec3(-rr.z, 0.0, rr.x) + 1e-5);
+		float da = dot(perp, across);
+		float dv = length(perp - across * da);
+		float k = 1.0 / (1.0 + da * da * 60.0 + dv * dv * 6.0 / stretch) / (1.0 + t0 * 0.15);
+		s += texelFetch(ruien_lights, ivec2(i, 2), 0).rgb * (sqrt(A.w) * k);
+	}
+	return s;
 }
 
 // the air between the eye and a point: the street's fog outside, the dark underground air under a vault

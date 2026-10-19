@@ -17,6 +17,7 @@ namespace Scheldemist.World.Ruien;
 public partial class RuienWays : Node
 {
     private readonly List<(RuienData.Way w, Vector2 off, Vector3 stand)> ladders = new();
+    private readonly List<RuienData.Way> rungs = new();
 
     public override void _Ready()
     {
@@ -24,6 +25,7 @@ public partial class RuienWays : Node
         foreach (var a in Ruien.I.Data.Areas)
             foreach (var w in a.Ways)
             {
+                if (w.Kind == "rungs") rungs.Add(w);
                 if (w.Kind != "ladder") continue;
                 // where he steps out on the street: beside the grate, on the side away from the ladder's foot
                 var side = new Vector2(w.Top.X - w.Bottom.X, w.Top.Z - w.Bottom.Z);
@@ -47,6 +49,14 @@ public partial class RuienWays : Node
     {
         var j = Jef.I;
         if (j == null || !j.Grounded || j.Swimming || j.Climbing || j.Riding || j.Fly || j.Laden || j.Frozen) return null;
+        foreach (var w in rungs)
+        {
+            var at = new Vector2(x, z);
+            if (MathF.Abs(j.Y - w.Bottom.Y) < 0.5f && at.DistanceTo(new Vector2(w.Bottom.X, w.Bottom.Z)) < 1.0f)
+                return new Offers { Options = new() { (0.5f, Act.At(Key.E, "climb onto the ledge", new Vector3(w.Wall.X, w.Bottom.Y + 1.4f, w.Wall.Y), () => RungsUp(w))) } };
+            if (MathF.Abs(j.Y - w.Top.Y) < 0.35f && at.DistanceTo(new Vector2(w.Top.X, w.Top.Z)) < 0.9f)
+                return new Offers { Options = new() { (0.5f, Act.At(Key.E, "climb down into the channel", new Vector3(w.Wall.X, w.Top.Y + 0.4f, w.Wall.Y), () => RungsDown(w))) } };
+        }
         foreach (var (w, off, stand) in ladders)
         {
             var top = new Vector2(w.Top.X, w.Top.Z);
@@ -61,6 +71,35 @@ public partial class RuienWays : Node
     }
 
     private const float Rise = 0.75f; // m a second up or down the rungs
+
+    // up the step irons out of the channel, over the coping onto the ledge; and back down
+    private static void RungsUp(RuienData.Way w)
+    {
+        var o = new Vector3(w.Out.X, 0, w.Out.Y);
+        var foot = new Vector3(w.Wall.X, w.Bottom.Y, w.Wall.Y) + o * 0.42f;
+        var keys = new List<(Vector3, float)>
+        {
+            (foot + Vector3.Up * 0.2f, 0.4f),
+            (foot + Vector3.Up * (w.Top.Y - w.Bottom.Y - 0.45f), (w.Top.Y - w.Bottom.Y - 0.65f) / Rise),
+            (new Vector3(w.Wall.X, w.Top.Y + 0.2f, w.Wall.Y) - o * 0.25f, 0.6f),
+            (w.Top, 0.5f),
+        };
+        Jef.I.ClimbTo(keys, null, null, Vector3.Zero, default, 1);
+    }
+
+    private static void RungsDown(RuienData.Way w)
+    {
+        var o = new Vector3(w.Out.X, 0, w.Out.Y);
+        var foot = new Vector3(w.Wall.X, w.Bottom.Y, w.Wall.Y) + o * 0.42f;
+        var keys = new List<(Vector3, float)>
+        {
+            (new Vector3(w.Wall.X, w.Top.Y + 0.2f, w.Wall.Y) - o * 0.25f, 0.5f),
+            (foot + Vector3.Up * (w.Top.Y - w.Bottom.Y - 0.45f), 0.6f),
+            (foot + Vector3.Up * 0.2f, (w.Top.Y - w.Bottom.Y - 0.65f) / Rise),
+            (w.Bottom, 0.4f),
+        };
+        Jef.I.ClimbTo(keys, null, null, Vector3.Zero, default, 1);
+    }
 
     private static void Down(RuienData.Way w, Vector3 stand)
     {
