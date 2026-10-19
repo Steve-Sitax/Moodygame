@@ -12,6 +12,7 @@ Bugs and loose ends are tracked as [issues](https://github.com/Steve-Sitax/Moody
 ## [Unreleased]
 
 - Townspeople keep their full body clear of static stall corners when walking near the edge of a navigation cell.
+- Town and park trunks use the photographed bark colour and relief maps (#84, partial); foliage and tree shapes are retained. Isolated day/rain/night review remains pending.
 
 - Authoring only: cloth clearance preserves lining thickness and ignores opposite-facing folds (#82, #138). The runtime people kit is unchanged; neckline and shoulder defects remain unaccepted on the separate rebuilt candidate.
 

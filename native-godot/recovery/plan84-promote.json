@@ -1,0 +1,78 @@
+{
+  "textures": {
+    "6f76bf0503cae8ff": {
+      "png": "res://assets/textures/plan-84/9/bark_atlas_colour.png",
+      "kind": "colour",
+      "out": "res://assets/materials/plan84-20261019/9-bark_atlas-colour.res",
+      "sha256": "6f76bf0503cae8ffc81a3cc0e5556df1faa2a18fc450e57b5d6b8a4003f83982"
+    },
+    "22b721e9d3016d86": {
+      "png": "res://assets/textures/plan-84/9/bark_atlas_height.png",
+      "kind": "height",
+      "out": "res://assets/materials/plan84-20261019/9-bark_atlas-height.res",
+      "sha256": "22b721e9d3016d864306149aadd716812ad8984a21e22ef3786bbe4989fe1705"
+    }
+  },
+  "materials": [
+    {
+      "material": "res://world/town/resources/r001169.res",
+      "name": "park_bark",
+      "set": "9/bark_atlas",
+      "sourceHash": "b40de2570089813eadc01f47cd10f72cc34d33c7059f035191c51b9d26cacfa9",
+      "tex": "6f76bf0503cae8ff",
+      "bump": "22b721e9d3016d86",
+      "bump_scale": 0.3877,
+      "albedo": [
+        1,
+        1,
+        1,
+        1.0
+      ]
+    },
+    {
+      "material": "res://world/town/resources/r009469.res",
+      "name": "trees_bark",
+      "set": "9/bark_atlas",
+      "sourceHash": "ce316f9d653715308ba8a65f9f0729c6dadc4c69be792e4b505501b7947e67d5",
+      "tex": "6f76bf0503cae8ff",
+      "bump": "22b721e9d3016d86",
+      "bump_scale": 0.0635,
+      "albedo": [
+        1,
+        1,
+        1,
+        1.0
+      ]
+    },
+    {
+      "material": "res://world/town/resources/r009495.res",
+      "name": "trees_bark",
+      "set": "9/bark_atlas",
+      "sourceHash": "24b34df16eb92f790ca9692524119e60fd8cacf3a3d7369a34d8b9c38f992992",
+      "tex": "6f76bf0503cae8ff",
+      "bump": "22b721e9d3016d86",
+      "bump_scale": 0.0635,
+      "albedo": [
+        1,
+        1,
+        1,
+        1.0
+      ]
+    },
+    {
+      "material": "res://world/town/resources/r009512.res",
+      "name": "trees_bark",
+      "set": "9/bark_atlas",
+      "sourceHash": "5a5c972d22c9432e96b6d2053c90a32c9ed3c93a38a79a37cb70314473ea6c01",
+      "tex": "6f76bf0503cae8ff",
+      "bump": "22b721e9d3016d86",
+      "bump_scale": 0.0635,
+      "albedo": [
+        1,
+        1,
+        1,
+        1.0
+      ]
+    }
+  ]
+}
