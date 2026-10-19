@@ -291,12 +291,13 @@ public static class NativeQuayLadders
             {
                 if (mi.Mesh == null || !mi.Visible || !Is(mi, names.Contains)) continue;
                 var xf = Pose(mi, town);
-                for (int s = 0; s < mi.Mesh.GetSurfaceCount(); s++)
+                // (the faces the ground collides with: a ground laid again along its streets keeps its old ones as its stand-in, #170)
+                var support = NativeWorldNavigation.SupportFaces(mi.Mesh);
+                for (int s = 0; s < 1; s++)
                 {
-                    var arrays = mi.Mesh.SurfaceGetArrays(s);
-                    var v = arrays[(int)Mesh.ArrayType.Vertex].AsVector3Array();
-                    var idx = arrays[(int)Mesh.ArrayType.Index].VariantType == Variant.Type.Nil ? null : arrays[(int)Mesh.ArrayType.Index].AsInt32Array();
-                    int count = idx?.Length ?? v.Length;
+                    var v = support;
+                    int[]? idx = null;
+                    int count = v.Length;
                     for (int i = 0; i + 2 < count; i += 3)
                     {
                         Vector3 a = xf * v[idx?[i] ?? i], b = xf * v[idx?[i + 1] ?? i + 1], c = xf * v[idx?[i + 2] ?? i + 2];

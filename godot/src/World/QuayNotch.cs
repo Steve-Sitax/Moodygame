@@ -125,22 +125,24 @@ public static class QuayNotch
             var cut = new ArrayMesh { ResourceName = mesh.ResourceName };
             foreach (var key in mesh.GetMetaList()) cut.SetMeta(key, mesh.GetMeta(key));
             int here = 0;
+            bool Level((Vector3, Vector3, Vector3) tri)
+            {
+                var (a, b, c) = tri;
+                if (Math.Min(a.Y, Math.Min(b.Y, c.Y)) < y0 || Math.Max(a.Y, Math.Max(b.Y, c.Y)) > y1) return false;
+                var fn = (b - a).Cross(c - a);
+                if (fn.LengthSquared() < 1e-12f || MathF.Abs(fn.Normalized().Y) < 0.7f) return false;
+                return Math.Max(a.X, Math.Max(b.X, c.X)) > hole.Position.X && Math.Min(a.X, Math.Min(b.X, c.X)) < hole.End.X
+                    && Math.Max(a.Z, Math.Max(b.Z, c.Z)) > hole.Position.Y && Math.Min(a.Z, Math.Min(b.Z, c.Z)) < hole.End.Y;
+            }
             for (int s = 0; s < mesh.GetSurfaceCount(); s++)
             {
                 var arrays = mesh.SurfaceGetArrays(s);
                 if (mesh.SurfaceGetPrimitiveType(s) == Mesh.PrimitiveType.Triangles)
-                    here += CutSurfaceWith(arrays, xf, tri =>
-                    {
-                        var (a, b, c) = tri;
-                        if (Math.Min(a.Y, Math.Min(b.Y, c.Y)) < y0 || Math.Max(a.Y, Math.Max(b.Y, c.Y)) > y1) return false;
-                        var fn = (b - a).Cross(c - a);
-                        if (fn.LengthSquared() < 1e-12f || MathF.Abs(fn.Normalized().Y) < 0.7f) return false;
-                        return Math.Max(a.X, Math.Max(b.X, c.X)) > hole.Position.X && Math.Min(a.X, Math.Min(b.X, c.X)) < hole.End.X
-                            && Math.Max(a.Z, Math.Max(b.Z, c.Z)) > hole.Position.Y && Math.Min(a.Z, Math.Min(b.Z, c.Z)) < hole.End.Y;
-                    }, edges);
+                    here += CutSurfaceWith(arrays, xf, Level, edges);
                 cut.AddSurfaceFromArrays(mesh.SurfaceGetPrimitiveType(s), arrays, null, null, mesh.SurfaceGetFormat(s));
                 cut.SurfaceSetMaterial(s, mesh.SurfaceGetMaterial(s));
             }
+            here += CutStandIn(cut, xf, Level, edges);
             if (here == 0) continue;
             mi.Mesh = cut;
             changed += here;
@@ -152,6 +154,26 @@ public static class QuayNotch
     /// The triangles `consider` picks lose their part inside every `inside` (a convex region: key >= 0 inside each); the
     /// rest of each is kept, new corners mixed in proportion. The arrays are changed in place; the triangles cut.
     /// </summary>
+    /// <summary>The same cut through a mesh's collision stand-in faces (meta native_solid_stand_in, its own frame: the
+    /// plain faces Solid collides with in place of fine surfaces, as the ground laid along its streets, #170).</summary>
+    private static int CutStandIn(ArrayMesh mesh, Transform3D xf, Func<(Vector3, Vector3, Vector3), bool> consider, List<Func<Vector3, float>> inside)
+    {
+        if (!mesh.HasMeta("native_solid_stand_in")) return 0;
+        var faces = mesh.GetMeta("native_solid_stand_in").AsVector3Array();
+        if (faces.Length < 3) return 0;
+        var arrays = new Godot.Collections.Array();
+        arrays.Resize((int)Mesh.ArrayType.Max);
+        arrays[(int)Mesh.ArrayType.Vertex] = faces;
+        int n = CutSurfaceWith(arrays, xf, consider, inside);
+        if (n == 0) return 0;
+        var v = arrays[(int)Mesh.ArrayType.Vertex].AsVector3Array();
+        var ix = arrays[(int)Mesh.ArrayType.Index].AsInt32Array();
+        var kept = new Vector3[ix.Length];
+        for (int i = 0; i < ix.Length; i++) kept[i] = v[ix[i]];
+        mesh.SetMeta("native_solid_stand_in", kept);
+        return n;
+    }
+
     private static int CutSurfaceWith(Godot.Collections.Array arrays, Transform3D xf, Func<(Vector3, Vector3, Vector3), bool> consider, List<Func<Vector3, float>> inside)
     {
         var positions = arrays[(int)Mesh.ArrayType.Vertex].AsVector3Array();
