@@ -24,14 +24,15 @@ facades (H3), shop fronts (H4), leftovers N1 and N2 with the cart fix, texture p
 
 Rules for helpers: `D:/Code/_tmp_verify/fixall/brief.md` (own db/prefs/ports, PERF-LOCK, override.cfg, no push).
 
-## Ruien plan in 2D, 2026-10-18 (second draft, waits for Steve)
+## Ruien O2, 2026-10-18/19 (merged 04d2e632, waits for Steve's play)
 
-- `docs/plans/ruien/`: Steve's redrawn network worked out over the town map (`ruien-plan.html`): sizes (red 6 x 5.2 m,
-  water to Antigoon's waist; blue 4 m from the water's bottom to the roof, walkway above the water), halls, gates,
-  148 ladders under grates, 18 stairs, 45 dim lamps, side drains for all gullies. Ten Codex mood pictures in
-  `concepts/`, sources in `references.md`. Made by `tools/ruien/trace.py` and `plan.py`. Nothing in the game changes yet.
-- Open for Steve: Antigoon bends 0.6 m in a rui (needs a bent-over walk) or becomes 3.85 m; the Bassin boat door.
-  Antigoon to 4.4 m is Steve's decision, not done in the game yet.
+- Plan: `docs/plans/ruien/` (Steve's network, sizes, ways in, lamps). Blender study and kit: `art-source/ruien-o2-20261018/`
+  (nine review rounds, `KIT.md`, `build_stretch.py` for any route). Game side: `native-godot/world/ruien/`,
+  `docs/ruien-native.md`; three new shader kinds and four OmniLights by Steve's one-time OK (rule-overrides 2026-10-18).
+- In the game: the Vliet sluice O2 with tide doors, the Vlietrui and the Vleeshuis hall; ways in by the street grate
+  ladder, the hall stair and the vliet bed at low tide. Fingerprint 4972710d, test-icons -Full passed.
+- Open: #200 (floating litter ignores the tide), #201 (vliet walls and water at the outlet), #202 (hall landing drop,
+  ladder facing, clean frame-time check, Antigoon height), #189 (Antigoon 4.4 m bends in a rui, or 3.85 m).
 
 ## People and animals in high detail, 2026-10-13 (art3, in progress)
 
