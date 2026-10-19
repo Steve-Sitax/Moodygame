@@ -13,7 +13,7 @@ using Scheldemist.World;
 namespace Scheldemist.Native.World;
 
 /// <summary>Rendered street/boat washing, weather transitions and restored clothes, using a disposable real town.</summary>
-public static class NativeWashingProof
+public static partial class NativeWashingProof
 {
     public static async Task Run(NativeTownGame game, string output)
     {
@@ -88,6 +88,7 @@ public static class NativeWashingProof
                 await BoatShot("boat-" + name, boat, 1);
                 await BoatShot("boat-back-" + name, boat, -1);
             }
+            if (game.Flag("washing-motion")) await RunMotion(game, output, Check, facts);
             // Population rebuilding clears these records. They must be recreated before the
             // first route request, rather than lazily changing schedules underneath that request.
             var host = game.ServiceHost!;

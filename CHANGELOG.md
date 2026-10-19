@@ -12,6 +12,7 @@ Bugs and loose ends are tracked as [issues](https://github.com/Steve-Sitax/Moody
 ## [Unreleased]
 
 - Street and boat washing is taken in during rain and overnight, returning between 08:00 and 18:00 in dry weather; ropes and posts stay in place (#203).
+- Removing a boat no longer leaves its sound emitter trying to read the deleted vessel.
 
 - Authoring only: cloth clearance preserves lining thickness and ignores opposite-facing folds (#82, #138). The runtime people kit is unchanged; neckline and shoulder defects remain unaccepted on the separate rebuilt candidate.
 
