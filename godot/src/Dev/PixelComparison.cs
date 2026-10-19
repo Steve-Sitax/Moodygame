@@ -35,6 +35,7 @@ public static class PixelComparison
     }
     public static async Task<object> Run(Checks check)
     {
+        if (Main.I.Flag("pixel-stability")) return await PixelStability.Run(check);
         var rows = new List<object>(); int total = 0, controlPixels = 0, actionChecks = 0, actionDifferences = 0, floorChecks = 0, floorDifferences = 0, roomChecks = 0, roomDifferences = 0, routeChecks = 0, routeDifferences = 0, hudChecks = 0, hudDifferences = 0;
         var routeSpeed = new List<object>();
         var layersSetup = new List<object>();
