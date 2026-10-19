@@ -4,7 +4,9 @@
 
 Repaired the sluice apron and outflow, radial drain headers, seepage and unfinished sack meshes. Dark water and low mist share the existing three Ruien shader kinds; the real lamp pool stays at four. The keeper stair reaches the winch, and swimming/wading connects the vliet and gallery to ten escape ladders. Walkways and both stairs use worn quay setts, path-aligned UVs and dressed junction bonds; collapsed narrow-face UVs are repaired.
 
-Native route proof: 108/108, followed by 52/52 after the keeper landing's mitred seams. Day, rain, night and both tide extremes were captured outside source control under `_tmp_verify/ruien-o2-polish/`; the final hatch-light review is in `final4`. Main build, launcher check and final timing receipt follow integration.
+Native route proof: 108/108, followed by 52/52 after the keeper landing's mitred seams. Day, rain, night and both tide extremes were captured outside source control under `_tmp_verify/ruien-o2-polish/`; the final hatch-light review is in `final4`. Main build: zero errors; full desktop launcher check: 7/7 PASS on isolated data. The native package fingerprint was refreshed.
+
+Matched PERF-LOCK captures, median of three warmed samples (before -> after, ms/frame): gate 17.21 -> 16.72; hall 11.09 -> 11.06; gallery 13.36 -> 13.57. The gallery measured 0.21 ms slower, within observed sample variation; these short captures do not establish a speed improvement. Both builds used 41 scene shader kinds; no real lights were added. Raw samples and proof index remain outside source control.
 
 ## All open issues, 2026-10-18/19 (resumed 2026-10-19)
 
