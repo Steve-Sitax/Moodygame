@@ -1,26 +1,28 @@
 # Work log
 
-## All open issues, 2026-10-18/19 (coordinator thread, paused for the token limit 2026-10-19)
+## All open issues, 2026-10-18/19 (resumed 2026-10-19)
 
 Merged into main: checks, talk, speed parts 1-2, boats, carry, market, routes, light, people kit build 4, stone,
 gutters, facades, shop fronts, paving, street furniture, cathedral furniture round 1, stuck fixes, texture pictures.
 Helper brief: `D:/Code/_tmp_verify/fixall/brief.md`. Merge helpers: `D:/Code/_tmp_verify/coord/bin/` (changelog,
 intake JSON and shader-baseline three-way merges, run-mode.ps1 for --stuck/--shaders).
 
-Stopped at the pause (Steve, 2026-10-19). Their unsaved work is still on disk in each worktree; resume by starting a
-new helper on the same worktree/branch, telling it to finish and commit what is there:
+The run resumed in queue order. Existing work stays in its original worktree; failed acceptance keeps a change off main.
 
-| Helper | Issues | Worktree (the T3 worktrees folder, MoodyGame/...) | Branch | State when stopped |
+| Helper | Issues | Worktree (the T3 worktrees folder, MoodyGame/...) | Branch | Current state |
 |---|---|---|---|---|
-| H6 textures into the town, altar marble, floating litter | #84 #198 part #200 | t3-7156f1fb | t3/town-textures-altar-litter | no commit; 62 town files changed, 47 new files |
+| H6 textures into the town, altar marble, floating litter | #84 #198 part #200 | t3-7156f1fb | t3/town-textures-altar-litter | resumed from 62 changed and 47 new files; review and rendered checks in progress |
 | J3 people clothes edges | #82 #138 | t3-a4b824d0 | t3/people-cloth-layer-fix | 1 commit 24cd2a49 (J2 kit, still the rejected jagged edges) + 178 changed files uncommitted |
 | N5 cathedral stalls, high altar, organ, transept altars, epitaphs | #198 | t3-1309ddf6 | t3/cathedral-furniture-detail-1 | no commit; 83 changed, 76 new files (church model) |
-| S managed heap and GC pauses | #181 (#62) | t3-6b308632 | t3/reduce-managed-heap | no commit; new godot/src/Dev/GcWatch.cs (measuring stage) |
+| S managed heap and GC pauses | #181 (#62) | t3-6b308632 | t3/reduce-managed-heap | 055d2fd7 committed, NOT merged: smaller heap, but play GC max/p95 72.062 ms exceeds 5 ms; pixel check blocked by #205 |
 
-None is merged; main is clean of them. No helper game window or PERF-LOCK left behind.
+S evidence: `D:/Code/_tmp_verify/S-heap/finalreport.json`. Heap occupancy 1,940–2,053 to 1,549–1,624 MiB;
+the baseline briefly overlapped another game, so this is not an exclusive timing pass. Exact geometry/face reconstruction,
+152 transport checks, 79 Antigoon fixtures and four crane behaviors pass. Server GC worsened pauses and was rejected.
+The unchanged baseline also fails exact pixels (5 pixels; revised 6), tracked in #205. No issue closed; no GC config changed.
 
-Queued (one at a time after the reset): #171 rest (landmark stone) with #199 paving leftovers and #203 washing;
-then the exclusive speed run on a quiet PC: #181 #62 #32 #47 #49 and the people timing gate.
+After H6: #171 rest (landmark stone) with #199 paving leftovers and #203 washing, then N5, then J3.
+Exclusive speed gates remain for a quiet PC: #181 #62 #32 #47 #49 and the people timing gate.
 Not ours: #141 (Steve parked), #189 #201 #202 (Ruien session).
 
 ## Ruien O2, 2026-10-18/19 (merged 04d2e632, waits for Steve's play)
