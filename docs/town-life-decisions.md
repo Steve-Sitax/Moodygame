@@ -81,3 +81,10 @@ the numbers live in the engine files named here.
   onto free ground (`CartShove`, logged in the stuck report's `movedOut`). A parked cart is not drawn while someone stands
   where it would be: it waits for a pusher always, for anyone else up to 10 s, then eases him out. Out of the player's sight and over 12 m off, a cart that gains no ground for
   4 s is taken on to its place (a street too narrow for it to turn: it went to and fro).
+- A resident's pushed handcart plans its way through streets with room for it (`WalkMap.WideOpen`: the floor free 0.78 m
+  all round, its last 3 m at either end excepted) and takes the ordinary way only when there is none (#196: carts going
+  home west of the Grote Markt went into lanes too narrow for them and to and fro). Its time limit counts the straight way
+  from where it set off (it was counted from the door at the far end: a cart from the market gave up half way home). A
+  seller whose cart's grips are held takes them from where she stands, within 3 m, after 8 s.
+  The ground a cart gains (for being taken on out of sight) is counted along its planned way, not in a straight line to its
+  place: on a way round, the straight distance first grows.

@@ -228,6 +228,19 @@ public sealed class WalkMap
 
     public bool NativeCellFree(int x, int z) => x >= 0 && z >= 0 && x < W * 4 && z < D * 4 && free[z * W * 4 + x] != 0;
 
+    /// <summary>Room for a pushed handcart (1.44 m wide, #196): the static floor free at the point and all round it at r and
+    /// half r (bodies are not counted: they move).</summary>
+    public bool WideOpen(double x, double z, double r = .78)
+    {
+        bool At(double px, double pz) => NativeCellFree((int)Math.Floor((px - X0) * 4), (int)Math.Floor((pz - Z0) * 4));
+        if (!At(x, z)) return false;
+        for (int k = 0; k < 12; k++) {
+            double a = k * Math.PI / 6, c = Math.Cos(a), s = Math.Sin(a);
+            if (!At(x + c * r, z + s * r) || !At(x + c * r * .5, z + s * r * .5)) return false;
+        }
+        return true;
+    }
+
     /// <summary>The static free cells (quarter-metre) around a point as text, one row per z, for the stuck check's report:
     /// '.' free, '#' not free, 'm' marks (x, z) pairs given. Rows run from the lower z; the first column is the lower x.</summary>
     public string[] DumpCells(double cx, double cz, double radius, params (char mark, double x, double z)[] marks)

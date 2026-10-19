@@ -183,7 +183,7 @@ stall and trade models swapped for the fish models on crushed ice, with pictures
 and the porters' fish box (`fish`, issue 190: `MarketCatch`), and the three tavern fireplaces, with no spark dots in a room's
 hearth (`fireplace`), and the cathedral (`cathedral`, issue 192): its west end surveyed (what is built there, the loft's floor
 and what holds a body at 7.25 m, `cathedral-loft-floor.txt`, `cathedral-body.txt`), Jef climbing the loft stair and walking the
-gallery into the loft, the organist's and the confessor's walks in (day, night and rain pictures). `--leftovers-only a,b` picks stages. It writes `leftovers.json` and pictures; exit 1 on a failure.
+gallery into the loft, the organist's and the confessor's walks in (day, night and rain pictures), `confessional` (#196: the confessional's six carved oak figures drawn, each solid where drawn, day and night pictures from the aisle and close). `--leftovers-only a,b` picks stages. It writes `leftovers.json` and pictures; exit 1 on a failure.
 
 ## Market, work board, warmth, benches and room keepers
 
@@ -210,7 +210,9 @@ place for each seller behind her stall and a place for her cart; writes the corr
 `marketsurvey` (the old random layout, to choose pitches from), `facts` (a survey: fire spots, benches, rooms, the
 town's places). `--market-place grote_markt` runs `market` on the Grote Markt's twenty pitches (issue 192: the same day,
 a sale of her own wares, no fish checks); `--pitch-place grote_markt` with `pitchspots`, and with `pitchplan` and
-`--pitch-keep 0,2,5` (or `all`), plan another market's pitches. Decisions: `docs/town-life-decisions.md`.
+`--pitch-keep 0,2,5` (or `all`), plan another market's pitches. `cartclear` (#196; `--market-place`, the Grote Markt by default): every cart parked at a pitch, drawn as
+DrawParked draws it, keeps 0.75 m from each seller's place, each stall's front and the townspeople's spots there.
+The stuck report's `cartTrips` lists how each handcart trip ended (arrived, gave up, taken on out of sight). Decisions: `docs/town-life-decisions.md`.
 Exit 1 on a failed check.
 
 ## Conversations and indoor entrances
