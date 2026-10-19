@@ -51,6 +51,8 @@ varying float bake_ao;
 varying vec4 bake;
 // how far the study's baked colour sets the colour (the masks' blend keeps the detail)
 uniform float bake_k = 0.85;
+// how strongly the lime halo, bloom and salt flecks show over the bake (brick families with their own pictures)
+uniform float halo_k = 1.0;
 
 void vertex() {
 	vec4 view = MODELVIEW_MATRIX * vec4(VERTEX, 1.0);
@@ -135,6 +137,23 @@ void fragment() {
 		if (variants > 0.5) detail = mix(detail, clamp(texture(lime_tex, uv).rgb / max(textureLod(lime_tex, uv, 11.0).rgb, vec3(0.02)), 0.0, 3.0), smoothstep(0.03, 0.5, lime * 1.3));
 		c = mix(c, bake.rgb * detail * tint.rgb, bake_k);
 	}
+	// the study's lime (its halo and bloom layers, carried in the mask's G, which the bake's vertices sample too
+	// sparsely to show): white lime in the joints, white salt flecks over the faces, and a mottled pale wash where it
+	// is thickest; laid over the bake
+	if (variants > 0.5 && lime > 0.04) {
+		float hal = clamp(lime * mix(0.55, 1.35, ruien_noise3(world * 5.0)), 0.0, 1.0);
+		float mortar = smoothstep(0.8, 0.73, h);
+		vec3 lgrain = clamp(texture(lime_tex, uv).rgb / max(textureLod(lime_tex, uv, 11.0).rgb, vec3(0.02)), 0.0, 3.0);
+		float wash = smoothstep(0.55, 1.0, hal * mix(0.35, 1.5, ruien_noise3(world * 22.0 + 7.1)));
+		vec3 washc = mix(vec3(0.58, 0.56, 0.52), vec3(0.74, 0.72, 0.67), ruien_noise3(world * 40.0 + 3.7));
+		c = mix(c, washc * mix(vec3(1.0), lgrain, 0.35) * tint.rgb, wash * 0.7 * halo_k);
+		// (the flecks fade to their share where they would be smaller than a pixel)
+		vec3 fp = world * 150.0;
+		float fl = step(0.7 - lime * 0.22, ruien_noise3(fp));
+		fl = mix(clamp(lime * 0.45, 0.0, 0.4), fl, 1.0 - smoothstep(0.5, 1.5, length(fwidth(fp))));
+		c = mix(c, vec3(0.8, 0.78, 0.73) * tint.rgb, fl * smoothstep(0.05, 0.35, lime) * (1.0 - mortar) * 0.9 * halo_k);
+		c = mix(c, vec3(0.8, 0.78, 0.73) * tint.rgb, smoothstep(0.08, 0.4, hal) * mortar * halo_k);
+	}
 	nt.xy *= normal_k;
 	nt.z = sqrt(max(1.0 - dot(nt.xy, nt.xy), 0.0));
 	vec3 n = normalize(tbn * nt);
@@ -146,7 +165,11 @@ void fragment() {
 	// (the bake's AO is taken softly: it came from a 0.6 m reach and would black out every joint and corner)
 	float ao = hra.b * mix(1.0, bake_ao, 0.7);
 	// cover: a stain laid over another surface: dithered, so it needs no blending
-	if (cover < 0.999 && ruien_h12(FRAGCOORD.xy) > cover * (0.6 + 0.4 * h)) discard;
+	// (in world space and coherent, so the stain's broken edge stays put as you move; and mottled)
+	if (cover < 0.999) {
+		if (ruien_noise3(world * 45.0) > cover * (0.6 + 0.4 * h) + 0.2) discard;
+		c *= mix(0.8, 1.15, ruien_noise3(world * 25.0 + 1.3));
+	}
 
 	vec3 V = -rd;
 	vec3 diff, spec;
