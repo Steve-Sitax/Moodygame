@@ -7,14 +7,17 @@ gutters, facades, shop fronts, paving, street furniture, cathedral furniture rou
 Helper brief: `D:/Code/_tmp_verify/fixall/brief.md`. Merge helpers: `D:/Code/_tmp_verify/coord/bin/` (changelog,
 intake JSON and shader-baseline three-way merges, run-mode.ps1 for --stuck/--shaders).
 
-Running at the pause (let them finish; merge each after checks; start nothing new until the limit resets):
+Stopped at the pause (Steve, 2026-10-19). Their unsaved work is still on disk in each worktree; resume by starting a
+new helper on the same worktree/branch, telling it to finish and commit what is there:
 
-| Helper | Issues | Branch when done |
-|---|---|---|
-| H6 textures into the town, altar marble, floating litter | #84 #198 part #200 | see its report |
-| J3 people clothes edges (J2 kit commit d84796e4 was rejected: jagged edges) | #82 #138 | see its report |
-| N5 cathedral choir stalls, high altar, organ, transept altars, epitaphs | #198 | see its report |
-| S managed heap and GC pauses | #181 (#62) | see its report |
+| Helper | Issues | Worktree (the T3 worktrees folder, MoodyGame/...) | Branch | State when stopped |
+|---|---|---|---|---|
+| H6 textures into the town, altar marble, floating litter | #84 #198 part #200 | t3-7156f1fb | t3/town-textures-altar-litter | no commit; 62 town files changed, 47 new files |
+| J3 people clothes edges | #82 #138 | t3-a4b824d0 | t3/people-cloth-layer-fix | 1 commit 24cd2a49 (J2 kit, still the rejected jagged edges) + 178 changed files uncommitted |
+| N5 cathedral stalls, high altar, organ, transept altars, epitaphs | #198 | t3-1309ddf6 | t3/cathedral-furniture-detail-1 | no commit; 83 changed, 76 new files (church model) |
+| S managed heap and GC pauses | #181 (#62) | t3-6b308632 | t3/reduce-managed-heap | no commit; new godot/src/Dev/GcWatch.cs (measuring stage) |
+
+None is merged; main is clean of them. No helper game window or PERF-LOCK left behind.
 
 Queued (one at a time after the reset): #171 rest (landmark stone) with #199 paving leftovers and #203 washing;
 then the exclusive speed run on a quiet PC: #181 #62 #32 #47 #49 and the people timing gate.
