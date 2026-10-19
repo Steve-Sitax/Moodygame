@@ -1,0 +1,7892 @@
+{
+ "pumps": [
+  {
+   "id": "street-pump-0",
+   "was": "pump_stone",
+   "at": [
+    -106.7701,
+    0.0088,
+    48.9507
+   ]
+  },
+  {
+   "id": "street-pump-1",
+   "was": "pump_iron",
+   "at": [
+    -194.8259,
+    0.0086,
+    38.9594
+   ]
+  },
+  {
+   "id": "street-pump-2",
+   "was": "pump_stone",
+   "at": [
+    -223.05,
+    0.0087,
+    93.1164
+   ]
+  },
+  {
+   "id": "street-pump-3",
+   "was": "pump_iron",
+   "at": [
+    -277.7493,
+    0.0085,
+    12.9593
+   ]
+  },
+  {
+   "id": "street-pump-4",
+   "was": "pump_iron",
+   "at": [
+    30.255,
+    0.0084,
+    49.3375
+   ]
+  },
+  {
+   "id": "street-pump-5",
+   "was": "pump_iron",
+   "at": [
+    -61.0409,
+    0.0097,
+    108.2928
+   ]
+  },
+  {
+   "id": "street-pump-6",
+   "was": "pump_stone",
+   "at": [
+    -117.6656,
+    0.0098,
+    116.9506
+   ]
+  },
+  {
+   "id": "street-pump-7",
+   "was": "pump_iron",
+   "at": [
+    115.483,
+    0.0088,
+    170.9601
+   ]
+  },
+  {
+   "id": "court-pump-1",
+   "was": "court pump pump",
+   "at": [
+    185.39,
+    -0.0,
+    253.14
+   ]
+  },
+  {
+   "id": "court-pump-2",
+   "was": "court pump pump2",
+   "at": [
+    116.41,
+    -0.0,
+    318.96
+   ]
+  },
+  {
+   "id": "court-pump-3",
+   "was": "court pump pump3",
+   "at": [
+    29.79,
+    0.0,
+    322.54
+   ]
+  },
+  {
+   "id": "court-pump-4",
+   "was": "court pump pump4",
+   "at": [
+    7.06,
+    0.0,
+    257.67
+   ]
+  },
+  {
+   "id": "court-pump-5",
+   "was": "court pump pump5",
+   "at": [
+    24.53,
+    -0.0,
+    263.92
+   ]
+  },
+  {
+   "id": "court-pump-6",
+   "was": "court pump pump6",
+   "at": [
+    -56.75,
+    0.0,
+    215.23
+   ]
+  },
+  {
+   "id": "court-pump-7",
+   "was": "court pump pump7",
+   "at": [
+    -41.02,
+    0.0,
+    219.76
+   ]
+  },
+  {
+   "id": "court-pump-8",
+   "was": "court pump pump8",
+   "at": [
+    -176.45,
+    -0.0,
+    230.55
+   ]
+  },
+  {
+   "id": "court-pump-9",
+   "was": "court pump pump9",
+   "at": [
+    -185.42,
+    0.0,
+    242.01
+   ]
+  },
+  {
+   "id": "court-pump-10",
+   "was": "court pump pump10",
+   "at": [
+    -331.14,
+    0.0,
+    100.85
+   ]
+  },
+  {
+   "id": "court-pump-11",
+   "was": "court pump pump11",
+   "at": [
+    -332.57,
+    -0.0,
+    122.05
+   ]
+  },
+  {
+   "id": "court-pump-12",
+   "was": "court pump pump12",
+   "at": [
+    -328.12,
+    0.0,
+    269.66
+   ]
+  },
+  {
+   "id": "court-pump-13",
+   "was": "court pump pump13",
+   "at": [
+    -31.32,
+    0.0,
+    130.9
+   ]
+  },
+  {
+   "id": "court-pump-14",
+   "was": "court pump pump14",
+   "at": [
+    -33.76,
+    0.0,
+    89.46
+   ]
+  },
+  {
+   "id": "court-pump-15",
+   "was": "court pump pump15",
+   "at": [
+    -182.46,
+    -0.0,
+    57.72
+   ]
+  },
+  {
+   "id": "court-pump-16",
+   "was": "court pump pump16",
+   "at": [
+    -179.39,
+    0.0,
+    102.81
+   ]
+  }
+ ],
+ "troughs": [
+  {
+   "id": "street-trough-0",
+   "at": [
+    -105.02,
+    0.0085,
+    48.9107
+   ]
+  },
+  {
+   "id": "street-trough-1",
+   "at": [
+    -193.0755,
+    0.0086,
+    38.9093
+   ]
+  },
+  {
+   "id": "street-trough-2",
+   "at": [
+    -275.9997,
+    0.0085,
+    12.9094
+   ]
+  },
+  {
+   "id": "street-trough-3",
+   "at": [
+    30.4497,
+    0.0085,
+    47.5975
+   ]
+  }
+ ],
+ "hatches": [
+  {
+   "id": "cellar-hatch-0",
+   "on": "pavement",
+   "at": [
+    -200.01,
+    0.1194,
+    45.3167
+   ]
+  },
+  {
+   "id": "cellar-hatch-1",
+   "on": "pavement",
+   "at": [
+    -200.0699,
+    0.1194,
+    95.6017
+   ]
+  },
+  {
+   "id": "cellar-hatch-2",
+   "on": "pavement",
+   "at": [
+    -198.2707,
+    0.1194,
+    81.2752
+   ]
+  },
+  {
+   "id": "cellar-hatch-3",
+   "on": "pavement",
+   "at": [
+    -46.414,
+    0.1195,
+    73.9954
+   ]
+  },
+  {
+   "id": "cellar-hatch-4",
+   "on": "pavement",
+   "at": [
+    -13.996,
+    0.1195,
+    103.031
+   ]
+  },
+  {
+   "id": "cellar-hatch-5",
+   "on": "pavement",
+   "at": [
+    -123.1353,
+    0.1205,
+    117.8306
+   ]
+  },
+  {
+   "id": "cellar-hatch-6",
+   "on": "pavement",
+   "at": [
+    -111.773,
+    0.1205,
+    117.8306
+   ]
+  },
+  {
+   "id": "cellar-hatch-7",
+   "on": "pavement",
+   "at": [
+    100.0041,
+    0.1193,
+    186.4221
+   ]
+  },
+  {
+   "id": "cellar-hatch-8",
+   "on": "pavement",
+   "at": [
+    88.6444,
+    0.1202,
+    171.932
+   ]
+  },
+  {
+   "id": "cellar-hatch-9",
+   "on": "pavement",
+   "at": [
+    94.1715,
+    0.1202,
+    171.932
+   ]
+  },
+  {
+   "id": "cellar-hatch-10",
+   "on": "pavement",
+   "at": [
+    69.7214,
+    0.1202,
+    177.1718
+   ]
+  },
+  {
+   "id": "cellar-hatch-11",
+   "on": "pavement",
+   "at": [
+    94.2267,
+    0.1202,
+    184.7231
+   ]
+  },
+  {
+   "id": "cellar-hatch-12",
+   "on": "pavement",
+   "at": [
+    -200.0685,
+    0.1205,
+    172.7542
+   ]
+  },
+  {
+   "id": "cellar-hatch-13",
+   "on": "pavement",
+   "at": [
+    -200.0685,
+    0.1205,
+    179.0293
+   ]
+  },
+  {
+   "id": "cellar-hatch-14",
+   "on": "pavement",
+   "at": [
+    -198.3518,
+    0.1205,
+    131.9323
+   ]
+  },
+  {
+   "id": "cellar-hatch-15",
+   "on": "street",
+   "at": [
+    32.4344,
+    0.02,
+    182.3272
+   ]
+  },
+  {
+   "id": "cellar-hatch-16",
+   "on": "pavement",
+   "at": [
+    34.0289,
+    0.1202,
+    156.9924
+   ]
+  },
+  {
+   "id": "cellar-hatch-17",
+   "on": "pavement",
+   "at": [
+    61.9323,
+    0.1202,
+    156.1914
+   ]
+  },
+  {
+   "id": "cellar-hatch-18",
+   "on": "street",
+   "at": [
+    15.8617,
+    0.02,
+    176.6121
+   ]
+  },
+  {
+   "id": "cellar-hatch-19",
+   "on": "pavement",
+   "at": [
+    11.2692,
+    0.1202,
+    156.9303
+   ]
+  },
+  {
+   "id": "cellar-hatch-20",
+   "on": "pavement",
+   "at": [
+    35.9589,
+    0.1202,
+    140.8696
+   ]
+  },
+  {
+   "id": "cellar-hatch-21",
+   "on": "street",
+   "at": [
+    23.8363,
+    0.02,
+    180.7439
+   ]
+  },
+  {
+   "id": "cellar-hatch-22",
+   "on": "street",
+   "at": [
+    34.794,
+    0.02,
+    184.5112
+   ]
+  },
+  {
+   "id": "cellar-hatch-23",
+   "on": "pavement",
+   "at": [
+    -304.009,
+    0.1206,
+    73.1576
+   ]
+  },
+  {
+   "id": "cellar-hatch-24",
+   "on": "pavement",
+   "at": [
+    -304.009,
+    0.1206,
+    81.114
+   ]
+  },
+  {
+   "id": "cellar-hatch-25",
+   "on": "pavement",
+   "at": [
+    207.8305,
+    0.1192,
+    257.3214
+   ]
+  },
+  {
+   "id": "cellar-hatch-26",
+   "on": "pavement",
+   "at": [
+    208.4682,
+    0.1197,
+    305.3067
+   ]
+  },
+  {
+   "id": "cellar-hatch-27",
+   "on": "pavement",
+   "at": [
+    178.5253,
+    0.1205,
+    316.5037
+   ]
+  },
+  {
+   "id": "cellar-hatch-28",
+   "on": "pavement",
+   "at": [
+    153.0364,
+    0.1205,
+    315.5188
+   ]
+  },
+  {
+   "id": "cellar-hatch-29",
+   "on": "pavement",
+   "at": [
+    183.9247,
+    0.1205,
+    314.7795
+   ]
+  },
+  {
+   "id": "cellar-hatch-30",
+   "on": "pavement",
+   "at": [
+    157.3053,
+    0.1193,
+    274.0968
+   ]
+  },
+  {
+   "id": "cellar-hatch-31",
+   "on": "pavement",
+   "at": [
+    158.3672,
+    0.1193,
+    278.8614
+   ]
+  },
+  {
+   "id": "cellar-hatch-33",
+   "on": "pavement",
+   "at": [
+    150.4158,
+    0.1193,
+    243.5804
+   ]
+  },
+  {
+   "id": "cellar-hatch-34",
+   "on": "pavement",
+   "at": [
+    148.7169,
+    0.1193,
+    236.5491
+   ]
+  },
+  {
+   "id": "cellar-hatch-35",
+   "on": "pavement",
+   "at": [
+    138.3873,
+    0.1193,
+    219.8885
+   ]
+  },
+  {
+   "id": "cellar-hatch-36",
+   "on": "pavement",
+   "at": [
+    132.6698,
+    0.1193,
+    197.0317
+   ]
+  },
+  {
+   "id": "cellar-hatch-37",
+   "on": "pavement",
+   "at": [
+    139.8532,
+    0.1193,
+    240.7741
+   ]
+  },
+  {
+   "id": "cellar-hatch-38",
+   "on": "pavement",
+   "at": [
+    145.1677,
+    0.1193,
+    222.334
+   ]
+  },
+  {
+   "id": "cellar-hatch-39",
+   "on": "street",
+   "at": [
+    175.3099,
+    0.02,
+    236.8461
+   ]
+  },
+  {
+   "id": "cellar-hatch-40",
+   "on": "pavement",
+   "at": [
+    137.8307,
+    0.1193,
+    217.4039
+   ]
+  },
+  {
+   "id": "cellar-hatch-41",
+   "on": "street",
+   "at": [
+    159.8942,
+    0.02,
+    219.5416
+   ]
+  },
+  {
+   "id": "cellar-hatch-42",
+   "on": "pavement",
+   "at": [
+    182.9192,
+    0.1193,
+    171.931
+   ]
+  },
+  {
+   "id": "cellar-hatch-43",
+   "on": "pavement",
+   "at": [
+    185.614,
+    0.1193,
+    171.9919
+   ]
+  },
+  {
+   "id": "cellar-hatch-44",
+   "on": "pavement",
+   "at": [
+    220.5529,
+    0.1192,
+    207.7526
+   ]
+  },
+  {
+   "id": "cellar-hatch-45",
+   "on": "pavement",
+   "at": [
+    212.0324,
+    0.1192,
+    198.9577
+   ]
+  },
+  {
+   "id": "cellar-hatch-46",
+   "on": "pavement",
+   "at": [
+    218.5064,
+    0.1192,
+    224.755
+   ]
+  },
+  {
+   "id": "cellar-hatch-47",
+   "on": "pavement",
+   "at": [
+    216.2204,
+    0.1192,
+    243.2258
+   ]
+  },
+  {
+   "id": "cellar-hatch-48",
+   "on": "pavement",
+   "at": [
+    219.3192,
+    0.1192,
+    217.7226
+   ]
+  },
+  {
+   "id": "cellar-hatch-49",
+   "on": "pavement",
+   "at": [
+    66.5292,
+    0.1198,
+    330.137
+   ]
+  },
+  {
+   "id": "cellar-hatch-50",
+   "on": "pavement",
+   "at": [
+    125.3358,
+    0.1205,
+    333.8909
+   ]
+  },
+  {
+   "id": "cellar-hatch-51",
+   "on": "pavement",
+   "at": [
+    19.4395,
+    0.1198,
+    341.4241
+   ]
+  },
+  {
+   "id": "cellar-hatch-52",
+   "on": "pavement",
+   "at": [
+    101.9874,
+    0.1205,
+    306.4328
+   ]
+  },
+  {
+   "id": "cellar-hatch-53",
+   "on": "pavement",
+   "at": [
+    107.8433,
+    0.1205,
+    305.1277
+   ]
+  },
+  {
+   "id": "cellar-hatch-54",
+   "on": "pavement",
+   "at": [
+    26.9174,
+    0.1198,
+    308.9882
+   ]
+  },
+  {
+   "id": "cellar-hatch-55",
+   "on": "street",
+   "at": [
+    18.3256,
+    0.02,
+    259.5195
+   ]
+  },
+  {
+   "id": "cellar-hatch-56",
+   "on": "pavement",
+   "at": [
+    7.0104,
+    0.1198,
+    302.917
+   ]
+  },
+  {
+   "id": "cellar-hatch-57",
+   "on": "pavement",
+   "at": [
+    40.8102,
+    0.1191,
+    256.5102
+   ]
+  },
+  {
+   "id": "cellar-hatch-58",
+   "on": "pavement",
+   "at": [
+    31.4124,
+    0.1191,
+    286.6129
+   ]
+  },
+  {
+   "id": "cellar-hatch-59",
+   "on": "pavement",
+   "at": [
+    10.6464,
+    0.1198,
+    307.363
+   ]
+  },
+  {
+   "id": "cellar-hatch-60",
+   "on": "street",
+   "at": [
+    10.3129,
+    0.02,
+    261.0083
+   ]
+  },
+  {
+   "id": "cellar-hatch-61",
+   "on": "street",
+   "at": [
+    29.2199,
+    0.02,
+    212.5039
+   ]
+  },
+  {
+   "id": "cellar-hatch-62",
+   "on": "street",
+   "at": [
+    47.0437,
+    0.02,
+    216.6366
+   ]
+  },
+  {
+   "id": "cellar-hatch-63",
+   "on": "street",
+   "at": [
+    44.8869,
+    0.02,
+    219.0198
+   ]
+  },
+  {
+   "id": "cellar-hatch-64",
+   "on": "street",
+   "at": [
+    35.4567,
+    0.02,
+    211.1217
+   ]
+  },
+  {
+   "id": "cellar-hatch-65",
+   "on": "street",
+   "at": [
+    33.0319,
+    0.02,
+    211.1217
+   ]
+  },
+  {
+   "id": "cellar-hatch-66",
+   "on": "pavement",
+   "at": [
+    4.8621,
+    0.1191,
+    211.8449
+   ]
+  },
+  {
+   "id": "cellar-hatch-67",
+   "on": "street",
+   "at": [
+    79.7692,
+    0.02,
+    211.1218
+   ]
+  },
+  {
+   "id": "cellar-hatch-68",
+   "on": "street",
+   "at": [
+    93.5091,
+    0.02,
+    211.1218
+   ]
+  },
+  {
+   "id": "cellar-hatch-69",
+   "on": "street",
+   "at": [
+    97.387,
+    0.02,
+    212.5043
+   ]
+  },
+  {
+   "id": "cellar-hatch-70",
+   "on": "street",
+   "at": [
+    115.699,
+    0.02,
+    211.1222
+   ]
+  },
+  {
+   "id": "cellar-hatch-71",
+   "on": "pavement",
+   "at": [
+    97.3156,
+    0.1193,
+    229.2597
+   ]
+  },
+  {
+   "id": "cellar-hatch-72",
+   "on": "street",
+   "at": [
+    120.477,
+    0.02,
+    216.6365
+   ]
+  },
+  {
+   "id": "cellar-hatch-73",
+   "on": "street",
+   "at": [
+    120.477,
+    0.02,
+    211.1222
+   ]
+  },
+  {
+   "id": "cellar-hatch-74",
+   "on": "pavement",
+   "at": [
+    114.0072,
+    0.1193,
+    241.4523
+   ]
+  },
+  {
+   "id": "cellar-hatch-75",
+   "on": "pavement",
+   "at": [
+    68.8848,
+    0.1191,
+    240.5995
+   ]
+  },
+  {
+   "id": "cellar-hatch-76",
+   "on": "pavement",
+   "at": [
+    120.5745,
+    0.1193,
+    241.7184
+   ]
+  },
+  {
+   "id": "cellar-hatch-77",
+   "on": "pavement",
+   "at": [
+    -60.0681,
+    0.1199,
+    210.2912
+   ]
+  },
+  {
+   "id": "cellar-hatch-78",
+   "on": "pavement",
+   "at": [
+    -60.0693,
+    0.1201,
+    197.024
+   ]
+  },
+  {
+   "id": "cellar-hatch-79",
+   "on": "street",
+   "at": [
+    -21.3531,
+    0.02,
+    216.6231
+   ]
+  },
+  {
+   "id": "cellar-hatch-80",
+   "on": "pavement",
+   "at": [
+    -18.0272,
+    0.1199,
+    233.1772
+   ]
+  },
+  {
+   "id": "cellar-hatch-81",
+   "on": "street",
+   "at": [
+    -45.3703,
+    0.02,
+    220.6369
+   ]
+  },
+  {
+   "id": "cellar-hatch-82",
+   "on": "pavement",
+   "at": [
+    -24.9668,
+    0.1199,
+    198.6644
+   ]
+  },
+  {
+   "id": "cellar-hatch-83",
+   "on": "pavement",
+   "at": [
+    -47.4732,
+    0.1199,
+    253.2945
+   ]
+  },
+  {
+   "id": "cellar-hatch-84",
+   "on": "pavement",
+   "at": [
+    -53.0782,
+    0.1199,
+    239.2894
+   ]
+  },
+  {
+   "id": "cellar-hatch-85",
+   "on": "pavement",
+   "at": [
+    -41.1913,
+    0.1201,
+    156.9309
+   ]
+  },
+  {
+   "id": "cellar-hatch-86",
+   "on": "pavement",
+   "at": [
+    -60.0693,
+    0.1201,
+    180.4587
+   ]
+  },
+  {
+   "id": "cellar-hatch-87",
+   "on": "pavement",
+   "at": [
+    -6.1285,
+    0.1201,
+    156.9923
+   ]
+  },
+  {
+   "id": "cellar-hatch-88",
+   "on": "pavement",
+   "at": [
+    -60.008,
+    0.1201,
+    173.7765
+   ]
+  },
+  {
+   "id": "cellar-hatch-89",
+   "on": "street",
+   "at": [
+    -3.879,
+    0.02,
+    188.6445
+   ]
+  },
+  {
+   "id": "cellar-hatch-90",
+   "on": "pavement",
+   "at": [
+    -28.0968,
+    0.12,
+    334.2941
+   ]
+  },
+  {
+   "id": "cellar-hatch-91",
+   "on": "pavement",
+   "at": [
+    -31.4017,
+    0.12,
+    343.8166
+   ]
+  },
+  {
+   "id": "cellar-hatch-92",
+   "on": "pavement",
+   "at": [
+    -28.9915,
+    0.12,
+    318.7587
+   ]
+  },
+  {
+   "id": "cellar-hatch-93",
+   "on": "pavement",
+   "at": [
+    -25.5267,
+    0.1199,
+    293.4061
+   ]
+  },
+  {
+   "id": "cellar-hatch-94",
+   "on": "pavement",
+   "at": [
+    -30.8175,
+    0.1199,
+    287.0876
+   ]
+  },
+  {
+   "id": "cellar-hatch-95",
+   "on": "pavement",
+   "at": [
+    -26.3262,
+    0.1199,
+    278.4196
+   ]
+  },
+  {
+   "id": "cellar-hatch-96",
+   "on": "pavement",
+   "at": [
+    -50.6228,
+    0.1199,
+    259.8353
+   ]
+  },
+  {
+   "id": "cellar-hatch-97",
+   "on": "pavement",
+   "at": [
+    -80.7273,
+    0.1199,
+    265.4704
+   ]
+  },
+  {
+   "id": "cellar-hatch-98",
+   "on": "street",
+   "at": [
+    -165.5556,
+    0.02,
+    304.5471
+   ]
+  },
+  {
+   "id": "cellar-hatch-99",
+   "on": "pavement",
+   "at": [
+    -134.4369,
+    0.1201,
+    259.723
+   ]
+  },
+  {
+   "id": "cellar-hatch-100",
+   "on": "street",
+   "at": [
+    -180.8181,
+    0.02,
+    310.9644
+   ]
+  },
+  {
+   "id": "cellar-hatch-101",
+   "on": "pavement",
+   "at": [
+    -151.6725,
+    0.1201,
+    261.4788
+   ]
+  },
+  {
+   "id": "cellar-hatch-102",
+   "on": "street",
+   "at": [
+    -175.3988,
+    0.02,
+    312.3477
+   ]
+  },
+  {
+   "id": "cellar-hatch-103",
+   "on": "pavement",
+   "at": [
+    -140.0684,
+    0.1201,
+    266.7793
+   ]
+  },
+  {
+   "id": "cellar-hatch-104",
+   "on": "pavement",
+   "at": [
+    -140.072,
+    0.1201,
+    287.4041
+   ]
+  },
+  {
+   "id": "cellar-hatch-106",
+   "on": "pavement",
+   "at": [
+    -140.1196,
+    0.1201,
+    299.7514
+   ]
+  },
+  {
+   "id": "cellar-hatch-107",
+   "on": "pavement",
+   "at": [
+    -140.0684,
+    0.1201,
+    232.7214
+   ]
+  },
+  {
+   "id": "cellar-hatch-108",
+   "on": "pavement",
+   "at": [
+    -133.0131,
+    0.1201,
+    211.9316
+   ]
+  },
+  {
+   "id": "cellar-hatch-109",
+   "on": "street",
+   "at": [
+    -170.3026,
+    0.02,
+    229.0649
+   ]
+  },
+  {
+   "id": "cellar-hatch-110",
+   "on": "street",
+   "at": [
+    -177.0567,
+    0.02,
+    234.641
+   ]
+  },
+  {
+   "id": "cellar-hatch-111",
+   "on": "street",
+   "at": [
+    -188.4812,
+    0.02,
+    252.5216
+   ]
+  },
+  {
+   "id": "cellar-hatch-112",
+   "on": "street",
+   "at": [
+    -177.5816,
+    0.02,
+    239.0393
+   ]
+  },
+  {
+   "id": "cellar-hatch-113",
+   "on": "street",
+   "at": [
+    -180.2803,
+    0.02,
+    232.1139
+   ]
+  },
+  {
+   "id": "cellar-hatch-114",
+   "on": "pavement",
+   "at": [
+    -121.1871,
+    0.1201,
+    232.9365
+   ]
+  },
+  {
+   "id": "cellar-hatch-115",
+   "on": "pavement",
+   "at": [
+    -108.8501,
+    0.1201,
+    231.7915
+   ]
+  },
+  {
+   "id": "cellar-hatch-116",
+   "on": "pavement",
+   "at": [
+    -87.5407,
+    0.1199,
+    240.3052
+   ]
+  },
+  {
+   "id": "cellar-hatch-117",
+   "on": "pavement",
+   "at": [
+    -235.9119,
+    0.1198,
+    337.4428
+   ]
+  },
+  {
+   "id": "cellar-hatch-118",
+   "on": "pavement",
+   "at": [
+    -255.0431,
+    0.1198,
+    331.6803
+   ]
+  },
+  {
+   "id": "cellar-hatch-119",
+   "on": "street",
+   "at": [
+    -196.8936,
+    0.02,
+    306.7309
+   ]
+  },
+  {
+   "id": "cellar-hatch-120",
+   "on": "street",
+   "at": [
+    -194.3977,
+    0.02,
+    312.3477
+   ]
+  },
+  {
+   "id": "cellar-hatch-121",
+   "on": "street",
+   "at": [
+    -201.6187,
+    0.02,
+    312.348
+   ]
+  },
+  {
+   "id": "cellar-hatch-122",
+   "on": "street",
+   "at": [
+    -224.9333,
+    0.02,
+    312.348
+   ]
+  },
+  {
+   "id": "cellar-hatch-123",
+   "on": "pavement",
+   "at": [
+    -233.8295,
+    0.1201,
+    271.9316
+   ]
+  },
+  {
+   "id": "cellar-hatch-124",
+   "on": "street",
+   "at": [
+    -193.0431,
+    0.02,
+    308.2142
+   ]
+  },
+  {
+   "id": "cellar-hatch-125",
+   "on": "pavement",
+   "at": [
+    -222.7593,
+    0.1201,
+    292.1856
+   ]
+  },
+  {
+   "id": "cellar-hatch-126",
+   "on": "street",
+   "at": [
+    -195.6227,
+    0.02,
+    300.3141
+   ]
+  },
+  {
+   "id": "cellar-hatch-127",
+   "on": "pavement",
+   "at": [
+    -210.6304,
+    0.1198,
+    304.4471
+   ]
+  },
+  {
+   "id": "cellar-hatch-128",
+   "on": "pavement",
+   "at": [
+    -213.987,
+    0.1201,
+    286.0501
+   ]
+  },
+  {
+   "id": "cellar-hatch-129",
+   "on": "pavement",
+   "at": [
+    -255.8945,
+    0.1201,
+    295.8923
+   ]
+  },
+  {
+   "id": "cellar-hatch-130",
+   "on": "street",
+   "at": [
+    -220.9611,
+    0.02,
+    281.2935
+   ]
+  },
+  {
+   "id": "cellar-hatch-131",
+   "on": "pavement",
+   "at": [
+    -217.1134,
+    0.1201,
+    272.046
+   ]
+  },
+  {
+   "id": "cellar-hatch-132",
+   "on": "pavement",
+   "at": [
+    -228.59,
+    0.1198,
+    299.5847
+   ]
+  },
+  {
+   "id": "cellar-hatch-133",
+   "on": "pavement",
+   "at": [
+    -212.5957,
+    0.1201,
+    216.0723
+   ]
+  },
+  {
+   "id": "cellar-hatch-134",
+   "on": "pavement",
+   "at": [
+    -175.493,
+    0.1205,
+    140.2452
+   ]
+  },
+  {
+   "id": "cellar-hatch-135",
+   "on": "pavement",
+   "at": [
+    -172.1645,
+    0.1205,
+    177.0741
+   ]
+  },
+  {
+   "id": "cellar-hatch-136",
+   "on": "pavement",
+   "at": [
+    -177.3623,
+    0.1205,
+    162.5598
+   ]
+  },
+  {
+   "id": "cellar-hatch-137",
+   "on": "pavement",
+   "at": [
+    -176.0678,
+    0.1205,
+    167.7433
+   ]
+  },
+  {
+   "id": "cellar-hatch-138",
+   "on": "pavement",
+   "at": [
+    -298.9808,
+    0.1201,
+    276.2902
+   ]
+  },
+  {
+   "id": "cellar-hatch-140",
+   "on": "pavement",
+   "at": [
+    -282.1772,
+    0.1201,
+    279.7872
+   ]
+  },
+  {
+   "id": "cellar-hatch-141",
+   "on": "pavement",
+   "at": [
+    -311.6088,
+    0.1193,
+    154.4913
+   ]
+  },
+  {
+   "id": "cellar-hatch-143",
+   "on": "pavement",
+   "at": [
+    -321.3119,
+    0.1201,
+    244.0288
+   ]
+  },
+  {
+   "id": "cellar-hatch-144",
+   "on": "street",
+   "at": [
+    -333.34,
+    0.02,
+    93.6016
+   ]
+  },
+  {
+   "id": "cellar-hatch-145",
+   "on": "street",
+   "at": [
+    -336.4835,
+    0.02,
+    115.4485
+   ]
+  },
+  {
+   "id": "cellar-hatch-146",
+   "on": "street",
+   "at": [
+    -329.342,
+    0.02,
+    104.5553
+   ]
+  },
+  {
+   "id": "cellar-hatch-147",
+   "on": "pavement",
+   "at": [
+    -337.5824,
+    0.1197,
+    64.7224
+   ]
+  },
+  {
+   "id": "cellar-hatch-148",
+   "on": "street",
+   "at": [
+    -327.9387,
+    0.02,
+    117.9712
+   ]
+  },
+  {
+   "id": "cellar-hatch-149",
+   "on": "street",
+   "at": [
+    -326.5554,
+    0.02,
+    114.6726
+   ]
+  },
+  {
+   "id": "cellar-hatch-150",
+   "on": "pavement",
+   "at": [
+    -343.5448,
+    0.1197,
+    41.2483
+   ]
+  },
+  {
+   "id": "cellar-hatch-151",
+   "on": "pavement",
+   "at": [
+    -351.3737,
+    0.1201,
+    262.4655
+   ]
+  },
+  {
+   "id": "cellar-hatch-152",
+   "on": "pavement",
+   "at": [
+    5.5009,
+    0.1202,
+    119.7882
+   ]
+  },
+  {
+   "id": "cellar-hatch-153",
+   "on": "pavement",
+   "at": [
+    61.4994,
+    0.1202,
+    121.1855
+   ]
+  },
+  {
+   "id": "cellar-hatch-154",
+   "on": "pavement",
+   "at": [
+    11.2954,
+    0.1202,
+    110.6423
+   ]
+  },
+  {
+   "id": "cellar-hatch-155",
+   "on": "pavement",
+   "at": [
+    38.0741,
+    0.1202,
+    126.1415
+   ]
+  },
+  {
+   "id": "cellar-hatch-156",
+   "on": "pavement",
+   "at": [
+    42.5141,
+    0.1202,
+    114.6585
+   ]
+  },
+  {
+   "id": "cellar-hatch-157",
+   "on": "pavement",
+   "at": [
+    -2.4334,
+    0.1198,
+    50.169
+   ]
+  },
+  {
+   "id": "cellar-hatch-158",
+   "on": "pavement",
+   "at": [
+    219.7648,
+    0.1206,
+    181.9311
+   ]
+  },
+  {
+   "id": "cellar-hatch-159",
+   "on": "pavement",
+   "at": [
+    218.9154,
+    0.1206,
+    164.7804
+   ]
+  },
+  {
+   "id": "cellar-hatch-160",
+   "on": "pavement",
+   "at": [
+    207.9326,
+    0.1206,
+    133.2611
+   ]
+  },
+  {
+   "id": "cellar-hatch-161",
+   "on": "pavement",
+   "at": [
+    207.992,
+    0.12,
+    95.6841
+   ]
+  },
+  {
+   "id": "cellar-hatch-162",
+   "on": "pavement",
+   "at": [
+    207.9326,
+    0.1206,
+    119.775
+   ]
+  },
+  {
+   "id": "cellar-hatch-163",
+   "on": "pavement",
+   "at": [
+    -106.6436,
+    0.1205,
+    160.7118
+   ]
+  },
+  {
+   "id": "cellar-hatch-164",
+   "on": "pavement",
+   "at": [
+    -133.0099,
+    0.1194,
+    71.6876
+   ]
+  },
+  {
+   "id": "cellar-hatch-165",
+   "on": "pavement",
+   "at": [
+    -169.4864,
+    0.1194,
+    72.8786
+   ]
+  }
+ ],
+ "lines": [
+  {
+   "id": "line-streetlife-0",
+   "ends": [
+    [
+     -208.6844,
+     4.7,
+     97.8307
+    ],
+    [
+     -199.9462,
+     4.7,
+     97.8059
+    ]
+   ],
+   "pieces": [
+    "trousers",
+    "trousers",
+    "towel",
+    "towel",
+    "shift",
+    "trousers",
+    "shirt",
+    "shift",
+    "sheet (ticking)"
+   ],
+   "raisedOverOmnibus": false
+  },
+  {
+   "id": "line-streetlife-1",
+   "ends": [
+    [
+     -200.1064,
+     4.7,
+     74.9822
+    ],
+    [
+     -208.5833,
+     4.7,
+     75.0092
+    ]
+   ],
+   "pieces": [
+    "apron",
+    "trousers",
+    "shirt",
+    "shift",
+    "apron (ticking)",
+    "apron (ticking)",
+    "stockings"
+   ],
+   "raisedOverOmnibus": false
+  },
+  {
+   "id": "line-streetlife-2",
+   "ends": [
+    [
+     -196.9851,
+     4.7,
+     81.0034
+    ],
+    [
+     -195.0407,
+     4.7,
+     87.6697
+    ]
+   ],
+   "pieces": [
+    "trousers",
+    "sheet (ticking)",
+    "trousers",
+    "sheet",
+    "apron",
+    "towel"
+   ],
+   "raisedOverOmnibus": false
+  },
+  {
+   "id": "line-streetlife-3",
+   "ends": [
+    [
+     -199.9457,
+     4.7,
+     105.465
+    ],
+    [
+     -208.0537,
+     4.7,
+     105.4919
+    ]
+   ],
+   "pieces": [
+    "shirt",
+    "apron",
+    "towel",
+    "towel",
+    "trousers",
+    "trousers",
+    "stockings",
+    "towel"
+   ],
+   "raisedOverOmnibus": false
+  },
+  {
+   "id": "line-streetlife-4",
+   "ends": [
+    [
+     -300.1062,
+     7.7,
+     17.447
+    ],
+    [
+     -309.8937,
+     7.7,
+     17.4717
+    ]
+   ],
+   "pieces": [
+    "shirt",
+    "stockings",
+    "shirt",
+    "shift",
+    "apron (ticking)",
+    "towel",
+    "stockings",
+    "trousers",
+    "shirt"
+   ],
+   "raisedOverOmnibus": true
+  },
+  {
+   "id": "line-streetlife-5",
+   "ends": [
+    [
+     -288.5974,
+     4.7,
+     61.356
+    ],
+    [
+     -288.5671,
+     4.6999,
+     66.0536
+    ]
+   ],
+   "pieces": [
+    "shift",
+    "trousers",
+    "towel"
+   ],
+   "raisedOverOmnibus": false
+  },
+  {
+   "id": "line-streetlife-6",
+   "ends": [
+    [
+     -313.2434,
+     4.7,
+     60.8385
+    ],
+    [
+     -313.7366,
+     4.6999,
+     66.904
+    ]
+   ],
+   "pieces": [
+    "stockings",
+    "stockings",
+    "stockings",
+    "shirt",
+    "shift",
+    "towel",
+    "stockings"
+   ],
+   "raisedOverOmnibus": false
+  },
+  {
+   "id": "line-streetlife-7",
+   "ends": [
+    [
+     29.2608,
+     4.6999,
+     48.1124
+    ],
+    [
+     35.8942,
+     4.6999,
+     48.6512
+    ]
+   ],
+   "pieces": [
+    "apron",
+    "apron (ticking)",
+    "trousers",
+    "towel",
+    "shift",
+    "trousers",
+    "trousers"
+   ],
+   "raisedOverOmnibus": false
+  },
+  {
+   "id": "line-streetlife-8",
+   "ends": [
+    [
+     13.7439,
+     4.6999,
+     61.3023
+    ],
+    [
+     14.3514,
+     4.6999,
+     68.0641
+    ]
+   ],
+   "pieces": [
+    "shift",
+    "sheet",
+    "stockings",
+    "apron",
+    "shift"
+   ],
+   "raisedOverOmnibus": false
+  },
+  {
+   "id": "line-streetlife-9",
+   "ends": [
+    [
+     1.9692,
+     4.6999,
+     62.4053
+    ],
+    [
+     2.5901,
+     4.6999,
+     69.2847
+    ]
+   ],
+   "pieces": [
+    "shirt",
+    "towel",
+    "towel",
+    "apron (ticking)",
+    "shirt",
+    "sheet"
+   ],
+   "raisedOverOmnibus": false
+  },
+  {
+   "id": "line-streetlife-10",
+   "ends": [
+    [
+     -0.566,
+     4.6999,
+     120.2314
+    ],
+    [
+     5.3001,
+     4.6999,
+     119.1972
+    ]
+   ],
+   "pieces": [
+    "stockings",
+    "towel",
+    "trousers",
+    "shirt",
+    "towel"
+   ],
+   "raisedOverOmnibus": false
+  },
+  {
+   "id": "line-streetlife-11",
+   "ends": [
+    [
+     -9.4311,
+     7.7,
+     109.9506
+    ],
+    [
+     -10.7269,
+     7.7,
+     102.4058
+    ]
+   ],
+   "pieces": [
+    "stockings",
+    "towel",
+    "stockings",
+    "sheet",
+    "shift",
+    "shirt",
+    "shirt"
+   ],
+   "raisedOverOmnibus": false
+  },
+  {
+   "id": "line-streetlife-12",
+   "ends": [
+    [
+     -55.8974,
+     7.7,
+     117.1215
+    ],
+    [
+     -55.905,
+     7.7,
+     109.4392
+    ]
+   ],
+   "pieces": [
+    "shift",
+    "trousers",
+    "shift",
+    "sheet (ticking)",
+    "shift",
+    "towel",
+    "sheet"
+   ],
+   "raisedOverOmnibus": false
+  },
+  {
+   "id": "line-streetlife-13",
+   "ends": [
+    [
+     -6.118,
+     4.6999,
+     84.5286
+    ],
+    [
+     -0.3429,
+     4.7118,
+     84.1707
+    ]
+   ],
+   "pieces": [
+    "trousers",
+    "towel",
+    "apron",
+    "trousers",
+    "trousers"
+   ],
+   "raisedOverOmnibus": false
+  },
+  {
+   "id": "line-streetlife-14",
+   "ends": [
+    [
+     -29.2338,
+     7.7,
+     72.2449
+    ],
+    [
+     -29.9101,
+     7.7,
+     65.4868
+    ]
+   ],
+   "pieces": [
+    "trousers",
+    "shirt",
+    "sheet",
+    "trousers",
+    "shift",
+    "stockings"
+   ],
+   "raisedOverOmnibus": false
+  },
+  {
+   "id": "line-streetlife-15",
+   "ends": [
+    [
+     -126.2564,
+     7.6999,
+     118.0518
+    ],
+    [
+     -126.2822,
+     7.6999,
+     108.1058
+    ]
+   ],
+   "pieces": [
+    "trousers",
+    "shirt",
+    "sheet",
+    "trousers",
+    "stockings",
+    "shirt",
+    "apron",
+    "shirt"
+   ],
+   "raisedOverOmnibus": true
+  },
+  {
+   "id": "line-streetlife-16",
+   "ends": [
+    [
+     -117.1932,
+     10.7,
+     118.0511
+    ],
+    [
+     -117.219,
+     10.7,
+     108.1058
+    ]
+   ],
+   "pieces": [
+    "trousers",
+    "shift",
+    "shift",
+    "apron",
+    "shift",
+    "apron (ticking)",
+    "shirt",
+    "trousers"
+   ],
+   "raisedOverOmnibus": true
+  },
+  {
+   "id": "line-streetlife-17",
+   "ends": [
+    [
+     -99.6948,
+     7.6999,
+     117.8945
+    ],
+    [
+     -99.7196,
+     7.6999,
+     109.3551
+    ]
+   ],
+   "pieces": [
+    "shirt",
+    "shift",
+    "shirt",
+    "shift",
+    "sheet",
+    "towel",
+    "sheet (ticking)"
+   ],
+   "raisedOverOmnibus": true
+  },
+  {
+   "id": "line-streetlife-18",
+   "ends": [
+    [
+     103.5524,
+     4.6999,
+     171.8939
+    ],
+    [
+     103.5274,
+     4.6999,
+     162.4043
+    ]
+   ],
+   "pieces": [
+    "shirt",
+    "stockings",
+    "trousers",
+    "stockings",
+    "shirt",
+    "towel",
+    "shirt",
+    "stockings",
+    "trousers",
+    "shirt"
+   ],
+   "raisedOverOmnibus": false
+  },
+  {
+   "id": "line-streetlife-19",
+   "ends": [
+    [
+     102.3906,
+     4.6999,
+     179.8463
+    ],
+    [
+     100.3342,
+     4.6999,
+     186.6526
+    ]
+   ],
+   "pieces": [
+    "trousers",
+    "shift",
+    "shift",
+    "shirt",
+    "stockings",
+    "stockings",
+    "trousers",
+    "stockings"
+   ],
+   "raisedOverOmnibus": false
+  },
+  {
+   "id": "line-streetlife-20",
+   "ends": [
+    [
+     92.2377,
+     7.7,
+     171.8942
+    ],
+    [
+     92.2129,
+     7.7,
+     162.1047
+    ]
+   ],
+   "pieces": [
+    "shirt",
+    "towel",
+    "apron",
+    "trousers",
+    "stockings",
+    "trousers",
+    "shirt",
+    "shift",
+    "trousers"
+   ],
+   "raisedOverOmnibus": false
+  },
+  {
+   "id": "line-streetlife-21",
+   "ends": [
+    [
+     85.404,
+     7.7,
+     174.8225
+    ],
+    [
+     83.4652,
+     7.7,
+     181.3251
+    ]
+   ],
+   "pieces": [
+    "apron (ticking)",
+    "shirt",
+    "shirt",
+    "shirt",
+    "apron (ticking)"
+   ],
+   "raisedOverOmnibus": false
+  },
+  {
+   "id": "line-streetlife-22",
+   "ends": [
+    [
+     119.4209,
+     4.6999,
+     171.8939
+    ],
+    [
+     119.3968,
+     4.6999,
+     162.4043
+    ]
+   ],
+   "pieces": [
+    "towel",
+    "shift",
+    "shift",
+    "stockings",
+    "shift",
+    "towel",
+    "shirt",
+    "shirt"
+   ],
+   "raisedOverOmnibus": false
+  },
+  {
+   "id": "line-streetlife-23",
+   "ends": [
+    [
+     114.536,
+     7.7,
+     190.8272
+    ],
+    [
+     116.5109,
+     7.712,
+     184.3279
+    ]
+   ],
+   "pieces": [
+    "stockings",
+    "towel",
+    "towel",
+    "shirt",
+    "apron",
+    "shift"
+   ],
+   "raisedOverOmnibus": false
+  },
+  {
+   "id": "line-streetlife-24",
+   "ends": [
+    [
+     61.8941,
+     4.6999,
+     160.7021
+    ],
+    [
+     56.1069,
+     4.6999,
+     160.7294
+    ]
+   ],
+   "pieces": [
+    "trousers",
+    "shift",
+    "trousers",
+    "apron",
+    "towel",
+    "trousers"
+   ],
+   "raisedOverOmnibus": false
+  },
+  {
+   "id": "line-streetlife-25",
+   "ends": [
+    [
+     1.5094,
+     7.7,
+     156.8944
+    ],
+    [
+     1.4839,
+     7.7,
+     150.1037
+    ]
+   ],
+   "pieces": [
+    "shirt",
+    "shift",
+    "shirt",
+    "apron (ticking)",
+    "apron",
+    "shirt"
+   ],
+   "raisedOverOmnibus": false
+  },
+  {
+   "id": "line-streetlife-26",
+   "ends": [
+    [
+     12.4038,
+     7.7,
+     156.8944
+    ],
+    [
+     12.3971,
+     7.7,
+     149.8157
+    ]
+   ],
+   "pieces": [
+    "apron (ticking)",
+    "apron",
+    "stockings",
+    "sheet",
+    "stockings",
+    "trousers",
+    "towel"
+   ],
+   "raisedOverOmnibus": false
+  },
+  {
+   "id": "line-streetlife-27",
+   "ends": [
+    [
+     52.6424,
+     4.6999,
+     156.8944
+    ],
+    [
+     52.6164,
+     4.6999,
+     149.9461
+    ]
+   ],
+   "pieces": [
+    "apron (ticking)",
+    "towel",
+    "stockings",
+    "sheet (ticking)",
+    "shirt"
+   ],
+   "raisedOverOmnibus": false
+  },
+  {
+   "id": "line-streetlife-28",
+   "ends": [
+    [
+     43.5016,
+     4.6999,
+     145.8278
+    ],
+    [
+     37.7525,
+     4.7119,
+     147.3806
+    ]
+   ],
+   "pieces": [
+    "towel",
+    "sheet (ticking)",
+    "towel",
+    "towel",
+    "apron",
+    "shift"
+   ],
+   "raisedOverOmnibus": false
+  },
+  {
+   "id": "line-streetlife-29",
+   "ends": [
+    [
+     9.1755,
+     4.6999,
+     141.746
+    ],
+    [
+     3.4827,
+     4.6999,
+     142.7474
+    ]
+   ],
+   "pieces": [
+    "shift",
+    "apron",
+    "stockings",
+    "shirt",
+    "sheet (ticking)"
+   ],
+   "raisedOverOmnibus": false
+  },
+  {
+   "id": "line-streetlife-30",
+   "ends": [
+    [
+     7.4687,
+     4.6999,
+     130.8599
+    ],
+    [
+     1.45,
+     4.6999,
+     131.9187
+    ]
+   ],
+   "pieces": [
+    "trousers",
+    "towel",
+    "shirt",
+    "apron (ticking)",
+    "shirt"
+   ],
+   "raisedOverOmnibus": false
+  },
+  {
+   "id": "line-streetlife-31",
+   "ends": [
+    [
+     35.015,
+     4.6999,
+     137.2029
+    ],
+    [
+     40.6109,
+     4.6999,
+     135.7029
+    ]
+   ],
+   "pieces": [
+    "shirt",
+    "shirt",
+    "apron (ticking)",
+    "sheet (ticking)",
+    "apron"
+   ],
+   "raisedOverOmnibus": false
+  },
+  {
+   "id": "line-streetlife-32",
+   "ends": [
+    [
+     13.0718,
+     4.6999,
+     176.5129
+    ],
+    [
+     13.0474,
+     4.6999,
+     170.784
+    ]
+   ],
+   "pieces": [
+    "apron (ticking)",
+    "stockings",
+    "shift",
+    "trousers",
+    "towel"
+   ],
+   "raisedOverOmnibus": false
+  },
+  {
+   "id": "line-streetlife-33",
+   "ends": [
+    [
+     22.0231,
+     4.6999,
+     176.5142
+    ],
+    [
+     21.9987,
+     4.6999,
+     169.0449
+    ]
+   ],
+   "pieces": [
+    "shift",
+    "apron (ticking)",
+    "shirt",
+    "shirt",
+    "shirt",
+    "shirt"
+   ],
+   "raisedOverOmnibus": false
+  },
+  {
+   "id": "line-streetlife-34",
+   "ends": [
+    [
+     23.9342,
+     4.6999,
+     179.8192
+    ],
+    [
+     28.7123,
+     4.6999,
+     179.7954
+    ]
+   ],
+   "pieces": [
+    "apron (ticking)",
+    "shirt",
+    "shirt",
+    "shirt"
+   ],
+   "raisedOverOmnibus": false
+  },
+  {
+   "id": "line-streetlife-35",
+   "ends": [
+    [
+     -303.9472,
+     4.6999,
+     112.1933
+    ],
+    [
+     -309.8937,
+     4.6999,
+     112.22
+    ]
+   ],
+   "pieces": [
+    "towel",
+    "trousers",
+    "sheet (ticking)",
+    "apron"
+   ],
+   "raisedOverOmnibus": false
+  },
+  {
+   "id": "line-streetlife-36",
+   "ends": [
+    [
+     -304.1069,
+     7.7,
+     95.5746
+    ],
+    [
+     -309.8937,
+     7.7,
+     95.6006
+    ]
+   ],
+   "pieces": [
+    "stockings",
+    "stockings",
+    "apron (ticking)",
+    "shirt",
+    "apron (ticking)"
+   ],
+   "raisedOverOmnibus": false
+  },
+  {
+   "id": "line-streetlife-37",
+   "ends": [
+    [
+     -304.1069,
+     4.6999,
+     85.4063
+    ],
+    [
+     -309.8924,
+     4.6999,
+     85.4313
+    ]
+   ],
+   "pieces": [
+    "towel",
+    "shirt",
+    "sheet",
+    "shirt"
+   ],
+   "raisedOverOmnibus": false
+  },
+  {
+   "id": "line-streetlife-38",
+   "ends": [
+    [
+     -303.9471,
+     4.6999,
+     69.8862
+    ],
+    [
+     -309.8937,
+     4.6999,
+     69.914
+    ]
+   ],
+   "pieces": [
+    "shirt",
+    "shirt",
+    "sheet",
+    "towel"
+   ],
+   "raisedOverOmnibus": false
+  },
+  {
+   "id": "line-streetlife-39",
+   "ends": [
+    [
+     160.259,
+     4.7,
+     310.9068
+    ],
+    [
+     154.606,
+     4.7119,
+     309.4967
+    ]
+   ],
+   "pieces": [
+    "shift",
+    "towel",
+    "shirt",
+    "stockings",
+    "trousers"
+   ],
+   "raisedOverOmnibus": false
+  },
+  {
+   "id": "line-streetlife-40",
+   "ends": [
+    [
+     162.0906,
+     7.7,
+     303.5403
+    ],
+    [
+     156.4795,
+     7.7,
+     302.1516
+    ]
+   ],
+   "pieces": [
+    "shift",
+    "towel",
+    "shirt",
+    "stockings",
+    "trousers",
+    "apron"
+   ],
+   "raisedOverOmnibus": false
+  },
+  {
+   "id": "line-streetlife-41",
+   "ends": [
+    [
+     158.965,
+     4.7,
+     282.0296
+    ],
+    [
+     153.1742,
+     4.7119,
+     283.3441
+    ]
+   ],
+   "pieces": [
+    "apron (ticking)",
+    "shift",
+    "stockings",
+    "stockings",
+    "apron (ticking)",
+    "shirt"
+   ],
+   "raisedOverOmnibus": false
+  },
+  {
+   "id": "line-streetlife-42",
+   "ends": [
+    [
+     135.007,
+     4.7,
+     292.6229
+    ],
+    [
+     136.3167,
+     4.7,
+     298.2601
+    ]
+   ],
+   "pieces": [
+    "shirt",
+    "apron (ticking)",
+    "apron (ticking)",
+    "towel",
+    "apron (ticking)"
+   ],
+   "raisedOverOmnibus": false
+  },
+  {
+   "id": "line-streetlife-43",
+   "ends": [
+    [
+     148.0527,
+     4.688,
+     289.3863
+    ],
+    [
+     149.3215,
+     4.7119,
+     295.0345
+    ]
+   ],
+   "pieces": [
+    "towel",
+    "stockings",
+    "towel",
+    "trousers",
+    "shift",
+    "shift"
+   ],
+   "raisedOverOmnibus": false
+  },
+  {
+   "id": "line-streetlife-44",
+   "ends": [
+    [
+     177.847,
+     4.688,
+     270.113
+    ],
+    [
+     168.5529,
+     4.7119,
+     269.0475
+    ]
+   ],
+   "pieces": [
+    "shirt",
+    "apron",
+    "stockings",
+    "stockings",
+    "trousers",
+    "shirt",
+    "apron (ticking)",
+    "apron (ticking)",
+    "trousers",
+    "stockings"
+   ],
+   "raisedOverOmnibus": false
+  },
+  {
+   "id": "line-streetlife-45",
+   "ends": [
+    [
+     179.4221,
+     4.7,
+     299.3173
+    ],
+    [
+     187.1082,
+     4.7,
+     300.1929
+    ]
+   ],
+   "pieces": [
+    "apron (ticking)",
+    "towel",
+    "shirt",
+    "stockings",
+    "shirt",
+    "trousers",
+    "stockings",
+    "apron (ticking)"
+   ],
+   "raisedOverOmnibus": false
+  },
+  {
+   "id": "line-streetlife-46",
+   "ends": [
+    [
+     177.3602,
+     4.7,
+     300.8991
+    ],
+    [
+     176.873,
+     4.7,
+     306.1512
+    ]
+   ],
+   "pieces": [
+    "trousers",
+    "stockings",
+    "apron (ticking)",
+    "towel",
+    "shirt"
+   ],
+   "raisedOverOmnibus": false
+  },
+  {
+   "id": "line-streetlife-47",
+   "ends": [
+    [
+     186.2686,
+     4.7,
+     266.5284
+    ],
+    [
+     185.4439,
+     4.7119,
+     274.0728
+    ]
+   ],
+   "pieces": [
+    "apron",
+    "shirt",
+    "stockings",
+    "shirt",
+    "towel",
+    "shift"
+   ],
+   "raisedOverOmnibus": false
+  },
+  {
+   "id": "line-streetlife-48",
+   "ends": [
+    [
+     139.1465,
+     4.6879,
+     198.5217
+    ],
+    [
+     133.3412,
+     4.6999,
+     199.9708
+    ]
+   ],
+   "pieces": [
+    "towel",
+    "shift",
+    "shirt",
+    "shirt",
+    "towel"
+   ],
+   "raisedOverOmnibus": false
+  },
+  {
+   "id": "line-streetlife-49",
+   "ends": [
+    [
+     158.1173,
+     4.6999,
+     198.1546
+    ],
+    [
+     158.8177,
+     4.6999,
+     191.3959
+    ]
+   ],
+   "pieces": [
+    "shirt",
+    "shirt",
+    "trousers",
+    "shirt",
+    "shirt"
+   ],
+   "raisedOverOmnibus": false
+  },
+  {
+   "id": "line-streetlife-50",
+   "ends": [
+    [
+     175.7362,
+     7.7,
+     199.8699
+    ],
+    [
+     176.4523,
+     7.7,
+     192.9629
+    ]
+   ],
+   "pieces": [
+    "shift",
+    "trousers",
+    "sheet (ticking)",
+    "shift",
+    "shift"
+   ],
+   "raisedOverOmnibus": false
+  },
+  {
+   "id": "line-streetlife-51",
+   "ends": [
+    [
+     158.1971,
+     4.6879,
+     223.3547
+    ],
+    [
+     155.5709,
+     4.7119,
+     225.2044
+    ]
+   ],
+   "pieces": [
+    "trousers",
+    "shift",
+    "shift"
+   ],
+   "raisedOverOmnibus": false
+  },
+  {
+   "id": "line-streetlife-52",
+   "ends": [
+    [
+     145.8,
+     7.688,
+     190.1234
+    ],
+    [
+     145.1098,
+     7.7,
+     196.8791
+    ]
+   ],
+   "pieces": [
+    "towel",
+    "trousers",
+    "sheet",
+    "apron (ticking)",
+    "shirt"
+   ],
+   "raisedOverOmnibus": false
+  },
+  {
+   "id": "line-streetlife-53",
+   "ends": [
+    [
+     135.4982,
+     7.7,
+     207.9337
+    ],
+    [
+     141.1151,
+     7.712,
+     206.5318
+    ]
+   ],
+   "pieces": [
+    "shift",
+    "trousers",
+    "stockings",
+    "apron",
+    "shirt"
+   ],
+   "raisedOverOmnibus": false
+  },
+  {
+   "id": "line-streetlife-54",
+   "ends": [
+    [
+     137.4068,
+     7.688,
+     215.5603
+    ],
+    [
+     143.0259,
+     7.712,
+     214.1713
+    ]
+   ],
+   "pieces": [
+    "shift",
+    "shift",
+    "shirt",
+    "shift",
+    "shirt"
+   ],
+   "raisedOverOmnibus": false
+  },
+  {
+   "id": "line-streetlife-55",
+   "ends": [
+    [
+     139.3555,
+     4.6879,
+     223.3535
+    ],
+    [
+     145.1312,
+     4.7119,
+     221.9247
+    ]
+   ],
+   "pieces": [
+    "sheet",
+    "trousers",
+    "towel",
+    "trousers",
+    "shirt"
+   ],
+   "raisedOverOmnibus": false
+  },
+  {
+   "id": "line-streetlife-56",
+   "ends": [
+    [
+     142.7928,
+     4.6879,
+     237.7765
+    ],
+    [
+     148.7233,
+     4.7119,
+     236.3098
+    ]
+   ],
+   "pieces": [
+    "towel",
+    "shirt",
+    "towel",
+    "stockings",
+    "shift"
+   ],
+   "raisedOverOmnibus": false
+  },
+  {
+   "id": "line-streetlife-57",
+   "ends": [
+    [
+     141.0434,
+     4.6999,
+     171.8939
+    ],
+    [
+     141.0194,
+     4.6999,
+     162.4043
+    ]
+   ],
+   "pieces": [
+    "trousers",
+    "apron (ticking)",
+    "shift",
+    "sheet",
+    "shirt",
+    "trousers",
+    "shirt",
+    "shirt"
+   ],
+   "raisedOverOmnibus": false
+  },
+  {
+   "id": "line-streetlife-58",
+   "ends": [
+    [
+     148.6123,
+     7.7,
+     171.8939
+    ],
+    [
+     148.5875,
+     7.7,
+     162.1054
+    ]
+   ],
+   "pieces": [
+    "apron",
+    "apron (ticking)",
+    "towel",
+    "trousers",
+    "trousers",
+    "apron",
+    "shirt",
+    "towel",
+    "apron"
+   ],
+   "raisedOverOmnibus": false
+  },
+  {
+   "id": "line-streetlife-59",
+   "ends": [
+    [
+     157.0198,
+     4.6999,
+     171.8939
+    ],
+    [
+     156.9943,
+     4.6999,
+     163.9466
+    ]
+   ],
+   "pieces": [
+    "sheet",
+    "sheet (ticking)",
+    "trousers",
+    "trousers",
+    "towel"
+   ],
+   "raisedOverOmnibus": false
+  },
+  {
+   "id": "line-streetlife-60",
+   "ends": [
+    [
+     165.6896,
+     4.6999,
+     172.0513
+    ],
+    [
+     165.6641,
+     4.6999,
+     164.1055
+    ]
+   ],
+   "pieces": [
+    "towel",
+    "shift",
+    "stockings",
+    "stockings",
+    "stockings",
+    "sheet",
+    "shift"
+   ],
+   "raisedOverOmnibus": false
+  },
+  {
+   "id": "line-streetlife-61",
+   "ends": [
+    [
+     174.3772,
+     4.6999,
+     172.0522
+    ],
+    [
+     174.3526,
+     4.6999,
+     164.1055
+    ]
+   ],
+   "pieces": [
+    "towel",
+    "shirt",
+    "apron",
+    "trousers",
+    "apron (ticking)",
+    "shirt"
+   ],
+   "raisedOverOmnibus": false
+  },
+  {
+   "id": "line-streetlife-62",
+   "ends": [
+    [
+     196.2801,
+     4.6999,
+     194.8933
+    ],
+    [
+     195.4932,
+     4.6999,
+     202.4018
+    ]
+   ],
+   "pieces": [
+    "towel",
+    "apron (ticking)",
+    "shirt",
+    "trousers",
+    "stockings",
+    "sheet (ticking)"
+   ],
+   "raisedOverOmnibus": false
+  },
+  {
+   "id": "line-streetlife-63",
+   "ends": [
+    [
+     207.8936,
+     7.7,
+     213.9714
+    ],
+    [
+     200.1056,
+     7.7,
+     213.9976
+    ]
+   ],
+   "pieces": [
+    "sheet",
+    "trousers",
+    "apron",
+    "sheet",
+    "shift",
+    "shift"
+   ],
+   "raisedOverOmnibus": false
+  },
+  {
+   "id": "line-streetlife-64",
+   "ends": [
+    [
+     207.8936,
+     4.6999,
+     252.7116
+    ],
+    [
+     200.1056,
+     4.6999,
+     252.7379
+    ]
+   ],
+   "pieces": [
+    "sheet (ticking)",
+    "shirt",
+    "apron",
+    "trousers",
+    "trousers",
+    "trousers"
+   ],
+   "raisedOverOmnibus": false
+  },
+  {
+   "id": "line-streetlife-65",
+   "ends": [
+    [
+     66.8057,
+     10.7,
+     333.1865
+    ],
+    [
+     58.9027,
+     10.7119,
+     333.4874
+    ]
+   ],
+   "pieces": [
+    "shift",
+    "trousers",
+    "apron",
+    "trousers",
+    "shirt",
+    "stockings",
+    "stockings",
+    "stockings",
+    "trousers"
+   ],
+   "raisedOverOmnibus": true
+  },
+  {
+   "id": "line-streetlife-66",
+   "ends": [
+    [
+     37.8167,
+     4.7,
+     323.887
+    ],
+    [
+     36.8031,
+     4.7,
+     327.6401
+    ]
+   ],
+   "pieces": [
+    "trousers",
+    "shift",
+    "sheet"
+   ],
+   "raisedOverOmnibus": false
+  },
+  {
+   "id": "line-streetlife-67",
+   "ends": [
+    [
+     35.8026,
+     4.7,
+     321.7125
+    ],
+    [
+     27.6133,
+     4.6999,
+     319.4446
+    ]
+   ],
+   "pieces": [
+    "towel",
+    "sheet (ticking)",
+    "trousers",
+    "shift",
+    "sheet",
+    "trousers",
+    "trousers"
+   ],
+   "raisedOverOmnibus": false
+  },
+  {
+   "id": "line-streetlife-68",
+   "ends": [
+    [
+     76.4484,
+     4.6999,
+     309.5293
+    ],
+    [
+     75.8082,
+     4.6999,
+     303.7725
+    ]
+   ],
+   "pieces": [
+    "shirt",
+    "sheet",
+    "shirt",
+    "towel"
+   ],
+   "raisedOverOmnibus": false
+  },
+  {
+   "id": "line-streetlife-69",
+   "ends": [
+    [
+     89.6692,
+     4.6999,
+     308.2185
+    ],
+    [
+     89.012,
+     4.6999,
+     302.3079
+    ]
+   ],
+   "pieces": [
+    "towel",
+    "sheet (ticking)",
+    "sheet",
+    "trousers"
+   ],
+   "raisedOverOmnibus": false
+  },
+  {
+   "id": "line-streetlife-70",
+   "ends": [
+    [
+     121.0419,
+     4.688,
+     301.8366
+    ],
+    [
+     119.7171,
+     4.6999,
+     296.2919
+    ]
+   ],
+   "pieces": [
+    "trousers",
+    "apron (ticking)",
+    "apron (ticking)",
+    "apron",
+    "trousers",
+    "trousers"
+   ],
+   "raisedOverOmnibus": false
+  },
+  {
+   "id": "line-streetlife-71",
+   "ends": [
+    [
+     101.6347,
+     4.688,
+     300.5592
+    ],
+    [
+     102.8032,
+     4.7119,
+     306.3022
+    ]
+   ],
+   "pieces": [
+    "sheet (ticking)",
+    "trousers",
+    "trousers",
+    "shirt"
+   ],
+   "raisedOverOmnibus": false
+  },
+  {
+   "id": "line-streetlife-72",
+   "ends": [
+    [
+     49.2272,
+     7.6999,
+     256.3725
+    ],
+    [
+     42.0596,
+     7.6999,
+     259.6294
+    ]
+   ],
+   "pieces": [
+    "shirt",
+    "shift",
+    "sheet (ticking)",
+    "shift",
+    "shirt",
+    "shirt"
+   ],
+   "raisedOverOmnibus": true
+  },
+  {
+   "id": "line-streetlife-73",
+   "ends": [
+    [
+     64.473,
+     7.7,
+     298.8136
+    ],
+    [
+     56.5321,
+     7.712,
+     299.2772
+    ]
+   ],
+   "pieces": [
+    "towel",
+    "sheet (ticking)",
+    "shift",
+    "shirt",
+    "sheet",
+    "towel",
+    "apron"
+   ],
+   "raisedOverOmnibus": false
+  },
+  {
+   "id": "line-streetlife-74",
+   "ends": [
+    [
+     1.5819,
+     4.6999,
+     279.48
+    ],
+    [
+     5.0179,
+     4.6999,
+     274.622
+    ]
+   ],
+   "pieces": [
+    "towel",
+    "towel",
+    "stockings",
+    "shirt",
+    "shirt"
+   ],
+   "raisedOverOmnibus": false
+  },
+  {
+   "id": "line-streetlife-75",
+   "ends": [
+    [
+     41.3036,
+     4.6999,
+     302.5031
+    ],
+    [
+     43.0539,
+     4.6999,
+     296.1438
+    ]
+   ],
+   "pieces": [
+    "towel",
+    "trousers",
+    "shirt",
+    "apron",
+    "trousers"
+   ],
+   "raisedOverOmnibus": false
+  },
+  {
+   "id": "line-streetlife-76",
+   "ends": [
+    [
+     49.8423,
+     4.6879,
+     305.0252
+    ],
+    [
+     51.5211,
+     4.6999,
+     299.3113
+    ]
+   ],
+   "pieces": [
+    "trousers",
+    "sheet",
+    "stockings",
+    "trousers",
+    "shirt"
+   ],
+   "raisedOverOmnibus": false
+  },
+  {
+   "id": "line-streetlife-77",
+   "ends": [
+    [
+     48.1858,
+     7.6999,
+     273.0116
+    ],
+    [
+     55.2894,
+     7.6999,
+     269.8101
+    ]
+   ],
+   "pieces": [
+    "towel",
+    "sheet (ticking)",
+    "apron (ticking)",
+    "stockings",
+    "shirt",
+    "towel",
+    "stockings",
+    "apron (ticking)"
+   ],
+   "raisedOverOmnibus": true
+  },
+  {
+   "id": "line-streetlife-78",
+   "ends": [
+    [
+     11.9056,
+     4.6999,
+     279.4923
+    ],
+    [
+     8.399,
+     4.6999,
+     284.4933
+    ]
+   ],
+   "pieces": [
+    "shift",
+    "apron",
+    "stockings",
+    "stockings",
+    "stockings",
+    "trousers",
+    "shift"
+   ],
+   "raisedOverOmnibus": false
+  },
+  {
+   "id": "line-streetlife-79",
+   "ends": [
+    [
+     45.7185,
+     7.6999,
+     248.276
+    ],
+    [
+     38.5859,
+     7.6999,
+     251.4895
+    ]
+   ],
+   "pieces": [
+    "shirt",
+    "shirt",
+    "stockings",
+    "stockings",
+    "apron",
+    "sheet",
+    "sheet (ticking)"
+   ],
+   "raisedOverOmnibus": true
+  },
+  {
+   "id": "line-streetlife-80",
+   "ends": [
+    [
+     16.7927,
+     7.6999,
+     221.4408
+    ],
+    [
+     11.832,
+     7.7119,
+     227.6635
+    ]
+   ],
+   "pieces": [
+    "shift",
+    "sheet",
+    "trousers",
+    "trousers",
+    "shirt",
+    "trousers",
+    "apron (ticking)"
+   ],
+   "raisedOverOmnibus": true
+  },
+  {
+   "id": "line-streetlife-81",
+   "ends": [
+    [
+     8.3508,
+     10.7,
+     214.6941
+    ],
+    [
+     3.4114,
+     10.712,
+     220.9291
+    ]
+   ],
+   "pieces": [
+    "towel",
+    "trousers",
+    "towel",
+    "trousers",
+    "stockings",
+    "shirt",
+    "shift",
+    "shift"
+   ],
+   "raisedOverOmnibus": true
+  },
+  {
+   "id": "line-streetlife-82",
+   "ends": [
+    [
+     7.1608,
+     4.6879,
+     235.36
+    ],
+    [
+     6.2935,
+     4.7119,
+     229.6325
+    ]
+   ],
+   "pieces": [
+    "sheet",
+    "shirt",
+    "shift"
+   ],
+   "raisedOverOmnibus": false
+  },
+  {
+   "id": "line-streetlife-83",
+   "ends": [
+    [
+     28.9547,
+     4.6999,
+     241.1508
+    ],
+    [
+     33.8003,
+     4.6999,
+     235.0535
+    ]
+   ],
+   "pieces": [
+    "shirt",
+    "apron (ticking)",
+    "stockings",
+    "stockings",
+    "stockings",
+    "stockings",
+    "apron (ticking)"
+   ],
+   "raisedOverOmnibus": false
+  },
+  {
+   "id": "line-streetlife-84",
+   "ends": [
+    [
+     40.9985,
+     4.6999,
+     216.7338
+    ],
+    [
+     41.0876,
+     4.6999,
+     225.0664
+    ]
+   ],
+   "pieces": [
+    "stockings",
+    "sheet (ticking)",
+    "apron",
+    "towel",
+    "trousers",
+    "shirt",
+    "shift"
+   ],
+   "raisedOverOmnibus": false
+  },
+  {
+   "id": "line-streetlife-85",
+   "ends": [
+    [
+     71.953,
+     4.6999,
+     240.0915
+    ],
+    [
+     70.74,
+     4.6999,
+     234.2735
+    ]
+   ],
+   "pieces": [
+    "shirt",
+    "shift",
+    "shirt",
+    "trousers"
+   ],
+   "raisedOverOmnibus": false
+  },
+  {
+   "id": "line-streetlife-86",
+   "ends": [
+    [
+     86.2839,
+     4.6999,
+     237.0401
+    ],
+    [
+     85.0877,
+     4.6999,
+     231.3004
+    ]
+   ],
+   "pieces": [
+    "trousers",
+    "stockings",
+    "shirt",
+    "stockings",
+    "shirt"
+   ],
+   "raisedOverOmnibus": false
+  },
+  {
+   "id": "line-streetlife-87",
+   "ends": [
+    [
+     108.111,
+     4.6999,
+     240.7088
+    ],
+    [
+     113.6947,
+     4.6999,
+     242.2309
+    ]
+   ],
+   "pieces": [
+    "sheet (ticking)",
+    "shift",
+    "trousers",
+    "trousers",
+    "shirt"
+   ],
+   "raisedOverOmnibus": false
+  },
+  {
+   "id": "line-streetlife-88",
+   "ends": [
+    [
+     105.035,
+     4.6999,
+     237.4307
+    ],
+    [
+     106.5341,
+     4.6999,
+     231.8383
+    ]
+   ],
+   "pieces": [
+    "sheet (ticking)",
+    "shift",
+    "trousers",
+    "trousers",
+    "shirt"
+   ],
+   "raisedOverOmnibus": false
+  },
+  {
+   "id": "line-streetlife-89",
+   "ends": [
+    [
+     117.6967,
+     4.6999,
+     241.0071
+    ],
+    [
+     119.2567,
+     4.6999,
+     235.1857
+    ]
+   ],
+   "pieces": [
+    "shift",
+    "towel",
+    "sheet",
+    "sheet"
+   ],
+   "raisedOverOmnibus": false
+  },
+  {
+   "id": "line-streetlife-90",
+   "ends": [
+    [
+     80.0542,
+     4.6999,
+     216.7365
+    ],
+    [
+     80.0601,
+     4.6999,
+     220.9137
+    ]
+   ],
+   "pieces": [
+    "trousers",
+    "shift",
+    "sheet"
+   ],
+   "raisedOverOmnibus": false
+  },
+  {
+   "id": "line-streetlife-91",
+   "ends": [
+    [
+     90.2107,
+     4.6999,
+     216.7366
+    ],
+    [
+     90.2116,
+     4.6999,
+     219.9385
+    ]
+   ],
+   "pieces": [
+    "shift",
+    "shirt"
+   ],
+   "raisedOverOmnibus": false
+  },
+  {
+   "id": "line-streetlife-92",
+   "ends": [
+    [
+     109.4519,
+     4.6999,
+     211.0242
+    ],
+    [
+     109.3967,
+     4.6999,
+     201.3253
+    ]
+   ],
+   "pieces": [
+    "apron",
+    "trousers",
+    "towel",
+    "towel",
+    "apron",
+    "towel",
+    "shirt",
+    "trousers",
+    "trousers",
+    "shirt"
+   ],
+   "raisedOverOmnibus": false
+  },
+  {
+   "id": "line-streetlife-93",
+   "ends": [
+    [
+     113.6201,
+     4.6999,
+     216.7366
+    ],
+    [
+     113.6708,
+     4.6999,
+     219.9529
+    ]
+   ],
+   "pieces": [
+    "trousers",
+    "trousers",
+    "shift"
+   ],
+   "raisedOverOmnibus": false
+  },
+  {
+   "id": "line-streetlife-94",
+   "ends": [
+    [
+     -18.4971,
+     10.688,
+     193.6701
+    ],
+    [
+     -23.1704,
+     10.712,
+     199.9042
+    ]
+   ],
+   "pieces": [
+    "sheet",
+    "shirt",
+    "towel",
+    "apron (ticking)",
+    "shift",
+    "sheet"
+   ],
+   "raisedOverOmnibus": true
+  },
+  {
+   "id": "line-streetlife-95",
+   "ends": [
+    [
+     -43.0043,
+     7.688,
+     254.0488
+    ],
+    [
+     -45.1489,
+     7.712,
+     259.5869
+    ]
+   ],
+   "pieces": [
+    "shirt",
+    "towel",
+    "shirt",
+    "trousers",
+    "trousers"
+   ],
+   "raisedOverOmnibus": false
+  },
+  {
+   "id": "line-streetlife-96",
+   "ends": [
+    [
+     -51.313,
+     4.6999,
+     244.9272
+    ],
+    [
+     -52.3673,
+     4.7119,
+     239.254
+    ]
+   ],
+   "pieces": [
+    "sheet (ticking)",
+    "trousers",
+    "towel",
+    "shirt"
+   ],
+   "raisedOverOmnibus": false
+  },
+  {
+   "id": "line-streetlife-97",
+   "ends": [
+    [
+     -56.7277,
+     7.7,
+     255.0483
+    ],
+    [
+     -55.6845,
+     7.7,
+     260.7322
+    ]
+   ],
+   "pieces": [
+    "trousers",
+    "trousers",
+    "shirt",
+    "towel",
+    "shift"
+   ],
+   "raisedOverOmnibus": false
+  },
+  {
+   "id": "line-streetlife-98",
+   "ends": [
+    [
+     -43.6446,
+     4.6999,
+     243.5037
+    ],
+    [
+     -44.7424,
+     4.6999,
+     237.6582
+    ]
+   ],
+   "pieces": [
+    "shift",
+    "shirt",
+    "shirt",
+    "shift",
+    "shift"
+   ],
+   "raisedOverOmnibus": false
+  },
+  {
+   "id": "line-streetlife-99",
+   "ends": [
+    [
+     -7.9511,
+     7.7,
+     237.7874
+    ],
+    [
+     -8.8431,
+     7.7,
+     231.9001
+    ]
+   ],
+   "pieces": [
+    "towel",
+    "shirt",
+    "sheet",
+    "apron"
+   ],
+   "raisedOverOmnibus": false
+  },
+  {
+   "id": "line-streetlife-100",
+   "ends": [
+    [
+     -18.4921,
+     4.6999,
+     233.1852
+    ],
+    [
+     -17.6253,
+     4.6999,
+     239.0734
+    ]
+   ],
+   "pieces": [
+    "towel",
+    "apron",
+    "trousers",
+    "trousers",
+    "stockings",
+    "towel"
+   ],
+   "raisedOverOmnibus": false
+  },
+  {
+   "id": "line-streetlife-101",
+   "ends": [
+    [
+     -26.9991,
+     4.6879,
+     234.4571
+    ],
+    [
+     -26.1065,
+     4.7119,
+     240.3428
+    ]
+   ],
+   "pieces": [
+    "shirt",
+    "shift",
+    "towel",
+    "shirt"
+   ],
+   "raisedOverOmnibus": false
+  },
+  {
+   "id": "line-streetlife-102",
+   "ends": [
+    [
+     -34.9196,
+     4.6999,
+     235.9753
+    ],
+    [
+     -33.8322,
+     4.7119,
+     241.8273
+    ]
+   ],
+   "pieces": [
+    "trousers",
+    "towel",
+    "shirt",
+    "apron",
+    "shift"
+   ],
+   "raisedOverOmnibus": false
+  },
+  {
+   "id": "line-streetlife-103",
+   "ends": [
+    [
+     -38.9432,
+     4.6999,
+     157.0536
+    ],
+    [
+     -38.9703,
+     4.6999,
+     150.1037
+    ]
+   ],
+   "pieces": [
+    "trousers",
+    "trousers",
+    "apron",
+    "trousers",
+    "towel",
+    "stockings"
+   ],
+   "raisedOverOmnibus": false
+  },
+  {
+   "id": "line-streetlife-104",
+   "ends": [
+    [
+     -21.7802,
+     4.6999,
+     156.8932
+    ],
+    [
+     -21.8057,
+     4.6999,
+     150.1026
+    ]
+   ],
+   "pieces": [
+    "trousers",
+    "stockings",
+    "trousers",
+    "trousers",
+    "towel",
+    "apron (ticking)"
+   ],
+   "raisedOverOmnibus": false
+  },
+  {
+   "id": "line-streetlife-105",
+   "ends": [
+    [
+     -55.0045,
+     7.6999,
+     175.7708
+    ],
+    [
+     -50.2404,
+     7.6999,
+     169.4171
+    ]
+   ],
+   "pieces": [
+    "apron",
+    "apron (ticking)",
+    "shirt",
+    "towel",
+    "shift",
+    "shift",
+    "shirt"
+   ],
+   "raisedOverOmnibus": true
+  },
+  {
+   "id": "line-streetlife-106",
+   "ends": [
+    [
+     -22.8287,
+     4.6999,
+     340.6344
+    ],
+    [
+     -27.6146,
+     4.6999,
+     340.9446
+    ]
+   ],
+   "pieces": [
+    "sheet (ticking)",
+    "trousers",
+    "sheet (ticking)"
+   ],
+   "raisedOverOmnibus": false
+  },
+  {
+   "id": "line-streetlife-107",
+   "ends": [
+    [
+     -23.3351,
+     4.6999,
+     331.8092
+    ],
+    [
+     -28.1582,
+     4.6999,
+     332.1242
+    ]
+   ],
+   "pieces": [
+    "trousers",
+    "towel",
+    "trousers",
+    "shirt"
+   ],
+   "raisedOverOmnibus": false
+  },
+  {
+   "id": "line-streetlife-108",
+   "ends": [
+    [
+     -24.0314,
+     4.6999,
+     317.0011
+    ],
+    [
+     -28.9791,
+     4.7119,
+     317.2857
+    ]
+   ],
+   "pieces": [
+    "shirt",
+    "trousers",
+    "shirt"
+   ],
+   "raisedOverOmnibus": false
+  },
+  {
+   "id": "line-streetlife-109",
+   "ends": [
+    [
+     -25.5423,
+     4.6879,
+     290.9686
+    ],
+    [
+     -30.4755,
+     4.6999,
+     291.2545
+    ]
+   ],
+   "pieces": [
+    "shirt",
+    "shirt",
+    "shift",
+    "stockings",
+    "stockings"
+   ],
+   "raisedOverOmnibus": false
+  },
+  {
+   "id": "line-streetlife-110",
+   "ends": [
+    [
+     -26.4686,
+     4.6999,
+     277.6361
+    ],
+    [
+     -31.2484,
+     4.6999,
+     277.9001
+    ]
+   ],
+   "pieces": [
+    "trousers",
+    "towel",
+    "shift",
+    "stockings",
+    "stockings",
+    "trousers"
+   ],
+   "raisedOverOmnibus": false
+  },
+  {
+   "id": "line-streetlife-111",
+   "ends": [
+    [
+     -26.8344,
+     4.6999,
+     268.55
+    ],
+    [
+     -33.7321,
+     4.7119,
+     268.9952
+    ]
+   ],
+   "pieces": [
+    "towel",
+    "sheet",
+    "shift",
+    "shift",
+    "stockings",
+    "apron"
+   ],
+   "raisedOverOmnibus": false
+  },
+  {
+   "id": "line-streetlife-112",
+   "ends": [
+    [
+     -8.0453,
+     4.6879,
+     267.3611
+    ],
+    [
+     -10.1485,
+     4.6999,
+     272.7582
+    ]
+   ],
+   "pieces": [
+    "sheet",
+    "apron",
+    "trousers",
+    "stockings",
+    "towel"
+   ],
+   "raisedOverOmnibus": false
+  },
+  {
+   "id": "line-streetlife-113",
+   "ends": [
+    [
+     -23.7198,
+     4.6999,
+     261.2241
+    ],
+    [
+     -25.9359,
+     4.7119,
+     266.9132
+    ]
+   ],
+   "pieces": [
+    "shirt",
+    "shirt",
+    "stockings",
+    "sheet (ticking)",
+    "apron"
+   ],
+   "raisedOverOmnibus": false
+  },
+  {
+   "id": "line-streetlife-114",
+   "ends": [
+    [
+     -6.9322,
+     4.6999,
+     292.4228
+    ],
+    [
+     -11.3532,
+     4.6999,
+     298.1518
+    ]
+   ],
+   "pieces": [
+    "shirt",
+    "shift",
+    "sheet (ticking)",
+    "stockings",
+    "trousers",
+    "trousers",
+    "shift"
+   ],
+   "raisedOverOmnibus": false
+  },
+  {
+   "id": "line-streetlife-115",
+   "ends": [
+    [
+     -82.7951,
+     7.7,
+     259.8739
+    ],
+    [
+     -81.7509,
+     7.7,
+     265.5609
+    ]
+   ],
+   "pieces": [
+    "apron (ticking)",
+    "towel",
+    "shirt",
+    "shirt",
+    "sheet"
+   ],
+   "raisedOverOmnibus": false
+  },
+  {
+   "id": "line-streetlife-116",
+   "ends": [
+    [
+     -89.9635,
+     4.6999,
+     261.1638
+    ],
+    [
+     -88.8831,
+     4.6999,
+     267.0447
+    ]
+   ],
+   "pieces": [
+    "apron (ticking)",
+    "towel",
+    "towel",
+    "stockings",
+    "towel"
+   ],
+   "raisedOverOmnibus": false
+  },
+  {
+   "id": "line-streetlife-117",
+   "ends": [
+    [
+     -98.1216,
+     4.6879,
+     262.5379
+    ],
+    [
+     -97.0334,
+     4.6999,
+     268.395
+    ]
+   ],
+   "pieces": [
+    "apron (ticking)",
+    "stockings",
+    "trousers",
+    "towel",
+    "apron (ticking)",
+    "shift"
+   ],
+   "raisedOverOmnibus": false
+  },
+  {
+   "id": "line-streetlife-118",
+   "ends": [
+    [
+     -113.385,
+     4.6879,
+     261.8147
+    ],
+    [
+     -113.9056,
+     4.6999,
+     267.746
+    ]
+   ],
+   "pieces": [
+    "trousers",
+    "shirt",
+    "trousers",
+    "towel",
+    "shirt"
+   ],
+   "raisedOverOmnibus": false
+  },
+  {
+   "id": "line-streetlife-119",
+   "ends": [
+    [
+     -129.2449,
+     4.6999,
+     260.3122
+    ],
+    [
+     -129.7893,
+     4.6999,
+     266.1012
+    ]
+   ],
+   "pieces": [
+    "stockings",
+    "shirt",
+    "trousers",
+    "trousers",
+    "apron (ticking)"
+   ],
+   "raisedOverOmnibus": false
+  },
+  {
+   "id": "line-streetlife-120",
+   "ends": [
+    [
+     -137.5247,
+     4.6999,
+     259.3653
+    ],
+    [
+     -138.058,
+     4.6999,
+     265.3116
+    ]
+   ],
+   "pieces": [
+    "trousers",
+    "shirt",
+    "towel",
+    "stockings",
+    "shirt"
+   ],
+   "raisedOverOmnibus": false
+  },
+  {
+   "id": "line-streetlife-121",
+   "ends": [
+    [
+     -140.1489,
+     7.6999,
+     279.9617
+    ],
+    [
+     -149.8932,
+     7.6999,
+     279.8636
+    ]
+   ],
+   "pieces": [
+    "trousers",
+    "shirt",
+    "shift",
+    "shirt",
+    "shift",
+    "trousers",
+    "towel",
+    "sheet",
+    "towel"
+   ],
+   "raisedOverOmnibus": true
+  },
+  {
+   "id": "line-streetlife-122",
+   "ends": [
+    [
+     -140.139,
+     7.6999,
+     292.0516
+    ],
+    [
+     -150.0552,
+     7.6999,
+     291.9262
+    ]
+   ],
+   "pieces": [
+    "trousers",
+    "shirt",
+    "shirt",
+    "trousers",
+    "shirt",
+    "trousers",
+    "towel",
+    "apron (ticking)",
+    "towel"
+   ],
+   "raisedOverOmnibus": true
+  },
+  {
+   "id": "line-streetlife-123",
+   "ends": [
+    [
+     -139.9458,
+     10.7,
+     311.9947
+    ],
+    [
+     -150.0545,
+     10.7,
+     312.0207
+    ]
+   ],
+   "pieces": [
+    "trousers",
+    "shirt",
+    "trousers",
+    "sheet",
+    "stockings",
+    "trousers",
+    "towel",
+    "shift",
+    "apron (ticking)"
+   ],
+   "raisedOverOmnibus": true
+  },
+  {
+   "id": "line-streetlife-124",
+   "ends": [
+    [
+     -176.4977,
+     4.6879,
+     272.2917
+    ],
+    [
+     -177.4925,
+     4.7119,
+     265.2661
+    ]
+   ],
+   "pieces": [
+    "apron (ticking)",
+    "shirt",
+    "trousers",
+    "apron",
+    "stockings",
+    "apron",
+    "shirt"
+   ],
+   "raisedOverOmnibus": false
+  },
+  {
+   "id": "line-streetlife-125",
+   "ends": [
+    [
+     -164.1388,
+     4.6999,
+     270.3976
+    ],
+    [
+     -165.0891,
+     4.6999,
+     263.6836
+    ]
+   ],
+   "pieces": [
+    "sheet (ticking)",
+    "shift",
+    "towel",
+    "stockings",
+    "apron (ticking)",
+    "apron",
+    "shirt"
+   ],
+   "raisedOverOmnibus": false
+  },
+  {
+   "id": "line-streetlife-126",
+   "ends": [
+    [
+     -155.4464,
+     7.7,
+     261.4158
+    ],
+    [
+     -155.4359,
+     7.7,
+     269.18
+    ]
+   ],
+   "pieces": [
+    "stockings",
+    "stockings",
+    "stockings",
+    "towel",
+    "shirt",
+    "shirt",
+    "shirt"
+   ],
+   "raisedOverOmnibus": false
+  },
+  {
+   "id": "line-streetlife-127",
+   "ends": [
+    [
+     -178.5661,
+     4.6999,
+     302.1471
+    ],
+    [
+     -184.8542,
+     4.6999,
+     302.173
+    ]
+   ],
+   "pieces": [
+    "stockings",
+    "shirt",
+    "trousers",
+    "apron (ticking)",
+    "apron",
+    "stockings"
+   ],
+   "raisedOverOmnibus": false
+  },
+  {
+   "id": "line-streetlife-128",
+   "ends": [
+    [
+     -140.1074,
+     7.6999,
+     249.2171
+    ],
+    [
+     -150.0552,
+     7.6999,
+     249.2421
+    ]
+   ],
+   "pieces": [
+    "sheet",
+    "shift",
+    "shirt",
+    "shirt",
+    "shirt",
+    "towel",
+    "stockings",
+    "towel"
+   ],
+   "raisedOverOmnibus": true
+  },
+  {
+   "id": "line-streetlife-129",
+   "ends": [
+    [
+     -136.7712,
+     4.6999,
+     240.4642
+    ],
+    [
+     -136.7856,
+     4.6999,
+     234.3625
+    ]
+   ],
+   "pieces": [
+    "trousers",
+    "sheet",
+    "stockings",
+    "stockings",
+    "stockings",
+    "shirt"
+   ],
+   "raisedOverOmnibus": false
+  },
+  {
+   "id": "line-streetlife-130",
+   "ends": [
+    [
+     -140.1067,
+     7.6999,
+     230.3259
+    ],
+    [
+     -149.894,
+     7.6999,
+     230.3525
+    ]
+   ],
+   "pieces": [
+    "stockings",
+    "shirt",
+    "trousers",
+    "stockings",
+    "stockings",
+    "stockings",
+    "shirt",
+    "apron (ticking)",
+    "shirt",
+    "shirt",
+    "shift"
+   ],
+   "raisedOverOmnibus": true
+  },
+  {
+   "id": "line-streetlife-131",
+   "ends": [
+    [
+     -140.1067,
+     7.6999,
+     222.2777
+    ],
+    [
+     -149.8932,
+     7.6999,
+     222.3044
+    ]
+   ],
+   "pieces": [
+    "stockings",
+    "towel",
+    "stockings",
+    "towel",
+    "stockings",
+    "sheet (ticking)",
+    "trousers",
+    "sheet"
+   ],
+   "raisedOverOmnibus": true
+  },
+  {
+   "id": "line-streetlife-132",
+   "ends": [
+    [
+     -185.712,
+     4.6999,
+     212.0532
+    ],
+    [
+     -185.7388,
+     4.6999,
+     205.1062
+    ]
+   ],
+   "pieces": [
+    "apron",
+    "trousers",
+    "apron",
+    "apron (ticking)",
+    "sheet"
+   ],
+   "raisedOverOmnibus": false
+  },
+  {
+   "id": "line-streetlife-133",
+   "ends": [
+    [
+     -168.2743,
+     4.6999,
+     211.893
+    ],
+    [
+     -168.3011,
+     4.6999,
+     204.9448
+    ]
+   ],
+   "pieces": [
+    "sheet (ticking)",
+    "towel",
+    "shift",
+    "shift",
+    "stockings"
+   ],
+   "raisedOverOmnibus": false
+  },
+  {
+   "id": "line-streetlife-134",
+   "ends": [
+    [
+     -163.1327,
+     4.688,
+     228.7174
+    ],
+    [
+     -161.3058,
+     4.7118,
+     231.7239
+    ]
+   ],
+   "pieces": [
+    "shirt",
+    "shift"
+   ],
+   "raisedOverOmnibus": false
+  },
+  {
+   "id": "line-streetlife-135",
+   "ends": [
+    [
+     -163.5944,
+     7.7119,
+     193.7059
+    ],
+    [
+     -157.4259,
+     7.6999,
+     190.505
+    ]
+   ],
+   "pieces": [
+    "shirt",
+    "shift",
+    "shirt",
+    "trousers",
+    "towel",
+    "shirt"
+   ],
+   "raisedOverOmnibus": false
+  },
+  {
+   "id": "line-streetlife-136",
+   "ends": [
+    [
+     -187.5787,
+     4.6999,
+     253.0897
+    ],
+    [
+     -189.1361,
+     4.6999,
+     256.0914
+    ]
+   ],
+   "pieces": [
+    "towel",
+    "towel",
+    "apron"
+   ],
+   "raisedOverOmnibus": false
+  },
+  {
+   "id": "line-streetlife-137",
+   "ends": [
+    [
+     -108.5296,
+     4.688,
+     237.8219
+    ],
+    [
+     -109.0774,
+     4.712,
+     231.7477
+    ]
+   ],
+   "pieces": [
+    "sheet",
+    "apron",
+    "trousers",
+    "towel",
+    "stockings"
+   ],
+   "raisedOverOmnibus": false
+  },
+  {
+   "id": "line-streetlife-138",
+   "ends": [
+    [
+     -98.7333,
+     4.688,
+     237.4839
+    ],
+    [
+     -97.2636,
+     4.6999,
+     231.7282
+    ]
+   ],
+   "pieces": [
+    "stockings",
+    "trousers",
+    "shirt",
+    "apron",
+    "shift",
+    "stockings"
+   ],
+   "raisedOverOmnibus": false
+  },
+  {
+   "id": "line-streetlife-139",
+   "ends": [
+    [
+     -64.5348,
+     4.6999,
+     240.3427
+    ],
+    [
+     -65.9976,
+     4.6999,
+     246.0137
+    ]
+   ],
+   "pieces": [
+    "shift",
+    "shirt",
+    "trousers",
+    "shift",
+    "shirt"
+   ],
+   "raisedOverOmnibus": false
+  },
+  {
+   "id": "line-streetlife-140",
+   "ends": [
+    [
+     -140.1757,
+     7.6999,
+     328.6184
+    ],
+    [
+     -150.0545,
+     7.6999,
+     328.8186
+    ]
+   ],
+   "pieces": [
+    "trousers",
+    "sheet (ticking)",
+    "trousers",
+    "sheet",
+    "shirt",
+    "shirt",
+    "apron"
+   ],
+   "raisedOverOmnibus": true
+  },
+  {
+   "id": "line-streetlife-141",
+   "ends": [
+    [
+     -139.874,
+     7.6999,
+     336.1167
+    ],
+    [
+     -149.8827,
+     7.7119,
+     335.7251
+    ]
+   ],
+   "pieces": [
+    "trousers",
+    "stockings",
+    "shirt",
+    "shirt",
+    "apron (ticking)",
+    "trousers",
+    "shift",
+    "shirt",
+    "shirt"
+   ],
+   "raisedOverOmnibus": true
+  },
+  {
+   "id": "line-streetlife-142",
+   "ends": [
+    [
+     -242.4762,
+     4.6879,
+     309.454
+    ],
+    [
+     -248.0585,
+     4.6999,
+     305.5892
+    ]
+   ],
+   "pieces": [
+    "stockings",
+    "trousers",
+    "apron (ticking)",
+    "stockings",
+    "stockings",
+    "stockings",
+    "stockings",
+    "trousers",
+    "trousers"
+   ],
+   "raisedOverOmnibus": false
+  },
+  {
+   "id": "line-streetlife-143",
+   "ends": [
+    [
+     -223.9963,
+     4.6999,
+     292.9333
+    ],
+    [
+     -229.254,
+     4.6999,
+     285.5269
+    ]
+   ],
+   "pieces": [
+    "trousers",
+    "shift",
+    "towel",
+    "trousers",
+    "apron (ticking)",
+    "apron (ticking)",
+    "trousers",
+    "apron",
+    "stockings"
+   ],
+   "raisedOverOmnibus": false
+  },
+  {
+   "id": "line-streetlife-145",
+   "ends": [
+    [
+     -202.729,
+     4.6999,
+     278.2538
+    ],
+    [
+     -206.6745,
+     4.6999,
+     272.5328
+    ]
+   ],
+   "pieces": [
+    "towel",
+    "shirt",
+    "stockings",
+    "stockings",
+    "trousers",
+    "shirt",
+    "shift",
+    "trousers"
+   ],
+   "raisedOverOmnibus": false
+  },
+  {
+   "id": "line-streetlife-147",
+   "ends": [
+    [
+     -239.4636,
+     4.6879,
+     295.4855
+    ],
+    [
+     -235.6034,
+     4.6999,
+     301.059
+    ]
+   ],
+   "pieces": [
+    "apron",
+    "trousers",
+    "shirt",
+    "trousers",
+    "apron",
+    "shift"
+   ],
+   "raisedOverOmnibus": false
+  },
+  {
+   "id": "line-streetlife-148",
+   "ends": [
+    [
+     -197.2718,
+     4.6999,
+     257.3924
+    ],
+    [
+     -193.9559,
+     4.6999,
+     250.9688
+    ]
+   ],
+   "pieces": [
+    "apron",
+    "trousers",
+    "sheet (ticking)",
+    "shirt",
+    "apron"
+   ],
+   "raisedOverOmnibus": false
+  },
+  {
+   "id": "line-streetlife-149",
+   "ends": [
+    [
+     -197.5067,
+     4.6999,
+     211.8919
+    ],
+    [
+     -197.5326,
+     4.6999,
+     205.1051
+    ]
+   ],
+   "pieces": [
+    "stockings",
+    "stockings",
+    "stockings",
+    "stockings",
+    "apron (ticking)",
+    "shift",
+    "towel",
+    "shirt"
+   ],
+   "raisedOverOmnibus": false
+  },
+  {
+   "id": "line-streetlife-150",
+   "ends": [
+    [
+     -166.6894,
+     4.6997,
+     172.8298
+    ],
+    [
+     -172.7226,
+     4.712,
+     175.933
+    ]
+   ],
+   "pieces": [
+    "stockings",
+    "shift",
+    "towel",
+    "sheet (ticking)",
+    "apron (ticking)",
+    "trousers",
+    "shift"
+   ],
+   "raisedOverOmnibus": false
+  },
+  {
+   "id": "line-streetlife-151",
+   "ends": [
+    [
+     -173.0304,
+     4.6997,
+     151.0083
+    ],
+    [
+     -179.6428,
+     4.6997,
+     152.5754
+    ]
+   ],
+   "pieces": [
+    "shirt",
+    "sheet (ticking)",
+    "shirt",
+    "trousers",
+    "shirt"
+   ],
+   "raisedOverOmnibus": false
+  },
+  {
+   "id": "line-streetlife-152",
+   "ends": [
+    [
+     -175.115,
+     7.6878,
+     142.26
+    ],
+    [
+     -181.7272,
+     7.7119,
+     143.8276
+    ]
+   ],
+   "pieces": [
+    "sheet",
+    "towel",
+    "trousers",
+    "stockings",
+    "sheet (ticking)",
+    "stockings"
+   ],
+   "raisedOverOmnibus": false
+  },
+  {
+   "id": "line-streetlife-153",
+   "ends": [
+    [
+     -184.0203,
+     7.6878,
+     134.1857
+    ],
+    [
+     -177.4121,
+     7.7119,
+     132.6189
+    ]
+   ],
+   "pieces": [
+    "towel",
+    "shirt",
+    "stockings",
+    "shirt",
+    "apron (ticking)",
+    "apron",
+    "trousers"
+   ],
+   "raisedOverOmnibus": false
+  },
+  {
+   "id": "line-streetlife-154",
+   "ends": [
+    [
+     -176.9203,
+     7.6999,
+     163.996
+    ],
+    [
+     -170.1607,
+     7.6999,
+     162.3941
+    ]
+   ],
+   "pieces": [
+    "apron",
+    "apron (ticking)",
+    "apron",
+    "shift",
+    "sheet"
+   ],
+   "raisedOverOmnibus": false
+  },
+  {
+   "id": "line-streetlife-156",
+   "ends": [
+    [
+     -315.5289,
+     7.6999,
+     242.9353
+    ],
+    [
+     -315.5129,
+     7.6999,
+     249.3279
+    ]
+   ],
+   "pieces": [
+    "apron",
+    "stockings",
+    "stockings",
+    "apron (ticking)",
+    "stockings",
+    "trousers"
+   ],
+   "raisedOverOmnibus": false
+  },
+  {
+   "id": "line-streetlife-157",
+   "ends": [
+    [
+     -339.0925,
+     7.6999,
+     154.4306
+    ],
+    [
+     -339.1179,
+     7.6999,
+     145.6907
+    ]
+   ],
+   "pieces": [
+    "towel",
+    "stockings",
+    "sheet (ticking)",
+    "apron (ticking)",
+    "sheet (ticking)",
+    "shirt"
+   ],
+   "raisedOverOmnibus": true
+  },
+  {
+   "id": "line-streetlife-158",
+   "ends": [
+    [
+     -331.0067,
+     7.6999,
+     154.4297
+    ],
+    [
+     -331.0318,
+     7.6999,
+     145.6052
+    ]
+   ],
+   "pieces": [
+    "stockings",
+    "towel",
+    "towel",
+    "shift",
+    "sheet",
+    "shift",
+    "apron (ticking)",
+    "shirt"
+   ],
+   "raisedOverOmnibus": true
+  },
+  {
+   "id": "line-streetlife-159",
+   "ends": [
+    [
+     -327.7504,
+     4.688,
+     131.18
+    ],
+    [
+     -331.3447,
+     4.6999,
+     132.7761
+    ]
+   ],
+   "pieces": [
+    "trousers",
+    "shirt",
+    "shift"
+   ],
+   "raisedOverOmnibus": false
+  },
+  {
+   "id": "line-streetlife-160",
+   "ends": [
+    [
+     -337.8695,
+     4.6879,
+     64.8228
+    ],
+    [
+     -337.4053,
+     4.6999,
+     58.8699
+    ]
+   ],
+   "pieces": [
+    "shift",
+    "trousers",
+    "shift",
+    "towel",
+    "stockings",
+    "shift"
+   ],
+   "raisedOverOmnibus": false
+  },
+  {
+   "id": "line-streetlife-161",
+   "ends": [
+    [
+     -325.3461,
+     4.6879,
+     65.6733
+    ],
+    [
+     -324.8968,
+     4.6999,
+     59.9053
+    ]
+   ],
+   "pieces": [
+    "shirt",
+    "shirt",
+    "shirt",
+    "shift",
+    "stockings"
+   ],
+   "raisedOverOmnibus": false
+  },
+  {
+   "id": "line-streetlife-162",
+   "ends": [
+    [
+     -334.0505,
+     4.6879,
+     89.8702
+    ],
+    [
+     -334.2454,
+     4.6999,
+     81.2568
+    ]
+   ],
+   "pieces": [
+    "sheet",
+    "towel",
+    "towel",
+    "apron",
+    "stockings",
+    "trousers",
+    "towel",
+    "apron"
+   ],
+   "raisedOverOmnibus": false
+  },
+  {
+   "id": "line-streetlife-163",
+   "ends": [
+    [
+     -330.7037,
+     4.6879,
+     106.0963
+    ],
+    [
+     -334.6894,
+     4.7119,
+     105.8189
+    ]
+   ],
+   "pieces": [
+    "trousers",
+    "sheet (ticking)",
+    "towel"
+   ],
+   "raisedOverOmnibus": false
+  },
+  {
+   "id": "line-streetlife-164",
+   "ends": [
+    [
+     -331.39,
+     4.6999,
+     116.2886
+    ],
+    [
+     -339.173,
+     4.6999,
+     115.7447
+    ]
+   ],
+   "pieces": [
+    "towel",
+    "shirt",
+    "shirt",
+    "apron (ticking)",
+    "towel",
+    "shirt",
+    "towel"
+   ],
+   "raisedOverOmnibus": false
+  },
+  {
+   "id": "line-streetlife-165",
+   "ends": [
+    [
+     38.8831,
+     4.6879,
+     114.1463
+    ],
+    [
+     40.1194,
+     4.6999,
+     104.945
+    ]
+   ],
+   "pieces": [
+    "trousers",
+    "towel",
+    "shirt",
+    "trousers",
+    "shirt",
+    "trousers",
+    "sheet (ticking)",
+    "trousers"
+   ],
+   "raisedOverOmnibus": false
+  },
+  {
+   "id": "line-streetlife-166",
+   "ends": [
+    [
+     36.1248,
+     4.6999,
+     119.0654
+    ],
+    [
+     30.5344,
+     4.6999,
+     120.5389
+    ]
+   ],
+   "pieces": [
+    "towel",
+    "trousers",
+    "towel",
+    "shirt",
+    "trousers"
+   ],
+   "raisedOverOmnibus": false
+  },
+  {
+   "id": "line-streetlife-167",
+   "ends": [
+    [
+     8.5498,
+     4.6999,
+     110.2212
+    ],
+    [
+     9.4381,
+     4.7119,
+     103.5452
+    ]
+   ],
+   "pieces": [
+    "shirt",
+    "shirt",
+    "sheet (ticking)",
+    "sheet (ticking)"
+   ],
+   "raisedOverOmnibus": false
+  },
+  {
+   "id": "line-streetlife-168",
+   "ends": [
+    [
+     25.1981,
+     4.6879,
+     112.3594
+    ],
+    [
+     26.0696,
+     4.6999,
+     105.6248
+    ]
+   ],
+   "pieces": [
+    "shift",
+    "trousers",
+    "towel",
+    "towel",
+    "sheet (ticking)"
+   ],
+   "raisedOverOmnibus": false
+  },
+  {
+   "id": "line-streetlife-169",
+   "ends": [
+    [
+     26.75,
+     4.6999,
+     80.1419
+    ],
+    [
+     35.9177,
+     4.7119,
+     80.8722
+    ]
+   ],
+   "pieces": [
+    "shift",
+    "shirt",
+    "apron (ticking)",
+    "shirt",
+    "stockings",
+    "shirt",
+    "apron",
+    "towel",
+    "shirt"
+   ],
+   "raisedOverOmnibus": false
+  },
+  {
+   "id": "line-streetlife-170",
+   "ends": [
+    [
+     -7.6242,
+     4.6999,
+     60.2618
+    ],
+    [
+     -1.8559,
+     4.6999,
+     59.941
+    ]
+   ],
+   "pieces": [
+    "apron",
+    "apron",
+    "trousers",
+    "sheet (ticking)"
+   ],
+   "raisedOverOmnibus": false
+  },
+  {
+   "id": "line-streetlife-171",
+   "ends": [
+    [
+     207.894,
+     4.6999,
+     160.077
+    ],
+    [
+     199.9472,
+     4.6999,
+     160.1017
+    ]
+   ],
+   "pieces": [
+    "sheet",
+    "stockings",
+    "shirt",
+    "apron",
+    "towel",
+    "towel",
+    "towel"
+   ],
+   "raisedOverOmnibus": false
+  },
+  {
+   "id": "line-streetlife-172",
+   "ends": [
+    [
+     207.894,
+     7.7,
+     174.3815
+    ],
+    [
+     200.1045,
+     7.7,
+     174.4066
+    ]
+   ],
+   "pieces": [
+    "shift",
+    "shift",
+    "apron",
+    "stockings",
+    "trousers",
+    "towel",
+    "sheet"
+   ],
+   "raisedOverOmnibus": false
+  },
+  {
+   "id": "line-streetlife-173",
+   "ends": [
+    [
+     208.0537,
+     7.688,
+     186.4607
+    ],
+    [
+     200.1055,
+     7.712,
+     186.8627
+    ]
+   ],
+   "pieces": [
+    "trousers",
+    "shift",
+    "apron (ticking)",
+    "stockings",
+    "apron (ticking)",
+    "shirt",
+    "trousers",
+    "trousers"
+   ],
+   "raisedOverOmnibus": false
+  },
+  {
+   "id": "line-streetlife-174",
+   "ends": [
+    [
+     216.2327,
+     4.6879,
+     149.3451
+    ],
+    [
+     215.2252,
+     4.7119,
+     155.8511
+    ]
+   ],
+   "pieces": [
+    "shirt",
+    "shirt",
+    "apron (ticking)",
+    "trousers",
+    "sheet (ticking)"
+   ],
+   "raisedOverOmnibus": false
+  },
+  {
+   "id": "line-streetlife-175",
+   "ends": [
+    [
+     208.5771,
+     4.6879,
+     143.5942
+    ],
+    [
+     199.9463,
+     4.6999,
+     142.2557
+    ]
+   ],
+   "pieces": [
+    "trousers",
+    "apron",
+    "trousers",
+    "towel",
+    "stockings",
+    "apron",
+    "trousers",
+    "trousers"
+   ],
+   "raisedOverOmnibus": false
+  },
+  {
+   "id": "line-streetlife-176",
+   "ends": [
+    [
+     207.894,
+     7.7,
+     134.6297
+    ],
+    [
+     200.1055,
+     7.7,
+     134.6539
+    ]
+   ],
+   "pieces": [
+    "shift",
+    "stockings",
+    "apron (ticking)",
+    "shirt",
+    "shirt",
+    "sheet"
+   ],
+   "raisedOverOmnibus": false
+  },
+  {
+   "id": "line-streetlife-177",
+   "ends": [
+    [
+     207.8949,
+     4.7,
+     111.0414
+    ],
+    [
+     200.1051,
+     4.7,
+     111.0659
+    ]
+   ],
+   "pieces": [
+    "shift",
+    "apron",
+    "stockings",
+    "shirt",
+    "towel",
+    "shift",
+    "towel"
+   ],
+   "raisedOverOmnibus": false
+  },
+  {
+   "id": "line-streetlife-178",
+   "ends": [
+    [
+     -95.4662,
+     4.6999,
+     150.9804
+    ],
+    [
+     -97.2464,
+     4.6999,
+     144.4337
+    ]
+   ],
+   "pieces": [
+    "towel",
+    "stockings",
+    "stockings",
+    "stockings",
+    "apron (ticking)",
+    "stockings"
+   ],
+   "raisedOverOmnibus": false
+  },
+  {
+   "id": "line-streetlife-179",
+   "ends": [
+    [
+     -164.7142,
+     4.688,
+     71.5911
+    ],
+    [
+     -162.8246,
+     4.7,
+     78.1093
+    ]
+   ],
+   "pieces": [
+    "shirt",
+    "apron",
+    "trousers",
+    "trousers",
+    "stockings",
+    "stockings"
+   ],
+   "raisedOverOmnibus": false
+  },
+  {
+   "id": "line-streetlife-180",
+   "ends": [
+    [
+     -171.8773,
+     4.7,
+     73.6771
+    ],
+    [
+     -169.9541,
+     4.7,
+     80.3609
+    ]
+   ],
+   "pieces": [
+    "trousers",
+    "trousers",
+    "stockings",
+    "stockings",
+    "shift",
+    "shift",
+    "shirt"
+   ],
+   "raisedOverOmnibus": false
+  },
+  {
+   "id": "line-streetlife-181",
+   "ends": [
+    [
+     -185.2527,
+     4.7,
+     84.6477
+    ],
+    [
+     -187.1523,
+     4.7,
+     78.1379
+    ]
+   ],
+   "pieces": [
+    "towel",
+    "apron (ticking)",
+    "stockings",
+    "shift",
+    "stockings",
+    "apron"
+   ],
+   "raisedOverOmnibus": false
+  },
+  {
+   "id": "line-clutter-182",
+   "ends": [
+    [
+     -315.9005,
+     3.5682,
+     186.1737
+    ],
+    [
+     -315.9005,
+     3.5682,
+     188.1744
+    ]
+   ],
+   "pieces": [],
+   "raisedOverOmnibus": false
+  },
+  {
+   "id": "line-clutter-183",
+   "ends": [
+    [
+     -322.1665,
+     4.2223,
+     126.1292
+    ],
+    [
+     -324.709,
+     4.2223,
+     126.0871
+    ]
+   ],
+   "pieces": [
+    "shirt",
+    "towel"
+   ],
+   "raisedOverOmnibus": false
+  },
+  {
+   "id": "line-clutter-184",
+   "ends": [
+    [
+     -335.9017,
+     3.7468,
+     282.7601
+    ],
+    [
+     -334.0777,
+     3.7468,
+     281.9394
+    ]
+   ],
+   "pieces": [
+    "stockings"
+   ],
+   "raisedOverOmnibus": false
+  },
+  {
+   "id": "line-clutter-185",
+   "ends": [
+    [
+     -196.3906,
+     3.8076,
+     53.8553
+    ],
+    [
+     -196.3906,
+     3.8076,
+     55.8534
+    ]
+   ],
+   "pieces": [
+    "shirt"
+   ],
+   "raisedOverOmnibus": false
+  },
+  {
+   "id": "line-clutter-186",
+   "ends": [
+    [
+     -225.7206,
+     3.5893,
+     306.7332
+    ],
+    [
+     -225.7613,
+     3.5893,
+     302.71
+    ]
+   ],
+   "pieces": [
+    "apron",
+    "sheet"
+   ],
+   "raisedOverOmnibus": false
+  },
+  {
+   "id": "line-clutter-187",
+   "ends": [
+    [
+     -199.8805,
+     2.9999,
+     306.7332
+    ],
+    [
+     -199.8805,
+     2.9999,
+     304.5454
+    ]
+   ],
+   "pieces": [
+    "stockings",
+    "stockings"
+   ],
+   "raisedOverOmnibus": false
+  },
+  {
+   "id": "line-clutter-188",
+   "ends": [
+    [
+     -193.6376,
+     2.9998,
+     302.0395
+    ],
+    [
+     -195.6244,
+     2.9998,
+     302.0395
+    ]
+   ],
+   "pieces": [
+    "stockings",
+    "apron"
+   ],
+   "raisedOverOmnibus": false
+  },
+  {
+   "id": "line-clutter-189",
+   "ends": [
+    [
+     -218.7362,
+     3.1367,
+     334.2671
+    ],
+    [
+     -216.7236,
+     3.1367,
+     334.3471
+    ]
+   ],
+   "pieces": [
+    "apron",
+    "apron"
+   ],
+   "raisedOverOmnibus": false
+  },
+  {
+   "id": "line-clutter-190",
+   "ends": [
+    [
+     -228.5616,
+     3.2182,
+     301.5436
+    ],
+    [
+     -229.6596,
+     3.2182,
+     304.3536
+    ]
+   ],
+   "pieces": [
+    "shirt",
+    "shirt"
+   ],
+   "raisedOverOmnibus": false
+  },
+  {
+   "id": "line-clutter-191",
+   "ends": [
+    [
+     -216.4771,
+     4.1317,
+     307.9396
+    ],
+    [
+     -221.2644,
+     4.1317,
+     307.9396
+    ]
+   ],
+   "pieces": [
+    "shirt",
+    "shirt",
+    "stockings",
+    "trousers"
+   ],
+   "raisedOverOmnibus": false
+  },
+  {
+   "id": "line-clutter-192",
+   "ends": [
+    [
+     -216.9006,
+     2.9999,
+     299.9955
+    ],
+    [
+     -215.5315,
+     2.9999,
+     300.543
+    ]
+   ],
+   "pieces": [
+    "stockings"
+   ],
+   "raisedOverOmnibus": false
+  },
+  {
+   "id": "line-clutter-193",
+   "ends": [
+    [
+     -175.2505,
+     2.9999,
+     304.5454
+    ],
+    [
+     -175.2505,
+     2.9999,
+     306.7343
+    ]
+   ],
+   "pieces": [
+    "stockings",
+    "stockings"
+   ],
+   "raisedOverOmnibus": false
+  },
+  {
+   "id": "line-clutter-194",
+   "ends": [
+    [
+     -130.9563,
+     4.1533,
+     336.222
+    ],
+    [
+     -129.2827,
+     4.1533,
+     336.3247
+    ]
+   ],
+   "pieces": [
+    "apron"
+   ],
+   "raisedOverOmnibus": false
+  },
+  {
+   "id": "line-clutter-195",
+   "ends": [
+    [
+     -191.0479,
+     3.0,
+     308.4395
+    ],
+    [
+     -193.0452,
+     3.0,
+     308.4395
+    ]
+   ],
+   "pieces": [
+    "stockings"
+   ],
+   "raisedOverOmnibus": false
+  },
+  {
+   "id": "line-clutter-196",
+   "ends": [
+    [
+     -159.6454,
+     3.0,
+     301.4193
+    ],
+    [
+     -164.2649,
+     3.0,
+     301.4193
+    ]
+   ],
+   "pieces": [
+    "stockings",
+    "stockings",
+    "stockings"
+   ],
+   "raisedOverOmnibus": false
+  },
+  {
+   "id": "line-clutter-197",
+   "ends": [
+    [
+     -103.4604,
+     3.2275,
+     164.7009
+    ],
+    [
+     -103.8436,
+     3.2275,
+     168.263
+    ]
+   ],
+   "pieces": [
+    "shirt",
+    "shirt"
+   ],
+   "raisedOverOmnibus": false
+  },
+  {
+   "id": "line-clutter-198",
+   "ends": [
+    [
+     -4.6124,
+     3.0832,
+     248.9042
+    ],
+    [
+     -3.9212,
+     3.0832,
+     246.3876
+    ]
+   ],
+   "pieces": [
+    "apron",
+    "apron"
+   ],
+   "raisedOverOmnibus": false
+  },
+  {
+   "id": "line-clutter-199",
+   "ends": [
+    [
+     -30.7264,
+     3.4037,
+     210.9685
+    ],
+    [
+     -33.4458,
+     3.4037,
+     214.4991
+    ]
+   ],
+   "pieces": [
+    "shirt",
+    "stockings",
+    "stockings",
+    "sheet (ticking)"
+   ],
+   "raisedOverOmnibus": false
+  },
+  {
+   "id": "line-clutter-200",
+   "ends": [
+    [
+     0.0035,
+     3.5837,
+     262.8393
+    ],
+    [
+     1.4864,
+     3.5837,
+     263.3863
+    ]
+   ],
+   "pieces": [],
+   "raisedOverOmnibus": false
+  },
+  {
+   "id": "line-clutter-201",
+   "ends": [
+    [
+     -22.0598,
+     3.7007,
+     215.3201
+    ],
+    [
+     -21.9803,
+     3.7007,
+     213.0179
+    ]
+   ],
+   "pieces": [
+    "shirt",
+    "stockings"
+   ],
+   "raisedOverOmnibus": false
+  },
+  {
+   "id": "line-clutter-202",
+   "ends": [
+    [
+     -0.5103,
+     3.9384,
+     130.6913
+    ],
+    [
+     -0.8494,
+     3.9384,
+     128.7174
+    ]
+   ],
+   "pieces": [
+    "shift",
+    "stockings"
+   ],
+   "raisedOverOmnibus": false
+  },
+  {
+   "id": "line-clutter-203",
+   "ends": [
+    [
+     -13.4971,
+     2.9999,
+     180.3519
+    ],
+    [
+     -10.876,
+     2.9999,
+     176.715
+    ]
+   ],
+   "pieces": [
+    "stockings",
+    "stockings",
+    "stockings"
+   ],
+   "raisedOverOmnibus": false
+  },
+  {
+   "id": "line-clutter-204",
+   "ends": [
+    [
+     -6.6577,
+     3.2152,
+     188.1966
+    ],
+    [
+     -4.1175,
+     3.2152,
+     184.6666
+    ]
+   ],
+   "pieces": [
+    "stockings",
+    "stockings",
+    "shirt",
+    "apron",
+    "shirt"
+   ],
+   "raisedOverOmnibus": false
+  },
+  {
+   "id": "line-clutter-205",
+   "ends": [
+    [
+     -13.3955,
+     3.565,
+     164.8993
+    ],
+    [
+     -11.3972,
+     3.565,
+     164.8993
+    ]
+   ],
+   "pieces": [
+    "shift"
+   ],
+   "raisedOverOmnibus": false
+  },
+  {
+   "id": "line-clutter-206",
+   "ends": [
+    [
+     4.1219,
+     4.223,
+     310.2462
+    ],
+    [
+     5.4622,
+     4.223,
+     312.3038
+    ]
+   ],
+   "pieces": [
+    "trousers",
+    "trousers"
+   ],
+   "raisedOverOmnibus": false
+  },
+  {
+   "id": "line-clutter-207",
+   "ends": [
+    [
+     54.2763,
+     3.1788,
+     315.256
+    ],
+    [
+     52.9532,
+     3.1788,
+     319.6635
+    ]
+   ],
+   "pieces": [
+    "apron (ticking)",
+    "apron",
+    "towel",
+    "shirt"
+   ],
+   "raisedOverOmnibus": false
+  },
+  {
+   "id": "line-clutter-208",
+   "ends": [
+    [
+     79.7398,
+     3.391,
+     323.3093
+    ],
+    [
+     79.9144,
+     3.391,
+     324.8196
+    ]
+   ],
+   "pieces": [],
+   "raisedOverOmnibus": false
+  },
+  {
+   "id": "line-clutter-209",
+   "ends": [
+    [
+     4.5399,
+     3.6782,
+     295.9833
+    ],
+    [
+     4.0598,
+     3.6782,
+     293.1211
+    ]
+   ],
+   "pieces": [
+    "apron",
+    "trousers",
+    "towel"
+   ],
+   "raisedOverOmnibus": false
+  },
+  {
+   "id": "line-clutter-210",
+   "ends": [
+    [
+     12.9517,
+     3.5897,
+     315.9017
+    ],
+    [
+     10.6223,
+     3.5897,
+     315.4922
+    ]
+   ],
+   "pieces": [
+    "trousers",
+    "shirt"
+   ],
+   "raisedOverOmnibus": false
+  },
+  {
+   "id": "line-clutter-211",
+   "ends": [
+    [
+     8.5026,
+     3.0358,
+     94.5748
+    ],
+    [
+     9.0851,
+     3.0358,
+     90.3786
+    ]
+   ],
+   "pieces": [
+    "stockings",
+    "stockings",
+    "apron (ticking)"
+   ],
+   "raisedOverOmnibus": false
+  },
+  {
+   "id": "line-clutter-212",
+   "ends": [
+    [
+     3.4668,
+     4.1166,
+     247.8596
+    ],
+    [
+     3.9811,
+     4.1167,
+     250.98
+    ]
+   ],
+   "pieces": [
+    "shirt",
+    "shift"
+   ],
+   "raisedOverOmnibus": false
+  },
+  {
+   "id": "line-clutter-213",
+   "ends": [
+    [
+     57.6491,
+     2.9999,
+     218.9219
+    ],
+    [
+     57.6491,
+     2.9999,
+     216.7346
+    ]
+   ],
+   "pieces": [
+    "stockings"
+   ],
+   "raisedOverOmnibus": false
+  },
+  {
+   "id": "line-clutter-214",
+   "ends": [
+    [
+     19.399,
+     3.5544,
+     277.4459
+    ],
+    [
+     20.6589,
+     3.5544,
+     277.1462
+    ]
+   ],
+   "pieces": [
+    "trousers"
+   ],
+   "raisedOverOmnibus": false
+  },
+  {
+   "id": "line-clutter-215",
+   "ends": [
+    [
+     30.6309,
+     3.3121,
+     218.5216
+    ],
+    [
+     32.1349,
+     3.3121,
+     216.7346
+    ]
+   ],
+   "pieces": [
+    "towel"
+   ],
+   "raisedOverOmnibus": false
+  },
+  {
+   "id": "line-clutter-216",
+   "ends": [
+    [
+     4.9288,
+     3.159,
+     194.1014
+    ],
+    [
+     8.1734,
+     3.159,
+     190.1247
+    ]
+   ],
+   "pieces": [
+    "shirt",
+    "towel",
+    "stockings",
+    "shirt"
+   ],
+   "raisedOverOmnibus": false
+  },
+  {
+   "id": "line-clutter-217",
+   "ends": [
+    [
+     27.898,
+     3.0482,
+     216.3348
+    ],
+    [
+     29.1219,
+     3.0482,
+     214.6615
+    ]
+   ],
+   "pieces": [
+    "stockings"
+   ],
+   "raisedOverOmnibus": false
+  },
+  {
+   "id": "line-clutter-218",
+   "ends": [
+    [
+     26.6056,
+     4.1545,
+     159.3996
+    ],
+    [
+     28.603,
+     4.1545,
+     159.3996
+    ]
+   ],
+   "pieces": [
+    "trousers"
+   ],
+   "raisedOverOmnibus": false
+  },
+  {
+   "id": "line-clutter-219",
+   "ends": [
+    [
+     78.0993,
+     3.4339,
+     139.6451
+    ],
+    [
+     78.0993,
+     3.4339,
+     141.6937
+    ]
+   ],
+   "pieces": [
+    "trousers",
+    "towel"
+   ],
+   "raisedOverOmnibus": false
+  },
+  {
+   "id": "line-clutter-220",
+   "ends": [
+    [
+     1.6192,
+     2.9999,
+     184.4132
+    ],
+    [
+     1.6192,
+     2.9999,
+     182.2244
+    ]
+   ],
+   "pieces": [
+    "stockings",
+    "towel"
+   ],
+   "raisedOverOmnibus": false
+  },
+  {
+   "id": "line-clutter-221",
+   "ends": [
+    [
+     43.7388,
+     2.9999,
+     184.4132
+    ],
+    [
+     43.7388,
+     2.9999,
+     182.2244
+    ]
+   ],
+   "pieces": [
+    "stockings"
+   ],
+   "raisedOverOmnibus": false
+  },
+  {
+   "id": "line-clutter-222",
+   "ends": [
+    [
+     183.5032,
+     3.752,
+     243.1166
+    ],
+    [
+     186.3123,
+     3.752,
+     247.3614
+    ]
+   ],
+   "pieces": [
+    "sheet",
+    "towel",
+    "sheet",
+    "towel"
+   ],
+   "raisedOverOmnibus": false
+  },
+  {
+   "id": "line-clutter-223",
+   "ends": [
+    [
+     118.8265,
+     2.9999,
+     206.3898
+    ],
+    [
+     117.3954,
+     2.9999,
+     211.0242
+    ]
+   ],
+   "pieces": [
+    "stockings",
+    "stockings",
+    "stockings",
+    "stockings"
+   ],
+   "raisedOverOmnibus": false
+  },
+  {
+   "id": "line-clutter-224",
+   "ends": [
+    [
+     124.4067,
+     3.0,
+     212.847
+    ],
+    [
+     121.7649,
+     2.9999,
+     213.5261
+    ]
+   ],
+   "pieces": [
+    "stockings",
+    "stockings"
+   ],
+   "raisedOverOmnibus": false
+  },
+  {
+   "id": "line-clutter-225",
+   "ends": [
+    [
+     130.2565,
+     4.3617,
+     307.9463
+    ],
+    [
+     132.1982,
+     4.3617,
+     307.4869
+    ]
+   ],
+   "pieces": [
+    "stockings",
+    "stockings"
+   ],
+   "raisedOverOmnibus": false
+  },
+  {
+   "id": "line-clutter-226",
+   "ends": [
+    [
+     172.5437,
+     2.9999,
+     293.508
+    ],
+    [
+     175.2997,
+     2.9999,
+     292.8539
+    ]
+   ],
+   "pieces": [
+    "stockings",
+    "stockings"
+   ],
+   "raisedOverOmnibus": false
+  },
+  {
+   "id": "line-clutter-227",
+   "ends": [
+    [
+     -162.5905,
+     3.6544,
+     55.5133
+    ],
+    [
+     -162.5905,
+     3.6544,
+     52.8452
+    ]
+   ],
+   "pieces": [
+    "apron",
+    "apron"
+   ],
+   "raisedOverOmnibus": false
+  },
+  {
+   "id": "line-clutter-228",
+   "ends": [
+    [
+     178.0998,
+     3.0291,
+     47.8936
+    ],
+    [
+     178.0998,
+     3.0291,
+     44.1065
+    ]
+   ],
+   "pieces": [
+    "towel",
+    "stockings",
+    "stockings",
+    "stockings"
+   ],
+   "raisedOverOmnibus": false
+  }
+ ],
+ "poles": [
+  {
+   "id": "wash-pole-0",
+   "at": [
+    -198.428,
+    7.5499,
+    88.6014
+   ],
+   "pieces": [
+    "trousers",
+    "shirt"
+   ]
+  },
+  {
+   "id": "wash-pole-1",
+   "at": [
+    28.797,
+    4.55,
+    54.3373
+   ],
+   "pieces": [
+    "shirt",
+    "towel"
+   ]
+  },
+  {
+   "id": "wash-pole-2",
+   "at": [
+    -52.5585,
+    10.5498,
+    74.5993
+   ],
+   "pieces": [
+    "trousers",
+    "shirt"
+   ]
+  },
+  {
+   "id": "wash-pole-3",
+   "at": [
+    94.1721,
+    4.55,
+    171.9994
+   ],
+   "pieces": [
+    "shirt",
+    "towel"
+   ]
+  },
+  {
+   "id": "wash-pole-4",
+   "at": [
+    66.5741,
+    7.5499,
+    176.2745
+   ],
+   "pieces": [
+    "shift",
+    "towel"
+   ]
+  },
+  {
+   "id": "wash-pole-5",
+   "at": [
+    -200.0005,
+    7.5499,
+    158.1893
+   ],
+   "pieces": [
+    "shirt",
+    "towel"
+   ]
+  },
+  {
+   "id": "wash-pole-6",
+   "at": [
+    25.2093,
+    7.5499,
+    156.9991
+   ],
+   "pieces": [
+    "shift",
+    "towel"
+   ]
+  },
+  {
+   "id": "wash-pole-7",
+   "at": [
+    -304.0003,
+    7.55,
+    78.5044
+   ],
+   "pieces": [
+    "shirt",
+    "towel"
+   ]
+  },
+  {
+   "id": "wash-pole-8",
+   "at": [
+    -297.1303,
+    10.5498,
+    65.9994
+   ],
+   "pieces": [
+    "shirt",
+    "towel"
+   ]
+  },
+  {
+   "id": "wash-pole-9",
+   "at": [
+    162.7193,
+    7.5499,
+    301.4717
+   ],
+   "pieces": [
+    "trousers",
+    "shirt"
+   ]
+  },
+  {
+   "id": "wash-pole-10",
+   "at": [
+    156.574,
+    4.5499,
+    298.409
+   ],
+   "pieces": [
+    "trousers",
+    "shirt"
+   ]
+  },
+  {
+   "id": "wash-pole-11",
+   "at": [
+    162.3088,
+    4.5499,
+    198.6689
+   ],
+   "pieces": [
+    "shirt",
+    "towel"
+   ]
+  },
+  {
+   "id": "wash-pole-12",
+   "at": [
+    142.324,
+    4.5499,
+    235.6875
+   ],
+   "pieces": [
+    "trousers",
+    "shirt"
+   ]
+  },
+  {
+   "id": "wash-pole-13",
+   "at": [
+    218.4372,
+    4.5499,
+    224.7466
+   ],
+   "pieces": [
+    "shift",
+    "towel"
+   ]
+  },
+  {
+   "id": "wash-pole-14",
+   "at": [
+    58.2078,
+    7.5499,
+    324.4746
+   ],
+   "pieces": [
+    "trousers",
+    "shirt"
+   ]
+  },
+  {
+   "id": "wash-pole-15",
+   "at": [
+    81.1963,
+    4.55,
+    309.112
+   ],
+   "pieces": [
+    "shirt",
+    "towel"
+   ]
+  },
+  {
+   "id": "wash-pole-16",
+   "at": [
+    33.047,
+    4.5499,
+    289.0417
+   ],
+   "pieces": [
+    "shirt",
+    "towel"
+   ]
+  },
+  {
+   "id": "wash-pole-17",
+   "at": [
+    50.7897,
+    4.5499,
+    259.4159
+   ],
+   "pieces": [
+    "trousers",
+    "shirt"
+   ]
+  },
+  {
+   "id": "wash-pole-18",
+   "at": [
+    13.0419,
+    4.5499,
+    309.0467
+   ],
+   "pieces": [
+    "trousers",
+    "shirt"
+   ]
+  },
+  {
+   "id": "wash-pole-19",
+   "at": [
+    11.5819,
+    4.5499,
+    279.3292
+   ],
+   "pieces": [
+    "trousers",
+    "shirt"
+   ]
+  },
+  {
+   "id": "wash-pole-20",
+   "at": [
+    53.0959,
+    4.5499,
+    243.9379
+   ],
+   "pieces": [
+    "shirt",
+    "towel"
+   ]
+  },
+  {
+   "id": "wash-pole-21",
+   "at": [
+    72.559,
+    4.5499,
+    239.9093
+   ],
+   "pieces": [
+    "shirt",
+    "towel"
+   ]
+  },
+  {
+   "id": "wash-pole-22",
+   "at": [
+    -54.4511,
+    4.5499,
+    254.5192
+   ],
+   "pieces": [
+    "trousers",
+    "shirt"
+   ]
+  },
+  {
+   "id": "wash-pole-23",
+   "at": [
+    -24.9726,
+    4.5499,
+    198.6724
+   ],
+   "pieces": [
+    "trousers",
+    "shirt"
+   ]
+  },
+  {
+   "id": "wash-pole-24",
+   "at": [
+    -60.0005,
+    4.5499,
+    206.8971
+   ],
+   "pieces": [
+    "shift",
+    "towel"
+   ]
+  },
+  {
+   "id": "wash-pole-25",
+   "at": [
+    -27.8009,
+    4.55,
+    339.5595
+   ],
+   "pieces": [
+    "shift",
+    "towel"
+   ]
+  },
+  {
+   "id": "wash-pole-26",
+   "at": [
+    -140.0004,
+    10.5498,
+    232.7218
+   ],
+   "pieces": [
+    "trousers",
+    "shirt"
+   ]
+  },
+  {
+   "id": "wash-pole-27",
+   "at": [
+    -140.0906,
+    7.5499,
+    327.1931
+   ],
+   "pieces": [
+    "shift",
+    "towel"
+   ]
+  },
+  {
+   "id": "wash-pole-28",
+   "at": [
+    -242.8014,
+    4.5499,
+    310.1016
+   ],
+   "pieces": [
+    "trousers",
+    "shirt"
+   ]
+  },
+  {
+   "id": "wash-pole-29",
+   "at": [
+    -244.281,
+    4.5499,
+    312.2241
+   ],
+   "pieces": [
+    "shift",
+    "towel"
+   ]
+  },
+  {
+   "id": "wash-pole-30",
+   "at": [
+    -176.7308,
+    10.5499,
+    165.247
+   ],
+   "pieces": [
+    "shift",
+    "towel"
+   ]
+  },
+  {
+   "id": "wash-pole-31",
+   "at": [
+    -260.3404,
+    7.5499,
+    274.5471
+   ],
+   "pieces": [
+    "trousers",
+    "shirt"
+   ]
+  },
+  {
+   "id": "wash-pole-32",
+   "at": [
+    -338.8805,
+    4.55,
+    251.2249
+   ],
+   "pieces": [
+    "trousers",
+    "shirt"
+   ]
+  },
+  {
+   "id": "wash-pole-33",
+   "at": [
+    -348.9904,
+    4.5499,
+    108.7395
+   ],
+   "pieces": [
+    "shirt",
+    "towel"
+   ]
+  },
+  {
+   "id": "wash-pole-34",
+   "at": [
+    -323.7777,
+    4.5499,
+    65.902
+   ],
+   "pieces": [
+    "shift",
+    "towel"
+   ]
+  },
+  {
+   "id": "wash-pole-35",
+   "at": [
+    4.0343,
+    4.55,
+    102.6442
+   ],
+   "pieces": [
+    "shift",
+    "towel"
+   ]
+  },
+  {
+   "id": "wash-pole-36",
+   "at": [
+    207.9998,
+    4.55,
+    119.7746
+   ],
+   "pieces": [
+    "trousers",
+    "shirt"
+   ]
+  },
+  {
+   "id": "wash-pole-37",
+   "at": [
+    -133.0002,
+    7.5499,
+    78.2466
+   ],
+   "pieces": [
+    "shirt",
+    "towel"
+   ]
+  },
+  {
+   "id": "wash-pole-38",
+   "at": [
+    -174.8355,
+    4.5499,
+    39.9996
+   ],
+   "pieces": [
+    "shift",
+    "towel"
+   ]
+  }
+ ],
+ "planReport": {
+  "hatchFaceFromGround": [
+   "hatch15",
+   "hatch29",
+   "hatch32",
+   "hatch39",
+   "hatch79",
+   "hatch80",
+   "hatch89",
+   "hatch98",
+   "hatch119",
+   "hatch124",
+   "hatch126",
+   "hatch127",
+   "hatch130",
+   "hatch131",
+   "hatch138",
+   "hatch142"
+  ],
+  "hatchNarrowPavement": [
+   {
+    "id": "hatch32",
+    "room": 0.39
+   },
+   {
+    "id": "hatch105",
+    "room": 0.42
+   },
+   {
+    "id": "hatch125",
+    "room": 0.44
+   },
+   {
+    "id": "hatch142",
+    "room": 0.34
+   }
+  ],
+  "hatchLeftOut": [
+   {
+    "id": "cellar-hatch-32",
+    "why": "its footprint runs off the pavement or onto a step"
+   },
+   {
+    "id": "cellar-hatch-105",
+    "why": "its footprint runs off the pavement or onto a step"
+   },
+   {
+    "id": "cellar-hatch-139",
+    "why": "its footprint runs off the pavement or onto a step"
+   },
+   {
+    "id": "cellar-hatch-142",
+    "why": "its footprint runs off the pavement or onto a step"
+   }
+  ],
+  "lineRaisedOverOmnibus": [
+   "line4",
+   "line15",
+   "line16",
+   "line17",
+   "line65",
+   "line72",
+   "line77",
+   "line79",
+   "line80",
+   "line81",
+   "line94",
+   "line105",
+   "line121",
+   "line122",
+   "line123",
+   "line128",
+   "line130",
+   "line131",
+   "line140",
+   "line141",
+   "line157",
+   "line158"
+  ],
+  "pieceShortened": {
+   "count": 54,
+   "first": [
+    {
+     "line": "line83",
+     "kind": "shift",
+     "to": "shirt",
+     "clear": 3.7
+    },
+    {
+     "line": "line83",
+     "kind": "trousers",
+     "to": "apron",
+     "clear": 3.7
+    },
+    {
+     "line": "line83",
+     "kind": "shift",
+     "to": "stockings",
+     "clear": 3.7
+    },
+    {
+     "line": "line83",
+     "kind": "shift",
+     "to": "stockings",
+     "clear": 3.7
+    },
+    {
+     "line": "line83",
+     "kind": "sheet",
+     "to": "stockings",
+     "clear": 3.7
+    },
+    {
+     "line": "line178",
+     "kind": "sheet",
+     "to": "stockings",
+     "clear": 3.7
+    },
+    {
+     "line": "line178",
+     "kind": "shift",
+     "to": "stockings",
+     "clear": 3.7
+    },
+    {
+     "line": "line178",
+     "kind": "apron",
+     "to": "stockings",
+     "clear": 3.7
+    },
+    {
+     "line": "line178",
+     "kind": "shirt",
+     "to": "apron",
+     "clear": 3.7
+    },
+    {
+     "line": "line187",
+     "kind": "trousers",
+     "to": "stockings",
+     "clear": 2.15
+    },
+    {
+     "line": "line187",
+     "kind": "trousers",
+     "to": "stockings",
+     "clear": 2.15
+    },
+    {
+     "line": "line188",
+     "kind": "shift",
+     "to": "stockings",
+     "clear": 2.15
+    },
+    {
+     "line": "line188",
+     "kind": "trousers",
+     "to": "apron",
+     "clear": 2.15
+    },
+    {
+     "line": "line190",
+     "kind": "trousers",
+     "to": "shirt",
+     "clear": 2.15
+    },
+    {
+     "line": "line192",
+     "kind": "apron",
+     "to": "stockings",
+     "clear": 2.15
+    },
+    {
+     "line": "line193",
+     "kind": "shirt",
+     "to": "stockings",
+     "clear": 2.15
+    },
+    {
+     "line": "line193",
+     "kind": "sheet",
+     "to": "stockings",
+     "clear": 2.15
+    },
+    {
+     "line": "line195",
+     "kind": "sheet",
+     "to": "stockings",
+     "clear": 2.15
+    },
+    {
+     "line": "line196",
+     "kind": "sheet",
+     "to": "stockings",
+     "clear": 2.15
+    },
+    {
+     "line": "line196",
+     "kind": "shirt",
+     "to": "stockings",
+     "clear": 2.15
+    },
+    {
+     "line": "line196",
+     "kind": "apron",
+     "to": "stockings",
+     "clear": 2.15
+    },
+    {
+     "line": "line197",
+     "kind": "trousers",
+     "to": "shirt",
+     "clear": 2.15
+    },
+    {
+     "line": "line197",
+     "kind": "sheet",
+     "to": "shirt",
+     "clear": 2.15
+    },
+    {
+     "line": "line198",
+     "kind": "shirt",
+     "to": "apron",
+     "clear": 2.15
+    },
+    {
+     "line": "line198",
+     "kind": "shirt",
+     "to": "apron",
+     "clear": 2.15
+    },
+    {
+     "line": "line203",
+     "kind": "shirt",
+     "to": "stockings",
+     "clear": 2.15
+    },
+    {
+     "line": "line203",
+     "kind": "trousers",
+     "to": "stockings",
+     "clear": 2.15
+    },
+    {
+     "line": "line203",
+     "kind": "sheet",
+     "to": "stockings",
+     "clear": 2.15
+    },
+    {
+     "line": "line204",
+     "kind": "shift",
+     "to": "shirt",
+     "clear": 2.15
+    },
+    {
+     "line": "line204",
+     "kind": "shift",
+     "to": "apron",
+     "clear": 2.15
+    },
+    {
+     "line": "line204",
+     "kind": "sheet",
+     "to": "shirt",
+     "clear": 2.15
+    },
+    {
+     "line": "line207",
+     "kind": "sheet",
+     "to": "apron",
+     "clear": 2.15
+    },
+    {
+     "line": "line207",
+     "kind": "trousers",
+     "to": "apron",
+     "clear": 2.15
+    },
+    {
+     "line": "line207",
+     "kind": "trousers",
+     "to": "shirt",
+     "clear": 2.15
+    },
+    {
+     "line": "line211",
+     "kind": "sheet",
+     "to": "stockings",
+     "clear": 2.15
+    },
+    {
+     "line": "line211",
+     "kind": "apron",
+     "to": "stockings",
+     "clear": 2.15
+    },
+    {
+     "line": "line211",
+     "kind": "trousers",
+     "to": "apron",
+     "clear": 2.15
+    },
+    {
+     "line": "line213",
+     "kind": "sheet",
+     "to": "stockings",
+     "clear": 2.15
+    },
+    {
+     "line": "line215",
+     "kind": "trousers",
+     "to": "sheet",
+     "clear": 2.15
+    },
+    {
+     "line": "line216",
+     "kind": "trousers",
+     "to": "shirt",
+     "clear": 2.15
+    }
+   ]
+  },
+  "lineNoWall": [
+   "line144/b",
+   "line146/a",
+   "line155/b"
+  ],
+  "lineTiedToRazedHouse": [
+   "line144",
+   "line146",
+   "line155"
+  ],
+  "pieceNoRoom": [
+   {
+    "line": "line182",
+    "dropped": 1
+   },
+   {
+    "line": "line184",
+    "dropped": 1
+   },
+   {
+    "line": "line185",
+    "dropped": 1
+   },
+   {
+    "line": "line186",
+    "dropped": 1
+   },
+   {
+    "line": "line190",
+    "dropped": 1
+   },
+   {
+    "line": "line192",
+    "dropped": 1
+   },
+   {
+    "line": "line199",
+    "dropped": 2
+   },
+   {
+    "line": "line200",
+    "dropped": 1
+   },
+   {
+    "line": "line208",
+    "dropped": 1
+   },
+   {
+    "line": "line215",
+    "dropped": 1
+   },
+   {
+    "line": "line225",
+    "dropped": 1
+   }
+  ],
+  "polePieceNoRoom": [
+   "washpole_0 stockings",
+   "washpole_0 stockings",
+   "washpole_2 apron",
+   "washpole_0 stockings",
+   "washpole_2 apron",
+   "washpole_0 stockings",
+   "washpole_0 stockings",
+   "washpole_0 stockings",
+   "washpole_2 apron",
+   "washpole_0 stockings",
+   "washpole_0 stockings",
+   "washpole_0 stockings",
+   "washpole_0 stockings",
+   "washpole_2 apron",
+   "washpole_2 apron",
+   "washpole_2 apron",
+   "washpole_2 apron",
+   "washpole_2 apron",
+   "washpole_0 stockings",
+   "washpole_2 apron",
+   "washpole_2 apron",
+   "washpole_0 stockings",
+   "washpole_2 apron"
+  ],
+  "garmentsFound": 1203,
+  "garmentsOnLines": 1178,
+  "garmentsOff": [
+   "cloth_apron_0 [66.8697, 7.698, 175.298]",
+   "cloth_apron_0 [25.2089, 7.698, 155.9791]",
+   "cloth_apron_0 [219.4497, 4.698, 224.8699]",
+   "cloth_apron_0 [-61.0211, 4.698, 206.8963]",
+   "cloth_apron_0 [-26.7825, 4.6979, 339.4986]",
+   "cloth_apron_0 [-141.1109, 7.698, 327.2137]",
+   "cloth_apron_0 [-245.1188, 4.698, 311.6414]",
+   "cloth_apron_0 [-215.0225, 7.3252, 281.1148]",
+   "cloth_apron_1 [-216.1127, 7.5534, 279.5458]",
+   "cloth_sheet_1 [-213.6108, 7.3605, 283.1455]",
+   "cloth_shift_1 [-223.2748, 4.3395, 278.5705]",
+   "cloth_shift_1 [-224.0251, 4.3775, 278.2611]",
+   "cloth_shirt_0 [-214.3725, 7.295, 282.0481]",
+   "cloth_shirt_1 [-224.9912, 4.5039, 277.8619]",
+   "cloth_shirt_2 [-222.2382, 4.3735, 278.9985]",
+   "cloth_stockings_0 [-212.8644, 7.53, 284.2186]",
+   "cloth_towel_1 [-215.6343, 7.4259, 280.2341]",
+   "cloth_trousers_2 [-221.2479, 4.4998, 279.4083]",
+   "cloth_apron_0 [-175.7375, 10.6978, 165.0117]",
+   "cloth_shift_0 [-260.9397, 4.4923, 271.3452]",
+   "cloth_shirt_2 [-261.0342, 4.4096, 272.2926]",
+   "cloth_stockings_1 [-261.1395, 4.4669, 273.3408]",
+   "cloth_apron_0 [-323.6964, 4.698, 64.8851]",
+   "cloth_apron_0 [3.9015, 4.6979, 103.6558]",
+   "cloth_apron_0 [-174.8357, 4.698, 38.9797]"
+  ],
+  "counts": {
+   "pumps": 24,
+   "troughs": 4,
+   "hatches": 162,
+   "lines": 226,
+   "pieces": 1166,
+   "poles": 39,
+   "polePieces": 78
+  }
+ },
+ "removed": {
+  "pump_stone": 3,
+  "trough": 4,
+  "hatch": 166,
+  "pump_iron": 5,
+  "cloth_apron": 173,
+  "cloth_sheet": 120,
+  "cloth_shift": 142,
+  "cloth_shirt": 236,
+  "cloth_stockings": 147,
+  "cloth_towel": 155,
+  "cloth_trousers": 218,
+  "washpole": 39,
+  "robust cloth_sheet_0": 61,
+  "robust cloth_sheet_1": 59,
+  "robust cloth_shirt_0": 88,
+  "robust cloth_shirt_1": 71,
+  "robust cloth_stockings_0": 74,
+  "robust cloth_stockings_1": 76,
+  "robust cloth_trousers_0": 78,
+  "robust cloth_trousers_1": 81,
+  "robust cloth_trousers_2": 59,
+  "robust washpole_1": 17,
+  "robust cloth_shirt_2": 77,
+  "robust washpole_0": 12,
+  "robust washpole_2": 12,
+  "rope_unit": 94,
+  "robust rope_unit": 94,
+  "line streetlife": 196,
+  "line clutter": 47
+ }
+}

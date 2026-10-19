@@ -1103,6 +1103,29 @@ float psx_h13(vec3 p3) { p3 = fract(p3 * 0.1031); p3 += dot(p3, p3.zyx + 31.32);
     /// <summary>A wet-paint kind's code without its wet term (the code it had before #193).</summary>
     public static string WithoutWetPaint(string code) => code.Replace(WetPaintDecl, "").Replace(WetPaintColour, "").Replace(WetPaintSheen, "");
 
+    /// <summary>
+    /// Issue #164: the washing on the lines moves in the wind. The washing's cloth is the wet-paint kind (lit, two-sided,
+    /// vertex colour, bump: it also darkens in the rain). Each piece swings about its line (its own X axis, at its origin),
+    /// more the lower it hangs, a slow swing and a flutter, leaning downwind in a gale; wet washing hangs heavier and
+    /// stiller. Off unless a material sets `cloth_sway` (every other material of the kind is drawn as before). One kind,
+    /// changed in place: scripts/ClothSwayRepair.cs writes the code into the town's stored resource of the kind.
+    /// </summary>
+    public const string ClothSwayDecl = "// #164: washing on a line sways in the wind (0: still)\nuniform float cloth_sway = 0.0;\nglobal uniform vec3 psx_gale;\nglobal uniform float psx_sea;\n";
+    public const string ClothSwayVertex = "\t// (#164) a piece of washing swings about its line, more the lower it hangs, and flutters; wet, it hangs stiller\n"
+        + "\tif (cloth_sway > 0.0) {\n"
+        + "\t\tfloat cl_d = max(-VERTEX.y, 0.0);\n"
+        + "\t\tvec3 cl_at = MODEL_MATRIX[3].xyz;\n"
+        + "\t\tfloat cl_ph = cl_at.x * 0.37 + cl_at.z * 0.23;\n"
+        + "\t\tfloat cl_wind = (0.55 + 0.45 * psx_sea) * cloth_sway * (1.0 - 0.55 * clamp(psx_wet, 0.0, 1.0));\n"
+        + "\t\tfloat cl_swing = (0.05 * sin(psx_time * 1.3 + cl_ph) + 0.025 * sin(psx_time * 2.9 + cl_ph * 1.7)) * cl_wind;\n"
+        + "\t\tVERTEX.z += cl_swing * cl_d * cl_d / (0.4 + cl_d);\n"
+        + "\t\tVERTEX.z += 0.010 * cl_wind * cl_d * sin(psx_time * 5.3 + VERTEX.x * 6.0 + cl_ph);\n"
+        + "\t\tvec3 cl_gale = transpose(mat3(MODEL_MATRIX)) * vec3(psx_gale.x, 0.0, psx_gale.y) * psx_gale.z;\n"
+        + "\t\tVERTEX.xz += cl_gale.xz * cl_d * cl_d * 0.25 * cloth_sway;\n"
+        + "\t}\n";
+    /// <summary>A wet-paint kind's code without the washing's sway (the code it had before #164).</summary>
+    public static string WithoutClothSway(string code) => code.Replace(ClothSwayDecl, "").Replace(ClothSwayVertex, "");
+
     public static Shader ShaderOf(Kind k)
     {
         if (Shaders.TryGetValue(k, out var s)) return s;
@@ -1189,7 +1212,7 @@ varying vec3 world;
         if (k.Grime > 0) c.Append(Grime.CommonGlsl);
         if (k.Tree > 0) c.Append("global uniform vec3 psx_gale;\nglobal uniform float psx_sea;\n" + (k.Tree % 2 == 0 ? "global uniform float psx_wet;\n" : ""));
         if (k.Bump) c.Append(Grime.BumpGlsl(k.Atlas));
-        if (WetPaint(k)) c.Append(WetPaintDecl);
+        if (WetPaint(k)) c.Append(WetPaintDecl + ClothSwayDecl);
         c.Append(@"
 void vertex() {
 ");
@@ -1217,6 +1240,7 @@ void vertex() {
         {
             if (k.Tree == 5) c.Append(FallGlsl);
             else if (k.Tree > 0) c.Append(TreeSway(k.Tree % 2 == 0, k.Tree > 2));
+            if (WetPaint(k)) c.Append(ClothSwayVertex);
             c.Append("	vec4 view = MODELVIEW_MATRIX * vec4(VERTEX, 1.0);\n");
         }
         c.Append(@"	fog_depth = -view.z;

@@ -169,6 +169,10 @@ public partial class NativeTown : BakedWorld
             GD.Print($"benches: swapped in {benchClock.ElapsedMilliseconds} ms");
             Report["benchesSwapped"] = benches.Swapped; Report["benchTrianglesCut"] = benches.Triangles;
         }
+        // #149 #160: the kit's cast-iron pumps and cellar hatches where the bake's old ones stood (their old boxes are gone from the
+        // street-life meshes); the courts' old pump copies hidden. (dev: --street-furniture-file <plan>)
+        var furniture = NativeStreetFurniture.Install(town, Scheldemist.Main.I.Arg("street-furniture-file") is { Length: > 0 } furnitureFile ? furnitureFile : null);
+        Report["streetPumps"] = furniture.Pumps; Report["cellarHatches"] = furniture.Hatches; Report["oldCourtPumpsHidden"] = furniture.OldCourtPumps;
         // The bake's plain hiring board gives way to the authored one, where the notes hang (#153).
         Report["oldHiringBoards"] = NativeWorkBoard.Retire(town);
         // The baked quay ladders ran through the coping and into the stone (issue 85): the native ladder replaces them.
@@ -227,6 +231,9 @@ public partial class NativeTown : BakedWorld
     }
     public override void _Ready()
     {
+        // #160 #164: the horse troughs and the washing on its lines and poles (the pack's materials are made on this thread)
+        var washing = NativeStreetFurniture.Dress(town, Scheldemist.Main.I.Arg("street-furniture-file") is { Length: > 0 } washingFile ? washingFile : null);
+        Report["troughs"] = washing.Troughs; Report["washingLines"] = washing.Lines; Report["washingPieces"] = washing.Pieces; Report["washingPegs"] = washing.Pegs; Report["washPoles"] = washing.Poles;
         // Authored objects arrive with editor materials, which the game's fog and light never reach (issue 79).
         var authoredMaterials = new NativeTownMaterials(); authoredMaterials.Apply(town);
         Report["authoredMaterialsSwapped"] = authoredMaterials.Swapped; Report["authoredMaterialsLeft"] = authoredMaterials.Left;
@@ -275,6 +282,7 @@ public partial class NativeTown : BakedWorld
         Solid.Leave.Add(n => n.HasMeta(NativeRazedHouses.DressingMeta));
         Solid.Leave.Add(n => n.HasMeta(NativeNearDetail.NoCollision));
         Solid.Leave.Add(n => n.HasMeta(NativeBenches.SwapMeta));
+        Solid.Leave.Add(n => n.HasMeta(NativeStreetFurniture.Meta));
         Report["benches"] = NativeBenches.Index(town);
         BuildLights();
     }

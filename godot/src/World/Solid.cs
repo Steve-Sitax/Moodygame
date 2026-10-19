@@ -242,6 +242,9 @@ public partial class Solid : Node
     /// game stands up itself (a stall, a parked cart) says it is in its "held_by" meta. `furniture` is true for the second
     /// kind: things that stand in the street for a while and that a walker goes round, not walls.
     /// </summary>
+    /// <summary>The baked part's name of a body this part made ("" for any other body).</summary>
+    public string NameOf(Rid body) => names.TryGetValue(body, out var s) ? s : "";
+
     public string HeldBy(Vector3 a, Vector3 b, out bool furniture)
     {
         furniture = false;
