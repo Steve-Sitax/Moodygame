@@ -20,6 +20,10 @@ size = Vector3(2.8599224, 0.27996492, 0.04)
 
 [node name="fitting" type="Node3D" unique_id=228338684]
 script = ExtResource("1_ohijc")
+ModelScale = 1.32
+ModelYaw = 3.1416
+SceneOffset = Vector3(0, 1.445, 0.045)
+ModelScene = "church/altar_cloth"
 GeometryCollision = true
 Kind = "fitting"
 ModelSize = Vector3(2.8599224, 0.27996492, 0.04)

@@ -20,6 +20,9 @@ size = Vector3(0.62065125, 0.6996937, 0.060676575)
 
 [node name="fitting" type="Node3D" unique_id=1209248953]
 script = ExtResource("1_j5xbo")
+ModelYaw = 3.1416
+SceneOffset = Vector3(0, 9.88, -0.04)
+ModelScene = "church/ihs_medallion"
 GeometryCollision = true
 Kind = "fitting"
 ModelSize = Vector3(0.62065125, 0.6996937, 0.060676575)

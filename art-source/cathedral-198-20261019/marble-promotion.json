@@ -1,0 +1,16 @@
+[
+  {
+    "path": "res://world/town/resources/r005889.res",
+    "sourceHash": "471fcce4b9a6d56abb196d3c63ba1c773ebf2abf3b769beb8d2160cd2577bf15",
+    "installedHash": "4c4b6f719104f4394dc27f5f86676a1deadc639668aaded71b555ee481d4a0fc",
+    "supportHash": "20A7D57857F23F5AB4ABCB02B241BF485E6803BA431FED4FBE015364DA1D42D6",
+    "triangles": 34778
+  },
+  {
+    "path": "res://world/town/resources/r005895.res",
+    "sourceHash": "5bc245fb71450a48fa87962bc0fa67003504fb6e86d1090cc15d788f3b66e454",
+    "installedHash": "20315f802dda762dd070758e4ba3094763deed978b643b9fe5a86c070e294a0b",
+    "supportHash": "7497BD844B2B1AF7D42C4EF34136EF79A09D0210619E7043BB3DA9B4950C250A",
+    "triangles": 5036
+  }
+]

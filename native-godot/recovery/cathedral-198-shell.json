@@ -1,5 +1,5 @@
 {
- "note": "#198 prepared, not applied: the side altars' coarse marble boxes in the town shell (town/ROOM_cathedral/Node451 Mesh1135 white index 8907, Mesh1136 black index 8908, both shared with the choir floor and the other altars, so not hidden whole). Cut the listed triangles (centre in the world box) from those two meshes, then add the model part to room-cathedral-source-8902-4's ModelParts (w168: to 8914-50's).",
+ "note": "#198 shell cut applied: 210 white and 44 black marble triangles removed per side altar, 1270 total. Shared choir floor and other altars retained. Five church/altar_marble parts use the existing furniture object ids and placements.",
  "altars": [
   {
    "altar": "e177",

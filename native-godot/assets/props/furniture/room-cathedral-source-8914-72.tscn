@@ -20,6 +20,9 @@ _surfaces = [{
 
 [node name="fitting" type="Node3D" unique_id=1243391606]
 script = ExtResource("1_oqp3m")
+ModelYaw = 3.1416
+SceneOffset = Vector3(0, 4.72, -0.12)
+ModelScene = "church/altar_crown"
 GeometryCollision = true
 Kind = "fitting"
 ModelSize = Vector3(0.99967575, 0.99999094, 0.29982758)

@@ -11,6 +11,10 @@ Bugs and loose ends are tracked as [issues](https://github.com/Steve-Sitax/Moody
 
 ## [Unreleased]
 
+- The cathedral gains carved choir stalls and desks, a dressed high altar, organ cases and pipe towers, framed epitaphs and transept fittings (#198).
+- Cathedral side altars have shaped marble bases and cornices; the overlapping frieze faces are removed. Choir and high-altar marble supports have worn edges and consistent texture scale on their narrow returns (#198).
+- The cathedral communion rail has smooth stone balusters and a worked brass gate; the stone cap now ends at the gate posts (#198).
+
 - The first Ruien, the town's vaulted sewers, lie under the streets: the Vliet sluice with its tide doors, the Vlietrui gallery and the Vleeshuis hall of brick groin vaults, wet, limed and sooty, lit by oil lamps and the cold daylight from the grates. Go down by the ladder under the street grate, by the hall's stair under its hatch, or at low tide over the vliet bed through the open tide doors.
 - The cathedral's furniture is carved oak and gilt at last (#198). The five confessionals have three arched bays with panelled pilasters hung with carved fruit, a frieze of acanthus scrolls, a moulded cornice, a crest with a carved IHS cartouche and a gilt glory, red curtains tied back in the priest's bay, grilles and kneeling steps for the penitents; each has its carved angels and saints. The pulpit stands on a carved oak tree with four carved figures, its tub has carved medallions, the sounding board a carved valance, a dove, urns and an angel, and its stair now climbs along the pillar to a landing (you can walk up it). The side altars' pictures hang in deep carved gilt frames under gilt capitals and crowns, with a linen cloth edged in lace, a cross, four brass candlesticks and white marble saints.
 - At night a standing oil lamp burns in each side aisle by the confessionals (#198).

@@ -6,22 +6,34 @@ extends SceneTree
 # Reads only; writes nothing inside the project.
 func _initialize(): call_deferred("run")
 func run():
-	var args=OS.get_cmdline_user_args();var out=args[0];var prefix=args[1]
-	var wanted=(args[2] if args.size()>2 else "r000209.res,r000195.res,r000221.res").split(",")
+	var args=OS.get_cmdline_user_args()
+	var named=args.has("--out")
+	var out=args[args.find("--out")+1] if named else args[0]
+	var prefix="" if named else args[1]
+	var wanted=(args[args.find("--materials")+1] if named else (args[2] if args.size()>2 else "r000209.res,r000195.res,r000221.res")).split(",")
+	var original=args[args.find("--original-dir")+1] if args.has("--original-dir") else ""
 	DirAccess.make_dir_recursive_absolute(out+"/source")
 	var records=[]
-	var scene=load("res://world/town/roots/node-00004.scn").instantiate()
+	var seen={}
+	var scene=load("res://world/town/scene.tscn" if named else "res://world/town/roots/node-00004.scn").instantiate()
 	root.add_child(scene)
 	for node in scene.find_children("*","MeshInstance3D",true,false):
-		if not node.mesh or not (str(node.name)==prefix or str(node.name).begins_with(prefix if prefix.ends_with("_") else prefix+"_")):continue
+		if not node.mesh or (not named and not (str(node.name)==prefix or str(node.name).begins_with(prefix if prefix.ends_with("_") else prefix+"_"))):continue
+		var installed_path=node.mesh.resource_path
+		if seen.has(installed_path):continue
+		var installed_hash=FileAccess.get_sha256(installed_path)
+		if original!="" and FileAccess.file_exists(original+"/"+installed_path.get_file()):
+			node.mesh=ResourceLoader.load(original+"/"+installed_path.get_file(),"",ResourceLoader.CACHE_MODE_IGNORE)
 		var hit=false
 		for s in node.mesh.get_surface_count():
 			var m=node.get_active_material(s)
-			if m and m.resource_path.get_file() in wanted:hit=true
+			if m and (m.resource_path.get_file() in wanted or m.resource_name in wanted):hit=true
 		if not hit:continue
-		var record={"node":str(node.name),"mesh":node.mesh.resource_path,"meshHash":FileAccess.get_sha256(node.mesh.resource_path),"visibilityEnd":node.visibility_range_end,"surfaces":[]}
+		seen[installed_path]=true
+		var record={"node":str(node.name),"nodePath":str(scene.get_path_to(node)),"mesh":installed_path,"meshHash":installed_hash,"sourceHash":FileAccess.get_sha256(node.mesh.resource_path),"surfaceCount":node.mesh.get_surface_count(),"visibilityEnd":node.visibility_range_end,"surfaces":[]}
 		for s in node.mesh.get_surface_count():
 			var mat=node.get_active_material(s)
+			if named and (not mat or not (mat.resource_path.get_file() in wanted or mat.resource_name in wanted)):continue
 			var a=node.mesh.surface_get_arrays(s);var indices=a[Mesh.ARRAY_INDEX]
 			if indices==null or indices.size()==0:indices=PackedInt32Array(range(a[0].size()))
 			var rows=PackedFloat32Array();rows.resize(indices.size()*16)

@@ -20,6 +20,9 @@ size = Vector3(1.8003597, 0.49999523, 0.049972534)
 
 [node name="fitting" type="Node3D" unique_id=1441953269]
 script = ExtResource("1_8wg6d")
+ModelYaw = 0
+SceneOffset = Vector3(0, 6.949, 0)
+ModelScene = "church/loft_panel"
 GeometryCollision = true
 Kind = "fitting"
 ModelSize = Vector3(1.8003597, 0.49999523, 0.049972534)

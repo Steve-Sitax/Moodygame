@@ -16,9 +16,12 @@ public partial class FurnitureVisual : Node3D
     [Export] public bool GeometryCollision {get;set;}
     [Export] public bool ResidentSnapshot {get;set;}
     /// <summary>A stored model ("library/node", e.g. "fittings/fireplace_tavern") drawn in place of the recovered meshes, in
-    /// the piece's own frame turned by ModelYaw and moved by SceneOffset, at its own size (#187: the taverns' hearths).</summary>
+    /// the piece's own frame turned by ModelYaw and moved by SceneOffset, at its own size times ModelScale (#187: the taverns'
+    /// hearths). A model with a "&lt;node&gt;_hull" child takes the piece's collision from that hull (#198).</summary>
     [Export] public string ModelScene {get;set;}="";
     [Export] public Vector3 SceneOffset {get;set;}=Vector3.Zero;
+    /// <summary>ModelScene's size (#198: one carved model at the size of each piece that draws it).</summary>
+    [Export] public float ModelScale {get;set;}=1;
     /// <summary>Stored models drawn beside the recovered meshes, each "library/node x y z yaw [size] [mirror]" in the piece's
     /// own frame, size a scale on every axis, "mirror" for a mirrored copy (#196: the confessional's carved figures where
     /// its coarse ones stood). The piece's geometry collision includes them: a model with a "&lt;node&gt;_hull" child gives its
@@ -207,7 +210,9 @@ public partial class FurnitureVisual : Node3D
         if(parts.Length!=2||Scheldemist.Models.ModelLibrary.Get(parts[0],new Scheldemist.Models.ModelLibrary.Look(TwoSided:true,Affine:0,VertexColor:true))?.Copy(parts[1]) is not {} model)return false;
         HideRecovered();
         foreach(var child in model.FindChildren("*","CollisionObject3D",true,false).OfType<CollisionObject3D>().ToArray()){child.GetParent().RemoveChild(child);child.Free();}
-        model.Transform=new Transform3D(new Basis(Vector3.Up,ModelYaw),SceneOffset);AddChild(model);
+        model.Transform=new Transform3D(new Basis(Vector3.Up,ModelYaw)*Basis.FromScale(Vector3.One*ModelScale),SceneOffset);AddChild(model);
+        foreach(var hull in model.FindChildren(parts[1]+"_hull","MeshInstance3D",true,false).OfType<MeshInstance3D>())
+        {hull.Visible=false;hull.SetMeta(HullMeta,true);model.SetMeta(HulledMeta,true);}
         KitFit="model";return true;
     }
     private void DrawModelParts()

@@ -1,0 +1,21 @@
+{
+  "repeatMetres": 1.2,
+  "pixels": 1024,
+  "source": "workgoods/church.py marble and marble_black; carving.py _tile; paint.py",
+  "textures": [
+    {
+      "file": "white.png",
+      "sha256": "5ca3ef533649c38d2abb7dc38e711e3b2cac7c603bfaf69ec9d22a08ff9c9b20",
+      "width": 1024,
+      "height": 1024,
+      "painter": "marble"
+    },
+    {
+      "file": "black.png",
+      "sha256": "ef121be4eeb1d48bb27ced9ac84a6f8206c9b416ffe0e0320219d214979d67e4",
+      "width": 1024,
+      "height": 1024,
+      "painter": "marble_black"
+    }
+  ]
+}

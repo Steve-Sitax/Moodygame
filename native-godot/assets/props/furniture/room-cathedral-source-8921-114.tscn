@@ -20,7 +20,9 @@ size = Vector3(0.059696198, 0.85991853, 0.06023407)
 
 [node name="fitting" type="Node3D" unique_id=442511172]
 script = ExtResource("1_un33i")
-GeometryCollision = true
+SceneOffset = Vector3(0, 0.42, 0)
+ModelScene = "church/rail_post"
+GeometryCollision = false
 Kind = "fitting"
 ModelSize = Vector3(0.059696198, 0.85991853, 0.06023407)
 ModelOffset = Vector3(-1.1444092e-05, 0.42000002, -3.8146973e-06)

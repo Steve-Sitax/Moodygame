@@ -33,6 +33,10 @@ _surfaces = [{
 
 [node name="fitting" type="Node3D" unique_id=1773360404]
 script = ExtResource("1_up8nq")
+ModelParts = PackedStringArray("church/altar_saint 0 10.83 -0.30 3.1416 1.33")
+ModelYaw = 3.1416
+SceneOffset = Vector3(0, 12.11, 0.053)
+ModelScene = "church/glory"
 GeometryCollision = true
 Kind = "fitting"
 ModelSize = Vector3(2.4999733, 2.5105848, 0.7295532)
