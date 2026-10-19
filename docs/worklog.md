@@ -6,13 +6,23 @@ The resumed queue is integrated where the main goal works. Minor leftovers remai
 regressions, new shader kinds, stuck people and unproved speed changes stay off main. Steve has not played it yet.
 Helper brief: `D:/Code/_tmp_verify/fixall/brief.md`; merge/check helpers: `D:/Code/_tmp_verify/coord/bin/`.
 
-| Item | Issues | Branch / source commits | Main state |
+| Item | Issues | Retained WIP / source commits | Main state |
 |---|---|---|---|
-| S managed heap | #181 #62 | t3/reduce-managed-heap: 055d2fd7, diagnostic 9b247cc8 | NOT merged: exact pixels and pause nonregression remain unproved; #205 remains open |
-| H6 textures, altar marble, litter | #84 #198 #200 | t3/split-floating-litter: 4ecd32e1; t3/promote-bark-subset: 427f8f4d, 22c9f476 | Litter ea4f1203 and bark 52806d12 merged and pushed; altar superseded by N5. #200 closed; #84 stays open |
-| Landmark, paving and washing | #171 #199 #203 | t3/review-landmark-paving: 275dcad1; t3/verify-washing-motion: 3e527600, 9ba3228c | Stone/paving 74480d95 and washing 9b30ef25 merged and pushed; #203 closed, #171/#199 stay open |
-| N5 cathedral furniture | #198 | t3/cathedral-furniture-detail-1: c6005ab1 | Merged 50a87168 and pushed; furniture/rail 21/21 pass. Existing stained-glass detail remains for play review |
-| J3 clothing edges | #82 #138 | t3/people-clothing-source-fixes: 5a645432 | Source-only fixes merged 02602f0b and pushed; four Blender fixtures pass. Runtime kit unchanged; rejected 24cd2a49 remains off main |
+| S managed heap | #181 #62 #205 | WIP t3/reduce-managed-heap: 4ab825dd (055d2fd7, diagnostic 9b247cc8) | NOT merged: exact pixels and pause nonregression remain unproved |
+| H6 textures, altar marble, litter | #84 #198 #200 | WIP t3/town-textures-altar-litter: 941a4f7b; integrated sources 4ecd32e1, 427f8f4d, 22c9f476 | Litter ea4f1203 and bark 52806d12 merged and pushed; altar superseded by N5. #200 closed; texture remainder stays off main |
+| Landmark, paving and washing | #171 #199 #203 | Integrated sources 275dcad1, 3e527600, 9ba3228c | Stone/paving 74480d95 and washing 9b30ef25 merged and pushed; #203 closed, #171/#199 stay open |
+| N5 cathedral furniture | #198 | Integrated source c6005ab1 | Merged 50a87168 and pushed; furniture/rail 21/21 pass. Existing stained-glass detail remains for play review |
+| J3 clothing edges | #82 #138 | WIP t3/people-cloth-layer-fix: a612bdcf; integrated source 5a645432 | Source-only fixes merged 02602f0b and pushed; four Blender fixtures pass. All 178 formerly dirty files preserved on WIP; rejected runtime kit stays off main |
+
+Cleanup verification, 2026-10-19: all finished work was already in main at 89376bbc; no new game changes merged.
+Main build passed with 22 existing warnings and zero errors; `test-icons.ps1 -Full` passed all seven checks,
+including the real game launch with isolated data, seed 1873 and port 9167. Package files stayed unchanged.
+The three WIP branches above are pushed and linked from their existing issues; this cleanup opened no issues.
+Removed 39 worktrees and 34 local branches, pruned registrations and removed one empty unregistered folder.
+Every removal had a reparse-point check; none contained junctions or symlinks. The external `cleanup-20261019`
+evidence folder retains a verified candidate bundle, diagnostic patches and 398 checksum-verified scratch art/source files.
+Only main, the Ruien Vleeshuis worktree, the old port and the play copy remain. Ruien/Antigoon and the protected
+art2*, art6-furn-kit, people and ppl-* branches are untouched. No Godot processes were stopped or left running.
 
 All three integration batches pass main build (22 existing warnings, zero errors), the exact shader baseline
 (41 programs / 153 first-kind identities), seed-1873 stuck (no stuck people, inside solids, overlaps or open crane-leg
@@ -43,7 +53,7 @@ Evidence and remaining work:
   #206 was consolidated into #198, not claimed fixed. Existing glass patches await play review.
 - J3: `D:/Code/_tmp_verify/J3-people/clean-split/`. Four actual Blender fixtures pass; source fixes preserve signed
   lining thickness and exclude opposite folds. Candidate neckline/shoulder defects remain off main; original
-  uncommitted assets in t3-a4b824d0 are preserved. #82/#138 remain open.
+  source/model/texture edits are committed on the WIP branch listed above. #82/#138 remain open.
 
 This continuation closed 3 issues: #200 and #203 fixed, #206 consolidated; opened 2: #205 and #206. Net open count: -1.
 Exclusive quiet-PC speed gates remain: #181 #62 #32 #47 #49 and people timing; pixel equivalence is unresolved.
