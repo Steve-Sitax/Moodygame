@@ -2,31 +2,27 @@
 
 ## All open issues, 2026-10-18 (coordinator thread, in progress)
 
-Steve asked to fix every open issue (50). Bundles touch the same parts; helpers work in their own worktrees, the
-coordinator merges into main after checks and `test-icons.ps1 -Full`. Town chunk files are edited by one bundle at a time.
+Steve asked to fix every open issue. Helpers work in their own worktrees; the coordinator merges into main after checks
+and `test-icons.ps1 -Full`. Town chunk files are edited by one bundle at a time.
+Helpers: Claude Opus 5.5 high for the work and all Blender work; Codex for generated pictures (textures) and picture checks.
 
-| Wave | Bundle | Issues |
+Merged into main (2026-10-18/19): checks (A), talk and doorways (B), speed parts 1-2 (C), boats (D), carry and work (E),
+market/board/warmth/benches (F), routes (L), light (I), people kit build 4 (J), town stone (H1), gutters (H2),
+facades (H3), shop fronts (H4), leftovers N1 and N2 with the cart fix, texture pictures (K2, not yet wired).
+
+| Now | Bundle | Issues |
 |---|---|---|
-| 1 | A. Checks that fail at random | merged; #49 #47 wait for an exclusive timing after C2 |
-| 1 | B. Talk and doorways | #168 #158 (merged 69187d20) |
-| 1 | C. Speed | parts 1 and 2 merged (#133 #135 #167 closed); left: #181 heap, #62 #32 #47 #49 (exclusive timing) |
-| 2 | D. Boats | merged (#182 leftovers) |
-| 2 | E. Carried loads and work poses | merged 2bc9d394 |
-| 2 | F. Market, work board, warmth, benches (rules), room keepers | merged 0294af09 (#187 leftovers) |
-| 2 | L. Routes | merged (#186 theatre stair, #185 talk check flake) |
-| 3 | G. Street furniture models | #160 #149 #164 #180 |
-| 3 | H. Town fabric (one at a time) | H1 merged (#161 #173; #171 part); H2 merged (#163); H3 merged 487f132b (#188 #176 #175; #28 part); H4 running: #174 #193 #28 rest; then H5 #170 #91 paving with G #160 #149 #164 and #171 rest |
-| 3 | I. Light and look | merged ed978ca9 |
-| 3 (running) | J. People kit | #82 #138 #140, rowing and climbing from #182 |
-| 3 | K. Textures | #84 |
-| 4 (N2 running) | N. Leftovers | N1 merged c9bf70c3; N2: #190 #191 #192; later: #171 rest, #181 heap with #62 #32 #47 #49 |
-| - | Parked by Steve (play first) | #141 |
-| - | Steve's decisions (other session) | #189 Ruien plan |
+| running | H5 paving | #170 #91 |
+| running | J2 people kit leftovers | #82 #138 #195 |
+| running | N3 leftovers | #194 #196 |
+| next | street furniture | #160 #149 #164 |
+| next | stone outside the city chunks | #171 rest |
+| next | wire the texture pictures into the town | #84 |
+| next | stuck-check flakes | #197 |
+| last (quiet PC) | memory and speed | #181 #62 #32 #47 #49 |
+| Steve | parked / his decisions | #141, #189 (Ruien, other session) |
 
-Helpers: Claude Opus 5.5 high for the work; Codex for generated pictures (textures) and picture checks (Steve 2026-10-18).
-Rules for helpers: one Godot window at a time, own `--db`/`--prefs`/`--author-root`/user data and port range,
-timing runs only while holding `D:/Code/_locks/PERF-LOCK`, `native-godot/override.cfg` (silent, right screen) in
-each worktree, never Steve's save or layouts.
+Rules for helpers: `D:/Code/_tmp_verify/fixall/brief.md` (own db/prefs/ports, PERF-LOCK, override.cfg, no push).
 
 ## Ruien plan in 2D, 2026-10-18 (second draft, waits for Steve)
 
