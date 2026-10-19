@@ -115,8 +115,12 @@ public partial class Jef
         return GroundAt(x, z, level - Step) < level - Tide.Wade && NearestSwim(x, z) != null;
     }
 
-    private void EnterWater(bool keepView = false)
+    /// <summary>For the checks: where and why he last went into the water (feet, ground, level, the caller).</summary>
+    public string LastWater { get; private set; } = "";
+
+    private void EnterWater(bool keepView = false, [System.Runtime.CompilerServices.CallerLineNumber] int line = 0)
     {
+        LastWater = $"line {line}: feet {X:0.00},{Y:0.00},{Z:0.00} level {Water.Level(X, Z):0.00} ground {GroundAt(X, Z, Y):0.00} vy {vy:0.00}";
         var viewBefore = Cam.GlobalPosition - Vector3.Up * dip * Bob;
         Swimming = true;
         Diving = false;

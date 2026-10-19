@@ -1,0 +1,149 @@
+{
+ "brick_flemish": {
+  "tile_m": [
+   4.8,
+   2.4
+  ],
+  "relief_m": 0.097,
+  "files": [
+   "ruien_brick_flemish_albedo.png",
+   "ruien_brick_flemish_normal.png",
+   "ruien_brick_flemish_height.png",
+   "ruien_brick_flemish_roughness.png",
+   "ruien_brick_flemish_ao.png",
+   "ruien_brick_flemish_albedo_slime.png",
+   "ruien_brick_flemish_albedo_lime.png"
+  ]
+ },
+ "brick_stretcher": {
+  "tile_m": [
+   4.8,
+   2.4
+  ],
+  "relief_m": 0.097,
+  "files": [
+   "ruien_brick_stretcher_albedo.png",
+   "ruien_brick_stretcher_normal.png",
+   "ruien_brick_stretcher_height.png",
+   "ruien_brick_stretcher_roughness.png",
+   "ruien_brick_stretcher_ao.png",
+   "ruien_brick_stretcher_albedo_slime.png",
+   "ruien_brick_stretcher_albedo_lime.png"
+  ]
+ },
+ "brick_header": {
+  "tile_m": [
+   4.8,
+   2.4
+  ],
+  "relief_m": 0.097,
+  "files": [
+   "ruien_brick_header_albedo.png",
+   "ruien_brick_header_normal.png",
+   "ruien_brick_header_height.png",
+   "ruien_brick_header_roughness.png",
+   "ruien_brick_header_ao.png",
+   "ruien_brick_header_albedo_slime.png",
+   "ruien_brick_header_albedo_lime.png"
+  ]
+ },
+ "bluestone": {
+  "tile_m": [
+   2.4,
+   2.4
+  ],
+  "relief_m": 0.003,
+  "files": [
+   "ruien_bluestone_albedo.png",
+   "ruien_bluestone_normal.png",
+   "ruien_bluestone_height.png",
+   "ruien_bluestone_roughness.png",
+   "ruien_bluestone_ao.png"
+  ]
+ },
+ "calcite": {
+  "tile_m": [
+   1.8,
+   1.8
+  ],
+  "relief_m": 0.012,
+  "files": [
+   "ruien_calcite_albedo.png",
+   "ruien_calcite_normal.png",
+   "ruien_calcite_height.png",
+   "ruien_calcite_roughness.png",
+   "ruien_calcite_ao.png"
+  ]
+ },
+ "oak": {
+  "tile_m": [
+   2.0,
+   5.3994140625
+  ],
+  "relief_m": 0.006,
+  "files": [
+   "ruien_oak_albedo.png",
+   "ruien_oak_normal.png",
+   "ruien_oak_height.png",
+   "ruien_oak_roughness.png",
+   "ruien_oak_ao.png"
+  ],
+  "note": "atlas: u = plank column, v = 0..5.4 m along the plank; not a 2D tile"
+ },
+ "iron": {
+  "tile_m": [
+   0.9,
+   0.9
+  ],
+  "relief_m": 0.002,
+  "files": [
+   "ruien_iron_albedo.png",
+   "ruien_iron_normal.png",
+   "ruien_iron_height.png",
+   "ruien_iron_roughness.png",
+   "ruien_iron_ao.png"
+  ]
+ },
+ "silt": {
+  "tile_m": [
+   4.0,
+   4.0
+  ],
+  "relief_m": 0.03,
+  "files": [
+   "ruien_silt_albedo.png",
+   "ruien_silt_normal.png",
+   "ruien_silt_height.png",
+   "ruien_silt_roughness.png",
+   "ruien_silt_ao.png"
+  ]
+ },
+ "sandstone": {
+  "tile_m": [
+   1.6,
+   1.6
+  ],
+  "relief_m": 0.02,
+  "files": [
+   "ruien_sandstone_albedo.png",
+   "ruien_sandstone_normal.png",
+   "ruien_sandstone_height.png",
+   "ruien_sandstone_roughness.png",
+   "ruien_sandstone_ao.png"
+  ]
+ },
+ "moss": {
+  "tile_m": [
+   1.2,
+   1.2
+  ],
+  "relief_m": 0.01,
+  "files": [
+   "ruien_moss_albedo.png",
+   "ruien_moss_normal.png",
+   "ruien_moss_height.png",
+   "ruien_moss_roughness.png",
+   "ruien_moss_ao.png"
+  ]
+ }
+}

@@ -1067,6 +1067,20 @@ float psx_h13(vec3 p3) { p3 = fract(p3 * 0.1031); p3 += dot(p3, p3.zyx + 31.32);
 	}
 ";
 
+    /// <summary>
+    /// Issue #193: painted wood out in the weather gets wet. The kind of the town's solid lit material (the bake's r000211:
+    /// its wood, shop boards and shutters; and stone vaults and dados indoors; the goods and models the game makes with the
+    /// same switches) gets a wet term, off unless the material asks for it (`wet_paint` 0 dry as before, 1 painted wood, more
+    /// for bare weathered wood): in rain the paint darkens, a little more where it faces the sky, and gives back a thin sheen
+    /// of the sky at a glancing view. scripts/WoodWetRepair.cs writes this kind's code into the resource, so it stays one kind.
+    /// </summary>
+    public static bool WetPaint(Kind k) => k == new Kind(false, false, false, true, k.DepthWrite, true, 0, true, false, true, Bump: true);
+    public const string WetPaintDecl = "// #193: painted wood gets wet: 0 stays dry (stone vaults indoors), 1 painted wood, more for bare weathered wood\nuniform float wet_paint = 0.0;\nglobal uniform float psx_wet;\n";
+    public const string WetPaintColour = "\t// (#193) wet paint is darker, a little more where it faces the sky\n\tfloat paint_wet = clamp(psx_wet, 0.0, 1.0) * wet_paint;\n\tvec3 wet_nw = normalize((INV_VIEW_MATRIX * vec4(NORMAL, 0.0)).xyz);\n\tc.rgb *= 1.0 - paint_wet * (0.4 + 0.1 * clamp(wet_nw.y, 0.0, 1.0));\n";
+    public const string WetPaintSheen = "\t// (#193) and the rain film gives back a little of the sky at a glancing view\n\tad += mix(psx_hemi_ground.rgb, psx_hemi_sky.rgb, reflect(rd, nw).y * 0.5 + 0.5) * pow(1.0 - clamp(dot(NORMAL, VIEW), 0.0, 1.0), 5.0) * paint_wet * 0.09 * psx_sky_seen(world, nw);\n";
+    /// <summary>A wet-paint kind's code without its wet term (the code it had before #193).</summary>
+    public static string WithoutWetPaint(string code) => code.Replace(WetPaintDecl, "").Replace(WetPaintColour, "").Replace(WetPaintSheen, "");
+
     public static Shader ShaderOf(Kind k)
     {
         if (Shaders.TryGetValue(k, out var s)) return s;
@@ -1153,6 +1167,7 @@ varying vec3 world;
         if (k.Grime > 0) c.Append(Grime.CommonGlsl);
         if (k.Tree > 0) c.Append("global uniform vec3 psx_gale;\nglobal uniform float psx_sea;\n" + (k.Tree % 2 == 0 ? "global uniform float psx_wet;\n" : ""));
         if (k.Bump) c.Append(Grime.BumpGlsl(k.Atlas));
+        if (WetPaint(k)) c.Append(WetPaintDecl);
         c.Append(@"
 void vertex() {
 ");
@@ -1382,6 +1397,7 @@ void fragment() {
         // the houses' age: the wall pictures and the grime before the vertex colour, the worn paint after (Render/Grime.cs)
         if (k.Grime > 0) c.Append(Grime.BeforeColourGlsl(k.Grime == 1 && k.Atlas > 0));
         if (k.VertexColor) c.Append("	c.rgb *= COLOR.rgb;\n");
+        if (WetPaint(k)) c.Append(WetPaintColour);
         if (k.TideWet) c.Append("	c.rgb *= 1.0 - tide_wet * psx_tide_wet_at(world.y); // (the tide's wet band: darker stone and mud)\n");
         if (k.Grime == 1 && k.Atlas > 0) c.Append(Grime.AfterColourGlsl);
         if (k.Scissor) c.Append("	if (c.a < alpha_cut) discard;\n");
@@ -1418,6 +1434,7 @@ void fragment() {
 	// the light spilt from lamps, lit windows and doors (world/spill.ts), as point lights would give it
 	vec3 spilt = psx_spill_n > 0 ? psx_spill_at(world, nw) / PI : vec3(0.0);
 ");
+            if (WetPaint(k)) c.Append(WetPaintSheen);
             if (k.Indoor)
                 c.Append(@"	// inside: the room's own light; no sun, no street lamp through the walls (its lamps are real lights)
 	sky = (mix(room_ground, room_sky, nw.y * 0.5 + 0.5) + room_ambient) * bump_k;

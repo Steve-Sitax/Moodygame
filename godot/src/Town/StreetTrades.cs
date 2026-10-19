@@ -76,7 +76,7 @@ public partial class StreetTrades : Node
         }
         else if(grinder)
         {
-            kit.Wheel=Part("barrow_wheel",new(0,.3f,0));kit.Stone=Part("barrow_stone",new(0,1.02f,-.55f));kit.Fly=Part("barrow_fly",new(.3f,.85f,-.8f));Grinders++;p.Nose=GrinderWheelAhead;p.Reach=.4;
+            kit.Wheel=Part("barrow_wheel",new(0,.3f,0));kit.Stone=Part("barrow_stone",new(0,1.02f,-.55f));kit.Fly=Part("barrow_fly",new(.3f,.85f,-.8f));Grinders++;p.Nose=GrinderWheelAhead;p.Reach=.4;p.Grinder=true;
         }
         else
         {
@@ -172,6 +172,8 @@ public partial class StreetTrades : Node
                 else if(!p.Remote)town.Crowd!.PuppetStand(p,"grind",yaw);
             }
         }
+        // (pushed out before him, the barrow waits for whoever stands in its way, Crowd.CartOnSomeone; set down, it does not move)
+        p.Barrow=k.State==Pushing;
         double step=k.Root.Position.DistanceTo(at);k.Root.Position=at;k.Root.Rotation=new(0,(float)yaw,0);
         k.Roll+=step/.3;k.Spin+=k.State==Grinding&&!moving?dt*14:0;
         if(k.Wheel!=null)k.Wheel.Rotation=new((float)k.Roll,0,0);if(k.Stone!=null)k.Stone.Rotation=new((float)k.Spin,0,0);if(k.Fly!=null)k.Fly.Rotation=new((float)(k.Spin*.6),0,0);
@@ -187,7 +189,7 @@ public partial class StreetTrades : Node
             Main.I.GetNodeOrNull<Townspeople>("Townspeople")?.Crowd?.MoveOutOf(body.GlobalTransform*new Aabb(box.Centre-box.Size/2,box.Size));
         }
     }
-    private void Remove(string id){if(!kits.Remove(id,out var k))return;if(GodotObject.IsInstanceValid(k.Root))k.Root.QueueFree();if(GodotObject.IsInstanceValid(k.Bundle))k.Bundle!.QueueFree();if(k.Cart){k.Puppet.Pushes=false;k.Puppet.Nose=0;k.Puppet.Reach=.3;town?.Crowd?.PuppetLantern(k.Puppet,false);}foreach(var dog in k.Dogs)dog?.Dispose();if(k.Person.R.Trade=="grinder"){Grinders--;k.Puppet.Nose=0;k.Puppet.Reach=.3;}else if(k.DogsN>0)DogCarts--;}
+    private void Remove(string id){if(!kits.Remove(id,out var k))return;if(GodotObject.IsInstanceValid(k.Root))k.Root.QueueFree();if(GodotObject.IsInstanceValid(k.Bundle))k.Bundle!.QueueFree();if(k.Cart){k.Puppet.Pushes=false;k.Puppet.Nose=0;k.Puppet.Reach=.3;town?.Crowd?.PuppetLantern(k.Puppet,false);}foreach(var dog in k.Dogs)dog?.Dispose();if(k.Person.R.Trade=="grinder"){Grinders--;k.Puppet.Nose=0;k.Puppet.Reach=.3;k.Puppet.Barrow=false;k.Puppet.Grinder=false;}else if(k.DogsN>0)DogCarts--;}
     private void Reset(string how,Net.ClientState? state){gone.Clear();foreach(var id in kits.Keys)gone.Add(id);foreach(var id in gone)Remove(id);}
     public override void _ExitTree(){Reset("exit",null);if(Menu.MainMenu.I is {} menu)menu.WorldReplaced-=Reset;}
 }

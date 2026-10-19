@@ -24,7 +24,10 @@ Conversion (headless, once per export; it writes under `res://world/ruien` and q
 - Three shader kinds (`native-godot/shaders/ruien_*`, shared parts in `ruien_common.gdshaderinc`), added once with
   Steve's approval of 2026-10-18 and recorded in `assets/shader-baseline.json`:
   - **masonry**: every solid surface. The family's set blended by the vertex colour (R wet/slime, G lime/halo/runnels,
-    B soot, A moss), baked AO in UV2.x, parallax occlusion near the eye on top of the real relief, wet gloss.
+    B soot, A moss), baked AO in UV2.x, parallax occlusion near the eye on top of the real relief, wet gloss. The
+    study's baked colour (CUSTOM0) sets the base. The lime halo, bloom and salt flecks are drawn over it from G
+    (`halo_k` per family), because the bake's vertices sample them too sparsely. Runoff stains (`cover` < 1) break up
+    in world space, not per pixel.
   - **water**: murk with depth absorption over the bed seen through it, drifting ripples, drip rings, scum, screen-space
     reflections of the vault and lamps, and the walls' thin films.
   - **air** (premultiplied): daylight beams down shafts, the low rot mist (lit by the lamps), flames and lamp glass.

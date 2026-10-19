@@ -404,6 +404,9 @@ public partial class Jef : Node, Mantle.IWorld
     public bool StandFree(float x, float z, float feet) => Math.Abs(GroundAt(x, z, feet) - feet) <= Step && BodyFree(x, feet, z);
 
     /// <summary>Walk by (dx, dz) with the feet at `feet`: slides along what is solid. Returns the metres moved.</summary>
+    /// <summary>For the checks: the last time the physics pushed him further than he walked, and out of what.</summary>
+    public string LastShove { get; private set; } = "";
+
     private float MoveBy(float dx, float dz, float feet)
     {
         Body.GlobalPosition = new Vector3(X, feet, Z);
@@ -424,6 +427,14 @@ public partial class Jef : Node, Mantle.IWorld
         }
         var p = Body.GlobalPosition;
         float moved = MathF.Sqrt((p.X - X) * (p.X - X) + (p.Z - Z) * (p.Z - Z));
+        if (moved > want.Length() + 0.05f)
+        {
+            // pushed out of something he stood in (the physics' recovery): what it was, for the checks
+            bodyQ.Shape = bodyShape;
+            bodyQ.Transform = new Transform3D(Basis.Identity, new Vector3(X, feet + Step + (Tall - Step) / 2, Z));
+            var inside = Space.IntersectShape(bodyQ, 4).Select(h => h["collider"].AsGodotObject() is Node n ? n.GetPath().ToString() : "?");
+            LastShove = $"{moved:0.00} m at {X:0.00},{feet:0.00},{Z:0.00} out of {string.Join(", ", inside)}";
+        }
         X = p.X;
         Z = p.Z;
         return moved;

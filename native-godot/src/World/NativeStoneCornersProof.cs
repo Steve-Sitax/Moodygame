@@ -23,6 +23,8 @@ namespace Scheldemist.Native.World;
 public static class NativeStoneCornersProof
 {
     record View(string Name, float[] Eye, float[] Focus, float Fov, string[] Weathers, bool Measure = false);
+    /// <summary>The clock of a view's weather: 13:00 by day and in rain, 19:45 in the evening (#174: the shops' lamps burn), 22:00 at night.</summary>
+    static int Hour(string weather) => weather == "night" ? 22 : weather == "evening" ? 19 : 13;
 
     public static async Task Run(NativeTownGame game, string output)
     {
@@ -94,12 +96,12 @@ public static class NativeStoneCornersProof
                 return new { state, videoMemMB = Performance.GetMonitor(Performance.Monitor.RenderVideoMemUsed) / 1048576.0, bufferMemMB = Performance.GetMonitor(Performance.Monitor.RenderBufferMemUsed) / 1048576.0, gpuMean = gpu.Average(), gpuP95 = P95(gpu), cpuMean = cpu.Average(), processMean = frame.Average(), frameMean = interval.Average(), frameP95 = P95(interval), drawCalls = calls, primitives };
             }
             Camera3D? capture = null;
-            foreach (var weather in new[] { "day", "rain", "night" })
+            foreach (var weather in new[] { "day", "rain", "evening", "night" })
             {
                 var chosen = views.Where(v => v.Weathers.Contains(weather)).ToArray();
                 if (chosen.Length == 0) continue;
-                var state = await api.Post<JobsPayload>("api/dev/set", new { day = 1, hour = weather == "night" ? 22 : 13, minute = 0, weather = weather == "rain" ? "rain" : "clear" });
-                GameState.I.Apply(state); Scheldemist.Movers.MoverClock.Hold(weather == "night" ? 22 : 13, 1);
+                var state = await api.Post<JobsPayload>("api/dev/set", new { day = 1, hour = Hour(weather), minute = weather == "evening" ? 45 : 0, weather = weather == "rain" ? "rain" : "clear" });
+                GameState.I.Apply(state); Scheldemist.Movers.MoverClock.Hold(Hour(weather), 1);
                 foreach (var view in chosen)
                 {
                     var eye = new Vector3(view.Eye[0], view.Eye[1], view.Eye[2]); var focus = new Vector3(view.Focus[0], view.Focus[1], view.Focus[2]);
@@ -115,10 +117,10 @@ public static class NativeStoneCornersProof
                     // (#184) the clock, the weather and the light are this view's before the picture (the game's own clock
                     // sync could still be on the last one), and a night view waits until the street lamps and the lit
                     // windows burn: a picture in a paused game (another window took the focus) had them all dark
-                    Daylight.I.SetTime(weather == "night" ? 22 : 13); Daylight.I.SetWeather(weather == "rain" ? "rain" : "clear");
+                    Daylight.I.SetTime(Hour(weather) + (weather == "evening" ? 0.75f : 0f)); Daylight.I.SetWeather(weather == "rain" ? "rain" : "clear");
                     if (Pause.Paused) { notes.Add(new { mode = "pause", view = view.Name, weather, reasons = Pause.Reasons }); Pause.Clear(); }
                     Daylight.I.Settle(); await Frames(90);
-                    if (weather == "night") Check($"{view.Name}: night lights on before the picture", await Until(() => !Pause.Paused && Lights.I?.NightReady == true, 30));
+                    if (weather is "night" or "evening") Check($"{view.Name}: night lights on before the picture", await Until(() => !Pause.Paused && Lights.I?.NightReady == true, 30));
                     // --stone-corners-pick fx,fy (0..1 of the picture): which drawn thing makes that pixel? Each one whose
                     // box the pixel's ray meets is hidden in turn; the ones that change the pixel are listed.
                     if (Option("stone-corners-pick") is { Length: > 0 } pick && weather == "day")
@@ -139,7 +141,7 @@ public static class NativeStoneCornersProof
                             notes.Add(new { mode = "pick", view = view.Name, node = g.GetPath().ToString(), mesh = (g as MeshInstance3D)?.Mesh?.ResourcePath ?? "", diff, before = basePixel.ToHtml(false), after = c.ToHtml(false) });
                         }
                     }
-                    foreach (bool candidate in swaps.Count > 0 ? new[] { false, true } : new[] { false })
+                    foreach (bool candidate in swaps.Count > 0 || toggled.Length > 0 ? new[] { false, true } : new[] { false })
                     {
                         Use(candidate); await Frames(12);
                         await game.ToSignal(RenderingServer.Singleton, RenderingServer.SignalName.FramePostDraw);
@@ -149,13 +151,13 @@ public static class NativeStoneCornersProof
                     }
                     if (measure && view.Measure && weather == "day")
                         // back and forth, so a slow first pass does not count against either state
-                        foreach (bool candidate in swaps.Count > 0 ? new[] { false, true, false, true } : new[] { false })
+                        foreach (bool candidate in swaps.Count > 0 || toggled.Length > 0 ? new[] { false, true, false, true } : new[] { false })
                         { Use(candidate); notes.Add(new { mode = "frame", view = view.Name, result = await Measure(candidate ? "candidate" : "before") }); }
                     Use(false);
                 }
             }
             capture?.QueueFree(); game.Cam.MakeCurrent();
-            Check("clock and weather follow the proof", GameState.I.Hour == (views.Any(v => v.Weathers.Contains("night")) ? 22 : 13));
+            Check("clock and weather follow the proof", GameState.I.Hour == Hour(new[] { "night", "evening", "rain", "day" }.First(w => views.Any(v => v.Weathers.Contains(w)))));
         }
         catch (Exception ex) { error += ex.ToString(); GD.PushError("stone corners proof: " + ex); }
         finally

@@ -1,6 +1,7 @@
 extends SceneTree
 # Issue #175: the sign pictures of scripts/sign_art.py into the game's resources. Usage:
 #   godot --headless --path . -s scripts/build-signs.gd -- <art folder>
+# (#193: sign_art.py with streets.json adds the plates of every named street after the cells of #175.)
 # Writes assets/materials/town-facades-20261018/: the signs picture (mipmapped, compressed for the graphics card), its
 # height, the letters picture, and two materials: signs.tres (a copy of the street-life material streetlife_solid, the same
 # shader: no new kind) and letters.tres (a copy of streetlife_walldecal).
@@ -25,6 +26,8 @@ func run():
 	var m: ShaderMaterial = load("res://world/town/resources/r004924.res").duplicate()
 	m.resource_name = "town_signs"
 	m.set_shader_parameter("tex", signs); m.set_shader_parameter("bump_map", height)
+	# (#193) painted boards darken in the rain (scripts/repair-wood-wet.gd); the glazed enamel plates share the picture
+	m.set_shader_parameter("wet_paint", 0.8)
 	if ResourceSaver.save(m, MATS + "/signs.tres") != OK: push_error("could not save signs.tres")
 	var d: ShaderMaterial = load("res://world/town/resources/r004955.res").duplicate()
 	d.resource_name = "town_letters"

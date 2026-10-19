@@ -96,10 +96,13 @@ public sealed class StuckWatch
             if (how != null) bad.TryAdd(id, new { id, who = s.R.Name, s.R.Trade, how, x, z, place, atSeconds = seconds, goal, shown = p?.Shown ?? false, state = p?.State, motion = p?.Human.Motion, role = p?.Role, wait = s.Wait, held = p?.Held, stuckT = p?.StuckT, bridgeWait = p?.BridgeWait, vehicle = p?.Vehicle != null, dest = p?.Dest is { } d ? new[] { d.x, d.z } : null, replans = p?.Replans, free = town.Walk!.Free(x, z), trail = tr.TakeLast(14).Select(a => a.Detail).ToArray(), lanes = p == null ? null : town.Crowd!.LanesNear(p), source = "godot/src/Town/Townspeople.cs; godot/src/Town/Crowd.cs" });
             if (p == null || !p.Shown) continue;
             bodyProbe.Transform = new Transform3D(Basis.Identity, new Vector3((float)x, (float)town.Walk!.BaseAt(x, z) + Jef.Step + (Jef.Tall - Jef.Step) / 2, (float)z));
+            // (her own handcart's or dray's bodies are not in her way: she stands between its shafts, and her own moves pass them by,
+            // WalkMap.RegisterBody's owner; #192 the Grote Markt sellers pushing theirs home were counted inside them)
+            bodyProbe.Exclude = town.Crowd!.PuppetVehicleNode(p) is { } own ? new Godot.Collections.Array<Rid>(BakedWorld.All(own).OfType<CollisionObject3D>().Select(c => c.GetRid())) : new Godot.Collections.Array<Rid>();
             var hits = Main.I.View.FindWorld3D().DirectSpaceState.IntersectShape(bodyProbe, 1);
-            if (!town.Walk!.Free(x, z) || hits.Count > 0)
+            if (!town.Walk!.FreeFor(p, x, z) || hits.Count > 0)
             {
-                string hit = hits.Count == 0 ? "baked walk map" : hits[0]["collider"].AsGodotObject() is Node collider ? collider.GetPath().ToString() : Solid.I.BodyName(hits[0]["rid"].AsRid());
+                string hit = hits.Count == 0 ? "baked walk map" + (town.Walk!.BlockedBy(p, x, z) is { Length: > 0 } by ? $" (near {by})" : "") : hits[0]["collider"].AsGodotObject() is Node collider ? collider.GetPath().ToString() : Solid.I.BodyName(hits[0]["rid"].AsRid());
                 if (solids.Add($"{id} at {x:0.00},{z:0.00} ({place}): {hit} <{goal} {p.State}/{p.Human.Motion} t={Math.Floor(seconds / 10) * 10}>") && solidTrails.Count < 24 && solidTrailKeys.Add(id + "|" + hit))
                     solidTrails.Add(new { id, hit, x, z, yield = p.Yield, nose = p.Nose, contacts = Main.I.View.FindWorld3D().DirectSpaceState.CollideShape(bodyProbe, 4).Select(c => $"{c.X:0.00},{c.Y:0.00},{c.Z:0.00}").ToArray(), path = p.Path.Skip(Math.Max(0, p.Pi - 1)).Take(4).Select(q => $"{q.x:0.00},{q.z:0.00}").ToArray(), trail = tr.TakeLast(8).Select(a => a.Detail).ToArray() });
                 if (hits.Count > 0 && !solidEvidence.ContainsKey(hit))
@@ -128,7 +131,7 @@ public sealed class StuckWatch
             }
     }
     public void ResetWindow() => tracks.Clear();
-    public object Report(Townspeople town, double seconds) => new { ok = bad.Count == 0 && overlaps.Count == 0 && solids.Count == 0 && craneLegsOpen.Count == 0, watched = town.Sims.Count, walking = walking.Count, seconds, gameHours = seconds / 120, stuck = bad.Values, overlaps = overlaps.Order().ToArray(), insideSolids = solids.Order().ToArray(), craneLegsChecked, craneLegsOpen = craneLegsOpen.Order().ToArray(), solidEvidence = solidEvidence.Values, solidTrails, solidReplay, wedges = town.Crowd!.WedgeLog.ToArray(), wedgeMaps = town.Crowd.WedgeMaps.ToArray(),
+    public object Report(Townspeople town, double seconds) => new { ok = bad.Count == 0 && overlaps.Count == 0 && solids.Count == 0 && craneLegsOpen.Count == 0, watched = town.Sims.Count, walking = walking.Count, seconds, gameHours = seconds / 120, stuck = bad.Values, overlaps = overlaps.Order().ToArray(), insideSolids = solids.Order().ToArray(), craneLegsChecked, craneLegsOpen = craneLegsOpen.Order().ToArray(), solidEvidence = solidEvidence.Values, solidTrails, solidReplay, wedges = town.Crowd!.WedgeLog.ToArray(), wedgeMaps = town.Crowd.WedgeMaps.ToArray(), movedOut = town.Crowd.MoveOutLog.ToArray(),
         notCovered = new[] { "one three-hour Monday route through five places; other days and overnight plans", "hidden resident oscillation, overlaps and solids (scheduled rounds can repeat; only drawn bodies have physical presence)", "job figures, animals and vehicles outside the town crowd", "waiting for a server route is excluded until the simulation starts its walk" } };
 }
 

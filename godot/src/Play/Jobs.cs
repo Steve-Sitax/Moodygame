@@ -253,7 +253,7 @@ public partial class Jobs : Node
             foreach (var who in Folk.Near(x, z, ReachTalk + AcrossStall))
             {
                 // a market seller is talked to across her stall (#150): the stall's depth further off than anyone else
-                if (who.Dist > ReachTalk && !who.Id.StartsWith(Scheldemist.People.NativeMarket.SellerPrefix, StringComparison.Ordinal)) continue;
+                if (who.Dist > ReachTalk && Scheldemist.People.NativeMarket.I?.IsSeller(who.Id) != true) continue;
                 var chest = who.At + new Vector3(0, 1.3f, 0);
                 var p = who;
                 o.Options.Add((who.Dist + (who.Fixed ? 0 : 0.05f), Act.At(Key.E, $"talk to {who.Name}", chest, () => talk.Open(p.Id, p.Name, p.Title))));

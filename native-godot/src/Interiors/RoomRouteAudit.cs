@@ -103,6 +103,10 @@ public static class RoomRouteAudit
                 if (role.Value.TryGetProperty("appear", out var appear) && appear.GetBoolean() && role.Value.TryGetProperty("at", out var at)
                     && hall.GetProperty("marks").TryGetProperty(at.GetString()!, out var mark))
                     list.Add((frame * new Vector3(mark.GetProperty("x").GetSingle(), mark.TryGetProperty("y", out var y) ? y.GetSingle() : 0, mark.GetProperty("z").GetSingle()), .8f, $"the {role.Name} appears in place there"));
+                // (#192) a seat inside a closed box (the confessor's): he walks to its door and steps in
+                else if (role.Value.TryGetProperty("stepIn", out var stepIn) && stepIn.GetBoolean() && role.Value.TryGetProperty("at", out var inAt)
+                    && hall.GetProperty("marks").TryGetProperty(inAt.GetString()!, out var inMark))
+                    list.Add((frame * new Vector3(inMark.GetProperty("x").GetSingle(), inMark.TryGetProperty("y", out var iy) ? iy.GetSingle() : 0, inMark.GetProperty("z").GetSingle()), .8f, $"the {role.Name} walks to the door of his box and steps in"));
         }
         return list;
     }

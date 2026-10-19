@@ -33,7 +33,9 @@ public sealed partial class Crowd
             double rank=body.Owner?.Vehicle?.Kind==3?2:body.Owner!=null?1:was.NameRank;
             Add(centre.X,centre.Z,vx,vz,body.World.Size.X/2,body.World.Size.Z/2,rank,body.Owner);
         }
-        foreach(var p in people){if(p.Vehicle==null||p.State!="walk"||p.Remote)continue;double fx=Math.Sin(p.Yaw),fz=Math.Cos(p.Yaw);int before=lanes.Count;Add(p.X+fx*p.Nose*.5,p.Z+fz*p.Nose*.5,fx*p.Pace,fz*p.Pace,0,0,p.Vehicle.Kind==3?2:1,p);if(lanes.Count>before){lanes[^1].HalfLength=Math.Max(.6,p.Nose/2+.4);lanes[^1].HalfWidth=Math.Max(.45,p.Reach);}}
+        foreach(var p in people){if(p.Vehicle==null||p.State!="walk"||p.Remote)continue;double fx=Math.Sin(p.Yaw),fz=Math.Cos(p.Yaw);int before=lanes.Count;Add(p.X+fx*p.Nose*.5,p.Z+fz*p.Nose*.5,fx*p.Pace,fz*p.Pace,0,0,p.Vehicle.Kind==3?2:1,p);if(lanes.Count>before){lanes[^1].HalfLength=Math.Max(.6,p.Nose/2+.4);lanes[^1].HalfWidth=Math.Max(.45,p.Reach);
+            // a handcart waiting for someone in its way keeps only its own length: the street before it may be crossed (#192)
+            if(p.CartWait>0)lanes[^1].Look=.3;}}
     }
     /// <summary>The vehicle lanes within 20 m of a body and where it stands in each, for the stuck check's report.</summary>
     public string[] LanesNear(Puppet p){var notes=new List<string>();foreach(var l in lanes){double dx=p.X-l.X,dz=p.Z-l.Z;if(Math.Abs(dx)>20||Math.Abs(dz)>20)continue;notes.Add($"lane at {l.X:0.0},{l.Z:0.0} heading {l.Ux:0.00},{l.Uz:0.00} half {l.HalfLength:0.0} x {l.HalfWidth:0.0} look {l.Look:0.0} rank {l.Rank} {(l.Owner==null?"body":"carried by puppet "+l.Owner.Id)}; body is {dx*l.Ux+dz*l.Uz:0.0} along, {dx*l.Rx+dz*l.Rz:0.0} across");}return notes.ToArray();}
@@ -71,7 +73,7 @@ public sealed partial class Crowd
                 &&!Clears(p,l,outward,lateral,room)&&Clears(p,l,-outward,lateral,room))continue;
             return false;
         }
-        return map.FreeFor(p,x,z)&&grid.IsOpen(x,z)&&(p.Nose==0||map.FreeFor(p,x+Math.Sin(p.Yaw)*p.Nose,z+Math.Cos(p.Yaw)*p.Nose));
+        return map.FreeFor(p,x,z)&&grid.IsOpen(x,z)&&(p.Nose==0||map.FreeFor(p,x+Math.Sin(p.Yaw)*p.Nose,z+Math.Cos(p.Yaw)*p.Nose))&&!PushedOnSomeone(p,x,z,p.Yaw)&&OwnClear(p,x,z);
     }
     private bool GiveWay(Puppet p,double dt)
     {
@@ -103,7 +105,7 @@ public sealed partial class Crowd
         if(p.WayHome is {} home&&near==null){double dx=home.x-p.X,dz=home.z-p.Z,d=Hyp(dx,dz);if(d<.1||p.State=="walk"){p.WayHome=null;if(p.State!="walk")p.Human.Play(StillMotion(p),.3f);return false;}
             // no ground gained for half a second (another rule holds the body, a street game's place): stay, never walk on the spot
             if(d<p.WayHomeLeft-.02){p.WayHomeLeft=d;p.WayHomeStall=0;}else if((p.WayHomeStall+=dt)>.5){p.WayHome=null;p.Human.Play(StillMotion(p),.3f);return false;}
-            double step=Math.Min(d,1.1*dt),x=p.X+dx/d*step,z=p.Z+dz/d*step;if(!map.FreeFor(p,x,z)){p.WayHome=null;p.Human.Play(StillMotion(p),.3f);return false;}p.X=x;p.Z=z;Face(p,Math.Atan2(dx,dz),dt*3);p.Human.Play(p.Vehicle!=null?WalkMotion(p):"walk",.2f);p.Human.SetPace(1.1f/p.Size);if(d-step<.1){p.WayHome=null;p.Human.Play(StillMotion(p),.3f);if(p.PYaw!=null)Face(p,p.PYaw.Value,1);}return true;}
+            double step=Math.Min(d,1.1*dt),x=p.X+dx/d*step,z=p.Z+dz/d*step;if(!map.FreeFor(p,x,z)||PushedOnSomeone(p,x,z,p.Yaw)||!OwnClear(p,x,z)){p.WayHome=null;p.Human.Play(StillMotion(p),.3f);return false;}p.X=x;p.Z=z;Face(p,Math.Atan2(dx,dz),dt*3);p.Human.Play(p.Vehicle!=null?WalkMotion(p):"walk",.2f);p.Human.SetPace(1.1f/p.Size);if(d-step<.1){p.WayHome=null;p.Human.Play(StillMotion(p),.3f);if(p.PYaw!=null)Face(p,p.PYaw.Value,1);}return true;}
         return false;
     }
 }

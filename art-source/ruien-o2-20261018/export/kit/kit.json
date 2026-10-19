@@ -1,0 +1,345 @@
+{
+ "about": "Ruien kit pieces. Pivot = local origin; axes as glTF (+Y up). Pieces taken from O2 keep their O2 orientation (see \"facing\"); parametric pieces face +z with their wall plane at z = 0.",
+ "pieces": {
+  "grate_shaft_giant": {
+   "files": {
+    "kit_grate_shaft_giant_lod0.glb": {
+     "sha256": "c2423aac60cff2f8410dd52f51b0817d021707c40ec87a6975c89edc81568bee",
+     "tris": 10412
+    },
+    "kit_grate_shaft_giant_lod1.glb": {
+     "sha256": "a284273dc4468d05cfcc354d42f6b69f18821dace55f2f1253d3f34fa568c9e3",
+     "tris": 3972
+    }
+   },
+   "pivot_in_o2": [
+    -146.713,
+    -3.6,
+    92.539
+   ],
+   "facing": "O2 gallery at z 92.5",
+   "note": "shaft 0.66 m square from the giant-gallery vault to the street grate, step irons, ladder to a ledge at -3.6. Pivot: ladder foot. For other sections use the parametric shaft in kit/sweep.py (grate_shaft).",
+   "source_objects": 38
+  },
+  "stair_down": {
+   "files": {
+    "kit_stair_down_lod0.glb": {
+     "sha256": "9855afae907c5b881c1ec6e99ab9264dd7833b41f115c84c5cf4e41b02bb9565",
+     "tris": 173814
+    },
+    "kit_stair_down_lod1.glb": {
+     "sha256": "cb64c033ea67a5e34b1bfcab49982bf722c7eff00fe2035897d0d5d1033db75f",
+     "tris": 55426
+    }
+   },
+   "pivot_in_o2": [
+    -158.9,
+    -3.6,
+    132.56
+   ],
+   "facing": "climbs toward +z",
+   "note": "19 bluestone treads from a walkway at -3.6 to a street hatch at 0, iron handrail, stairwell walls, open hatch. Pivot: foot of the stair.",
+   "source_objects": 34
+  },
+  "drain_mouth_egg": {
+   "files": {
+    "kit_drain_mouth_egg_lod0.glb": {
+     "sha256": "2ebb7c7da0f81c316d9cbaeead72e13aeb5652b33f4c3126dfac7800fc4c27be",
+     "tris": 109200
+    },
+    "kit_drain_mouth_egg_lod1.glb": {
+     "sha256": "1a80bc3842683e2692159dc59eb21baceb5cb88d2501a86c520fb7a3bd0ce02a",
+     "tris": 30252
+    }
+   },
+   "pivot_in_o2": [
+    -151.402,
+    -3.35,
+    79.32
+   ],
+   "facing": "O2 gallery south wall",
+   "note": "egg drain 1.0 x 1.6 m, brick lining 4.6 m deep, two header rings, trickle. Pivot: invert at the wall face.",
+   "source_objects": 144
+  },
+  "pipe_end": {
+   "files": {
+    "kit_pipe_end_lod0.glb": {
+     "sha256": "c328549695058ba9a777ede5feaa974b3a4c1631eb52059a09590aeeac1b1832",
+     "tris": 210
+    },
+    "kit_pipe_end_lod1.glb": {
+     "sha256": "692e20bebf7a247fbc1c30c7a9235ff27742f54eb1b3004926971ff9cc073069",
+     "tris": 210
+    }
+   },
+   "pivot_in_o2": [
+    -146.321,
+    -3.05,
+    83.92
+   ],
+   "facing": "O2 gallery north wall",
+   "note": "cast-iron pipe end with socket, trickle. Pivot: socket mouth.",
+   "source_objects": 5
+  },
+  "lamp_bracket_safety_lamp": {
+   "files": {
+    "kit_lamp_bracket_safety_lamp_lod0.glb": {
+     "sha256": "7480e964e4b9d5f1c86270c1b49be363e8221028b886a660df2f2c16faea4335",
+     "tris": 1536
+    },
+    "kit_lamp_bracket_safety_lamp_lod1.glb": {
+     "sha256": "5b6834db9054abea94d1c1f934f3b39f9c9bd701da39750491874edea2d1cca5",
+     "tris": 1536
+    }
+   },
+   "pivot_in_o2": [
+    -144.221,
+    -2.12,
+    78.402
+   ],
+   "facing": "arm points away from the wall",
+   "note": "wrought-iron bracket and brass safety lamp. Pivot: wall plate. Light: see markers (warm, about 150 W).",
+   "source_objects": 4
+  },
+  "tide_doors": {
+   "files": {
+    "kit_tide_doors_lod0.glb": {
+     "sha256": "85aecf5900636ba69fe3b302524e6b74434b87bc60c869371687d5a5c077ecec",
+     "tris": 90776
+    },
+    "kit_tide_doors_lod1.glb": {
+     "sha256": "d4c635e6298ec06b862dfc4ea460ab3434ceeb6b3be19ca35c480a6e0dbecf71",
+     "tris": 27232
+    }
+   },
+   "pivot_in_o2": [
+    -146.1,
+    -5.05,
+    72.0
+   ],
+   "facing": "river face toward -z",
+   "note": "two oak tide leaves with straps, rivets, pintles; north leaf 40, south 33 degrees open. Pivot: sill centre.",
+   "source_objects": 66
+  },
+  "gate_dressing": {
+   "files": {
+    "kit_gate_dressing_lod0.glb": {
+     "sha256": "b7991bc107166ffbe13f70a52857f371a80f06049d75abc950745684e2ddddf9",
+     "tris": 125808
+    },
+    "kit_gate_dressing_lod1.glb": {
+     "sha256": "0b16da2b3ac697c7cb0f19c801f5cfb5883a9e709bfeb466c026340500a7eae9",
+     "tris": 37742
+    }
+   },
+   "pivot_in_o2": [
+    -146.1,
+    -5.05,
+    72.0
+   ],
+   "facing": "river face toward -z",
+   "note": "bluestone voussoirs, jambs, sill and apron of a 6 m outlet arch. Pivot: sill centre.",
+   "source_objects": 56
+  },
+  "penstock_gear": {
+   "files": {
+    "kit_penstock_gear_lod0.glb": {
+     "sha256": "e58766a72ed1208507998f3cb76ad6ac8534242c6300036c78e3b361e359ba45",
+     "tris": 80560
+    },
+    "kit_penstock_gear_lod1.glb": {
+     "sha256": "90a288d5c3b26a4ce2f80defc78cd8dfb7f8189bc69f65ba3517018769939297",
+     "tris": 24364
+    }
+   },
+   "pivot_in_o2": [
+    -146.1,
+    -3.6,
+    75.0
+   ],
+   "facing": "across the giant gallery",
+   "note": "cast-iron penstock door, guides, racks, headstock, gears, crank. Pivot: channel centre at ledge height.",
+   "source_objects": 40
+  },
+  "mooring_ring": {
+   "files": {
+    "kit_mooring_ring_lod0.glb": {
+     "sha256": "f484098c33a53256b39b52c4f85e9c7f4df471a5d24f262abff50441aad2d1aa",
+     "tris": 464
+    },
+    "kit_mooring_ring_lod1.glb": {
+     "sha256": "9199513cba3033c60c4883412322307f7aee1e167a4cbb220886a2f88f27e9c4",
+     "tris": 464
+    }
+   },
+   "pivot_in_o2": [
+    -147.69,
+    -3.788,
+    76.031
+   ],
+   "facing": "ring hangs toward -s",
+   "note": "iron ring on a staple. Pivot: centre.",
+   "source_objects": 2
+  },
+  "wall_ring_chain": {
+   "files": {
+    "kit_wall_ring_chain_lod0.glb": {
+     "sha256": "a650b0d1326e4cc72ad8f8f0c6ccbf9a94c90e0be324f8f9ad9a9b9b3d8c0584",
+     "tris": 1040
+    },
+    "kit_wall_ring_chain_lod1.glb": {
+     "sha256": "4a112fe6e5a455a1040328a61f8410be0c0885951746f66c9108e2b3c1948d76",
+     "tris": 1040
+    }
+   },
+   "pivot_in_o2": [
+    -145.58,
+    -3.308,
+    81.104
+   ],
+   "facing": "ring hangs from the wall",
+   "note": "rusted ring with a chain stub. Pivot: centre.",
+   "source_objects": 3
+  },
+  "corbel_shelf": {
+   "files": {
+    "kit_corbel_shelf_lod0.glb": {
+     "sha256": "cb2c40c16687d2c3290607f2a18174b50bf50c384c42658290ff0668eea0107c",
+     "tris": 612
+    },
+    "kit_corbel_shelf_lod1.glb": {
+     "sha256": "7578d46c06d3181f6cb2bf34f4d416c85c6c84d231e7966a213aa9b6f7513644",
+     "tris": 612
+    }
+   },
+   "pivot_in_o2": [
+    -140.67,
+    -2.996,
+    122.6
+   ],
+   "facing": "shelf projects toward -x",
+   "note": "bluestone corbel shelf with a bottle. Pivot: underside centre.",
+   "source_objects": 2
+  },
+  "bone_pile": {
+   "files": {
+    "kit_bone_pile_lod0.glb": {
+     "sha256": "6187efd25386926ec7ace10bd2df240648231ecaf2c5f3bcfab7a9437ad7888f",
+     "tris": 59032
+    },
+    "kit_bone_pile_lod1.glb": {
+     "sha256": "c208c97d84bfa1c7da05cff2bf867f28f68e66712e350238eae0bb0d1d2152c5",
+     "tris": 20311
+    }
+   },
+   "pivot_in_o2": [
+    -156.558,
+    -5.123,
+    135.133
+   ],
+   "facing": "any",
+   "note": "cattle and pig bones, skulls, offal sacks, broken crates. Pivot: ground centre.",
+   "source_objects": 94
+  },
+  "calcite_curtain_small": {
+   "files": {
+    "kit_calcite_curtain_small_lod0.glb": {
+     "sha256": "0a0bafd659d37f81bc7fb890e94ec6f441c45ef8ae08a8caf782708082e9f57b",
+     "tris": 6300
+    },
+    "kit_calcite_curtain_small_lod1.glb": {
+     "sha256": "165f552cc12f05b8ee17ee6124e69f29d173deea26585f3f7925b8996bbb81e9",
+     "tris": 6300
+    }
+   },
+   "pivot_in_o2": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "facing": "wall plane z = 0, sheet toward +z",
+   "note": "poured-wax flowstone curtain 0.40 x 0.8 m from wax.wax_curtain. Pivot: leak point at the top.",
+   "source_objects": 1
+  },
+  "calcite_curtain_medium": {
+   "files": {
+    "kit_calcite_curtain_medium_lod0.glb": {
+     "sha256": "f63fdbd7274dbe876b0c8cc1bb5dab70a2d6e01360eca4cb3031e88938b6eab2",
+     "tris": 6300
+    },
+    "kit_calcite_curtain_medium_lod1.glb": {
+     "sha256": "b1afeee0e608e38830e8e22ba96ab604aecb30c3f46dcabc145186aaa002236f",
+     "tris": 6300
+    }
+   },
+   "pivot_in_o2": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "facing": "wall plane z = 0, sheet toward +z",
+   "note": "poured-wax flowstone curtain 0.75 x 1.6 m from wax.wax_curtain. Pivot: leak point at the top.",
+   "source_objects": 1
+  },
+  "calcite_curtain_large": {
+   "files": {
+    "kit_calcite_curtain_large_lod0.glb": {
+     "sha256": "aa2d627046731e349135f3e84bc0c6e23b15665815e5e667c0c28d4e36277373",
+     "tris": 6300
+    },
+    "kit_calcite_curtain_large_lod1.glb": {
+     "sha256": "3d6687c07d275a38bec8ff69c957978b489d14e8d585837793654265d0beddaa",
+     "tris": 6300
+    }
+   },
+   "pivot_in_o2": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "facing": "wall plane z = 0, sheet toward +z",
+   "note": "poured-wax flowstone curtain 1.00 x 2.6 m from wax.wax_curtain. Pivot: leak point at the top.",
+   "source_objects": 1
+  },
+  "rubble_pile": {
+   "files": {
+    "kit_rubble_pile_lod0.glb": {
+     "sha256": "36a8d2496d06564becb3ceed062e4249bf397d0502ba332450c689a4386dd5f4",
+     "tris": 22268
+    },
+    "kit_rubble_pile_lod1.glb": {
+     "sha256": "4389088ec658d407d015eefec2e334eaa3541e9b3e9a7c3bf99d66c05bc828c9",
+     "tris": 6680
+    }
+   },
+   "pivot_in_o2": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "facing": "any",
+   "note": "heap of broken bricks, about 1.2 m across. Pivot: ground centre.",
+   "source_objects": 70
+  },
+  "floating_debris": {
+   "files": {
+    "kit_floating_debris_lod0.glb": {
+     "sha256": "f682274df03048381130b38eb9697bac79bdae769ddcfe1ba1c3f8dcb952af2a",
+     "tris": 4724
+    },
+    "kit_floating_debris_lod1.glb": {
+     "sha256": "9ad8c57df9c87ebd1e6f4dce033e028146e5947e9a6b79d3adbdc06522ebae57",
+     "tris": 2110
+    }
+   },
+   "pivot_in_o2": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "facing": "any",
+   "note": "planks, sticks, rags, straw and corks for a water surface or an eddy. Pivot: water level centre.",
+   "source_objects": 14
+  }
+ }
+}

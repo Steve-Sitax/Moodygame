@@ -359,6 +359,44 @@
         "kind": "apple",
         "price_c": 2
       }
+    ],
+    "cheese": [
+      {
+        "kind": "cheese",
+        "price_c": 6
+      }
+    ],
+    "cloth": [
+      {
+        "kind": "shawl",
+        "price_c": 25
+      },
+      {
+        "kind": "wool_vest",
+        "price_c": 45
+      }
+    ],
+    "pots": [
+      {
+        "kind": "plant",
+        "price_c": 15
+      }
+    ],
+    "junk": [
+      {
+        "kind": "scarf",
+        "price_c": 12
+      },
+      {
+        "kind": "pipe",
+        "price_c": 4
+      }
+    ],
+    "hot": [
+      {
+        "kind": "soup",
+        "price_c": 8
+      }
     ]
   },
   "shopTrades": {

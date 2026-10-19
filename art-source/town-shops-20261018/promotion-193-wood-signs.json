@@ -1,0 +1,43 @@
+{
+ "issue": 193,
+ "date": "2026-10-18",
+ "woodWet": {
+  "tool": "scripts/wood-wet-repair.tscn (WoodWetRepair.cs) after Psx.WetPaint",
+  "backup": "D:/Code/_tmp_verify/H4-shops/backup-wood-193",
+  "originalHashes": {
+   "res://world/town/resources/r000211.res": "634c9285d25f737e9cea6bb74e2a13dff1e7a5d527c4e3dcf60ae26841422784",
+   "res://world/town/resources/r000216.res": "be8fb075bffb94ab1d97a252cd88fe7ba12cb8eadc6bde893c6f10e47c3e6bd0",
+   "res://assets/materials/town-facades-20261018/shutter-paint-kept.tres": "b2496a4f420c93bdf9fe6dbd2c974379b3947bd5b97a9ed6566b1a5af3981a61",
+   "res://assets/materials/town-facades-20261018/shutter-paint-worn.tres": "64971f769b4dbb2671740c52b0440da506e12a6a4d2a52ab7d56fd29beea0cf6"
+  },
+  "installedHashes": {
+   "res://world/town/resources/r000211.res": "ea53a4514bd87b79ce69cb9fb78f04c9bb1da8677c083a14a87eea14bf8ecc65",
+   "res://world/town/resources/r000216.res": "ab4f2fc66917ba26962bec587c12263b2914ddeb8aefba2582bb80fea7dfd9ab",
+   "res://assets/materials/town-facades-20261018/shutter-paint-kept.tres": "01ae5ec787e9ad0f171ea4d3a7b3f6eea18cf292e4dbee71b505fb72189fe667",
+   "res://assets/materials/town-facades-20261018/shutter-paint-worn.tres": "113f5fbd8a580ebb2f97be435a9dbb6c0317956535d2532f694fe1cc9b7b528d"
+  }
+ },
+ "signPictures": {
+  "tool": "scripts/sign_art.py <art> world/town/facades/streets.json; scripts/build-signs.gd",
+  "backup": "D:/Code/_tmp_verify/H4-shops/backup-signs-193",
+  "originalHashes": {
+   "res://assets/materials/town-facades-20261018/signs-texture.res": "9ea3b6de85592f0264da0bc24c25cd0f1d0897e759668458bbe188487f111f6b",
+   "res://assets/materials/town-facades-20261018/signs-height-texture.res": "6f77e27e5da71036ec0c615386b1d42691133717a8ffdb6b4ba6178cf9c0ff35",
+   "res://assets/materials/town-facades-20261018/letters-texture.res": "479347f407b36b946fcd05d9445dc3ef1682dff80f4efbb9e00fbdffa1a157ab",
+   "res://assets/materials/town-facades-20261018/signs.tres": "dc240e308db712f12e336464b5683b74c11008514ecffe32ce1db4115d5ca75a",
+   "res://assets/materials/town-facades-20261018/letters.tres": "dd9c6c9fc9342024c2e50fb3375081f139adbd2159d7750232396829c74467d9"
+  },
+  "installedHashes": {
+   "res://assets/materials/town-facades-20261018/signs-texture.res": "0c2765a86409e6593a3aef27ad1eee5bef8ed93dd905910e3ba48563b3ee51ea",
+   "res://assets/materials/town-facades-20261018/signs-height-texture.res": "f147fffe3c2f82851c07c5930546a8efc03198c98c06f46843ceb2599ca3aa4b",
+   "res://assets/materials/town-facades-20261018/letters-texture.res": "479347f407b36b946fcd05d9445dc3ef1682dff80f4efbb9e00fbdffa1a157ab",
+   "res://assets/materials/town-facades-20261018/signs.tres": "dc240e308db712f12e336464b5683b74c11008514ecffe32ce1db4115d5ca75a",
+   "res://assets/materials/town-facades-20261018/letters.tres": "dd9c6c9fc9342024c2e50fb3375081f139adbd2159d7750232396829c74467d9"
+  }
+ },
+ "streets": {
+  "tool": "scripts/town_streets.py <work> <pipes.json>",
+  "installed": "res://world/town/facades/streets.json",
+  "hash": "159fb5ef9f5958015f7f1b817390ea80771966ba773108631a337f80d7a3f2ad"
+ }
+}

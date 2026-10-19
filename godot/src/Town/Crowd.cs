@@ -498,6 +498,12 @@ public sealed class Puppet
     public bool Pushes;
     public int NetworkVehicle,NetworkLoad,NetworkGoods;
     internal NativePersonVehicle? Vehicle;
+    /// <summary>Seconds a pushed handcart has waited for someone standing where its next step would bring it (#192).</summary>
+    internal double CartWait;
+    /// <summary>Pushes the knife grinder's barrow out before him now (StreetTrades): it must not come onto anyone either.</summary>
+    internal bool Barrow;
+    /// <summary>The knife grinder, whose barrow stands where he sets it down: he does not walk into it (StreetTrades).</summary>
+    internal bool Grinder;
     internal (double x,double z)? WayHome;
     /// <summary>The way home after a lane: the distance left at best, and how long no ground was gained on it (another rule,
     /// a street game's place, holding the body where it is).</summary>
@@ -622,13 +628,14 @@ public sealed partial class Crowd
             if (inView) y = p.Drop + Math.Max(0, lift) + (p.State == "sit" ? 0 : p.Human.Bob() * p.Size);
             p.Group.Position = new Vector3((float)p.X, (float)(y + ground), (float)p.Z);
             p.Group.Rotation = new Vector3(0, (float)p.Yaw, 0);
-            if (p.Vehicle != null) MoveVehicle(p, dt, inView, ground);
+            if (p.Vehicle != null) { MoveVehicle(p, dt, inView, ground); CartShove(p); }
             else if (p.Kind == "carter" || p.Pushes) PushTheCart(p, dt, inView, ground);
             else if (p.Cart != null)
             {
                 p.Cart.Dispose();
                 p.Cart = null;
             }
+            if (p.Barrow) CartShove(p);
             if (p.Lantern != null) PlaceLantern(p, d, ground, camera);
             PlaceBought(p);
         }
@@ -1273,6 +1280,9 @@ public sealed partial class Crowd
     private bool StepFree(Puppet p, double x, double z)
     {
         if (Bridges.Barred(p.X, p.Z, x, z)) return false;
+        // (nor may a pusher be shoved or stepped so that his handcart or barrow comes onto someone, nor anyone walk into his own
+        // barrow set down: the walk map lets him through his own things, #192)
+        if (PushedOnSomeone(p, x, z, p.Yaw) || !OwnClear(p, x, z) && OwnClear(p, p.X, p.Z)) return false;
         foreach (var q in people)
         {
             if (q == p) continue;
@@ -1494,6 +1504,19 @@ public sealed partial class Crowd
             return;
         }
         p.BridgeWait = false;
+        // a pushed handcart (or barrow) whose next step would roll it onto someone who has not got out of its way waits for him, standing; after
+        // a while the step is refused below and the usual rules find another way (#192: carts at the Grote Markt's pitches rolled
+        // over a seller at her stall, a man standing and a child at a street game who had no room to step aside)
+        if ((p.Vehicle?.Cart != null || p.Barrow) && CartOnSomeone(p, mx * step, mz * step, Math.Atan2(mx, mz)) && CartOnSomeone(p, ux * step, uz * step, Math.Atan2(ux, uz)))
+        {
+            if ((p.CartWait += dt) < CartPatience)
+            {
+                p.StuckT = 0;
+                p.Human.Play(StillMotion(p), 0.3f);
+                return;
+            }
+        }
+        else p.CartWait = 0;
         // the last leg may leave the grid (it keeps half a metre off the walls) for a spot the colliders allow:
         // a doorstep, a corner, a bench by a wall
         bool lastLeg = p.Pi == p.Path.Count - 1;
@@ -1533,6 +1556,10 @@ public sealed partial class Crowd
             // nobody stands for ever at a place the walk map and the colliders never agreed on.
             double heldBefore = p.Failed;
             if ((p.Failed += dt) > 1 && heldBefore <= 1 && WedgeLog.Count < 200) WedgeLog.Add(WedgeNote(p, "first step refused", ux, uz, step));
+            // a pusher held by something passing (another cart, someone in his cart's way) waits for it a while, standing, rather than
+            // planning a new way every frame: carts going home from the Grote Markt met in the narrow streets west of it and pushed
+            // to and fro on the spot (#192)
+            if ((p.Vehicle?.Cart != null || p.Barrow) && p.Failed < CartPatience && PassingHolds(p, ux, uz, step)) { p.StuckT = 0; return; }
             // a body that stays put holds the step: go round its corners (a passing one is waited for)
             if (p.Failed > 0.25 && DetourStanding(p, p.X + ux * step, p.Z + uz * step, ux, uz, step)) return;
             // a standing body with no way round its corners (a cart parked across a lane): the next plan goes another way
@@ -1583,8 +1610,10 @@ public sealed partial class Crowd
         if (p.Pi >= p.Path.Count) return false;
         var t = p.Path[p.Pi];
         if (Hyp(t.x - p.X, t.z - p.Z) > (p.Shown ? 3 : 12)) return false;
-        (double x, double z)? to = map.FreeFor(p, t.x, t.z) && !SomeoneAt(t.x, t.z) ? t : OpenNearFree(t.x, t.z);
-        if (to == null) return false;
+        (double x, double z)? to = map.FreeFor(p, t.x, t.z) && !SomeoneAt(t.x, t.z) && OwnClear(p, t.x, t.z) ? t : OpenNearFree(t.x, t.z);
+        if (to == null || !OwnClear(p, to.Value.x, to.Value.z)) return false;
+        // (a pusher set on: his handcart or barrow comes with him, and must not come down on anyone)
+        if (PushedOnSomeone(p, to.Value.x, to.Value.z, Math.Atan2(to.Value.x - p.X, to.Value.z - p.Z))) return false;
         if (WedgeLog.Count < 200) WedgeLog.Add(WedgeNote(p, "safety net used", ux, uz, step));
         p.X = to.Value.x;
         p.Z = to.Value.z;
@@ -1601,6 +1630,7 @@ public sealed partial class Crowd
         if(!StepFree(p,x,z)||p.NativeRouting&&!map.SupportsStep(p.X,p.Z,x,z)
             ||!(p.NativeRouting||lastLeg||grid.IsOpen(x,z)||!grid.IsOpen(p.X,p.Z)))return false;
         if(map.IsNative&&p.Vehicle?.Kind==1){if(!TryBicycleStep(p,x,z,Math.Min(1,dt*7),out double yaw))return false;p.VehicleStepYaw=yaw;return true;}
+        if (PushedOnSomeone(p, x, z, Math.Atan2(x - p.X, z - p.Z))) return false;
         if (p.Nose == 0) return true;
         var nose = NosePoint(p, x, z, ux, uz);
         return map.FreeFor(p, nose.x, nose.z);

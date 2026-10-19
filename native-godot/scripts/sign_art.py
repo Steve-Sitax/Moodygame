@@ -1,5 +1,5 @@
 """Issue #175: the pictures of the town's street name plates, shop boards and lettering painted on plaster, made in code.
-    python scripts/sign_art.py <output folder>
+    python scripts/sign_art.py <output folder> [<streets.json>]
 Writes signs.png (4096 x 4096, sRGB): every street and square name on its enamel plate's face, every trade's board face,
 and plain cells (enamel blue for a plate's rim and edges, the board's frame paint, gilt, pewter, brass, black paint, bare
 iron); signs-height.png (2048 x 2048, grey: the relief for the shader's bump: chipped enamel, the board's grain, raised
@@ -7,7 +7,9 @@ gilt); letters.png (2048 x 1024, RGBA: the lettering painted on plaster, faded);
 The letters are set in Old Standard TT (the plates, the names on boards) and Alfa Slab One (the trades), both SIL Open
 Font License fonts in native-godot/fonts; the plates, boards and paint are our own work.
 Texts: build_streetlife.py's street and square names and trades (plain English; names stay Dutch), read from the bake's
-streetlife meta (assets/game-models/streetlife.extras.json)."""
+streetlife meta (assets/game-models/streetlife.extras.json). Issue #193: with world/town/facades/streets.json (scripts/
+town_streets.py) the names past the bake's 26 get plates too, placed after every other cell, so the cells of #175 keep their
+places (and the installed boards their pictures)."""
 import json, math, pathlib, sys
 import numpy as np
 from PIL import Image, ImageDraw, ImageFont, ImageFilter
@@ -183,6 +185,16 @@ for t, tm in zip(TRADES, META["trades"]):
     if tm["sign"].startswith("board_"):
         plain("frame_" + tm["key"], t["bg"], 0.07, 20 + len(layout["cells"]))
 plain("frame_dark", (0.10, 0.08, 0.06), 0.08, 11)
+# (#193) the town's other street names, after every other cell: a plate as long as the bake made one (6 letter cells of
+# 22 mm and 7 for the margins, 11 high), at 370 texels a metre (the room left in the atlas)
+if len(sys.argv) > 2:
+    more = json.loads(pathlib.Path(sys.argv[2]).read_text())["names"]
+    assert more[:len(names)] == list(names), "streets.json must start with the bake's names"
+    for i in range(len(names), len(more)):
+        L, H = (6 * len(more[i]) + 7) * 0.022, 11 * 0.022
+        img, hgt = plate_face(more[i], int(L * 370), int(H * 370), 100 + i)
+        place(f"plate_{i}", img, hgt)
+    layout["plateNames"] = more
 used_h = shelf["y"] + shelf["h"]
 print("signs atlas used", used_h, "of", S, "rows;", len(layout["cells"]), "cells")
 Image.fromarray((srgb(atlas) * 255 + 0.5).astype(np.uint8), "RGB").save(OUT / "signs.png")

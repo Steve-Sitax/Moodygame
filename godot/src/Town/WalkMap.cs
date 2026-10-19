@@ -119,6 +119,21 @@ public sealed class WalkMap
         }
         return true;
     }
+    /// <summary>Is (x, z) clear, by a body's radius, of this body's own bodies that do not go with him as he steps (the grinder's
+    /// barrow set down, a stall-keeper's own things)? FreeFor lets him through his own: he works between the barrow's handles. A
+    /// lane's shove must not put him into it (#192).</summary>
+    public bool ClearOfOwn(Puppet owner, double x, double z)
+    {
+        lock (bodyGate)
+            foreach (var b in bodySamples)
+            {
+                if (b.Owner != owner || b.Transit || !b.Active) continue;
+                if (x < b.World.Position.X - .27 || x > b.World.End.X + .27 || z < b.World.Position.Z - .27 || z > b.World.End.Z + .27) continue;
+                var p = b.Inverse * new Godot.Vector3((float)x, b.World.Position.Y + b.World.Size.Y / 2, (float)z);
+                if (p.X >= b.Box.Position.X - .27 && p.X <= b.Box.End.X + .27 && p.Z >= b.Box.Position.Z - .27 && p.Z <= b.Box.End.Z + .27) return false;
+            }
+        return true;
+    }
     /// <summary>The live bodies whose boxes (with a body's margin) take this point, by name, for reports. Main thread only.</summary>
     public string BlockedBy(Puppet owner, double x, double z)
     {
