@@ -102,6 +102,15 @@ public partial class NativeNavigationProof : Node3D
             Check("plank seams do not sever a wooden pier", Enumerable.Range(0,9).All(i=>pierMap.Free(.125,-.125-i*.25)),"26 cm boards, 3 cm gaps");
             Check("boarded pier still keeps bodies off its sides", !pierMap.Free(1.125,-1.125),pierMap.Free(1.125,-1.125));
             Check("real water gap does not connect another deck", !pierMap.Free(.125,-4.125),pierMap.Free(.125,-4.125));
+            // A cell accepts every point, not just its centre. This vertical corner is over 40 cm from
+            // the centre but under one physical body radius from the far corner of the same cell.
+            var cornerCells = Enumerable.Repeat((byte)1, 4 * 4 * 16).ToArray();
+            var cornerMap = WalkMap.FromNativeData(new Rect2(-2, -2, 4, 4), cornerCells, new short[4 * 4 * 4], new short[cornerCells.Length]);
+            cornerMap.AddTriangles(new[] { new Vector3(.415f, 0, .415f), new Vector3(.415f, 2, .415f), new Vector3(1, 0, .415f) });
+            double centreDistance = Math.Sqrt(2) * (.415 - .125), actorDistance = Math.Sqrt(2) * (.415 - .249);
+            Check("corner fixture reaches a physical body beyond the old centre margin", centreDistance > .4 && actorDistance < .25, new { centreDistance, actorDistance });
+            Check("triangle corner closes the entire unsafe quarter cell", !cornerMap.Free(.125, .125) && !cornerMap.Free(.249, .249), new { centreFree = cornerMap.Free(.125, .125), actorFree = cornerMap.Free(.249, .249) });
+            Check("nearby clear quarter cell remains open", cornerMap.Free(-.125, .125) && cornerMap.Free(-.001, .249), new { centreFree = cornerMap.Free(-.125, .125), edgeFree = cornerMap.Free(-.001, .249) });
             var args = OS.GetCmdlineUserArgs();
             string output = args.Length > 0 ? args[0] : ProjectSettings.GlobalizePath("res://proof/native-navigation/fixture.json");
             Directory.CreateDirectory(Path.GetDirectoryName(output)!);

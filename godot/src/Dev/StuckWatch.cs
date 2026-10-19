@@ -26,6 +26,8 @@ public sealed class StuckWatch
     private readonly HashSet<string> craneLegsOpen = new();
     private int craneLegsChecked;
     private readonly List<object> solidReplay = new();
+    private bool replayUnsafe;
+    public object SolidReplayReport() => new { ok = solidReplay.Count > 0 && !replayUnsafe, scope = "solid-coordinate-replay", solidReplay };
     /// <summary>The last seconds of the first bodies found inside a solid: what they were doing and where they were going.</summary>
     private readonly List<object> solidTrails = new();
     private readonly HashSet<string> solidTrailKeys = new();
@@ -43,6 +45,11 @@ public sealed class StuckWatch
     {
         if (!File.Exists(file)) return;
         using var doc = JsonDocument.Parse(File.ReadAllText(file));
+        var cases = new List<(string original, string id, double x, double z)>();
+        // The displayed strings are rounded and can fall on the other side of a contact or cell boundary.
+        if (doc.RootElement.TryGetProperty("solidTrails", out var trails) && trails.GetArrayLength() > 0)
+            foreach (var entry in trails.EnumerateArray())
+                cases.Add((entry.GetProperty("hit").GetString()!, entry.GetProperty("id").GetString()!, entry.GetProperty("x").GetDouble(), entry.GetProperty("z").GetDouble()));
         foreach (var entry in doc.RootElement.GetProperty("insideSolids").EnumerateArray())
         {
             string original = entry.GetString()!;
@@ -51,11 +58,31 @@ public sealed class StuckWatch
             if (!point.Success && !english.Success) throw new InvalidDataException("old solid case has unrecognised coordinates: " + original);
             double x = double.Parse(english.Success ? english.Groups[1].Value : point.Groups[1].Value + "." + point.Groups[2].Value, CultureInfo.InvariantCulture);
             double z = double.Parse(english.Success ? english.Groups[2].Value : point.Groups[3].Value + "." + point.Groups[4].Value, CultureInfo.InvariantCulture);
+            string id = original.Split(' ')[0];
+            // Trail capture is capped; retain every older rounded case that has no precise sample.
+            if (!cases.Any(c => c.id == id && Math.Abs(c.x - x) <= .00501 && Math.Abs(c.z - z) <= .00501))
+                cases.Add((original, id, x, z));
+        }
+        foreach (var (original, id, x, z) in cases)
+        {
+            var map = town.Walk!;
+            var owner = town.Sims.FirstOrDefault(s => s.R.Id == id)?.P ?? new Puppet { X = x, Z = z };
+            bodyProbe.Exclude = town.Crowd!.PuppetVehicleNode(owner) is { } own
+                ? new Godot.Collections.Array<Rid>(BakedWorld.All(own).OfType<CollisionObject3D>().Select(c => c.GetRid()))
+                : new Godot.Collections.Array<Rid>();
             bodyProbe.Transform = new Transform3D(Basis.Identity, new Vector3((float)x, (float)town.Walk!.BaseAt(x, z) + Jef.Step + (Jef.Tall - Jef.Step) / 2, (float)z));
             var hits = Main.I.View.FindWorld3D().DirectSpaceState.IntersectShape(bodyProbe, 1);
             string hit = hits.Count == 0 ? "" : hits[0]["collider"].AsGodotObject() is Node n ? n.GetPath().ToString() : Solid.I.BodyName(hits[0]["rid"].AsRid());
-            bool free = town.Walk!.Free(x, z);
-            solidReplay.Add(new { original, x, z, free, hit, groundedContact = hits.Count > 0 });
+            bool free = map.Free(x, z), freeFor = map.FreeFor(owner, x, z);
+            int ix = (int)Math.Floor((x - map.X0) * 4), iz = (int)Math.Floor((z - map.Z0) * 4);
+            double centreX = map.X0 + (ix + .5) / 4, centreZ = map.Z0 + (iz + .5) / 4;
+            var neighbours = new List<object>();
+            for (int dz = -1; dz <= 1; dz++) for (int dx = -1; dx <= 1; dx++)
+                neighbours.Add(new { x = centreX + dx * .25, z = centreZ + dz * .25, freeFor = map.FreeFor(owner, centreX + dx * .25, centreZ + dz * .25) });
+            replayUnsafe |= freeFor && hits.Count > 0;
+            solidReplay.Add(new { original, id, x, z, free, freeFor, staticFree = map.NativeCellFree(ix, iz), centreX, centreZ,
+                hit, groundedContact = hits.Count > 0, liveBodies = map.BlockedBy(owner, x, z), neighbours,
+                contacts = Main.I.View.FindWorld3D().DirectSpaceState.CollideShape(bodyProbe, 8).Select(c => new[] { c.X, c.Y, c.Z }).ToArray() });
         }
     }
     public void SampleTown(Townspeople town, double seconds, string place)
@@ -117,7 +144,7 @@ public sealed class StuckWatch
                             box = first ? b : box.Merge(b); first = false;
                         }
                     }
-                    solidEvidence[hit] = new { hit, x, z, feet = town.Walk!.BaseAt(x, z), state = p.State, motion = p.Human.Motion,
+                    solidEvidence[hit] = new { hit, x, z, feet = town.Walk!.BaseAt(x, z), freeFor = town.Walk.FreeFor(p, x, z), state = p.State, motion = p.Human.Motion,
                         bounds = new[] { box.Position.X, box.Position.Y, box.Position.Z, box.End.X, box.End.Y, box.End.Z } };
                 }
             }

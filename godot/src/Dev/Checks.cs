@@ -245,6 +245,14 @@ public partial class Checks : Node
     }
     private async Task<object> Stuck()
     {
+        if (Main.I.Flag("stuck-replay-only"))
+        {
+            At("vismarkt"); await Frames(60);
+            var replay = new StuckWatch();
+            replay.ReplaySolids(Town, Path.Combine(dir, "original-solid-cases.json"));
+            Picture("solid-replay-vismarkt");
+            return replay.SolidReplayReport();
+        }
         var laneChecks = Crowd.CheckVehicleLanes(Main.I);
         GD.Print("vehicle lane checks: " + JsonSerializer.Serialize(laneChecks));
         var watch = new StuckWatch();
