@@ -64,7 +64,12 @@ if ($Full) {
             if ($cmdProcess -and -not $cmdProcess.HasExited) { Stop-Process -Id $cmdProcess.Id -Force -ErrorAction SilentlyContinue }
             Start-Sleep 3
             if (-not ([IO.Path]::GetFullPath($data)).StartsWith($iconDataRoot, [StringComparison]::OrdinalIgnoreCase)) { throw 'Icon cleanup escaped its requested root.' }
-            Remove-Item -LiteralPath $data -Recurse -Force -ErrorAction SilentlyContinue
+            if (Test-Path -LiteralPath $data) {
+                $links = @((Get-Item -LiteralPath $data -Force) | Where-Object { $_.Attributes -band [IO.FileAttributes]::ReparsePoint })
+                $links += @(Get-ChildItem -LiteralPath $data -Recurse -Force -Attributes ReparsePoint)
+                if ($links.Count) { throw 'Icon cleanup refuses junctions or symlinks; test data was retained.' }
+                Remove-Item -LiteralPath $data -Recurse -Force -ErrorAction SilentlyContinue
+            }
         }
     }
 }

@@ -71,6 +71,8 @@ are recorded separately from his manual testing. The final standalone folders ar
 `D:/Code/ScheldemistPackages/final-server-20261012-portable`; open their Play or Start Server shortcut.
 The old browser/server/bake entrypoints have been removed from the active project, with original art and useful
 historical references checksum-archived under `art-source` and `docs/archive`.
+The leftover web dependencies and builds were deleted on 2026-10-19. The root `data/` folder retains
+only protected AI/multiplayer configuration and TLS keys; native play uses the locations above.
 
 Multiplayer uses the same native rules in an in-game host or a headless Godot process. Development server:
 `native-godot/Start Native Server.cmd -Port 8800`. Exported server: `Start Server.cmd --port 8800`.

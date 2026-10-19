@@ -625,11 +625,6 @@
     "sha256": "3268956f0b7038722ff50d10abcc524a3e1c445ed1aff3011e84c5ffe5867f86"
   },
   {
-    "source": "client/public/sw.js",
-    "archive": "art-source/client/public/sw.js",
-    "sha256": "f716a3e2094c692e3836ac92eaf238b5e663dc10528615c7c86f75685a8bf290"
-  },
-  {
     "source": "client/public/textures/bluestone_flags.jpg",
     "archive": "art-source/client/public/textures/bluestone_flags.jpg",
     "sha256": "57c4f3a3ec4778c8b4707c438ceca579e1a6b28e073ab1d238f49bf088cb190f"

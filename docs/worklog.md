@@ -8,21 +8,21 @@ Helper brief: `D:/Code/_tmp_verify/fixall/brief.md`; merge/check helpers: `D:/Co
 
 | Item | Issues | Retained WIP / source commits | Main state |
 |---|---|---|---|
+| Obsolete web/worktree cleanup, 2026-10-19 | Maintenance | Main and Ruien worktrees; three WIP branches below | Deleted web builds/dependencies, play checkout, old port code and obsolete temporary output: 127.96 GB freed; 12 local and 31 remote branches deleted |
+| Cleanup verification and exceptions | Maintenance | Ruien scratch work, coord/bin, fixall/brief.md and 118 protected configuration/layout/key files | Native build: 0 errors, 0 warnings; desktop icons: 7/7 including full launch. Protected files stayed in place; no new archives |
 | S managed heap | #181 #62 #205 | WIP t3/reduce-managed-heap: 4ab825dd (055d2fd7, diagnostic 9b247cc8) | NOT merged: exact pixels and pause nonregression remain unproved |
 | H6 textures, altar marble, litter | #84 #198 #200 | WIP t3/town-textures-altar-litter: 941a4f7b; integrated sources 4ecd32e1, 427f8f4d, 22c9f476 | Litter ea4f1203 and bark 52806d12 merged and pushed; altar superseded by N5. #200 closed; texture remainder stays off main |
 | Landmark, paving and washing | #171 #199 #203 | Integrated sources 275dcad1, 3e527600, 9ba3228c | Stone/paving 74480d95 and washing 9b30ef25 merged and pushed; #203 closed, #171/#199 stay open |
 | N5 cathedral furniture | #198 | Integrated source c6005ab1 | Merged 50a87168 and pushed; furniture/rail 21/21 pass. Existing stained-glass detail remains for play review |
 | J3 clothing edges | #82 #138 | WIP t3/people-cloth-layer-fix: a612bdcf; integrated source 5a645432 | Source-only fixes merged 02602f0b and pushed; four Blender fixtures pass. All 178 formerly dirty files preserved on WIP; rejected runtime kit stays off main |
 
-Cleanup verification, 2026-10-19: all finished work was already in main at 89376bbc; no new game changes merged.
-Main build passed with 22 existing warnings and zero errors; `test-icons.ps1 -Full` passed all seven checks,
-including the real game launch with isolated data, seed 1873 and port 9167. Package files stayed unchanged.
-The three WIP branches above are pushed and linked from their existing issues; this cleanup opened no issues.
-Removed 39 worktrees and 34 local branches, pruned registrations and removed one empty unregistered folder.
-Every removal had a reparse-point check; none contained junctions or symlinks. The external `cleanup-20261019`
-evidence folder retains a verified candidate bundle, diagnostic patches and 398 checksum-verified scratch art/source files.
-Only main, the Ruien Vleeshuis worktree, the old port and the play copy remain. Ruien/Antigoon and the protected
-art2*, art6-furn-kit, people and ppl-* branches are untouched. No Godot processes were stopped or left running.
+The earlier cleanup removed 39 worktrees and 34 local branches after main verification at 89376bbc.
+Steve's subsequent deletion order also removed that cleanup's temporary bundle, patches and scratch copies.
+All deletion roots passed junction/symlink checks. The old port was unregistered with prune after removing its
+Git pointer; its 38 protected files remain in place. Remote branches are now main and the three WIP branches above;
+no open PR heads or additional recent unmerged branches needed retention. Ruien and the running game were untouched.
+Removed the browser service worker, obsolete archiving script and Node package marker; updated native data references
+and the resulting network fingerprint. Full icon verification used isolated data and port 9167. No player behavior changed.
 
 All three integration batches pass main build (22 existing warnings, zero errors), the exact shader baseline
 (41 programs / 153 first-kind identities), seed-1873 stuck (no stuck people, inside solids, overlaps or open crane-leg

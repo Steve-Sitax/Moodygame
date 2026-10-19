@@ -30,7 +30,7 @@ Ideas cover 50 stateful checks and 5,088 original cases: foreign news and live p
 
 Press covers 975 comparisons/checks for pledges, post rounds, incoming letters, harbour lists, public news selection, newspaper purchases, cold save reload and late narration. Ballads cover 1,335 comparisons/checks, including 683 original cases, actual singer attendance actions, sheet ownership/payment, cathedral attendance, duplicate requests and reset invalidation. Neither proof calls a real model. Current counts are evidence for those rules, not a claim that the whole game has parity.
 
-`-RefreshLegacyOracles` reruns the original TypeScript rules only to regenerate comparison fixtures. The fixtures never supply runtime responses. `recover-service-data.mts`, `recover-interiors-data.mts` and `recover-night-data.mts` are conversion tools; shipped gameplay reads native data files and has no Node dependency. Recovery uses an isolated seed 1873 database.
+`-RefreshLegacyOracles` is retired and rejects requests to rerun the removed TypeScript game. The retained fixtures never supply runtime responses. Historical recovery scripts are documented under `docs/archive/legacy-oracle-tools`; shipped gameplay reads native data files and has no Node dependency.
 
 ## State and extension points
 

@@ -4,7 +4,8 @@ These files preserve the original media, authored city facts, DCC helpers and in
 Godot migration. They are references and art masters; the game and server use the native resources under
 `native-godot`, with no runtime dependency on this archive or the old browser exporter.
 
-`retirement-manifest.json` records all 493 archived files with their original paths and SHA256 values.
+`retirement-manifest.json` records the retained migration files with their original paths and SHA256 values.
+The unused browser service worker was deleted on 2026-10-19; art masters remain available for native authoring.
 Historical launch/release/oracle tools are saved as text under `../docs/archive`, also covered by that manifest.
 The active projects and commands are documented in `../native-godot/README.md`. Main and external art
 worktrees, user layouts, preferences and provider credentials were left intact.

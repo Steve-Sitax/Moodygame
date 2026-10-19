@@ -41,18 +41,9 @@ Thumbs.db
 # Claude session files (rule-override log rides on OneDrive, not git)
 .claude/**
 
-# copied from node_modules/three by client/scripts/copy-draco.mjs
-client/public/draco/
-
 # Python bytecode (Blender scripts)
 __pycache__/
 *.pyc
-
-# player downloads made by tools/package.mjs
-/release/
-
-# the web demo made by tools/demo/build.mjs
-client/dist-demo/
 
 # helpers scratch pictures and logs
 .scratch/
