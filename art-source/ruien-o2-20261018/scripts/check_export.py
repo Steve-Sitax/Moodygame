@@ -11,9 +11,19 @@ for cn in ('fog', 'lights_mood', 'scale_figures', 'backdrop'):
     bpy.data.collections[cn].hide_render = True
 bpy.data.collections['lights_check'].hide_render = False
 before = set(bpy.data.objects)
-for fn in ('ruien_o2_outlet_lod0.glb', 'ruien_o2_gallery_lod0.glb', 'ruien_o2_hall_lod0.glb', 'ruien_o2_markers.glb'):
+for fn in ('ruien_o2_outlet_lod0.glb', 'ruien_o2_outlet_headwall_lod0.glb', 'ruien_o2_gallery_lod0.glb', 'ruien_o2_hall_lod0.glb', 'ruien_o2_markers.glb'):
     bpy.ops.import_scene.gltf(filepath=os.path.join(EXP, fn))
 new = [o for o in bpy.data.objects if o not in before]
+# swing the door leaves from their shut rest pose to the open angle given in the manifest (as the game would)
+import json, math
+man = json.load(open(os.path.join(EXP, 'manifest.json')))
+for key, mv in man.get('movers', {}).items():
+    if 'open_rotation_y_deg' in mv:
+        for o in new:
+            if o.name.startswith('ruien_o2_%s_lod0' % key):
+                o.rotation_mode = 'XYZ'
+                o.rotation_euler.z += math.radians(mv['open_rotation_y_deg'])
+                print('[check] opened', o.name, mv['open_rotation_y_deg'])
 # GLBs carry no images: attach the shared family albedo and normal maps to the imported ruien_<family> materials
 TEX = os.path.join(EXP, 'textures')
 for m in bpy.data.materials:

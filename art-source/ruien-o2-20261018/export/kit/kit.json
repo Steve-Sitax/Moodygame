@@ -4,12 +4,12 @@
   "grate_shaft_giant": {
    "files": {
     "kit_grate_shaft_giant_lod0.glb": {
-     "sha256": "c2423aac60cff2f8410dd52f51b0817d021707c40ec87a6975c89edc81568bee",
-     "tris": 10412
+     "sha256": "c0925b3f0af4ab6f977f937c0d31b5fcc5cb527c380e31a0b6da5985b4088c41",
+     "tris": 6573
     },
     "kit_grate_shaft_giant_lod1.glb": {
-     "sha256": "a284273dc4468d05cfcc354d42f6b69f18821dace55f2f1253d3f34fa568c9e3",
-     "tris": 3972
+     "sha256": "f471a33870c12da161bd21a51da344aabe9a276e96472502954b993783dca149",
+     "tris": 2957
     }
    },
    "pivot_in_o2": [
@@ -24,12 +24,12 @@
   "stair_down": {
    "files": {
     "kit_stair_down_lod0.glb": {
-     "sha256": "9855afae907c5b881c1ec6e99ab9264dd7833b41f115c84c5cf4e41b02bb9565",
-     "tris": 173814
+     "sha256": "e84d1dcc8d6749d123654a39ae4e3cec5f928b2f9d15616560f14b438926885c",
+     "tris": 107284
     },
     "kit_stair_down_lod1.glb": {
-     "sha256": "cb64c033ea67a5e34b1bfcab49982bf722c7eff00fe2035897d0d5d1033db75f",
-     "tris": 55426
+     "sha256": "044abf21c272735a4c46541f783b457715bbd06d910b19b5bd437958d5a0695e",
+     "tris": 41020
     }
    },
    "pivot_in_o2": [
@@ -44,12 +44,12 @@
   "drain_mouth_egg": {
    "files": {
     "kit_drain_mouth_egg_lod0.glb": {
-     "sha256": "2ebb7c7da0f81c316d9cbaeead72e13aeb5652b33f4c3126dfac7800fc4c27be",
-     "tris": 109200
+     "sha256": "3ea665845453433b542327123b4d4422e190c3300155207798e47d3bb6d855ae",
+     "tris": 68124
     },
     "kit_drain_mouth_egg_lod1.glb": {
-     "sha256": "1a80bc3842683e2692159dc59eb21baceb5cb88d2501a86c520fb7a3bd0ce02a",
-     "tris": 30252
+     "sha256": "9a0d3c26d2c2d35fece8a117c87fe1d49cc3fc0162cc713eb48b6ad9be474abb",
+     "tris": 23916
     }
    },
    "pivot_in_o2": [
@@ -84,11 +84,11 @@
   "lamp_bracket_safety_lamp": {
    "files": {
     "kit_lamp_bracket_safety_lamp_lod0.glb": {
-     "sha256": "7480e964e4b9d5f1c86270c1b49be363e8221028b886a660df2f2c16faea4335",
+     "sha256": "939586877003de03379559596a5bb6529b3f9cfdec8a2ae89a75126ce08be336",
      "tris": 1536
     },
     "kit_lamp_bracket_safety_lamp_lod1.glb": {
-     "sha256": "5b6834db9054abea94d1c1f934f3b39f9c9bd701da39750491874edea2d1cca5",
+     "sha256": "57f80d94bbee38f92e941b47c9f804cf17b7c2dc2dfb35cf5fd220a94ec02553",
      "tris": 1536
     }
    },
@@ -101,15 +101,55 @@
    "note": "wrought-iron bracket and brass safety lamp. Pivot: wall plate. Light: see markers (warm, about 150 W).",
    "source_objects": 4
   },
-  "tide_doors": {
+  "tide_door_leaf_n": {
    "files": {
-    "kit_tide_doors_lod0.glb": {
-     "sha256": "85aecf5900636ba69fe3b302524e6b74434b87bc60c869371687d5a5c077ecec",
-     "tris": 90776
+    "kit_tide_door_leaf_n_lod0.glb": {
+     "sha256": "2fc6d3d2cc8774d01bf9df56bc6686c84f70e448b9d64264a37515f9a127e627",
+     "tris": 30652
     },
-    "kit_tide_doors_lod1.glb": {
-     "sha256": "d4c635e6298ec06b862dfc4ea460ab3434ceeb6b3be19ca35c480a6e0dbecf71",
-     "tris": 27232
+    "kit_tide_door_leaf_n_lod1.glb": {
+     "sha256": "67758666202975d84b332c56fcd5385da8dde9b0f7d46614e2dae9dc12e36537",
+     "tris": 13136
+    }
+   },
+   "pivot_in_o2": [
+    -142.92,
+    -5.05,
+    71.8
+   ],
+   "facing": "shut; opens toward -z by rotating about +Y by -40.0 degrees",
+   "note": "one oak tide leaf with ledgers, straps, rivets and hinge eyes, rest pose shut. Pivot: on the pintle (hinge) line at sill height.",
+   "source_objects": 27
+  },
+  "tide_door_leaf_s": {
+   "files": {
+    "kit_tide_door_leaf_s_lod0.glb": {
+     "sha256": "886229e6d5e338f32327f59418590747f63c0b6eb015cf495a531998b66a129d",
+     "tris": 30570
+    },
+    "kit_tide_door_leaf_s_lod1.glb": {
+     "sha256": "df13bf7798dadb5854ff0843a422124d3b801505b17853d80c162cf7b0649232",
+     "tris": 13100
+    }
+   },
+   "pivot_in_o2": [
+    -149.28,
+    -5.05,
+    71.8
+   ],
+   "facing": "shut; opens toward -z by rotating about +Y by 32.8 degrees",
+   "note": "one oak tide leaf with ledgers, straps, rivets and hinge eyes, rest pose shut. Pivot: on the pintle (hinge) line at sill height.",
+   "source_objects": 27
+  },
+  "tide_door_pintles": {
+   "files": {
+    "kit_tide_door_pintles_lod0.glb": {
+     "sha256": "19bdd7fcf8d8861e9d93e3e4fc9f7163b1fb3a340c9c671b2eafe3077664e01a",
+     "tris": 2318
+    },
+    "kit_tide_door_pintles_lod1.glb": {
+     "sha256": "cfa8e1c52df4ac6a544d035c3fc02a0974a06ac8cd29fa3e8855ae7ea48dfe5a",
+     "tris": 992
     }
    },
    "pivot_in_o2": [
@@ -118,14 +158,14 @@
     72.0
    ],
    "facing": "river face toward -z",
-   "note": "two oak tide leaves with straps, rivets, pintles; north leaf 40, south 33 degrees open. Pivot: sill centre.",
-   "source_objects": 66
+   "note": "iron pintles leaded into the jambs. Pivot: sill centre.",
+   "source_objects": 12
   },
   "gate_dressing": {
    "files": {
     "kit_gate_dressing_lod0.glb": {
-     "sha256": "b7991bc107166ffbe13f70a52857f371a80f06049d75abc950745684e2ddddf9",
-     "tris": 125808
+     "sha256": "87d587779a6508fa9c742c198323f8f8d2295846b98f37860197f9decd8ec7f6",
+     "tris": 88064
     },
     "kit_gate_dressing_lod1.glb": {
      "sha256": "0b16da2b3ac697c7cb0f19c801f5cfb5883a9e709bfeb466c026340500a7eae9",
@@ -141,15 +181,15 @@
    "note": "bluestone voussoirs, jambs, sill and apron of a 6 m outlet arch. Pivot: sill centre.",
    "source_objects": 56
   },
-  "penstock_gear": {
+  "penstock_frame": {
    "files": {
-    "kit_penstock_gear_lod0.glb": {
-     "sha256": "e58766a72ed1208507998f3cb76ad6ac8534242c6300036c78e3b361e359ba45",
-     "tris": 80560
+    "kit_penstock_frame_lod0.glb": {
+     "sha256": "8f26fa6d3dc0274251eb6af946f18f01a29659ed2d029876d6a9a4a9a89b0f02",
+     "tris": 36866
     },
-    "kit_penstock_gear_lod1.glb": {
-     "sha256": "90a288d5c3b26a4ce2f80defc78cd8dfb7f8189bc69f65ba3517018769939297",
-     "tris": 24364
+    "kit_penstock_frame_lod1.glb": {
+     "sha256": "a495113345b1f82d31a484b540b90ff2c805674bcebd0fd8b2483ba845951f00",
+     "tris": 15960
     }
    },
    "pivot_in_o2": [
@@ -158,8 +198,28 @@
     75.0
    ],
    "facing": "across the giant gallery",
-   "note": "cast-iron penstock door, guides, racks, headstock, gears, crank. Pivot: channel centre at ledge height.",
-   "source_objects": 40
+   "note": "fixed part: guides, pedestals, headstock, gears, crank, chain. Pivot: channel centre at ledge height.",
+   "source_objects": 26
+  },
+  "penstock_door": {
+   "files": {
+    "kit_penstock_door_lod0.glb": {
+     "sha256": "13b97162adf48c5c0be9b8f8a00bd76259a11e6dd87cb0d476f10b727cc40bac",
+     "tris": 19608
+    },
+    "kit_penstock_door_lod1.glb": {
+     "sha256": "f9ea0a742be899d0f4b7b9ae02f16ce6c4b674e4b2b6eb54cff24c0888570d22",
+     "tris": 8402
+    }
+   },
+   "pivot_in_o2": [
+    -146.1,
+    -4.85,
+    75.0
+   ],
+   "facing": "moves along +Y",
+   "note": "moving part: cast-iron door with ribs and the two racks. Pivot: door foot centre. Travel: [-1.25, 1.25] m from the exported pose.",
+   "source_objects": 14
   },
   "mooring_ring": {
    "files": {
@@ -224,8 +284,8 @@
   "bone_pile": {
    "files": {
     "kit_bone_pile_lod0.glb": {
-     "sha256": "6187efd25386926ec7ace10bd2df240648231ecaf2c5f3bcfab7a9437ad7888f",
-     "tris": 59032
+     "sha256": "af5f7874f80858614a313468145e401f1df4c02326206745a3b789ac1d6987fa",
+     "tris": 41320
     },
     "kit_bone_pile_lod1.glb": {
      "sha256": "c208c97d84bfa1c7da05cff2bf867f28f68e66712e350238eae0bb0d1d2152c5",
@@ -244,12 +304,12 @@
   "calcite_curtain_small": {
    "files": {
     "kit_calcite_curtain_small_lod0.glb": {
-     "sha256": "0a0bafd659d37f81bc7fb890e94ec6f441c45ef8ae08a8caf782708082e9f57b",
-     "tris": 6300
+     "sha256": "0bf11fe44f55c1cf05e11fd076109f0ad1a3a42187598497980bb47721a7fdc3",
+     "tris": 3464
     },
     "kit_calcite_curtain_small_lod1.glb": {
-     "sha256": "165f552cc12f05b8ee17ee6124e69f29d173deea26585f3f7925b8996bbb81e9",
-     "tris": 6300
+     "sha256": "1d9dea7ac5189ede3637c51f31568a09138aa9b26af6a32cc24cd6cbb5354f2a",
+     "tris": 3464
     }
    },
    "pivot_in_o2": [
@@ -264,12 +324,12 @@
   "calcite_curtain_medium": {
    "files": {
     "kit_calcite_curtain_medium_lod0.glb": {
-     "sha256": "f63fdbd7274dbe876b0c8cc1bb5dab70a2d6e01360eca4cb3031e88938b6eab2",
-     "tris": 6300
+     "sha256": "d4c9eaf684997f01c455e8205a51972a2a0fd0e83f5172825a6d95f3425f6a4b",
+     "tris": 3464
     },
     "kit_calcite_curtain_medium_lod1.glb": {
-     "sha256": "b1afeee0e608e38830e8e22ba96ab604aecb30c3f46dcabc145186aaa002236f",
-     "tris": 6300
+     "sha256": "98ad0cdf3ee3c7e01c2e7a80fa412873ee4cd053db515891e317fc9e62a2703d",
+     "tris": 3464
     }
    },
    "pivot_in_o2": [
@@ -284,12 +344,12 @@
   "calcite_curtain_large": {
    "files": {
     "kit_calcite_curtain_large_lod0.glb": {
-     "sha256": "aa2d627046731e349135f3e84bc0c6e23b15665815e5e667c0c28d4e36277373",
-     "tris": 6300
+     "sha256": "671e880cc0046419f80375e0f2c23018aa5a1010ef536bc7e51dd9ac6b26827a",
+     "tris": 3465
     },
     "kit_calcite_curtain_large_lod1.glb": {
-     "sha256": "3d6687c07d275a38bec8ff69c957978b489d14e8d585837793654265d0beddaa",
-     "tris": 6300
+     "sha256": "ca9c806c6f97cd8e965947e3600dbdb3643e91fd60c3b44f05b6f01a6e0ce770",
+     "tris": 3465
     }
    },
    "pivot_in_o2": [
@@ -304,11 +364,11 @@
   "rubble_pile": {
    "files": {
     "kit_rubble_pile_lod0.glb": {
-     "sha256": "36a8d2496d06564becb3ceed062e4249bf397d0502ba332450c689a4386dd5f4",
-     "tris": 22268
+     "sha256": "471381975071ab62e07d67b1e79ce4d52021fa3757799519713cff4f46cbfefb",
+     "tris": 15586
     },
     "kit_rubble_pile_lod1.glb": {
-     "sha256": "4389088ec658d407d015eefec2e334eaa3541e9b3e9a7c3bf99d66c05bc828c9",
+     "sha256": "be350719996d147f58cda31b82a15415fd7259962a89f8d51e3353b625dcd2a2",
      "tris": 6680
     }
    },
@@ -324,11 +384,11 @@
   "floating_debris": {
    "files": {
     "kit_floating_debris_lod0.glb": {
-     "sha256": "f682274df03048381130b38eb9697bac79bdae769ddcfe1ba1c3f8dcb952af2a",
-     "tris": 4724
+     "sha256": "b0beeffe0aa1a4182b39e0ef0b284bade4ca30bed32d72f154453a9fc1560424",
+     "tris": 3604
     },
     "kit_floating_debris_lod1.glb": {
-     "sha256": "9ad8c57df9c87ebd1e6f4dce033e028146e5947e9a6b79d3adbdc06522ebae57",
+     "sha256": "99a89d75278ab608f2911e8b71db0fbd7594ed5ada8deb275f47bef66ae3eaea",
      "tris": 2110
     }
    },

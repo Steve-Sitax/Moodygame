@@ -4,13 +4,20 @@
  "normal_maps": "OpenGL convention (+Y green up), tangent space",
  "files": {
   "ruien_o2_gallery_lod0.glb": {
-   "sha256": "f2db78f9004635678108af9337d32d3d26f2c90e08764cf975c39a5e9a7cbf92",
-   "bytes": 120908128,
+   "sha256": "a164612bfa57374b5c632ac962dd8e0f9cadfad211ddbdfb1a29cc044e1a7726",
+   "bytes": 74692900,
    "lod": 0,
    "objects": [
     {
+     "name": "ruien_o2_gallery_penstock_door_lod0_00",
+     "tris": 28012,
+     "materials": [
+      "ruien_iron"
+     ]
+    },
+    {
      "name": "ruien_o2_gallery_s0_lod0_00",
-     "tris": 199472,
+     "tris": 115161,
      "materials": [
       "ruien_brick_stretcher",
       "ruien_sandstone",
@@ -37,7 +44,7 @@
     },
     {
      "name": "ruien_o2_gallery_s0_lod0_01",
-     "tris": 199156,
+     "tris": 113274,
      "materials": [
       "ruien_brick_stretcher",
       "ruien_sandstone",
@@ -64,7 +71,7 @@
     },
     {
      "name": "ruien_o2_gallery_s0_lod0_02",
-     "tris": 199582,
+     "tris": 114931,
      "materials": [
       "ruien_brick_stretcher",
       "ruien_sandstone",
@@ -91,7 +98,7 @@
     },
     {
      "name": "ruien_o2_gallery_s0_lod0_03",
-     "tris": 198397,
+     "tris": 129974,
      "materials": [
       "ruien_brick_stretcher",
       "ruien_sandstone",
@@ -118,7 +125,7 @@
     },
     {
      "name": "ruien_o2_gallery_s1_lod0_00",
-     "tris": 101790,
+     "tris": 122804,
      "materials": [
       "ruien_brick_stretcher",
       "ruien_sandstone",
@@ -147,7 +154,7 @@
     },
     {
      "name": "ruien_o2_gallery_s1_lod0_01",
-     "tris": 101916,
+     "tris": 124777,
      "materials": [
       "ruien_brick_stretcher",
       "ruien_sandstone",
@@ -176,7 +183,7 @@
     },
     {
      "name": "ruien_o2_gallery_s1_lod0_02",
-     "tris": 101478,
+     "tris": 124655,
      "materials": [
       "ruien_brick_stretcher",
       "ruien_sandstone",
@@ -205,123 +212,7 @@
     },
     {
      "name": "ruien_o2_gallery_s1_lod0_03",
-     "tris": 101974,
-     "materials": [
-      "ruien_brick_stretcher",
-      "ruien_sandstone",
-      "ruien_bluestone",
-      "ruien_brick_flemish",
-      "ruien_silt",
-      "ruien_calcite",
-      "ruien_iron",
-      "ruien_oak_debris",
-      "ruien_misc_Soot_black",
-      "ruien_misc_Brick_loose",
-      "ruien_misc_Water_film",
-      "ruien_misc_Paving_setts",
-      "ruien_misc_Sacking",
-      "ruien_misc_Cork",
-      "ruien_misc_Rat_fur",
-      "ruien_misc_Rat_skin",
-      "ruien_misc_Rope_hemp",
-      "ruien_misc_Water_drip_ring",
-      "ruien_moss",
-      "ruien_misc_Runoff_wet",
-      "ruien_misc_Runoff_lime",
-      "ruien_misc_Runoff_splash",
-      "ruien_misc_Runoff_iron"
-     ]
-    },
-    {
-     "name": "ruien_o2_gallery_s1_lod0_04",
-     "tris": 101774,
-     "materials": [
-      "ruien_brick_stretcher",
-      "ruien_sandstone",
-      "ruien_bluestone",
-      "ruien_brick_flemish",
-      "ruien_silt",
-      "ruien_calcite",
-      "ruien_iron",
-      "ruien_oak_debris",
-      "ruien_misc_Soot_black",
-      "ruien_misc_Brick_loose",
-      "ruien_misc_Water_film",
-      "ruien_misc_Paving_setts",
-      "ruien_misc_Sacking",
-      "ruien_misc_Cork",
-      "ruien_misc_Rat_fur",
-      "ruien_misc_Rat_skin",
-      "ruien_misc_Rope_hemp",
-      "ruien_misc_Water_drip_ring",
-      "ruien_moss",
-      "ruien_misc_Runoff_wet",
-      "ruien_misc_Runoff_lime",
-      "ruien_misc_Runoff_splash",
-      "ruien_misc_Runoff_iron"
-     ]
-    },
-    {
-     "name": "ruien_o2_gallery_s1_lod0_05",
-     "tris": 101992,
-     "materials": [
-      "ruien_brick_stretcher",
-      "ruien_sandstone",
-      "ruien_bluestone",
-      "ruien_brick_flemish",
-      "ruien_silt",
-      "ruien_calcite",
-      "ruien_iron",
-      "ruien_oak_debris",
-      "ruien_misc_Soot_black",
-      "ruien_misc_Brick_loose",
-      "ruien_misc_Water_film",
-      "ruien_misc_Paving_setts",
-      "ruien_misc_Sacking",
-      "ruien_misc_Cork",
-      "ruien_misc_Rat_fur",
-      "ruien_misc_Rat_skin",
-      "ruien_misc_Rope_hemp",
-      "ruien_misc_Water_drip_ring",
-      "ruien_moss",
-      "ruien_misc_Runoff_wet",
-      "ruien_misc_Runoff_lime",
-      "ruien_misc_Runoff_splash",
-      "ruien_misc_Runoff_iron"
-     ]
-    },
-    {
-     "name": "ruien_o2_gallery_s1_lod0_06",
-     "tris": 101922,
-     "materials": [
-      "ruien_brick_stretcher",
-      "ruien_sandstone",
-      "ruien_bluestone",
-      "ruien_brick_flemish",
-      "ruien_silt",
-      "ruien_calcite",
-      "ruien_iron",
-      "ruien_oak_debris",
-      "ruien_misc_Soot_black",
-      "ruien_misc_Brick_loose",
-      "ruien_misc_Water_film",
-      "ruien_misc_Paving_setts",
-      "ruien_misc_Sacking",
-      "ruien_misc_Cork",
-      "ruien_misc_Rat_fur",
-      "ruien_misc_Rat_skin",
-      "ruien_misc_Rope_hemp",
-      "ruien_misc_Water_drip_ring",
-      "ruien_moss",
-      "ruien_misc_Runoff_wet",
-      "ruien_misc_Runoff_lime",
-      "ruien_misc_Runoff_splash",
-      "ruien_misc_Runoff_iron"
-     ]
-    },
-    {
-     "name": "ruien_o2_gallery_s1_lod0_07",
-     "tris": 101984,
+     "tris": 116785,
      "materials": [
       "ruien_brick_stretcher",
       "ruien_sandstone",
@@ -350,7 +241,7 @@
     },
     {
      "name": "ruien_o2_gallery_s2_lod0_00",
-     "tris": 100302,
+     "tris": 120586,
      "materials": [
       "ruien_brick_stretcher",
       "ruien_sandstone",
@@ -376,7 +267,7 @@
     },
     {
      "name": "ruien_o2_gallery_s2_lod0_01",
-     "tris": 100414,
+     "tris": 123064,
      "materials": [
       "ruien_brick_stretcher",
       "ruien_sandstone",
@@ -402,7 +293,7 @@
     },
     {
      "name": "ruien_o2_gallery_s2_lod0_02",
-     "tris": 100366,
+     "tris": 122947,
      "materials": [
       "ruien_brick_stretcher",
       "ruien_sandstone",
@@ -428,85 +319,7 @@
     },
     {
      "name": "ruien_o2_gallery_s2_lod0_03",
-     "tris": 100458,
-     "materials": [
-      "ruien_brick_stretcher",
-      "ruien_sandstone",
-      "ruien_bluestone",
-      "ruien_brick_flemish",
-      "ruien_silt",
-      "ruien_calcite",
-      "ruien_iron",
-      "ruien_oak_debris",
-      "ruien_misc_Soot_black",
-      "ruien_misc_Brick_loose",
-      "ruien_misc_Water_film",
-      "ruien_misc_Paving_setts",
-      "ruien_misc_Brass_lamp",
-      "ruien_misc_Lamp_gauze",
-      "ruien_misc_Lamp_glass",
-      "ruien_misc_Lamp_flame",
-      "ruien_misc_Sacking",
-      "ruien_misc_Straw_wet",
-      "ruien_misc_Water_drip_ring",
-      "ruien_moss"
-     ]
-    },
-    {
-     "name": "ruien_o2_gallery_s2_lod0_04",
-     "tris": 198570,
-     "materials": [
-      "ruien_brick_stretcher",
-      "ruien_sandstone",
-      "ruien_bluestone",
-      "ruien_brick_flemish",
-      "ruien_silt",
-      "ruien_calcite",
-      "ruien_iron",
-      "ruien_oak_debris",
-      "ruien_misc_Soot_black",
-      "ruien_misc_Brick_loose",
-      "ruien_misc_Water_film",
-      "ruien_misc_Paving_setts",
-      "ruien_misc_Brass_lamp",
-      "ruien_misc_Lamp_gauze",
-      "ruien_misc_Lamp_glass",
-      "ruien_misc_Lamp_flame",
-      "ruien_misc_Sacking",
-      "ruien_misc_Straw_wet",
-      "ruien_misc_Water_drip_ring",
-      "ruien_moss"
-     ]
-    },
-    {
-     "name": "ruien_o2_gallery_s2_lod0_05",
-     "tris": 100282,
-     "materials": [
-      "ruien_brick_stretcher",
-      "ruien_sandstone",
-      "ruien_bluestone",
-      "ruien_brick_flemish",
-      "ruien_silt",
-      "ruien_calcite",
-      "ruien_iron",
-      "ruien_oak_debris",
-      "ruien_misc_Soot_black",
-      "ruien_misc_Brick_loose",
-      "ruien_misc_Water_film",
-      "ruien_misc_Paving_setts",
-      "ruien_misc_Brass_lamp",
-      "ruien_misc_Lamp_gauze",
-      "ruien_misc_Lamp_glass",
-      "ruien_misc_Lamp_flame",
-      "ruien_misc_Sacking",
-      "ruien_misc_Straw_wet",
-      "ruien_misc_Water_drip_ring",
-      "ruien_moss"
-     ]
-    },
-    {
-     "name": "ruien_o2_gallery_s2_lod0_06",
-     "tris": 100192,
+     "tris": 127484,
      "materials": [
       "ruien_brick_stretcher",
       "ruien_sandstone",
@@ -532,7 +345,7 @@
     },
     {
      "name": "ruien_o2_gallery_s3_lod0_00",
-     "tris": 162858,
+     "tris": 189368,
      "materials": [
       "ruien_brick_stretcher",
       "ruien_sandstone",
@@ -560,63 +373,7 @@
     },
     {
      "name": "ruien_o2_gallery_s3_lod0_01",
-     "tris": 162796,
-     "materials": [
-      "ruien_brick_stretcher",
-      "ruien_sandstone",
-      "ruien_bluestone",
-      "ruien_brick_flemish",
-      "ruien_silt",
-      "ruien_calcite",
-      "ruien_iron",
-      "ruien_oak_debris",
-      "ruien_misc_Soot_black",
-      "ruien_misc_Brick_loose",
-      "ruien_misc_Water_film",
-      "ruien_misc_Brass_lamp",
-      "ruien_misc_Lamp_gauze",
-      "ruien_misc_Lamp_glass",
-      "ruien_misc_Lamp_flame",
-      "ruien_misc_Cork",
-      "ruien_misc_Straw_wet",
-      "ruien_misc_Water_drip_ring",
-      "ruien_misc_Runoff_wet",
-      "ruien_misc_Runoff_lime",
-      "ruien_misc_Runoff_splash",
-      "ruien_misc_Runoff_iron"
-     ]
-    },
-    {
-     "name": "ruien_o2_gallery_s3_lod0_02",
-     "tris": 162712,
-     "materials": [
-      "ruien_brick_stretcher",
-      "ruien_sandstone",
-      "ruien_bluestone",
-      "ruien_brick_flemish",
-      "ruien_silt",
-      "ruien_calcite",
-      "ruien_iron",
-      "ruien_oak_debris",
-      "ruien_misc_Soot_black",
-      "ruien_misc_Brick_loose",
-      "ruien_misc_Water_film",
-      "ruien_misc_Brass_lamp",
-      "ruien_misc_Lamp_gauze",
-      "ruien_misc_Lamp_glass",
-      "ruien_misc_Lamp_flame",
-      "ruien_misc_Cork",
-      "ruien_misc_Straw_wet",
-      "ruien_misc_Water_drip_ring",
-      "ruien_misc_Runoff_wet",
-      "ruien_misc_Runoff_lime",
-      "ruien_misc_Runoff_splash",
-      "ruien_misc_Runoff_iron"
-     ]
-    },
-    {
-     "name": "ruien_o2_gallery_s3_lod0_03",
-     "tris": 162816,
+     "tris": 190706,
      "materials": [
       "ruien_brick_stretcher",
       "ruien_sandstone",
@@ -645,13 +402,13 @@
    ]
   },
   "ruien_o2_hall_lod0.glb": {
-   "sha256": "fc0a7be402216c8320a7ccd2b21e792673d22938587bda890ac1d52463090afa",
-   "bytes": 237731660,
+   "sha256": "89607c6454932414d9a566812872bc369acfe83e52213abd08149b8f2312b8b9",
+   "bytes": 138230236,
    "lod": 0,
    "objects": [
     {
      "name": "ruien_o2_hall_bay00_lod0_00",
-     "tris": 114242,
+     "tris": 123531,
      "materials": [
       "ruien_brick_stretcher",
       "ruien_sandstone",
@@ -676,57 +433,7 @@
     },
     {
      "name": "ruien_o2_hall_bay00_lod0_01",
-     "tris": 114192,
-     "materials": [
-      "ruien_brick_stretcher",
-      "ruien_sandstone",
-      "ruien_bluestone",
-      "ruien_brick_flemish",
-      "ruien_silt",
-      "ruien_calcite",
-      "ruien_brick_header",
-      "ruien_iron",
-      "ruien_misc_Brick_loose",
-      "ruien_misc_Brass_lamp",
-      "ruien_misc_Lamp_gauze",
-      "ruien_misc_Lamp_glass",
-      "ruien_misc_Lamp_flame",
-      "ruien_misc_Water_drip_ring",
-      "ruien_moss",
-      "ruien_misc_Runoff_wet",
-      "ruien_misc_Runoff_lime",
-      "ruien_misc_Runoff_splash",
-      "ruien_misc_Runoff_iron"
-     ]
-    },
-    {
-     "name": "ruien_o2_hall_bay00_lod0_02",
-     "tris": 114298,
-     "materials": [
-      "ruien_brick_stretcher",
-      "ruien_sandstone",
-      "ruien_bluestone",
-      "ruien_brick_flemish",
-      "ruien_silt",
-      "ruien_calcite",
-      "ruien_brick_header",
-      "ruien_iron",
-      "ruien_misc_Brick_loose",
-      "ruien_misc_Brass_lamp",
-      "ruien_misc_Lamp_gauze",
-      "ruien_misc_Lamp_glass",
-      "ruien_misc_Lamp_flame",
-      "ruien_misc_Water_drip_ring",
-      "ruien_moss",
-      "ruien_misc_Runoff_wet",
-      "ruien_misc_Runoff_lime",
-      "ruien_misc_Runoff_splash",
-      "ruien_misc_Runoff_iron"
-     ]
-    },
-    {
-     "name": "ruien_o2_hall_bay00_lod0_03",
-     "tris": 114377,
+     "tris": 119858,
      "materials": [
       "ruien_brick_stretcher",
       "ruien_sandstone",
@@ -751,31 +458,7 @@
     },
     {
      "name": "ruien_o2_hall_bay01_lod0_00",
-     "tris": 158166,
-     "materials": [
-      "ruien_brick_stretcher",
-      "ruien_sandstone",
-      "ruien_bluestone",
-      "ruien_brick_flemish",
-      "ruien_silt",
-      "ruien_calcite",
-      "ruien_brick_header",
-      "ruien_misc_Soot_black",
-      "ruien_misc_Brick_loose",
-      "ruien_misc_Water_film",
-      "ruien_oak_debris",
-      "ruien_misc_Sacking",
-      "ruien_misc_Water_drip_ring",
-      "ruien_moss",
-      "ruien_misc_Runoff_wet",
-      "ruien_misc_Runoff_lime",
-      "ruien_misc_Runoff_splash",
-      "ruien_misc_Runoff_iron"
-     ]
-    },
-    {
-     "name": "ruien_o2_hall_bay01_lod0_01",
-     "tris": 158188,
+     "tris": 175739,
      "materials": [
       "ruien_brick_stretcher",
       "ruien_sandstone",
@@ -799,7 +482,7 @@
     },
     {
      "name": "ruien_o2_hall_bay02_lod0_00",
-     "tris": 108417,
+     "tris": 130722,
      "materials": [
       "ruien_brick_stretcher",
       "ruien_sandstone",
@@ -826,61 +509,7 @@
     },
     {
      "name": "ruien_o2_hall_bay02_lod0_01",
-     "tris": 108370,
-     "materials": [
-      "ruien_brick_stretcher",
-      "ruien_sandstone",
-      "ruien_bluestone",
-      "ruien_brick_flemish",
-      "ruien_silt",
-      "ruien_calcite",
-      "ruien_brick_header",
-      "ruien_iron",
-      "ruien_misc_Brick_loose",
-      "ruien_misc_Brass_lamp",
-      "ruien_misc_Lamp_gauze",
-      "ruien_misc_Lamp_glass",
-      "ruien_misc_Lamp_flame",
-      "ruien_oak_debris",
-      "ruien_misc_Straw_wet",
-      "ruien_misc_Water_drip_ring",
-      "ruien_moss",
-      "ruien_misc_Runoff_wet",
-      "ruien_misc_Runoff_lime",
-      "ruien_misc_Runoff_splash",
-      "ruien_misc_Runoff_iron"
-     ]
-    },
-    {
-     "name": "ruien_o2_hall_bay02_lod0_02",
-     "tris": 108426,
-     "materials": [
-      "ruien_brick_stretcher",
-      "ruien_sandstone",
-      "ruien_bluestone",
-      "ruien_brick_flemish",
-      "ruien_silt",
-      "ruien_calcite",
-      "ruien_brick_header",
-      "ruien_iron",
-      "ruien_misc_Brick_loose",
-      "ruien_misc_Brass_lamp",
-      "ruien_misc_Lamp_gauze",
-      "ruien_misc_Lamp_glass",
-      "ruien_misc_Lamp_flame",
-      "ruien_oak_debris",
-      "ruien_misc_Straw_wet",
-      "ruien_misc_Water_drip_ring",
-      "ruien_moss",
-      "ruien_misc_Runoff_wet",
-      "ruien_misc_Runoff_lime",
-      "ruien_misc_Runoff_splash",
-      "ruien_misc_Runoff_iron"
-     ]
-    },
-    {
-     "name": "ruien_o2_hall_bay02_lod0_03",
-     "tris": 108323,
+     "tris": 122174,
      "materials": [
       "ruien_brick_stretcher",
       "ruien_sandstone",
@@ -907,7 +536,7 @@
     },
     {
      "name": "ruien_o2_hall_bay03_lod0_00",
-     "tris": 169133,
+     "tris": 97217,
      "materials": [
       "ruien_brick_stretcher",
       "ruien_sandstone",
@@ -937,7 +566,7 @@
     },
     {
      "name": "ruien_o2_hall_bay03_lod0_01",
-     "tris": 169100,
+     "tris": 104017,
      "materials": [
       "ruien_brick_stretcher",
       "ruien_sandstone",
@@ -967,37 +596,7 @@
     },
     {
      "name": "ruien_o2_hall_bay03_lod0_02",
-     "tris": 168934,
-     "materials": [
-      "ruien_brick_stretcher",
-      "ruien_sandstone",
-      "ruien_bluestone",
-      "ruien_brick_flemish",
-      "ruien_silt",
-      "ruien_calcite",
-      "ruien_brick_header",
-      "ruien_oak",
-      "ruien_iron",
-      "ruien_oak_debris",
-      "ruien_misc_Brick_loose",
-      "ruien_misc_Brass_lamp",
-      "ruien_misc_Lamp_gauze",
-      "ruien_misc_Lamp_glass",
-      "ruien_misc_Lamp_flame",
-      "ruien_misc_Sacking",
-      "ruien_misc_Bone",
-      "ruien_misc_Offal",
-      "ruien_misc_Rat_fur",
-      "ruien_misc_Rat_skin",
-      "ruien_misc_Runoff_wet",
-      "ruien_misc_Runoff_lime",
-      "ruien_misc_Runoff_splash",
-      "ruien_misc_Runoff_iron"
-     ]
-    },
-    {
-     "name": "ruien_o2_hall_bay03_lod0_03",
-     "tris": 167184,
+     "tris": 193041,
      "materials": [
       "ruien_brick_stretcher",
       "ruien_sandstone",
@@ -1027,7 +626,7 @@
     },
     {
      "name": "ruien_o2_hall_bay10_lod0_00",
-     "tris": 104566,
+     "tris": 120236,
      "materials": [
       "ruien_brick_stretcher",
       "ruien_sandstone",
@@ -1049,51 +648,7 @@
     },
     {
      "name": "ruien_o2_hall_bay10_lod0_01",
-     "tris": 104388,
-     "materials": [
-      "ruien_brick_stretcher",
-      "ruien_sandstone",
-      "ruien_bluestone",
-      "ruien_brick_flemish",
-      "ruien_silt",
-      "ruien_calcite",
-      "ruien_brick_header",
-      "ruien_oak_debris",
-      "ruien_misc_Brick_loose",
-      "ruien_misc_Sacking",
-      "ruien_misc_Water_drip_ring",
-      "ruien_moss",
-      "ruien_misc_Runoff_wet",
-      "ruien_misc_Runoff_lime",
-      "ruien_misc_Runoff_splash",
-      "ruien_misc_Runoff_iron"
-     ]
-    },
-    {
-     "name": "ruien_o2_hall_bay10_lod0_02",
-     "tris": 104595,
-     "materials": [
-      "ruien_brick_stretcher",
-      "ruien_sandstone",
-      "ruien_bluestone",
-      "ruien_brick_flemish",
-      "ruien_silt",
-      "ruien_calcite",
-      "ruien_brick_header",
-      "ruien_oak_debris",
-      "ruien_misc_Brick_loose",
-      "ruien_misc_Sacking",
-      "ruien_misc_Water_drip_ring",
-      "ruien_moss",
-      "ruien_misc_Runoff_wet",
-      "ruien_misc_Runoff_lime",
-      "ruien_misc_Runoff_splash",
-      "ruien_misc_Runoff_iron"
-     ]
-    },
-    {
-     "name": "ruien_o2_hall_bay10_lod0_03",
-     "tris": 104636,
+     "tris": 125955,
      "materials": [
       "ruien_brick_stretcher",
       "ruien_sandstone",
@@ -1115,7 +670,7 @@
     },
     {
      "name": "ruien_o2_hall_bay11_lod0_00",
-     "tris": 190938,
+     "tris": 118128,
      "materials": [
       "ruien_silt",
       "ruien_calcite",
@@ -1136,30 +691,7 @@
     },
     {
      "name": "ruien_o2_hall_bay12_lod0_00",
-     "tris": 119456,
-     "materials": [
-      "ruien_silt",
-      "ruien_calcite",
-      "ruien_brick_stretcher",
-      "ruien_sandstone",
-      "ruien_bluestone",
-      "ruien_brick_header",
-      "ruien_brick_flemish",
-      "ruien_oak_debris",
-      "ruien_iron",
-      "ruien_misc_Sacking",
-      "ruien_misc_Cork",
-      "ruien_misc_Water_drip_ring",
-      "ruien_moss",
-      "ruien_misc_Runoff_wet",
-      "ruien_misc_Runoff_lime",
-      "ruien_misc_Runoff_splash",
-      "ruien_misc_Runoff_iron"
-     ]
-    },
-    {
-     "name": "ruien_o2_hall_bay12_lod0_01",
-     "tris": 119429,
+     "tris": 139063,
      "materials": [
       "ruien_silt",
       "ruien_calcite",
@@ -1182,33 +714,7 @@
     },
     {
      "name": "ruien_o2_hall_bay13_lod0_00",
-     "tris": 166536,
-     "materials": [
-      "ruien_brick_stretcher",
-      "ruien_sandstone",
-      "ruien_bluestone",
-      "ruien_brick_flemish",
-      "ruien_silt",
-      "ruien_calcite",
-      "ruien_brick_header",
-      "ruien_iron",
-      "ruien_misc_Soot_black",
-      "ruien_misc_Brick_loose",
-      "ruien_misc_Water_film",
-      "ruien_misc_Brass_lamp",
-      "ruien_misc_Lamp_gauze",
-      "ruien_misc_Lamp_glass",
-      "ruien_misc_Lamp_flame",
-      "ruien_misc_Water_drip_ring",
-      "ruien_misc_Runoff_wet",
-      "ruien_misc_Runoff_lime",
-      "ruien_misc_Runoff_splash",
-      "ruien_misc_Runoff_iron"
-     ]
-    },
-    {
-     "name": "ruien_o2_hall_bay13_lod0_01",
-     "tris": 166684,
+     "tris": 178451,
      "materials": [
       "ruien_brick_stretcher",
       "ruien_sandstone",
@@ -1234,7 +740,7 @@
     },
     {
      "name": "ruien_o2_hall_bay20_lod0_00",
-     "tris": 111342,
+     "tris": 137440,
      "materials": [
       "ruien_brick_stretcher",
       "ruien_sandstone",
@@ -1258,55 +764,7 @@
     },
     {
      "name": "ruien_o2_hall_bay20_lod0_01",
-     "tris": 111564,
-     "materials": [
-      "ruien_brick_stretcher",
-      "ruien_sandstone",
-      "ruien_bluestone",
-      "ruien_brick_flemish",
-      "ruien_silt",
-      "ruien_calcite",
-      "ruien_brick_header",
-      "ruien_misc_Brick_loose",
-      "ruien_oak_debris",
-      "ruien_iron",
-      "ruien_misc_Sacking",
-      "ruien_misc_Cork",
-      "ruien_misc_Straw_wet",
-      "ruien_moss",
-      "ruien_misc_Runoff_wet",
-      "ruien_misc_Runoff_lime",
-      "ruien_misc_Runoff_splash",
-      "ruien_misc_Runoff_iron"
-     ]
-    },
-    {
-     "name": "ruien_o2_hall_bay20_lod0_02",
-     "tris": 111554,
-     "materials": [
-      "ruien_brick_stretcher",
-      "ruien_sandstone",
-      "ruien_bluestone",
-      "ruien_brick_flemish",
-      "ruien_silt",
-      "ruien_calcite",
-      "ruien_brick_header",
-      "ruien_misc_Brick_loose",
-      "ruien_oak_debris",
-      "ruien_iron",
-      "ruien_misc_Sacking",
-      "ruien_misc_Cork",
-      "ruien_misc_Straw_wet",
-      "ruien_moss",
-      "ruien_misc_Runoff_wet",
-      "ruien_misc_Runoff_lime",
-      "ruien_misc_Runoff_splash",
-      "ruien_misc_Runoff_iron"
-     ]
-    },
-    {
-     "name": "ruien_o2_hall_bay20_lod0_03",
-     "tris": 111456,
+     "tris": 130311,
      "materials": [
       "ruien_brick_stretcher",
       "ruien_sandstone",
@@ -1330,34 +788,7 @@
     },
     {
      "name": "ruien_o2_hall_bay21_lod0_00",
-     "tris": 110052,
-     "materials": [
-      "ruien_silt",
-      "ruien_calcite",
-      "ruien_brick_stretcher",
-      "ruien_sandstone",
-      "ruien_bluestone",
-      "ruien_brick_header",
-      "ruien_brick_flemish",
-      "ruien_iron",
-      "ruien_misc_Brass_lamp",
-      "ruien_misc_Lamp_gauze",
-      "ruien_misc_Lamp_glass",
-      "ruien_misc_Lamp_flame",
-      "ruien_misc_Glass_bottle",
-      "ruien_oak_debris",
-      "ruien_misc_Sacking",
-      "ruien_misc_Cork",
-      "ruien_moss",
-      "ruien_misc_Runoff_wet",
-      "ruien_misc_Runoff_lime",
-      "ruien_misc_Runoff_splash",
-      "ruien_misc_Runoff_iron"
-     ]
-    },
-    {
-     "name": "ruien_o2_hall_bay21_lod0_01",
-     "tris": 110066,
+     "tris": 132339,
      "materials": [
       "ruien_silt",
       "ruien_calcite",
@@ -1384,32 +815,7 @@
     },
     {
      "name": "ruien_o2_hall_bay22_lod0_00",
-     "tris": 127904,
-     "materials": [
-      "ruien_silt",
-      "ruien_calcite",
-      "ruien_brick_stretcher",
-      "ruien_sandstone",
-      "ruien_bluestone",
-      "ruien_brick_header",
-      "ruien_brick_flemish",
-      "ruien_misc_Soot_black",
-      "ruien_misc_Water_film",
-      "ruien_oak_debris",
-      "ruien_misc_Sacking",
-      "ruien_misc_Cork",
-      "ruien_misc_Straw_wet",
-      "ruien_misc_Water_drip_ring",
-      "ruien_moss",
-      "ruien_misc_Runoff_wet",
-      "ruien_misc_Runoff_lime",
-      "ruien_misc_Runoff_splash",
-      "ruien_misc_Runoff_iron"
-     ]
-    },
-    {
-     "name": "ruien_o2_hall_bay22_lod0_01",
-     "tris": 128034,
+     "tris": 140972,
      "materials": [
       "ruien_silt",
       "ruien_calcite",
@@ -1434,7 +840,7 @@
     },
     {
      "name": "ruien_o2_hall_bay23_lod0_00",
-     "tris": 103600,
+     "tris": 126633,
      "materials": [
       "ruien_brick_stretcher",
       "ruien_sandstone",
@@ -1461,61 +867,7 @@
     },
     {
      "name": "ruien_o2_hall_bay23_lod0_01",
-     "tris": 103602,
-     "materials": [
-      "ruien_brick_stretcher",
-      "ruien_sandstone",
-      "ruien_bluestone",
-      "ruien_brick_flemish",
-      "ruien_silt",
-      "ruien_calcite",
-      "ruien_brick_header",
-      "ruien_iron",
-      "ruien_misc_Brick_loose",
-      "ruien_misc_Brass_lamp",
-      "ruien_misc_Lamp_gauze",
-      "ruien_misc_Lamp_glass",
-      "ruien_misc_Lamp_flame",
-      "ruien_oak_debris",
-      "ruien_misc_Straw_wet",
-      "ruien_misc_Water_drip_ring",
-      "ruien_misc_Wicker",
-      "ruien_misc_Runoff_wet",
-      "ruien_misc_Runoff_lime",
-      "ruien_misc_Runoff_splash",
-      "ruien_misc_Runoff_iron"
-     ]
-    },
-    {
-     "name": "ruien_o2_hall_bay23_lod0_02",
-     "tris": 103546,
-     "materials": [
-      "ruien_brick_stretcher",
-      "ruien_sandstone",
-      "ruien_bluestone",
-      "ruien_brick_flemish",
-      "ruien_silt",
-      "ruien_calcite",
-      "ruien_brick_header",
-      "ruien_iron",
-      "ruien_misc_Brick_loose",
-      "ruien_misc_Brass_lamp",
-      "ruien_misc_Lamp_gauze",
-      "ruien_misc_Lamp_glass",
-      "ruien_misc_Lamp_flame",
-      "ruien_oak_debris",
-      "ruien_misc_Straw_wet",
-      "ruien_misc_Water_drip_ring",
-      "ruien_misc_Wicker",
-      "ruien_misc_Runoff_wet",
-      "ruien_misc_Runoff_lime",
-      "ruien_misc_Runoff_splash",
-      "ruien_misc_Runoff_iron"
-     ]
-    },
-    {
-     "name": "ruien_o2_hall_bay23_lod0_03",
-     "tris": 103268,
+     "tris": 118762,
      "materials": [
       "ruien_brick_stretcher",
       "ruien_sandstone",
@@ -1542,7 +894,7 @@
     },
     {
      "name": "ruien_o2_hall_side_e_lod0_00",
-     "tris": 137810,
+     "tris": 151361,
      "materials": [
       "ruien_brick_stretcher",
       "ruien_sandstone",
@@ -1561,45 +913,7 @@
     },
     {
      "name": "ruien_o2_hall_side_e_lod0_01",
-     "tris": 137718,
-     "materials": [
-      "ruien_brick_stretcher",
-      "ruien_sandstone",
-      "ruien_bluestone",
-      "ruien_brick_flemish",
-      "ruien_silt",
-      "ruien_iron",
-      "ruien_misc_Soot_black",
-      "ruien_misc_Water_film",
-      "ruien_misc_Brass_lamp",
-      "ruien_misc_Lamp_gauze",
-      "ruien_misc_Lamp_glass",
-      "ruien_misc_Lamp_flame",
-      "ruien_calcite"
-     ]
-    },
-    {
-     "name": "ruien_o2_hall_side_e_lod0_02",
-     "tris": 137810,
-     "materials": [
-      "ruien_brick_stretcher",
-      "ruien_sandstone",
-      "ruien_bluestone",
-      "ruien_brick_flemish",
-      "ruien_silt",
-      "ruien_iron",
-      "ruien_misc_Soot_black",
-      "ruien_misc_Water_film",
-      "ruien_misc_Brass_lamp",
-      "ruien_misc_Lamp_gauze",
-      "ruien_misc_Lamp_glass",
-      "ruien_misc_Lamp_flame",
-      "ruien_calcite"
-     ]
-    },
-    {
-     "name": "ruien_o2_hall_side_e_lod0_03",
-     "tris": 137810,
+     "tris": 151138,
      "materials": [
       "ruien_brick_stretcher",
       "ruien_sandstone",
@@ -1618,7 +932,7 @@
     },
     {
      "name": "ruien_o2_hall_side_ne_lod0_00",
-     "tris": 137626,
+     "tris": 152502,
      "materials": [
       "ruien_brick_stretcher",
       "ruien_sandstone",
@@ -1637,45 +951,7 @@
     },
     {
      "name": "ruien_o2_hall_side_ne_lod0_01",
-     "tris": 137628,
-     "materials": [
-      "ruien_brick_stretcher",
-      "ruien_sandstone",
-      "ruien_bluestone",
-      "ruien_brick_flemish",
-      "ruien_silt",
-      "ruien_iron",
-      "ruien_misc_Soot_black",
-      "ruien_misc_Water_film",
-      "ruien_misc_Brass_lamp",
-      "ruien_misc_Lamp_gauze",
-      "ruien_misc_Lamp_glass",
-      "ruien_misc_Lamp_flame",
-      "ruien_calcite"
-     ]
-    },
-    {
-     "name": "ruien_o2_hall_side_ne_lod0_02",
-     "tris": 137626,
-     "materials": [
-      "ruien_brick_stretcher",
-      "ruien_sandstone",
-      "ruien_bluestone",
-      "ruien_brick_flemish",
-      "ruien_silt",
-      "ruien_iron",
-      "ruien_misc_Soot_black",
-      "ruien_misc_Water_film",
-      "ruien_misc_Brass_lamp",
-      "ruien_misc_Lamp_gauze",
-      "ruien_misc_Lamp_glass",
-      "ruien_misc_Lamp_flame",
-      "ruien_calcite"
-     ]
-    },
-    {
-     "name": "ruien_o2_hall_side_ne_lod0_03",
-     "tris": 137536,
+     "tris": 152781,
      "materials": [
       "ruien_brick_stretcher",
       "ruien_sandstone",
@@ -1694,7 +970,7 @@
     },
     {
      "name": "ruien_o2_hall_side_sw_lod0_00",
-     "tris": 136948,
+     "tris": 147155,
      "materials": [
       "ruien_brick_stretcher",
       "ruien_sandstone",
@@ -1708,35 +984,7 @@
     },
     {
      "name": "ruien_o2_hall_side_sw_lod0_01",
-     "tris": 136948,
-     "materials": [
-      "ruien_brick_stretcher",
-      "ruien_sandstone",
-      "ruien_bluestone",
-      "ruien_brick_flemish",
-      "ruien_silt",
-      "ruien_misc_Soot_black",
-      "ruien_misc_Water_film",
-      "ruien_calcite"
-     ]
-    },
-    {
-     "name": "ruien_o2_hall_side_sw_lod0_02",
-     "tris": 136948,
-     "materials": [
-      "ruien_brick_stretcher",
-      "ruien_sandstone",
-      "ruien_bluestone",
-      "ruien_brick_flemish",
-      "ruien_silt",
-      "ruien_misc_Soot_black",
-      "ruien_misc_Water_film",
-      "ruien_calcite"
-     ]
-    },
-    {
-     "name": "ruien_o2_hall_side_sw_lod0_03",
-     "tris": 136950,
+     "tris": 147541,
      "materials": [
       "ruien_brick_stretcher",
       "ruien_sandstone",
@@ -1751,20 +999,35 @@
    ]
   },
   "ruien_o2_outlet_lod0.glb": {
-   "sha256": "083b5ce608cde03253e1203d746f39040cea7c42b814f47cf4c17238d4286e77",
-   "bytes": 44115392,
+   "sha256": "370b01fedfdb4c445caafc56f3f34b1478a8f9b4cb4c892e22a76d8f3ae5500b",
+   "bytes": 8520272,
    "lod": 0,
    "objects": [
     {
+     "name": "ruien_o2_outlet_door_n_lod0_00",
+     "tris": 43792,
+     "materials": [
+      "ruien_oak",
+      "ruien_iron"
+     ]
+    },
+    {
+     "name": "ruien_o2_outlet_door_s_lod0_00",
+     "tris": 43672,
+     "materials": [
+      "ruien_oak",
+      "ruien_iron"
+     ]
+    },
+    {
      "name": "ruien_o2_outlet_gate_lod0_00",
-     "tris": 136311,
+     "tris": 133203,
      "materials": [
-      "ruien_brick_flemish",
+      "ruien_brick_stretcher",
       "ruien_sandstone",
       "ruien_bluestone",
+      "ruien_brick_flemish",
       "ruien_silt",
-      "ruien_brick_stretcher",
-      "ruien_oak",
       "ruien_iron",
       "ruien_oak_debris",
       "ruien_misc_Sacking",
@@ -1772,222 +1035,40 @@
       "ruien_misc_Cork",
       "ruien_moss"
      ]
-    },
+    }
+   ]
+  },
+  "ruien_o2_outlet_headwall_lod0.glb": {
+   "sha256": "04df5003fd4fa0c49010774ad778ddfb14b891da2d19e5aa784cb428ee9ce022",
+   "bytes": 378580,
+   "lod": 0,
+   "objects": [
     {
-     "name": "ruien_o2_outlet_gate_lod0_01",
-     "tris": 136474,
+     "name": "ruien_o2_outlet_headwall_lod0_00",
+     "tris": 9695,
      "materials": [
       "ruien_brick_flemish",
       "ruien_sandstone",
-      "ruien_bluestone",
-      "ruien_silt",
-      "ruien_brick_stretcher",
-      "ruien_oak",
-      "ruien_iron",
-      "ruien_oak_debris",
-      "ruien_misc_Sacking",
-      "ruien_misc_Weed_slime",
-      "ruien_misc_Cork",
-      "ruien_moss"
-     ]
-    },
-    {
-     "name": "ruien_o2_outlet_vliet_lod0_00",
-     "tris": 101112,
-     "materials": [
-      "ruien_brick_flemish",
-      "ruien_sandstone",
-      "ruien_bluestone",
-      "ruien_silt",
-      "ruien_oak",
-      "ruien_iron",
-      "ruien_oak_debris",
-      "ruien_misc_Brick_loose",
-      "ruien_misc_Sacking",
-      "ruien_misc_Bone",
-      "ruien_misc_Weed_slime",
-      "ruien_misc_Cork",
-      "ruien_misc_Rope_hemp",
-      "ruien_misc_Wicker"
-     ]
-    },
-    {
-     "name": "ruien_o2_outlet_vliet_lod0_01",
-     "tris": 101070,
-     "materials": [
-      "ruien_brick_flemish",
-      "ruien_sandstone",
-      "ruien_bluestone",
-      "ruien_silt",
-      "ruien_oak",
-      "ruien_iron",
-      "ruien_oak_debris",
-      "ruien_misc_Brick_loose",
-      "ruien_misc_Sacking",
-      "ruien_misc_Bone",
-      "ruien_misc_Weed_slime",
-      "ruien_misc_Cork",
-      "ruien_misc_Rope_hemp",
-      "ruien_misc_Wicker"
-     ]
-    },
-    {
-     "name": "ruien_o2_outlet_vliet_lod0_02",
-     "tris": 100636,
-     "materials": [
-      "ruien_brick_flemish",
-      "ruien_sandstone",
-      "ruien_bluestone",
-      "ruien_silt",
-      "ruien_oak",
-      "ruien_iron",
-      "ruien_oak_debris",
-      "ruien_misc_Brick_loose",
-      "ruien_misc_Sacking",
-      "ruien_misc_Bone",
-      "ruien_misc_Weed_slime",
-      "ruien_misc_Cork",
-      "ruien_misc_Rope_hemp",
-      "ruien_misc_Wicker"
-     ]
-    },
-    {
-     "name": "ruien_o2_outlet_vliet_lod0_03",
-     "tris": 100994,
-     "materials": [
-      "ruien_brick_flemish",
-      "ruien_sandstone",
-      "ruien_bluestone",
-      "ruien_silt",
-      "ruien_oak",
-      "ruien_iron",
-      "ruien_oak_debris",
-      "ruien_misc_Brick_loose",
-      "ruien_misc_Sacking",
-      "ruien_misc_Bone",
-      "ruien_misc_Weed_slime",
-      "ruien_misc_Cork",
-      "ruien_misc_Rope_hemp",
-      "ruien_misc_Wicker"
-     ]
-    },
-    {
-     "name": "ruien_o2_outlet_vliet_lod0_04",
-     "tris": 101114,
-     "materials": [
-      "ruien_brick_flemish",
-      "ruien_sandstone",
-      "ruien_bluestone",
-      "ruien_silt",
-      "ruien_oak",
-      "ruien_iron",
-      "ruien_oak_debris",
-      "ruien_misc_Brick_loose",
-      "ruien_misc_Sacking",
-      "ruien_misc_Bone",
-      "ruien_misc_Weed_slime",
-      "ruien_misc_Cork",
-      "ruien_misc_Rope_hemp",
-      "ruien_misc_Wicker"
-     ]
-    },
-    {
-     "name": "ruien_o2_outlet_vliet_lod0_05",
-     "tris": 100820,
-     "materials": [
-      "ruien_brick_flemish",
-      "ruien_sandstone",
-      "ruien_bluestone",
-      "ruien_silt",
-      "ruien_oak",
-      "ruien_iron",
-      "ruien_oak_debris",
-      "ruien_misc_Brick_loose",
-      "ruien_misc_Sacking",
-      "ruien_misc_Bone",
-      "ruien_misc_Weed_slime",
-      "ruien_misc_Cork",
-      "ruien_misc_Rope_hemp",
-      "ruien_misc_Wicker"
-     ]
-    },
-    {
-     "name": "ruien_o2_outlet_vliet_lod0_06",
-     "tris": 101170,
-     "materials": [
-      "ruien_brick_flemish",
-      "ruien_sandstone",
-      "ruien_bluestone",
-      "ruien_silt",
-      "ruien_oak",
-      "ruien_iron",
-      "ruien_oak_debris",
-      "ruien_misc_Brick_loose",
-      "ruien_misc_Sacking",
-      "ruien_misc_Bone",
-      "ruien_misc_Weed_slime",
-      "ruien_misc_Cork",
-      "ruien_misc_Rope_hemp",
-      "ruien_misc_Wicker"
-     ]
-    },
-    {
-     "name": "ruien_o2_outlet_vliet_lod0_07",
-     "tris": 101042,
-     "materials": [
-      "ruien_brick_flemish",
-      "ruien_sandstone",
-      "ruien_bluestone",
-      "ruien_silt",
-      "ruien_oak",
-      "ruien_iron",
-      "ruien_oak_debris",
-      "ruien_misc_Brick_loose",
-      "ruien_misc_Sacking",
-      "ruien_misc_Bone",
-      "ruien_misc_Weed_slime",
-      "ruien_misc_Cork",
-      "ruien_misc_Rope_hemp",
-      "ruien_misc_Wicker"
+      "ruien_bluestone"
      ]
     }
    ]
   },
   "ruien_o2_gallery_lod1.glb": {
-   "sha256": "2bc0b646674ee59d71a8386682e15b18ca54007770df1b189b6dd0546a3d0b74",
-   "bytes": 34823336,
+   "sha256": "8c411754ccfcdd78138abd24b1d9d46bd9b77cbcfdca3f2315c5590303b8f576",
+   "bytes": 26532784,
    "lod": 1,
    "objects": [
     {
-     "name": "ruien_o2_gallery_s0_lod1_00",
-     "tris": 107777,
+     "name": "ruien_o2_gallery_penstock_door_lod1_00",
+     "tris": 28012,
      "materials": [
-      "ruien_brick_stretcher",
-      "ruien_sandstone",
-      "ruien_bluestone",
-      "ruien_brick_flemish",
-      "ruien_silt",
-      "ruien_calcite",
-      "ruien_iron",
-      "ruien_oak_debris",
-      "ruien_misc_Soot_black",
-      "ruien_misc_Brick_loose",
-      "ruien_misc_Water_film",
-      "ruien_misc_Brass_lamp",
-      "ruien_misc_Lamp_gauze",
-      "ruien_misc_Lamp_glass",
-      "ruien_misc_Lamp_flame",
-      "ruien_misc_Sacking",
-      "ruien_misc_Cork",
-      "ruien_misc_Straw_wet",
-      "ruien_misc_Rope_hemp",
-      "ruien_misc_Water_drip_ring",
-      "ruien_moss"
+      "ruien_iron"
      ]
     },
     {
-     "name": "ruien_o2_gallery_s0_lod1_01",
-     "tris": 102564,
+     "name": "ruien_o2_gallery_s0_lod1_00",
+     "tris": 176533,
      "materials": [
       "ruien_brick_stretcher",
       "ruien_sandstone",
@@ -2014,36 +1095,7 @@
     },
     {
      "name": "ruien_o2_gallery_s1_lod1_00",
-     "tris": 105041,
-     "materials": [
-      "ruien_brick_stretcher",
-      "ruien_sandstone",
-      "ruien_bluestone",
-      "ruien_brick_flemish",
-      "ruien_silt",
-      "ruien_calcite",
-      "ruien_iron",
-      "ruien_oak_debris",
-      "ruien_misc_Soot_black",
-      "ruien_misc_Brick_loose",
-      "ruien_misc_Water_film",
-      "ruien_misc_Paving_setts",
-      "ruien_misc_Sacking",
-      "ruien_misc_Cork",
-      "ruien_misc_Rat_fur",
-      "ruien_misc_Rat_skin",
-      "ruien_misc_Rope_hemp",
-      "ruien_misc_Water_drip_ring",
-      "ruien_moss",
-      "ruien_misc_Runoff_wet",
-      "ruien_misc_Runoff_lime",
-      "ruien_misc_Runoff_splash",
-      "ruien_misc_Runoff_iron"
-     ]
-    },
-    {
-     "name": "ruien_o2_gallery_s1_lod1_01",
-     "tris": 113756,
+     "tris": 140701,
      "materials": [
       "ruien_brick_stretcher",
       "ruien_sandstone",
@@ -2072,33 +1124,7 @@
     },
     {
      "name": "ruien_o2_gallery_s2_lod1_00",
-     "tris": 113073,
-     "materials": [
-      "ruien_brick_stretcher",
-      "ruien_sandstone",
-      "ruien_bluestone",
-      "ruien_brick_flemish",
-      "ruien_silt",
-      "ruien_calcite",
-      "ruien_iron",
-      "ruien_oak_debris",
-      "ruien_misc_Soot_black",
-      "ruien_misc_Brick_loose",
-      "ruien_misc_Water_film",
-      "ruien_misc_Paving_setts",
-      "ruien_misc_Brass_lamp",
-      "ruien_misc_Lamp_gauze",
-      "ruien_misc_Lamp_glass",
-      "ruien_misc_Lamp_flame",
-      "ruien_misc_Sacking",
-      "ruien_misc_Straw_wet",
-      "ruien_misc_Water_drip_ring",
-      "ruien_moss"
-     ]
-    },
-    {
-     "name": "ruien_o2_gallery_s2_lod1_01",
-     "tris": 103666,
+     "tris": 148022,
      "materials": [
       "ruien_brick_stretcher",
       "ruien_sandstone",
@@ -2124,7 +1150,7 @@
     },
     {
      "name": "ruien_o2_gallery_s3_lod1_00",
-     "tris": 182764,
+     "tris": 110968,
      "materials": [
       "ruien_brick_stretcher",
       "ruien_sandstone",
@@ -2153,13 +1179,13 @@
    ]
   },
   "ruien_o2_hall_lod1.glb": {
-   "sha256": "2114e44418d7a691fe7e459fc2d819411c53b3cd1501c9993a2c4da05066ad84",
-   "bytes": 69702688,
+   "sha256": "c57861fb8ee51447410490bd8d68a8b8faceb6503786c308ba7f7871f4cceba1",
+   "bytes": 48598836,
    "lod": 1,
    "objects": [
     {
      "name": "ruien_o2_hall_bay00_lod1_00",
-     "tris": 128821,
+     "tris": 76712,
      "materials": [
       "ruien_brick_stretcher",
       "ruien_sandstone",
@@ -2184,7 +1210,7 @@
     },
     {
      "name": "ruien_o2_hall_bay01_lod1_00",
-     "tris": 87926,
+     "tris": 54630,
      "materials": [
       "ruien_brick_stretcher",
       "ruien_sandstone",
@@ -2208,7 +1234,7 @@
     },
     {
      "name": "ruien_o2_hall_bay02_lod1_00",
-     "tris": 118401,
+     "tris": 83692,
      "materials": [
       "ruien_brick_stretcher",
       "ruien_sandstone",
@@ -2235,37 +1261,7 @@
     },
     {
      "name": "ruien_o2_hall_bay03_lod1_00",
-     "tris": 106927,
-     "materials": [
-      "ruien_brick_stretcher",
-      "ruien_sandstone",
-      "ruien_bluestone",
-      "ruien_brick_flemish",
-      "ruien_silt",
-      "ruien_calcite",
-      "ruien_brick_header",
-      "ruien_oak",
-      "ruien_iron",
-      "ruien_oak_debris",
-      "ruien_misc_Brick_loose",
-      "ruien_misc_Brass_lamp",
-      "ruien_misc_Lamp_gauze",
-      "ruien_misc_Lamp_glass",
-      "ruien_misc_Lamp_flame",
-      "ruien_misc_Sacking",
-      "ruien_misc_Bone",
-      "ruien_misc_Offal",
-      "ruien_misc_Rat_fur",
-      "ruien_misc_Rat_skin",
-      "ruien_misc_Runoff_wet",
-      "ruien_misc_Runoff_lime",
-      "ruien_misc_Runoff_splash",
-      "ruien_misc_Runoff_iron"
-     ]
-    },
-    {
-     "name": "ruien_o2_hall_bay03_lod1_01",
-     "tris": 100636,
+     "tris": 146465,
      "materials": [
       "ruien_brick_stretcher",
       "ruien_sandstone",
@@ -2295,7 +1291,7 @@
     },
     {
      "name": "ruien_o2_hall_bay10_lod1_00",
-     "tris": 112686,
+     "tris": 79990,
      "materials": [
       "ruien_brick_stretcher",
       "ruien_sandstone",
@@ -2317,7 +1313,7 @@
     },
     {
      "name": "ruien_o2_hall_bay11_lod1_00",
-     "tris": 54180,
+     "tris": 36720,
      "materials": [
       "ruien_silt",
       "ruien_calcite",
@@ -2338,7 +1334,7 @@
     },
     {
      "name": "ruien_o2_hall_bay12_lod1_00",
-     "tris": 68425,
+     "tris": 45157,
      "materials": [
       "ruien_silt",
       "ruien_calcite",
@@ -2361,7 +1357,7 @@
     },
     {
      "name": "ruien_o2_hall_bay13_lod1_00",
-     "tris": 100825,
+     "tris": 60605,
      "materials": [
       "ruien_brick_stretcher",
       "ruien_sandstone",
@@ -2387,7 +1383,7 @@
     },
     {
      "name": "ruien_o2_hall_bay20_lod1_00",
-     "tris": 128159,
+     "tris": 90749,
      "materials": [
       "ruien_brick_stretcher",
       "ruien_sandstone",
@@ -2411,7 +1407,7 @@
     },
     {
      "name": "ruien_o2_hall_bay21_lod1_00",
-     "tris": 65903,
+     "tris": 43478,
      "materials": [
       "ruien_silt",
       "ruien_calcite",
@@ -2438,7 +1434,7 @@
     },
     {
      "name": "ruien_o2_hall_bay22_lod1_00",
-     "tris": 73073,
+     "tris": 45787,
      "materials": [
       "ruien_silt",
       "ruien_calcite",
@@ -2463,7 +1459,7 @@
     },
     {
      "name": "ruien_o2_hall_bay23_lod1_00",
-     "tris": 119724,
+     "tris": 85623,
      "materials": [
       "ruien_brick_stretcher",
       "ruien_sandstone",
@@ -2490,7 +1486,7 @@
     },
     {
      "name": "ruien_o2_hall_side_e_lod1_00",
-     "tris": 140603,
+     "tris": 81062,
      "materials": [
       "ruien_brick_stretcher",
       "ruien_sandstone",
@@ -2509,7 +1505,7 @@
     },
     {
      "name": "ruien_o2_hall_side_ne_lod1_00",
-     "tris": 140359,
+     "tris": 81899,
      "materials": [
       "ruien_brick_stretcher",
       "ruien_sandstone",
@@ -2528,7 +1524,7 @@
     },
     {
      "name": "ruien_o2_hall_side_sw_lod1_00",
-     "tris": 138956,
+     "tris": 77206,
      "materials": [
       "ruien_brick_stretcher",
       "ruien_sandstone",
@@ -2543,20 +1539,35 @@
    ]
   },
   "ruien_o2_outlet_lod1.glb": {
-   "sha256": "81c687770230f2948e4a4c7d9a1d9f1089104cc33f0e24b972a271750245ad69",
-   "bytes": 13415812,
+   "sha256": "812e2e032f50d0a2bbae98a8f61248092754060567f938f3baebdf8d955954cb",
+   "bytes": 5365712,
    "lod": 1,
    "objects": [
     {
-     "name": "ruien_o2_outlet_gate_lod1_00",
-     "tris": 81391,
+     "name": "ruien_o2_outlet_door_n_lod1_00",
+     "tris": 43792,
      "materials": [
-      "ruien_brick_flemish",
+      "ruien_oak",
+      "ruien_iron"
+     ]
+    },
+    {
+     "name": "ruien_o2_outlet_door_s_lod1_00",
+     "tris": 43672,
+     "materials": [
+      "ruien_oak",
+      "ruien_iron"
+     ]
+    },
+    {
+     "name": "ruien_o2_outlet_gate_lod1_00",
+     "tris": 53704,
+     "materials": [
+      "ruien_brick_stretcher",
       "ruien_sandstone",
       "ruien_bluestone",
+      "ruien_brick_flemish",
       "ruien_silt",
-      "ruien_brick_stretcher",
-      "ruien_oak",
       "ruien_iron",
       "ruien_oak_debris",
       "ruien_misc_Sacking",
@@ -2564,52 +1575,28 @@
       "ruien_misc_Cork",
       "ruien_moss"
      ]
-    },
+    }
+   ]
+  },
+  "ruien_o2_outlet_headwall_lod1.glb": {
+   "sha256": "9717fda9d1f68c081d26b2d604b10f288745068e994763649dae006c0584b499",
+   "bytes": 192580,
+   "lod": 1,
+   "objects": [
     {
-     "name": "ruien_o2_outlet_vliet_lod1_00",
-     "tris": 103182,
+     "name": "ruien_o2_outlet_headwall_lod1_00",
+     "tris": 4716,
      "materials": [
       "ruien_brick_flemish",
       "ruien_sandstone",
-      "ruien_bluestone",
-      "ruien_silt",
-      "ruien_oak",
-      "ruien_iron",
-      "ruien_oak_debris",
-      "ruien_misc_Brick_loose",
-      "ruien_misc_Sacking",
-      "ruien_misc_Bone",
-      "ruien_misc_Weed_slime",
-      "ruien_misc_Cork",
-      "ruien_misc_Rope_hemp",
-      "ruien_misc_Wicker"
-     ]
-    },
-    {
-     "name": "ruien_o2_outlet_vliet_lod1_01",
-     "tris": 111861,
-     "materials": [
-      "ruien_brick_flemish",
-      "ruien_sandstone",
-      "ruien_bluestone",
-      "ruien_silt",
-      "ruien_oak",
-      "ruien_iron",
-      "ruien_oak_debris",
-      "ruien_misc_Brick_loose",
-      "ruien_misc_Sacking",
-      "ruien_misc_Bone",
-      "ruien_misc_Weed_slime",
-      "ruien_misc_Cork",
-      "ruien_misc_Rope_hemp",
-      "ruien_misc_Wicker"
+      "ruien_bluestone"
      ]
     }
    ]
   },
   "ruien_o2_collision.glb": {
-   "sha256": "322efa534f2cb46882963df6ad74b815e8dcb6243aadc7252c7695271cea7912",
-   "bytes": 94632,
+   "sha256": "c9b78327946b58cb712d89f6933daf657fdafa9405e3ca42e7b32a01b5143a10",
+   "bytes": 84392,
    "objects": [
     {
      "name": "col_gallery_ledge_n",
@@ -2656,15 +1643,15 @@
      "tris": 228
     },
     {
+     "name": "col_gate_door_n",
+     "tris": 12
+    },
+    {
+     "name": "col_gate_door_s",
+     "tris": 12
+    },
+    {
      "name": "col_gate",
-     "tris": 36
-    },
-    {
-     "name": "col_vliet_bed",
-     "tris": 384
-    },
-    {
-     "name": "col_vliet_walls",
      "tris": 24
     },
     {
@@ -2674,8 +1661,8 @@
    ]
   },
   "ruien_o2_markers.glb": {
-   "sha256": "3dcb212a68d3976e92fe4ff541fb8fc3e966fdc65132105ce4694570bbc43acb",
-   "bytes": 20548,
+   "sha256": "bdce5957f65b5331a8272dc0a6d9708087dac867f4c49b864b159999c29f64cd",
+   "bytes": 23324,
    "objects": [
     {
      "name": "mk_lamp_01",
@@ -2751,6 +1738,78 @@
     },
     {
      "name": "mk_lamp_14",
+     "type": "EMPTY"
+    },
+    {
+     "name": "mk_flame_01",
+     "type": "EMPTY"
+    },
+    {
+     "name": "mk_flame_02",
+     "type": "EMPTY"
+    },
+    {
+     "name": "mk_flame_03",
+     "type": "EMPTY"
+    },
+    {
+     "name": "mk_flame_04",
+     "type": "EMPTY"
+    },
+    {
+     "name": "mk_flame_05",
+     "type": "EMPTY"
+    },
+    {
+     "name": "mk_flame_06",
+     "type": "EMPTY"
+    },
+    {
+     "name": "mk_flame_07",
+     "type": "EMPTY"
+    },
+    {
+     "name": "mk_flame_08",
+     "type": "EMPTY"
+    },
+    {
+     "name": "mk_flame_09",
+     "type": "EMPTY"
+    },
+    {
+     "name": "mk_flame_10",
+     "type": "EMPTY"
+    },
+    {
+     "name": "mk_flame_11",
+     "type": "EMPTY"
+    },
+    {
+     "name": "mk_flame_12",
+     "type": "EMPTY"
+    },
+    {
+     "name": "mk_daylight_grate_shaft",
+     "type": "EMPTY"
+    },
+    {
+     "name": "mk_daylight_grate_shaft_vault",
+     "type": "EMPTY"
+    },
+    {
+     "name": "mk_daylight_air_shaft",
+     "type": "EMPTY"
+    },
+    {
+     "name": "mk_daylight_air_shaft_vault",
+     "type": "EMPTY"
+    },
+    {
+     "name": "mk_daylight_vleeshuis_hatch",
+     "type": "EMPTY"
+    },
+    {
+     "name": "mk_daylight_vleeshuis_hatch_vault",
      "type": "EMPTY"
     },
     {
@@ -3222,6 +2281,244 @@
     "power_w": 45.0,
     "range_m": 6.0,
     "kind": "point"
+   }
+  ],
+  "flames": [
+   {
+    "name": "gallery_lamp",
+    "pos": [
+     -144.498,
+     -2.374,
+     78.259
+    ],
+    "color": [
+     1.0,
+     0.74,
+     0.52
+    ],
+    "glow_radius_m": 0.12
+   },
+   {
+    "name": "gal_lamp_far1",
+    "pos": [
+     -151.638,
+     -2.374,
+     92.639
+    ],
+    "color": [
+     1.0,
+     0.74,
+     0.52
+    ],
+    "glow_radius_m": 0.12
+   },
+   {
+    "name": "gal_lamp_far2",
+    "pos": [
+     -147.084,
+     -2.374,
+     105.917
+    ],
+    "color": [
+     1.0,
+     0.74,
+     0.52
+    ],
+    "glow_radius_m": 0.12
+   },
+   {
+    "name": "hall_lamp_stair",
+    "pos": [
+     -159.204,
+     -2.854,
+     131.603
+    ],
+    "color": [
+     1.0,
+     0.74,
+     0.52
+    ],
+    "glow_radius_m": 0.12
+   },
+   {
+    "name": "hall_lamp_w1",
+    "pos": [
+     -159.203,
+     -3.154,
+     114.0
+    ],
+    "color": [
+     1.0,
+     0.74,
+     0.52
+    ],
+    "glow_radius_m": 0.12
+   },
+   {
+    "name": "hall_lamp_w2",
+    "pos": [
+     -159.211,
+     -3.154,
+     127.407
+    ],
+    "color": [
+     1.0,
+     0.74,
+     0.52
+    ],
+    "glow_radius_m": 0.12
+   },
+   {
+    "name": "hall_lamp_ne",
+    "pos": [
+     -140.791,
+     -3.154,
+     119.207
+    ],
+    "color": [
+     1.0,
+     0.74,
+     0.52
+    ],
+    "glow_radius_m": 0.12
+   },
+   {
+    "name": "hall_lamp_e2",
+    "pos": [
+     -140.797,
+     -3.154,
+     133.6
+    ],
+    "color": [
+     1.0,
+     0.74,
+     0.52
+    ],
+    "glow_radius_m": 0.12
+   },
+   {
+    "name": "hall_lamp_far_e",
+    "pos": [
+     -147.598,
+     -3.154,
+     137.716
+    ],
+    "color": [
+     1.0,
+     0.74,
+     0.52
+    ],
+    "glow_radius_m": 0.12
+   },
+   {
+    "name": "hall_lamp_far_c",
+    "pos": [
+     -154.994,
+     -3.154,
+     137.707
+    ],
+    "color": [
+     1.0,
+     0.74,
+     0.52
+    ],
+    "glow_radius_m": 0.12
+   },
+   {
+    "name": "sidegal_lamp_e",
+    "pos": [
+     -140.342,
+     -2.554,
+     145.693
+    ],
+    "color": [
+     1.0,
+     0.74,
+     0.52
+    ],
+    "glow_radius_m": 0.12
+   },
+   {
+    "name": "sidegal_lamp_ne",
+    "pos": [
+     -133.307,
+     -2.554,
+     110.94
+    ],
+    "color": [
+     1.0,
+     0.74,
+     0.52
+    ],
+    "glow_radius_m": 0.12
+   }
+  ],
+  "daylight_openings": [
+   {
+    "name": "grate_shaft",
+    "kind": "grate",
+    "centre": [
+     -146.903,
+     -0.005,
+     92.536
+    ],
+    "size_m": [
+     0.66,
+     0.66
+    ],
+    "axes": {
+     "along": [
+      -0.0153,
+      0.0,
+      0.9999
+     ],
+     "across": [
+      0.9999,
+      0.0,
+      0.0153
+     ]
+    },
+    "vault_opening": [
+     -146.903,
+     -1.732,
+     92.536
+    ],
+    "shaft_height_m": 1.73
+   },
+   {
+    "name": "air_shaft",
+    "kind": "round_grate",
+    "centre": [
+     -149.5,
+     -0.05,
+     120.81
+    ],
+    "radius_m": 0.3,
+    "vault_opening": [
+     -149.5,
+     -0.9,
+     120.81
+    ],
+    "shaft_height_m": 0.85
+   },
+   {
+    "name": "vleeshuis_hatch",
+    "kind": "hatch",
+    "centre": [
+     -158.9,
+     0.0,
+     136.375
+    ],
+    "size_m": [
+     1.2,
+     3.05
+    ],
+    "vault_opening": [
+     -158.9,
+     -1.084,
+     133.55
+    ],
+    "note": "stairwell open to the hall at z_open; the hatch leaves stand open"
    }
   ],
   "beams": [
@@ -3989,12 +3286,60 @@
    "note": "x = game x, y = game height; the opening is the hole, the dressing outline is where the bluestone frame ends"
   }
  },
+ "movers": {
+  "outlet_door_n": {
+   "kind": "tide_door_leaf",
+   "pivot": [
+    -142.92,
+    -5.05,
+    71.8
+   ],
+   "axis": "glTF +Y (vertical hinge line through the pivot)",
+   "rest": "shut against the stone",
+   "open_rotation_y_deg": -40.0,
+   "note": "open pose = rotate about +Y by open_rotation_y_deg (right-handed, glTF); opens toward -z, the river side; the river pushes it shut, it opens when the river falls below the water inside (-4.6)",
+   "objects": 27
+  },
+  "outlet_door_s": {
+   "kind": "tide_door_leaf",
+   "pivot": [
+    -149.28,
+    -5.05,
+    71.8
+   ],
+   "axis": "glTF +Y (vertical hinge line through the pivot)",
+   "rest": "shut against the stone",
+   "open_rotation_y_deg": 32.8,
+   "note": "open pose = rotate about +Y by open_rotation_y_deg (right-handed, glTF); opens toward -z, the river side; the river pushes it shut, it opens when the river falls below the water inside (-4.6)",
+   "objects": 27
+  },
+  "gallery_penstock_door": {
+   "kind": "penstock_door_and_racks",
+   "pivot": [
+    -146.1,
+    -4.85,
+    75.0
+   ],
+   "rest": "as exported: door foot at y -4.85 (raised 1.25 m above the bed)",
+   "travel_y": [
+    -1.25,
+    1.25
+   ],
+   "travel_note": "translate along glTF +Y: min = shut on the bed (-6.10), max = door foot at the ledges (-3.60)",
+   "objects": 14
+  }
+ },
+ "lod_policy": {
+  "lod0": "relief baked at 2 to 3 cm spacing near the player, then edge-collapse decimated to 55 percent (silhouettes kept; sub-centimetre relief left to the normal and height maps); props 70 percent",
+  "lod1": "one subdivision level less, then the same decimation; props 30 percent"
+ },
+ "outlet_scope": "outlet_gate holds the outlet only: arch dressing, jambs, sill, apron, pintles, weed and slime on the head wall face, rubbish on the apron; the door leaves are separate (outlet_door_n, outlet_door_s). The town keeps its own vliet: our quay walls, bed, quay coping and vliet debris are not exported. Our brick head wall round the arch is optional in ruien_o2_outlet_headwall_*.glb.",
  "materials": {
   "ruien_brick_flemish": "brick_flemish",
   "ruien_sandstone": "sandstone",
   "ruien_bluestone": "bluestone",
-  "ruien_silt": "silt",
   "ruien_brick_stretcher": "brick_stretcher",
+  "ruien_silt": "silt",
   "ruien_calcite": "calcite",
   "ruien_brick_header": "brick_header",
   "ruien_oak": "oak",

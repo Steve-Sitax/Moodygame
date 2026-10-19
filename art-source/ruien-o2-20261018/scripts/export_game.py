@@ -22,6 +22,14 @@ def log(*a):
 
 NEAR_T, FAR_T, SILT_T, CALC_T = 0.025, 0.065, 0.05, 0.025
 MAX_TRIS = 200000
+# decimation after the relief bake (edge collapse keeps silhouettes: chips, holes, arrises, curtains, coping);
+# relief below about 1 cm stays in the normal and height maps
+DECIM_RELIEF = {0: 0.55, 1: 0.55}
+DECIM_STATIC = {0: 0.7, 1: 0.3}
+# objects tagged for their own export key: 1 north door leaf, 2 south door leaf, 3 penstock door and racks, 4 head wall
+TAG_KEYS = {1: 'outlet_door_n', 2: 'outlet_door_s', 3: 'gallery_penstock_door', 4: 'outlet_headwall'}
+VLIET_DROP = ('street_', 'vliet_quaywall', 'vliet_bed', 'quay_coping', 'vliet_brick', 'vliet_plank', 'vliet_branch', 'vliet_barrel',
+              'vliet_crate', 'weedpile', 'vliet_bone', 'vliet_fallen', 'vweed', 'basket_vliet', 'rope_vliet', 'vcork')
 NEAR_Y = spec.LEDGE_Y + 2.0
 
 # ===================================================================== mesh data in numpy
@@ -57,9 +65,9 @@ class MD:
         for ca in me.color_attributes:
             if ca.domain == 'POINT' and ca.data_type == 'FLOAT_COLOR':
                 a = np.zeros(n * 4, np.float32); ca.data.foreach_get('color', a); md.pa[ca.name] = a.reshape(-1, 4)
-        at = me.attributes.get('rnd')
-        if at is not None and at.domain == 'POINT' and at.data_type == 'FLOAT':
-            a = np.zeros(n, np.float32); at.data.foreach_get('value', a); md.pa['rnd'] = a.reshape(-1, 1)
+        for at in me.attributes:
+            if at.domain == 'POINT' and at.data_type == 'FLOAT' and not at.name.startswith('.'):
+                a = np.zeros(n, np.float32); at.data.foreach_get('value', a); md.pa[at.name] = a.reshape(-1, 1)
         md.mats = [sl.material.name if sl.material else 'none' for sl in o.material_slots] or ['none']
         md.pm = np.clip(md.pm, 0, len(md.mats) - 1)
         ev.to_mesh_clear()
@@ -158,7 +166,7 @@ def exportable():
         for o in c.objects:
             if o.type != 'MESH' or o.get('ruien_export') is False:
                 continue
-            if o.name.startswith('street_'):
+            if o.name.startswith(VLIET_DROP):
                 continue
             out.append(o)
     return list(dict.fromkeys(out))
@@ -397,6 +405,13 @@ def build_lod(lod, objs, hide_coll=None):
             wet = np.clip((spec.WATER_Y + 0.6 - y) / 0.6, 0, 1)
             md.pa['Col'] = np.stack([np.maximum(wet, 0.6 if mat.startswith('Silt') else 0.2), np.full(len(V), 0.9 if mat.startswith('Calc') else 0.0),
                                      np.full(len(V), 0.2), np.zeros(len(V))], -1).astype(np.float32)
+        r_ = DECIM_RELIEF.get(lod, 1.0)
+        if r_ < 1.0:
+            n0 = md.tris
+            me_old = ob.data; bpy.data.objects.remove(ob); bpy.data.meshes.remove(me_old)
+            ob = decimate_md(md, r_, work)
+            md = MD.from_object(ob, world=False)
+            log('  decimated %-20s %9d -> %9d' % (mat, n0, md.tris))
         baked.append((mat, md, ob))
         log('  baked %-24s %9d tris' % (mat, md.tris))
     # statics: merged per material, default masks
@@ -408,9 +423,8 @@ def build_lod(lod, objs, hide_coll=None):
                 smd.setdefault(mn, []).append(part)
     for mat, lst in smd.items():
         md = MD.merge(lst)
-        if lod == 1 and md.tris > 2000:
-            ob0 = md.to_object('__dec', work, smooth=False)
-            dm = ob0.modifiers.new('d', 'DECIMATE'); dm.ratio = 0.3
+        if DECIM_STATIC.get(lod, 1.0) < 1.0 and md.tris > 2000 and '__tag' not in md.pa:
+            ob0 = decimate_md(md, DECIM_STATIC[lod], work)
             md2 = MD.from_object(ob0, world=False)
             me0 = ob0.data; bpy.data.objects.remove(ob0); bpy.data.meshes.remove(me0)
             md2.mats = md.mats
@@ -429,6 +443,14 @@ def build_lod(lod, objs, hide_coll=None):
         me = ob.data; bpy.data.objects.remove(ob); bpy.data.meshes.remove(me)
     hide_coll.hide_render = False
     return baked
+
+def decimate_md(md, ratio, coll):
+    """Edge-collapse decimation of a mesh (with all its attributes); returns the evaluated object with the result."""
+    ob = md.to_object('__dec', coll, smooth=False)
+    dm = ob.modifiers.new('d', 'DECIMATE'); dm.ratio = ratio
+    me = bpy.data.meshes.new_from_object(ob.evaluated_get(bpy.context.evaluated_depsgraph_get()))
+    old = ob.data; ob.modifiers.clear(); ob.data = me; bpy.data.meshes.remove(old)
+    return ob
 
 def kind_of_mat(m):
     if m.startswith('Brick_') and m != 'Brick_loose':
@@ -554,7 +576,7 @@ def finalize_uv_mats(mat, md):
         md.mats = ['ruien_' + f for f in fams]; md.pm = famf
         for f in fams:
             export_material(f)
-        md.pa = {k: v for k, v in md.pa.items() if k in ('Col', '_AO', '_BAKECOL')}
+        md.pa = {k: v for k, v in md.pa.items() if k in ('Col', '_AO', '_BAKECOL', '__tag')}
         return
     if fam == 'calcite' and uv0 is not None and mat.startswith('Calcite'):
         uv = uv0 / np.array([1.8, 2.6])
@@ -572,21 +594,21 @@ def finalize_uv_mats(mat, md):
     key = fam if fam else 'misc_' + mat.split('.')[0]
     export_material(key)
     md.mats = ['ruien_' + key]; md.pm[:] = 0
-    md.pa = {k: v for k, v in md.pa.items() if k in ('Col', '_AO', '_BAKECOL')}
+    md.pa = {k: v for k, v in md.pa.items() if k in ('Col', '_AO', '_BAKECOL', '__tag')}
 
 # ===================================================================== areas and chunks
 PATH = G.Path(spec.GAL_PATH_KEYS)
 def area_keys(Cg):
     x, z = Cg[:, 0], Cg[:, 2]
     outlet = z < 73.2
-    gate = outlet & (np.abs(x - spec.GATE_X) < 3.9) & (z > 70.3)
+    gate = outlet & (np.abs(x - spec.GATE_X) < 3.75) & (z > 67.8)
     inhall = (x > spec.HALL_X0 - 1.25) & (x < spec.HALL_X1 + 1.25) & (z > spec.HALL_Z0 - 1.25) & (z < spec.HALL_Z1 + 1.25)
     bi = np.clip(np.searchsorted(spec.HALL_XL, x), 0, 2); bj = np.clip(np.searchsorted(spec.HALL_ZL, z), 0, 3)
     u = np.interp(z, PATH.P[:, 1], PATH.u)
     bay = np.array(['hall_bay%d%d' % (i, j) for i in range(3) for j in range(4)], dtype=object)[bi * 4 + bj]
     gal = np.array(['gallery_s%d' % k for k in range(4)], dtype=object)[np.clip((u // 10).astype(int), 0, 3)]
     keys = np.select([gate, outlet, inhall, (x > spec.HALL_X1 + 1.25) & (z < 120), x < spec.HALL_X0 - 1.25, z > spec.HALL_Z1 + 1.25],
-                     ['outlet_gate', 'outlet_vliet', bay, 'hall_side_ne', 'hall_side_sw', 'hall_side_e'], gal)
+                     ['outlet_gate', 'drop', bay, 'hall_side_ne', 'hall_side_sw', 'hall_side_e'], gal)
     return keys
 
 def split_max(md, maxt=MAX_TRIS):
@@ -601,8 +623,61 @@ def split_max(md, maxt=MAX_TRIS):
         return [md]
     return split_max(md.subset(m), maxt) + split_max(md.subset(~m), maxt)
 
+PIVOTS = {}
 def file_of(key):
+    if key == 'outlet_headwall':
+        return 'outlet_headwall'
     return 'outlet' if key.startswith('outlet') else ('gallery' if key.startswith('gallery') else 'hall')
+
+MOVERS = {}
+def prepare_movers():
+    """Doors to their shut rest pose, origins on the hinge lines; penstock door tagged with its travel."""
+    from mathutils import Matrix, Vector
+    W2 = spec.GAL_W / 2
+    def tag(o, t):
+        me = o.data
+        if me.users > 1:
+            o.data = me = me.copy()
+        a = me.color_attributes.get('__tag') or me.color_attributes.new('__tag', 'FLOAT_COLOR', 'POINT')
+        a.data.foreach_set('color', np.tile(np.array([t, 0, 0, 1], np.float32), len(me.vertices)))
+    for side, t, key in ((1, 1, 'outlet_door_n'), (-1, 2, 'outlet_door_s')):
+        deg = spec.DOOR_OPEN_DEG * (1.0 if side > 0 else 0.82)
+        hinge = np.array([spec.GATE_X + side * (W2 + 0.18), spec.GATE_SILL_Y, spec.VLIET_Z1 - 0.2])
+        ang = np.radians(deg) * side
+        hb = Vector(U.g2b(hinge))
+        Mx = Matrix.Translation(hb) @ Matrix.Rotation(ang, 4, 'Z') @ Matrix.Translation(-hb)
+        n = 0
+        for o in bpy.data.collections['vliet_O2'].all_objects:
+            if o.type != 'MESH' or not o.name.startswith('door_') or o.name.startswith('door_raft'):
+                continue
+            c = np.mean([list(o.matrix_world @ Vector(v)) for v in o.bound_box], 0)
+            if (c[0] - spec.GATE_X) * side <= 0:
+                continue
+            if o.data.users > 1:
+                o.data = o.data.copy()
+            o.data.transform(o.matrix_world); o.matrix_world = Matrix.Identity(4)
+            o.data.transform(Mx)
+            tag(o, t); n += 1
+        PIVOTS[key] = hinge
+        MOVERS[key] = dict(kind='tide_door_leaf', pivot=[round(float(v), 3) for v in hinge], axis='glTF +Y (vertical hinge line through the pivot)',
+                           rest='shut against the stone', open_rotation_y_deg=round(-deg * side, 2),
+                           note='open pose = rotate about +Y by open_rotation_y_deg (right-handed, glTF); opens toward -z, the river side; '
+                                'the river pushes it shut, it opens when the river falls below the water inside (-4.6)', objects=n)
+    pen = 0
+    for o in bpy.data.collections['gallery_giant_O2'].all_objects:
+        if o.type == 'MESH' and o.name.startswith(('penstock_door', 'penstock_rib_h', 'penstock_rib_v', 'penstock_rack')):
+            tag(o, 3); pen += 1
+    pth = G.Path(spec.GAL_PATH_KEYS)
+    pivot = pth.world(np.array(GF.PENSTOCK_U), np.array(0.0), np.array(spec.WATER_Y - 0.25))
+    PIVOTS['gallery_penstock_door'] = pivot
+    MOVERS['gallery_penstock_door'] = dict(kind='penstock_door_and_racks', pivot=[round(float(v), 3) for v in pivot],
+                                           rest='as exported: door foot at y %.2f (raised 1.25 m above the bed)' % (spec.WATER_Y - 0.25),
+                                           travel_y=[round(spec.FLOOR_Y - (spec.WATER_Y - 0.25), 2), round(spec.LEDGE_Y - (spec.WATER_Y - 0.25), 2)],
+                                           travel_note='translate along glTF +Y: min = shut on the bed (-6.10), max = door foot at the ledges (-3.60)', objects=pen)
+    PIVOTS['outlet_headwall'] = np.array([spec.GATE_X, 0.0, spec.VLIET_Z1])
+    hw = bpy.data.objects.get('vliet_headwall')
+    if hw:
+        tag(hw, 4)
 
 # ===================================================================== water planes, collision, markers
 def water_planes(coll):
@@ -665,19 +740,17 @@ def collision(coll):
         P[:, 0] = spec.GATE_X + hs + ((spec.GATE_X + X) - (spec.GATE_X + hs)) * ca - (Z) * sa
         P[:, 2] = (72.0 - 0.2) + ((spec.GATE_X + X) - (spec.GATE_X + hs)) * sa + Z * ca
         return P
-    boxes('col_gate', [leaf(1, spec.DOOR_OPEN_DEG), leaf(-1, spec.DOOR_OPEN_DEG * 0.82),
+    boxes('col_gate_door_n', [leaf(1, 0.0)])
+    boxes('col_gate_door_s', [leaf(-1, 0.0)])
+    boxes('col_gate', [U.box_corners(spec.GATE_X - spec.GAL_W / 2 - 0.4, spec.GATE_X + spec.GAL_W / 2 + 0.4, spec.GATE_SILL_Y - 0.3, spec.GATE_SILL_Y - 0.02, 68.1, 71.45),
                        U.box_corners(spec.GATE_X - 1.5, spec.GATE_X + 1.5, spec.GATE_SILL_Y - 0.32, spec.GATE_SILL_Y, 71.45, 73.6)])
-    xx = np.arange(spec.VLIET_X0, spec.VLIET_X1 + 0.01, 1.0); zz = np.arange(spec.VLIET_Z0, 72.01, 1.0)
-    Xg, Zg = np.meshgrid(xx, zz, indexing='ij')
-    strip('col_vliet_bed', np.stack([Xg, np.full(Xg.shape, -4.95), Zg], -1))
-    boxes('col_vliet_walls', [U.box_corners(spec.VLIET_X0 - 0.4, spec.VLIET_X0, -5.5, 0, spec.VLIET_Z0 - 1, 72), U.box_corners(spec.VLIET_X1, spec.VLIET_X1 + 0.4, -5.5, 0, spec.VLIET_Z0 - 1, 72)])
     su = PATH.u_at_z(GF.SHAFT_Z)
     a = PATH.world(np.array(su), np.array(GF.SHAFT_S + GF.SHAFT_H - 0.14), np.array(spec.LEDGE_Y))
     boxes('col_shaft_ladder', [U.box_corners(a[0] - 0.22, a[0] + 0.22, spec.LEDGE_Y, -0.28, a[2] - 0.22, a[2] + 0.22)])
     return obs
 
 def markers(coll):
-    out = {'lamps': [], 'beams': [], 'mist': [], 'water': [], 'ladders': [], 'stairs': [], 'outlet': {}}
+    out = {'lamps': [], 'flames': [], 'daylight_openings': [], 'beams': [], 'mist': [], 'water': [], 'ladders': [], 'stairs': [], 'outlet': {}}
     def empty(name, pos_g, props, disp='PLAIN_AXES', size=0.3):
         e = bpy.data.objects.new(name, None); coll.objects.link(e)
         e.location = U.gv(*[float(q) for q in pos_g]); e.empty_display_type = disp; e.empty_display_size = size
@@ -704,6 +777,42 @@ def markers(coll):
             rec = dict(name=o.name, pos=[round(v, 3) for v in pg], color=col, power_w=round(L.energy, 1), range_m=round(rng_m, 1), kind='area' if L.type == 'AREA' else 'point')
             out['lamps'].append(rec)
             empty('mk_lamp_%02d' % len(out['lamps']), pg, dict(kind='lamp', color=col, power_w=L.energy, range_m=rng_m), 'SPHERE', 0.15)
+    # lamp flames: centre of the flame faces of every exported lamp (the game hangs its glow there)
+    for o in src_root.all_objects:
+        if o.type != 'MESH':
+            continue
+        fl = [i for i, sl in enumerate(o.material_slots) if sl.material and sl.material.name.startswith('Lamp_flame')]
+        if not fl:
+            continue
+        me = o.data
+        pts = [o.matrix_world @ me.vertices[v].co for p_ in me.polygons if p_.material_index in fl for v in p_.vertices]
+        if not pts:
+            continue
+        c = sum(pts, Vector()) / len(pts)
+        pg = [round(c.x, 3), round(c.z, 3), round(-c.y, 3)]
+        out['flames'].append(dict(name=o.name, pos=pg, color=[1.0, 0.74, 0.52], glow_radius_m=0.12))
+        empty('mk_flame_%02d' % len(out['flames']), pg, dict(kind='flame', lamp=o.name), 'SPHERE', 0.03)
+    # daylight openings: street-level centre and size, and the point where the shaft opens into the vault
+    W2 = spec.GAL_W / 2
+    su_ = PATH.u_at_z(GF.SHAFT_Z)
+    gc = PATH.world(np.array(su_), np.array(GF.SHAFT_S), np.array(-0.005))
+    gv = PATH.world(np.array(su_), np.array(GF.SHAFT_S), np.array(float(G.shell_y_at_s(GF.SHAFT_S))))
+    px, pz, tx, tz, nx, nz = PATH.frame(np.array(su_))
+    ax_ = H.AIR
+    av = [ax_[0], float(H.ceiling(np.array([ax_[0]]), np.array([ax_[1]]))[0]), ax_[1]]
+    hz0, hz1 = H.STAIR['hatch_z0'], H.STAIR['hatch_z1']
+    hx = (H.STAIR['x0'] + H.STAIR['x1']) / 2
+    hv = [hx, float(H.ceiling(np.array([hx]), np.array([H.STAIR['z_open']]))[0]), H.STAIR['z_open']]
+    for rec in (dict(name='grate_shaft', kind='grate', centre=[round(float(v), 3) for v in gc], size_m=[0.66, 0.66],
+                     axes=dict(along=[round(float(tx), 4), 0.0, round(float(tz), 4)], across=[round(float(nx), 4), 0.0, round(float(nz), 4)]),
+                     vault_opening=[round(float(v), 3) for v in gv], shaft_height_m=round(float(-0.005 - gv[1]), 2)),
+                dict(name='air_shaft', kind='round_grate', centre=[ax_[0], -0.05, ax_[1]], radius_m=ax_[2], vault_opening=[round(v, 3) for v in av],
+                     shaft_height_m=round(-0.05 - av[1], 2)),
+                dict(name='vleeshuis_hatch', kind='hatch', centre=[hx, 0.0, (hz0 + hz1) / 2], size_m=[round(H.STAIR['x1'] - H.STAIR['x0'], 2), round(hz1 - hz0, 2)],
+                     vault_opening=[round(v, 3) for v in hv], note='stairwell open to the hall at z_open; the hatch leaves stand open')):
+        out['daylight_openings'].append(rec)
+        empty('mk_daylight_%s' % rec['name'], rec['centre'], dict(kind='daylight_opening', vault_opening=rec['vault_opening']), 'CUBE', 0.3)
+        empty('mk_daylight_%s_vault' % rec['name'], rec['vault_opening'], dict(kind='daylight_vault_opening'), 'PLAIN_AXES', 0.3)
     for o in bpy.data.collections['fog'].all_objects:
         bb = np.array([o.matrix_world @ Vector(c) for c in o.bound_box])
         g = np.stack([bb[:, 0], bb[:, 2], -bb[:, 1]], -1)
@@ -795,7 +904,14 @@ def export_chunks(baked, keyfn, filefn, lod, outdir, prefix, manifest, offset=No
     for mat, md, _ in baked:
         finalize_uv_mats(mat, md)
         keys = keyfn(b2g(md.face_centroids()))
+        if '__tag' in md.pa:
+            tg = np.rint(np.add.reduceat(md.pa['__tag'][md.lv, 0], md.ps) / md.pt).astype(int)
+            for t_, kname in TAG_KEYS.items():
+                keys = np.where(tg == t_, kname, keys)
+            md.pa.pop('__tag')
         for kk in np.unique(keys):
+            if kk == 'drop':
+                continue
             chunks.setdefault(kk, []).append(md.subset(keys == kk))
     files = {}
     for kk, lst in sorted(chunks.items()):
@@ -807,6 +923,11 @@ def export_chunks(baked, keyfn, filefn, lod, outdir, prefix, manifest, offset=No
                 continue
             name = '%s%s_lod%d_%02d' % (prefix, kk, lod, i)
             ob = piece.to_object(name, coll, mat_lookup=lambda n_: bpy.data.materials.get(n_))
+            if kk in PIVOTS:
+                h = U.g2b(np.asarray(PIVOTS[kk], float))
+                from mathutils import Matrix
+                ob.data.transform(Matrix.Translation(-__import__('mathutils').Vector(h)))
+                ob.location = h
             me = ob.data
             if me.color_attributes.get('Col') is not None:
                 me.color_attributes.active_color = me.color_attributes['Col']
@@ -824,6 +945,7 @@ def export_chunks(baked, keyfn, filefn, lod, outdir, prefix, manifest, offset=No
 
 def main():
     setup_render()
+    prepare_movers()
     objs = exportable()
     log('exportable objects', len(objs))
     manifest = dict(piece='ruien-o2-20261018', coordinates='glTF +Y up; glTF (x, y, z) = (game x, game y, game z); Blender (X, Y, Z) = (x, -z, y)',
@@ -852,6 +974,13 @@ def main():
     p = os.path.join(EXP, 'ruien_o2_markers.glb'); gltf_export(p, list(mc.objects))
     manifest['files']['ruien_o2_markers.glb'] = dict(sha256=sha(p), bytes=os.path.getsize(p), objects=[dict(name=o.name, type=o.type) for o in mc.objects])
     manifest['markers'] = mk
+    manifest['movers'] = MOVERS
+    manifest['lod_policy'] = dict(lod0='relief baked at 2 to 3 cm spacing near the player, then edge-collapse decimated to %.0f percent '
+                                       '(silhouettes kept; sub-centimetre relief left to the normal and height maps); props %.0f percent' % (DECIM_RELIEF[0] * 100, DECIM_STATIC[0] * 100),
+                                  lod1='one subdivision level less, then the same decimation; props %.0f percent' % (DECIM_STATIC[1] * 100))
+    manifest['outlet_scope'] = ('outlet_gate holds the outlet only: arch dressing, jambs, sill, apron, pintles, weed and slime on the head wall face, '
+                                'rubbish on the apron; the door leaves are separate (outlet_door_n, outlet_door_s). The town keeps its own vliet: our quay walls, '
+                                'bed, quay coping and vliet debris are not exported. Our brick head wall round the arch is optional in ruien_o2_outlet_headwall_*.glb.')
     tinfo = json.load(open(os.path.join(TEXD, 'texture_sets.json')))
     for fam, inf in tinfo.items():
         manifest['textures'][fam] = dict(tile_m=inf['tile_m'], relief_m=inf['relief_m'], note=inf.get('note', ''),

@@ -15,7 +15,15 @@ O2 (vliet sluice, giant gallery, Vleeshuis hall) is the first use. All scripts r
 - Vertex data on every mesh: `COLOR_0` masks (R wetness/slime, G lime/halo/runnel/efflorescence, B soot/grime,
   A moss), `_AO` (baked occlusion, 0.6 m), `_BAKECOL` (baked render base colour of masonry; alpha 0 = not baked).
 - Relief: the render-time displacement is baked into the mesh by `scripts/export_game.py` (about 2 to 3 cm vertex
-  spacing up to 2 m above the ledges, 5 to 8 cm higher and under water). LOD1 is the same at a quarter.
+  spacing up to 2 m above the ledges, 5 to 8 cm higher and under water), then edge-collapse decimated (relief 55
+  percent, props 70 percent): silhouettes (chips, broken corners, missing bricks, arris joints, curtains, coping, arch
+  rings) stay in the geometry, relief under about 1 cm stays in the normal and height maps (the game adds parallax).
+  LOD1: one subdivision level less, same decimation, props 30 percent.
+- Moving parts are separate objects with their pivot as the object origin; `manifest.json` "movers" gives the pivot,
+  the axis and the open angle or travel (tide door leaves: rest shut, open = rotate about +Y; penstock door and racks:
+  translate along +Y).
+- Markers: lamps, one flame marker per lamp, daylight openings (grate, air shaft, hatch: centre, size, the point
+  where the shaft opens into the vault), mist boxes, water areas, ladder and stair ends, the outlet outline.
 - Seeds: everything random in a stretch comes from `crc32("<route>/<10 m segment>")`, so a rebuild is identical and
   every segment differs.
 
@@ -45,13 +53,22 @@ Each piece is one model with its own pivot, LOD0 and LOD1, the shared materials 
 | `drain_mouth_egg` | invert at the wall face | 1.0 x 1.6 m egg drain with lining and header rings |
 | `pipe_end` | socket mouth | cast-iron pipe end with trickle |
 | `lamp_bracket_safety_lamp` | wall plate | bracket and brass safety lamp; the light itself is a marker |
-| `tide_doors`, `gate_dressing` | sill centre | outlet arch dressing and the two oak leaves |
-| `penstock_gear` | channel centre at ledge height | penstock door, racks, gears, crank, chain |
+| `tide_door_leaf_n`, `tide_door_leaf_s` | on the pintle (hinge) line at sill height | one oak leaf each, rest pose shut; open angle in the piece note |
+| `tide_door_pintles`, `gate_dressing` | sill centre | iron pintles; outlet arch voussoirs, jambs, sill, apron |
+| `penstock_frame` | channel centre at ledge height | fixed part: guides, pedestals, headstock, gears, crank, chain |
+| `penstock_door` | door foot centre | moving part: door with ribs and racks; travel in the piece note |
 | `mooring_ring`, `wall_ring_chain` | centre | iron rings |
 | `corbel_shelf` | underside centre | bluestone shelf with a bottle |
 | `calcite_curtain_small/medium/large` | leak point, wall plane z = 0 | 0.4 x 0.8 m, 0.75 x 1.6 m, 1.0 x 2.6 m |
 | `bone_pile` | ground centre | the Vleeshuis bone bank |
 | `rubble_pile`, `floating_debris` | ground or water centre | brick heap; planks, sticks, rags, straw, corks |
+
+## O2 outlet scope
+
+`outlet_gate` holds only what belongs to the outlet: the arch dressing, jambs, sill, apron, pintles, weed and slime
+on the head wall face, rubbish on the apron. The town keeps its own vliet, so our quay walls, bed, quay coping and
+vliet debris are not exported. Our brick head wall round the arch is optional (`ruien_o2_outlet_headwall_*.glb`);
+the game cuts its own quay wall along `markers.outlet` (opening and dressing outlines in the plane z = 72).
 
 ## How to build another stretch
 

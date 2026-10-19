@@ -474,3 +474,22 @@ Folder `export/` (see `manifest.json`, and `KIT.md` for the kit and generators).
 - Compromises: run-off and drip decals export with a constant alpha (their noise alpha is a shader effect); the
   baked masks replace the shader layers, so the game shader must rebuild slime, lime and moss from them; render-only
   items (figures, backdrop, fog) are not exported; LOD1 props are decimated to 30 percent.
+
+### Export revision for the game (2026-10-19, requests from the Godot side)
+
+- Tide door leaves: separate objects `outlet_door_n` and `outlet_door_s`, rest pose shut, origin on the pintle line
+  at sill height; `manifest.json` "movers" gives the open angle (-40.0 and +32.8 degrees about glTF +Y). Pintles stay
+  in `outlet_gate`.
+- Penstock: door, ribs and racks are `gallery_penstock_door` (origin at the door foot), travel -1.25 to +1.25 m on +Y
+  (shut on the bed at -6.10, fully raised to -3.60).
+- LOD0: relief and props are edge-collapse decimated after the bake (55 and 70 percent); total 5.53 M triangles
+  (gallery 1.86 M, hall 3.44 M, outlet 0.22 M, head wall 0.01 M), 58 percent of before for the same areas.
+  LOD1 1.84 M. GLB LOD0 222 MB uncompressed float data; at the game's earlier ratio (120 MB for 10.19 M triangles)
+  about 65 MB of resources plus 73 MB textures.
+- Outlet: the vliet quay walls, bed, quay coping and vliet debris are no longer exported; `outlet_gate` holds the
+  dressing, apron, pintles, head-wall weed and apron rubbish; the brick head wall is optional in
+  `ruien_o2_outlet_headwall_*.glb`. Collision for the vliet bed and walls removed; door collision split per leaf (shut).
+- Markers: 12 lamp flames (`mk_flame_*`), daylight openings for the grate, the air shaft and the hatch (centre, size,
+  vault opening point; `mk_daylight_*`). The old 30 m sun-spot positions remain under "beams" for reference.
+- Kit: `tide_door_leaf_n/s` (shut, hinge pivots), `tide_door_pintles`, `penstock_frame` and `penstock_door`.
+- Check: `export/check/*_compare.jpg` with the leaves swung to the manifest angles: lines up in all four views.

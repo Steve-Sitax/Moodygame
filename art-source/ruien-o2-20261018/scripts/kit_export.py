@@ -34,6 +34,10 @@ def bbox_bottom(obs):
     return np.array([c[0], pts[:, 1].min(), c[2]])
 
 EG.setup_render()
+EG.prepare_movers()          # doors to their shut rest pose (same as the O2 export)
+for o in src.all_objects:    # the kit keys pieces by name, not by the O2 mover tags
+    if o.type == 'MESH' and o.data.color_attributes.get('__tag') is not None:
+        o.data.color_attributes.remove(o.data.color_attributes['__tag'])
 kit = dict(about='Ruien kit pieces. Pivot = local origin; axes as glTF (+Y up). Pieces taken from O2 keep their O2 orientation '
                  '(see "facing"); parametric pieces face +z with their wall plane at z = 0.', pieces={})
 
@@ -71,10 +75,24 @@ wy = -2.12; ws = G.shell_s_at_y(wy)
 lw = PATH.world(np.array(GF.LAMP_U), np.array(ws), np.array(wy))
 export_piece('lamp_bracket_safety_lamp', by_prefix('lamp_bracket', 'gallery_lamp'), lw, 'arm points away from the wall', 'wrought-iron bracket and brass safety lamp. Pivot: wall plate. Light: see markers (warm, about 150 W).')
 gate = (spec.GATE_X, spec.GATE_SILL_Y, spec.VLIET_Z1)
-export_piece('tide_doors', by_prefix('door_', 'pintle_'), gate, 'river face toward -z', 'two oak tide leaves with straps, rivets, pintles; north leaf 40, south 33 degrees open. Pivot: sill centre.')
+def leaf(side):
+    out = []
+    for o in by_prefix('door_'):
+        c = bbox_centre([o])
+        if (c[0] - spec.GATE_X) * side > 0:
+            out.append(o)
+    return out
+for side, nm in ((1, 'n'), (-1, 's')):
+    mv = EG.MOVERS['outlet_door_' + nm]
+    export_piece('tide_door_leaf_' + nm, leaf(side), EG.PIVOTS['outlet_door_' + nm], 'shut; opens toward -z by rotating about +Y by %.1f degrees' % mv['open_rotation_y_deg'],
+                 'one oak tide leaf with ledgers, straps, rivets and hinge eyes, rest pose shut. Pivot: on the pintle (hinge) line at sill height.')
+export_piece('tide_door_pintles', by_prefix('pintle_'), gate, 'river face toward -z', 'iron pintles leaded into the jambs. Pivot: sill centre.')
 export_piece('gate_dressing', by_prefix('gate_'), gate, 'river face toward -z', 'bluestone voussoirs, jambs, sill and apron of a 6 m outlet arch. Pivot: sill centre.')
-export_piece('penstock_gear', by_prefix('penstock_'), PATH.world(np.array(GF.PENSTOCK_U), np.array(0.0), np.array(spec.LEDGE_Y)), 'across the giant gallery',
-             'cast-iron penstock door, guides, racks, headstock, gears, crank. Pivot: channel centre at ledge height.')
+MOV = ('penstock_door', 'penstock_rib_h', 'penstock_rib_v', 'penstock_rack')
+export_piece('penstock_frame', [o for o in by_prefix('penstock_') if not o.name.startswith(MOV)], PATH.world(np.array(GF.PENSTOCK_U), np.array(0.0), np.array(spec.LEDGE_Y)),
+             'across the giant gallery', 'fixed part: guides, pedestals, headstock, gears, crank, chain. Pivot: channel centre at ledge height.')
+export_piece('penstock_door', by_prefix(*MOV), EG.PIVOTS['gallery_penstock_door'], 'moves along +Y',
+             'moving part: cast-iron door with ribs and the two racks. Pivot: door foot centre. Travel: %s m from the exported pose.' % EG.MOVERS['gallery_penstock_door']['travel_y'])
 export_piece('mooring_ring', by_prefix('mooring_ring_0'), bbox_centre(by_prefix('mooring_ring_0')), 'ring hangs toward -s', 'iron ring on a staple. Pivot: centre.')
 export_piece('wall_ring_chain', by_prefix('wall_ring_0'), bbox_centre(by_prefix('wall_ring_0')), 'ring hangs from the wall', 'rusted ring with a chain stub. Pivot: centre.')
 cs = by_prefix('pier_corbel_shelf', 'shelf_bottle')
