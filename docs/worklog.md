@@ -1,28 +1,24 @@
 # Work log
 
-## All open issues, 2026-10-18 (coordinator thread, in progress)
+## All open issues, 2026-10-18/19 (coordinator thread, paused for the token limit 2026-10-19)
 
-Steve asked to fix every open issue. Helpers work in their own worktrees; the coordinator merges into main after checks
-and `test-icons.ps1 -Full`. Town chunk files are edited by one bundle at a time.
-Helpers: Claude Opus 5.5 high for the work and all Blender work; Codex for generated pictures (textures) and picture checks.
+Merged into main: checks, talk, speed parts 1-2, boats, carry, market, routes, light, people kit build 4, stone,
+gutters, facades, shop fronts, paving, street furniture, cathedral furniture round 1, stuck fixes, texture pictures.
+Helper brief: `D:/Code/_tmp_verify/fixall/brief.md`. Merge helpers: `D:/Code/_tmp_verify/coord/bin/` (changelog,
+intake JSON and shader-baseline three-way merges, run-mode.ps1 for --stuck/--shaders).
 
-Merged into main (2026-10-18/19): checks (A), talk and doorways (B), speed parts 1-2 (C), boats (D), carry and work (E),
-market/board/warmth/benches (F), routes (L), light (I), people kit build 4 (J), town stone (H1), gutters (H2),
-facades (H3), shop fronts (H4), leftovers N1 and N2 with the cart fix, texture pictures (K2, not yet wired).
+Running at the pause (let them finish; merge each after checks; start nothing new until the limit resets):
 
-| Now | Bundle | Issues |
+| Helper | Issues | Branch when done |
 |---|---|---|
-| running | H5 paving | #170 #91 |
-| running | J2 people kit leftovers | #82 #138 #195 |
-| running | N3 leftovers | #194 #196 |
-| next | street furniture | #160 #149 #164 |
-| next | stone outside the city chunks | #171 rest |
-| next | wire the texture pictures into the town | #84 |
-| next | stuck-check flakes | #197 |
-| last (quiet PC) | memory and speed | #181 #62 #32 #47 #49 |
-| Steve | parked / his decisions | #141, #189 (Ruien, other session) |
+| H6 textures into the town, altar marble, floating litter | #84 #198 part #200 | see its report |
+| J3 people clothes edges (J2 kit commit d84796e4 was rejected: jagged edges) | #82 #138 | see its report |
+| N5 cathedral choir stalls, high altar, organ, transept altars, epitaphs | #198 | see its report |
+| S managed heap and GC pauses | #181 (#62) | see its report |
 
-Rules for helpers: `D:/Code/_tmp_verify/fixall/brief.md` (own db/prefs/ports, PERF-LOCK, override.cfg, no push).
+Queued (one at a time after the reset): #171 rest (landmark stone) with #199 paving leftovers and #203 washing;
+then the exclusive speed run on a quiet PC: #181 #62 #32 #47 #49 and the people timing gate.
+Not ours: #141 (Steve parked), #189 #201 #202 (Ruien session).
 
 ## Ruien O2, 2026-10-18/19 (merged 04d2e632, waits for Steve's play)
 
