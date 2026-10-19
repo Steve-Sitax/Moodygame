@@ -775,7 +775,7 @@ def _outer_bvh(ob, parts, name):
     from mathutils.bvhtree import BVHTree
     me = ob.data
     vs = [tuple(v.co) for v in me.vertices]
-    faces = [tuple(f.vertices) for f in me.polygons if parts[f.vertices[0]] == name]
+    faces = [tuple(f.vertices) for f in me.polygons if all(parts[i] == name for i in f.vertices)]
     if not faces:
         return None
     return BVHTree.FromPolygons(vs, faces)
@@ -807,6 +807,67 @@ def layer_order(ob):
     return {(a, b) for (a, b), n in votes.items() if n >= 5 and n > 2 * votes.get((b, a), 0)}
 
 
+def bind_linings(ob):
+    """Bind each lining to its own outer triangle before moving layers. The signed offset in that triangle's
+    frame preserves thickness and recessed facings as the outer surface moves and turns; inward normals must
+    never be used as outward clearance rays. Returns a function that carries the linings after the solve."""
+    from mathutils.bvhtree import BVHTree
+    from mathutils.interpolate import poly_3d_calc
+    me = ob.data
+    raw = wt.parts(ob)
+    co = [v.co.copy() for v in me.vertices]
+    bindings = []
+
+    def frame(a, b, c):
+        u = b - a
+        n = u.cross(c - a)
+        if u.length_squared < 1e-16 or n.length_squared < 1e-20:
+            return None
+        u.normalize()
+        n.normalize()
+        return u, n.cross(u), n
+
+    for name in sorted({p[3:] for p in raw if p and p.startswith("in_")}):
+        faces = []
+        for f in me.polygons:
+            vs = tuple(f.vertices)
+            if all(raw[i] == name for i in vs):
+                faces.extend((vs[0], vs[k], vs[k + 1]) for k in range(1, len(vs) - 1))
+        if not faces:
+            continue
+        tree = BVHTree.FromPolygons(co, faces, all_triangles=True)
+        for i, part in enumerate(raw):
+            if part != "in_" + name:
+                continue
+            loc, _, fi, _ = tree.find_nearest(co[i])
+            if loc is None:
+                continue
+            ids = faces[fi]
+            basis = frame(*(co[j] for j in ids))
+            if basis is None:
+                continue
+            weights = poly_3d_calc([co[j] for j in ids], loc)
+            offset = co[i] - loc
+            bindings.append((i, ids, weights, tuple(offset.dot(v) for v in basis)))
+
+    def carry():
+        for i, ids, weights, offset in bindings:
+            pts = [me.vertices[j].co.copy() for j in ids]
+            basis = frame(*pts)
+            if basis is None:
+                raise ValueError("Cloth clearance collapsed an outer triangle")
+            at = pts[0] * weights[0] + pts[1] * weights[1] + pts[2] * weights[2]
+            for v, d in zip(basis, offset):
+                at += v * d
+            delta = at - me.vertices[i].co
+            me.vertices[i].co = at
+            if me.shape_keys:
+                for kb in me.shape_keys.key_blocks:
+                    kb.data[i].co += delta
+        me.update()
+    return carry
+
+
 def clear_layers(ob, body, order, clearance=0.002, passes=2, body_clearance=0.004):
     """After the reduction: a reduced piece's flat triangles cut under the round piece beneath it, which then shows
     through (the bodice through the shawl). For every pair (under, over) of layer_order, and for the body's skin
@@ -823,12 +884,13 @@ def clear_layers(ob, body, order, clearance=0.002, passes=2, body_clearance=0.00
             for kb in me.shape_keys.key_blocks:
                 kb.data[i].co = kb.data[i].co + d
 
+    carry_linings = bind_linings(ob)
     for _ in range(passes):
         raw = wt.parts(ob)
         piece = _piece_of(raw)
         names = sorted({p for p in piece if p})
         outer = {n: _outer_bvh(ob, raw, n) for n in names}
-        idx_of = {n: [i for i, p in enumerate(piece) if p == n] for n in names}
+        idx_of = {n: [i for i, p in enumerate(raw) if p == n] for n in names}
         # 1. the lower layer under the upper one (rays from 6 mm under each point, out along its normal)
         jobs = [(ob, idx_of[a], [b for (u, b) in order if u == a]) for a in names]
         if body is not None:
@@ -845,7 +907,7 @@ def clear_layers(ob, body, order, clearance=0.002, passes=2, body_clearance=0.00
                 best = None
                 for tree in trees:
                     hit = tree.ray_cast(o, n, 0.02)
-                    if hit[0] is not None and (best is None or hit[3] < best):
+                    if hit[0] is not None and hit[1].dot(n) > 0 and (best is None or hit[3] < best):
                         best = hit[3]
                 cl = body_clearance if target is body else clearance
                 if best is not None and best - 0.006 < cl:
@@ -857,7 +919,7 @@ def clear_layers(ob, body, order, clearance=0.002, passes=2, body_clearance=0.00
         me = ob.data
         vs = [tuple(v.co) for v in me.vertices]
         for (u, b) in sorted(order):
-            fu = [tuple(f.vertices) for f in me.polygons if raw[f.vertices[0]] == u]
+            fu = [tuple(f.vertices) for f in me.polygons if all(raw[i] == u for i in f.vertices)]
             if not fu:
                 continue
             tree = BVHTree.FromPolygons(vs, fu)
@@ -869,10 +931,11 @@ def clear_layers(ob, body, order, clearance=0.002, passes=2, body_clearance=0.00
                 o = v.co + n * 0.006
                 hit = tree.ray_cast(o, -n, 0.02)
                 # its height over the lower piece: the hit's distance less the 6 mm the ray started out
-                if hit[0] is not None and hit[3] - 0.006 < clearance:
+                if hit[0] is not None and hit[1].dot(n) > 0 and hit[3] - 0.006 < clearance:
                     shift(ob, i, n * (clearance - (hit[3] - 0.006)))
                     moved += 1
         me.update()
+        carry_linings()
     return moved
 
 
