@@ -11,6 +11,7 @@ The run resumed in queue order. Existing work stays in its original worktree; fa
 
 | Helper | Issues | Worktree (the T3 worktrees folder, MoodyGame/...) | Branch | Current state |
 |---|---|---|---|---|
+| Landmark stone, paving leftovers and washing | #171 #199 #203 | t3-e3e6d0ae | t3/landmark-paving-geometry | ffefa404 committed, NOT merged: stone construction and paving tops/junctions unfinished; washing 11/11 and conversations 170/170 pass |
 | H6 textures into the town, altar marble, floating litter | #84 #198 part #200 | t3-7156f1fb | t3/town-textures-altar-litter | 2b637138 committed, NOT merged: stone geometry/mapping and row 7 atlas unfinished; altar cornice sliver remains; tidal litter checks pass |
 | J3 people clothes edges | #82 #138 | t3-a4b824d0 | t3/people-cloth-layer-fix | 1 commit 24cd2a49 (J2 kit, still the rejected jagged edges) + 178 changed files uncommitted |
 | N5 cathedral stalls, high altar, organ, transept altars, epitaphs | #198 | t3-1309ddf6 | t3/cathedral-furniture-detail-1 | no commit; 83 changed, 76 new files (church model) |
@@ -25,7 +26,14 @@ H6 evidence: `D:/Code/_tmp_verify/H6-textures/`. Build, 13 cathedral assertions,
 baseline (41 programs, 153 kinds, zero new kinds/findings) pass. Day/rain/night and low-angle pictures expose the remaining
 stone and cornice defects; shader checks do not override those failures. No H6 issue closed or runtime change merged.
 
-Next: #171 rest (landmark stone) with #199 paving leftovers and #203 washing, then N5, then J3.
+Landmark/paving evidence: `D:/Code/_tmp_verify/landmark-paving/`; 61 resource hashes and exact collision support,
+four focused paving fixtures and build pass. Capitals/statues/soffits, 917 square metres of step/plinth tops,
+park paving and connected junction/drainage acceptance remain incomplete. Added stone geometry is unmeasured.
+Washing evidence: `D:/Code/_tmp_verify/washing-203/candidate-5b/`; 11 real-town assertions pass, with front/back
+day/rain/night/restored pictures, 36 boat pieces and cabin curtains preserved. Conversation check: 170/170 pass.
+Newly spawned barge and continuous-motion visual acceptance remain open. No issue closed or runtime change merged.
+
+Next: N5 cathedral furniture, then J3 clothes edges.
 Exclusive speed gates remain for a quiet PC: #181 #62 #32 #47 #49 and the people timing gate.
 Not ours: #141 (Steve parked), #189 #201 #202 (Ruien session).
 
