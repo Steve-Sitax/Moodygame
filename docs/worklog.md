@@ -7,20 +7,20 @@ gutters, facades, shop fronts, paving, street furniture, cathedral furniture rou
 Helper brief: `D:/Code/_tmp_verify/fixall/brief.md`. Merge helpers: `D:/Code/_tmp_verify/coord/bin/` (changelog,
 intake JSON and shader-baseline three-way merges, run-mode.ps1 for --stuck/--shaders).
 
-The run resumed in queue order. Existing work stays in its original worktree; failed acceptance keeps a change off main.
+The run resumed in queue order. Under the revised acceptance rule, working parts land separately; minor leftovers wait for play review. Regressions, new shader kinds, stuck people and unproved speed changes stay off main.
 
 | Helper | Issues | Worktree (the T3 worktrees folder, MoodyGame/...) | Branch | Current state |
 |---|---|---|---|---|
 | Landmark stone, paving leftovers and washing | #171 #199 #203 | t3-e3e6d0ae | t3/landmark-paving-geometry | ffefa404 committed, NOT merged: stone construction and paving tops/junctions unfinished; washing 11/11 and conversations 170/170 pass |
 | H6 textures into the town, altar marble, floating litter | #84 #198 part #200 | t3-7156f1fb | t3/town-textures-altar-litter | 2b637138 committed, NOT merged: stone geometry/mapping and row 7 atlas unfinished; altar cornice sliver remains; tidal litter checks pass |
-| J3 people clothes edges | #82 #138 | t3-a4b824d0 | t3/people-cloth-layer-fix | 1 commit 24cd2a49 (J2 kit, still the rejected jagged edges) + 178 changed files uncommitted |
-| N5 cathedral stalls, high altar, organ, transept altars, epitaphs | #198 | t3-1309ddf6 | t3/cathedral-furniture-detail-1 | c6005ab1 committed, NOT merged: furniture and rail checks 21/21 pass; connected stained-glass defect #206 blocks acceptance |
-| S managed heap and GC pauses | #181 (#62) | t3-6b308632 | t3/reduce-managed-heap | 055d2fd7 committed, NOT merged: smaller heap, but play GC max/p95 72.062 ms exceeds 5 ms; pixel check blocked by #205 |
+| J3 people clothes edges | #82 #138 | t3-a4b824d0 | t3/people-cloth-layer-fix | Source-only 5a645432 merged as 02602f0b; four Blender fixtures pass. Rejected 24cd2a49 and rebuilt neckline/shoulder defects remain off main; original uncommitted assets preserved |
+| N5 cathedral stalls, high altar, organ, transept altars, epitaphs | #198 | t3-1309ddf6 | t3/cathedral-furniture-detail-1 | c6005ab1 merged as 50a87168; furniture/rail 21/21 pass. Stall-corner clearance fixed in 799b283d; main build, exact shader baseline, conversations 170/170 and stuck pass. Existing glass detail stays under #198 for play review |
+| S managed heap and GC pauses | #181 (#62) | t3-6b308632 | t3/reduce-managed-heap | 055d2fd7 committed, NOT merged: smaller heap; pause nonregression and exact pixels unproved. The 5 ms pause target stays under #181; #205 diagnosis continues |
 
 S evidence: `D:/Code/_tmp_verify/S-heap/finalreport.json`. Heap occupancy 1,940–2,053 to 1,549–1,624 MiB;
 the baseline briefly overlapped another game, so this is not an exclusive timing pass. Exact geometry/face reconstruction,
 152 transport checks, 79 Antigoon fixtures and four crane behaviors pass. Server GC worsened pauses and was rejected.
-The unchanged baseline also fails exact pixels (5 pixels; revised 6), tracked in #205. No issue closed; no GC config changed.
+The unchanged baseline also fails exact pixels, tracked in #205. Opt-in diagnostic 9b247cc8 proves a deterministic daylight A/B mismatch: 17 raw / 12 final pixels, A/A and B/B exact, restored A exact. Mirror and zero-light visibility switches need isolation; no tolerance or GC configuration changed. Existing pause samples do not establish nonregression.
 
 H6 evidence: `D:/Code/_tmp_verify/H6-textures/`. Build, 13 cathedral assertions, 372 litter level assertions and shader
 baseline (41 programs, 153 kinds, zero new kinds/findings) pass. Day/rain/night and low-angle pictures expose the remaining
@@ -37,9 +37,9 @@ N5 evidence: `D:/Code/_tmp_verify/N5-cathedral/`. Furniture, marble, organ backi
 63 permanent roots/transforms and original collision support remain. Build and 21 cathedral assertions pass, including
 337 clearance samples and the actual walk through the authored east entrance. Shader inventory: 41 programs, 153 baseline
 kinds, no additions; lights unchanged. Day/rain/night close views and cornice bursts pass for the repaired pieces.
-The connected stained-glass patches remain (#206); no safe repair was established. No merge or issue closure.
+The existing stained-glass patches remain under #198 for play review. #206 was closed as consolidated, not fixed. Main build, exact shader baseline (41 programs / 153 kinds), conversations 170/170 and stuck pass after the stall-corner fix (799b283d). Package refreshed in 8482b645; test-icons -Full passes.
 
-Next: J3 clothes edges.
+Next: finish main validation, then land clean litter/washing splits and review the remaining texture/stone changes.
 Exclusive speed gates remain for a quiet PC: #181 #62 #32 #47 #49 and the people timing gate.
 Not ours: #141 (Steve parked), #189 #201 #202 (Ruien session).
 
