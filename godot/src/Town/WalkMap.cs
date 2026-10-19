@@ -14,6 +14,9 @@ namespace Scheldemist.Town;
 /// </summary>
 public sealed class WalkMap
 {
+    // FreeFor accepts any point in a quarter-metre cell: its centre must clear the physical
+    // 25 cm body radius plus the cell's half diagonal, including at a triangle's corner.
+    private static readonly double StaticCellClearance = .25 + Math.Sqrt(2) / 8;
     private sealed class BodyBox
     {
         public Node3D Node = null!;
@@ -458,8 +461,8 @@ public sealed class WalkMap
     }
     public bool HasBodyAt(Aabb box)
     {
-        int x0 = Math.Max(0, (int)Math.Floor((box.Position.X - 0.4 - X0) / 8)), x1 = Math.Min(tileW - 1, (int)Math.Floor((box.End.X + 0.4 - X0) / 8));
-        int z0 = Math.Max(0, (int)Math.Floor((box.Position.Z - 0.4 - Z0) / 8)), z1 = Math.Min((D + 7) / 8 - 1, (int)Math.Floor((box.End.Z + 0.4 - Z0) / 8));
+        int x0 = Math.Max(0, (int)Math.Floor((box.Position.X - StaticCellClearance - X0) / 8)), x1 = Math.Min(tileW - 1, (int)Math.Floor((box.End.X + StaticCellClearance - X0) / 8));
+        int z0 = Math.Max(0, (int)Math.Floor((box.Position.Z - StaticCellClearance - Z0) / 8)), z1 = Math.Min((D + 7) / 8 - 1, (int)Math.Floor((box.End.Z + StaticCellClearance - Z0) / 8));
         for (int z = z0; z <= z1; z++) for (int x = x0; x <= x1; x++)
         {
             int i = z * tileW + x;
@@ -494,8 +497,8 @@ public sealed class WalkMap
             float minZ = Math.Min(p.Z, Math.Min(q.Z, r.Z)), maxZ = Math.Max(p.Z, Math.Max(q.Z, r.Z));
             float minY = Math.Min(p.Y, Math.Min(q.Y, r.Y)), maxY = Math.Max(p.Y, Math.Max(q.Y, r.Y));
             if (!HasBodyAt(new Aabb(new Vector3(minX, minY, minZ), new Vector3(maxX - minX, maxY - minY, maxZ - minZ)))) continue;
-            for (int iz = Math.Max(0, (int)((minZ - 0.4 - Z0) * 4)); iz <= Math.Min(D * 4 - 1, (int)((maxZ + 0.4 - Z0) * 4)); iz++)
-                for (int ix = Math.Max(0, (int)((minX - 0.4 - X0) * 4)); ix <= Math.Min(W * 4 - 1, (int)((maxX + 0.4 - X0) * 4)); ix++)
+            for (int iz = Math.Max(0, (int)((minZ - StaticCellClearance - Z0) * 4)); iz <= Math.Min(D * 4 - 1, (int)((maxZ + StaticCellClearance - Z0) * 4)); iz++)
+                for (int ix = Math.Max(0, (int)((minX - StaticCellClearance - X0) * 4)); ix <= Math.Min(W * 4 - 1, (int)((maxX + StaticCellClearance - X0) * 4)); ix++)
                 {
                     int cell = iz * W * 4 + ix;
                     if (free[cell] == 0) continue;
@@ -511,7 +514,7 @@ public sealed class WalkMap
                         if ((u.Z > z) != (v.Z > z) && x < (v.X - u.X) * (z - u.Z) / (v.Z - u.Z) + u.X) inside = !inside;
                         double dx = v.X - u.X, dz = v.Z - u.Z, length = dx * dx + dz * dz;
                         double t = length == 0 ? 0 : Math.Clamp(((x - u.X) * dx + (z - u.Z) * dz) / length, 0, 1);
-                        if (Math.Pow(x - u.X - t * dx, 2) + Math.Pow(z - u.Z - t * dz, 2) < 0.4 * 0.4) near = true;
+                        if (Math.Pow(x - u.X - t * dx, 2) + Math.Pow(z - u.Z - t * dz, 2) < StaticCellClearance * StaticCellClearance) near = true;
                     }
                     if (inside || near) free[cell] = 0;
                 }

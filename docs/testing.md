@@ -31,6 +31,12 @@ The report also includes `laneChecks`: controlled milk-woman fixtures exercise o
 three frame rates and both lane orders, crossing waits, a blocked lateral escape, the bridge-rail escape,
 vehicle ownership and priority, and release after a vehicle departs. Every entry must be true. Run only these
 fixtures with `--lanecheck <dir>` in place of `--stuck <dir>`; it writes `lanecheck.json` and quits.
+
+To diagnose a past solid finding, copy its report to `<dir>/original-solid-cases.json`. The stuck check replays its
+full-precision `solidTrails` coordinates (rounded text is a fallback) with physics contacts, `FreeFor`, the static
+cell and neighbouring cell centres. Add `--stuck-replay-only` for just this Vismarkt diagnostic: its report is labelled
+`solid-coordinate-replay` and fails if a colliding point is accepted. It does not replace the full three-hour check.
+
 The same shape runs every other check below; give each its own option and folder. Every place must be below the
 active-frame budgets in `godot/src/Dev/PerformanceBudget.cs`, and `paths` and `shaders` must have no findings.
 
