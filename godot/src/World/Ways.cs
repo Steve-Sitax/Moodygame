@@ -475,11 +475,13 @@ public static class Ways
         }
     }
 
-    /// <summary>Exact native cell routing for a crowd body. Keep sub-metre doorways and require this scene's installed map.</summary>
-    public static List<Vector2>? NativePath(Scheldemist.Town.WalkMap map, Vector2 from, Vector2 to, Func<double, double, bool>? closed = null)
+    /// <summary>Exact native cell routing for a crowd body. Keep sub-metre doorways and require this scene's installed map.
+    /// `extra`: what entering a cell costs over its length, in cells (0 none): a handcart's way keeps to roomy streets where
+    /// there are any (#197). The string pulled tight never cuts through a costly cell the way did not take.</summary>
+    public static List<Vector2>? NativePath(Scheldemist.Town.WalkMap map, Vector2 from, Vector2 to, Func<double, double, bool>? closed = null, Func<double, double, float>? extra = null)
     {
         if (TheGrid() is not { } g || !ReferenceEquals(g.NativeMap, map)) return null;
-        lock (g) return Find(g, from.X, from.Y, to.X, to.Y, false, closed);
+        lock (g) return Find(g, from.X, from.Y, to.X, to.Y, false, closed, extra);
     }
 
     /// <summary>The same for places in the world (y is left out; the way comes back on the ground, y = 0).</summary>
@@ -542,7 +544,7 @@ public static class Ways
     }
 
     /// <summary>`closed`, when given: cells it says are taken (a standing body's ground) are not walked, nor cut across.</summary>
-    private static List<Vector2>? Find(Grid g, double ax, double az, double bx, double bz, bool freshBuffers = false, Func<double, double, bool>? closed = null)
+    private static List<Vector2>? Find(Grid g, double ax, double az, double bx, double bz, bool freshBuffers = false, Func<double, double, bool>? closed = null, Func<double, double, float>? extra = null)
     {
         int s = NearestPass(g, ax, az);
         int t = NearestPass(g, bx, bz);
@@ -593,6 +595,7 @@ public static class Ways
                     // no cutting a corner
                     if (dr != 0 && dc != 0 && (g.Pass[r * g.W + cc] == 0 || g.Pass[rr * g.W + c] == 0)) continue;
                     float nc = ci + (dr != 0 && dc != 0 ? (float)Sqrt2 : 1f);
+                    if (extra != null && j != t) nc += extra(Centre(g, j).X, Centre(g, j).Y);
                     if (g.Stamp[j] == run && g.Cost[j] <= nc) continue;
                     g.Stamp[j] = run;
                     g.Cost[j] = nc;
@@ -606,6 +609,12 @@ public static class Ways
         cells.Clear();
         for (int i = t; i >= 0; i = g.From[i]) cells.Add(i);
         cells.Reverse();
+        if (extra != null)
+        {
+            var taken = new HashSet<int>(cells);
+            var before = closed;
+            closed = (x, z) => before?.Invoke(x, z) == true || extra(x, z) > 0 && !taken.Contains(CellOf(g, x, z));
+        }
         // pull the string tight: keep only the corners a straight walk needs
         var keep = new List<Vector2> { Centre(g, cells[0]) };
         int a = 0;

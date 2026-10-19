@@ -122,6 +122,7 @@ public sealed partial class Crowd
         if (second >= 0) p.Path.Insert(p.Pi, standCorners[second]);
         p.Path.Insert(p.Pi, standCorners[first]);
         p.DetourEnd = p.Pi + added;
+        if (TraceRoutes) RouteNote(p, $"round a standing body: {Points(p.Path, p.Pi)}");
         p.StandDetours++;
         p.Failed = 0;
         p.StuckT = 0;

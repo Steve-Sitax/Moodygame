@@ -9,6 +9,10 @@ namespace Scheldemist.Town;
 public sealed class NativeCrowdRoute
 {
     public const float WindowLength = 32;
+    /// <summary>A roomy street for a handcart: free this far all round (WalkMap.WideOpen; it just fits at 0.78 m), and what a
+    /// half-metre cell that is not costs the cart's way over its length, in cells: a roomy way up to three times as long is taken first.</summary>
+    private const double RoomyRadius = 1.1;
+    private const float TightCost = 2;
     private readonly WalkMap map;
     private List<Vector2>? way;
     private Vector2 goal;
@@ -33,7 +37,10 @@ public sealed class NativeCrowdRoute
             Func<double, double, bool>? taken = roundStanding ? (x, z) => !map.NoStandingBody(x, z) : null;
             Searches++; goal = to; next = 0; wideWay = wide; way = null;
             // (within 3 m of its ends the cart may stand where it is or where it goes: by a door, at a stall)
-            if (wide) way = Ways.NativePath(map, from, to, (x, z) => !map.WideOpen(x, z) && from.DistanceSquaredTo(new((float)x, (float)z)) > 9 && to.DistanceSquaredTo(new((float)x, (float)z)) > 9 || taken?.Invoke(x, z) == true);
+            // (and keeps to roomy streets: through a gap that just lets a cart by, between a gas lamp and a crate stack west of the
+            // Grote Markt, the carts going home bent round in an S, slowly, one behind the other, while the street beside it was free, #197)
+            if (wide) way = Ways.NativePath(map, from, to, (x, z) => !map.WideOpen(x, z) && from.DistanceSquaredTo(new((float)x, (float)z)) > 9 && to.DistanceSquaredTo(new((float)x, (float)z)) > 9 || taken?.Invoke(x, z) == true,
+                (x, z) => from.DistanceSquaredTo(new((float)x, (float)z)) > 9 && to.DistanceSquaredTo(new((float)x, (float)z)) > 9 && !map.WideOpen(x, z, RoomyRadius) ? TightCost : 0);
             if (way is not { Count: > 0 }) way = Ways.NativePath(map, from, to, taken);
             if (way == null || way.Count == 0) return false;
             // Nearest-cell snapping must never move a body across a wall or a ledge.
@@ -58,7 +65,18 @@ public sealed class NativeCrowdRoute
     public float? Left(Vector2 at, Vector2 to)
     {
         if (way == null || way.Count == 0 || goal.DistanceSquaredTo(to) > .25f) return null;
+        // (counted from the leg the body is on now: the nearest within the window walked since the way was last asked for. From the
+        // window's first way point, a cart that had passed it seemed to lose ground with every metre and was taken on out of sight
+        // a few metres past each corner, #197)
         int i = Math.Min(next, way.Count - 1);
+        float nearest = at.DistanceSquaredTo(way[i]), walked = 0;
+        for (int k = Math.Max(0, next - 1); k + 1 < way.Count && walked < WindowLength; k++) {
+            var a = way[k]; var d = way[k + 1] - a;
+            float t = d.LengthSquared() == 0 ? 0 : Math.Clamp((at - a).Dot(d) / d.LengthSquared(), 0, 1);
+            float gap = at.DistanceSquaredTo(a + d * t);
+            if (gap < nearest) { nearest = gap; i = k + 1; }
+            if (k >= next) walked += d.Length();
+        }
         float sum = at.DistanceTo(way[i]);
         for (; i + 1 < way.Count; i++) sum += way[i].DistanceTo(way[i + 1]);
         return sum;

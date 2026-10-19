@@ -142,7 +142,8 @@ public partial class StreetTrades : Node
             if(k.State==Pushing&&Math.Abs(k.Ahead-k.SolidAhead)>.1&&k.SolidAhead<GrinderWheelAhead){k.SolidAhead=k.Ahead>=GrinderWheelAhead-.01?GrinderWheelAhead:k.Ahead;BarrowSolid(k,k.SolidAhead>=GrinderWheelAhead?GrinderPushed:GrinderWorked(k.SolidAhead));}
             double x=p.X+Math.Sin(p.Yaw)*k.Ahead,z=p.Z+Math.Cos(p.Yaw)*k.Ahead;
             at=new((float)x,(float)town!.Walk!.BaseAt(x,z),(float)z);yaw=p.Yaw;
-            if(!moving&&k.Ahead>=GrinderWheelAhead-.01)
+            // (set down only at a corner of his round; held short of one, he stands holding it, #197)
+            if(!moving&&k.Ahead>=GrinderWheelAhead-.01&&(p.Remote||Townspeople.AtGrinderStop(k.Person,p.X,p.Z)))
             {
                 // stopped: the barrow stays; he steps in to the stone
                 k.ParkAt=at;k.ParkYaw=yaw;k.State=SteppingIn;k.StepTime=0;
@@ -173,7 +174,9 @@ public partial class StreetTrades : Node
             }
         }
         // (pushed out before him, the barrow waits for whoever stands in its way, Crowd.CartOnSomeone; set down, it does not move)
-        p.Barrow=k.State==Pushing;
+        // (and only then does it reach out before him: stepping in, the barrow set down is his own thing to keep clear of, OwnClear,
+        // not a nose 1.9 m ahead that ran past the wheel into the stall or wall it was set down by, #197)
+        p.Barrow=k.State==Pushing;p.Nose=p.Barrow?GrinderWheelAhead:0;
         double step=k.Root.Position.DistanceTo(at);k.Root.Position=at;k.Root.Rotation=new(0,(float)yaw,0);
         k.Roll+=step/.3;k.Spin+=k.State==Grinding&&!moving?dt*14:0;
         if(k.Wheel!=null)k.Wheel.Rotation=new((float)k.Roll,0,0);if(k.Stone!=null)k.Stone.Rotation=new((float)k.Spin,0,0);if(k.Fly!=null)k.Fly.Rotation=new((float)(k.Spin*.6),0,0);

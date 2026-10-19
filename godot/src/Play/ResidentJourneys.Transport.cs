@@ -45,6 +45,17 @@ public partial class ResidentJourneys
     }
     /// <summary>The last handcart trips' ends (who, how, where, where to, seconds): the stuck report's `cartTrips` (#196).</summary>
     public static readonly List<string> CartEnds=new();
+    /// <summary>For the stuck check (Crowd.TraceRoutes): where the first carts that did not arrive stopped, the static floor round them
+    /// ('.' free, '#' not, 'w' free but without room for a cart, P the pusher, N the cart's nose, T the next way point) and the pusher's route notes.</summary>
+    public static readonly List<string> CartStops=new();
+    private void CartStopNote(Trip t,Puppet? p,Vector2 to)
+    {
+        if(!Crowd.TraceRoutes||p==null||CartStops.Count>=12||town.Walk is not {} map)return;
+        var next=town.Crowd!.PuppetMovement(p);var nose=(x:p.X+Math.Sin(p.Yaw)*p.Nose,z:p.Z+Math.Cos(p.Yaw)*p.Nose);
+        var rows=map.DumpCells(p.X,p.Z,5,('P',p.X,p.Z),('N',nose.x,nose.z),('T',next.NextX??p.X,next.NextZ??p.Z));
+        for(int r=0;r<rows.Length;r++){var cells=rows[r].ToCharArray();int start=rows[r].IndexOf(' ')+1;double z=p.Z-5+r*.25;for(int c=start;c<cells.Length;c++){double x=p.X-5+(c-start)*.25;if(cells[c]=='.'&&!map.WideOpen(x,z))cells[c]='w';}rows[r]=new string(cells);}
+        CartStops.Add($"{t.Person.R.Id} {t.Ended} at {p.X:0.00},{p.Z:0.00} yaw {p.Yaw:0.00} for {to.X:0.0},{to.Y:0.0} (x from {p.X-5:0.00}):\n"+string.Join("\n",rows)+"\nroute: "+string.Join(" | ",p.RouteNotes));
+    }
     public sealed class Carrier {public string Id="";public int Step;public double Go,Wait,Time;}
     public sealed class FamilyBoat {public string Kind="rowboat";public List<string> Crew=new();public JourneyRules.Point[] Path=Array.Empty<JourneyRules.Point>();public Vector2 To,ToTop,FromTop;public bool Home;
         /// <summary>Where she comes alongside the landing to put her people ashore when her own berth (her home along the wall, or a place
@@ -234,7 +245,7 @@ public partial class ResidentJourneys
             if(near||late||p is {Shown:false}&&t.Mode=="handcart"&&(town.Day*24+town.Hour)*120-t.NoGain>4&&new Vector2((float)p.X-Main.I.Cam.GlobalPosition.X,(float)p.Z-Main.I.Cam.GlobalPosition.Z).Length()>12)
             {
                 t.Ended=near?"arrived":late?"gave up":"taken on";
-                if(t.Mode=="handcart"){CartEnds.Add($"{t.Person.R.Id} {t.Ended} at {t.Person.P?.X??t.Person.X:0.0},{t.Person.P?.Z??t.Person.Z:0.0} for {to.X:0.0},{to.Y:0.0} after {t.Time:0} s{(p==null?" (not drawn)":"")}");if(CartEnds.Count>400)CartEnds.RemoveAt(0);}
+                if(t.Mode=="handcart"){CartEnds.Add($"{t.Person.R.Id} {t.Ended} at {t.Person.P?.X??t.Person.X:0.0},{t.Person.P?.Z??t.Person.Z:0.0} for {to.X:0.0},{to.Y:0.0} after {t.Time:0} s{(p==null?" (not drawn)":"")}");if(CartEnds.Count>400)CartEnds.RemoveAt(0);if(t.Ended!="arrived")CartStopNote(t,p,to);}
                 ArriveTransport(t);
             }
             else Go(t,to,dt,t.Mode=="velocipede"?4:t.Mode=="dray"?1.15:.95);
