@@ -48,7 +48,7 @@ public static class NativeWorldNavigation
             bool wall = name.StartsWith("wall_chunk_", StringComparison.OrdinalIgnoreCase);
             float minY = mesh.HasMeta("native_nav_min_y") ? mesh.GetMeta("native_nav_min_y").AsSingle() : -8;
             float maxY = mesh.HasMeta("native_nav_max_y") ? mesh.GetMeta("native_nav_max_y").AsSingle() : wall ? 6.65f : kind == Support.Ground ? 0.65f : 0.8f;
-            var faces = mesh.Mesh.GetFaces();
+            var faces = SupportFaces(mesh.Mesh);
             var transform = mesh.GlobalTransform;
             for (int i = 0; i + 2 < faces.Length; i += 3)
             {
@@ -95,6 +95,23 @@ public static class NativeWorldNavigation
         for (int i = 0; i < cells; i++) if (reached[i] != 0) { reachable++; if (heights[i] > 65) elevated++; }
         GD.Print($"native navigation: {width}x{depth} m; {supportMeshes} support meshes/{supportTriangles} triangles, {nativeShapes} authored shapes, {reachable} free quarter cells ({elevated} elevated); {timer.ElapsedMilliseconds} ms");
         return map;
+    }
+
+    /// <summary>The walkable faces of a support mesh: a mesh that names collision stand-ins (the ground laid again along its
+    /// streets, #170: many small faces cut along the setts' joints) supports where its stand-in does, as it collides.</summary>
+    public static Vector3[] SupportFaces(Mesh mesh)
+    {
+        if (!mesh.HasMeta("native_solid_stand_in")) return mesh.GetFaces();
+        var list = new List<Vector3>(mesh.GetMeta("native_solid_stand_in").AsVector3Array());
+        var skip = mesh.HasMeta("native_solid_skip") ? mesh.GetMeta("native_solid_skip").AsInt32Array() : Array.Empty<int>();
+        for (int s = 0; s < mesh.GetSurfaceCount(); s++)
+        {
+            if (Array.IndexOf(skip, s) >= 0) continue;
+            var a = mesh.SurfaceGetArrays(s); var v = a[(int)Mesh.ArrayType.Vertex].AsVector3Array();
+            if (a[(int)Mesh.ArrayType.Index].VariantType == Variant.Type.Nil) list.AddRange(v);
+            else foreach (int i in a[(int)Mesh.ArrayType.Index].AsInt32Array()) list.Add(v[i]);
+        }
+        return list.ToArray();
     }
 
     private static string SemanticName(Node node) => node.HasMeta("source_name") ? node.GetMeta("source_name").AsString() : node.Name.ToString();

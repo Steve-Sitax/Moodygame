@@ -11,6 +11,9 @@ Bugs and loose ends are tracked as [issues](https://github.com/Steve-Sitax/Moody
 
 ## [Unreleased]
 
+- The streets are paved as a paviour lays them (#170): the setts run in rows across every street and follow it through its bends, fanning a little round a curve. Along every kerb and wall foot runs one edge row of setts laid lengthwise, turning round a kerb's corner. Where a side street meets a through street it stops at a straight joint along the through street's kerb; no pattern runs through another street. The quays' setts run across the quay road; the flagged squares keep their courses along their main fronts, and their paths round a church run along the path. The pavements' flags run along their kerb. Light, relief and the rain's shine follow the stones whichever way they run.
+- Setts and flags no longer smear or shear seen from low down (#91): close to the ground and at a grazing look the stones' relief flattens instead of stretching into streaks, and every stone picture takes the right sharpness. From eye height they look as before.
+
 - Reworked the #84 texture handoff with CC0 photographed brick, slate, bark, stone, wood, cloth and soil maps, photographic goods/print samples and crisp sign lettering. Native installation and scene review remain pending.
 
 - Prepared photographic town-wall, church, prison, bronze, bark, foliage and litter pictures, plus shared prop and atlas surfaces (#84). These are a texture handoff for native integration; the installed town is unchanged.
