@@ -11,6 +11,8 @@ Bugs and loose ends are tracked as [issues](https://github.com/Steve-Sitax/Moody
 
 ## [Unreleased]
 
+- Town and park trunks use the photographed bark colour and relief maps (#84, partial); foliage and tree shapes are retained. Isolated day/rain/night review remains pending.
+
 - Authoring only: cloth clearance preserves lining thickness and ignores opposite-facing folds (#82, #138). The runtime people kit is unchanged; neckline and shoulder defects remain unaccepted on the separate rebuilt candidate.
 
 - Antigoon is now 3.85 m tall, with matching collision and reach, small enough to stand upright on the bed of a 4 m rui (#189).
