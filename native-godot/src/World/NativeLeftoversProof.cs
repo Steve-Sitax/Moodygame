@@ -19,7 +19,8 @@ namespace Scheldemist.Native.World;
 /// `--leftovers-only a,b` picks stages: `figures` (no frozen baked person on or by a bench), `rond` (the Sint-Jansplein is open in
 /// the walk map and its benches are reached from the street), `theatre` (Jef climbs the Vleeshuis stair), `audience` (the theatre
 /// audience climbs it to its seats), `river` (the far river is water), `ropes` (the mooring ropes follow the tide), `works` (the
-/// wall works' basket moves with the winch), `fish` (the fish tables' fish models), `fireplace` (the taverns' new hearths).
+/// wall works' basket moves with the winch), `fish` (the fish tables' fish models), `fireplace` (the taverns' new hearths),
+/// `confessional` (#196: the cathedral confessional's carved figures drawn and solid; day and night pictures).
 /// Writes leftovers.json and pictures; exit 1 on a failed check.
 /// </summary>
 public static class NativeLeftoversProof
@@ -358,6 +359,36 @@ public static class NativeLeftoversProof
                 await Shot("cathedral-loft-stair-aisle-night", new Vector3(hx + 8.6f, floor + 1.7f, hz + 25f), new Vector3(hx + 10f, floor + 4f, hz + 12f));
                 GameState.I.Apply(await api.Post<JobsPayload>("api/dev/set", new { day = 1, hour = 13, minute = 0, weather = "rain" })); Daylight.I.Settle(); await Frames(60);
                 await Shot("cathedral-loft-stair-aisle-rain", new Vector3(hx + 8.6f, floor + 1.7f, hz + 25f), new Vector3(hx + 10f, floor + 4f, hz + 12f));
+                GameState.I.Apply(await api.Post<JobsPayload>("api/dev/set", new { day = 1, hour = 13, minute = 0, weather = "clear" })); Daylight.I.Settle();
+            }
+            if (Stage("confessional"))
+            {
+                // #196: the confessional's carved oak figures (fittings/confessional_angel and _saint, FurnitureVisual.ModelParts) where
+                // its four coarse ones stood, and two small angels on its cornice; by day and at night, from the aisle and close
+                Doors.I.Held = true; foreach (var d in Doors.I.All) Doors.I.Force(d, true);
+                if (Jef.I.Fly) Jef.I.ToggleFly();
+                Jef.I.Place(-243f, 186f, MathF.PI / 2, 0, .3f); await Frames(60);
+                var piece = BakedWorld.All(game.GetTree().Root).OfType<Native.Interiors.FurnitureVisual>().FirstOrDefault(v => v.GetParent() is Node3D o && o.Name.ToString().EndsWith("room-cathedral-source-8902-4"));
+                var parts = piece == null ? new List<Node3D>() : piece.GetChildren().OfType<Node3D>().Where(n => n.Name.ToString().StartsWith("ModelPart")).ToList();
+                facts["confessionalParts"] = parts.Select(n => new { name = n.Name.ToString(), at = new[] { MathF.Round(n.GlobalPosition.X, 2), MathF.Round(n.GlobalPosition.Y, 2), MathF.Round(n.GlobalPosition.Z, 2) }, visible = n.IsVisibleInTree(), meshes = BakedWorld.All(n).OfType<MeshInstance3D>().Count(m => m.Mesh != null) }).ToArray();
+                Check(parts.Count == 6 && parts.All(n => n.IsVisibleInTree() && BakedWorld.All(n).OfType<MeshInstance3D>().Any(m => m.Mesh != null)), $"the confessional draws its six carved figures ({parts.Count})");
+                // what holds a body before the confessional: the figures are solid, as drawn
+                // (a body walked along the aisle floor toward each figure is held by its carving, before the confessional's own front)
+                var held = new[] { 184.5f, 185.48f, 186.68f, 187.66f }.Select(z => { Solid.I.Ensure(new Vector3(-238.5f, 1f, z), 4); for (float x = -240.5f; x < -237.6f; x += .05f) if (!Jef.I.BodyFree(x, .3f, z)) return MathF.Round(x, 2); return float.NaN; }).ToArray();
+                facts["confessionalFigureHeld"] = held;
+                Check(held.All(x => x > -239.4f && x < -238.45f), $"the confessional's figures are solid where they are drawn (a body is held at x {string.Join(", ", held)})");
+                foreach (var (when, hour) in new[] { ("day", 13), ("night", 21) })
+                {
+                    GameState.I.Apply(await api.Post<JobsPayload>("api/dev/set", new { day = 1, hour, minute = 0, weather = "clear" })); Daylight.I.Settle(); await Frames(60);
+                    // (the church is dark at night: a hand lamp held by the camera, as a visitor's, for these pictures only)
+                    var lamp = when == "night" ? new OmniLight3D { LightColor = new Color(1f, .78f, .5f), LightEnergy = 1.6f, OmniRange = 7f, ShadowEnabled = true } : null;
+                    if (lamp != null) { game.World.AddChild(lamp); lamp.GlobalPosition = new Vector3(-240.6f, 1.9f, 187.2f); await Frames(10); }
+                    await Shot($"confessional-{when}", new Vector3(-242.4f, 1.75f, 188.2f), new Vector3(-238.3f, 1.3f, 186.1f));
+                    await Shot($"confessional-angel-{when}", new Vector3(-239.9f, 2.0f, 185.3f), new Vector3(-238.25f, 1.6f, 184.5f));
+                    await Shot($"confessional-saint-{when}", new Vector3(-240.0f, 1.65f, 187.0f), new Vector3(-238.5f, 1.3f, 186.68f));
+                    await Shot($"confessional-cornice-{when}", new Vector3(-240.6f, 3.0f, 186.2f), new Vector3(-237.8f, 3.6f, 186.1f));
+                    lamp?.QueueFree();
+                }
                 GameState.I.Apply(await api.Post<JobsPayload>("api/dev/set", new { day = 1, hour = 13, minute = 0, weather = "clear" })); Daylight.I.Settle();
             }
             if (Stage("fireplace"))
