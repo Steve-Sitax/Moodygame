@@ -23,9 +23,12 @@ public static class NativeGameplayProof
         void Check(string name, bool passed) { checks.Add(new { name, passed }); if (!passed) throw new InvalidOperationException(name); }
         async Task Frames(int count) { for (int i = 0; i < count; i++) await game.ToSignal(game.GetTree(), SceneTree.SignalName.ProcessFrame); }
         try {
-            var deadline = DateTime.UtcNow.AddSeconds(90);
+            // (#198: 90 s was too short with two other Godot windows building the town at the same time: the backend, the whole town and
+            // its 600 residents came up after the limit. 240 s, the checks' own four-minute run limit; `--smoke-ready-seconds` sets 30-900.)
+            int readySeconds = int.TryParse(game.Arg("smoke-ready-seconds", "240"), out int asked) && asked is >= 30 and <= 900 ? asked : 240;
+            var deadline = DateTime.UtcNow.AddSeconds(readySeconds);
             while (!game.Loaded || Loading.Busy || ServerLink.I?.Up != true || !GameState.I.Live || game.GetNodeOrNull<Townspeople>("Townspeople")?.Sims.Count is not > 0) {
-                if (DateTime.UtcNow > deadline) throw new TimeoutException("The native backend and population did not become ready.");
+                if (DateTime.UtcNow > deadline) throw new TimeoutException($"The native backend and population did not become ready in {readySeconds} s.");
                 await Frames(1);
             }
             Check("native backend runs inside Godot", game.UsesLocalBackend && ServerLink.I!.Api!.IsLocal);

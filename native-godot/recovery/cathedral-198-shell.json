@@ -1,0 +1,90 @@
+{
+ "note": "#198 prepared, not applied: the side altars' coarse marble boxes in the town shell (town/ROOM_cathedral/Node451 Mesh1135 white index 8907, Mesh1136 black index 8908, both shared with the choir floor and the other altars, so not hidden whole). Cut the listed triangles (centre in the world box) from those two meshes, then add the model part to room-cathedral-source-8902-4's ModelParts (w168: to 8914-50's).",
+ "altars": [
+  {
+   "altar": "e177",
+   "worldBox": [
+    -238.59,
+    -236.87,
+    0.25,
+    6.35,
+    174.739,
+    179.579
+   ],
+   "triangles": {
+    "Mesh1135": 210,
+    "Mesh1136": 44
+   },
+   "modelPart": "church/altar_marble 24.8105 0.3000 -35.1395 -1.5708",
+   "pieceForW168": null
+  },
+  {
+   "altar": "e195",
+   "worldBox": [
+    -238.59,
+    -236.87,
+    0.25,
+    6.35,
+    192.579,
+    197.419
+   ],
+   "triangles": {
+    "Mesh1135": 210,
+    "Mesh1136": 44
+   },
+   "modelPart": "church/altar_marble 24.8105 0.3000 -17.2995 -1.5708",
+   "pieceForW168": null
+  },
+  {
+   "altar": "w168",
+   "worldBox": [
+    -287.13,
+    -285.41,
+    0.25,
+    6.35,
+    165.829,
+    170.669
+   ],
+   "triangles": {
+    "Mesh1135": 210,
+    "Mesh1136": 44
+   },
+   "modelPart": null,
+   "pieceForW168": "room-cathedral-source-8914-50: church/altar_marble -0.2947 0.3000 -0.0001 1.5708"
+  },
+  {
+   "altar": "w186",
+   "worldBox": [
+    -287.13,
+    -285.41,
+    0.25,
+    6.35,
+    183.659,
+    188.499
+   ],
+   "triangles": {
+    "Mesh1135": 210,
+    "Mesh1136": 44
+   },
+   "modelPart": "church/altar_marble -24.8095 0.3000 -26.2195 1.5708",
+   "pieceForW168": null
+  },
+  {
+   "altar": "w204",
+   "worldBox": [
+    -287.13,
+    -285.41,
+    0.25,
+    6.35,
+    201.489,
+    206.329
+   ],
+   "triangles": {
+    "Mesh1135": 210,
+    "Mesh1136": 44
+   },
+   "modelPart": "church/altar_marble -24.8095 0.3000 -8.3895 1.5708",
+   "pieceForW168": null
+  }
+ ]
+}

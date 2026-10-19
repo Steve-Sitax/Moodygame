@@ -41,7 +41,11 @@ public sealed partial class NativeTransport
         double h=((hour%24)+24)%24;int previousDay=day<=1?7:day-1;bool late=A(resident["sched"]?[previousDay%7==0?"sunday":"day"]).Any(n=>n is JsonArray seg&&V(seg[1])>24&&h+24>=V(seg[0])&&h+24<V(seg[1]));var keys=DayKeys(resident,late?previousDay:day);double now=late?h+24:h;bool cart=S(vehicle,"kind")=="handcart";string at="home",prev="home";
         foreach(var k in keys){if(k.from>now)break;if(k.key==prev)continue;bool outside=at!="home",far=false,load=false;var points=TripPoints?.Invoke(S(vehicle,"id"))??Data["tripPoints"]?[S(vehicle,"id")];var a=A(points?[prev]);var b=A(points?[k.key]);if(!cart&&a.Count>=2&&b.Count>=2)far=D(V(a[0]),V(a[1]),V(b[0]),V(b[1]))>300;
             if(cart&&new[]{"market_woman","fishwife","grocer","dealer"}.Contains(S(resident,"trade")))load=prev=="home"&&k.key.StartsWith("work")||prev.StartsWith("work")&&k.key=="home";
-            bool takes=at==prev && vehicle["parks"]?[k.key]!=null && (outside&&(!cart||k.key=="home")||far||load);if(takes)at=k.key;prev=k.key;}
+            bool takes=at==prev && vehicle["parks"]?[k.key]!=null && (outside&&(!cart||k.key=="home")||far||load);if(takes)at=k.key;
+            // (#198: a handcart left where she was for a stop with no place for it, a tavern after the market, went nowhere again:
+            // she takes it home first, as the town's journeys do)
+            else if(cart&&at==prev&&at!="home"&&vehicle["parks"]?[k.key]==null)at="home";
+            prev=k.key;}
         return at;
     }
     public JsonObject BikeStates()

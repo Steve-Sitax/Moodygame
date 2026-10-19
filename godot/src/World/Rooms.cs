@@ -135,6 +135,7 @@ public partial class Rooms : Node, Dev.IInteriorAuditSource
             Dress(room);
             if (houses.TryGetValue("house_" + Key(room.Id), out var house)) Doors(room, house);
             Light(room, info.GetProperty("lights"), lit.TryGetValue(room.Id, out var l) ? l : (JsonElement?)null);
+            AddedLamps(room);
             if(Main.I.World.NativeFurnitureRooms?.Contains(room.Id)==true)
             {
                 var availableLights=room.Lamps.ToList();
@@ -389,6 +390,31 @@ public partial class Rooms : Node, Dev.IInteriorAuditSource
                 if (room.Kind != "hall" && !fire && o.OmniAttenuation < RoomLampDecay) { o.OmniAttenuation = RoomLampDecay; gain = RoomLampGain; }
                 room.Lamps.Add(new Lamp { Light = o, Day = di / MathF.PI * gain, Lit = ni / MathF.PI * gain, Fire = fire });
             }
+        }
+    }
+
+    /// <summary>Lamps a room has that the bake did not light (#198: the cathedral's aisles were dark at night by the confessionals):
+    /// the flames of its standing lamps (church/lamp_stand, drawn by room-cathedral-source-8902-4), each lit as the transept altar's
+    /// candle light is (its colour and fall-off; a little weaker), out by day. A room keeps at most ROOM_POINT_LIGHTS (10) lamps:
+    /// the cathedral had eight.</summary>
+    public static readonly Dictionary<string, Vector3[]> ExtraLamps = new()
+    {
+        ["cathedral"] = new[] { new Vector3(-239.45f, 2.27f, 183.35f), new Vector3(-284.55f, 2.27f, 180.45f) },
+    };
+    private void AddedLamps(Room room)
+    {
+        if (!ExtraLamps.TryGetValue(room.Id, out var flames)) return;
+        foreach (var at in flames)
+        {
+            if (room.Lamps.Count >= 10) { GD.PushWarning($"rooms: {room.Id} has its ten lamps; the lamp at {at} is not lit"); break; }
+            var o = new OmniLight3D
+            {
+                LightColor = new Color(1f, 0xa8 / 255f, 0x60 / 255f), LightEnergy = 0, OmniRange = 9, OmniAttenuation = 1.5f,
+                ShadowEnabled = false, LightCullMask = RoomLayer, LightSpecular = 0,
+            };
+            Main.I.View.AddChild(o);
+            o.GlobalPosition = at;
+            room.Lamps.Add(new Lamp { Light = o, Day = 0, Lit = 6.5f / MathF.PI, Fire = false });
         }
     }
 

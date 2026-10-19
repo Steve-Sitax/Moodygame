@@ -1,0 +1,384 @@
+{
+ "scene": "res://assets/props/furniture/room-cathedral-source-8902-4.tscn",
+ "offset": [
+  -262.0005,
+  0.0,
+  212.29852
+ ],
+ "cuts": [
+  {
+   "name": "confessional e168",
+   "box": [
+    -239.0,
+    -236.9,
+    0.2,
+    5.0,
+    166.099,
+    170.399
+   ],
+   "materials": [
+    "r005921",
+    "r005918",
+    "r005838",
+    "r005975",
+    "r005912",
+    "r005832"
+   ]
+  },
+  {
+   "name": "confessional e186",
+   "box": [
+    -239.0,
+    -236.9,
+    0.2,
+    5.0,
+    183.93,
+    188.23000000000002
+   ],
+   "materials": [
+    "r005921",
+    "r005918",
+    "r005838",
+    "r005975",
+    "r005912",
+    "r005832"
+   ]
+  },
+  {
+   "name": "confessional e204",
+   "box": [
+    -239.0,
+    -236.9,
+    0.2,
+    5.0,
+    201.759,
+    206.059
+   ],
+   "materials": [
+    "r005921",
+    "r005918",
+    "r005838",
+    "r005975",
+    "r005912",
+    "r005832"
+   ]
+  },
+  {
+   "name": "confessional w177",
+   "box": [
+    -287.1,
+    -284.9,
+    0.2,
+    5.0,
+    175.01,
+    179.31
+   ],
+   "materials": [
+    "r005921",
+    "r005918",
+    "r005838",
+    "r005975",
+    "r005912",
+    "r005832"
+   ]
+  },
+  {
+   "name": "confessional w195",
+   "box": [
+    -287.1,
+    -284.9,
+    0.2,
+    5.0,
+    192.849,
+    197.149
+   ],
+   "materials": [
+    "r005921",
+    "r005918",
+    "r005838",
+    "r005975",
+    "r005912",
+    "r005832"
+   ]
+  },
+  {
+   "name": "pulpit",
+   "box": [
+    -268.15,
+    -265.1,
+    0.15,
+    9.3,
+    182.95,
+    187.65
+   ],
+   "materials": []
+  },
+  {
+   "name": "altar e177",
+   "box": [
+    -237.99,
+    -236.94,
+    1.4,
+    5.0,
+    176.009,
+    178.309
+   ],
+   "materials": [
+    "r005912",
+    "r005840",
+    "r005929",
+    "r005836",
+    "r005925"
+   ]
+  },
+  {
+   "name": "altar e177 statue 0",
+   "box": [
+    -237.778,
+    -236.97799999999998,
+    1.2,
+    2.8,
+    174.609,
+    175.509
+   ],
+   "materials": [
+    "r005925"
+   ]
+  },
+  {
+   "name": "altar e177 statue 1",
+   "box": [
+    -237.778,
+    -236.97799999999998,
+    1.2,
+    2.8,
+    178.809,
+    179.70899999999997
+   ],
+   "materials": [
+    "r005925"
+   ]
+  },
+  {
+   "name": "altar e195",
+   "box": [
+    -237.99,
+    -236.94,
+    1.4,
+    5.0,
+    193.849,
+    196.149
+   ],
+   "materials": [
+    "r005912",
+    "r005840",
+    "r005929",
+    "r005836",
+    "r005925"
+   ]
+  },
+  {
+   "name": "altar e195 statue 0",
+   "box": [
+    -237.778,
+    -236.97799999999998,
+    1.2,
+    2.8,
+    192.449,
+    193.349
+   ],
+   "materials": [
+    "r005925"
+   ]
+  },
+  {
+   "name": "altar e195 statue 1",
+   "box": [
+    -237.778,
+    -236.97799999999998,
+    1.2,
+    2.8,
+    196.649,
+    197.54899999999998
+   ],
+   "materials": [
+    "r005925"
+   ]
+  },
+  {
+   "name": "altar w186",
+   "box": [
+    -287.06,
+    -286.01,
+    1.4,
+    5.0,
+    184.929,
+    187.229
+   ],
+   "materials": [
+    "r005912",
+    "r005840",
+    "r005929",
+    "r005836",
+    "r005925"
+   ]
+  },
+  {
+   "name": "altar w186 statue 0",
+   "box": [
+    -287.022,
+    -286.22200000000004,
+    1.2,
+    2.8,
+    183.52900000000002,
+    184.429
+   ],
+   "materials": [
+    "r005925"
+   ]
+  },
+  {
+   "name": "altar w186 statue 1",
+   "box": [
+    -287.022,
+    -286.22200000000004,
+    1.2,
+    2.8,
+    187.729,
+    188.629
+   ],
+   "materials": [
+    "r005925"
+   ]
+  },
+  {
+   "name": "altar w204",
+   "box": [
+    -287.06,
+    -286.01,
+    1.4,
+    5.0,
+    202.759,
+    205.059
+   ],
+   "materials": [
+    "r005912",
+    "r005840",
+    "r005929",
+    "r005836",
+    "r005925"
+   ]
+  },
+  {
+   "name": "altar w204 statue 0",
+   "box": [
+    -287.022,
+    -286.22200000000004,
+    1.2,
+    2.8,
+    201.359,
+    202.259
+   ],
+   "materials": [
+    "r005925"
+   ]
+  },
+  {
+   "name": "altar w204 statue 1",
+   "box": [
+    -287.022,
+    -286.22200000000004,
+    1.2,
+    2.8,
+    205.559,
+    206.45899999999997
+   ],
+   "materials": [
+    "r005925"
+   ]
+  },
+  {
+   "name": "altar w168 statue",
+   "box": [
+    -287.02,
+    -286.22,
+    1.2,
+    2.8,
+    169.9,
+    170.8
+   ],
+   "materials": [
+    "r005925"
+   ]
+  },
+  {
+   "name": "glow slivers",
+   "longer_than": 5.0,
+   "materials": [
+    "r005868"
+   ]
+  }
+ ],
+ "model_parts": [
+  "church/confessional 23.6755 0.3000 -44.0495 -1.5708",
+  "fittings/confessional_angel 23.5755 0.3000 -45.9295 -1.5708 mirror",
+  "fittings/confessional_saint 23.3855 0.3000 -44.6295 -1.5708",
+  "fittings/confessional_saint 23.3855 0.3000 -43.4695 -1.5708 mirror",
+  "fittings/confessional_angel 23.5755 0.3000 -42.1695 -1.5708",
+  "fittings/confessional_angel 24.2455 3.3300 -45.0495 -1.5708 0.390 mirror",
+  "fittings/confessional_angel 24.2455 3.3300 -43.0495 -1.5708 0.390",
+  "church/confessional 23.6755 0.3000 -26.2185 -1.5708",
+  "fittings/confessional_angel 23.5755 0.3000 -28.0985 -1.5708 mirror",
+  "fittings/confessional_saint 23.3855 0.3000 -26.7985 -1.5708",
+  "fittings/confessional_saint 23.3855 0.3000 -25.6385 -1.5708 mirror",
+  "fittings/confessional_angel 23.5755 0.3000 -24.3385 -1.5708",
+  "fittings/confessional_angel 24.2455 3.3300 -27.2185 -1.5708 0.390 mirror",
+  "fittings/confessional_angel 24.2455 3.3300 -25.2185 -1.5708 0.390",
+  "church/confessional 23.6755 0.3000 -8.3895 -1.5708",
+  "fittings/confessional_angel 23.5755 0.3000 -10.2695 -1.5708 mirror",
+  "fittings/confessional_saint 23.3855 0.3000 -8.9695 -1.5708",
+  "fittings/confessional_saint 23.3855 0.3000 -7.8095 -1.5708 mirror",
+  "fittings/confessional_angel 23.5755 0.3000 -6.5095 -1.5708",
+  "fittings/confessional_angel 24.2455 3.3300 -9.3895 -1.5708 0.390 mirror",
+  "fittings/confessional_angel 24.2455 3.3300 -7.3895 -1.5708 0.390",
+  "church/confessional -23.6755 0.3000 -35.1385 1.5708",
+  "fittings/confessional_angel -23.5755 0.3000 -33.2585 1.5708 mirror",
+  "fittings/confessional_saint -23.3855 0.3000 -34.5585 1.5708",
+  "fittings/confessional_saint -23.3855 0.3000 -35.7185 1.5708 mirror",
+  "fittings/confessional_angel -23.5755 0.3000 -37.0185 1.5708",
+  "fittings/confessional_angel -24.2455 3.3300 -34.1385 1.5708 0.390 mirror",
+  "fittings/confessional_angel -24.2455 3.3300 -36.1385 1.5708 0.390",
+  "church/confessional -23.6755 0.3000 -17.2995 1.5708",
+  "fittings/confessional_angel -23.5755 0.3000 -15.4195 1.5708 mirror",
+  "fittings/confessional_saint -23.3855 0.3000 -16.7195 1.5708",
+  "fittings/confessional_saint -23.3855 0.3000 -17.8795 1.5708 mirror",
+  "fittings/confessional_angel -23.5755 0.3000 -19.1795 1.5708",
+  "fittings/confessional_angel -24.2455 3.3300 -16.2995 1.5708 0.390 mirror",
+  "fittings/confessional_angel -24.2455 3.3300 -18.2995 1.5708 0.390",
+  "church/pulpit -4.6000 0.3000 -26.2194 1.5708",
+  "fittings/confessional_saint -4.0343 0.3000 -26.7851 2.3562",
+  "fittings/confessional_saint -4.0343 0.3000 -25.6537 0.7854 mirror",
+  "fittings/confessional_saint -4.6000 0.3000 -27.0194 3.1416",
+  "fittings/confessional_saint -4.6000 0.3000 -25.4194 -0.0000 mirror",
+  "fittings/confessional_angel -4.6000 7.1600 -26.2194 1.5708 0.750",
+  "church/altar_saint 24.6225 1.2500 -37.2395 -1.5708",
+  "church/altar_saint 24.6225 1.2500 -33.0395 -1.5708 mirror",
+  "church/altar_frame 24.8105 3.4500 -35.1395 -1.5708",
+  "church/altar_dressing 24.8105 1.4480 -35.1395 -1.5708",
+  "church/altar_saint 24.6225 1.2500 -19.3995 -1.5708",
+  "church/altar_saint 24.6225 1.2500 -15.1995 -1.5708 mirror",
+  "church/altar_frame 24.8105 3.4500 -17.2995 -1.5708",
+  "church/altar_dressing 24.8105 1.4480 -17.2995 -1.5708",
+  "church/altar_saint -24.6215 1.2500 -28.3195 1.5708",
+  "church/altar_saint -24.6215 1.2500 -24.1195 1.5708 mirror",
+  "church/altar_frame -24.8095 3.4500 -26.2195 1.5708",
+  "church/altar_dressing -24.8095 1.4480 -26.2195 1.5708",
+  "church/altar_saint -24.6215 1.2500 -10.4895 1.5708",
+  "church/altar_saint -24.6215 1.2500 -6.2895 1.5708 mirror",
+  "church/altar_frame -24.8095 3.4500 -8.3895 1.5708",
+  "church/altar_dressing -24.8095 1.4480 -8.3895 1.5708",
+  "church/altar_saint -24.6215 1.2500 -41.9495 1.5708 mirror",
+  "church/lamp_stand 22.5505 0.3000 -28.9485 -1.5708",
+  "church/lamp_stand -22.5495 0.3000 -31.8485 1.5708"
+ ]
+}

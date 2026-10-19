@@ -1,0 +1,32 @@
+{
+ "scene": "res://assets/props/furniture/room-cathedral-source-8914-50.tscn",
+ "offset": [
+  -286.51526,
+  0.0,
+  168.24913
+ ],
+ "cuts": [
+  {
+   "name": "w168 retable fittings",
+   "box": [
+    -300,
+    -270,
+    0,
+    10,
+    160,
+    176
+   ],
+   "materials": [
+    "r005912",
+    "r005840",
+    "r005929",
+    "r005836",
+    "r005925"
+   ]
+  }
+ ],
+ "model_parts": [
+  "church/altar_frame -0.2947 3.4500 -0.0001 1.5708",
+  "church/altar_dressing -0.2947 1.4480 -0.0001 1.5708"
+ ]
+}

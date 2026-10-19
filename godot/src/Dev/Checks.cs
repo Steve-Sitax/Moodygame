@@ -212,6 +212,8 @@ public partial class Checks : Node
         {
             "grote markt" => new Vector2(-254, 90),
             "cathedral" => new Vector2(-262, 138),
+            // (#198: inside, in the nave by the pulpit, the aisles' confessionals and altars in view; `--perf-places "cathedral nave"`)
+            "cathedral nave" => new Vector2(-262, 184),
             "rijnkaai" => new Vector2(20, 20),
             "vismarkt" => new Vector2(-118, 30),
             "handschoenmarkt" when Town.Data!.Places.TryGetValue("handschoenmarkt", out var p) => new Vector2((float)p.X, (float)p.Z),

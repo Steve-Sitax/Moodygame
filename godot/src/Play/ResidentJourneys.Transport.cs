@@ -28,6 +28,8 @@ public partial class ResidentJourneys
         public Vector2 Door,Bed;
         public bool HasBed,Returning,BedRecovered;
         public string? Errand;
+        /// <summary>Where the handcart is left when it is not the trip's own stop: "home" when she takes it home first (#198).</summary>
+        public string? CartKey;
         public List<Carrier> Helpers=new();
         public Carrier Own=new(){Step=1},OffStep=new();
         public FamilyBoat? BoatTrip;
@@ -86,6 +88,10 @@ public partial class ResidentJourneys
     public bool ResidentVehicleActive(string owner,int kind)=>town.ActionPerson(owner)?.P?.NetworkVehicle==kind||Trips.Any(t=>t.Person.R.Id==owner&&(kind==1&&t.Mode=="velocipede"||kind==2&&t.Mode=="handcart"||kind==3&&t.Mode=="dray")&&t.Phase=="go");
     private void ClearTransport(){transport=null;transportPoll=10;foreach(var p in parked.Values)p.Cart?.Dispose();parked.Clear();cartAt.Clear();inUse.Clear();missed.Clear();completedErrands.Clear();abandonedErrands.Clear();Volatile.Write(ref cartSnapshots,new());}
     // Only serialized data crosses to the service worker; scene objects remain on the main thread.
+    /// <summary>The place key a resident's handcart stands at ("home", or the stop of the trip that left it there).</summary>
+    public string CartPlace(string id)=>cartAt.GetValueOrDefault(id,"home");
+    /// <summary>Test seam (#198, the market proof's carthome): start the trip a resident makes on changing from `previous` to her key.</summary>
+    public bool BeginFor(Townspeople.Sim s,string previous)=>BeginTransport(s,previous);
     public JsonObject? CartSnapshot(string id)=>Volatile.Read(ref cartSnapshots).TryGetValue(id,out var json)?JsonNode.Parse(json)!.AsObject():null;
     private void PublishCartSnapshots()
     {
@@ -137,6 +143,16 @@ public partial class ResidentJourneys
         double[]? veloAt=null;if(velo is {Gone:false}&&!inUse.Contains(velo.Id)&&velo.Parks.TryGetValue(fromKey,out var spot)&&Velocipedes.I?.Machines.TryGetValue(velo.Id,out var bike)==true&&new Vector2(bike.Info.X,bike.Info.Z).DistanceTo(V(spot))<4)veloAt=new double[]{bike.Info.X,bike.Info.Z,bike.Info.Yaw};
         if(velo is {Gone:true}&&from.Distance(to)>300&&missed.Add(velo.Id)&&ServerLink.I?.Api is {} api)api.Run(api.TransportMissed(velo.Id),_=>{});
         bool cartHere=cart is {Gone:false}&&!inUse.Contains(cart.Id)&&cartAt.GetValueOrDefault(cart.Id,"home")==fromKey&&cart.Parks.ContainsKey(toKey);
+        // (#198: a seller whose next stop after the market has no place for her cart pushed nothing and left it at the stall for
+        // good, cartAt never back at home; she takes it home first and walks on from there)
+        if(!cartHere&&cart is {Gone:false}&&fromKey!="home"&&!inUse.Contains(cart.Id)&&cartAt.GetValueOrDefault(cart.Id,"home")==fromKey&&cart.Parks.ContainsKey(fromKey))
+        {
+            if(!town.ActionHold(s,this))return false;
+            var home=cart.Parks.GetValueOrDefault("home",cart.Home);var parkedAt=ParkCart(cart.Id,cart.Parks[fromKey]);
+            var homeTrip=new Trip{Person=s,To=new((float)to.X,(float)to.Z),Key=toKey,CartKey="home",Mode="handcart",Phase="fetch",Why="the cart goes home before her next stop",
+                Vehicle=cart,Fetch=cart.Parks[fromKey],Park=home,Loaded=parkedAt.Items,Door=new((float)s.R.HomeSx,(float)s.R.HomeSz)};
+            inUse.Add(cart.Id);Trips.Add(homeTrip);s.Journey=homeTrip;Note(s.R.Name+": handcart ("+homeTrip.Why+")");return true;
+        }
         var plan=JourneyRules.Choose(new(from,to,load,Velo:veloAt!=null&&velo!.Parks.ContainsKey(toKey),Cart:cartHere,Stops:TransportStops,WaitAt:stop=>WaitAt(OmnibusLines.Stops.First(q=>q.Id==stop.Id&&q.Line==stop.Line)),Age:s.R.Age));
         if(plan.Mode=="walk")return false;
         if(plan.Mode=="omnibus")return Start(s,new((float)to.X,(float)to.Z),OmnibusLines.Stops.First(q=>q.Id==plan.Board!.Id&&q.Line==plan.Board.Line),OmnibusLines.Stops.First(q=>q.Id==plan.Alight!.Id&&q.Line==plan.Alight.Line));
@@ -231,7 +247,7 @@ public partial class ResidentJourneys
     {
         t.Time=t.Go=0;var p=t.Person.P;
         if(t.Mode=="velocipede"){if(p!=null)town.Crowd!.PuppetVehicle(p,0);inUse.Remove(t.Vehicle!.Id);var pose=t.Park==null?new Vector3((float)t.Person.X,(float)t.Person.Z,0):Pose(t.Park);Velocipedes.I.ResidentUse(t.Vehicle.Id,false,pose);t.Phase="walkon";}
-        else if(t.Mode=="handcart"){if(p!=null)town.Crowd!.PuppetVehicle(p,0);inUse.Remove(t.Vehicle!.Id);cartAt[t.Vehicle.Id]=t.Key;if(parked.TryGetValue(t.Vehicle.Id,out var pk)){pk.Pushed=false;if(t.Park!=null)pk.At=Pose(t.Park);}CartItems(t,t.Loaded);t.Door=t.To;t.Phase=t.Unload>0?"unload":"walkon";}
+        else if(t.Mode=="handcart"){if(p!=null)town.Crowd!.PuppetVehicle(p,0);inUse.Remove(t.Vehicle!.Id);cartAt[t.Vehicle.Id]=t.CartKey??t.Key;if(parked.TryGetValue(t.Vehicle.Id,out var pk)){pk.Pushed=false;if(t.Park!=null)pk.At=Pose(t.Park);}CartItems(t,t.Loaded);t.Door=t.To;t.Phase=t.Unload>0?"unload":"walkon";}
         else if(t.Unload>0){t.Phase="unload";if(p!=null)town.Crowd!.PuppetStand(p);}
         else{if(p!=null)town.Crowd!.PuppetVehicle(p,0);if(t.Vehicle?.Route is {} route)Traffic.I?.ResidentAway(route,false);t.Phase="walkon";t.To=new((float)t.Person.R.HomeSx,(float)t.Person.R.HomeSz);}
     }

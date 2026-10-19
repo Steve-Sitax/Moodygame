@@ -21,7 +21,8 @@ public partial class FurnitureVisual : Node3D
     [Export] public Vector3 SceneOffset {get;set;}=Vector3.Zero;
     /// <summary>Stored models drawn beside the recovered meshes, each "library/node x y z yaw [size] [mirror]" in the piece's
     /// own frame, size a scale on every axis, "mirror" for a mirrored copy (#196: the confessional's carved figures where
-    /// its coarse ones stood). The piece's geometry collision includes them.</summary>
+    /// its coarse ones stood). The piece's geometry collision includes them: a model with a "&lt;node&gt;_hull" child gives its
+    /// hull (plain solids round its parts, never drawn) instead of every carved triangle (#198: the cathedral's furniture).</summary>
     [Export] public string[] ModelParts {get;set;}=Array.Empty<string>();
     /// <summary>How the kit piece was put in (#183): "fit" to the recovered size, "row N" pieces along a recovered row,
     /// "kit" at its own proportions, "recovered" (the recovered construction kept), "" no kit piece. Read by the size check.</summary>
@@ -35,6 +36,8 @@ public partial class FurnitureVisual : Node3D
     public const float MostStretch=1.35f;
     /// <summary>Marks each kit piece drawn for an item (the size check measures their actual scale).</summary>
     public const string KitPieceMeta="furniture_kit_piece";
+    /// <summary>Marks a model part's collision hull (hidden; its faces are the part's collision) and a part that has one.</summary>
+    public const string HullMeta="furniture_collision_hull",HulledMeta="furniture_hulled_part";
     private static bool Fits(float ratio)=>ratio<=MostStretch&&ratio>=1/MostStretch;
     /// <summary>A clock hung on a wall (its foot off the floor, #183: the clock shop's dials at 1 m were taken for longcase clocks).</summary>
     private bool Wall=>ModelOffset.Y>.5f||ModelSize.Y<1.2f;
@@ -176,7 +179,7 @@ public partial class FurnitureVisual : Node3D
         if(GeometryCollision&&Kind!="counter")
         {
             var faces=new System.Collections.Generic.List<Vector3>();
-            foreach(var mesh in Scheldemist.World.BakedWorld.All(this).OfType<MeshInstance3D>().Where(m=>m.Mesh!=null&&m.IsVisibleInTree()))
+            foreach(var mesh in Scheldemist.World.BakedWorld.All(this).OfType<MeshInstance3D>().Where(m=>m.Mesh!=null&&(m.HasMeta(HullMeta)||m.IsVisibleInTree()&&!Hulled(m))))
             {
                 var transform=GlobalTransform.AffineInverse()*mesh.GlobalTransform;
                 var vertices=mesh.Mesh!.GetFaces();
@@ -218,8 +221,12 @@ public partial class FurnitureVisual : Node3D
             foreach(var child in model.FindChildren("*","CollisionObject3D",true,false).OfType<CollisionObject3D>().ToArray()){child.GetParent().RemoveChild(child);child.Free();}
             var basis=new Basis(Vector3.Up,N(4));float size=f.Length>5&&f[5]!="mirror"?N(5):1;basis*=Basis.FromScale(new Vector3(f[^1]=="mirror"?-size:size,size,size));
             model.Name="ModelPart"+i;model.Transform=new Transform3D(basis,new Vector3(N(1),N(2),N(3)));AddChild(model);
+            foreach(var hull in model.FindChildren(name[1]+"_hull","MeshInstance3D",true,false).OfType<MeshInstance3D>())
+            {hull.Visible=false;hull.SetMeta(HullMeta,true);model.SetMeta(HulledMeta,true);}
         }
     }
+    /// <summary>A visible mesh of a model part whose collision comes from its hull.</summary>
+    private bool Hulled(Node mesh){for(Node? n=mesh;n!=null&&n!=this;n=n.GetParent())if(n.HasMeta(HulledMeta))return true;return false;}
     private Node3D Prepare(PackedScene scene)
     {
         var model=scene.Instantiate<Node3D>();

@@ -269,6 +269,7 @@ public partial class NativeTownGame : Scheldemist.Main
 #endif
             if (DedicatedServer) _ = StartDedicated();
             if (Arg("leftovers-proof") is { Length: > 0 } leftoversProof) _ = NativeLeftoversProof.Run(this, Paths.Absolute(leftoversProof));
+            if (Arg("cathedral-proof") is { Length: > 0 } cathedralProof) _ = NativeCathedralProof.Run(this, Paths.Absolute(cathedralProof));
             if (Arg("furniture-size-check") is { Length: > 0 } sizeCheck) _ = Interiors.FurnitureSizeCheck.Run(this, Paths.Absolute(sizeCheck));
             if (Arg("conversation-proof") is { Length: > 0 } conversationProof) _ = NativeConversationProof.Run(this, Paths.Absolute(conversationProof));
             if (Arg("native-smoke") is { Length: > 0 } proof) _ = NativeGameplayProof.Run(this, Paths.Absolute(proof));
