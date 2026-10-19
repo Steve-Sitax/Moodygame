@@ -1745,7 +1745,9 @@ public sealed partial class Crowd
             return;
         }
         pathBudget--;
-        var path = grid.Inside(dest.x, dest.z, 4) || !map.IsNative
+        // (a resident's pushed handcart takes the native way with room for it, #196, not the crowd grid's)
+        bool wide = map.IsNative && p.Vehicle?.Cart != null;
+        var path = !wide && (grid.Inside(dest.x, dest.z, 4) || !map.IsNative)
             ? grid.Path(p.X, p.Z, dest.x, dest.z, 9000, standFree, p.Path) : null;
         if (path == null && grid.Deferred)
         {
@@ -1761,7 +1763,7 @@ public sealed partial class Crowd
         if (path is not { Count: > 0 } && map.IsNative) {
             p.NativeRoute ??= new NativeCrowdRoute(map);
             bool round = p.RoundStanding; p.RoundStanding = false;
-            if (p.NativeRoute.Window(new Vector2((float)p.X, (float)p.Z), new Vector2((float)dest.x, (float)dest.z), p.Path, round)) {
+            if (p.NativeRoute.Window(new Vector2((float)p.X, (float)p.Z), new Vector2((float)dest.x, (float)dest.z), p.Path, round, wide)) {
                 p.NativeRouting = true; path = p.Path;
             }
         }

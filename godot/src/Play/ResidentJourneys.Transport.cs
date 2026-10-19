@@ -33,7 +33,16 @@ public partial class ResidentJourneys
         public FamilyBoat? BoatTrip;
         /// <summary>The nearest a drawn pusher has come to where he takes his vehicle, and since when (town clock seconds) he has gained no ground.</summary>
         public double BestLeft=double.MaxValue,NoGain;
+        /// <summary>How the vehicle's way ended: "arrived", "gave up" (out of time where it stood) or "taken on" (out of sight, no ground gained).</summary>
+        public string Ended="";
+        /// <summary>Where the vehicle's way began (its time limit counts the straight way from here, #196).</summary>
+        public Vector2 GoFrom;
+        /// <summary>Its ground gained is counted along the crowd's planned way (its search number), or -1 the straight line; from one to
+        /// the other the count starts afresh (a new plan of the same way is not: going to and fro between two ways round gains none).</summary>
+        public int Plan=-2;
     }
+    /// <summary>The last handcart trips' ends (who, how, where, where to, seconds): the stuck report's `cartTrips` (#196).</summary>
+    public static readonly List<string> CartEnds=new();
     public sealed class Carrier {public string Id="";public int Step;public double Go,Wait,Time;}
     public sealed class FamilyBoat {public string Kind="rowboat";public List<string> Crew=new();public JourneyRules.Point[] Path=Array.Empty<JourneyRules.Point>();public Vector2 To,ToTop,FromTop;public bool Home;
         /// <summary>Where she comes alongside the landing to put her people ashore when her own berth (her home along the wall, or a place
@@ -175,7 +184,7 @@ public partial class ResidentJourneys
     private void TakeVehicle(Trip t)
     {
         if(t.Phase=="load")t.LoadingFinishedAt=t.Time;
-        t.Phase="go";t.Time=t.Go=0;t.BestLeft=double.MaxValue;t.NoGain=0;
+        t.Phase="go";t.Time=t.Go=0;t.BestLeft=double.MaxValue;t.NoGain=0;t.GoFrom=new((float)(t.Person.P?.X??t.Person.X),(float)(t.Person.P?.Z??t.Person.Z));
         if(t.Mode=="handcart"&&t.Vehicle!=null&&parked.TryGetValue(t.Vehicle.Id,out var pk)){pk.Pushed=true;pk.Cart?.Dispose();pk.Cart=null;pk.Cargo.Clear();}
         if(t.Person.P is {} p){if(t.Fetch!=null)p.Yaw=t.Fetch[2];town.Crowd!.PuppetLoad(p,false);town.Crowd.PuppetVehicle(p,t.Mode=="velocipede"?1:t.Mode=="handcart"?2:3,t.Mode=="dray"?(t.Unload>0?1:0):t.Loaded,CargoCode(t.Load?.What));}
     }
@@ -185,19 +194,32 @@ public partial class ResidentJourneys
         if(t.Phase=="row"){RowTrip(t,dt);return;}
         if(t.Phase=="landing"){if(Rowing.I.ResidentWalkersDone(t.Vehicle!.Id)||t.Time>45)LandRowTrip(t);return;}
         if(t.Phase=="toberth"){BerthTrip(t,dt);return;}
-        if(t.Phase=="fetch"){var at=V(t.Fetch!);if(t.Mode=="handcart")at-=new Vector2((float)Math.Sin(t.Fetch![2]),(float)Math.Cos(t.Fetch[2]))*2.6f;if(Near(t,at,1.5))TakeVehicle(t);else Go(t,at,dt);return;}
+        // (a handcart's grips taken from where she stands within 3 m after 8 s: its own spot held, #196 a Grote Markt seller
+        // stood 2 m from it for 100 s)
+        if(t.Phase=="fetch"){var at=V(t.Fetch!);if(t.Mode=="handcart")at-=new Vector2((float)Math.Sin(t.Fetch![2]),(float)Math.Cos(t.Fetch[2]))*2.6f;if(Near(t,at,1.5)||t.Time>8&&Near(t,at,3))TakeVehicle(t);else Go(t,at,dt);return;}
         if(t.Phase=="load"){if(p==null){int rounds=(int)Math.Ceiling(Math.Max(1,(t.Load?.Items??1)-t.Loaded)/(1.0+t.Helpers.Count));if(t.Time>rounds*9/(6/1.3)){t.Loaded=t.Load?.Items??0;CartItems(t,t.Loaded);ReleaseHelpers(t);TakeVehicle(t);}else Go(t,t.Door,dt);}else Loading(t,dt);return;}
         if(t.Phase=="go") {
             if(p!=null&&p.NetworkVehicle==0)town.Crowd!.PuppetVehicle(p,t.Mode=="velocipede"?1:t.Mode=="handcart"?2:3,t.Mode=="dray"?(t.Unload>0?1:0):t.Loaded,CargoCode(t.Load?.What));
             var to=t.Park==null?t.To:V(t.Park);double radius=t.Mode=="velocipede"?1.6:t.Mode=="dray"?3.5:3;
             // (a drawn trip that cannot get there in time stops where it is: in 90 s and 4 s a metre of its straight way (a cart
             // goes about a metre a second, the way round up to twice the straight line), #192 a Grote Markt seller's cart from
-            // a home round the town hall's block)
+            // a home round the town hall's block; #196 the straight way from where it set off: from her pitch it was counted from her
+            // door to her cart's place by it, 2 m, and a cart from the market gave up half way home)
             // (out of the player's sight and over 12 m off, a handcart that gains no ground for four seconds, in a street too narrow for it to turn or
             // going to and fro between two ways round, is taken on to its place at once, #192)
             // (counted on the town's clock, 120 s a game hour: the stuck check runs the crowd faster than this node's frames)
-            if(p!=null){double left=new Vector2((float)p.X,(float)p.Z).DistanceTo(to),clock=(town.Day*24+town.Hour)*120;if(left<t.BestLeft-1||t.NoGain<=0){t.BestLeft=Math.Min(left,t.BestLeft);t.NoGain=clock;}}
-            if(Near(t,to,p==null?.6:radius)||p!=null&&t.Time>90+4*t.Door.DistanceTo(to)||p is {Shown:false}&&t.Mode=="handcart"&&(town.Day*24+town.Hour)*120-t.NoGain>4&&new Vector2((float)p.X-Main.I.Cam.GlobalPosition.X,(float)p.Z-Main.I.Cam.GlobalPosition.Z).Length()>12)ArriveTransport(t);else Go(t,to,dt,t.Mode=="velocipede"?4:t.Mode=="dray"?1.15:.95);return;
+            // (ground gained along its planned way, #196: on a way round the street the straight distance first grows, and carts
+            // going round the Grote Markt were taken on while they went well, their sellers turning back on foot)
+            if(p!=null){var at=new Vector2((float)p.X,(float)p.Z);float? way=p.NativeRoute?.Left(at,to);int plan=way==null?-1:p.NativeRoute!.Searches;double left=way??at.DistanceTo(to),clock=(town.Day*24+town.Hour)*120;if((plan<0)!=(t.Plan<0)){t.BestLeft=double.MaxValue;}t.Plan=plan;if(left<t.BestLeft-1||t.NoGain<=0){t.BestLeft=Math.Min(left,t.BestLeft);t.NoGain=clock;}}
+            bool near=Near(t,to,p==null?.6:radius),late=p!=null&&t.Time>90+4*t.GoFrom.DistanceTo(to);
+            if(near||late||p is {Shown:false}&&t.Mode=="handcart"&&(town.Day*24+town.Hour)*120-t.NoGain>4&&new Vector2((float)p.X-Main.I.Cam.GlobalPosition.X,(float)p.Z-Main.I.Cam.GlobalPosition.Z).Length()>12)
+            {
+                t.Ended=near?"arrived":late?"gave up":"taken on";
+                if(t.Mode=="handcart"){CartEnds.Add($"{t.Person.R.Id} {t.Ended} at {t.Person.P?.X??t.Person.X:0.0},{t.Person.P?.Z??t.Person.Z:0.0} for {to.X:0.0},{to.Y:0.0} after {t.Time:0} s{(p==null?" (not drawn)":"")}");if(CartEnds.Count>400)CartEnds.RemoveAt(0);}
+                ArriveTransport(t);
+            }
+            else Go(t,to,dt,t.Mode=="velocipede"?4:t.Mode=="dray"?1.15:.95);
+            return;
         }
         if(t.Phase=="unload"){if(p==null){if(t.Time>t.Unload*9*.7/(6/1.3)){t.Unload=0;CartItems(t,0);UnloadFinished(t);}}else Unloading(t,dt);return;}
         if(t.Phase=="walkon"){if(Near(t,t.To,1.6))End(t,true);else Go(t,t.To,dt);}
@@ -245,7 +267,7 @@ public partial class ResidentJourneys
         if(new Vector2((float)p.X,(float)p.Z).DistanceTo(target)<2.4||step.Time>12){step.Time=0;step.Go=0;if(step.Step==0){town.Crowd!.PuppetLoad(p,true);t.Unload--;CartItems(t,Math.Max(0,t.Unload));step.Step=1;}else{town.Crowd!.PuppetLoad(p,false);step.Step=0;if(t.Unload<=0)UnloadFinished(t);}}
         else if(step.Go<=0||!town.Crowd!.PuppetBusy(p)){step.Go=1.5;town.Crowd!.PuppetGo(p,target.X,target.Y,1);}
     }
-    private void UnloadFinished(Trip t){t.Time=t.Go=0;if(t.Mode=="dray"){if(t.Person.P is {} p)town.Crowd!.PuppetVehicle(p,3,0);t.Phase="go";t.Park=t.Fetch;t.To=V(t.Fetch!);}else t.Phase="walkon";}
+    private void UnloadFinished(Trip t){t.Time=t.Go=0;if(t.Mode=="dray"){if(t.Person.P is {} p)town.Crowd!.PuppetVehicle(p,3,0);t.Phase="go";t.GoFrom=new((float)(t.Person.P?.X??t.Person.X),(float)(t.Person.P?.Z??t.Person.Z));t.Park=t.Fetch;t.To=V(t.Fetch!);}else t.Phase="walkon";}
     private void TransportEnd(Trip t)
     {
         if(t.Vehicle!=null){inUse.Remove(t.Vehicle.Id);if(parked.TryGetValue(t.Vehicle.Id,out var pk))pk.Pushed=false;if(t.Mode=="velocipede")Velocipedes.I?.ResidentUse(t.Vehicle.Id,false);if(t.Vehicle.Route is {} route)Traffic.I?.ResidentAway(route,false);}

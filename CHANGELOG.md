@@ -11,6 +11,9 @@ Bugs and loose ends are tracked as [issues](https://github.com/Steve-Sitax/Moody
 
 ## [Unreleased]
 
+- The cathedral's confessional has carved oak figures: an angel with raised wings at each end, one hand on its breast and the other turned toward the penitents, and between the booths two veiled penitent saints with bowed heads and crossed hands; small angels stand on its cornice. They replace the coarse brown figures (#196).
+- Market handcarts find a way home with room for the cart instead of squeezing into lanes too narrow for it, and a seller pushing her cart home from the market no longer gives up half way (#196).
+- Market stalls laid out by chance stand where they did before the fish tables got their herring, cod and plaice (#194).
 - Reworked the #84 texture handoff with CC0 photographed brick, slate, bark, stone, wood, cloth and soil maps, photographic goods/print samples and crisp sign lettering. Native installation and scene review remain pending.
 
 - Prepared photographic town-wall, church, prison, bronze, bark, foliage and litter pictures, plus shared prop and atlas surfaces (#84). These are a texture handoff for native integration; the installed town is unchanged.

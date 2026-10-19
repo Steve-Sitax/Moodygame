@@ -19,6 +19,10 @@ public partial class FurnitureVisual : Node3D
     /// the piece's own frame turned by ModelYaw and moved by SceneOffset, at its own size (#187: the taverns' hearths).</summary>
     [Export] public string ModelScene {get;set;}="";
     [Export] public Vector3 SceneOffset {get;set;}=Vector3.Zero;
+    /// <summary>Stored models drawn beside the recovered meshes, each "library/node x y z yaw [size] [mirror]" in the piece's
+    /// own frame, size a scale on every axis, "mirror" for a mirrored copy (#196: the confessional's carved figures where
+    /// its coarse ones stood). The piece's geometry collision includes them.</summary>
+    [Export] public string[] ModelParts {get;set;}=Array.Empty<string>();
     /// <summary>How the kit piece was put in (#183): "fit" to the recovered size, "row N" pieces along a recovered row,
     /// "kit" at its own proportions, "recovered" (the recovered construction kept), "" no kit piece. Read by the size check.</summary>
     public string KitFit {get;private set;}="";
@@ -54,6 +58,7 @@ public partial class FurnitureVisual : Node3D
             return;
         }
         bool drawn=ModelScene!=""&&DrawModelScene();
+        DrawModelParts();
         string id=drawn?"":KitId!=""?KitId:Kind switch {
             "chair"=>"chair-ladderback","stool"=>"stool-bar","bench"=>"bench-long","settle"=>"settle",
             "table"=>"table-square","counter"=>"counter-shop","shelf"=>"shelf-wall","cupboard"=>"armoire",
@@ -201,6 +206,19 @@ public partial class FurnitureVisual : Node3D
         foreach(var child in model.FindChildren("*","CollisionObject3D",true,false).OfType<CollisionObject3D>().ToArray()){child.GetParent().RemoveChild(child);child.Free();}
         model.Transform=new Transform3D(new Basis(Vector3.Up,ModelYaw),SceneOffset);AddChild(model);
         KitFit="model";return true;
+    }
+    private void DrawModelParts()
+    {
+        for(int i=0;i<ModelParts.Length;i++)
+        {
+            var f=ModelParts[i].Split(' ',StringSplitOptions.RemoveEmptyEntries);var name=f.Length>0?f[0].Split('/'):Array.Empty<string>();
+            if(f.Length<5||name.Length!=2||Scheldemist.Models.ModelLibrary.Get(name[0],new Scheldemist.Models.ModelLibrary.Look(TwoSided:true,Affine:0,VertexColor:true))?.Copy(name[1]) is not {} model)
+            {GD.PushWarning($"{Name}: model part '{ModelParts[i]}' not drawn");continue;}
+            float N(int k)=>float.Parse(f[k],System.Globalization.CultureInfo.InvariantCulture);
+            foreach(var child in model.FindChildren("*","CollisionObject3D",true,false).OfType<CollisionObject3D>().ToArray()){child.GetParent().RemoveChild(child);child.Free();}
+            var basis=new Basis(Vector3.Up,N(4));float size=f.Length>5&&f[5]!="mirror"?N(5):1;basis*=Basis.FromScale(new Vector3(f[^1]=="mirror"?-size:size,size,size));
+            model.Name="ModelPart"+i;model.Transform=new Transform3D(basis,new Vector3(N(1),N(2),N(3)));AddChild(model);
+        }
     }
     private Node3D Prepare(PackedScene scene)
     {

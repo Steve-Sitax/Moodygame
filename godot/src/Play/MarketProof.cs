@@ -61,6 +61,7 @@ internal partial class MarketProof : Node
                         case "pitchplan": await PitchPlan(); break;
                         case "market": await Market(); break;
                         case "pitchspots": await PitchSpots(); break;
+                        case "cartclear": await CartClear(); break;
                         default: Check(stage + " is a known stage", false); break;
                     }
                 }

@@ -40,9 +40,11 @@ public sealed partial class NativeMarketLayout
                 Mud(false,.6);break;
             }
             case "fishtable":St("mk2_fish_table",0,0,0,tint:tint);St("mk2_fish_crates",.3,0,-.98,(R()-.5)*.2);it.SellerAt=new(-.45+(R()-.5)*.3,-.95);ownBack=true;
-                // #180: the catch on the ice, where the table's own coarse fish lay: herring in two rows heads to the buyer, three cod, a plaice
-                for(int k=0;k<9;k++)Put("catch","mk_goods_fish_herring",-.92+.115*k,.857,.12+(R()-.5)*.04,-Math.PI/2+(R()-.5)*.24);
-                for(int k=0;k<6;k++)Put("catch","mk_goods_fish_herring",-.9+.16*k,.857,-.26+(R()-.5)*.04,-Math.PI/2+(R()-.5)*.2);
+                // #180: the catch on the ice, where the table's own coarse fish lay: herring in two rows heads to the buyer, three cod, a plaice.
+                // #194: its jitter draws from its own stream (seeded by the table's tint), so the market's draws, and its layout, stay as before
+                {var F=Random((uint)(tint[0]*1e9));
+                for(int k=0;k<9;k++)Put("catch","mk_goods_fish_herring",-.92+.115*k,.857,.12+(F()-.5)*.04,-Math.PI/2+(F()-.5)*.24);
+                for(int k=0;k<6;k++)Put("catch","mk_goods_fish_herring",-.9+.16*k,.857,-.26+(F()-.5)*.04,-Math.PI/2+(F()-.5)*.2);}
                 for(int k=0;k<3;k++)Put("catch","mk_goods_fish_cod",.2+.22*k,.874,new[]{.1,.14,.08}[k],-Math.PI/2+.25*(k-1));
                 Put("catch","mk_goods_fish_plaice",.3,.858,-.26,.3+Math.PI);
                 break;
