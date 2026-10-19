@@ -29,7 +29,7 @@ public partial class Kit : Node
     public Townspeople? People => Main.I.GetNodeOrNull<Townspeople>("Townspeople");
     private Api Api => ServerLink.I?.Api ?? throw new InvalidOperationException("the server is not ready");
     public Kit() => I = this;
-    public const string Help = "commands: help, dev on|off; in dev mode: hour 13 [clear], weather rain, go vismarkt | go -118 36, summon fishwife, clear, job {...}, skip 10, tide high|low|clock, event musicians, pass canal|vliet, lock in|out, fog on|off, shower on|off, fly, where (place and view on screen)";
+    public const string Help = "commands: help, dev on|off; in dev mode: hour 13 [clear], weather rain, go vismarkt | go -118 36, summon fishwife, clear, job {...}, skip 10, tide high|low|clock, event musicians, pass canal|vliet, lock in|out, fog on|off, shower on|off, fly, where (place and view on screen), ruien [area] (Jef on a Ruien ledge)";
     public override void _Ready()
     {
         ProcessMode = ProcessModeEnum.Always; // the console works over the paused town too
@@ -190,6 +190,8 @@ public partial class Kit : Node
                 case "shower" when tools != null: said.Add(tools.Shower(arg != "off")); break;
                 case "fly" when tools != null: said.Add(tools.ToggleFly()); break;
                 case "where": said.Add(WhereOverlay.Toggle(this)); break;
+                // (the Ruien: Jef on an area's dev entry, docs/ruien-native.md; `ruien o2`)
+                case "ruien": said.Add(World.Ruien.Ruien.I?.Enter(arg) ?? "no Ruien part"); break;
                 default: throw new ArgumentException(Help);
             }
             GD.Print("dev: " + command);

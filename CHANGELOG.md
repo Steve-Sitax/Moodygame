@@ -11,6 +11,7 @@ Bugs and loose ends are tracked as [issues](https://github.com/Steve-Sitax/Moody
 
 ## [Unreleased]
 
+- The first Ruien, the town's vaulted sewers, lie under the streets: the Vliet sluice with its tide doors, the Vlietrui gallery and the Vleeshuis hall of brick groin vaults, wet, limed and sooty, lit by oil lamps and the cold daylight from the grates. Go down by the ladder under the street grate, by the hall's stair under its hatch, or at low tide over the vliet bed through the open tide doors.
 - Two households keep their boat at a quay ladder (one on the river by the Vismarkt, one in the Petit Bassin): the owner climbs down the ladder into her, rows to a flight of steps and back, and climbs up the ladder again (#195).
 - The bench and hiring-board models no longer stay loaded when a dedicated game closes (#195).
 - The cathedral's confessional has carved oak figures: an angel with raised wings at each end, one hand on its breast and the other turned toward the penitents, and between the booths two veiled penitent saints with bowed heads and crossed hands; small angels stand on its cornice. They replace the coarse brown figures (#196).

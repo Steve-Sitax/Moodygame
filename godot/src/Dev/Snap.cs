@@ -11,7 +11,7 @@ namespace Scheldemist.Dev;
 /// Test pictures from chosen views, hours and weathers in one run (docs/testing.md: a good view, midday and clear
 /// unless the dark or the fog is what is tested):
 ///   -- --snap dir --views "day:-118,1.62,36,180,0,13,clear;night:-118,1.62,36,180,10,22,mist"
-/// Each view: name:x,y,z,yaw,pitch[,hour,weather,storm,tide] (degrees; storm: the great storm's level 0..1; tide: the
+/// Each view: name:x,y,z,yaw,pitch[,hour,weather,storm,tide] (degrees; fov=N the vertical field of view; storm: the great storm's level 0..1; tide: the
 /// river held at that level in metres, or high or low, also written tide=-5.2 (W1); day=N: the game's day, 1 Monday to 7 Sunday, held from that view on, as is --day N for the first
 /// view); the game's own clock, day and weather follow each view, so the HUD and the market stalls agree with the picture (issue 101); yaw 0 looks to -z, 180 to +z; pitch up). A view with no
 /// place ("name:,,,,,21,rain") keeps the camera of the bake's first place. A view named lantern... follows the
@@ -57,7 +57,8 @@ public partial class Snap : Node
     }
 
     private static float F(string s) => float.Parse(s, CultureInfo.InvariantCulture);
-    private static bool IsKw(string s) => s.StartsWith("tide=") || s.StartsWith("day=");
+    private static bool IsKw(string s) => s.StartsWith("tide=") || s.StartsWith("day=") || s.StartsWith("fov=");
+    private float? fov0;
     private int? gameDay;
 
     /// <summary>Puts the game's own clock, day and weather on this view's: waits for the first state, then asks the server (Kit.Light).</summary>
@@ -130,6 +131,9 @@ public partial class Snap : Node
                     hidden.Add(n3);
                 }
         var cam = Main.I.Cam;
+        // (fov=N: the view's vertical field of view in degrees, to match another camera's lens; else the game's own)
+        fov0 ??= cam.Fov;
+        cam.Fov = a.Skip(6).FirstOrDefault(f => f.StartsWith("fov=")) is { } fv ? F(fv[4..]) : fov0.Value;
         if (a.Length > 5 && a[1] != "")
         {
             cam.Position = new Vector3(F(a[1]), F(a[2]), F(a[3]));
