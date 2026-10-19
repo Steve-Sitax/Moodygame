@@ -11,6 +11,7 @@ Bugs and loose ends are tracked as [issues](https://github.com/Steve-Sitax/Moody
 
 ## [Unreleased]
 
+- Floating scraps follow the local tide and settle onto the mud when the vlieten drain (#200).
 - Antigoon is now 3.85 m tall, with matching collision and reach, small enough to stand upright on the bed of a 4 m rui (#189).
 - The cathedral gains carved choir stalls and desks, a dressed high altar, organ cases and pipe towers, framed epitaphs and transept fittings (#198).
 - Cathedral side altars have shaped marble bases and cornices; the overlapping frieze faces are removed. Choir and high-altar marble supports have worn edges and consistent texture scale on their narrow returns (#198).

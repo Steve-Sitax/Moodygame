@@ -328,6 +328,9 @@ public partial class Snap : Node
         if (frame < Wait + Timed + (view == 0 ? 240 : 0)) return;
         string name = views[view][0];
         Main.I.GetViewport().GetTexture().GetImage().SavePng(System.IO.Path.Combine(dir, name + ".png"));
+        if (Main.I.Flag("litter-survey") && FloatingLitter.I is { } litter)
+            System.IO.File.WriteAllText(System.IO.Path.Combine(dir, name + "-litter.json"),
+                System.Text.Json.JsonSerializer.Serialize(litter.Survey(), new System.Text.Json.JsonSerializerOptions { WriteIndented = true }));
         // (the light this picture was really taken in, so a mist or a dusk that crept in shows in the log)
         var dl = Daylight.I;
         GD.Print($"snap {name} light: {dl.Hour:0.##} h, {dl.Weather}, fog #{dl.FogColor.LinearToSrgb().ToHtml(false)} {dl.FogNear:0.#}-{dl.FogFar:0.#} m, sky {dl.SkyIntensity:0.###}, sun {dl.SunIntensity:0.###}; the game's clock {Game.GameState.I?.Weekday} (day {Game.GameState.I?.Day}) {Game.GameState.I?.HourF:0.##} h, {Game.GameState.I?.Weather}");
