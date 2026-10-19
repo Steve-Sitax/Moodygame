@@ -108,7 +108,7 @@ public static class QuayNotch
     /// between y0 and y1 of every mesh whose box reaches the rectangle (x, z) loses the part inside it. Returns the
     /// triangles cut or dropped.
     /// </summary>
-    public static int CutFloor(Node3D world, Rect2 hole, float y0, float y1)
+    public static int CutFloor(Node3D world, Rect2 hole, float y0, float y1, bool round=false)
     {
         int changed = 0;
         var box = new Aabb(new Vector3(hole.Position.X, y0, hole.Position.Y), new Vector3(hole.Size.X, y1 - y0, hole.Size.Y));
@@ -116,6 +116,15 @@ public static class QuayNotch
         {
             w => w.X - hole.Position.X, w => hole.End.X - w.X, w => w.Z - hole.Position.Y, w => hole.End.Y - w.Z,
         };
+        if(round)
+        {
+            edges.Clear();var centre=hole.GetCenter();float radius=hole.Size.X/2;
+            for(int i=0;i<64;i++)
+            {
+                float a=i*Mathf.Tau/64;var normal=new Vector2(MathF.Cos(a),MathF.Sin(a));
+                edges.Add(p=>radius-normal.Dot(new Vector2(p.X,p.Z)-centre));
+            }
+        }
         foreach (var node in BakedWorld.All(world))
         {
             if (node is not MeshInstance3D { Mesh: ArrayMesh mesh } mi) continue;

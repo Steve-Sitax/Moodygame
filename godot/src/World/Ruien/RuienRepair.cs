@@ -40,6 +40,16 @@ public static class RuienRepair
     {
         string target = ProjectSettings.GlobalizePath($"res://world/ruien/{area}");
         var layout=RuienData.Load().Areas.First(a=>a.Id==area);
+        var geometry=layout.Zones.First(z=>z.Kind=="line");
+        var areaConfig=JsonNode.Parse(File.ReadAllText(ProjectSettings.GlobalizePath(RuienData.AreasFile)))!["areas"]!.AsArray().First(a=>a!["id"]!.GetValue<string>()==area)!;
+        if(areaConfig["surfaceRepairPath"] is JsonArray keys)
+        {
+            // Coverage extends into the hall throat; the authored sweep itself ends before that extension.
+            var points=keys.Select(p=>new Vector2(p![0]!.GetValue<float>(),p[1]!.GetValue<float>())).ToArray();
+            var path=RuienData.Smooth(points,new[]{false,true,false},3.2f);
+            geometry=new RuienData.Zone{S=geometry.S,Path=path,Along=new float[path.Length]};
+            for(int i=1;i<path.Length;i++)geometry.Along[i]=geometry.Along[i-1]+path[i].DistanceTo(path[i-1]);
+        }
         RuienPaving.Layout(layout);
         var stairs=layout.Ways.Where(w=>w.Kind=="keeper_stair").ToArray();
         var pavedFaces=new List<Vector3>();
@@ -96,21 +106,26 @@ public static class RuienRepair
                     arrays[(int)Mesh.ArrayType.Index] = keep;
                 }
                 if (remove) { changed = true; continue; }
-                if(family.StartsWith("ruien_brick") || family=="ruien_bluestone")
+                if(path.Contains("gallery_s"))changed|=RuienSurfaceRepair.Apply(arrays,family,geometry);
+                if(family.StartsWith("ruien_brick"))
                 {
-                    bool replaced=RuienPaving.Extract(arrays,paving,path.Contains("lod0")?.045f:.075f,family=="ruien_bluestone"?HallTread:null);
+                    bool replaced=RuienPaving.Extract(arrays,paving,path.Contains("lod0")?.045f:.075f);
                     paved|=replaced;changed|=replaced;
                     if(arrays[(int)Mesh.ArrayType.Index].AsInt32Array().Length==0)continue;
                 }
                 changed|=RuienUv.Repair(arrays,family);
-                mesh.AddSurfaceFromArrays(Mesh.PrimitiveType.Triangles, arrays, null, null, old.SurfaceGetFormat(s));
+                // Quantised UV attributes re-collapse millimetre bevel charts when the chunk spans many tiles.
+                mesh.AddSurfaceFromArrays(Mesh.PrimitiveType.Triangles, arrays, null, null, old.SurfaceGetFormat(s)&~Mesh.ArrayFormat.FlagCompressAttributes);
                 mesh.SurfaceSetName(mesh.GetSurfaceCount() - 1, family);
             }
             if(paved)
             {
                 paving.Index();var pm=paving.Commit();
                 if(path.Contains("lod0"))pavedFaces.AddRange(pm.GetFaces());
-                mesh.AddSurfaceFromArrays(Mesh.PrimitiveType.Triangles,pm.SurfaceGetArrays(0));
+                var pavement=pm.SurfaceGetArrays(0);
+                if(path.Contains("gallery_s"))RuienSurfaceRepair.Apply(pavement,"ruien_setts",geometry);
+                RuienUv.Repair(pavement,"ruien_setts");
+                mesh.AddSurfaceFromArrays(Mesh.PrimitiveType.Triangles,pavement);
                 mesh.SurfaceSetName(mesh.GetSurfaceCount()-1,"ruien_setts");
             }
             if (changed)
@@ -124,15 +139,13 @@ public static class RuienRepair
         var faces = collision.Data;
         for (int i=0;i<faces.Length;i+=3)
         {
-            var ha=HallTread(faces[i]);var hb=HallTread(faces[i+1]);var hc=HallTread(faces[i+2]);
-            if(ha.HasValue && hb==ha && hc==ha && MathF.Abs((faces[i+1]-faces[i]).Cross(faces[i+2]-faces[i]).Normalized().Y)>.65f)
-                for(int k=0;k<3;k++)faces[i+k].Y=ha.Value;
             var c = (faces[i]+faces[i+1]+faces[i+2])/3;
             if (c.Z < 72 || c.Z > 76.5f || MathF.Abs(c.X+146.1f)>3 || c.Y > -3.4f) continue;
             for(int j=0;j<3;j++) faces[i+j]=Splay(faces[i+j]);
         }
         var ca=new Godot.Collections.Array(); ca.Resize((int)Mesh.ArrayType.Max); ca[(int)Mesh.ArrayType.Vertex]=faces;
         foreach(var stair in stairs) QuayNotch.CutSurfaceWith(ca,Transform3D.Identity,_=>true,RuienStair.Cut(stair));
+        foreach(var(u,side) in RuienDrain.Mouths)QuayNotch.CutSurfaceWith(ca,Transform3D.Identity,_=>true,RuienDrain.GutterCut(geometry,u,side));
         // The original collision boxed the entire hall's south wall, including its visible gallery mouth.
         QuayNotch.CutSurfaceWith(ca,Transform3D.Identity,_=>true,new(){p=>p.X+152.5f,p=>-146.5f-p.X,p=>p.Z-109.9f,p=>110.6f-p.Z,p=>p.Y+6.15f,p=>-.95f-p.Y});
         var cp=ca[(int)Mesh.ArrayType.Vertex].AsVector3Array(); var ci=ca[(int)Mesh.ArrayType.Index].AsInt32Array();
@@ -166,7 +179,8 @@ public static class RuienRepair
                 if (part == null) continue;
                 for (int s = 0; s < part.GetSurfaceCount(); s++)
                 {
-                    merged.AddSurfaceFromArrays(Mesh.PrimitiveType.Triangles, part.SurfaceGetArrays(s), null, null, part.SurfaceGetFormat(s));
+                    var surface=part.SurfaceGetArrays(s);RuienUv.Repair(surface,part.SurfaceGetName(s));
+                    merged.AddSurfaceFromArrays(Mesh.PrimitiveType.Triangles, surface, null, null, part.SurfaceGetFormat(s)&~Mesh.ArrayFormat.FlagCompressAttributes);
                     merged.SurfaceSetName(merged.GetSurfaceCount() - 1, part.SurfaceGetName(s));
                 }
             }
@@ -202,13 +216,6 @@ public static class RuienRepair
     }
 
     private static float SplayFactor(float z) => Math.Clamp((74.5f-z)/2.5f,0,.94f);
-    // Original C2 stair: keep the worn dressed nosings; resurface the horizontal treads with the shared setts.
-    private static float? HallTread(Vector3 p)
-    {
-        if(p.X< -159.5f || p.X> -158.25f || p.Z<132.54f || p.Z>138.02f)return null;
-        int step=(int)MathF.Round((p.Y+3.6f)/.18f);float top=-3.6f+step*.18f;
-        return step>=1 && step<=19 && MathF.Abs(p.Y-top)<.035f?top-.016f:null;
-    }
     private static Vector3 Splay(Vector3 p)
     {
         float side=p.X+146.1f;

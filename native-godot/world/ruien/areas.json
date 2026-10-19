@@ -1,65 +1,68 @@
 {
  "about": "The Ruien areas the game draws (docs/ruien-native.md). Each names its zones (lines of network.json or their own paths, rooms), its gates in the quay walls (the opening cut through the wall at load), its water, its light sources (lamps; grates, shafts, hatches and outlets that let daylight in), its mist and its dev entry. `export` is the converted Blender export (res://world/ruien/<area>: area.scn, collision.res, markers); without it the game builds a stand-in from the zones. Coordinates: game metres, +x north, +z east, y up, street 0.",
- "air": { "color": "#0e0d0b", "near": 3, "far": 60, "haze": 0, "exposure": 2.4, "fill": [0.55, 0.5, 0.42], "fillStrength": 0.025 },
+ "air": {"color": "#0e0d0b", "near": 3, "far": 60, "haze": 0, "exposure": 1.35, "fill": [0.55, 0.5, 0.42], "fillStrength": 0.018},
  "lampPool": 4,
  "areas": [
   {
    "id": "o2",
    "name": "Vliet sluice O2, the Vlietrui and the Vleeshuis hall C2",
    "export": "res://world/ruien/o2",
-   "skipKeys": [
-    "outlet_vliet"
-   ],
+   "skipKeys": ["outlet_vliet"],
    "penstockRaise": 1.25,
    "rungs": [
-    { "id": "gate_north", "wall": [-145.991, 79.081], "out": [-0.832, -0.554], "ledge": [-145.658, 79.303], "bottom": -6.1, "top": -3.6, "note": "step irons up the north channel wall past the penstock: the way out of the channel for one who waded in from the vliet at low water" },
-    { "id": "hall_west_s", "wall": [-158, 116], "out": [1, 0], "ledge": [-158.7, 116], "bottom": -5.85, "top": -3.6 },
-    { "id": "hall_west_n", "wall": [-158, 130.5], "out": [1, 0], "ledge": [-158.7, 130.5], "bottom": -5.85, "top": -3.6 },
-    { "id": "hall_north_w", "wall": [-155, 136.5], "out": [0, -1], "ledge": [-155, 137.2], "bottom": -5.85, "top": -3.6 },
-    { "id": "hall_north_e", "wall": [-146, 136.5], "out": [0, -1], "ledge": [-146, 137.2], "bottom": -5.85, "top": -3.6 },
-    { "id": "hall_south_e", "wall": [-144.5, 112], "out": [0, 1], "ledge": [-144.5, 111.3], "bottom": -5.85, "top": -3.6 }
+    {"id": "gate_north", "wall": [-145.991, 79.081], "out": [-0.832, -0.554], "ledge": [-145.658, 79.303], "bottom": -6.1, "top": -3.6, "note": "step irons up the north channel wall past the penstock: the way out of the channel for one who waded in from the vliet at low water"},
+    {"id": "hall_west_s", "wall": [-158, 116], "out": [1, 0], "ledge": [-158.7, 116], "bottom": -5.85, "top": -3.6},
+    {"id": "hall_west_n", "wall": [-158, 130.5], "out": [1, 0], "ledge": [-158.7, 130.5], "bottom": -5.85, "top": -3.6},
+    {"id": "hall_north_w", "wall": [-155, 136.5], "out": [0, -1], "ledge": [-155, 137.2], "bottom": -5.85, "top": -3.6},
+    {"id": "hall_north_e", "wall": [-146, 136.5], "out": [0, -1], "ledge": [-146, 137.2], "bottom": -5.85, "top": -3.6},
+    {"id": "hall_south_e", "wall": [-144.5, 112], "out": [0, 1], "ledge": [-144.5, 111.3], "bottom": -5.85, "top": -3.6}
    ],
    "kit": [
-    { "piece": "lamp_bracket_safety_lamp", "at": [-146.434, -2.12, 84.118], "yaw": 25.32, "note": "a second lamp on the north wall over the pipe end, across the channel from the south wall the study lit with a lantern of its own (v5)" },
-    { "piece": "drain_headers", "at": [0, 0, 0], "yaw": 0 },
-    { "piece": "lamp_bracket_safety_lamp", "at": [-151.48, -1.4, 78.6], "yaw": 90 }
+    {"piece": "lamp_bracket_safety_lamp", "at": [-146.434, -2.12, 84.118], "yaw": 25.32, "note": "a second lamp on the north wall over the pipe end, across the channel from the south wall the study lit with a lantern of its own (v5)"},
+    {"piece": "drain_headers", "at": [0, 0, 0], "yaw": 0},
+    {"piece": "lamp_bracket_safety_lamp", "at": [-153.45, -1.4, 80.8], "yaw": -90}
    ],
    "waterMin": -4.6,
    "waterRise": 0.12,
    "devEntry": [-146.95, -3.6, 88.0, 180],
    "zones": [
-    { "id": "vlietrui", "cls": "G", "path": [ [-146.1, 72.0], [-146.1, 75.0], [-149.1, 82.5], [-149.51, 111.2] ], "curve": [ false, true, false ], "handle": 3.2, "fadeStart": 1.4, "wall": 0.6 },
-    { "id": "hall", "cls": "G", "room": "C2", "wall": 1.2, "spring": -2.5, "walkway": 1.5, "piersX": [-152.75, -146.25], "piersZ": [117.55, 124.05, 131.3], "pier": 1.1 }
+    {"id": "vlietrui", "cls": "G", "path": [[-146.1, 72.0], [-146.1, 75.0], [-149.1, 82.5], [-149.51, 111.2]], "curve": [false, true, false], "handle": 3.2, "fadeStart": 1.4, "wall": 0.6},
+    {"id": "hall", "cls": "G", "room": "C2", "wall": 1.2, "spring": -2.5, "walkway": 1.5, "piersX": [-152.75, -146.25], "piersZ": [117.55, 124.05, 131.3], "pier": 1.1},
+    {"id": "hall_side_ne", "cls": "G", "rect": [-140, 110.6, -131.3, 116.85], "wall": 0.6},
+    {"id": "hall_side_sw", "cls": "G", "rect": [-168.7, 124.6, -159, 130.8], "wall": 0.6},
+    {"id": "hall_side_e", "cls": "G", "rect": [-146.2, 138, -139.97, 147.21], "wall": 0.6},
+    {"id": "keeper_flight", "cls": "G", "rect": [-154.65, 74.5, -153.35, 81.7], "wall": 0.3},
+    {"id": "keeper_niche", "cls": "G", "rect": [-154.65, 80.5, -151.05, 81.7], "wall": 0.3}
    ],
    "gates": [
-    { "id": "O2", "origin": [-146.1, 72.0], "normal": [0, -1], "depth": 1.6, "sill": -5.05, "outletWidth": 8, "meshes": [ "quay_walls" ], "clear": [ "outfall_dark", "outfall_stones", "outfall_runs" ], "opening": [ [-3.92, -5.5], [4.08, -5.5], [4.08, -0.3], [-3.92, -0.3] ], "openingNote": "the study's own brick head wall (outlet_headwall: its arch, slime and weed) takes the place of the town's head wall face below the coping" }
+    {"id": "O2", "origin": [-146.1, 72.0], "normal": [0, -1], "depth": 1.6, "sill": -5.05, "outletWidth": 8, "meshes": ["quay_walls"], "clear": ["outfall_dark", "outfall_stones", "outfall_runs"], "opening": [[-3.92, -5.5], [4.08, -5.5], [4.08, -0.3], [-3.92, -0.3]], "openingNote": "the study's own brick head wall (outlet_headwall: its arch, slime and weed) takes the place of the town's head wall face below the coping"}
    ],
    "water": [
-    { "id": "gallery", "width": 3.0, "flow": [0.0, -0.04], "line": [ [-146.1, 73.6], [-146.1, 74], [-146.1, 75], [-146.201, 75.994], [-146.505, 76.945], [-146.97, 77.829], [-147.522, 78.663], [-148.083, 79.491], [-148.578, 80.36], [-148.932, 81.294], [-149.092, 82.279], [-149.112, 83.279], [-149.127, 84.279], [-149.143, 85.279], [-149.158, 86.279], [-149.173, 87.279], [-149.188, 88.279], [-149.204, 89.279], [-149.219, 90.279], [-149.234, 91.279], [-149.25, 92.279], [-149.265, 93.279], [-149.28, 94.279], [-149.296, 95.279], [-149.311, 96.279], [-149.326, 97.28], [-149.341, 98.28], [-149.357, 99.28], [-149.372, 100.28], [-149.387, 101.28], [-149.403, 102.28], [-149.418, 103.28], [-149.433, 104.28], [-149.448, 105.28], [-149.464, 106.28], [-149.479, 107.28], [-149.494, 108.28], [-149.51, 109.28], [-149.51, 111.2] ] },
-    { "id": "hall", "outline": [ [-159.5, 110.5], [-140.5, 110.5], [-140.5, 138.0], [-159.5, 138.0] ], "flow": [0.0, -0.01] }
+    {"id": "gallery", "width": 3.0, "flow": [0.0, -0.04], "line": [[-146.1, 73.6], [-146.1, 74], [-146.1, 75], [-146.201, 75.994], [-146.505, 76.945], [-146.97, 77.829], [-147.522, 78.663], [-148.083, 79.491], [-148.578, 80.36], [-148.932, 81.294], [-149.092, 82.279], [-149.112, 83.279], [-149.127, 84.279], [-149.143, 85.279], [-149.158, 86.279], [-149.173, 87.279], [-149.188, 88.279], [-149.204, 89.279], [-149.219, 90.279], [-149.234, 91.279], [-149.25, 92.279], [-149.265, 93.279], [-149.28, 94.279], [-149.296, 95.279], [-149.311, 96.279], [-149.326, 97.28], [-149.341, 98.28], [-149.357, 99.28], [-149.372, 100.28], [-149.387, 101.28], [-149.403, 102.28], [-149.418, 103.28], [-149.433, 104.28], [-149.448, 105.28], [-149.464, 106.28], [-149.479, 107.28], [-149.494, 108.28], [-149.51, 109.28], [-149.51, 111.2]]},
+    {"id": "hall", "outline": [[-159.5, 110.5], [-140.5, 110.5], [-140.5, 138.0], [-159.5, 138.0]], "flow": [0.0, -0.01]}
    ],
    "sources": [
-    { "id": "lamp_g13_north", "kind": "lamp", "always": true, "at": [-146.746, -2.375, 84.107], "color": "#ffbd85", "power": 8.0, "range": 13.5 },
-    { "id": "outlet", "kind": "outlet", "always": true, "at": [-146.1, -2.9, 72.05], "dir": [0, 0, 1], "size": [5.8, 3.8], "power": 0.5, "range": 22, "beam": 0 },
-    { "id": "grate_z92", "kind": "grate", "at": [-146.9, -1.75, 92.5], "dir": [0, -1, 0], "size": [0.66, 0.66], "bars": 6, "power": 4.0, "range": 12, "beam": 1.9 },
-    { "id": "hall_air", "kind": "shaft", "at": [-149.5, -0.95, 120.81], "dir": [0, -1, 0], "size": [0.7, 0.7], "round": true, "bars": 5, "power": 3.0, "range": 14, "beam": 3.7 },
-    { "id": "hall_hatch", "kind": "hatch", "at": [-158.75, -0.95, 136.85], "dir": [0, -1, 0], "size": [1.5, 1.7], "power": 2.2, "range": 16, "beam": 3.0 },
-    { "id": "lamp_penstock", "kind": "lamp", "at": [-143.7, -2.35, 77.28], "dir": [-0.956, 0, -0.293], "color": "#ffb066", "power": 9, "range": 14 },
-    { "id": "lamp_g20", "kind": "lamp", "at": [-146.48, -2.35, 91.32], "dir": [-1, 0, 0], "color": "#ffb066", "power": 7, "range": 14 },
-    { "id": "lamp_g31", "kind": "lamp", "at": [-152.13, -2.35, 102.24], "dir": [1, 0, 0], "color": "#ffb066", "power": 7, "range": 14 },
-    { "id": "lamp_hall_n1", "kind": "lamp", "at": [-140.8, -2.2, 114.0], "dir": [-1, 0, 0], "color": "#ffb066", "power": 8, "range": 15 },
-    { "id": "lamp_hall_n2", "kind": "lamp", "at": [-140.8, -2.2, 127.7], "dir": [-1, 0, 0], "color": "#ffb066", "power": 8, "range": 15 },
-    { "id": "lamp_hall_n3", "kind": "lamp", "at": [-140.8, -2.2, 134.5], "dir": [-1, 0, 0], "color": "#ffb066", "power": 7.5, "range": 15 },
-    { "id": "lamp_hall_s1", "kind": "lamp", "at": [-159.2, -2.2, 114.0], "dir": [1, 0, 0], "color": "#ffb066", "power": 8, "range": 15 },
-    { "id": "lamp_hall_s2", "kind": "lamp", "at": [-159.2, -2.2, 127.7], "dir": [1, 0, 0], "color": "#ffb066", "power": 8, "range": 15 },
-    { "id": "lamp_hall_e", "kind": "lamp", "at": [-150.6, -2.2, 137.7], "dir": [0, 0, -1], "color": "#ffb066", "power": 7.5, "range": 15 },
-    { "id": "lamp_hall_w", "kind": "lamp", "at": [-143.5, -2.2, 110.8], "dir": [0, 0, 1], "color": "#ffb066", "power": 7.5, "range": 15 },
-    { "id": "keeper_hatch", "kind": "hatch", "at": [-151, -0.1, 76], "dir": [0, -1, 0], "size": [1.3, 3], "power": 1.2, "range": 10, "always": true },
-    { "id": "keeper_lamp", "kind": "lamp", "at": [-151.48, -1.4, 78.6], "dir": [1, 0, 0], "color": "#ffbd85", "power": 4, "range": 7, "always": true }
+    {"id": "lamp_g13_north", "kind": "lamp", "always": true, "at": [-146.746, -2.375, 84.107], "color": "#ffbd85", "power": 8.0, "range": 13.5},
+    {"id": "outlet", "kind": "outlet", "always": true, "at": [-146.1, -2.9, 72.05], "dir": [0, 0, 1], "size": [5.8, 3.8], "power": 0.5, "range": 22, "beam": 0},
+    {"id": "grate_z92", "kind": "grate", "at": [-146.9, -1.75, 92.5], "dir": [0, -1, 0], "size": [0.66, 0.66], "bars": 6, "power": 4.0, "range": 12, "beam": 1.9},
+    {"id": "hall_air", "kind": "shaft", "at": [-149.5, -0.95, 120.81], "dir": [0, -1, 0], "size": [0.7, 0.7], "round": true, "bars": 5, "power": 3.0, "range": 14, "beam": 3.7},
+    {"id": "hall_hatch", "kind": "hatch", "at": [-158.75, -0.95, 136.85], "dir": [0, -1, 0], "size": [1.5, 1.7], "power": 2.2, "range": 16, "beam": 3.0},
+    {"id": "lamp_penstock", "kind": "lamp", "at": [-143.7, -2.35, 77.28], "dir": [-0.956, 0, -0.293], "color": "#ffb066", "power": 9, "range": 14},
+    {"id": "lamp_g20", "kind": "lamp", "at": [-146.48, -2.35, 91.32], "dir": [-1, 0, 0], "color": "#ffb066", "power": 7, "range": 14},
+    {"id": "lamp_g31", "kind": "lamp", "at": [-152.13, -2.35, 102.24], "dir": [1, 0, 0], "color": "#ffb066", "power": 7, "range": 14},
+    {"id": "lamp_hall_n1", "kind": "lamp", "at": [-140.8, -2.2, 114.0], "dir": [-1, 0, 0], "color": "#ffb066", "power": 8, "range": 15},
+    {"id": "lamp_hall_n2", "kind": "lamp", "at": [-140.8, -2.2, 127.7], "dir": [-1, 0, 0], "color": "#ffb066", "power": 8, "range": 15},
+    {"id": "lamp_hall_n3", "kind": "lamp", "at": [-140.8, -2.2, 134.5], "dir": [-1, 0, 0], "color": "#ffb066", "power": 7.5, "range": 15},
+    {"id": "lamp_hall_s1", "kind": "lamp", "at": [-159.2, -2.2, 114.0], "dir": [1, 0, 0], "color": "#ffb066", "power": 8, "range": 15},
+    {"id": "lamp_hall_s2", "kind": "lamp", "at": [-159.2, -2.2, 127.7], "dir": [1, 0, 0], "color": "#ffb066", "power": 8, "range": 15},
+    {"id": "lamp_hall_e", "kind": "lamp", "at": [-150.6, -2.2, 137.7], "dir": [0, 0, -1], "color": "#ffb066", "power": 7.5, "range": 15},
+    {"id": "lamp_hall_w", "kind": "lamp", "at": [-143.5, -2.2, 110.8], "dir": [0, 0, 1], "color": "#ffb066", "power": 7.5, "range": 15},
+    {"id": "keeper_hatch", "kind": "hatch", "at": [-154, -0.08, 76.5], "dir": [0, -1, 0], "size": [1.3, 3], "power": 1.2, "range": 10, "always": true},
+    {"id": "keeper_lamp", "kind": "lamp", "at": [-153.45, -1.4, 80.8], "dir": [1, 0, 0], "color": "#ffbd85", "power": 4, "range": 7, "always": true}
    ],
    "mist": [
-    { "id": "gallery", "min": [-152.6, -4.6, 72.4], "max": [-143.3, -4.0, 110.5], "density": 0.09 },
-    { "id": "hall", "min": [-159.5, -4.6, 110.5], "max": [-140.5, -4.0, 138.0], "density": 0.09 }
+    {"id": "gallery", "min": [-152.6, -4.6, 72.4], "max": [-143.3, -4.0, 110.5], "density": 0.09},
+    {"id": "hall", "min": [-159.5, -4.6, 110.5], "max": [-140.5, -4.0, 138.0], "density": 0.09}
    ],
    "channelLadderSpacing": 18,
    "channelLadderOffsets": [6],
@@ -72,8 +75,26 @@
     {"from": [-158.3, -3.574, 136.52], "to": [-157.9, -3.574, 137.98]}
    ],
    "keeperStairs": [
-    { "id": "o2_keeper", "top": [-151, 0, 74.5], "bottom": [-151, -3.6, 80.5], "hole": [-151.65, 74.5, 1.3, 7.1], "landingPath": [ [-151, 82.05], [-149.7, 82.05], [-149.7, 78], [-148.5, 76.5] ] }
-   ]
+    {"id": "o2_keeper", "top": [-154, 0, 74.5], "bottom": [-154, -3.6, 80.5], "hole": [-154.65, 74.5, 1.3, 4.0], "landingPath": [[-154, 81.1], [-151.05, 81.1], [-150.6, 80], [-149.65, 78.5], [-148.5, 76.5], [-148.05, 75.75]], "lightSource": "keeper_hatch"}
+   ],
+   "lightScale": {"lampPower": 0.32, "lampRange": 0.7, "openingPower": 0.3, "openingRange": 0.45},
+   "grates": [
+    {"id": "c2_air", "at": [-149.5, 0.005, 120.81], "size": 0.6, "round": true}
+   ],
+   "sourceOverrides": [
+    {"id": "L_opening_cool", "power": 0},
+    {"id": "L_opening_cool.001", "power": 0},
+    {"id": "L_opening_cool.002", "power": 0},
+    {"id": "air_shaft", "at": [-149.5, -0.06, 120.81], "beam": 4.54}
+   ],
+   "walkConnections": [
+    {"from": [-158.8, -3.6, 132.3], "to": [-153.2, -3.6, 132.3], "width": 1.05, "bed": -5.85}
+   ],
+   "archBackings": [
+    {"from": [-149.5, -2.82, 109.35], "to": [-149.5, -2.82, 110.65], "half": 2.76, "rise": 1.98, "thickness": 0.28}
+   ],
+   "stairSurrounds": ["vleeshuis_hatch"],
+   "surfaceRepairPath": [[-146.1, 72], [-146.1, 75], [-149.1, 82.5], [-149.51, 109.3]]
   }
  ]
 }

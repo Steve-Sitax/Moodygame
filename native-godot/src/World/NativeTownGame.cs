@@ -72,6 +72,17 @@ public partial class NativeTownGame : Scheldemist.Main
             var town = new Services.NativeTown(host); host.AddModule(town);
             var profile = new NativeTownProfile(host); host.AddModule(profile);
             host.AddModule(new NativeTownArrival(host));
+            var keeperWays=Scheldemist.World.Ruien.RuienData.Load().Areas.SelectMany(a=>a.Ways).Where(w=>w.Kind=="keeper_stair").ToArray();
+            var ruienAccess=new NativeRuienAccess(host,keeperWays.Select(w=>w.Id));
+            foreach(var way in keeperWays)
+            {
+                var route=new System.Collections.Generic.List<NativeRuienAccess.Point>{new(way.Top.X,way.Top.Y,way.Top.Z-.5f)};
+                int steps=(int)System.Math.Ceiling((way.Top.Y-way.Bottom.Y)/.18);
+                for(int i=0;i<steps;i++)route.Add(new(way.Top.X,way.Top.Y-(i+1)*(way.Top.Y-way.Bottom.Y)/steps,way.Top.Z+(i+.5f)*(way.Bottom.Z-way.Top.Z)/steps));
+                route.AddRange(way.LandingPath.Select(p=>new NativeRuienAccess.Point(p.X,way.Bottom.Y,p.Y)));
+                ruienAccess.WorkRoutes[way.Id]=route.ToArray();
+            }
+            host.AddModule(ruienAccess);
             var goods = new NativeGoods(host); host.AddModule(goods);
             var transport = new NativeTransport(host, goods) { GroundOpen = (x, z, radius) =>
                 navigation.PathFree(x, z) && navigation.PathFree(x - radius, z) && navigation.PathFree(x + radius, z) && navigation.PathFree(x, z - radius) && navigation.PathFree(x, z + radius) };

@@ -24,7 +24,7 @@ public static class RuienGates
             }
         // the street's holes over the ways down (a grate's shaft, a hatch's stair)
         foreach (var area in data.Areas)
-            foreach (var w in area.Ways.Where(w => w.Kind is "ladder" or "stair" or "keeper_stair"))
+            foreach (var w in area.Ways.Where(w => w.Kind is "ladder" or "grate" or "stair" or "keeper_stair"))
             {
                 var hole = w.Hole.Grow(0.01f);
                 // (a stair's hole reaches 15 cm further over its flight: a head going down under the hatch's far edge
@@ -35,7 +35,7 @@ public static class RuienGates
                     if (MathF.Abs(d.Y) >= MathF.Abs(d.X)) hole = d.Y < 0 ? hole.GrowSide(Side.Top, 0.15f) : hole.GrowSide(Side.Bottom, 0.15f);
                     else hole = d.X < 0 ? hole.GrowSide(Side.Left, 0.15f) : hole.GrowSide(Side.Right, 0.15f);
                 }
-                int n = QuayNotch.CutFloor(town, hole, w.Top.Y - 0.45f, w.Top.Y + 0.25f);
+                int n = QuayNotch.CutFloor(town, hole, w.Top.Y - 0.45f, w.Top.Y + 0.25f,w.Round);
                 notes.Add($"{w.Kind} {w.Id} of {area.Id}: {n} triangles of the street cut over it");
             }
         return notes;

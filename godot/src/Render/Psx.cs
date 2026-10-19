@@ -149,6 +149,9 @@ public static class Psx
         // (until theirs are in: no wall anywhere near, clean water everywhere)
         shore = Flat(Colors.White);
         foul = Flat(Colors.Black);
+        // World-space exclusion survives looking above/below the river and the near plane.
+        RenderingServer.GlobalShaderParameterAdd("psx_ruien_cover", RenderingServer.GlobalShaderParameterType.Sampler2D, foul.GetRid());
+        RenderingServer.GlobalShaderParameterAdd("psx_ruien_box", RenderingServer.GlobalShaderParameterType.Vec4, new Vector4(0,0,1,1));
         RenderingServer.GlobalShaderParameterAdd("psx_shore", RenderingServer.GlobalShaderParameterType.Sampler2D, shore.GetRid());
         RenderingServer.GlobalShaderParameterAdd("psx_foul", RenderingServer.GlobalShaderParameterType.Sampler2D, foul.GetRid());
         RenderingServer.GlobalShaderParameterAdd("psx_water_mirror", RenderingServer.GlobalShaderParameterType.Sampler2D, foul.GetRid());
@@ -1161,7 +1164,7 @@ float psx_h13(vec3 p3) { p3 = fract(p3 * 0.1031); p3 += dot(p3, p3.zyx + 31.32);
         var c = new StringBuilder();
         c.Append("shader_type spatial;\nrender_mode ").Append(string.Join(", ", modes)).Append(";\n");
         c.Append(HashGlsl);
-        if (k.Water > 0) c.Append("stencil_mode read, compare_not_equal, 1;\n");
+        if (k.Water > 0) c.Append("stencil_mode read, compare_not_equal, 1;\nglobal uniform sampler2D psx_ruien_cover : filter_linear, repeat_disable;\nglobal uniform vec4 psx_ruien_box;\n");
         c.Append(@"
 global uniform vec2 psx_snap_res;
 global uniform vec4 psx_fog_color;
@@ -1335,7 +1338,9 @@ void fragment() {
         c.Append("	c *= albedo;\n");
         if (k.Tree > 0 && k.Tree % 2 == 0) c.Append("	c.rgb *= 1.0 - 0.16 * psx_wet; // (wet leaves are darker)\n");
         if (k.Water > 0)
-            c.Append(@"	vec3 wave = vec3(0.0, 0.0, 0.5);
+            c.Append(@"	vec2 underground_uv = (world.xz - psx_ruien_box.xy) / psx_ruien_box.zw;
+	if (all(greaterThanEqual(underground_uv, vec2(0.0))) && all(lessThanEqual(underground_uv, vec2(1.0))) && textureLod(psx_ruien_cover, underground_uv, 0.0).r > 0.01) discard;
+	vec3 wave = vec3(0.0, 0.0, 0.5);
 	{
 		if (river > 0.5 && in_basin(world.xz)) discard;
 		if (river > 1.5 && in_canal(world.xz)) discard;

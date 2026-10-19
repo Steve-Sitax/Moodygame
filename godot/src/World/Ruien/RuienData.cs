@@ -143,6 +143,8 @@ public sealed class RuienData
         public Vector2 Wall, Out;
         /// <summary>Step irons drawn on the wall (false: a climb over a stone's edge, a sill or a coping, needs none).</summary>
         public bool Irons = true;
+        public bool Round;
+        public string LightSource="";
         public Vector2[] LandingPath = Array.Empty<Vector2>();
     }
 
@@ -261,6 +263,22 @@ public sealed class RuienData
                     if (s.TryGetProperty("always", out var al) && al.ValueKind == JsonValueKind.True) area.Sources.Add(ReadSource(s));
             if (own.TryGetProperty("sources", out var ss))
                 foreach (var s in ss.EnumerateArray()) area.Sources.Add(ReadSource(s));
+            // Authored adjustments apply to the installed markers too, not just the stand-in.
+            if (a.TryGetProperty("sourceOverrides", out var overrides))
+                foreach (var entry in overrides.EnumerateArray())
+                {
+                    var source=area.Sources.FirstOrDefault(s=>s.Id==S(entry,"id"));
+                    if(source==null)throw new InvalidOperationException("Unknown Ruien source override: "+S(entry,"id"));
+                    source.Power=F(entry,"power",source.Power); source.Range=F(entry,"range",source.Range);
+                    source.Beam=F(entry,"beam",source.Beam);
+                    if(entry.TryGetProperty("at",out var at))source.At=V3(at);
+                }
+            if(a.TryGetProperty("lightScale",out var scale))
+                foreach(var s in area.Sources)
+                {
+                    s.Power*=F(scale,s.Kind=="lamp"?"lampPower":"openingPower",1);
+                    s.Range*=F(scale,s.Kind=="lamp"?"lampRange":"openingRange",1);
+                }
             if (a.TryGetProperty("mist", out var mi) || own.TryGetProperty("mist", out mi))
                 foreach (var m in mi.EnumerateArray())
                     area.Mist.Add(new MistBox { Id = S(m, "id"), Min = V3(m.GetProperty("min")), Max = V3(m.GetProperty("max")), Density = F(m, "density", 0.06f) });
@@ -316,11 +334,18 @@ public sealed class RuienData
                     var h = l.GetProperty("hatch");
                     area.Ways.Add(new Way { Id = S(l, "id"), Kind = "stair", Bottom = V3(l.GetProperty("bottom")), Top = V3(l.GetProperty("top")), Hole = new Rect2(h[0].GetSingle(), h[2].GetSingle(), h[1].GetSingle() - h[0].GetSingle(), h[3].GetSingle() - h[2].GetSingle()) });
                 }
+            if(a.TryGetProperty("grates",out var grates))
+                foreach(var gr in grates.EnumerateArray())
+                {
+                    var at=V3(gr.GetProperty("at"));float size=F(gr,"size",.66f);
+                    area.Ways.Add(new Way{Id=S(gr,"id"),Kind="grate",Top=at,Round=gr.TryGetProperty("round",out var rd)&&rd.GetBoolean(),Hole=new Rect2(at.X-size/2,at.Z-size/2,size,size)});
+                }
             if (a.TryGetProperty("keeperStairs", out var ks))
                 foreach (var s in ks.EnumerateArray())
                 {
                     var h=s.GetProperty("hole");
                     area.Ways.Add(new Way { Id=S(s,"id"), Kind="keeper_stair", Top=V3(s.GetProperty("top")), Bottom=V3(s.GetProperty("bottom")),
+                        LightSource=S(s,"lightSource"),
                         Hole=new Rect2(h[0].GetSingle(),h[1].GetSingle(),h[2].GetSingle(),h[3].GetSingle()),
                         LandingPath=s.TryGetProperty("landingPath",out var lp)?lp.EnumerateArray().Select(V2).ToArray():Array.Empty<Vector2>() });
                 }

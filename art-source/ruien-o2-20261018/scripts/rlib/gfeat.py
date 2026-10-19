@@ -217,15 +217,10 @@ def pipes(g, mats, c):
     p = g.path
     obs = []
     for (pu, side, py) in PIPES:
-        a = p.world(np.array(pu), np.array(side * 3.7), np.array(py))
+        # Closed cast wall and rolled socket rim; the bore stays open to a recessed dark back.
+        from .pipe import outlet
+        obs.extend(outlet(p, pu, side, py, mats, c))
         b = p.world(np.array(pu), np.array(side * 2.8), np.array(py - 0.02))
-        obs.append(U.tube('pipe_end', [a, b], 0.13, n=20, coll_=c, mat=mats['iron_wet'], cap=False))
-        bb = p.world(np.array(pu), np.array(side * 2.86), np.array(py - 0.018))
-        obs.append(U.tube('pipe_socket', [bb, b], 0.165, n=20, coll_=c, mat=mats['iron_wet'], cap=False))
-        bk = [p.world(np.array(pu + du_), np.array(side * 3.12), np.array(py + dy_)) for (du_, dy_) in ((-0.3, -0.3), (0.3, -0.3), (0.3, 0.3), (-0.3, 0.3))]
-        obs.append(U.mesh_from_faces('pipe_backing', bk, [[0, 1, 2, 3], [3, 2, 1, 0]], coll_=c, mat=mats['soot_black'], smooth=False))
-        inner = U.tube('pipe_inner', [p.world(np.array(pu), np.array(side * 3.4), np.array(py)), b], 0.118, n=20, coll_=c, mat=mats['soot_black'], cap=True)
-        obs.append(inner)
         # trickle out of the pipe down to the ledge
         pts = [b + np.array([0, -0.11, 0]), p.world(np.array(pu), np.array(side * 2.74), np.array(py - 0.25)), p.world(np.array(pu), np.array(side * 2.72), np.array(spec.LEDGE_Y + 0.01))]
         obs.append(U.tube('pipe_trickle', pts, [0.008, 0.006, 0.01], n=8, coll_=c, mat=mats['water_film']))

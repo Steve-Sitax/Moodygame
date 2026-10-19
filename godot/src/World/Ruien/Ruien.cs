@@ -17,7 +17,7 @@ namespace Scheldemist.World.Ruien;
 ///   the player's arms and body) lights what is not Ruien stone, so the light count stays fixed whatever the network.
 /// - The eye's air: Daylight.Below eases in past a gate (the cover map), and the dark air, fog and glow follow.
 /// - The water inside: never lower than the gate's sill holds it, held behind the tide doors while the river is higher.
-/// - The river's lid over every zone (RuienCover.Lid), at the river's level.
+/// - World-space exclusion of the town river sheet beneath every covered zone and its masonry.
 /// - Collision from the area's own faces (StaticBody3D on Solid's layer).
 /// </summary>
 [GamePart(37)]
@@ -58,7 +58,6 @@ public partial class Ruien : Node
     private readonly float[] lightData = new float[MaxLights * 4 * 4];
     private readonly byte[] lightBytes = new byte[MaxLights * 4 * 4 * 4];
     private OmniLight3D[] pool = Array.Empty<OmniLight3D>();
-    private MeshInstance3D? lid;
     private float t, lodT;
     private bool globalsIn;
     /// <summary>Counts for a check: areas, sources, the ones sent, the lamps of the pool lit.</summary>
@@ -97,6 +96,8 @@ public partial class Ruien : Node
         if (!Added.Add("ruien_cover")) RenderingServer.GlobalShaderParameterSet("ruien_cover", coverTex.GetRid());
         else RenderingServer.GlobalShaderParameterAdd("ruien_cover", RenderingServer.GlobalShaderParameterType.Sampler2D, coverTex.GetRid());
         UniformUpdates.Global("ruien_cover_box", Cover.Box);
+        RenderingServer.GlobalShaderParameterSet("psx_ruien_cover",coverTex.GetRid());
+        UniformUpdates.Global("psx_ruien_box",Cover.Box);
         UniformUpdates.Global("ruien_air", new Vector4(Data.Air.R, Data.Air.G, Data.Air.B, Data.Haze));
         UniformUpdates.Global("ruien_fill", new Vector4(Data.Fill.R, Data.Fill.G, Data.Fill.B, 0));
         if (Daylight.I != null) { Daylight.I.BelowAir = Data.Air; Daylight.I.BelowNear = Data.AirNear; Daylight.I.BelowFar = Data.AirFar; Daylight.I.BelowExposure = Data.Exposure; }
@@ -111,6 +112,8 @@ public partial class Ruien : Node
             string how;
             if (RuienArea.Load(area) is { } loaded) { root = loaded.Root; shape = loaded.Shape; d.Export = loaded; how = $"export {area.Export} ({loaded.Keys.Count} keys, {loaded.Triangles0} + {loaded.Triangles1} triangles)"; }
             else { (root, shape) = new RuienStandIn(area).Build(spec[area.Id]); how = "stand-in"; }
+            Main.I.View.AddChild(RuienConnections.Build(spec[area.Id],area));
+            if(area.Id=="o2")foreach(var(u,side) in RuienDrain.Mouths)Main.I.View.AddChild(RuienDrain.Build(area.Zones.First(z=>z.Kind=="line"),u,side));
             d.Root = root;
             Main.I.View.AddChild(root);
             if (shape != null)
@@ -145,8 +148,6 @@ public partial class Ruien : Node
             sources.AddRange(area.Sources);
             GD.Print($"ruien: {area.Id} ({area.Name}) from the {how}: {root.GetChildCount()} parts, {area.Sources.Count} sources, {area.Zones.Count} zones in {Time.GetTicksMsec() - t0} ms");
         }
-        lid = RuienCover.Lid(Data);
-        Main.I.View.AddChild(lid);
         // the fixed pool of real lights for what is not Ruien stone (the arms, the body): never more, never fewer
         pool = new OmniLight3D[Data.LampPool];
         for (int i = 0; i < pool.Length; i++)
@@ -215,7 +216,7 @@ public partial class Ruien : Node
         // irons up a channel wall
         foreach (var w in area.Ways)
         {
-            if (w.Kind == "ladder") Main.I.View.AddChild(RuienKit.Grate(w));
+            if (w.Kind is "ladder" or "grate") Main.I.View.AddChild(RuienKit.Grate(w));
             if (w.Kind == "rungs" && w.Irons) root.AddChild(RuienKit.StepIrons(w));
             if (w.Kind == "keeper_stair") Main.I.View.AddChild(RuienStair.Build(w));
         }
@@ -391,12 +392,6 @@ public partial class Ruien : Node
             }
         }
         if (lodT <= 0) lodT = 0.25f;
-        if (lid != null)
-        {
-            // (over the swell and the storm's chop: the sheet's vertices rise up to a few decimetres over its level)
-            lid.Position = new Vector3(0, Tide.River + 0.45f, 0);
-            lid.Visible = drawn.Any(x => x.Shown);
-        }
         SendLights(eye, day);
     }
 
@@ -418,7 +413,7 @@ public partial class Ruien : Node
         c = cold * sky + warm * nightGlow;
         float m = Math.Max(c.R, Math.Max(c.G, c.B));
         if (m > 1e-5f) c /= m;
-        return s.Power * m;
+        return s.Power * m * RuienHatch.Light(s.Id);
     }
 
     private void SendLights(Vector3 eye, Daylight day)

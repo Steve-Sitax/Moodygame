@@ -26,6 +26,12 @@ public partial class RuienWays : Node
             foreach (var w in a.Ways)
             {
                 if (w.Kind == "rungs") rungs.Add(w);
+                if(w.Kind=="grate")
+                {
+                    var lid=new StaticBody3D{Name="ruien_grate_"+w.Id,CollisionLayer=Solid.Layer,CollisionMask=0,Position=w.Top-Vector3.Up*.02f};
+                    lid.AddChild(new CollisionShape3D{Shape=new BoxShape3D{Size=new Vector3(w.Hole.Size.X+.06f,.06f,w.Hole.Size.Y+.06f)}});
+                    Main.I.View.AddChild(lid);
+                }
                 if (w.Kind != "ladder") continue;
                 // where he steps out on the street: beside the grate, on the side away from the ladder's foot
                 var side = new Vector2(w.Top.X - w.Bottom.X, w.Top.Z - w.Bottom.Z);

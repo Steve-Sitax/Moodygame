@@ -11,6 +11,7 @@ Bugs and loose ends are tracked as [issues](https://github.com/Steve-Sitax/Moody
 
 ## [Unreleased]
 
+- Ruien O2 gets saved, player-operated iron keeper lids, a vaulted bluestone stair, mortared drain gutters, a solid hall arch and a round street light grate. Repaired pipe runoff, worn edges, paving UVs, underground water and dimmer lamp pools; the hall stair now exits into the open street (#209).
 - Ruien O2 gains a keeper stair, escape ladders and swimming, worn stone walking surfaces laid along the paths with dressed junction stones, repaired drain mouths and a flowing sluice outlet; water, low mist and wet masonry now use separate treatments (#207).
 - Townspeople keep their full body clear of static stall corners when walking near the edge of a navigation cell.
 - Town and park trunks use the photographed bark colour and relief maps (#84, partial); foliage and tree shapes are retained. Isolated day/rain/night review remains pending.

@@ -16,7 +16,7 @@ import spec
 coll = bpy.data.collections.new('REPAIRED_HEADERS'); bpy.context.scene.collection.children.link(coll)
 obs=[]
 for du,side in GF.DRAINS[1:]:  # the first mouth is now the keeper stair landing
-    obs.extend(drain_headers.build(G.Path(spec.GAL_PATH_KEYS),du,side,GF.DRAIN_YB,bpy.data.materials['Brick_loose'],coll))
+    obs.extend(drain_headers.build(G.Path(spec.GAL_PATH_KEYS),du,side,GF.DRAIN_YB,bpy.data.materials['Brick_rib_side'],coll))
 from types import SimpleNamespace
 path=G.Path(spec.GAL_PATH_KEYS)
 shaft=GF.shaft(SimpleNamespace(path=path,shaft_u=path.u_at_z(GF.SHAFT_Z)),

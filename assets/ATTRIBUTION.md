@@ -673,6 +673,11 @@ the seamless and derived maps, and every SHA-256 are in that folder's `NOTES.md`
 `docs/plans/ruien/concepts/` are Codex pictures too. Steve's reference photo of the real Ruien is third-party and is not
 kept in the repository.
 
+Ruien construction options (2026-10-19): twelve Codex image-generation design pictures, A1–D3, in
+`docs/plans/ruien/ideas/`. The original prompts are retained there. Photocraft resampled copies to 1600 px wide
+and encoded JPEGs; the full PNG originals remain outside the runtime. A1, B2, C1 and D1 were selected for O2;
+the other options remain references for later areas. These are generated proposals, not historical photographs.
+
 ## Plan 84 texture-picture handoff (2026-10-18)
 
 Original photographic-style pictures generated with the built-in imagegen tool, without third-party references. Exact prompts: `art-source/plan-84/generated/prompts.json`. Lossless map files, scales and target native material names: `native-godot/assets/textures/plan-84/manifest.json`. This is a picture handoff; native installation and contextual acceptance remain outstanding.

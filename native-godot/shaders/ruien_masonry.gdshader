@@ -198,7 +198,7 @@ void fragment() {
 	// a wet film: the lamps' glints stronger, and the lamps mirrored as soft streaks on it (the renders' wet coping)
 	float film = smoothstep(0.3, 0.9, wet_all) * (1.0 - lime) * (1.0 - smoothstep(12.0, 30.0, len));
 	vec3 streak = film > 0.001 ? ruien_streaks(world, reflect(rd, n), 0.6) * film * 0.12 : vec3(0.0);
-	EMISSION = c * (1.0 - metal * 0.6) * (diff + (sky + fill) * ao) + spec * spec_c * ao * (1.0 + 0.8 * film) + streak + halo;
+	EMISSION = c * (1.0 - metal * 0.6) * ((diff + sky + fill) * ao) + spec * spec_c * ao * (1.0 + 0.8 * film) + streak + halo;
 	FOG = vec4(fog.rgb + halo, fog.a);
 }
 

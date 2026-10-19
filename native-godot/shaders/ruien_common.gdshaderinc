@@ -74,6 +74,8 @@ void ruien_light_one(int i, vec3 P, vec3 N, vec3 V, float gloss, float wrap, ino
 		L = d / max(dl, 1e-4);
 		// (the lamp's own cap, frame and gauze shade the stone nearest it: no blown-out patch round the flame)
 		e = A.w / (dd + max(D.z, 0.2)) * (dd / (dd + 0.6));
+		// The opaque metal hood shades the vault; most of a wall lantern's light falls down onto the walk.
+		e *= 1.0 - 0.88 * smoothstep(-0.1, 0.65, (P.y - A.y) / max(dl, 0.001));
 	} else {
 		// an opening: daylight from a patch of sky (a grate, a hatch, the outlet's arch), from its nearest point, thrown
 		// out along its way as a lit cloth would be (cos at both ends over the distance squared, softened by its size)

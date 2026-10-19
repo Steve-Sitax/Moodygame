@@ -1,5 +1,13 @@
 # Work log
 
+## Ruien O2 selected designs and repairs, 2026-10-20 (#209)
+
+Built A1's saved, animated twin lids and native maintenance crew, B2's mortared drains and grated gutters, C1's solid arch and D1's round street grate/shaft. Closed and stained the pipes, repaired metric UVs and worn edges, moved the hall stair into the street and used dark bluestone treads. The broad town river sheet now excludes covered Ruien footprints; dimmer local sources and exposure keep the vaults dark. All twelve concepts and future placements are retained in `docs/plans/ruien/ideas/`.
+
+Native save/crew rules: 9/9; final access/collision checks: 32/32. Swimming, ten escape ladders, day/rain/night, both tides and five phantom-water camera heights were reviewed; the final mood/height sweep passed 84/84 assertions. Worktree build: zero errors. Proof and failed iterations with their replacements: `_tmp_verify/ruien-o2-fix3/PROOF-INDEX.md`. Scene shader kinds remain 41 and the real lamp pool remains four; the package fingerprint was refreshed.
+
+PERF-LOCK medians before -> after, ms/frame: gate 17.06 -> 19.65, gallery 14.88 -> 15.00, hall 11.41 -> 14.52. Another task's Blender exports were present during both captures; these are contended observations, not a speed improvement. The owner's game was never stopped. Clean matched timing and any repeatable regression are tracked in #210.
+
 ## Ruien O2 and C2 polish, 2026-10-19 (#207)
 
 Repaired the sluice apron and outflow, radial drain headers, seepage and unfinished sack meshes. Dark water and low mist share the existing three Ruien shader kinds; the real lamp pool stays at four. The keeper stair reaches the winch, and swimming/wading connects the vliet and gallery to ten escape ladders. Walkways and both stairs use worn quay setts, path-aligned UVs and dressed junction bonds; collapsed narrow-face UVs are repaired.

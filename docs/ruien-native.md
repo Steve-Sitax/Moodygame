@@ -6,6 +6,10 @@ Code: `godot/src/World/Ruien/`. Data and resources: `native-godot/world/ruien/`.
 
 O2 access: the keeper hatch beside the outlet leads to the south winch; the hall hatch and grate shaft remain usable. Deep channel water uses Jef's existing swimming controls, with `E` at the escape irons. Ladder spacing, local offsets, gate channel widths and keeper landing paths are area data. The water query follows the rendered sheets, leaving the street navigation map dry.
 
+The selected [construction options](plans/ruien/ideas/README.md) are A1/B2/C1/D1. A1's twin iron lids open and close with `E`; their native world state and the gate crew's route progress are included in ordinary saves. The flight lies behind the gallery wall and meets the ledge through a vaulted niche. B2's side drains cross the walkway in recessed grated gutters. C1 is a continuous brick arch; D1 has a round street grate and flared brick lining. The hall stair exits into the street on a supported route. All treads are bluestone.
+
+The town's broad river sheet is excluded beneath the Ruien by a world-space cover texture, including masonry and side galleries. This replaces the old water-level stencil lid, which could be clipped out at particular camera heights. The air volumes clip against sampled scene depth themselves, so the hardware depth test must not discard their enclosing box at the shaft rim. Neither fix adds a shader kind or a real light.
+
 ## Data
 
 | File | What |
@@ -40,9 +44,9 @@ Conversion (headless, once per export; it writes under `res://world/ruien` and q
 - **Cover**: `ruien_cover` is a top-down map of the zones (1 under a vault). Covered surfaces take no sky, no sun, no
   street spill; the eye's cover is `Daylight.Below`, which brings in the underground air (fog, no lamp glow, sky light
   and sun on people and loose things off, the eye's adaptation as exposure).
-- **The river**: its sheet follows the eye at the tide's level and would cut through every gallery; an invisible lid
-  over the zones' plans at the river's level (the boats' `Psx.Cap`) keeps it out. The water inside stays at the
-  area's `waterMin` and is held, rising a little, while the river is higher.
+- **The river**: the town's broad sheet changes height with the tide. Its existing water shader discards fragments
+  inside the Ruien cover map, so camera height, near-plane clipping and tide cannot expose it underground.
+  The separate water inside stays at the area's `waterMin` and is held, rising a little, while the river is higher.
 - **Gates**: `RuienGates.Cut` cuts each gate's opening through the named town meshes in `NativeTown` before collision
   and navigation read them (`QuayNotch.CutConvex`); the installed town resources are untouched. `--no-ruien-gates` skips it.
 - **Visibility**: an area is drawn only while the eye is in its box under the street, before one of its gates on the
@@ -58,8 +62,8 @@ The red gallery gives 1.35 m above his head on its bed; its maximum 2.4 m water 
 **Route limit:** only O2/C2 is built. C1 under the Grote Markt and the connecting galleries are plan data, and
 Antigoon's live encounter still uses a street-only X/Z route map that excludes water. A complete refuge-to-Ruien
 route is not implemented or accepted. It needs separate underground footing/navigation and the missing areas.
-The installed O2 scan also finds two blocked centre-line samples at the C2 throat (x about -149.5, z 110 and
-110.5), after allowing for C2's 0.25 m higher bed. Resolve that junction before accepting giant transit there.
+The selected C1 arch clears a 3.86 m tall, 0.928 m wide capsule over the actual channel bed at all four throat
+samples (x -149.5, z 109.5–111). This checks the local opening, not an autonomous underground route.
 `--antigoon-size-proof <output>` captures him in daylight and on O2's bed, measures the model/collision, checks a
 street route and records blocked upright samples in the installed gallery in `size.json`. Supply isolated `--db`,
 `--prefs`, `--author-root`, `SCHELDEMIST_USER_DATA`, an unused `--port`, and `--no-ai`. Its O2 witness is a placement

@@ -6,7 +6,7 @@
 // The beams and the mist are drawn on their box's far faces, and worked out along the eye's ray through the box up to
 // what the depth says is behind, so the eye can stand inside them.
 shader_type spatial;
-render_mode unshaded, blend_premul_alpha, depth_draw_never, cull_front, fog_disabled, specular_disabled, ambient_light_disabled, shadows_disabled;
+render_mode unshaded, blend_premul_alpha, depth_draw_never, depth_test_disabled, cull_front, fog_disabled, specular_disabled, ambient_light_disabled, shadows_disabled;
 #include "res://shaders/ruien_common.gdshaderinc"
 
 uniform sampler2D depth_tex : hint_depth_texture, filter_nearest, repeat_disable;
@@ -57,30 +57,46 @@ void fragment() {
 	float covered = ruien_covered(world);
 	vec4 fog = ruien_fog(min(len, tmax), covered);
 	if (mode == 2) {
+		if (len > tmax + 0.015) discard;
 		// a flame or a lamp's glass: its own light, brighter where it faces the eye
 		float face = 0.55 + 0.45 * abs(dot(normalize(cross(dFdx(world), dFdy(world))), rd));
 		ALBEDO = colour * strength * face * (1.0 - fog.a);
 		ALPHA = 0.0;
 	} else if (mode == 0) {
-		// the beam's column: its axis from beam_from along beam_dir; the ray's nearest pass and the stretch in it
+		// Intersect a finite column before integrating. An infinite-axis closest point leaks above
+		// the grate and becomes singular when looking down the shaft.
 		vec3 w = ro - beam_from;
 		float b = dot(rd, beam_dir);
-		float den = max(1.0 - b * b, 1e-4);
-		float s_ray = (b * dot(w, beam_dir) - dot(w, rd)) / den;
-		float s_ax = dot(w + rd * s_ray, beam_dir);
-		float dist = length(w + rd * s_ray - beam_dir * s_ax);
-		float r = beam_r * (1.0 + 0.12 * clamp(s_ax / beam_len, 0.0, 1.0) * beam_len);
-		float half_chord = sqrt(max(r * r * 1.6 - dist * dist, 0.0)) / sqrt(den);
-		float t0 = max(s_ray - half_chord, 0.0), t1 = min(s_ray + half_chord, tmax);
-		float along = clamp(s_ax / beam_len, 0.0, 1.0);
-		float inside = max(t1 - t0, 0.0);
-		float prof = exp(-dist * dist / (r * r * 0.55));
-		float ends = smoothstep(-0.1, 0.25, s_ax) * (1.0 - smoothstep(beam_len * 0.75, beam_len, s_ax));
+		float axial = dot(w, beam_dir);
+		vec3 wr = w - beam_dir * axial, dr = rd - beam_dir * b;
+		float aa = dot(dr, dr), bb = dot(wr, dr);
+		float bound = beam_r * (1.0 + 0.12 * beam_len) * 1.27;
+		float cc = dot(wr, wr) - bound * bound;
+		float t0 = 0.0, t1 = tmax;
+		if (aa > 1e-6) {
+			float disc = bb * bb - aa * cc;
+			if (disc <= 0.0) discard;
+			t0 = max(t0, (-bb - sqrt(disc)) / aa);
+			t1 = min(t1, (-bb + sqrt(disc)) / aa);
+		} else if (cc > 0.0) discard;
+		if (abs(b) > 1e-6) {
+			float cap0 = -axial / b, cap1 = (beam_len - axial) / b;
+			t0 = max(t0, min(cap0, cap1)); t1 = min(t1, max(cap0, cap1));
+		} else if (axial < 0.0 || axial > beam_len) discard;
+		if (t1 <= t0) discard;
+		float g = 0.0, dt = (t1 - t0) / 8.0;
+		for (int i = 0; i < 8; i++) {
+			vec3 q = w + rd * (t0 + (float(i) + 0.5) * dt);
+			float s = dot(q, beam_dir), along = s / beam_len;
+			float r = beam_r * (1.0 + 0.12 * s);
+			float dist = length(q - beam_dir * s);
+			float ends = smoothstep(0.0, 0.04, s) * (1.0 - smoothstep(beam_len * 0.75, beam_len, s));
+			g += exp(-dist * dist / (r * r * 0.55)) * ends * (1.0 - 0.6 * along) * dt;
+		}
 		// dust: brighter specks and slow-turning motes along the stretch
 		vec3 mid = ro + rd * (t0 + t1) * 0.5;
 		float dust = 0.55 + 0.45 * ruien_noise3(mid * 2.3 + vec3(0.0, psx_time * 0.08, psx_time * 0.03)) + 0.35 * ruien_noise3(mid * 9.0 - psx_time * 0.2);
-		float g = inside * prof * ends * (1.0 - 0.6 * along) * dust;
-		ALBEDO = colour * strength * g * (1.0 - fog.a);
+		ALBEDO = colour * strength * g * dust * (1.0 - fog.a);
 		ALPHA = 0.0;
 	} else {
 		// the rot mist: density falling off upward from the box's floor, broken into drifting wisps

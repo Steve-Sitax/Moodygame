@@ -66,6 +66,10 @@ public partial class RuienProof : Node
             await Dev.Kit.I.Light(13,"clear");
             await Seconds(3); // The initial saved spawn is applied after the kit becomes ready.
             bool access=Main.I.Flag("ruien-proof-access");
+            if(!Main.I.Flag("ruien-proof-views-only"))
+            {
+            if(!Main.I.Flag("ruien-proof-stairs"))
+            {
             foreach (float tide in access?Array.Empty<float>():new[] { -4.95f, -0.65f })
             {
                 await SetTide(tide);
@@ -111,34 +115,79 @@ public partial class RuienProof : Node
             j.Place(-146.1f,69,MathF.PI,near:-5.05f);await Seconds(2);
             await WalkTo(new Vector2(-147.4f,79),"vliet enters gallery through open sluice",true);
             await Shot("sluice-swim-entry");
+            }
             foreach(var stair in Ruien.I!.Data.Areas.SelectMany(a=>a.Ways).Where(w=>w.Kind=="keeper_stair"))
             {
+                var hatch=RuienHatch.All[stair.Id];
                 j.Place(stair.Top.X,stair.Top.Z-.4f,MathF.PI,near:stair.Top.Y); await Seconds(2);
-                j.SetKey(Key.W,true); await Seconds(5); j.ClearKeys(); await Seconds(.5f);
+                hatch.Set(false);await Seconds(3);
+                j.Pitch=-.8f;await Seconds(.3f);
+                Check(stair.Id+" E open offered",Interact.I.Acts.Any(a=>a.Key==Key.E&&a.Text=="open the iron lids"));
+                Check(stair.Id+" E open accepted",Interact.I.Press(Key.E));await Seconds(3);
+                Check(stair.Id+" lids swung open",hatch.Open>.99f);j.Pitch=0;
+                await Shot(stair.Id+"-open");
+                await WalkTo(new Vector2(stair.Bottom.X,stair.Bottom.Z+.6f),stair.Id+" full flight descent");
                 Check(stair.Id+" walked down",j.Grounded && !j.Swimming && j.Z>stair.Bottom.Z && MathF.Abs(j.Y-stair.Bottom.Y)<.2f,$"{j.X},{j.Y},{j.Z}: {j.LastShove}");
                 await Shot(stair.Id+"-down");
                 foreach(var p in stair.LandingPath)await WalkTo(p,stair.Id+" landing path "+p);
                 await WalkTo(new Vector2(-148.05f,75.75f),"keeper reaches winch");
                 await Shot("keeper-winch");
                 j.Place(stair.Bottom.X,stair.Bottom.Z+.8f,0,near:stair.Bottom.Y);await Seconds(1);
-                j.SetKey(Key.W,true);await Seconds(5);j.ClearKeys();await Seconds(.5f);
+                await WalkTo(new Vector2(stair.Top.X,stair.Top.Z-.4f),stair.Id+" full flight ascent");
                 Check(stair.Id+" walked up",j.Grounded && j.Z<stair.Top.Z+.2f && MathF.Abs(j.Y-stair.Top.Y)<.2f,$"{j.X},{j.Y},{j.Z}: {j.LastShove}");
                 await Shot(stair.Id+"-up");
+                j.Yaw=MathF.PI;j.Pitch=-.8f;await Seconds(.3f);
+                ulong closeUntil=Time.GetTicksMsec()+2000;
+                while(!Interact.I.Acts.Any(a=>a.Key==Key.E&&a.Text=="close the iron lids")&&Time.GetTicksMsec()<closeUntil)await Seconds(.1f);
+                Check(stair.Id+" E close offered",Interact.I.Acts.Any(a=>a.Key==Key.E&&a.Text=="close the iron lids"));
+                Check(stair.Id+" E close accepted",Interact.I.Press(Key.E));await Seconds(3);
+                Check(stair.Id+" lids shut",hatch.Open<.01f);
+                foreach(float dx in new[]{-.3f,0,.3f})
+                {
+                    var p=stair.Top+new Vector3(dx,1,1);
+                    var hit=Main.I.View.FindWorld3D().DirectSpaceState.IntersectRay(PhysicsRayQueryParameters3D.Create(p,p-Vector3.Up*2,Solid.Layer));
+                    Check("closed lid physical surface "+dx,hit.Count>0&&MathF.Abs(hit["position"].AsVector3().Y-stair.Top.Y)<.08f);
+                }
+                j.Yaw=MathF.PI;await Seconds(.2f);await Shot(stair.Id+"-closed-before-crossing");
+                await WalkTo(new Vector2(stair.Top.X,stair.Top.Z+1),"closed keeper lids support feet");
+                Check("closed lid collision at street",j.Grounded&&MathF.Abs(j.Y)<.12f);
+                await Shot(stair.Id+"-closed");j.Pitch=0;
             }
             j.Place(-147.65f,107,MathF.PI,near:-3.6f);await Seconds(2);
             await WalkTo(new Vector2(-147.65f,111.3f),"gallery dry route enters hall");
             await Shot("gallery-hall-throat");
-            j.Place(-158.75f,132.75f,MathF.PI,near:-3.6f);await Seconds(2);
-            await WalkTo(new Vector2(-158.75f,137.65f),"hall cobbled stair ascends");
+            // The new arch must also leave the central channel clear, including a 3.85 m upright giant.
+            foreach(float z in new[]{109.5f,110f,110.5f,111f})
+            {
+                var space=GetViewport().World3D.DirectSpaceState;float bed=-6.1f;
+                foreach(float dz in new[]{-.46f,0,.46f})
+                {
+                    var hit=space.IntersectRay(PhysicsRayQueryParameters3D.Create(new Vector3(-149.5f,-5,z+dz),new Vector3(-149.5f,-6.4f,z+dz),Solid.Layer));
+                    if(hit.Count>0)bed=Math.Max(bed,hit["position"].AsVector3().Y);
+                }
+                var query=new PhysicsShapeQueryParameters3D{Shape=new CapsuleShape3D{Height=3.86f,Radius=.464f},
+                    Transform=new Transform3D(Basis.Identity,new Vector3(-149.5f,bed+1.97f,z)),CollisionMask=Solid.Layer,Margin=0};
+                var hits=space.IntersectShape(query);
+                Check("hall arch channel clearance "+z,hits.Count==0,string.Join(",",hits.Select(h=>(h["collider"].AsGodotObject() as Node)?.GetPath().ToString())));
+            }
+            var hallStair=Ruien.I.Data.Areas.SelectMany(a=>a.Ways).Single(w=>w.Id=="vleeshuis_hatch");
+            j.Place(-158.8f,132.3f,-MathF.PI/2,near:-3.6f);await Seconds(2);
+            await WalkTo(new Vector2(hallStair.Bottom.X,132.3f),"hall supported walk reaches stair");
+            await WalkTo(new Vector2(hallStair.Bottom.X,137.65f),"hall bluestone stair ascends");
             Check("hall stair reaches top tread",j.Grounded && j.Y>-.5f,$"feet {j.Y}");
             await Shot("hall-stair-top");
+            await WalkTo(new Vector2(hallStair.Top.X,139.2f),"hall stair exits onto open street");
+            Check("hall street exit clear",j.BodyFree(hallStair.Top.X,.05f,139.2f));
+            }
             // Optional review cameras after physics assertions, without restarting the whole native town.
             string views=Main.I.Arg("ruien-proof-views");
             if(views.Length>0)
             {
+                RuienWorkmen.ProofActive=Main.I.Flag("ruien-proof-crew");
                 if(!j.Fly)j.ToggleFly();j.Frozen=true;j.ClearKeys();
                 DisplayServer.WindowSetVsyncMode(DisplayServer.VSyncMode.Disabled);Engine.MaxFps=0;
                 var performance=new List<object>();
+                var authoredFill=Ruien.I!.Data.Fill;
                 foreach(var v in JsonDocument.Parse(File.ReadAllText(views)).RootElement.EnumerateArray())
                 {
                     await Dev.Kit.I.Light(v.GetProperty("hour").GetDouble(),v.GetProperty("weather").GetString()!);
@@ -146,7 +195,13 @@ public partial class RuienProof : Node
                     var p=v.GetProperty("at");var cam=Main.I.Cam;
                     cam.GlobalPosition=new Vector3(p[0].GetSingle(),p[1].GetSingle(),p[2].GetSingle());
                     cam.Basis=Basis.FromEuler(new Vector3(Mathf.DegToRad(v.GetProperty("pitch").GetSingle()),Mathf.DegToRad(v.GetProperty("yaw").GetSingle()),0),EulerOrder.Yxz);
+                    // Optional geometry-inspection exposure: reuse the existing fill, never add a light.
+                    // Production mood cameras omit this and restore the area's authored value.
+                    var fill=authoredFill;
+                    if(v.TryGetProperty("inspectionFill",out var inspect))fill=new Color(.55f,.50f,.42f)*inspect.GetSingle();
+                    Ruien.I!.Data.Fill=fill;
                     string name=v.GetProperty("name").GetString()!;
+                    if(v.TryGetProperty("wait",out var wait))await Seconds(wait.GetSingle());
                     await Seconds(1);
                     var times=new List<double>();ulong last=Time.GetTicksUsec();
                     for(int frame=0;frame<140;frame++)
@@ -159,6 +214,7 @@ public partial class RuienProof : Node
                     GD.Print($"RUIEN_FRAME {name}: {mean:0.00} ms, p95 {p95:0.00}");
                     await Shot(name);
                 }
+                Ruien.I!.Data.Fill=authoredFill;
                 File.WriteAllText(Path.Combine(output,"frames.json"),JsonSerializer.Serialize(performance,new JsonSerializerOptions{WriteIndented=true}));
             }
         }
