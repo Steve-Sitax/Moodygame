@@ -69,5 +69,8 @@ public static class Water
     }
 
     /// <summary>The water's surface at (x, z) now. (The browser adds the drawn wave, a few centimetres; that comes with the water's own part.)</summary>
-    public static float Level(float x, float z) => Tide.LevelAt(x, z);
+    public static float Level(float x, float z) => Ruien.Ruien.I?.WaterAt(x, z) ?? Tide.LevelAt(x, z);
+
+    /// <summary>Underground water is available to submerged actors without turning the street map into water.</summary>
+    public static bool InAt(float x, float z, float y) => In(x, z) || (y < -0.5f && Ruien.Ruien.I?.WaterAt(x, z) != null);
 }

@@ -1,5 +1,7 @@
 # Ruien O2 piece, round 1 (2026-10-18)
 
+Native polish (#207): drain headers use radial wedge geometry and 4 mm arrises; keeper stair blocks have 6–10 mm arrises, iron rails 3 mm, hatch boards 2 mm. Setts carry 16 mm geometric relief from the shared quay height map. Coping remains dressed stone. Hidden mating faces stay sharp; the drying net's cord ends terminate inside ties. The coarse red panels above the gate belonged to the town drying rack; its frame and placement remain, with woven rope replacing the panels.
+
 One small part of the Ruien, built in Blender 5.2 from scripts: the vliet sluice outlet (gate O2), the giant
 gallery from the gate to the Vleeshuis hall, and the hall (room C2) with the first metres of its three other
 galleries. Nothing here touches the game.

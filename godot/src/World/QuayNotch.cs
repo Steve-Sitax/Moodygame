@@ -174,7 +174,7 @@ public static class QuayNotch
         return n;
     }
 
-    private static int CutSurfaceWith(Godot.Collections.Array arrays, Transform3D xf, Func<(Vector3, Vector3, Vector3), bool> consider, List<Func<Vector3, float>> inside)
+    public static int CutSurfaceWith(Godot.Collections.Array arrays, Transform3D xf, Func<(Vector3, Vector3, Vector3), bool> consider, List<Func<Vector3, float>> inside)
     {
         var positions = arrays[(int)Mesh.ArrayType.Vertex].AsVector3Array();
         var indexV = arrays[(int)Mesh.ArrayType.Index];
@@ -189,6 +189,12 @@ public static class QuayNotch
             var c = new Channel { Index = k, Kind = v.VariantType };
             switch (v.VariantType)
             {
+                // Native Ruien CUSTOM0 is RGBA8 weather/bake data, interpolated with the new cut vertices.
+                case Variant.Type.PackedByteArray:
+                    c.Data = v.AsByteArray().Select(b => (float)b).ToArray();
+                    c.Stride = c.Data.Length / count;
+                    if (c.Stride * count != c.Data.Length) return 0;
+                    break;
                 case Variant.Type.PackedVector3Array: c.Stride = 3; c.Data = v.AsVector3Array().SelectMany(p => new[] { p.X, p.Y, p.Z }).ToArray(); break;
                 case Variant.Type.PackedVector2Array: c.Stride = 2; c.Data = v.AsVector2Array().SelectMany(p => new[] { p.X, p.Y }).ToArray(); break;
                 case Variant.Type.PackedColorArray: c.Stride = 4; c.Data = v.AsColorArray().SelectMany(p => new[] { p.R, p.G, p.B, p.A }).ToArray(); break;
@@ -254,6 +260,9 @@ public static class QuayNotch
             var all = c.Data.Concat(c.Added).ToArray();
             switch (c.Kind)
             {
+                case Variant.Type.PackedByteArray:
+                    arrays[c.Index] = all.Select(x => (byte)Math.Clamp(MathF.Round(x),0,255)).ToArray();
+                    break;
                 case Variant.Type.PackedVector3Array:
                     var v3 = new Vector3[all.Length / 3];
                     for (int i = 0; i < v3.Length; i++) v3[i] = new Vector3(all[i * 3], all[i * 3 + 1], all[i * 3 + 2]);

@@ -27,6 +27,8 @@ uniform float relief_m = 0.02;
 uniform float pom = 0.35;
 uniform float normal_k = 1.0;
 uniform float rough_k = 1.0;
+uniform float rough_floor = 0.08;
+uniform float grit = 0.0;
 uniform float metal = 0.0;
 // light through a thin edge (calcite's translucent crust)
 uniform float wrap = 0.0;
@@ -132,6 +134,7 @@ void fragment() {
 		nt = mix(nt, texture(moss_normal, muv).xyz * 2.0 - 1.0, mk);
 	}
 	c *= tint.rgb;
+	if (grit > 0.0) c *= mix(1.0, 0.72 + 0.48 * ruien_noise3(world * 180.0) + 0.16 * ruien_noise3(world * 17.0), grit);
 	if (bake.a > 0.5 && bake_k > 0.0) {
 		// the study's colour at this point, the pictures' variation round their own average (their smallest mip)
 		vec3 avg = textureLod(albedo_tex, uv, 11.0).rgb;
@@ -164,11 +167,11 @@ void fragment() {
 	}
 	nt.xy *= normal_k;
 	nt.z = sqrt(max(1.0 - dot(nt.xy, nt.xy), 0.0));
-	vec3 n = normalize(tbn * nt);
+	vec3 n = normal_k > 0.001 ? normalize(tbn * nt) : nw;
 	// wet: darker (as porous stone goes) and glossy; lime and moss are matt
 	float wet_all = clamp(wet + (1.0 - covered) * psx_wet * 0.6, 0.0, 1.0);
 	c *= 1.0 - 0.35 * wet_all * (1.0 - lime) * (bake.a > 0.5 ? 1.0 - bake_k : 1.0);
-	float rough = clamp(hra.g * rough_k * (1.0 - 0.88 * wet_all) + 0.5 * lime * (1.0 - wet) + 0.3 * mk, 0.04, 1.0);
+	float rough = clamp(hra.g * rough_k * (1.0 - 0.88 * wet_all) + 0.5 * lime * (1.0 - wet) + 0.3 * mk, rough_floor, 1.0);
 	float gloss = (1.0 - rough) * (1.0 - smoothstep(25.0, 45.0, len));
 	// (the bake's AO is taken softly: it came from a 0.6 m reach and would black out every joint and corner)
 	float ao = hra.b * mix(1.0, bake_ao, 0.7);
@@ -195,7 +198,7 @@ void fragment() {
 	// a wet film: the lamps' glints stronger, and the lamps mirrored as soft streaks on it (the renders' wet coping)
 	float film = smoothstep(0.3, 0.9, wet_all) * (1.0 - lime) * (1.0 - smoothstep(12.0, 30.0, len));
 	vec3 streak = film > 0.001 ? ruien_streaks(world, reflect(rd, n), 0.6) * film * 0.12 : vec3(0.0);
-	EMISSION = c * (1.0 - metal * 0.6) * (diff + (sky + fill) * ao) + spec * spec_c * ao * (1.0 + 2.5 * film) + streak + halo;
+	EMISSION = c * (1.0 - metal * 0.6) * (diff + (sky + fill) * ao) + spec * spec_c * ao * (1.0 + 0.8 * film) + streak + halo;
 	FOG = vec4(fog.rgb + halo, fog.a);
 }
 

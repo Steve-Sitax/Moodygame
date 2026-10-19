@@ -84,14 +84,14 @@ public partial class Jef
     /// <summary>Open water a swimmer fits in at the surface (rijnkaai.ts swimFree): in the water's outline, clear of walls, steps, piles and hulls.</summary>
     public bool SwimFree(float x, float z)
     {
-        if (!Water.In(x, z)) return false;
+        if (!Water.InAt(x, z, Y)) return false;
         float level = Water.Level(x, z);
         return ShapeFree(swimShape, new Vector3(x, level + (SwimTop - SwimDeep) / 2, z)) && !Hull(x, z, Radius, level - SwimDeep, level + SwimTop, out _);
     }
 
     /// <summary>Room for the diver's head at this eye: in the water, under its surface, clear of all that is solid.</summary>
     public bool DiveFree(Vector3 e)
-        => Water.In(e.X, e.Z) && e.Y < Water.Level(e.X, e.Z) && ShapeFree(diveShape, e) && !Hull(e.X, e.Z, DiveR, e.Y - DiveR, e.Y + DiveR, out _);
+        => Water.InAt(e.X, e.Z, e.Y) && e.Y < Water.Level(e.X, e.Z) && ShapeFree(diveShape, e) && !Hull(e.X, e.Z, DiveR, e.Y - DiveR, e.Y + DiveR, out _);
 
     /// <summary>The nearest spot within 1 m where a swimmer fits, or null.</summary>
     public (float x, float z)? NearestSwim(float x, float z, float reach = 1.0f)
@@ -110,7 +110,7 @@ public partial class Jef
     /// <summary>Can he drop into the water here? Water deep enough to swim, with room close by.</summary>
     public bool Swimmable(float x, float z)
     {
-        if (!Water.In(x, z)) return false;
+        if (!Water.InAt(x, z, Y)) return false;
         float level = Water.Level(x, z);
         return GroundAt(x, z, level - Step) < level - Tide.Wade && NearestSwim(x, z) != null;
     }
@@ -204,11 +204,11 @@ public partial class Jef
         float ox = X, oz = Z;
         float wanted = vel.Length() * dt;
         float moved = MoveBy(vel.X * dt, vel.Y * dt, floatY);
-        if (!Water.In(X, Z))
+        if (!Water.InAt(X, Z, Y))
         {
             float nx = X, nz = Z;
-            X = Water.In(nx, oz) ? nx : ox;
-            Z = Water.In(X, nz) ? nz : oz;
+            X = Water.InAt(nx, oz, Y) ? nx : ox;
+            Z = Water.InAt(X, nz, Y) ? nz : oz;
         }
         hullGrace = Math.Max(0, hullGrace - dt);
         if (Hull(ox, oz, Radius, level - SwimDeep, level + SwimTop, out var inside))
@@ -430,7 +430,7 @@ public partial class Jef
             var d = e - from;
             dive3 = dt > 0 ? d / dt : Vector3.Zero;
         }
-        if (!Water.In(e.X, e.Z)) e = new Vector3(from.X, e.Y, from.Z);
+        if (!Water.InAt(e.X, e.Z, Y)) e = new Vector3(from.X, e.Y, from.Z);
         // never into the bed: the first solid straight down from the surface (the mud, the stones of the bed; a sheet
         // of mud off a wall's foot stands for the bank under it: he does not go in beneath it), nor deeper than the
         // deepest dock. A bed that rises over his head is a bank before him: he stops at it (and is never lifted

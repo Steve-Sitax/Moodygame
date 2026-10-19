@@ -138,6 +138,18 @@ def penstock(g, mats, c):
     for o in obs:
         if o.type == 'MESH' and not any(m.type == 'BEVEL' for m in o.modifiers) and o.name.startswith('penstock_'):
             PR.bevel_mod(o, 0.003, 2, 35)
+    # The keeper stair reaches the south ledge; the same drive is usable from either bank.
+    from mathutils import Matrix
+    import bmesh
+    mirror=Matrix.Identity(4); mirror[0][0]=-1; mirror[0][3]=2*spec.GATE_X
+    names=('penstock_wheel','penstock_crank','penstock_drive','penstock_frame','penstock_handle','penstock_pawl','penstock_chain')
+    for old in list(obs):
+        if not old.name.startswith(names):continue
+        ob=old.copy();ob.data=old.data.copy();ob.name='keeper_'+old.name;c.objects.link(ob)
+        ob.matrix_world=mirror@old.matrix_world
+        bm=bmesh.new();bm.from_mesh(ob.data);bmesh.ops.reverse_faces(bm,faces=list(bm.faces));bm.to_mesh(ob.data);bm.free()
+        obs.append(ob)
+    obs.append(U.tube('keeper_shaft_extension',[P(-2.45,shaft_y,-.24),P(-1.05,shaft_y,-.24)],.03,n=12,coll_=c,mat=iron))
     return obs
 
 # ------------------------------------------------------------------ drains, pipes
@@ -177,39 +189,9 @@ def drains(g, mats, c, rng, ring_meshes):
         V = np.vstack([endring, cap_c])
         F = [[i, (i + 1) % k, k] for i in range(k)]
         obs.append(U.mesh_from_faces('drain_%d_end' % di, V, F, coll_=c, mat=mats['soot_black']))
-        # two rings of header bricks on edge round the mouth
-        for ring, (r0, r1) in enumerate(((0.0, 0.1), (0.1, 0.2))):
-            # outline offset outward
-            nrm = np.stack([np.gradient(outline[:, 1]), -np.gradient(outline[:, 0])], -1)
-            nrm /= np.linalg.norm(nrm, axis=1, keepdims=True) + 1e-9
-            if np.mean(np.sum(nrm * (outline - outline.mean(0)), 1)) < 0:
-                nrm = -nrm
-            ofs = outline + nrm * (r0 + r1) / 2
-            seg2 = np.r_[0, np.cumsum(np.linalg.norm(np.diff(ofs, axis=0), axis=1))]
-            nb = int(seg2[-1] / 0.062)
-            for b in range(nb):
-                q = (b + 0.5) * seg2[-1] / nb
-                cu = np.interp(q, seg2, ofs[:, 0]); cyy = np.interp(q, seg2, ofs[:, 1])
-                q1, q2 = max(q - 0.02, 0), min(q + 0.02, seg2[-1])
-                tu = np.interp(q2, seg2, ofs[:, 0]) - np.interp(q1, seg2, ofs[:, 0])
-                ty = np.interp(q2, seg2, ofs[:, 1]) - np.interp(q1, seg2, ofs[:, 1])
-                if cyy < -0.02:
-                    continue
-                y_w = DRAIN_YB + cyy
-                s_w = G.shell_s_at_y(y_w)
-                pos = p.world(np.array(du + cu), np.array(side * (s_w + 0.07)), np.array(y_w))
-                px, pz, tx, tz, nx, nz = p.frame(np.array(du + cu))
-                T3 = np.array([float(tx), 0, float(tz)]); N3 = np.array([float(nx), 0, float(nz)]) * side
-                tang = T3 * tu + np.array([0, 1.0, 0]) * ty
-                tang /= np.linalg.norm(tang) + 1e-9
-                rad = np.cross(tang, N3); rad /= np.linalg.norm(rad)
-                if np.dot(rad, T3 * (cu) + np.array([0, 1, 0]) * (cyy - 0.8)) < 0:
-                    rad = -rad
-                me = ring_meshes[rng.integers(len(ring_meshes))]
-                o = bpy.data.objects.new('drain_%d_ringbrick' % di, me)
-                c.objects.link(o)
-                o.matrix_world = PR.frame_matrix(pos + rng.normal(0, 0.003, 3), tang, rad, N3)
-                obs.append(o)
+        # Wedge headers share their radial mortar beds and follow the vault face.
+        from . import drain_headers
+        obs.extend(drain_headers.build(p, du, side, DRAIN_YB, mats['brick_loose'], c))
         # silt and a trickle in the invert
         inv = [p.world(np.array(du), np.array(side * ss), np.array(DRAIN_YB + 0.03)) for ss in np.linspace(4.4, G.shell_s_at_y(DRAIN_YB) - 0.02, 8)]
         obs.append(U.tube('drain_%d_trickle' % di, inv, 0.05, n=8, coll_=c, mat=mats['water_film'], flat=0.12))
@@ -276,7 +258,7 @@ def shaft(g, mats, c):
     obs.append(wall('shaft_wall_a', lambda a: np.full_like(a, su - SHAFT_H), lambda a: s0 + a * (s1 - s0), 12, ctr))
     obs.append(wall('shaft_wall_b', lambda a: np.full_like(a, su + SHAFT_H), lambda a: s0 + a * (s1 - s0), 12, ctr))
     # cast iron grate: frame and bars at street level
-    def P(u, s, y):
+    def P(u, y, s):
         return p.world(np.array(u), np.array(s), np.array(y))
     iron = mats['iron']
     fr = []

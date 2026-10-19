@@ -40,10 +40,17 @@ public static class RuienKit
         if (mesh == null) return null;
         var n = new Node3D { Name = piece, Position = at, Rotation = new Vector3(0, Mathf.DegToRad(yawDeg), 0) };
         n.AddChild(new MeshInstance3D { Mesh = mesh, Layers = Ruien.Layer, CastShadow = GeometryInstance3D.ShadowCastingSetting.Off });
+        if(mesh.HasMeta("ruien_solid") && mesh.GetMeta("ruien_solid").AsBool())
+        {
+            var body=new StaticBody3D { CollisionLayer=Solid.Layer,CollisionMask=0 };
+            body.AddChild(new CollisionShape3D { Shape=new ConcavePolygonShape3D { Data=mesh.GetFaces(),BackfaceCollision=true } });
+            n.AddChild(body);
+        }
         return n;
     }
 
-    private static Mesh? grate, irons;
+    private static Mesh? grate;
+    private static readonly Dictionary<int, Mesh> Irons = new();
 
     /// <summary>
     /// Step irons up a channel wall (the stand-in until the kit's own): U-shaped wrought-iron rungs 0.3 m apart, 0.4 m
@@ -51,7 +58,8 @@ public static class RuienKit
     /// </summary>
     public static Node3D StepIrons(RuienData.Way w)
     {
-        if (irons == null)
+        int heightKey = (int)MathF.Round((w.Top.Y - w.Bottom.Y) * 100);
+        if (!Irons.TryGetValue(heightKey, out var irons))
         {
             var st = new SurfaceTool();
             st.Begin(Mesh.PrimitiveType.Triangles);
@@ -61,8 +69,12 @@ public static class RuienKit
                 Bar(st, new Vector3(0, y, 0.13f), new Vector3(0.42f, 0.032f, 0.032f));
                 foreach (float x in new[] { -0.195f, 0.195f }) Bar(st, new Vector3(x, y, 0.045f), new Vector3(0.032f, 0.032f, 0.2f));
             }
+            // Continuous stiles rise above the coping for a safe final handhold.
+            foreach (float x in new[] { -0.24f, 0.24f })
+                Bar(st, new Vector3(x, (h + 0.65f) / 2, 0.16f), new Vector3(0.036f, h + 0.65f, 0.036f));
             irons = st.Commit();
             irons.SurfaceSetMaterial(0, RuienMaterials.Get("ruien_iron"));
+            Irons[heightKey] = irons;
         }
         var n = new Node3D { Name = "irons_" + w.Id, Position = new Vector3(w.Wall.X, w.Bottom.Y, w.Wall.Y), Rotation = new Vector3(0, MathF.Atan2(w.Out.X, w.Out.Y), 0) };
         n.AddChild(new MeshInstance3D { Mesh = irons, Layers = Ruien.Layer, CastShadow = GeometryInstance3D.ShadowCastingSetting.Off });

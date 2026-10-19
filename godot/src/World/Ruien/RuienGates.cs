@@ -24,7 +24,7 @@ public static class RuienGates
             }
         // the street's holes over the ways down (a grate's shaft, a hatch's stair)
         foreach (var area in data.Areas)
-            foreach (var w in area.Ways.Where(w => w.Kind is "ladder" or "stair"))
+            foreach (var w in area.Ways.Where(w => w.Kind is "ladder" or "stair" or "keeper_stair"))
             {
                 var hole = w.Hole.Grow(0.01f);
                 // (a stair's hole reaches 15 cm further over its flight: a head going down under the hatch's far edge

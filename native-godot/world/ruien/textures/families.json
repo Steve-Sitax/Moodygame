@@ -78,5 +78,13 @@
     ],
     "relief": 0.01,
     "variants": false
+  },
+  "setts": {
+    "tile": [
+      2.5,
+      2.5
+    ],
+    "relief": 0.016,
+    "variants": false
   }
 }

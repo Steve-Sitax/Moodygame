@@ -98,7 +98,8 @@ void fragment() {
 			vec2 dq = q.xz - drift * psx_time;
 			float wisp = smoothstep(0.25, 0.85, ruien_noise(dq * 0.45) * 0.6 + ruien_noise(dq * 1.3 + 3.1) * 0.4 + 0.12 * sin(psx_time * 0.3 + q.x * 0.7));
 			float edge = smoothstep(0.0, 1.2, min(min(q.x - box_min.x, box_max.x - q.x), min(q.z - box_min.z, box_max.z - q.z)) + 0.6);
-			float dens = density * exp(-up / thin_up) * (0.25 + 0.75 * wisp) * edge;
+			float ceiling_fade = 1.0 - smoothstep(box_max.y - 0.18, box_max.y, q.y);
+			float dens = density * exp(-up / thin_up) * (0.25 + 0.75 * wisp) * edge * ceiling_fade;
 			acc += dens * dt;
 			if (i % 2 == 0) {
 				// the light the mist takes here: the lamps and openings all round (no facing: wrap 1), the fill, the open sky

@@ -1,5 +1,11 @@
 # Work log
 
+## Ruien O2 and C2 polish, 2026-10-19 (#207)
+
+Repaired the sluice apron and outflow, radial drain headers, seepage and unfinished sack meshes. Dark water and low mist share the existing three Ruien shader kinds; the real lamp pool stays at four. The keeper stair reaches the winch, and swimming/wading connects the vliet and gallery to ten escape ladders. Walkways and both stairs use worn quay setts, path-aligned UVs and dressed junction bonds; collapsed narrow-face UVs are repaired.
+
+Native route proof: 108/108, followed by 52/52 after the keeper landing's mitred seams. Day, rain, night and both tide extremes were captured outside source control under `_tmp_verify/ruien-o2-polish/`; the final hatch-light review is in `final4`. Main build, launcher check and final timing receipt follow integration.
+
 ## All open issues, 2026-10-18/19 (resumed 2026-10-19)
 
 The resumed queue is integrated where the main goal works. Minor leftovers remain on existing issues for play review;

@@ -560,7 +560,7 @@ public partial class Jef : Node, Mantle.IWorld
             }
             Y += (v0 + vy) * 0.5f * dt;
             if (LastJump.Frame > 0 && Y > LastJump.Top) LastJump = LastJump with { Top = Y };
-            if (Y <= level && Water.In(X, Z) && ground < level - Tide.Wade)
+            if (Y <= level && Water.InAt(X, Z, Y) && ground < level - Tide.Wade)
             {
                 float h = fallTop - Y;
                 fallTop = float.NegativeInfinity;
@@ -604,7 +604,7 @@ public partial class Jef : Node, Mantle.IWorld
             }
         }
         // M6 tides: down a flight of steps into deep water (or the tide came up round you): swim
-        if (Grounded && Y < level - Tide.Wade && Water.In(X, Z))
+        if (Grounded && Y < level - Tide.Wade && Water.InAt(X, Z, Y))
         {
             EnterWater(true);
             return;

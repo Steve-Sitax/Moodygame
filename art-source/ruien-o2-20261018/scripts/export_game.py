@@ -168,6 +168,8 @@ def exportable():
                 continue
             if o.name.startswith(VLIET_DROP):
                 continue
+            if o.name.startswith(('runoff_', 'offal_sack_')):
+                continue  # stains are carried by the host masks; unfinished sack blobs are not kit assets
             out.append(o)
     return list(dict.fromkeys(out))
 

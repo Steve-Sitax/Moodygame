@@ -48,15 +48,16 @@ public partial class RuienWays : Node
     private Offers? Keys(float x, float z)
     {
         var j = Jef.I;
-        if (j == null || !j.Grounded || j.Swimming || j.Climbing || j.Riding || j.Fly || j.Laden || j.Frozen) return null;
+        if (j == null || (!j.Grounded && !j.Swimming) || j.Climbing || j.Riding || j.Fly || j.Laden || j.Frozen) return null;
         foreach (var w in rungs)
         {
             var at = new Vector2(x, z);
-            if (MathF.Abs(j.Y - w.Bottom.Y) < 0.5f && at.DistanceTo(new Vector2(w.Bottom.X, w.Bottom.Z)) < 1.0f)
+            if ((j.Swimming || MathF.Abs(j.Y - w.Bottom.Y) < 0.5f) && j.Y < w.Top.Y && at.DistanceTo(new Vector2(w.Bottom.X, w.Bottom.Z)) < 1.0f)
                 return new Offers { Options = new() { (0.5f, Act.At(Key.E, w.Irons ? "climb onto the ledge" : "climb up onto the sill", new Vector3(w.Wall.X, w.Bottom.Y + 1.4f, w.Wall.Y), () => RungsUp(w))) } };
             if (MathF.Abs(j.Y - w.Top.Y) < 0.35f && at.DistanceTo(new Vector2(w.Top.X, w.Top.Z)) < 0.9f)
                 return new Offers { Options = new() { (0.5f, Act.At(Key.E, w.Irons ? "climb down into the channel" : "climb down into the channel", new Vector3(w.Wall.X, w.Top.Y + 0.4f, w.Wall.Y), () => RungsDown(w))) } };
         }
+        if (j.Swimming) return null;
         foreach (var (w, off, stand) in ladders)
         {
             var top = new Vector2(w.Top.X, w.Top.Z);
@@ -73,30 +74,32 @@ public partial class RuienWays : Node
     private const float Rise = 0.75f; // m a second up or down the rungs
 
     // up the step irons out of the channel, over the coping onto the ledge; and back down
-    private static void RungsUp(RuienData.Way w)
+    public static void RungsUp(RuienData.Way w)
     {
         var o = new Vector3(w.Out.X, 0, w.Out.Y);
-        var foot = new Vector3(w.Wall.X, w.Bottom.Y, w.Wall.Y) + o * 0.42f;
+        float start = Math.Max(w.Bottom.Y, Jef.I.Y);
+        var foot = new Vector3(w.Wall.X, start, w.Wall.Y) + o * 0.42f;
         var keys = new List<(Vector3, float)>
         {
             (foot + Vector3.Up * 0.2f, 0.4f),
-            (foot + Vector3.Up * (w.Top.Y - w.Bottom.Y - 0.45f), (w.Top.Y - w.Bottom.Y - 0.65f) / Rise),
+            (new Vector3(foot.X, w.Top.Y - 0.45f, foot.Z), Math.Max(0.2f, (w.Top.Y - start - 0.65f) / Rise)),
             (new Vector3(w.Wall.X, w.Top.Y + 0.2f, w.Wall.Y) - o * 0.25f, 0.6f),
             (w.Top, 0.5f),
         };
         Jef.I.ClimbTo(keys, null, null, Vector3.Zero, default, 1);
     }
 
-    private static void RungsDown(RuienData.Way w)
+    public static void RungsDown(RuienData.Way w)
     {
         var o = new Vector3(w.Out.X, 0, w.Out.Y);
-        var foot = new Vector3(w.Wall.X, w.Bottom.Y, w.Wall.Y) + o * 0.42f;
+        float bottom = Math.Max(w.Bottom.Y, Water.Level(w.Bottom.X, w.Bottom.Z) - Jef.SwimFeet);
+        var foot = new Vector3(w.Wall.X, bottom, w.Wall.Y) + o * 0.42f;
         var keys = new List<(Vector3, float)>
         {
             (new Vector3(w.Wall.X, w.Top.Y + 0.2f, w.Wall.Y) - o * 0.25f, 0.5f),
-            (foot + Vector3.Up * (w.Top.Y - w.Bottom.Y - 0.45f), 0.6f),
-            (foot + Vector3.Up * 0.2f, (w.Top.Y - w.Bottom.Y - 0.65f) / Rise),
-            (w.Bottom, 0.4f),
+            (new Vector3(foot.X, w.Top.Y - 0.45f, foot.Z), 0.6f),
+            (foot + Vector3.Up * 0.2f, Math.Max(0.2f, (w.Top.Y - bottom - 0.65f) / Rise)),
+            (new Vector3(w.Bottom.X, bottom, w.Bottom.Z), 0.4f),
         };
         Jef.I.ClimbTo(keys, null, null, Vector3.Zero, default, 1);
     }

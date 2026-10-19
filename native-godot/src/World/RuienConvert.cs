@@ -20,6 +20,11 @@ public partial class RuienConvert : Node
         int code = 0;
         try
         {
+            if(Arg("ruien-uv-audit") is {Length:>0} audit)RuienUv.Audit(audit,Arg("report"));
+            if(args.Contains("--ruien-paving-textures")) RuienPaving.PrepareTextures();
+            if(Arg("ruien-screen") is {Length:>0} screen) RuienRepair.Screen(screen);
+            if (Arg("ruien-repair") is { Length: > 0 } repair)
+                RuienRepair.Convert(repair, Arg("area") is { Length: > 0 } repairArea ? repairArea : "o2", Arg("headers"));
             if (Arg("ruien-textures") is { Length: > 0 } tex)
                 GD.Print("ruien convert: textures " + string.Join(", ", RuienTextures.Convert(tex)));
             if (Arg("ruien-area") is { Length: > 0 } area)

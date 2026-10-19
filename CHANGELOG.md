@@ -11,6 +11,7 @@ Bugs and loose ends are tracked as [issues](https://github.com/Steve-Sitax/Moody
 
 ## [Unreleased]
 
+- Ruien O2 gains a keeper stair, escape ladders and swimming, worn stone walking surfaces laid along the paths with dressed junction stones, repaired drain mouths and a flowing sluice outlet; water, low mist and wet masonry now use separate treatments (#207).
 - Townspeople keep their full body clear of static stall corners when walking near the edge of a navigation cell.
 - Town and park trunks use the photographed bark colour and relief maps (#84, partial); foliage and tree shapes are retained. Isolated day/rain/night review remains pending.
 - Rounded landmark stone arrises and repaired narrow-face UVs while retaining original materials and collision support; capitals, statues and other construction details still need work (#171).

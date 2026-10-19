@@ -40,6 +40,8 @@ public partial class Ruien : Node
         public RuienData.Area Area = null!;
         public Node3D Root = null!;
         public readonly List<MeshInstance3D> Water = new();
+        public readonly List<(MeshInstance3D mesh, ShaderMaterial material, RuienData.Gate gate)> Outflows = new();
+        public readonly List<(MeshInstance3D mesh, ShaderMaterial material, RuienData.MistBox box)> Mists = new();
         public readonly List<(ShaderMaterial m, RuienData.Source s)> Beams = new();
         public float Level;
         public bool Shown;
@@ -215,12 +217,39 @@ public partial class Ruien : Node
         {
             if (w.Kind == "ladder") Main.I.View.AddChild(RuienKit.Grate(w));
             if (w.Kind == "rungs" && w.Irons) root.AddChild(RuienKit.StepIrons(w));
+            if (w.Kind == "keeper_stair") Main.I.View.AddChild(RuienStair.Build(w));
         }
         foreach (var mb in area.Mist)
         {
             var m = RuienMaterials.Mist(mb.Min, mb.Max, mb.Density);
             var size = mb.Max - mb.Min;
-            root.AddChild(new MeshInstance3D { Name = "mist_" + mb.Id, Mesh = new BoxMesh { Size = size + Vector3.One * 0.02f }, MaterialOverride = m, Position = (mb.Min + mb.Max) / 2, Layers = Layer, CastShadow = GeometryInstance3D.ShadowCastingSetting.Off });
+            var mist = new MeshInstance3D { Name = "mist_" + mb.Id, Mesh = new BoxMesh { Size = size + Vector3.One * 0.02f }, MaterialOverride = m, Position = (mb.Min + mb.Max) / 2, Layers = Layer, CastShadow = GeometryInstance3D.ShadowCastingSetting.Off };
+            root.AddChild(mist);
+            d.Mists.Add((mist, m, mb));
+        }
+        foreach (var gate in area.Gates)
+        {
+            var st = new SurfaceTool(); st.Begin(Mesh.PrimitiveType.Triangles);
+            var across = new Vector2(-gate.Normal.Y, gate.Normal.X);
+            Vector3 Point(float along, float side)
+            {
+                var p = gate.Origin + gate.Normal * along + across * side*gate.WaterWidth(along)/2;
+                return new Vector3(p.X, 0, p.Y);
+            }
+            for (int i = 0; i < 24; i++)
+            {
+                float a = -1.6f + i * 0.15f, b = a + 0.15f;
+                foreach (var p in new[] { Point(a, -1), Point(a, 1), Point(b, 1), Point(a, -1), Point(b, 1), Point(b, -1) })
+                { st.SetNormal(Vector3.Up); st.SetUV(new Vector2(p.X,p.Z)); st.AddVertex(p); }
+            }
+            var m = (ShaderMaterial)RuienMaterials.Get("ruien_misc_water").Duplicate();
+            m.SetShaderParameter("outfall", 1f);
+            m.SetShaderParameter("outfall_origin", gate.Origin);
+            m.SetShaderParameter("outfall_direction", gate.Normal);
+            m.SetShaderParameter("flow", gate.Normal * 0.18f);
+            var sheet = new MeshInstance3D { Name = "outflow_" + gate.Id, Mesh = st.Commit(), MaterialOverride = m, Layers = Layer, CastShadow = GeometryInstance3D.ShadowCastingSetting.Off };
+            root.AddChild(sheet);
+            d.Outflows.Add((sheet,m,gate));
         }
     }
 
@@ -263,6 +292,38 @@ public partial class Ruien : Node
     /// <summary>How far under a vault a point is: 0 in the open .. 1 inside (the cover map, below the crown).</summary>
     public float CoverAt(Vector3 p) => Cover.At(p.X, p.Z) * (1 - Mathf.SmoothStep(-0.7f, -0.05f, p.Y));
 
+    /// <summary>The same footprint and level as the drawn water, including the gate's sloping outflow.</summary>
+    public float? WaterAt(float x, float z)
+    {
+        var p = new Vector2(x, z);
+        foreach (var d in drawn)
+        {
+            var box=d.Area.Box.Grow(2);
+            if(x<box.Position.X || x>box.End.X || z<box.Position.Z || z>box.End.Z)continue;
+            foreach (var g in d.Area.Gates)
+            {
+                var rel = p - g.Origin;
+                float u = rel.Dot(g.Normal);
+                if (u >= -1.6f && u <= 2f && MathF.Abs(rel.Cross(g.Normal)) < g.WaterWidth(u)/2)
+                    return Mathf.Lerp(d.Level, Math.Min(d.Level, Math.Max(Tide.River, g.Sill + 0.015f)), Mathf.SmoothStep(-1.6f, 2, u));
+            }
+            foreach (var w in d.Area.Water)
+            {
+                if (w.Outline.Length >= 3 && Geometry2D.IsPointInPolygon(p, w.Outline)) return d.Level;
+                var line = w.Line.Length >= 2 ? w.Line : d.Area.Zones.FirstOrDefault(q => q.Id == w.Zone)?.Path;
+                if (line == null) continue;
+                float half=(w.Width>0?w.Width:d.Area.Zones.FirstOrDefault(q=>q.Kind=="line")?.S.Channel??3)/2;
+                for (int i = 0; i + 1 < line.Length; i++)
+                {
+                    var ab = line[i + 1] - line[i];
+                    float t = (p - line[i]).Dot(ab) / Math.Max(ab.LengthSquared(), 1e-6f);
+                    if (t >= 0 && t <= 1 && p.DistanceTo(line[i] + ab * t) < half) return d.Level;
+                }
+            }
+        }
+        return null;
+    }
+
     private void Update(float dt)
     {
         t += dt;
@@ -298,6 +359,21 @@ public partial class Ruien : Node
             float target = river < a.WaterMin ? a.WaterMin : a.WaterMin + a.WaterRise * Mathf.Clamp((river - a.WaterMin) / 3.5f, 0, 1);
             d.Level += (target - d.Level) * Math.Min(1, dt * 0.05f + (dt <= 0 ? 1 : 0));
             foreach (var w in d.Water) w.Position = new Vector3(0, d.Level, 0);
+            foreach (var (mesh, material, gate) in d.Outflows)
+            {
+                mesh.Position = new Vector3(0, d.Level, 0);
+                float drop = Math.Min(d.Level, Math.Max(river, gate.Sill + 0.015f)) - d.Level;
+                material.SetShaderParameter("outfall_drop", drop);
+            }
+            foreach (var (mesh, material, box) in d.Mists)
+            {
+                float rise = d.Level - a.WaterMin;
+                var lo = new Vector3(box.Min.X, d.Level + 0.015f, box.Min.Z);
+                var hi = new Vector3(box.Max.X, Math.Min(a.Zones.Min(z => z.S.LedgeY) - 0.15f, box.Max.Y + rise), box.Max.Z);
+                material.SetShaderParameter("box_min", lo); material.SetShaderParameter("box_max", hi);
+                mesh.Position = (lo + hi) / 2;
+                ((BoxMesh)mesh.Mesh).Size = hi - lo + Vector3.One * 0.02f;
+            }
             // the tide doors: the rising river pushes them shut; they swing open (about a minute) once it falls below
             // the water inside, and the trapped water runs out
             bool open = river < d.Level - 0.02f;

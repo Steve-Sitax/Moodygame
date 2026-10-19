@@ -6,6 +6,11 @@ O2 (vliet sluice, giant gallery, Vleeshuis hall) is the first use. All scripts r
 
 ## Shared conventions (the same for every piece and stretch)
 
+- Native polish: `RuienPaving` reuses the town quay setts (`r000033` colour, `r000035` height, 2.5 m tile), with 16 mm geometric relief, dirty joints and shared `ruien_setts` masonry material. Dressed waterside coping stays separate. Run `convert.tscn -- --ruien-paving-textures` once to pack the normal/HRA maps; the colour resource is shared directly.
+- Paving UVs follow each ledge centre line, using offset arc length through bends. Rectangular treads and landings use their own orthonormal chart. `pavingSeams` adds dressed stone bonds 10 mm above the sett crowns; the keeper path uses mitred slabs and one bond at each turn. Procedural stone UVs are measured in metres and divided by the family tile, including risers and bevels.
+- `RuienUv` audits physical texture scale and repairs collapsed narrow-face charts while retaining their phase, direction and baked weather. Run `convert.tscn -- --ruien-uv-audit <resource folder> --report <outside-repo JSON>` for the area report. Relief slopes naturally differ from the undeformed masonry chart.
+- Native `RuienStair` builds a lined keeper stair and supported landing path from `keeperStairs` data. `channelLadderSpacing` adds staggered escape irons; gate and hall rungs remain explicit placements. All use the existing masonry family and lamp pool.
+- `rlib/drain_headers.py` makes radial wedge headers with a continuous mortar bed. `repair_headers.py --out <folder>` exports the corrected O2 fittings from the source blend; no original blend is required at runtime. The native `--ruien-repair <immutable export snapshot> --headers <fittings.glb>` pass repairs the installed O2 meshes and collision together. Keep that snapshot outside source control; never use the repaired resources as its input.
 - Coordinates: glTF +Y up, glTF (x, y, z) = game (x, y, z). In Blender: X = x, Y = -z, Z = y.
 - Materials: one tiling set per family in `export/textures/` (2048 px PNG): `ruien_<family>_albedo`, `_normal`
   (OpenGL, +Y green up), `_height` (16 bit), `_roughness`, `_ao`. Families: `brick_flemish`, `brick_stretcher`,

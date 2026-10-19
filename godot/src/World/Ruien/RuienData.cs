@@ -89,6 +89,9 @@ public sealed class RuienData
         public float Depth = 1.6f;     // the wall's thickness behind the face
         public Vector2[] Opening = Array.Empty<Vector2>(); // (along the face from Origin, y)
         public float Sill;
+        public float Channel = 3;
+        public float OutletWidth = 3;
+        public float WaterWidth(float along)=>Mathf.Lerp(Channel,OutletWidth,Mathf.SmoothStep(-2.5f,0,along));
         public string[] Meshes = Array.Empty<string>();
         /// <summary>Meshes cleared out of the opening whatever way their faces turn (an old outfall's throat).</summary>
         public string[] Clear = Array.Empty<string>();
@@ -140,6 +143,7 @@ public sealed class RuienData
         public Vector2 Wall, Out;
         /// <summary>Step irons drawn on the wall (false: a climb over a stone's edge, a sill or a coping, needs none).</summary>
         public bool Irons = true;
+        public Vector2[] LandingPath = Array.Empty<Vector2>();
     }
 
     public sealed class Area
@@ -241,7 +245,7 @@ public sealed class RuienData
                 foreach (var g in gs.EnumerateArray())
                     area.Gates.Add(new Gate
                     {
-                        Id = S(g, "id"), Origin = V2(g.GetProperty("origin")), Normal = V2(g.GetProperty("normal")).Normalized(), Depth = F(g, "depth", 1.6f), Sill = F(g, "sill", -5.05f),
+                        Id = S(g, "id"), Origin = V2(g.GetProperty("origin")), Normal = V2(g.GetProperty("normal")).Normalized(), Depth = F(g, "depth", 1.6f), Sill = F(g, "sill", -5.05f), Channel = F(g,"channel",3), OutletWidth=F(g,"outletWidth",F(g,"channel",3)),
                         Opening = g.GetProperty("opening").EnumerateArray().Select(V2).ToArray(),
                         Meshes = g.TryGetProperty("meshes", out var ms) ? ms.EnumerateArray().Select(m => m.GetString()!).ToArray() : Array.Empty<string>(),
                         Clear = g.TryGetProperty("clear", out var cl) ? cl.EnumerateArray().Select(m => m.GetString()!).ToArray() : Array.Empty<string>(),
@@ -257,10 +261,10 @@ public sealed class RuienData
                     if (s.TryGetProperty("always", out var al) && al.ValueKind == JsonValueKind.True) area.Sources.Add(ReadSource(s));
             if (own.TryGetProperty("sources", out var ss))
                 foreach (var s in ss.EnumerateArray()) area.Sources.Add(ReadSource(s));
-            if (own.TryGetProperty("mist", out var mi))
+            if (a.TryGetProperty("mist", out var mi) || own.TryGetProperty("mist", out mi))
                 foreach (var m in mi.EnumerateArray())
                     area.Mist.Add(new MistBox { Id = S(m, "id"), Min = V3(m.GetProperty("min")), Max = V3(m.GetProperty("max")), Density = F(m, "density", 0.06f) });
-            if (own.TryGetProperty("water", out var wa))
+            if (a.TryGetProperty("water", out var wa) || own.TryGetProperty("water", out wa))
                 foreach (var w in wa.EnumerateArray())
                     area.Water.Add(new WaterSheet
                     {
@@ -270,6 +274,22 @@ public sealed class RuienData
                         Flow = w.TryGetProperty("flow", out var fw) ? V2(fw) : Vector2.Zero,
                     });
             area.Exported = exported;
+            float spacing = F(a, "channelLadderSpacing", 0);
+            if (spacing > 0)
+                foreach (var zone in area.Zones.Where(z => z.Kind == "line"))
+                    for (int k = 0; 7 + k * spacing / 2 < zone.Length - 1; k++)
+                    {
+                        float u = 7 + k * spacing / 2;
+                        if(a.TryGetProperty("channelLadderOffsets",out var offsets) && k<offsets.GetArrayLength())u+=offsets[k].GetSingle();
+                        var (centre, tangent) = zone.Frame(u);
+                        var side = new Vector2(tangent.Y, -tangent.X) * (k % 2 == 0 ? -1 : 1);
+                        var wall = centre + side * zone.S.Channel / 2;
+                        var outw = -side;
+                        var ledge = wall + side * 0.4f;
+                        area.Ways.Add(new Way { Id = zone.Id + "_escape_" + k, Kind = "rungs", Wall = wall, Out = outw,
+                            Bottom = new Vector3(wall.X + outw.X * 0.55f, zone.S.Bed, wall.Y + outw.Y * 0.55f),
+                            Top = new Vector3(ledge.X, zone.S.LedgeY, ledge.Y) });
+                    }
             area.PenstockRaise = F(a, "penstockRaise", 0);
             if (a.TryGetProperty("rungs", out var rg))
                 foreach (var r in rg.EnumerateArray())
@@ -295,6 +315,14 @@ public sealed class RuienData
                 {
                     var h = l.GetProperty("hatch");
                     area.Ways.Add(new Way { Id = S(l, "id"), Kind = "stair", Bottom = V3(l.GetProperty("bottom")), Top = V3(l.GetProperty("top")), Hole = new Rect2(h[0].GetSingle(), h[2].GetSingle(), h[1].GetSingle() - h[0].GetSingle(), h[3].GetSingle() - h[2].GetSingle()) });
+                }
+            if (a.TryGetProperty("keeperStairs", out var ks))
+                foreach (var s in ks.EnumerateArray())
+                {
+                    var h=s.GetProperty("hole");
+                    area.Ways.Add(new Way { Id=S(s,"id"), Kind="keeper_stair", Top=V3(s.GetProperty("top")), Bottom=V3(s.GetProperty("bottom")),
+                        Hole=new Rect2(h[0].GetSingle(),h[1].GetSingle(),h[2].GetSingle(),h[3].GetSingle()),
+                        LandingPath=s.TryGetProperty("landingPath",out var lp)?lp.EnumerateArray().Select(V2).ToArray():Array.Empty<Vector2>() });
                 }
             area.Box = BoxOf(area);
             d.Areas.Add(area);

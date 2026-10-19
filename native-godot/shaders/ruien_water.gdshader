@@ -4,7 +4,7 @@
 // lamps' own glints when the picture has no hit). One kind for every water surface underground, and the thin films
 // that run down the walls (`film`).
 shader_type spatial;
-render_mode unshaded, blend_mix, depth_draw_always, cull_disabled, fog_disabled, specular_disabled, ambient_light_disabled;
+render_mode unshaded, blend_mix, depth_draw_never, cull_disabled, fog_disabled, specular_disabled, ambient_light_disabled;
 #include "res://shaders/ruien_common.gdshaderinc"
 
 global uniform sampler2D psx_wave_n : filter_linear_mipmap_anisotropic, repeat_enable;
@@ -21,11 +21,20 @@ uniform float ripple = 1.0;
 // a film running down the stone (a dribble): see-through, its own alpha
 uniform float film = 0.0;
 uniform float film_alpha = 0.45;
+uniform float outfall = 0.0;
+uniform vec2 outfall_origin = vec2(0.0);
+uniform vec2 outfall_direction = vec2(0.0, -1.0);
+uniform float outfall_drop = 0.0;
 
 varying vec3 world;
 varying float fog_depth;
 
 void vertex() {
+	if (outfall > 0.5) {
+		vec2 plan = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xz;
+		float u = dot(plan - outfall_origin, outfall_direction);
+		VERTEX.y += outfall_drop * smoothstep(-1.6, 2.0, u);
+	}
 	vec4 view = MODELVIEW_MATRIX * vec4(VERTEX, 1.0);
 	fog_depth = -view.z;
 	world = (INV_VIEW_MATRIX * view).xyz;
@@ -76,7 +85,18 @@ void fragment() {
 	sl *= ripple * (1.0 - smoothstep(12.0, 30.0, len));
 	if (drips > 0.0) sl += drip_rings(p, t) * (1.0 - smoothstep(8.0, 20.0, len));
 	vec3 n = normalize(vec3(-sl.x, 1.0, -sl.y));
-	if (!FRONT_FACING && film < 0.5) n = -n;
+	if (film > 0.5) {
+		// A film follows its real wall/invert normal; it is not a horizontal pool with depth absorption.
+		n = normalize((INV_VIEW_MATRIX * vec4(NORMAL, 0.0)).xyz);
+		if (!FRONT_FACING) n = -n;
+		vec3 diffuse, shine;
+		ruien_lights_at(world, n, V, 0.88, 0.0, diffuse, shine);
+		float rivulet = 0.65 + 0.35 * sin(world.y * 45.0 + world.x * 13.0 + world.z * 17.0 + t * 7.0);
+		ALBEDO = murk * diffuse * 0.15 + shine * rivulet;
+		ALPHA = film_alpha * (0.18 + 0.5 * pow(1.0 - abs(dot(n, V)), 3.0));
+	} else {
+	// Imported and generated sheets can have opposite winding; the visible side follows the eye.
+	if (CAMERA_POSITION_WORLD.y < world.y) n = -n;
 	float cos_v = clamp(dot(n, V), 0.0, 1.0);
 	float fres = 0.02 + 0.98 * pow(1.0 - cos_v, 5.0);
 
@@ -119,7 +139,7 @@ void fragment() {
 			if (uv.x < 0.0 || uv.y < 0.0 || uv.x > 1.0 || uv.y > 1.0 || q.z > -0.05) break;
 			float sd = lin_depth(uv, INV_PROJECTION_MATRIX);
 			float qd = -q.z;
-			if (qd > sd + 0.02 && qd < sd + 0.35 + step_l * 1.5) {
+			if (i > 1 && qd > sd + 0.02 && qd < sd + 0.08 + step_l * 0.12) {
 				vec2 edge = smoothstep(0.0, 0.08, uv) * smoothstep(1.0, 0.92, uv);
 				refl = textureLod(screen_tex, uv, 0.5).rgb;
 				hit = edge.x * edge.y * (1.0 - float(i) / 28.0 * 0.4);
@@ -136,11 +156,18 @@ void fragment() {
 	// the lamps drawn out into bright broken streaks by the ripples (D3 style), and their glints
 	vec3 rr = reflect(rd, n);
 	vec3 streak = ruien_streaks(world, rr, 1.0 + 3.0 * ripple) * (0.55 + 0.45 * smoothstep(0.35, 0.75, ruien_noise(p * 3.1 + t * 0.4)));
-	col = mix(col, refl, fres) + glint * (1.0 - hit * 0.6) + streak * (0.25 + 0.75 * fres) * 0.6;
+	col = mix(col, refl, fres) + glint * (1.0 - hit * 0.6) + streak * fres * 0.08;
+	if (outfall > 0.5) {
+		float u = dot(p - outfall_origin, outfall_direction);
+		float foam = smoothstep(0.65, 0.88, ruien_noise(p * 12.0 - flow * t * 12.0));
+		foam *= exp(-pow((u - 0.6) / 0.55, 2.0)) * clamp(-outfall_drop * 2.0, 0.0, 0.7);
+		col = mix(col, vec3(0.24, 0.25, 0.21) * lit, foam);
+	}
 
 	vec4 fog = ruien_fog(fog_depth, covered);
 	vec3 halo = ruien_haze(CAMERA_POSITION_WORLD, rd, len);
 	col = mix(col, fog.rgb, fog.a) + halo;
 	ALBEDO = col;
 	ALPHA = film > 0.5 ? film_alpha * (0.6 + 0.4 * fres) : 1.0;
+	}
 }

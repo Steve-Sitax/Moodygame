@@ -130,7 +130,7 @@ public static class RuienImport
     /// One object as a compressed mesh, a surface per family (named so), glTF's turn of the faces made Godot's; a
     /// family's faces in pieces of under 65,536 corners, so each piece has 16-bit indices (half the size on disk).
     /// </summary>
-    private static ArrayMesh? Build(RuienGlb.Obj obj, out int tris)
+    public static ArrayMesh? Build(RuienGlb.Obj obj, out int tris)
     {
         tris = 0;
         var mesh = new ArrayMesh { ResourceName = obj.Name };
@@ -233,7 +233,7 @@ public static class RuienImport
                 // a patch of daylight (the hatch): the opening over the stair
                 var hatch = mk.GetProperty("stairs").EnumerateArray().Select(s => V(s.GetProperty("hatch"))).FirstOrDefault();
                 if (hatch != null && !openings)
-                    sources.Add(new { id = name, kind = "hatch", at = new[] { (hatch[0] + hatch[1]) / 2, -0.3f, (hatch[2] + hatch[3]) / 2 }, dir = new[] { 0f, -1f, 0f }, size = new[] { hatch[1] - hatch[0], hatch[3] - hatch[2] }, power = 8f, range = 16f, beam = 3.3f });
+                    sources.Add(new { id = name, kind = "hatch", at = new[] { (hatch[0] + hatch[1]) / 2, -0.3f, (hatch[2] + hatch[3]) / 2 }, dir = new[] { 0f, -1f, 0f }, size = new[] { hatch[1] - hatch[0], hatch[3] - hatch[2] }, power = 2.2f, range = 16f, beam = 3.3f });
                 continue;
             }
             float w = l.GetProperty("power_w").GetSingle();
@@ -243,7 +243,9 @@ public static class RuienImport
             foreach (var o in dl.EnumerateArray())
             {
                 string name = o.GetProperty("name").GetString()!, kind = o.GetProperty("kind").GetString()!;
-                var at = V(o.GetProperty("vault_opening"));
+                // A stair hatch admits sky at its actual street opening. Treating the lower doorway as a
+                // full-size horizontal emitter cast a false white hotspot across the hall's seepage wall.
+                var at = V(o.GetProperty(kind=="hatch"?"centre":"vault_opening"));
                 bool round = kind.StartsWith("round");
                 float[] size = round ? new[] { o.GetProperty("radius_m").GetSingle() * 2, o.GetProperty("radius_m").GetSingle() * 2 } : V(o.GetProperty("size_m"));
                 var d = new Vector3(0, -1, 0);
@@ -251,7 +253,7 @@ public static class RuienImport
                 float fall = Hit(col, bottom + d * 0.05f, d, n => !n.Contains("ladder")) is { } hb ? hb + 0.05f : 99;
                 fall = Math.Min(fall, bottom.Y - (-4.6f));
                 string k = kind == "hatch" ? "hatch" : round ? "shaft" : "grate";
-                float power = k == "hatch" ? 8f : round ? 5f : 6f;
+                float power = k == "hatch" ? 2.2f : round ? 5f : 6f;
                 sources.Add(new { id = name, kind = k, at = new[] { at[0], at[1] - 0.05f, at[2] }, dir = new[] { 0f, -1f, 0f }, size, round, bars = k == "hatch" ? 0 : round ? 5 : 6, power, range = k == "hatch" ? 16f : 14f, beam = Math.Max(fall, 0.5f) });
             }
         foreach (var b in mk.GetProperty("beams").EnumerateArray())

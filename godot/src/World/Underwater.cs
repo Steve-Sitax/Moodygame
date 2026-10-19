@@ -34,7 +34,7 @@ public partial class Underwater : Node
         var p = cam.GlobalPosition;
         bool under = false;
         float depth = 0;
-        if (Water.In(p.X, p.Z))
+        if (Water.InAt(p.X, p.Z, p.Y))
         {
             float level = Water.Level(p.X, p.Z);
             under = p.Y < level - 0.01f;

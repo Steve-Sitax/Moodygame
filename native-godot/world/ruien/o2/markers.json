@@ -196,8 +196,8 @@
       "kind": "hatch",
       "at": [
         -158.9,
-        -1.134,
-        133.55
+        -0.05,
+        136.375
       ],
       "dir": [
         0,
@@ -210,9 +210,9 @@
       ],
       "round": false,
       "bars": 0,
-      "power": 8,
+      "power": 2.2,
       "range": 16,
-      "beam": 1.796
+      "beam": 1.4
     },
     {
       "id": "L_opening_cool",

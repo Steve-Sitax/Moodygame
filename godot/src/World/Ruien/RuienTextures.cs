@@ -25,6 +25,7 @@ public static class RuienTextures
 
     public static Texture2D? Get(string family, string part)
     {
+        if(family=="setts" && part=="albedo") return ResourceLoader.Load<Texture2D>(RuienPaving.Colour);
         string path = $"{Dir}/{family}_{part}.res";
         if (Loaded.TryGetValue(path, out var t)) return t;
         t = ResourceLoader.Exists(path) ? ResourceLoader.Load<Texture2D>(path) : null;

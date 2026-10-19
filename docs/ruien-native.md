@@ -4,6 +4,8 @@ The sewers under the town (plan: [plans/ruien](plans/ruien/README.md)). Everythi
 can follow area by area; the first area is O2: the vliet sluice outlet, the 38 m Vlietrui and the Vleeshuis hall C2.
 Code: `godot/src/World/Ruien/`. Data and resources: `native-godot/world/ruien/`.
 
+O2 access: the keeper hatch beside the outlet leads to the south winch; the hall hatch and grate shaft remain usable. Deep channel water uses Jef's existing swimming controls, with `E` at the escape irons. Ladder spacing, local offsets, gate channel widths and keeper landing paths are area data. The water query follows the rendered sheets, leaving the street navigation map dry.
+
 ## Data
 
 | File | What |

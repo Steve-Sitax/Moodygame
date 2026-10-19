@@ -663,7 +663,9 @@ not used.
 | Wood Cabinet Worn Long (colour, normal, roughness, 1k JPEG): `art-source/third_party/polyhaven-furniture/wood_cabinet_worn_long/` | https://polyhaven.com/a/wood_cabinet_worn_long | Dimitrios Savva, Rico Cilliers | CC0 1.0 | 2026-10-14 | `wood_cabinet_worn_long_diff_1k.jpg` `97edb74098efc27ca9891cb9dbab6d74b91f635d9fad5eba4f317b1e8e408a55`; `wood_cabinet_worn_long_nor_gl_1k.jpg` `3e77e82f34f5d527f63299c8154905a7e3e9a87644b2054ab6194ac776adc7db`; `wood_cabinet_worn_long_rough_1k.jpg` `4a3201cdc2b1e6d0e20532fc1249998ff7a4f312601590e46fb58c0fb26315cb` |
 | Wood Table Worn (colour, normal, roughness, 1k JPEG): `art-source/third_party/polyhaven-furniture/wood_table_worn/` | https://polyhaven.com/a/wood_table_worn | Dimitrios Savva, Rico Cilliers | CC0 1.0 | 2026-10-14 | `wood_table_worn_diff_1k.jpg` `092ab3465a6a24b24d092ea86865f332c3bd239b8eb2fd664b70357082031a3f`; `wood_table_worn_nor_gl_1k.jpg` `0d494f3fe08320a05f0f966a7a3ca3c4cd6e3f7cde5b176b9bc167b5593fd00d`; `wood_table_worn_rough_1k.jpg` `ebc4a15d7d3495ee1b67ba18f67bffcefac3f93881d1394fa3e22a25f9fe5c72` |
 
-Ruien O2 Blender study (2026-10-18, not in the game yet): ten pictures made with Codex image generation
+Ruien walking setts (2026-10-19) reuse the existing quay-sett colour and height resources (`r000033`, `r000035`, credited above). `RuienPaving.PrepareTextures` derives their normal and packed height/roughness/AO resources; no additional generated or third-party picture was used.
+
+Ruien O2 Blender study (2026-10-18, now used in the native game): ten pictures made with Codex image generation
 (gpt-6.1-sol via Codex CLI 0.163.0; Steve's OK for Codex textures), kept as generated in
 `art-source/ruien-o2-20261018/textures/codex/` (t01 old brick, t02 wet slimed brick, t03 bluestone, t04 silt, t05 oak
 with iron straps, t06 rusted iron, t07 sandstone, t08 brick with lime crust, t09 calcite flowstone, t10 moss). Prompts,

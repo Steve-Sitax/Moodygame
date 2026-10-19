@@ -118,6 +118,8 @@ public static class RuienMaterials
             else
             {
                 m.SetShaderParameter("pom", 0f);
+                m.SetShaderParameter("normal_k", 0f);
+                m.SetShaderParameter("bake_k", 0f);
                 m.SetShaderParameter("tint", known ? C(p, "color", new Color(0.3f, 0.3f, 0.3f)) : new Color(0.3f, 0.3f, 0.3f));
             }
             if (families.ContainsKey("moss"))
@@ -128,8 +130,11 @@ public static class RuienMaterials
             if (known)
             {
                 if (p.TryGetProperty("pom", out _)) m.SetShaderParameter("pom", F(p, "pom", 0.3f));
-                m.SetShaderParameter("normal_k", F(p, "normal", 1));
+                m.SetShaderParameter("normal_k", F(p, "normal", families.ContainsKey(texName) ? 1 : 0));
+                if (p.TryGetProperty("bake", out _)) m.SetShaderParameter("bake_k", F(p, "bake", 0.85f));
                 m.SetShaderParameter("rough_k", F(p, "rough", 1));
+                m.SetShaderParameter("rough_floor", F(p,"roughFloor",.08f));
+                m.SetShaderParameter("grit", F(p,"grit",0));
                 m.SetShaderParameter("metal", F(p, "metal", 0));
                 m.SetShaderParameter("wrap", F(p, "wrap", 0));
                 m.SetShaderParameter("weather_k", F(p, "weather", 1));
