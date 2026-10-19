@@ -56,6 +56,7 @@ public partial class Boats
         foreach (var c in Scheldemist.World.BakedWorld.All(inner))
         {
             if (c is not MeshInstance3D { Mesh: not null } mi) continue;
+            if (mi.HasMeta("native_washing")) continue;
             string name = mi.Name.ToString();
             if (name.Contains("rigging") || name.Contains("sail") || name.Contains("flag") || name.Contains("smoke") || name.EndsWith("_cap")) continue;
             var xf = inv * mi.GlobalTransform;

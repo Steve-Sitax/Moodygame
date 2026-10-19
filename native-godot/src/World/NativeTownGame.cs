@@ -101,11 +101,10 @@ public partial class NativeTownGame : Scheldemist.Main
             talk.OpeningOverrides.Add((request, person) => host.Night.Greeting(request.PlayerId, person));
             talk.ReplyOverrides.Add((request, person, topic) => topic == "self" && NativeCoreNight.AboutSelf(person["id"]!.GetValue<string>()) is { } line ? talk.Line(request, person, line) : null);
             host.AddModule(new NativeLively(town));
-            var prison = new NativePrison(host, town); host.AddModule(prison); prison.AttachTalk(talk);
+            var prison = new NativePrison(host, town); prison.AttachTalk(talk);
             host.AddModule(new NativeStreetIncidents(host) { ThiefCaught = prison.ThiefCaught });
             var park = new NativePark(host, town) { PositionOf = _ => {
                 var position = Volatile.Read(ref playerPosition); return position == null ? null : (position.X, position.Z); } };
-            host.AddModule(park);
             var landmarks = new NativeLandmarks(host, town) { TextFor = profile.Read }; host.AddModule(landmarks);
             host.AddModule(new NativeDev());
             var ai = new NativeAI(host, Flag("no-ai") ? Paths.WalkAiSetup : Paths.AiSetup, Flag("no-ai")); host.AddModule(ai);
@@ -182,6 +181,9 @@ public partial class NativeTownGame : Scheldemist.Main
             // and fresh-world lifecycle registration need no scene-node calls or render-thread blocking.
             // (#150: the Vismarkt's market-day sellers and their carts, added after the original fresh town)
             await Task.Run(() => host.WithState(_ => { host.AddModule(populationLifecycle); host.AddModule(new NativeTownMarketPopulation(population, populationLifecycle.Transport)); return true; }));
+            // A population rebuild clears prison and park state. Initialize their schedules afterwards,
+            // before any client can request the town or start planning its routes (#203).
+            host.AddModule(prison); host.AddModule(park);
             host.AddModule(new NativeLampJobs(host));
             var story = new NativeStory(host) {
                 Resident = town.Resident, Doing = id => town.Activity(id).Act,
@@ -270,6 +272,7 @@ public partial class NativeTownGame : Scheldemist.Main
             if (DedicatedServer) _ = StartDedicated();
             if (Arg("leftovers-proof") is { Length: > 0 } leftoversProof) _ = NativeLeftoversProof.Run(this, Paths.Absolute(leftoversProof));
             if (Arg("cathedral-proof") is { Length: > 0 } cathedralProof) _ = NativeCathedralProof.Run(this, Paths.Absolute(cathedralProof));
+            if (Arg("washing-proof") is { Length: > 0 } washingProof) _ = NativeWashingProof.Run(this, Paths.Absolute(washingProof));
             if (Arg("furniture-size-check") is { Length: > 0 } sizeCheck) _ = Interiors.FurnitureSizeCheck.Run(this, Paths.Absolute(sizeCheck));
             if (Arg("conversation-proof") is { Length: > 0 } conversationProof) _ = NativeConversationProof.Run(this, Paths.Absolute(conversationProof));
             if (Arg("native-smoke") is { Length: > 0 } proof) _ = NativeGameplayProof.Run(this, Paths.Absolute(proof));

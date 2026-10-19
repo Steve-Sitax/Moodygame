@@ -24,6 +24,7 @@ public sealed class MeshDeck
         static long Key(int x,int z)=>((long)x<<32)^(uint)z;
         void Scan(Node n,Transform3D xf,bool first=false)
         {
+            if(n.HasMeta("native_washing"))return;
             if(n.Name.ToString().Contains("rigging")||n.Name.ToString().EndsWith("_cap")||n.Name.ToString().EndsWith("_far")||n.Name.ToString().EndsWith("_block"))return;
             if(n is Node3D n3&&!first)xf*=n3.Transform;
             if(n is MeshInstance3D{Mesh:not null} m)
@@ -61,6 +62,7 @@ public sealed class MeshDeck
         static long Key(int x,int z)=>((long)x<<32)^(uint)z;
         void Scan(Node n,Transform3D xf,bool first=false)
         {
+            if(n.HasMeta("native_washing"))return;
             string name=n.Name.ToString();
             if(name.Contains("rigging")||name.EndsWith("_cap")||name.EndsWith("_far")||name.EndsWith("_block")||name.EndsWith("_stow")||name.Contains("_name_"))return;
             if(n is Node3D n3&&!first)xf*=n3.Transform;

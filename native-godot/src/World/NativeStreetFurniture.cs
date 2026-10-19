@@ -22,7 +22,7 @@ namespace Scheldemist.Native.World;
 /// - Washing: one model per piece (shirt, shift, trousers, apron, stockings, sheet, towel), copied along each line with its
 ///   own tint, pegged with the one wooden peg; the line a hemp rope sagging between two iron rings on the walls; the wash
 ///   poles out of windows. Copies are MultiMeshes per 32 m cell, near-range only; none is solid (all over head height).
-///   The cloth sways in the wind and darkens in the rain (its material: Psx's wet-paint kind with cloth_sway, wet_paint).
+///   The cloth sways in the wind; garments and pegs are put away in rain and overnight (#203).
 /// <c>--street-furniture-file &lt;json&gt;</c> reads another plan; <c>--keep-old-street-furniture</c> keeps the court pumps.
 /// </summary>
 public static class NativeStreetFurniture
@@ -95,6 +95,7 @@ public static class NativeStreetFurniture
         if (plan == null || ModelLibrary.Get("laundry", new ModelLibrary.Look(TwoSided: true, VertexColor: true)) is not { } pack) return (0, 0, 0, 0, 0);
         var holder = town.GetNodeOrNull<Node3D>("street_furniture") ?? new Node3D { Name = "street_furniture" };
         if (holder.GetParent() == null) { holder.SetMeta(Meta, true); town.AddChild(holder); }
+        holder.AddChild(new NativeWashingVisibility { Name = "washing_visibility" });
         Mesh Model(string name) => ((MeshInstance3D)pack.Roots[name]).Mesh;
         // the cloth: wet in the rain, swaying in the wind (one copy of each material, the same kind as before)
         var cloth = new Dictionary<string, Material>();
@@ -116,6 +117,10 @@ public static class NativeStreetFurniture
             var mesh = Lods(src, Cloth(mat, (weave ?? "") + mat.ResourceName));
             return models[key] = mesh;
         }
+        // Boat copies use these same seven cloth models and materials, including later library-spawned vessels.
+        var boatWashing = new NativeBoatLaundry(Piece, Model("peg"));
+        boatWashing.Dress(town);
+        Scheldemist.Movers.Boats.DressWashing = boatWashing.Dress;
         // ------------------------------------------------------------ troughs: solid stone
         int troughs = 0;
         foreach (var t in plan.Troughs)
@@ -198,6 +203,7 @@ public static class NativeStreetFurniture
                 CastShadow = small ? GeometryInstance3D.ShadowCastingSetting.Off : GeometryInstance3D.ShadowCastingSetting.On,
             };
             node.SetMeta(Meta, true);
+            if (parts.Length == 2 || model == "peg") NativeWashingVisibility.Attach(node);
             holder.AddChild(node);
         }
         foreach (var ((cx, cz), st) in ropes)
@@ -216,6 +222,7 @@ public static class NativeStreetFurniture
     {
         return PegTable.TryGetValue(kind, out var p) ? p : Array.Empty<float>();
     }
+    internal static float[] PegPositions(string kind) => PegTable.GetValueOrDefault(kind) ?? Array.Empty<float>();
     private static readonly Dictionary<string, float[]> PegTable = new()
     {
         ["shirt"] = new[] { -0.22f, 0.22f }, ["shift"] = new[] { -0.24f, 0.24f }, ["trousers"] = new[] { -0.17f, 0.17f }, ["apron"] = new[] { -0.25f, 0.25f },

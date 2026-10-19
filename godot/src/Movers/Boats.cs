@@ -19,6 +19,8 @@ namespace Scheldemist.Movers;
 public partial class Boats : Node
 {
     public static Boats I { get; private set; } = null!;
+    /// <summary>Native cloth replacement, also applied to boat templates loaded after the town.</summary>
+    public static Action<Node3D>? DressWashing;
 
     /// <summary>Heave (m), roll and pitch (rad), period (s): small boats move more and faster (boats.ts MOTION).</summary>
     private static readonly Dictionary<string, float[]> Motion = new()
@@ -282,6 +284,7 @@ public partial class Boats : Node
         var model = Scheldemist.Models.ModelLibrary.Get("boats", new Scheldemist.Models.ModelLibrary.Look(TwoSided: true, Affine: 0.6));
         var inner = model?.Copy(kind);
         if (inner == null) return false;
+        DressWashing?.Invoke(inner);
         inner.Name = kind;
         inner.Transform = Transform3D.Identity;
         if (inner.HasMeta("extras") && inner.GetMeta("extras").AsGodotDictionary().TryGetValue("rig", out var rig) && Rope != null)
