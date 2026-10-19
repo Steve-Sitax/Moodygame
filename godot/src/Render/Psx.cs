@@ -920,7 +920,13 @@ vec3 psx_mottle(vec3 c, float k, vec3 wp, vec3 n) {
 }
 ";
 
-    /// <summary>The paving's relief (psx.ts): each stone's own height, tone and sinking, the relief light, the tilt.</summary>
+    /// <summary>
+    /// The paving's relief (psx.ts): each stone's own height, tone and sinking, the relief light, the tilt. Every sample
+    /// takes the mip of the surface's own uv (g: its screen derivatives, issue #91): the parallax's stepped uv jumps at a
+    /// stone's edge, and there the picture fell to its smallest mip and smeared into streaks; inside the parallax's loop
+    /// (it stops early) the derivatives were undefined. The relief light comes from one direction in the world, whichever
+    /// way the uv runs (lt: that direction in the uv's own frame; #170, the setts' rows follow each street).
+    /// </summary>
     private static string ReliefGlsl(bool ids) => @"
 uniform sampler2D relief_h : filter_linear_mipmap, repeat_enable;
 uniform float relief_depth = 0.0;
@@ -941,8 +947,8 @@ float stone_r(vec2 uv, vec3 s) {
 vec2 stone_ms(float r, float wear) {
 	return vec2(step(r, (0.012 + 0.07 * wear) * relief_holes), step(r, (0.06 + 0.22 * wear) * relief_holes + 0.02));
 }
-float rel_shape(float h, vec2 uv, float wear) {
-	vec3 s = texture(stone_id, uv).rgb;
+float rel_shape(float h, vec2 uv, float wear, vec4 g) {
+	vec3 s = textureGrad(stone_id, uv, g.xy, g.zw).rgb;
 	if (s.g < 0.5) return h;
 	float r = stone_r(uv, s);
 	vec2 ms = stone_ms(r, wear);
@@ -950,11 +956,12 @@ float rel_shape(float h, vec2 uv, float wear) {
 	float top = mix(0.35 + 0.65 * fract(r * 53.7), 0.22, ms.y) * (1.0 - 0.3 * wear);
 	return mix(h * top, 0.02, ms.x);
 }
-float rel_h(vec2 uv, float wear) { return rel_shape(texture(relief_h, uv).r, uv, wear); }
-float rel_hs(vec2 uv, float wear) { return rel_shape(texture(relief_h, uv, 2.0).r, uv, wear); }
+float rel_h(vec2 uv, float wear, vec4 g) { return rel_shape(textureGrad(relief_h, uv, g.xy, g.zw).r, uv, wear, g); }
+// (two mips softer: the derivatives four times)
+float rel_hs(vec2 uv, float wear, vec4 g) { return rel_shape(textureGrad(relief_h, uv, g.xy * 4.0, g.zw * 4.0).r, uv, wear, g); }
 // each stone its own tone; a stone gone is a hole of mud; further off (far_s) only a dark patch
-vec3 stone_tone(vec2 uv, float wear, float far_s) {
-	vec3 sid = texture(stone_id, uv).rgb;
+vec3 stone_tone(vec2 uv, float wear, float far_s, vec4 g) {
+	vec3 sid = textureGrad(stone_id, uv, g.xy, g.zw).rgb;
 	if (sid.g <= 0.5) return vec3(1.0);
 	float r = stone_r(uv, sid);
 	vec2 ms = stone_ms(r, wear);
@@ -964,24 +971,39 @@ vec3 stone_tone(vec2 uv, float wear, float far_s) {
 	return mix(st, vec3(mix(1.0, 0.6, ms.x)), far_s);
 }
 " : @"
-float rel_h(vec2 uv, float wear) { return texture(relief_h, uv).r; }
-float rel_hs(vec2 uv, float wear) { return texture(relief_h, uv, 2.0).r; }
+float rel_h(vec2 uv, float wear, vec4 g) { return textureGrad(relief_h, uv, g.xy, g.zw).r; }
+float rel_hs(vec2 uv, float wear, vec4 g) { return textureGrad(relief_h, uv, g.xy * 4.0, g.zw * 4.0).r; }
 ") + @"
 // the relief light at uv: lit tops from the sky, dark joints; worn by the wheels: smoother, the tops a little lighter
-float relief_light(vec2 uv, float wear, out float h_c, out vec2 slope) {
+float relief_light(vec2 uv, float wear, out float h_c, out vec2 slope, vec4 g, vec3 lt) {
 	float e = 2.0 / max(float(textureSize(relief_h, 0).x), 256.0);
-	h_c = rel_h(uv, wear);
-	float hx = rel_h(uv + vec2(e, 0.0), wear) - rel_h(uv - vec2(e, 0.0), wear);
-	float hz = rel_h(uv + vec2(0.0, e), wear) - rel_h(uv - vec2(0.0, e), wear);
+	h_c = rel_h(uv, wear, g);
+	float hx = rel_h(uv + vec2(e, 0.0), wear, g) - rel_h(uv - vec2(e, 0.0), wear, g);
+	float hz = rel_h(uv + vec2(0.0, e), wear, g) - rel_h(uv - vec2(0.0, e), wear, g);
 	vec3 rn = normalize(vec3(-hx * relief_bump, 1.0, -hz * relief_bump));
 	// the slope tilts the normal the lights see: the sharp edges at this step, the dome of the stone from a softer mip
 	float e3 = e * 3.0;
-	float dx = rel_hs(uv + vec2(e3, 0.0), wear) - rel_hs(uv - vec2(e3, 0.0), wear);
-	float dz = rel_hs(uv + vec2(0.0, e3), wear) - rel_hs(uv - vec2(0.0, e3), wear);
+	float dx = rel_hs(uv + vec2(e3, 0.0), wear, g) - rel_hs(uv - vec2(e3, 0.0), wear, g);
+	float dz = rel_hs(uv + vec2(0.0, e3), wear, g) - rel_hs(uv - vec2(0.0, e3), wear, g);
 	slope = (vec2(hx, hz) * 1.2 + vec2(dx, dz) * relief_dome) * relief_bump * (1.0 - wear * 0.3);
-	float lit = clamp(dot(rn, normalize(vec3(-0.45, 0.8, -0.35))), 0.0, 1.0);
+	float lit = clamp(dot(rn, lt), 0.0, 1.0);
 	float relief = mix(0.6, 1.12, lit) * (0.55 + 0.45 * h_c);
 	return mix(relief, 1.0 + 0.12 * h_c, wear * 0.45);
+}
+// where u and v grow on the surface, per metre of the world (from the screen derivatives of the view-space point,
+// which keeps its precision far from the world's origin; g: those of the uv); a flat pixel keeps the world's x, z
+void rel_frame(vec3 dpx, vec3 dpy, vec4 g, out vec3 ju, out vec3 jv) {
+	float a = dot(dpx, dpx), b = dot(dpx, dpy), c = dot(dpy, dpy);
+	float det = a * c - b * b;
+	if (det < 1e-24) { ju = vec3(1.0 / relief_tile, 0.0, 0.0); jv = vec3(0.0, 0.0, 1.0 / relief_tile); return; }
+	ju = (dpx * (c * g.x - b * g.z) + dpy * (a * g.z - b * g.x)) / det;
+	jv = (dpx * (c * g.y - b * g.w) + dpy * (a * g.w - b * g.y)) / det;
+}
+// the relief light's one direction in the world, in the uv's frame (u, up, v)
+vec3 rel_light(vec3 ju, vec3 jv) {
+	vec3 l = normalize(vec3(-0.45, 0.8, -0.35));
+	vec3 tu = normalize(ju + vec3(1e-9, 0.0, 0.0)), tv = normalize(jv + vec3(0.0, 0.0, 1e-9));
+	return normalize(vec3(dot(l, tu), l.y, dot(l, tv)));
 }
 ";
 
@@ -1155,7 +1177,7 @@ varying vec3 world;
         if (k.TideWet) c.Append(TideWetGlsl);
         if (k.Ground) c.Append("uniform float vary = 0.0;\nuniform float puddles = 0.0;\n// the wet stone's highlight (three's Phong: specular and shininess; 0 when it never gets wet)\nuniform vec3 spec_color = vec3(0.0);\nuniform float shininess = 12.0;\nvarying float spec_k;\n");
         if (k.Wall) c.Append("uniform float foot = 0.0;\nuniform float foot_wear = 0.0;\nuniform float mottle = 0.0;\n");
-        if (k.Slabs) c.Append("uniform sampler2D slab_map : source_color, filter_linear_mipmap_anisotropic, repeat_enable;\nuniform sampler2D slab_h : filter_linear_mipmap, repeat_enable;\nuniform float slab_tile = 2.6;\nuniform float slab_ymax = 0.8;\nuniform float slab_dome = 2.5;\n");
+        if (k.Slabs) c.Append("uniform sampler2D slab_map : source_color, filter_linear_mipmap_anisotropic, repeat_enable;\nuniform sampler2D slab_h : filter_linear_mipmap, repeat_enable;\nuniform float slab_tile = 2.6;\nuniform float slab_ymax = 0.8;\nuniform float slab_dome = 2.5;\n// (#170) 1: a pavement's flags run along its kerb, the way its corners' tangents give (0: the world's x, z)\nuniform float slab_turn = 0.0;\nvarying vec2 slab_dir;\n");
         c.Append(LampScatterGlsl);
         if (lit || k.Ground) c.Append(SkyGlsl).Append(SpillGlsl);
         if (noise) c.Append(NoiseGlsl);
@@ -1210,6 +1232,7 @@ void vertex() {
 	}
 ");
         if (k.Atlas > 0) c.Append("	cell = UV2;\n");
+        if (k.Slabs) c.Append("	slab_dir = (MODEL_MATRIX * vec4(TANGENT, 0.0)).xz;\n");
         // (a name plate: its cell in the names atlas, column and row, from the MultiMesh's custom data)
         if (k.NameCell > 0) c.Append("	name_cell = floor(INSTANCE_CUSTOM.xy + 0.5);\n");
         if (k.Grime > 0) c.Append("	gmat = CUSTOM0.xy; // (the house's wall picture and paint)\n");
@@ -1236,37 +1259,49 @@ void fragment() {
         if (bump) c.Append("	float psx_h = 0.5; // how high the stone is here; the puddles leave the tops dry\n	vec3 ground_dn = vec3(0.0);\n");
         if (k.Ground) c.Append("	// how worn the ground is here: the cart roads (world/dirt.ts, green)\n	float wear = vary > 0.0 ? texture(psx_dirt, (world.xz - psx_dirt_box.xy) / psx_dirt_box.zw).g : 0.0;\n");
         else if (k.Relief > 0) c.Append("	float wear = 0.0;\n");
+        if (k.Relief > 0)
+            c.Append(@"	// the surface's own uv derivatives and frame (every relief sample's mip; the light's and the parallax's way in uv)
+	vec4 rel_g = vec4(dFdx(uv), dFdy(uv));
+	vec3 rel_ju, rel_jv;
+	rel_frame((INV_VIEW_MATRIX * vec4(dFdx(VERTEX), 0.0)).xyz, (INV_VIEW_MATRIX * vec4(dFdy(VERTEX), 0.0)).xyz, rel_g, rel_ju, rel_jv);
+	vec3 rel_lt = rel_light(rel_ju, rel_jv);
+");
         if (k.Parallax)
             c.Append(@"	{
 		// parallax occlusion: step into the stones along the view ray, near the eye only
 		vec3 rel_v = -rd;
 		float rel_fade = 1.0 - smoothstep(6.0, 14.0, len);
+		// (#91) seen from low down the stones' sides were drawn with their tops' picture, stretched: the relief
+		// flattens as the eye comes down to the ground (below 1 m over it) and at a grazing look (the eye's height
+		// keeps it whole: the parallax ends 14 m off, still over the grazing limit)
+		rel_fade *= smoothstep(0.2, 1.0, CAMERA_POSITION_WORLD.y - world.y) * smoothstep(0.04, 0.2, rel_v.y);
 		if (rel_fade > 0.0 && relief_depth > 0.0) {
 			float layers = mix(14.0, 5.0, clamp(rel_v.y, 0.0, 1.0));
 			float dl = 1.0 / layers;
-			vec2 duv = (-rel_v.xz / max(rel_v.y, 0.2)) * (relief_depth * rel_fade / relief_tile) * dl;
+			// (the view ray's way across the ground in uv, whichever way the uv runs: #170)
+			vec2 duv = (-vec2(dot(rel_v, rel_ju), dot(rel_v, rel_jv)) / max(rel_v.y, 0.2)) * (relief_depth * rel_fade) * dl;
 			vec2 ruv = uv;
 			float depth = 0.0;
-			float h_depth = 1.0 - rel_h(ruv, wear);
+			float h_depth = 1.0 - rel_h(ruv, wear, rel_g);
 			int steps = 0;
 			for (int i = 0; i < 14; i++) {
 				if (depth >= h_depth) break;
 				ruv += duv;
-				h_depth = 1.0 - rel_h(ruv, wear);
+				h_depth = 1.0 - rel_h(ruv, wear, rel_g);
 				depth += dl;
 				steps++;
 			}
 			if (steps > 0) {
 				// between the last two steps where the ray met the stone: no stair steps along the joints
 				float after = h_depth - depth;
-				float before = (1.0 - rel_h(ruv - duv, wear)) - (depth - dl);
+				float before = (1.0 - rel_h(ruv - duv, wear, rel_g)) - (depth - dl);
 				ruv -= duv * clamp(after / min(after - before, -1e-4), 0.0, 1.0);
 			}
 			uv = ruv;
 		}
 	}
 ");
-        c.Append("	vec4 c = texture(tex, uv);\n");
+        c.Append(k.Parallax ? "	vec4 c = textureGrad(tex, uv, rel_g.xy, rel_g.zw);\n" : "	vec4 c = texture(tex, uv);\n");
         if (k.Detile)
             c.Append(@"	// no tile repeats in a grid: where a slow noise says so, the same texture turned 37 degrees and scaled
 	vec2 uv2 = mat2(vec2(0.8, -0.6), vec2(0.6, 0.8)) * uv * 0.77 + vec2(0.31, 0.57);
@@ -1324,14 +1359,20 @@ void fragment() {
 		// pavements, kerbs and door steps: slabs in world metres with their own relief
 		vec3 fn = normalize(cross(dFdx(world), dFdy(world)));
 		if (abs(fn.y) > 0.9 && world.y < slab_ymax) {
-			vec2 suv = world.xz / slab_tile;
+			// the flags' courses: along the kerb (slab_dir, #170) or the world's x
+			vec2 sd = vec2(1.0, 0.0);
+			if (slab_turn > 0.5 && dot(slab_dir, slab_dir) > 0.25) sd = normalize(slab_dir);
+			vec2 sp = vec2(-sd.y, sd.x);
+			vec2 suv = vec2(dot(world.xz, sd), dot(world.xz, sp)) / slab_tile;
 			c.rgb = albedo.rgb * texture(slab_map, suv).rgb * 1.25;
 			float e = 1.0 / 128.0;
 			float sh = texture(slab_h, suv).r;
 			float sx = texture(slab_h, suv + vec2(e, 0.0)).r - texture(slab_h, suv - vec2(e, 0.0)).r;
 			float sz = texture(slab_h, suv + vec2(0.0, e)).r - texture(slab_h, suv - vec2(0.0, e)).r;
 			vec3 rn = normalize(vec3(-sx * 1.6, 1.0, -sz * 1.6));
-			float lit = clamp(dot(rn, normalize(vec3(-0.45, 0.8, -0.35))), 0.0, 1.0);
+			// (the relief light's one world direction, in the courses' frame)
+			vec3 sl_l = normalize(vec3(-0.45, 0.8, -0.35));
+			float lit = clamp(dot(rn, vec3(dot(sl_l.xz, sd), sl_l.y, dot(sl_l.xz, sp))), 0.0, 1.0);
 			float rel = mix(0.6, 1.12, lit) * (0.55 + 0.45 * sh);
 			c.rgb *= mix(rel, 0.86, smoothstep(8.0, 22.0, len));
 			float e2 = 3.0 / 128.0;
@@ -1339,6 +1380,7 @@ void fragment() {
 			float bz = texture(slab_h, suv + vec2(0.0, e2), 2.0).r - texture(slab_h, suv - vec2(0.0, e2), 2.0).r;
 			float fps = max(length(dFdx(suv)), length(dFdy(suv))) * 128.0;
 			vec2 ss = (vec2(sx, sz) * 1.2 + vec2(bx, bz) * slab_dome) * 1.6 * (1.0 - smoothstep(12.0, 28.0, len)) * (1.0 - smoothstep(6.0, 14.0, fps));
+			ss = sd * ss.x + sp * ss.y;
 			ground_dn = normalize(vec3(-ss.x, 1.0, -ss.y)) - vec3(0.0, 1.0, 0.0);
 			psx_h = sh;
 		}
@@ -1367,14 +1409,16 @@ void fragment() {
 		// relief light from the height map: the tops lit, the joints dark; it melts into an even tone further off
 		float h_c;
 		vec2 sl;
-		float relief = relief_light(uv, wear, h_c, sl);
+		float relief = relief_light(uv, wear, h_c, sl, rel_g, rel_lt);
 ");
             if (k.Detile)
                 c.Append(@"		if (dm > 0.001) {
 			// where the colour is the turned sample, so is the relief; its slope turned back into this uv
 			float h_c2;
 			vec2 sl2;
-			float relief2 = relief_light(uv2, wear, h_c2, sl2);
+			mat2 rel_m2 = mat2(vec2(0.8, -0.6), vec2(0.6, 0.8)) * 0.77;
+			vec3 rel_lt2 = rel_light(rel_ju * 0.616 + rel_jv * 0.462, rel_jv * 0.616 - rel_ju * 0.462);
+			float relief2 = relief_light(uv2, wear, h_c2, sl2, vec4(rel_m2 * rel_g.xy, rel_m2 * rel_g.zw), rel_lt2);
 			relief = mix(relief, relief2, dm);
 			h_c = mix(h_c, h_c2, dm);
 			sl = mix(sl, 0.77 * vec2(0.8 * sl2.x - 0.6 * sl2.y, 0.6 * sl2.x + 0.8 * sl2.y), dm);
@@ -1390,8 +1434,8 @@ void fragment() {
 ");
             if (k.Relief > 1)
                 c.Append(@"		float far_s = smoothstep(14.0 * relief_reach, 30.0 * relief_reach, len);
-		vec3 st = stone_tone(uv, wear, far_s);
-" + (k.Detile ? "		if (dm > 0.001) st = mix(st, stone_tone(uv2, wear, far_s), dm);\n" : "") + "		c.rgb *= st;\n");
+		vec3 st = stone_tone(uv, wear, far_s, rel_g);
+" + (k.Detile ? "		if (dm > 0.001) st = mix(st, stone_tone(uv2, wear, far_s, vec4(mat2(vec2(0.8, -0.6), vec2(0.6, 0.8)) * rel_g.xy, mat2(vec2(0.8, -0.6), vec2(0.6, 0.8)) * rel_g.zw) * 0.77), dm);\n" : "") + "		c.rgb *= st;\n");
             c.Append("	}\n");
         }
         // the houses' age: the wall pictures and the grime before the vertex colour, the worn paint after (Render/Grime.cs)

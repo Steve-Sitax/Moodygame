@@ -1,0 +1,203 @@
+[
+  {
+    "holder": "res://assets/materials/stone-corners-20261017/dressed-stone.gdshader",
+    "material": "res://assets/materials/stone-corners-20261017/dressed-stone.tres",
+    "shader": "res://assets/materials/stone-corners-20261017/dressed-stone.gdshader",
+    "kind": "",
+    "users": [
+      "city_0_0_3",
+      "city_0_0_d_2",
+      "city_0_1_3",
+      "city_0_1_d_2"
+    ],
+    "generatedOld": false,
+    "generatedNew": false,
+    "codeHash": "4B3F42B5E823595B6AE981368215C5B032376090DA2AFF14E662C6CC678FC029"
+  },
+  {
+    "holder": "res://world/town/resources/r000002.res",
+    "material": "res://world/town/resources/r001144.res",
+    "shader": "res://world/town/resources/r000002.res",
+    "kind": "{\u0022Unlit\u0022:false,\u0022Blend\u0022:false,\u0022Scissor\u0022:false,\u0022TwoSided\u0022:false,\u0022DepthWrite\u0022:true,\u0022Snap\u0022:false,\u0022Atlas\u0022:0,\u0022VertexColor\u0022:false,\u0022Add\u0022:false,\u0022Fog\u0022:true,\u0022Relief\u0022:1,\u0022Parallax\u0022:true,\u0022Detile\u0022:true,\u0022Ground\u0022:true,\u0022Wall\u0022:false,\u0022Slabs\u0022:false,\u0022Far\u0022:false,\u0022Water\u0022:0,\u0022Indoor\u0022:false,\u0022Grime\u0022:0,\u0022Bump\u0022:false,\u0022Decal\u0022:false,\u0022Tree\u0022:0,\u0022NameCell\u0022:0,\u0022TideWet\u0022:false}",
+    "users": [
+      "park_ground_lawn",
+      "park_ground_gravel",
+      "park_ground_mud",
+      "rond_island"
+    ],
+    "generatedOld": true,
+    "generatedNew": false,
+    "codeHash": "2AFA67DDB5DEFCF070B088B21E4408E3EBE12AD1E826ADA64D76EF3838ACAED6"
+  },
+  {
+    "holder": "res://world/town/resources/r000007.res",
+    "material": "res://world/town/resources/r000007.res",
+    "shader": "res://world/town/resources/r000007.res::Shader_xwxi7",
+    "kind": "{\u0022Unlit\u0022:false,\u0022Blend\u0022:false,\u0022Scissor\u0022:false,\u0022TwoSided\u0022:false,\u0022DepthWrite\u0022:true,\u0022Snap\u0022:false,\u0022Atlas\u0022:0,\u0022VertexColor\u0022:false,\u0022Add\u0022:false,\u0022Fog\u0022:true,\u0022Relief\u0022:1,\u0022Parallax\u0022:true,\u0022Detile\u0022:true,\u0022Ground\u0022:true,\u0022Wall\u0022:false,\u0022Slabs\u0022:false,\u0022Far\u0022:false,\u0022Water\u0022:0,\u0022Indoor\u0022:false,\u0022Grime\u0022:0,\u0022Bump\u0022:false,\u0022Decal\u0022:false,\u0022Tree\u0022:0,\u0022NameCell\u0022:0,\u0022TideWet\u0022:false}",
+    "users": [
+      "ground_earth"
+    ],
+    "generatedOld": false,
+    "generatedNew": false,
+    "codeHash": "3B0EBB3021F066CA1E5C4AECF64A6DBA922066F2B2E1A4031FCE7A76F2F15CB7"
+  },
+  {
+    "holder": "res://world/town/resources/r000009.res",
+    "material": "res://world/town/resources/r000038.res",
+    "shader": "res://world/town/resources/r000009.res",
+    "kind": "{\u0022Unlit\u0022:false,\u0022Blend\u0022:false,\u0022Scissor\u0022:false,\u0022TwoSided\u0022:false,\u0022DepthWrite\u0022:true,\u0022Snap\u0022:false,\u0022Atlas\u0022:0,\u0022VertexColor\u0022:false,\u0022Add\u0022:false,\u0022Fog\u0022:true,\u0022Relief\u0022:2,\u0022Parallax\u0022:true,\u0022Detile\u0022:false,\u0022Ground\u0022:true,\u0022Wall\u0022:false,\u0022Slabs\u0022:false,\u0022Far\u0022:false,\u0022Water\u0022:0,\u0022Indoor\u0022:false,\u0022Grime\u0022:0,\u0022Bump\u0022:false,\u0022Decal\u0022:false,\u0022Tree\u0022:0,\u0022NameCell\u0022:0,\u0022TideWet\u0022:false}",
+    "users": [
+      "ground_quay",
+      "rond_pavement",
+      "rond_path"
+    ],
+    "generatedOld": true,
+    "generatedNew": false,
+    "codeHash": "F9116993F04EDA602A4F9180D6EEB11876CD93CE9F0D1DB40F9CD2BA2E172B2F"
+  },
+  {
+    "holder": "res://world/town/resources/r000016.res",
+    "material": "res://world/town/resources/r000016.res",
+    "shader": "res://world/town/resources/r000016.res::Shader_rpbru",
+    "kind": "{\u0022Unlit\u0022:false,\u0022Blend\u0022:false,\u0022Scissor\u0022:false,\u0022TwoSided\u0022:false,\u0022DepthWrite\u0022:true,\u0022Snap\u0022:false,\u0022Atlas\u0022:0,\u0022VertexColor\u0022:false,\u0022Add\u0022:false,\u0022Fog\u0022:true,\u0022Relief\u0022:2,\u0022Parallax\u0022:true,\u0022Detile\u0022:false,\u0022Ground\u0022:true,\u0022Wall\u0022:false,\u0022Slabs\u0022:false,\u0022Far\u0022:false,\u0022Water\u0022:0,\u0022Indoor\u0022:false,\u0022Grime\u0022:0,\u0022Bump\u0022:false,\u0022Decal\u0022:false,\u0022Tree\u0022:0,\u0022NameCell\u0022:0,\u0022TideWet\u0022:false}",
+    "users": [
+      "ground_flags"
+    ],
+    "generatedOld": false,
+    "generatedNew": false,
+    "codeHash": "45BA6F9BBA50BA7A888226F5AB34926E09F65085ADAA56FD060EAFF60D90E039"
+  },
+  {
+    "holder": "res://world/town/resources/r000024.res",
+    "material": "res://world/town/resources/r000024.res",
+    "shader": "res://world/town/resources/r000024.res::Shader_t7j7x",
+    "kind": "{\u0022Unlit\u0022:false,\u0022Blend\u0022:false,\u0022Scissor\u0022:false,\u0022TwoSided\u0022:false,\u0022DepthWrite\u0022:true,\u0022Snap\u0022:false,\u0022Atlas\u0022:0,\u0022VertexColor\u0022:false,\u0022Add\u0022:false,\u0022Fog\u0022:true,\u0022Relief\u0022:2,\u0022Parallax\u0022:true,\u0022Detile\u0022:false,\u0022Ground\u0022:true,\u0022Wall\u0022:false,\u0022Slabs\u0022:false,\u0022Far\u0022:false,\u0022Water\u0022:0,\u0022Indoor\u0022:false,\u0022Grime\u0022:0,\u0022Bump\u0022:false,\u0022Decal\u0022:false,\u0022Tree\u0022:0,\u0022NameCell\u0022:0,\u0022TideWet\u0022:false}",
+    "users": [
+      "ground_cobble"
+    ],
+    "generatedOld": false,
+    "generatedNew": false,
+    "codeHash": "45BA6F9BBA50BA7A888226F5AB34926E09F65085ADAA56FD060EAFF60D90E039"
+  },
+  {
+    "holder": "res://world/town/resources/r000030.res",
+    "material": "res://world/town/resources/r000030.res",
+    "shader": "res://world/town/resources/r000030.res::Shader_u2lbo",
+    "kind": "{\u0022Unlit\u0022:false,\u0022Blend\u0022:false,\u0022Scissor\u0022:false,\u0022TwoSided\u0022:false,\u0022DepthWrite\u0022:true,\u0022Snap\u0022:false,\u0022Atlas\u0022:0,\u0022VertexColor\u0022:false,\u0022Add\u0022:false,\u0022Fog\u0022:true,\u0022Relief\u0022:1,\u0022Parallax\u0022:true,\u0022Detile\u0022:true,\u0022Ground\u0022:true,\u0022Wall\u0022:false,\u0022Slabs\u0022:false,\u0022Far\u0022:false,\u0022Water\u0022:0,\u0022Indoor\u0022:false,\u0022Grime\u0022:0,\u0022Bump\u0022:false,\u0022Decal\u0022:false,\u0022Tree\u0022:0,\u0022NameCell\u0022:0,\u0022TideWet\u0022:false}",
+    "users": [
+      "ground_grass"
+    ],
+    "generatedOld": false,
+    "generatedNew": false,
+    "codeHash": "93B5868A84E8EB58FFEA665FC46306B455B4E80F90E8AE2E61ADEE9E9FCAEF19"
+  },
+  {
+    "holder": "res://world/town/resources/r000204.res",
+    "material": "res://world/town/resources/r000209.res",
+    "shader": "res://world/town/resources/r000204.res",
+    "kind": "{\u0022Unlit\u0022:false,\u0022Blend\u0022:false,\u0022Scissor\u0022:false,\u0022TwoSided\u0022:true,\u0022DepthWrite\u0022:true,\u0022Snap\u0022:true,\u0022Atlas\u0022:0,\u0022VertexColor\u0022:true,\u0022Add\u0022:false,\u0022Fog\u0022:true,\u0022Relief\u0022:0,\u0022Parallax\u0022:false,\u0022Detile\u0022:false,\u0022Ground\u0022:false,\u0022Wall\u0022:true,\u0022Slabs\u0022:true,\u0022Far\u0022:false,\u0022Water\u0022:0,\u0022Indoor\u0022:false,\u0022Grime\u0022:2,\u0022Bump\u0022:false,\u0022Decal\u0022:false,\u0022Tree\u0022:0,\u0022NameCell\u0022:0,\u0022TideWet\u0022:false}",
+    "users": [
+      "city_0_0_3",
+      "city_0_1_3",
+      "city_0_2_3",
+      "city_0_3_3"
+    ],
+    "generatedOld": true,
+    "generatedNew": false,
+    "codeHash": "AF611EB84B4DF6A706282EC5FDFA0CB9B2A4615CFE58221D0E024AD13A7FEED7"
+  },
+  {
+    "holder": "res://world/town/resources/r000545.res",
+    "material": "res://world/town/resources/r000552.res",
+    "shader": "res://world/town/resources/r000545.res",
+    "kind": "{\u0022Unlit\u0022:false,\u0022Blend\u0022:false,\u0022Scissor\u0022:false,\u0022TwoSided\u0022:false,\u0022DepthWrite\u0022:false,\u0022Snap\u0022:false,\u0022Atlas\u0022:0,\u0022VertexColor\u0022:false,\u0022Add\u0022:false,\u0022Fog\u0022:true,\u0022Relief\u0022:2,\u0022Parallax\u0022:false,\u0022Detile\u0022:false,\u0022Ground\u0022:true,\u0022Wall\u0022:false,\u0022Slabs\u0022:false,\u0022Far\u0022:false,\u0022Water\u0022:0,\u0022Indoor\u0022:false,\u0022Grime\u0022:0,\u0022Bump\u0022:false,\u0022Decal\u0022:false,\u0022Tree\u0022:0,\u0022NameCell\u0022:0,\u0022TideWet\u0022:false}",
+    "users": [
+      "track_setts"
+    ],
+    "generatedOld": true,
+    "generatedNew": false,
+    "codeHash": "0E06BF03E8C1A13715C1803A6136796FB67FB0D1986DED36DC36FA56F5C9F969"
+  },
+  {
+    "holder": "res://world/town/resources/r000657.res",
+    "material": "res://world/town/resources/r000657.res",
+    "shader": "res://world/town/resources/r000657.res::Shader_3adxw",
+    "kind": "{\u0022Unlit\u0022:false,\u0022Blend\u0022:false,\u0022Scissor\u0022:false,\u0022TwoSided\u0022:false,\u0022DepthWrite\u0022:true,\u0022Snap\u0022:false,\u0022Atlas\u0022:0,\u0022VertexColor\u0022:true,\u0022Add\u0022:false,\u0022Fog\u0022:true,\u0022Relief\u0022:2,\u0022Parallax\u0022:false,\u0022Detile\u0022:false,\u0022Ground\u0022:true,\u0022Wall\u0022:false,\u0022Slabs\u0022:false,\u0022Far\u0022:true,\u0022Water\u0022:0,\u0022Indoor\u0022:false,\u0022Grime\u0022:0,\u0022Bump\u0022:false,\u0022Decal\u0022:false,\u0022Tree\u0022:0,\u0022NameCell\u0022:0,\u0022TideWet\u0022:false}",
+    "users": [
+      "gate_keizerspoort_5",
+      "gate_kipdorppoort_5",
+      "gate_rode_poort_5",
+      "gate_sint_jorispoort_5"
+    ],
+    "generatedOld": false,
+    "generatedNew": false,
+    "codeHash": "2CAC884D36F40BD9D9B560FAF3A4D0EFD795F9C7DDE730E46ACBBB3FE67BB952"
+  },
+  {
+    "holder": "res://world/town/resources/r000761.res",
+    "material": "res://world/town/resources/r000761.res",
+    "shader": "res://world/town/resources/r000761.res::Shader_vm52b",
+    "kind": "{\u0022Unlit\u0022:false,\u0022Blend\u0022:false,\u0022Scissor\u0022:false,\u0022TwoSided\u0022:false,\u0022DepthWrite\u0022:true,\u0022Snap\u0022:false,\u0022Atlas\u0022:0,\u0022VertexColor\u0022:true,\u0022Add\u0022:false,\u0022Fog\u0022:true,\u0022Relief\u0022:1,\u0022Parallax\u0022:true,\u0022Detile\u0022:true,\u0022Ground\u0022:true,\u0022Wall\u0022:false,\u0022Slabs\u0022:false,\u0022Far\u0022:true,\u0022Water\u0022:0,\u0022Indoor\u0022:false,\u0022Grime\u0022:0,\u0022Bump\u0022:false,\u0022Decal\u0022:false,\u0022Tree\u0022:0,\u0022NameCell\u0022:0,\u0022TideWet\u0022:false}",
+    "users": [
+      "wall_chunk_2_8",
+      "wall_chunk_3_10",
+      "wall_chunk_4_10",
+      "wall_chunk_7_10"
+    ],
+    "generatedOld": false,
+    "generatedNew": false,
+    "codeHash": "C6F8FF7B194A8EF9EAE257BD7C0BFC00F55839CC4E99E8291B5CB1666DCF31FC"
+  },
+  {
+    "holder": "res://world/town/resources/r001158.res",
+    "material": "res://world/town/resources/r001159.res",
+    "shader": "res://world/town/resources/r001158.res",
+    "kind": "{\u0022Unlit\u0022:false,\u0022Blend\u0022:false,\u0022Scissor\u0022:false,\u0022TwoSided\u0022:false,\u0022DepthWrite\u0022:true,\u0022Snap\u0022:false,\u0022Atlas\u0022:0,\u0022VertexColor\u0022:false,\u0022Add\u0022:false,\u0022Fog\u0022:true,\u0022Relief\u0022:1,\u0022Parallax\u0022:true,\u0022Detile\u0022:false,\u0022Ground\u0022:true,\u0022Wall\u0022:false,\u0022Slabs\u0022:false,\u0022Far\u0022:false,\u0022Water\u0022:0,\u0022Indoor\u0022:false,\u0022Grime\u0022:0,\u0022Bump\u0022:false,\u0022Decal\u0022:false,\u0022Tree\u0022:0,\u0022NameCell\u0022:0,\u0022TideWet\u0022:false}",
+    "users": [
+      "park_ground_bed"
+    ],
+    "generatedOld": true,
+    "generatedNew": false,
+    "codeHash": "780BBF4E729B08AA97F85EA438F778E2A3AD4B706537D09CBD3687638BC9FE99"
+  },
+  {
+    "holder": "res://world/town/resources/r001277.res",
+    "material": "res://world/town/resources/r001284.res",
+    "shader": "res://world/town/resources/r001277.res",
+    "kind": "{\u0022Unlit\u0022:false,\u0022Blend\u0022:false,\u0022Scissor\u0022:false,\u0022TwoSided\u0022:false,\u0022DepthWrite\u0022:true,\u0022Snap\u0022:false,\u0022Atlas\u0022:0,\u0022VertexColor\u0022:false,\u0022Add\u0022:false,\u0022Fog\u0022:true,\u0022Relief\u0022:2,\u0022Parallax\u0022:false,\u0022Detile\u0022:false,\u0022Ground\u0022:true,\u0022Wall\u0022:false,\u0022Slabs\u0022:false,\u0022Far\u0022:false,\u0022Water\u0022:0,\u0022Indoor\u0022:false,\u0022Grime\u0022:0,\u0022Bump\u0022:false,\u0022Decal\u0022:false,\u0022Tree\u0022:0,\u0022NameCell\u0022:0,\u0022TideWet\u0022:false}",
+    "users": [
+      "rond_road"
+    ],
+    "generatedOld": true,
+    "generatedNew": false,
+    "codeHash": "0E06BF03E8C1A13715C1803A6136796FB67FB0D1986DED36DC36FA56F5C9F969"
+  },
+  {
+    "holder": "res://world/town/resources/r001384.res",
+    "material": "res://world/town/resources/r001389.res",
+    "shader": "res://world/town/resources/r001384.res",
+    "kind": "{\u0022Unlit\u0022:false,\u0022Blend\u0022:false,\u0022Scissor\u0022:false,\u0022TwoSided\u0022:false,\u0022DepthWrite\u0022:true,\u0022Snap\u0022:false,\u0022Atlas\u0022:0,\u0022VertexColor\u0022:true,\u0022Add\u0022:false,\u0022Fog\u0022:true,\u0022Relief\u0022:1,\u0022Parallax\u0022:true,\u0022Detile\u0022:false,\u0022Ground\u0022:true,\u0022Wall\u0022:false,\u0022Slabs\u0022:false,\u0022Far\u0022:false,\u0022Water\u0022:0,\u0022Indoor\u0022:false,\u0022Grime\u0022:0,\u0022Bump\u0022:false,\u0022Decal\u0022:false,\u0022Tree\u0022:0,\u0022NameCell\u0022:0,\u0022TideWet\u0022:true}",
+    "users": [
+      "tide_mud",
+      "tide_mud"
+    ],
+    "generatedOld": true,
+    "generatedNew": false,
+    "codeHash": "426F0F2A041A69CBCE2286D3C07EAB77D9B5424E6D6D8AC8DCC7A2CB0D9721CD"
+  },
+  {
+    "holder": "res://world/town/resources/r006875.res",
+    "material": "res://world/town/resources/r006880.res",
+    "shader": "res://world/town/resources/r006875.res",
+    "kind": "{\u0022Unlit\u0022:false,\u0022Blend\u0022:false,\u0022Scissor\u0022:false,\u0022TwoSided\u0022:false,\u0022DepthWrite\u0022:true,\u0022Snap\u0022:true,\u0022Atlas\u0022:0,\u0022VertexColor\u0022:true,\u0022Add\u0022:false,\u0022Fog\u0022:true,\u0022Relief\u0022:1,\u0022Parallax\u0022:false,\u0022Detile\u0022:false,\u0022Ground\u0022:false,\u0022Wall\u0022:false,\u0022Slabs\u0022:false,\u0022Far\u0022:false,\u0022Water\u0022:0,\u0022Indoor\u0022:false,\u0022Grime\u0022:0,\u0022Bump\u0022:false,\u0022Decal\u0022:false,\u0022Tree\u0022:0,\u0022NameCell\u0022:0,\u0022TideWet\u0022:false}",
+    "users": [
+      "Mesh1561",
+      "Mesh1590",
+      "Mesh1599",
+      "Mesh1614"
+    ],
+    "generatedOld": true,
+    "generatedNew": false,
+    "codeHash": "42BCE754B1FFC6C98E2D8507B26539A0FD20D5CE274996C021EE85BEC2103A54"
+  }
+]
