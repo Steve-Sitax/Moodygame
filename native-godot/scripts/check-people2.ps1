@@ -23,6 +23,7 @@ $expectedRoots = $rig.bodies.Count + $rig.kinds.Count
 & (Join-Path $PSScriptRoot 'prepare-native-package.ps1') -Project $project
 & dotnet build (Join-Path $project 'Scheldemist.Native.csproj') --nologo -v quiet
 if ($LASTEXITCODE -ne 0) { throw 'Native people2 build failed.' }
+Update-WorkshopImports $engine $project
 [void](New-Item -ItemType Directory -Path $proof)
 $previousData = $env:SCHELDEMIST_USER_DATA
 $previousSeed = $env:SCHELDEMIST_TOWN_SEED

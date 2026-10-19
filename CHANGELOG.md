@@ -11,6 +11,7 @@ Bugs and loose ends are tracked as [issues](https://github.com/Steve-Sitax/Moody
 
 ## [Unreleased]
 
+- Launchers refresh changed model and clothing pictures before play, preventing old cached colours from appearing as patches on rebuilt clothes (#138).
 - Townspeople keep their full body clear of static stall corners when walking near the edge of a navigation cell.
 - Town and park trunks use the photographed bark colour and relief maps (#84, partial); foliage and tree shapes are retained. Isolated day/rain/night review remains pending.
 - Rounded landmark stone arrises and repaired narrow-face UVs while retaining original materials and collision support; capitals, statues and other construction details still need work (#171).
