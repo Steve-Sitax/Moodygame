@@ -24,7 +24,7 @@ Inspect adjacent ground, stairs, rails and drainage in context; unchanged surrou
 The prior H6 daylight pair was inspected at `D:/Code/_tmp_verify/H6-textures/runs/`:
 `before-day/out/park_tree.png` and `resume-candidate-day/out/park_tree.png`. Bark grain improves, but the full
 candidate loses leaf coverage; that rejected foliage is not copied. This pair is not a rendered check of this subset.
-No Godot run, shader-kind audit or performance claim is made for this commit; the coordinator owns the test slots.
+The isolated bark subset passed six rendered park views in day, rain and night. Grain is clearer and the original foliage coverage is retained. Evidence: D:/Code/_tmp_verify/fixall/bark-views-01/out/. This accepts the bark improvement, not a completed texture plan; street-tree junctions and the remaining rows stay under #84 for play review. Shader integration checks remain pending; no performance claim is made.
 Compilation passed (0 errors, 22 warnings outside the helper). Static verification passed 24 hash/provenance
 assertions and the exact 11-file scope; logs: `D:/Code/_tmp_verify/fixall/bark-subset-{build.log,validation.json}`.
 
