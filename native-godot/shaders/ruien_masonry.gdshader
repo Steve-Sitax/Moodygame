@@ -53,6 +53,8 @@ varying vec4 bake;
 uniform float bake_k = 0.85;
 // how strongly the lime halo, bloom and salt flecks show over the bake (brick families with their own pictures)
 uniform float halo_k = 1.0;
+// the halo's slow mottle (20 cm), taken at the vertices: cheaper than per pixel, and the relief is that fine
+varying float halo_n;
 
 void vertex() {
 	vec4 view = MODELVIEW_MATRIX * vec4(VERTEX, 1.0);
@@ -60,6 +62,7 @@ void vertex() {
 	world = (INV_VIEW_MATRIX * view).xyz;
 	POSITION = PROJECTION_MATRIX * vec4(view.xyz * (1.0 - depth_bias), 1.0);
 	wx = COLOR;
+	halo_n = COLOR.g > 0.04 ? ruien_noise3(world * 5.0) : 0.5;
 	bake_ao = CUSTOM0.a > 0.0 ? CUSTOM0.a : 1.0;
 	bake = vec4(CUSTOM0.rgb * CUSTOM0.rgb, step(0.0005, dot(CUSTOM0.rgb, vec3(1.0))));
 	if (uv_metres > 0.5) UV /= tile_m;
@@ -140,17 +143,22 @@ void fragment() {
 	// the study's lime (its halo and bloom layers, carried in the mask's G, which the bake's vertices sample too
 	// sparsely to show): white lime in the joints, white salt flecks over the faces, and a mottled pale wash where it
 	// is thickest; laid over the bake
-	if (variants > 0.5 && lime > 0.04) {
-		float hal = clamp(lime * mix(0.55, 1.35, ruien_noise3(world * 5.0)), 0.0, 1.0);
+	// (the flecks' size on screen, taken outside the branch: derivatives need every pixel of the quad)
+	// (a plane for the 2D noise: the floor's and the vault crown's on xz, the walls' upright)
+	vec2 wp = abs(nw.y) > 0.6 ? world.xz : vec2(world.x + world.z * 1.3, world.y);
+	vec2 fp = wp * 150.0;
+	float fpw = length(fwidth(fp));
+	if (halo_k > 0.0 && variants > 0.5 && lime > 0.04) {
+		float hal = clamp(lime * mix(0.55, 1.35, halo_n), 0.0, 1.0);
 		float mortar = smoothstep(0.8, 0.73, h);
-		vec3 lgrain = clamp(texture(lime_tex, uv).rgb / max(textureLod(lime_tex, uv, 11.0).rgb, vec3(0.02)), 0.0, 3.0);
-		float wash = smoothstep(0.55, 1.0, hal * mix(0.35, 1.5, ruien_noise3(world * 22.0 + 7.1)));
-		vec3 washc = mix(vec3(0.58, 0.56, 0.52), vec3(0.74, 0.72, 0.67), ruien_noise3(world * 40.0 + 3.7));
-		c = mix(c, washc * mix(vec3(1.0), lgrain, 0.35) * tint.rgb, wash * 0.7 * halo_k);
+		float n22 = ruien_noise(wp * 22.0 + 7.1);
+		float wash = smoothstep(0.55, 1.0, hal * mix(0.35, 1.5, n22));
+		vec3 washc = mix(vec3(0.58, 0.56, 0.52), vec3(0.74, 0.72, 0.67), fract(n22 * 7.3));
+		c = mix(c, washc * tint.rgb, wash * 0.7 * halo_k);
 		// (the flecks fade to their share where they would be smaller than a pixel)
-		vec3 fp = world * 150.0;
-		float fl = step(0.7 - lime * 0.22, ruien_noise3(fp));
-		fl = mix(clamp(lime * 0.45, 0.0, 0.4), fl, 1.0 - smoothstep(0.5, 1.5, length(fwidth(fp))));
+		float fk = 1.0 - smoothstep(0.5, 1.5, fpw);
+		float fl = clamp(lime * 0.45, 0.0, 0.4);
+		if (fk > 0.001) fl = mix(fl, step(0.7 - lime * 0.22, ruien_noise(fp)), fk);
 		c = mix(c, vec3(0.8, 0.78, 0.73) * tint.rgb, fl * smoothstep(0.05, 0.35, lime) * (1.0 - mortar) * 0.9 * halo_k);
 		c = mix(c, vec3(0.8, 0.78, 0.73) * tint.rgb, smoothstep(0.08, 0.4, hal) * mortar * halo_k);
 	}
