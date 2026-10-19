@@ -1,7 +1,7 @@
 [gd_scene format=3]
 
-[ext_resource type="ArrayMesh" path="res://recovered/street-props-20261015/resources/r0006.res" id="1_dvcmw"]
-[ext_resource type="Shape3D" path="res://recovered/street-props-20261015/resources/r0007.res" id="2_4b3ri"]
+[ext_resource type="ArrayMesh" path="res://assets/models/street-furniture/cellar-hatch.res" id="1_dvcmw"]
+[ext_resource type="Shape3D" path="res://assets/models/street-furniture/cellar-hatch-shape.res" id="2_4b3ri"]
 
 [node name="source_3" type="Node3D" unique_id=1160453899]
 metadata/source_node_index = 3
@@ -16,6 +16,7 @@ metadata/legacy_extras_json = "{}"
 mesh = ExtResource("1_dvcmw")
 metadata/source_node_index = 2
 metadata/source_name = "cellar_hatch_mesh"
+metadata/native_model_note = "#149: the pavement hatch (build_laundry.py), flush with the paving; was r0006"
 metadata/legacy_extras_json = "{}"
 
 [node name="Solid" type="StaticBody3D" parent="recover_3/recover_2" unique_id=321334105]

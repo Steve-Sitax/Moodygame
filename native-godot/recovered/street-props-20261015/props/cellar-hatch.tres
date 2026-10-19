@@ -9,5 +9,5 @@ Id = "cellar-hatch"
 Title = "Pavement cellar hatch"
 Category = "Street furniture"
 Scene = ExtResource("1_3b3qu")
-Footprint = Vector3(1.394, 0.65795076, 0.63399994)
-FootprintOffset = Vector3(0, -0.58000004, 0.31999996)
+Footprint = Vector3(1.1, 0.053, 0.44)
+FootprintOffset = Vector3(0, -0.0235, 0.22)

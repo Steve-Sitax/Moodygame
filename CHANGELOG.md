@@ -11,6 +11,9 @@ Bugs and loose ends are tracked as [issues](https://github.com/Steve-Sitax/Moody
 
 ## [Unreleased]
 
+- The town's street pumps, the courts' pumps included, are all the cast-iron pump with its stone basin, and the horse troughs beside them are hewn blue stone with a worn rim (#160).
+- Cellar hatches lie against their house, flush with the pavement or the setts: an iron frame and two oak leaves with strap hinges and drop rings, instead of a flat box in the gutter (#149).
+- The washing across the narrow streets is real cloth: shirts, shifts, trousers, aprons, stockings, sheets and towels in linen, indigo cotton, wool and ticking, pegged with wooden pegs on a sagging hemp line tied to iron rings in the walls. It sways in the wind and hangs dark and wet in the rain. Wash poles out of windows carry the same pieces. Lines over the omnibus's streets hang a storey higher (#164).
 - Two households keep their boat at a quay ladder (one on the river by the Vismarkt, one in the Petit Bassin): the owner climbs down the ladder into her, rows to a flight of steps and back, and climbs up the ladder again (#195).
 - The bench and hiring-board models no longer stay loaded when a dedicated game closes (#195).
 - The cathedral's confessional has carved oak figures: an angel with raised wings at each end, one hand on its breast and the other turned toward the penitents, and between the booths two veiled penitent saints with bowed heads and crossed hands; small angels stand on its cornice. They replace the coarse brown figures (#196).
