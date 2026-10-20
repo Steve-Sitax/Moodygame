@@ -2,9 +2,7 @@
 
 After the garments are made (kinds_*.py with clothes_kit and cloth_detail) and subdivided:
 1. relief(): folds, seams and bunching that change the silhouette, as geometry on the near copy;
-2. delete_hidden(): faces of a garment that lie under another garment everywhere (a ray out meets the upper one, far
-   enough from its open edge, and tilted rays meet it too) are deleted, so a reduced upper layer has nothing to show
-   through it and costs nothing (the bodice under the shawl, the trousers' top under the smock);
+2. retain complete garment layers: a moving outer layer can expose anything hidden in the rest pose;
 3. cut_body() (clothes_kit): the skin under the garments, never the hands;
 4. reduce(): all the garments together in one collapse, with the rims (hems, cuffs, the edges of brims and
    collars) and the UV seams protected, so a hem keeps its line and every island stays a disk;
@@ -13,9 +11,8 @@ After the garments are made (kinds_*.py with clothes_kit and cloth_detail) and s
    rims too), islands turned so the cloth's up is the picture's up, packed into the kind's clothes rectangle with
    square texels;
 7. paint (dress.paint_clothes) at twice the rectangle's size, filtered down;
-8. project_uvs(): the far copy's UVs from the near copy's islands (the two share one picture);
-9. under_cloth(): the skin under a garment painted as the garment's shadowed lining, by the same ray test, with a
-   soft edge (no cover rule by height: the ink-blot at the nape);
+8. cloth_lod.from_near(): reduce the finished near cloth with its UVs, then rebuild matching far facings;
+9. keep dressed skin its own colour; use geometry for garment coverage, with stockings/gloves painted explicitly;
 10. bake_occlusion(): ambient occlusion over body and clothes in vertex colour blue.
 """
 
@@ -261,6 +258,14 @@ def protect_weights(ob, seam=0.15, rim=0.0, small=None):
 
 
 def reduce(ob, budget, symmetry=True, factor=1.0, weights=None):
+    """Keep near garment facings attached to the final reduced outer surface."""
+    if ob.name.endswith('_clothes_lod0'):
+        from .cloth_fit import reduce_lined
+        return reduce_lined(ob, budget, _reduce_surface, symmetry=symmetry, factor=factor, weights=weights)
+    return _reduce_surface(ob, budget, symmetry=symmetry, factor=factor, weights=weights)
+
+
+def _reduce_surface(ob, budget, symmetry=True, factor=1.0, weights=None):
     """Collapse the garments of one copy to `budget` triangles in one pass (every piece together: the collapse
     spends the triangles where the cloth curves: folds, collars, caps, clogs), the protected vertices (weights:
     protect_weights) last. UVs are made afterwards (unwrap)."""
@@ -332,6 +337,10 @@ def tuck(ob, body, order, covers, clearance=0.004, body_clearance=0.005, reach=0
         if loc is None or n.dot(v.normal) < agree:
             return 0
         h = (v.co - loc).dot(n)  # height over the upper surface (negative: under it)
+        # A nearest point beyond an open edge is beside the garment, not beneath it.
+        # Pulling such points collapsed boot toes onto the adjoining sole rim.
+        if (v.co - loc - n * h).length > 0.002:
+            return 0
         if h > -cl:
             shift(target, i, n * (-cl - h))
             return 1
@@ -362,7 +371,12 @@ def tuck(ob, body, order, covers, clearance=0.004, body_clearance=0.005, reach=0
             continue
         ogrp = {vgrp[f[0]] for f in outer[o]}
         for i in range(len(me.vertices)):
-            if raw[i] == u and limb[i] in ogrp:
+            # Hanging cloth blends hips and legs across one continuous panel.
+            # Different dominant leg/trunk bones do not make separate garments;
+            # arms still must never tuck into the skirt beside them.
+            same_region = limb[i] in ogrp or (not limb[i].startswith("arm")
+                and any(not region.startswith("arm") for region in ogrp))
+            if raw[i] == u and same_region:
                 moved += pull(ob, i, trees[o], clearance)
     me.update()
     carry_linings()
@@ -1042,6 +1056,8 @@ def edge_layer(ob):
 
 def drop_layers(ob, names=("fabric", "_edge")):
     me = ob.data
+    if "cloth_outer" in me.attributes:
+        me.attributes.remove(me.attributes["cloth_outer"])
     for n in names:
         if n in me.uv_layers:
             me.uv_layers.remove(me.uv_layers[n])
@@ -1056,89 +1072,6 @@ def down2(a):
 
 
 # ---------------------------------------------------------------- 8. the far copy's UVs
-
-
-def project_uvs(far, near):
-    """The far copy shares the near copy's picture: each far face takes the island of the near face nearest its
-    middle (of the same piece and side), and each of its corners the UV of the nearest point of that island."""
-    from mathutils import Vector
-    from mathutils.bvhtree import BVHTree
-    mn, mf = near.data, far.data
-    nraw = [p or "" for p in wt.parts(near)]
-    fraw = [p or "" for p in wt.parts(far)]
-    nuv = mn.uv_layers["UVMap"].data
-    islands = _island_faces(mn)
-    isl_of = np.zeros(len(mn.polygons), np.int64)
-    for k, fs in enumerate(islands):
-        isl_of[fs] = k
-    nco = [v.co.copy() for v in mn.vertices]
-    # faces by part (the piece's outside or inside), and by island
-    by_part, by_isl = {}, {}
-    for p in mn.polygons:
-        by_part.setdefault(nraw[p.vertices[0]], []).append(p.index)
-        by_isl.setdefault(int(isl_of[p.index]), []).append(p.index)
-    # triangulated faces (loop triples) for barycentric lookups
-    def tri_list(fids):
-        out = []
-        for f in fids:
-            li = list(mn.polygons[f].loop_indices)
-            for k in range(1, len(li) - 1):
-                out.append((li[0], li[k], li[k + 1]))
-        return out
-    part_tree = {}
-    for pn, fids in by_part.items():
-        tl = tri_list(fids)
-        part_tree[pn] = (BVHTree.FromPolygons(nco, [tuple(mn.loops[l].vertex_index for l in t) for t in tl]), tl)
-    isl_tree = {}
-
-    def itree(k):
-        if k not in isl_tree:
-            tl = tri_list(by_isl[k])
-            isl_tree[k] = (BVHTree.FromPolygons(nco, [tuple(mn.loops[l].vertex_index for l in t) for t in tl]), tl)
-        return isl_tree[k]
-
-    def uv_at(tree_tl, q):
-        tree, tl = tree_tl
-        loc, _, fi, _ = tree.find_nearest(q)
-        t = tl[fi]
-        a, b, c = (nco[mn.loops[l].vertex_index] for l in t)
-        # barycentric of loc in (a, b, c)
-        v0, v1, v2 = b - a, c - a, loc - a
-        d00, d01, d11 = v0.dot(v0), v0.dot(v1), v1.dot(v1)
-        d20, d21 = v2.dot(v0), v2.dot(v1)
-        den = d00 * d11 - d01 * d01
-        if abs(den) < 1e-18:
-            w1 = w2 = 0.0
-        else:
-            w1 = (d11 * d20 - d01 * d21) / den
-            w2 = (d00 * d21 - d01 * d20) / den
-        w0 = 1 - w1 - w2
-        ua, ub, uc = (np.array(nuv[l].uv[:]) for l in t)
-        return ua * w0 + ub * w1 + uc * w2, fi
-
-    loop_face = np.zeros(len(mn.loops), np.int64)
-    for p in mn.polygons:
-        loop_face[p.loop_start:p.loop_start + p.loop_total] = p.index
-    if "UVMap" not in mf.uv_layers:
-        mf.uv_layers.new(name="UVMap")
-    fuv = mf.uv_layers["UVMap"].data
-    out = np.zeros((len(fuv), 2))
-    fco = [v.co for v in mf.vertices]
-    for p in mf.polygons:
-        pn = fraw[p.vertices[0]]
-        if pn not in part_tree:
-            pn = pn.removeprefix("in_") if pn.removeprefix("in_") in part_tree else next(iter(part_tree))
-        c = Vector((0, 0, 0))
-        for v in p.vertices:
-            c += fco[v]
-        c /= len(p.vertices)
-        _, fi = uv_at(part_tree[pn], c)
-        k = int(isl_of[loop_face[part_tree[pn][1][fi][0]]])
-        tr = itree(k)
-        for li, v in zip(p.loop_indices, p.vertices):
-            out[li], _ = uv_at(tr, fco[v])
-    fuv.foreach_set("uv", out.ravel())
-    mf.update()
 
 
 # ---------------------------------------------------------------- 9. the skin under the cloth

@@ -14,14 +14,14 @@ Bugs and loose ends are tracked as [issues](https://github.com/Steve-Sitax/Moody
 - Ruien street openings get deep, jointed bluestone surrounds, recessed lid seats and finished kerb junctions. The keeper vault stays below the paving; hatch requests survive state polling and action prompts wait for the lids to settle (#211).
 - Ruien O2 gets saved, player-operated iron keeper lids, a vaulted bluestone stair, mortared drain gutters, a solid hall arch and a round street light grate. Repaired pipe runoff, worn edges, paving UVs, underground water and dimmer lamp pools; the hall stair now exits into the open street (#209).
 - Ruien O2 gains a keeper stair, escape ladders and swimming, worn stone walking surfaces laid along the paths with dressed junction stones, repaired drain mouths and a flowing sluice outlet; water, low mist and wet masonry now use separate treatments (#207).
+- Rebuilt townspeople's clothes with covered inner panels and complete apron backs, fitted necklines and sleeves, matching edge linings, stable aprons and shawls, and one pair of shoes per worker (#82, #138).
+- Launchers refresh changed model and clothing pictures before play, preventing old cached colours from appearing as patches on rebuilt clothes (#138).
 - Townspeople keep their full body clear of static stall corners when walking near the edge of a navigation cell.
 - Town and park trunks use the photographed bark colour and relief maps (#84, partial); foliage and tree shapes are retained. Isolated day/rain/night review remains pending.
 - Rounded landmark stone arrises and repaired narrow-face UVs while retaining original materials and collision support; capitals, statues and other construction details still need work (#171).
 - Aligned pavement flag joints to kerbs and side-street rows to junctions; remapped gate, railway and Sint-Jansplein paving. Step and plinth tops, park paving and final junction checks remain unfinished (#199).
 - Street and boat washing is taken in during rain and overnight, returning between 08:00 and 18:00 in dry weather; ropes and posts stay in place (#203).
 - Removing a boat no longer leaves its sound emitter trying to read the deleted vessel.
-
-- Authoring only: cloth clearance preserves lining thickness and ignores opposite-facing folds (#82, #138). The runtime people kit is unchanged; neckline and shoulder defects remain unaccepted on the separate rebuilt candidate.
 
 - Floating scraps follow the local tide and settle onto the mud when the vlieten drain (#200).
 - Antigoon is now 3.85 m tall, with matching collision and reach, small enough to stand upright on the bed of a 4 m rui (#189).

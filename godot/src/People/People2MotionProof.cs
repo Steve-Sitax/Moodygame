@@ -60,7 +60,7 @@ internal partial class People2MotionProof : Node
                     Main.I.View.GetTexture().GetImage().SavePng(Path.Combine(dir, name));
                     var day = World.Daylight.I;
                     if (Math.Abs(day.Hour - hour) > 0.02 || day.Weather != weather) throw new InvalidOperationException("wrong live clock or weather in " + name);
-                    pictures.Add(new { name, hour = day.Hour, weather = day.Weather, cam = new[] { at.X, at.Y, at.Z } });
+                    pictures.Add(new { name, hour = day.Hour, weather = day.Weather, cam = new[] { at.X, at.Y, at.Z }, figures = FigureStates() });
                 }
                 if (label == "day")
                 {
@@ -69,6 +69,7 @@ internal partial class People2MotionProof : Node
                     {
                         await Look(at, look, 6);
                         manual = true;
+                        if (seq == "walk") foreach (var f in figs.Where(f => f.Label.StartsWith("row", StringComparison.Ordinal))) f.Human.Play("walk", 0.3f);
                         // sitting down and getting up: a man settled at a stool sits, then stands again
                         if (seq == "sitdown" && sitter != null) { for (int s = 0; s < 60; s++) sitter.Human.Update(1f / 60); sitter.Human.Root.Position = sitterAt + Vector3.Up * sitter.Human.SitDrop(sitterSeat); sitter.Human.Play("sit", 0.3f); }
                         if (seq == "standup" && sitter != null) { for (int s = 0; s < 60; s++) sitter.Human.Update(1f / 60); sitter.Human.Play("idle", 0.3f); }
@@ -80,8 +81,9 @@ internal partial class People2MotionProof : Node
                             await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
                             string name = $"seq-{seq}-{k:00}.png";
                             Main.I.View.GetTexture().GetImage().SavePng(Path.Combine(dir, name));
-                            pictures.Add(new { name, t = k * 0.25 });
+                            pictures.Add(new { name, t = k * 0.25, figures = FigureStates() });
                         }
+                        if (seq == "walk") foreach (var f in figs.Where(f => f.Label.StartsWith("row", StringComparison.Ordinal))) f.Human.Play("idle", 0.3f);
                         manual = false;
                     }
                     // back on his stool for the evening pictures
@@ -141,7 +143,15 @@ internal partial class People2MotionProof : Node
         Main.I.Cam.LookAtFromPosition(at, look, Vector3.Up);
         if (Main.I.Cam is Player.FlyCam fly) fly.Face(Main.I.Cam.GlobalBasis.GetRotationQuaternion());
         for (int i = 0; i < settle; i++) await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+        bool Waiting() => figs.Where(f => f.Human.Root.GlobalPosition.DistanceSquaredTo(at) < 225)
+            .Any(f => World.BakedWorld.All(f.Human.Root).OfType<MeshInstance3D>()
+                .Any(m => m.Name.ToString().EndsWith("_lod0", StringComparison.Ordinal) && !m.Visible));
+        for (int i = 0; Waiting() && i < 1800; i++) await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+        if (Waiting()) throw new InvalidOperationException("Close motion figures did not finish their identity meshes.");
     }
+
+    private object FigureStates() => figs.Select(f => new { who = f.Label, kind = f.Human.Kind,
+        clip = f.Human.AnimationState.Clip, phase = f.Human.AnimationState.Cycle }).ToArray();
 
     private float Ground(float x, float z)
     {
@@ -151,6 +161,14 @@ internal partial class People2MotionProof : Node
 
     private Fig? Put(string kind, string id, Vector3 at, float yaw, string motion, float seat = -1, string label = "")
     {
+        if (Main.I.Flag("people2-clothing-proof")) kind = kind switch
+        {
+            "p2:man_middling" or "p2:old_man" => "old_man",
+            "p2:woman_middling" => "shopwife",
+            "p2:old_woman" => "old_woman",
+            "p2:child_middling" => "boy",
+            _ => kind
+        };
         var h = Humans.Make(kind);
         if (h == null) return null;
         h.Root.Position = at;
@@ -347,6 +365,8 @@ internal partial class People2MotionProof : Node
     private IEnumerable<(string, Vector3, Vector3)> Sequences()
     {
         yield return ("idle", rowC + new Vector3(-1.6f, 1.45f, -3.2f), rowC + new Vector3(-1.6f, 0.95f, 0));
+        if (Main.I.Flag("people2-clothing-proof"))
+            yield return ("walk", rowC + new Vector3(-1.6f, 1.45f, -3.2f), rowC + new Vector3(-1.6f, 0.95f, 0));
         yield return ("talk", pairC + new Vector3(0.6f, 1.45f, -3.0f), pairC + new Vector3(0, 0.95f, 0));
         if (sitter != null)
         {

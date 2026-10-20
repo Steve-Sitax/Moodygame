@@ -93,9 +93,9 @@ class Fit:
         self.C = C = b["C"]
         self.J = b["J"]
         self.Y = lambda f: bd.Y(P, f)
-        self.rest = np.array(C.rest, np.float64)
+        self.rest = np.array(C.co, np.float64)
         # the cage's vertex normals at rest (a throwaway mesh: Blender orients the faces outward)
-        ob = bd.to_mesh(C, "_fit_normals", use_rest=True)
+        ob = bd.to_mesh(C, "_fit_normals", use_rest=False)
         self.N = np.array([G(v.normal) for v in ob.data.vertices], np.float64)
         bpy.data.objects.remove(ob)
         self.N = norm(self.N)
@@ -350,6 +350,8 @@ def thicken(pc, thick, depth=0.06, crease=0.08, rim_seam=True, skip=None):
     `depth` metres of an open edge (None: all of it), and a rim along every open edge (both its edges creased).
     The outer faces must already face outward (orient; their winding is made consistent here). skip: loops (lists of
     vertex ids) that get no rim (where a piece is joined to another one)."""
+    if depth is None and pc.hat:
+        pc.meta["full_facing"] = True
     pc.consistent()
     V = np.array(pc.V)
     Nv = pc.normals()
@@ -425,8 +427,11 @@ def thicken(pc, thick, depth=0.06, crease=0.08, rim_seam=True, skip=None):
         if a not in inn or b not in inn:
             continue
         pc.face((b, a, inn[a], inn[b]))
-        pc.set_crease(a, b, crease)
-        pc.set_crease(inn[a], inn[b], crease)
+        # A thin stitched hem retains its cut line. With nearly smooth edges,
+        # subdivision pulled the rim centimetres into coarse panels and opened
+        # gaps below waistbands, collars and hat brims.
+        pc.set_crease(a, b, max(crease, 0.6))
+        pc.set_crease(inn[a], inn[b], max(crease, 0.6))
         if rim_seam:
             # the rim belongs to the outside's island (the picture runs on over the hem's edge as the cloth does);
             # the inside is cut off at the rim's inner edge
@@ -583,7 +588,9 @@ def head_axis(fit):
         top = H[:, 1].max()
         sk = H[H[:, 1] > top - 0.06]
         zc = 0.5 * (sk[:, 2].max() + sk[:, 2].min())
-        fit._haxis = (np.array((0.0, 0.0, zc)), float(top))
+        # Hair is a separate reusable mesh on MakeHuman bodies. Leave room for
+        # its capped shell and for the crown's subdivision/reduction shrinkage.
+        fit._haxis = (np.array((0.0, 0.0, zc)), float(top + 0.015))
     return fit._haxis
 
 
@@ -616,12 +623,13 @@ def build_objects(pieces, name):
     import bpy
 
     verts, faces, W, parts, zones = [], [], [], [], []
-    seams, creases = [], []
+    seams, creases, outer_faces = [], [], []
     for pc in pieces:
         pc.consistent()  # one winding across every edge (pieces not thickened: boots, soles, buttons)
         base = len(verts)
         verts += [B(*p) for p in pc.V]
         faces += [tuple(v + base for v in f) for f in pc.F]
+        outer_faces += [int(not any(pc.inner[v] for v in f)) for f in pc.F]
         for w, inner in zip(pc.W, pc.inner):
             row = np.zeros(len(NAMES))
             for k, v in wnorm(w).items():
@@ -634,6 +642,8 @@ def build_objects(pieces, name):
     me = bpy.data.meshes.new(name)
     me.from_pydata([tuple(v) for v in verts], [], faces)
     me.update()
+    shell = me.attributes.new("cloth_outer", "INT", "FACE")
+    shell.data.foreach_set("value", np.asarray(outer_faces, np.int32))
     me.uv_layers.new(name="UVMap")
     # the cloth's own coordinates (cloth_detail: a check on the threads), carried per corner through the subdivision
     # and the reduction in a second UV layer, removed after the paint
@@ -650,6 +660,9 @@ def build_objects(pieces, name):
     fl.data.foreach_set("uv", fab[lv].ravel())
     me.uv_layers.active = me.uv_layers["UVMap"]
     ob = bpy.data.objects.new(name, me)
+    # A bonnet or hood is visible from underneath; reduction must retain its
+    # authored full back rather than replacing it with a narrow edge facing.
+    ob["cloth_full_facings"] = [pc.name for pc in pieces if pc.meta.get("full_facing")]
     bpy.context.scene.collection.objects.link(ob)
     ek = {tuple(sorted(e.vertices)): e.index for e in me.edges}
     for a, b in seams:
@@ -707,11 +720,15 @@ def cut_body(ob, covered, over=None, reach=None, tilt=30.0):
     sleeve or collar is close, 30 cm on the legs under a skirt) and so do four rays tilted `tilt` degrees (so the
     skin just inside a cuff or a collar's edge stays: it is in sight when the limb bends), or the skin pokes out
     through a garment just there (a ray in meets it within 3 cm). The cover rules were drawn for the cage bodies;
-    on the MakeHuman bodies a rule alone cut a hole at the nape that no collar covered. Head, eyes and hair stay,
+    on the MakeHuman bodies a rule alone cut a hole at the nape that no collar covered. Closed bodices, sleeves,
+    boots and the measured skirt hem use explicit coverage instead. Head, eyes and hair stay,
     and so do the hands (MakeHuman's hand islands and the fingers): nothing covers them, and the old 30 cm reach cut
     faces of a hand hanging beside a smock."""
     import bmesh
 
+    if over is not None:
+        from .cloth_fit import tuck_skin
+        tuck_skin(ob, over)
     reach = dict(CUT_REACH, **(reach or {})) if not isinstance(reach, float) else {k: reach for k in CUT_REACH}
     vparts = wt.parts(ob)
     me = ob.data
@@ -726,14 +743,38 @@ def cut_body(ob, covered, over=None, reach=None, tilt=30.0):
                 hand[list(p.vertices)] = True
     cov = np.array([(not str(p).startswith(("head", "eye", "hair", "finger"))) and not hand[i] and
                     bool(covered(co[i], p or "")) for i, p in enumerate(vparts)])
+    closed_bodice = False
+    closed_shoulders = False
+    shoulder_cov = cov.copy()
     if over is not None:
+        from .cloth_fit import protect_openings
+        over_parts = wt.parts(over)
+        closed_bodice = 'bodice' in over_parts
+        closed_shoulders = bool({'bodice', 'shirt', 'smock', 'coat', 'tunic', 'frock_coat'}.intersection(over_parts))
+        hems = [G(v.co)[1] for v in over.data.vertices if over_parts[v.index] in ('skirt', 'habit_skirt')]
+        skirt_hem = min(hems) + 0.06 if hems else None
+        if skirt_hem is not None:
+            for i, part in enumerate(vparts):
+                if (part or '').startswith('leg') and co[i, 1] > skirt_hem:
+                    cov[i] = True
+        protect_openings(ob, over, cov)
+        shoulder_cov = cov.copy()
         from mathutils.bvhtree import BVHTree
         tree = BVHTree.FromPolygons([tuple(v.co) for v in over.data.vertices],
                                     [tuple(f.vertices) for f in over.data.polygons])
         ca, sa = math.cos(math.radians(tilt)), math.sin(math.radians(tilt))
+        closed_boots = "boots" in over_parts
+        dominant = [NAMES[int(i)] for i in np.argmax(wt.read(ob), axis=1)]
         for i in np.nonzero(cov)[0]:
             v = me.vertices[int(i)]
             p = vparts[int(i)] or ""
+            # Authored sleeve coverage replaces the arm. Opening skin was protected above;
+            # a ray missing a coarse shoulder panel must not retain a patch through it.
+            # Closed boots likewise replace covered feet, including fragments beside the welt.
+            covered_leg = p.startswith('leg') and skirt_hem is not None and co[i, 1] > skirt_hem
+            covered_foot = closed_boots and p.startswith('leg') and dominant[int(i)].startswith(('foot', 'toe'))
+            if p.startswith('arm') or (p == 'neck' and closed_bodice) or covered_leg or covered_foot:
+                continue
             r = next((x for k, x in reach.items() if p.startswith(k)), 0.06)
             n = v.normal
             o = v.co + n * 0.0005
@@ -756,7 +797,17 @@ def cut_body(ob, covered, over=None, reach=None, tilt=30.0):
     bm = bmesh.new()
     bm.from_mesh(ob.data)
     bm.verts.ensure_lookup_table()
-    gone = [f for f in bm.faces if all(cov[v.index] for v in f.verts)]
+    def covered_shoulder(face):
+        parts = [vparts[v.index] or '' for v in face.verts]
+        return (closed_shoulders and any(p.startswith('arm') for p in parts)
+                and all(p.startswith(('arm', 'neck', 'torso')) for p in parts)
+                and (sum(shoulder_cov[v.index] for v in face.verts) > len(face.verts) / 2
+                     or (all(p.startswith(('arm', 'torso')) for p in parts)
+                         and any(p.startswith('arm') and shoulder_cov[v.index]
+                                 for p, v in zip(parts, face.verts)))))
+    gone = [f for f in bm.faces if all(cov[v.index] for v in f.verts) or covered_shoulder(f)
+            or (all((vparts[v.index] or "").startswith("arm") for v in f.verts)
+                and sum(cov[v.index] for v in f.verts) > len(f.verts) / 2)]
     bmesh.ops.delete(bm, geom=gone, context="FACES_ONLY")
     loose = [v for v in bm.verts if not v.link_faces]
     bmesh.ops.delete(bm, geom=loose, context="VERTS")
@@ -789,8 +840,10 @@ def layer_order(ob):
     me = ob.data
     raw = wt.parts(ob)
     piece = _piece_of(raw)
-    # fringes and buttons hang on whatever is next to them: they take no part in the layers
-    names = sorted({p for p in piece if p and not p.endswith("fringe") and not p.startswith("button")})
+    # Fringes and buttons hang beside cloth; soles join boot uppers at a welt.
+    # None is an enclosing garment to pull the neighbouring surface underneath.
+    names = sorted({p for p in piece if p and p != "soles"
+                    and not p.endswith("fringe") and not p.startswith("button")})
     bvh = {n: _outer_bvh(ob, raw, n) for n in names}
     votes = {}
     for v in me.vertices:
@@ -1018,6 +1071,8 @@ def undershirt(ctx, rgb, top, zone=2, bottom=None, covers=None, skip=()):
     and, given the kind's cover rule, wherever that rule says a garment covers the skin: where a reduced garment's
     neckline leaves the skin of the shoulders in sight, or a slider's broader shoulders push the skin through the
     cloth, a shirt or a lining shows there, not bare skin. zone: the detail zone (pictures.ZONES: 1 wool, 2 linen)."""
+    if not getattr(ctx, "paint_clothing_on_skin", True):
+        return
     m = starts(ctx.part, ("torso", "neck")) & (ctx.y < top)
     if covers is not None:
         pts = np.stack((ctx.x, ctx.y, ctx.z), -1)
@@ -1213,6 +1268,11 @@ def upper(fit, pc, rows=(0, 9), neck=None, sleeve="w1", ease=None, open_front=No
     `lift` (it lies over the right one where they overlap). keep(i): a further test per cage vertex (a V neck).
     Returns ({cage vertex: piece vertex}, {cage vertex: the
     right front edge's copy})."""
+    measured_blouse = fit.P['old'] and fit.P['female']
+    if measured_blouse and rows == (2, 9) and neck == 0 and sleeve == 'w1' and open_front is None and keep is None:
+        from .cloth_fit import skin_upper
+        pc.meta['skin_upper'] = True
+        return skin_upper(fit, pc, rows)
     arm_ok = set(ARM_SEQ[:ARM_SEQ.index(sleeve) + 1]) if sleeve else set()
 
     def allow(i):
@@ -1378,6 +1438,7 @@ def flat_cap(fit, pc, peak, n=16, band=0.020, margin=0.011, puff=0.012, fwd=0.01
     chin = bd.Y(P, 0.870)
     hs = P["hs"]
     c, top = head_axis(fit)
+    top += 0.012  # subdivision lowers the soft crown; keep it above the capped hair shell
     phis = 2 * math.pi * np.arange(n) / n
     front = 0.5 + 0.5 * np.cos(phis)
     lift = 0.010 if "mh" in P else 0.0  # MakeHuman's head: the band sits on the forehead, not on the brows
@@ -1386,7 +1447,7 @@ def flat_cap(fit, pc, peak, n=16, band=0.020, margin=0.011, puff=0.012, fwd=0.01
     r0 = sup(y0) + margin
     r1 = np.maximum(sup(y0 + band) + margin + 0.001, r0 - 0.002)
     ov = puff + 0.008 * front
-    rings = [(y0, r0, 0.0), (y0 + band, r1, 0.0),
+    rings = [(y0 - 0.012, r0, 0.0), (y0 + band, r1, 0.0),
              (0.5 * (y0 + band) + 0.5 * (top - 0.012), r1 + 0.7 * ov, 0.5 * fwd * front),
              (top - 0.006 - 0.004 * front, r1 + ov, fwd * front),
              (top + 0.005 - 0.003 * front, r1 + ov - 0.016, fwd * front),
@@ -1789,7 +1850,7 @@ def kepi(fit, pc, peak, n=16, margin=0.011, height=0.075, slope=0.022, taper=0.0
     r1 = np.maximum(sup(y0 + 0.02) + margin, r0)
     rb = np.maximum(r0, r1)
     ytop = np.maximum(top + 0.020, y0 + height) - slope * front  # clear of the hair pieces under it
-    rings = [(y0, r0), (y0 + 0.02, rb), (y0 + 0.5 * (ytop - y0), rb - 0.5 * taper),
+    rings = [(y0 - 0.012, r0), (y0 + 0.02, rb), (y0 + 0.5 * (ytop - y0), rb - 0.5 * taper),
              (ytop - 0.004, rb - taper), (ytop, rb - taper - 0.006), (ytop + 0.001, (rb - taper) * 0.55)]
     pts = np.array([np.stack([c[0] + r * np.sin(phis), y, c[2] + r * np.cos(phis)], -1) for y, r in rings])
     ids = pc.grid(pts, hat_weights, closed=True, seam_col=n // 2)
@@ -1831,6 +1892,8 @@ def hood_cap(fit, pc, frill=None, margin=0.006, front=-18.0, back=112.0, side=11
     its front edge running over the head from ear to ear behind the hairline; with `frill` a goffered frill
     standing round that edge. Built on arcs from ear to ear over the head, tipped from the front edge (`front`
     degrees, forward of straight up) to the nape (`back`); weighted to the head."""
+    # The open cap is visible from below, beyond its narrow turned hem.
+    pc.meta["full_facing"] = True
     c, top = head_axis(fit)
     P = fit.P
     chin = bd.Y(P, 0.870)
@@ -1843,7 +1906,7 @@ def hood_cap(fit, pc, frill=None, margin=0.006, front=-18.0, back=112.0, side=11
         for u in us:
             # the arc from ear to ear over the top, tipped back about the left-right axis by v
             dirs.append(np.array((math.sin(u), math.cos(u) * math.cos(v), -math.cos(u) * math.sin(v))))
-        grid.append(head_hit(fit, centre, dirs, margin))
+        grid.append(head_hit(fit, centre, dirs, margin + 0.025))
     pts = np.array(grid)
     ids = pc.grid(pts, hat_weights, closed=False, seam_col=None)
     pc.orient(lambda q: q - centre)
@@ -1929,8 +1992,9 @@ def shoe(fit, pc, sole, side, women=False, shaft=0.130, toe_len=1.0):
         t = float(sm(0.10 * s, 0.17 * s, p[2])) * 0.75
         a = float(sm(0.085, shaft, p[1])) * 0.7 * float(sm(0.05 * s, 0.0, p[2]))
         return wnorm({"foot" + side: (1 - t) * (1 - a), "toe" + side: t * (1 - a), "legLow" + side: a})
+    nf = len(pc.F)
     loft_z(pc, st, 10, w, cx=cx, power=2.4, power_bottom=6.0)
-    pc.orient(lambda c: np.array((c[0] - cx, c[1] - 0.05, c[2] - 0.08 * s)))
+    pc.orient(lambda c: np.array((c[0] - cx, c[1] - 0.05, c[2] - 0.08 * s)), start=nf)
     heel = 0.022 if not women else 0.030
     so = [(z, hw + 0.003, -0.0005, (heel if z < -0.02 * s else 0.012 if z < 0.02 * s else 0.011), xs)
           for z, hw, yb, yt, xs in st]

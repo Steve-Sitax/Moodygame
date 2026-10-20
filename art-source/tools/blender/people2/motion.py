@@ -837,22 +837,35 @@ def match_lod_weights(near, far):
     """Carry near-surface skinning onto the reduced far surface, without moving vertices/UVs.
 
     Independent reduction can retain a different arm/torso weight mix at sleeve seams.
-    Transfer from the closest near triangle and retain four normalized bone influences.
+    Transfer from the closest triangle of the same anatomical/garment part. A
+    hand beside a sleeve must never inherit that sleeve's elbow weights.
     """
     from mathutils.bvhtree import BVHTree
     near.data.calc_loop_triangles()
-    triangles = [tuple(t.vertices) for t in near.data.loop_triangles]
+    from . import weights as wt
+    parts = wt.parts(near)
+    triangles = {}
+    for triangle in near.data.loop_triangles:
+        names = [parts[i] for i in triangle.vertices]
+        part = max(dict.fromkeys(names), key=names.count)
+        triangles.setdefault(part, []).append(tuple(triangle.vertices))
     points = [v.co.copy() for v in near.data.vertices]
-    tree = BVHTree.FromPolygons(points, triangles, all_triangles=True)
+    trees = {p: BVHTree.FromPolygons(points, faces, all_triangles=True)
+             for p, faces in triangles.items()}
+    far_parts = wt.parts(far)
     names = {g.index: g.name for g in near.vertex_groups}
     weights = [{names[g.group]: g.weight for g in v.groups if names[g.group] in NAMES} for v in near.data.vertices]
     groups = {n: far.vertex_groups.get(n) or far.vertex_groups.new(name=n) for n in NAMES}
     changed, largest = 0, 0.0
     for v in far.data.vertices:
+        part = far_parts[v.index]
+        tree = trees.get(part)
+        if tree is None:
+            continue
         p, _, face, distance = tree.find_nearest(v.co)
         if p is None or distance > 0.065:
             continue
-        ids = triangles[face]
+        ids = triangles[part][face]
         a, b, c = (points[i] for i in ids)
         u, w, q = b - a, c - a, p - a
         uu, uw, ww = u.dot(u), u.dot(w), w.dot(w)
@@ -881,6 +894,8 @@ def match_lod_weights(near, far):
         for name, weight in new.items():
             groups[name].add([v.index], weight, "REPLACE")
         changed += 1
+    from .cloth_fit import fit_linings
+    fit_linings(far)
     return changed, largest
 
 

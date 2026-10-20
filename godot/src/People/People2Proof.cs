@@ -37,12 +37,15 @@ internal partial class People2Proof : Node
         if (crowdProof)
             kinds = new[] { "docker_a", "fishwife_a", "police", "docker_a", "p2:man_middling", "p2:woman_middling", "fishwife_a", "police",
                             "p2:old_man", "p2:man_stout", "docker_a", "p2:woman_slight", "p2:child_middling", "sooi", "p2:old_woman", "p2:man_slight" };
+        if (Main.I.Arg("people2-kinds") is { Length: > 0 } requested)
+            kinds = requested.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
         expectedPeople = kinds.Length;
         for (int i = 0; i < kinds.Length; i++)
         {
             var human = Humans.Make(kinds[i]); if (human == null) continue;
             // a mixed crowd: every person their own face from their own id (as the town's residents get theirs)
             if (crowdProof) human.SetIdentity("crowd-proof:" + i);
+            if (Main.I.Flag("people2-clothing-proof")) human.SetIdentity("clothing-proof:" + kinds[i]);
             var at = crowdProof ? origin + new Vector3((i % 4 - 1.5f) * 0.95f + (i / 4 % 2) * 0.45f, 0, 3 + i / 4 * 1.1f)
                 : origin + new Vector3((i - 1.5f) * 1.25f, 0, 3 + (lightProof ? 0 : i * 0.7f));
             float ground = World.Lights.I?.GroundAt(at.X, at.Z) ?? 0;
@@ -129,7 +132,13 @@ internal partial class People2Proof : Node
             Input.MouseMode = Input.MouseModeEnum.Visible;
             var pictures = new List<object>();
             var wideExhibit = people[0].Root.GlobalPosition - new Vector3(0, 0, 4);
-            bool integration = Main.I.Flag("people2-integration-proof");
+            bool clothing = Main.I.Flag("people2-clothing-proof");
+            bool integration = Main.I.Flag("people2-integration-proof") || clothing;
+            if (clothing)
+            {
+                DisplayServer.WindowSetVsyncMode(DisplayServer.VSyncMode.Disabled);
+                Engine.MaxFps = 60;
+            }
             Node3D? stool = integration ? Models.ModelLibrary.Get("stalls")?.Copy("mk2_stool") : null;
             float seatHeight = 0.45f;
             if (integration && stool == null) throw new InvalidOperationException("Integration sitting proof needs the shared market stool.");
@@ -157,8 +166,9 @@ internal partial class People2Proof : Node
                         World.Blobs.I?.Set("people2-proof", new List<World.Blobs.Spot> { new(spot.X, spot.Z, spot.Y, 0.4f) });
                     }
                     var standingPosition = human.Root.GlobalPosition;
-                    foreach (string motion in integration ? new[] { "idle", "talk", "walk", "sit" } : Main.I.Flag("people2-dress-proof") ? new[] { "idle", "walk", "talk" } : new[] { "current" })
+                    foreach (string motion in clothing ? new[] { "idle", "walk", "walk-late", "sit", "carry", "carry-late" } : integration ? new[] { "idle", "talk", "walk", "sit" } : Main.I.Flag("people2-dress-proof") ? new[] { "idle", "walk", "talk" } : new[] { "current" })
                     {
+                    string pose = motion.Replace("-late", "", StringComparison.Ordinal);
                     if (motion == "sit" && !human.CanSit) continue;
                     human.Root.GlobalPosition = standingPosition;
                     if (stool != null)
@@ -167,9 +177,20 @@ internal partial class People2Proof : Node
                         stool.Visible = motion == "sit";
                         if (motion == "sit") human.Root.GlobalPosition += Vector3.Up * human.SitDrop(seatHeight);
                     }
-                    if (motion != "current") human.Play(motion, 0);
-                    if (integration) for (int settle = 0; settle < 60; settle++) await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
-                    foreach (var (distance, angle) in integration
+                    if (clothing) human.CarryLoad(pose == "carry" ? "crate" : null);
+                    if (motion != "current") human.Play(pose, 0);
+                    if (clothing) human.SetPhase(pose, motion.EndsWith("-late", StringComparison.Ordinal) ? .73f : .23f);
+                    if (clothing)
+                    {
+                        // Held poses still ease the seated garment shape over 0.6 seconds.
+                        for (double settle = 0; settle < .7; settle += GetProcessDeltaTime())
+                            await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+                    }
+                    else if (integration) for (int settle = 0; settle < 60; settle++) await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+                    foreach (var (distance, angle) in clothing
+                        ? motion == "idle" ? new[] { (2.2f, "front"), (2.2f, "side"), (2.2f, "back-low"), (1f, "front"), (1f, "feet-low"), (3f, "far-front"), (18f, "far-front") }
+                            : new[] { (2.2f, "front"), (2.2f, "side") }
+                        : integration
                         ? motion == "idle" ? new[] { (1f, "front"), (3f, "front"), (8f, "front"), (1f, "side"), (3f, "back-low"), (1f, "feet-low"), (1f, "top") }
                             : motion == "sit" ? new[] { (1f, "front"), (3f, "front"), (3f, "side") }
                             : new[] { (1f, "front"), (3f, "front") }
@@ -203,13 +224,24 @@ internal partial class People2Proof : Node
                         Main.I.Cam.LookAtFromPosition(from, target);
                         if (Main.I.Cam is Player.FlyCam fly) fly.Face(Main.I.Cam.GlobalBasis.GetRotationQuaternion());
                         for (int settle = 0; settle < 12; settle++) await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+                        bool nearReady = false;
+                        if (clothing)
+                        {
+                            var nearBody = World.BakedWorld.All(human.Root).OfType<MeshInstance3D>()
+                                .First(m => m.Name.ToString().EndsWith("_lod0", StringComparison.Ordinal));
+                            bool Ready() => nearBody.Mesh is ArrayMesh mesh && mesh.GetBlendShapeCount() is 3 or 4
+                                && mesh.GetBlendShapeName(0) == "blink";
+                            for (int settle = 0; !Ready() && settle < 1800; settle++) await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+                            if (!Ready()) throw new InvalidOperationException("Clothing identity mesh did not finish: " + human.Kind);
+                            nearReady = true;
+                        }
                         string name = $"{label}-{human.Kind.Replace(':', '_')}-{distance:0}m" + (angle == "front" ? "" : "-" + angle) + (motion == "current" ? "" : "-" + motion) + ".png";
                         Main.I.View.GetTexture().GetImage().SavePng(Path.Combine(dir, name));
                         var daylight = World.Daylight.I;
                         if (Math.Abs(daylight.Hour - hour) > 0.02 || daylight.Weather != weather)
                             throw new InvalidOperationException($"Capture {name} has wrong live clock/weather: {daylight.Hour} {daylight.Weather}");
                         if (Main.I.Cam.GlobalPosition.DistanceTo(from) > 0.01f) throw new InvalidOperationException("Capture camera moved: " + name);
-                        pictures.Add(new { name, hour = daylight.Hour, weather = daylight.Weather, daylight.Night, daylight.Rain, distance, angle, motion, clip = human.AnimationState.Clip, phase = human.AnimationState.Cycle, forcedFar = angle == "far-front", x = at.X, y = at.Y, z = at.Z });
+                        pictures.Add(new { name, hour = daylight.Hour, weather = daylight.Weather, daylight.Night, daylight.Rain, distance, angle, motion, clip = human.AnimationState.Clip, phase = human.AnimationState.Cycle, forcedFar = angle == "far-front", nearReady, x = at.X, y = at.Y, z = at.Z });
                         foreach (var mesh in World.BakedWorld.All(human.Root).OfType<MeshInstance3D>())
                         {
                             if (mesh.Name.ToString().EndsWith("_lod0", StringComparison.Ordinal)) mesh.Visible = true;

@@ -116,7 +116,7 @@ def sooi_dress(fit):
     def front(i):
         part, ring, col = ck.info(fit, i)
         return min(col, 16 - col) <= 4 if col >= 0 else False
-    ck.upper(fit, sh, rows=(5, 9), neck=0, sleeve=None, ease=lambda i: 0.006, keep=front)
+    ck.upper(fit, sh, rows=(2, 9), neck=0, sleeve=None, ease=lambda i: 0.006, keep=front)
     ck.thicken(sh, 0.0015, depth=0.01)
     pieces.append(sh)
     # a collarless working shirt: the kerchief covers the throat (a collar band under it only showed as shards)
@@ -139,8 +139,9 @@ def sooi_dress(fit):
         return 0.010 if ring >= 4 else 0.013 if ring >= 2 else 0.016
 
     wc = ck.Piece("waistcoat", WAISTCOAT)
-    ck.upper(fit, wc, rows=(1, 9), neck=None, sleeve=None, ease=wc_ease, keep=v_neck,
-             open_front=(lambda y: -0.012, lambda y: 0.012, 0.003))
+    # The buttoned front is continuous; the placket and buttons are surface detail.
+    # Separate overlapping edges shrink apart during subdivision and reduction.
+    ck.upper(fit, wc, rows=(1, 9), neck=None, sleeve=None, ease=wc_ease, keep=v_neck)
     ck.thicken(wc, 0.0025, depth=0.04)
     pieces.append(wc)
 
@@ -204,6 +205,9 @@ def sooi_dress(fit):
             pts.append([fit.rest[i] + fit.N[i] * e for i in rings[nm]])
         pts = np.array(pts)
         pts[1] = pts[0] + (pts[1] - pts[0]) * 1.25
+        # Only a short cuff sits inside the sleeve; a forearm-long hidden tube
+        # cuts through the coat's elbow folds when the arms bend.
+        pts[0] = pts[0] * 0.35 + pts[1] * 0.65
         cf.grid(pts, lambda p, S=S: fit.near_w(p, ("arm" + S,)), closed=True, seam_col=6)
         cf.orient(lambda q, sg=sg: q - np.array((sg * bd.shoulder_x(P), q[1], 0.0)))
         ck.thicken(cf, 0.002, depth=None)

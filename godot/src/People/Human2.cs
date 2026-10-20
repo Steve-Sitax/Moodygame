@@ -760,7 +760,7 @@ internal sealed class Human2
             int source = boneMap[bone];
             int track = source >= 0 ? a.RotationTracks[source] : -1, other = source >= 0 ? b.RotationTracks[source] : -1;
             Quaternion q = track >= 0 ? a.Rotations.NormalizedAt(track, ta) : rest[bone];
-            if (a != b && other >= 0) q = q.Slerp(b.Rotations.NormalizedAt(other, tb), weight);
+            if (a != b && other >= 0) q = People2Rotations.Blend(q, b.Rotations.NormalizedAt(other, tb), weight);
             q = blend < 1 ? fadeFrom[bone].Normalized().Slerp(q.Normalized(), blend) : q;
             if(seatedTalk!=null && conversationBones.Contains(bone) && source>=0 && seatedTalk.RotationTracks[source] is int talkTrack && talkTrack>=0)
                 q=seatedTalk.Rotations.NormalizedAt(talkTrack,seatedTalkTime);
@@ -798,18 +798,19 @@ internal sealed class Human2
         long propStart = Dev.PeopleTiming.ProfileStart();
         // the things the work moves (D3), or the load carried
         var at = root.GlobalPosition;
+        bool nearProps = at.DistanceSquaredTo(Main.I.Cam.GlobalPosition) < 3600;
         if (hadAt) roll += new Vector2(at.X - lastAt.X, at.Z - lastAt.Z).Length() / Math.Max(0.01f, root.GlobalBasis.Y.Length());
         lastAt = at; hadAt = true;
         if (!externalWorkThings && (clip.Things.Length > 0 || clip.Held.Length > 0 || load != null))
         {
-            if (root.GlobalPosition.DistanceSquaredTo(Main.I.Cam.GlobalPosition) < 3600) { things.Show(clip, time, bodyRatio, load, roll); if (clipName == "gut") things.GutFish(time, bodyRatio); }
+            if (nearProps) { things.Show(clip, time, bodyRatio, load, roll); if (clipName == "gut") things.GutFish(time, bodyRatio); }
             else things.HideAll();
         }
         else if (things.Shown > 0) things.HideAll();
-        if (root.GlobalPosition.DistanceSquaredTo(Main.I.Cam.GlobalPosition) < 3600)
+        if (nearProps)
             layers.Hands(clipName, time, bodyRatio, blend);
         if (gripL != null || gripR != null) HoldGrips();
-        if (clip.Kneel && fadeLeft <= 0 && root.GlobalPosition.DistanceSquaredTo(Main.I.Cam.GlobalPosition) < 3600) HandsOnSurface(dt);
+        if (clip.Kneel && fadeLeft <= 0 && nearProps) HandsOnSurface(dt);
         else surfaceLift[0] = surfaceLift[1] = 0;
         if (basketsDown || (clip.Work && load == null && setDown.Count > 0 && motion is not ("walk" or "carry" or "push" or "ride") && !PacedLoop && fadeLeft <= 0)) { if (clip.Work) SetBasketsDown(dt); }
         else BasketPose();

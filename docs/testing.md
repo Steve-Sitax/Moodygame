@@ -40,6 +40,14 @@ cell and neighbouring cell centres. Add `--stuck-replay-only` for just this Vism
 The same shape runs every other check below; give each its own option and folder. Every place must be below the
 active-frame budgets in `godot/src/Dev/PerformanceBudget.cs`, and `paths` and `shaders` must have no findings.
 
+For repeatable clothing comparisons, add `--people2-clothing-proof --people2-kinds porter,fishwife_a,old_man,ragman`
+to `--people2-captures <dir> --people2-light-proof`. Identities follow kind names, with front/side/back views,
+two held walking and carrying phases, sitting, and day/rain/night light. It waits for finished identity meshes
+and the seated garment shape, and includes forced far-mesh views at 3 and 18 metres. Compare the same flags and seed on both
+revisions; the JSON records identity readiness, the live clock, weather, clip and phase. With `--people2-motion <dir>`, the clothing
+flag dresses the reference bodies and adds a ten-frame walk sequence alongside sitting transitions. These pictures
+do not replace the isolated timing gate.
+
 `perfcheck`, jobtest's `frames` step and peopletest's crowd timings acquire `D:/Code/_locks/PERF-LOCK` with an atomic
 create, waiting every 30 seconds for up to 20 minutes. They record concurrent Godot window PIDs/titles throughout
 measurement. A shared-window run or a lock timeout cannot pass an isolated performance gate; its numbers remain
@@ -247,6 +255,9 @@ checks standing allocations, walks Jef into De Vliet, and captures its doorway/i
 It also checks live conversation holds, facing, clock progress, a passer-by sent through the held talker (he must not be
 shoved off his spot; #185, `talk-passer.json`, and `talk-trail.json` with the talker's place every frame), release, working employers and native bicycle,
 handcart and horse-dray components. Inspect `conversation.json`, `rooms.json`, `cafe-walk.json` and the PNGs.
+The employer fixture observes the live reply for 1.5 seconds; frame counts can outlast a short reply on a slow render.
+`posted-talk.json` records its camera, lease and pose trail. For a slow full-town run, use
+`-LimitSeconds 900`; this changes only the outer timeout, not assertions or performance budgets.
 
 Add `-Multiplayer` with another fresh output directory to run the existing `MpTest` host/guest harness in its
 `--mpconversation` mode. The guest runs headless, so only the host opens a window. The guest checks its actual

@@ -140,10 +140,9 @@ def police_dress(fit):
         return [0.008, 0.010, 0.012, 0.013, 0.013, 0.013, 0.013, 0.012, 0.012, 0.011, 0.009][k]
 
     tunic = ck.Piece("tunic", TUNIC)
-    vm, dup = ck.upper(fit, tunic, rows=(0, 9), neck=0, sleeve="w1", ease=ease,
-                       open_front=(lambda y: -0.013, lambda y: 0.013, 0.003))
+    vm, dup = ck.upper(fit, tunic, rows=(0, 9), neck=1, sleeve="w1", ease=ease)
     loop = ck.row_loop(fit, vm, 0, dup)
-    ck.hang(fit, tunic, loop, [Y(0.48), Y(0.44), Y(0.405)], clear=0.026, flare=0.10, closed=False,
+    ck.hang(fit, tunic, loop, [Y(0.48), Y(0.44), Y(0.405)], clear=0.026, flare=0.10, closed=True,
             wfn=lambda p: ck.hang_weights(fit, p, front_legs=1.0, back_legs=0.4, spring=0.3, springs=("coat",)))
     ck.thicken(tunic, 0.003, depth=lambda p: 0.08 if p[1] < fit.hip_y else 0.03)
     cuff = Y(0.499)

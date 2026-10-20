@@ -483,6 +483,17 @@ def _cells_for(t, sex, age, kind, hair):
     return cells
 
 
+def register_hats(kinds):
+    """Every authored hat uses fitted hair, preserving explicit hair recipes."""
+    for kind in kinds:
+        if not kind.hats:
+            continue
+        style = "undercap" if kind.face.get("sex") == "f" else "capped"
+        KIND_HAIR.setdefault(kind.name, {style: 1})
+        if kind.name in CAST and style == "capped":
+            CAST[kind.name]["hair"] = style
+
+
 def face_for(seed, kind, sex="m", age=35, origin=None):
     """A person's face from their id (seed, an integer) and kind (build_people.py's name), sex (m/f) and age (years);
     origin narrows the types. Returns dict(type, sliders {slider: value}, age, cell, hair, beard, moustache, crook).
@@ -527,7 +538,7 @@ def face_for(seed, kind, sex="m", age=35, origin=None):
     vals["face_age"] = round(max(-0.6, min(1.0, (age - 40) / 35.0)), 3) if age >= 15 else -0.3
     if age < 15:
         hair = "plaits" if sex == "f" else "crop"
-        hair = rng.pick({hair: 1})
+        hair = rng.pick(KIND_HAIR.get(kind) or {hair: 1})
     else:
         hw = KIND_HAIR.get(kind) or {k: v for k, v in t["hair"].items()
                                      if (k in ("bun", "plaits", "coronet", "undercap")) == (sex == "f")}
@@ -559,7 +570,7 @@ def to_json(path, cells_meta):
     tests = []
     for kind, seed, sex, age in (("docker_a", 1, "m", 35), ("docker_a", 2, "m", 44), ("fishwife_a", 7, "f", 40),
                                  ("sailor", 12, "m", 30), ("boy", 3, "m", 10), ("old_woman", 5, "f", 70),
-                                 ("clerk", 99, "m", 25), ("police", 123456, "m", 38), ("sooi", 0, "m", 52)):
+                                 ("sweep_boy", 19, "m", 11), ("clerk", 99, "m", 25), ("police", 123456, "m", 38), ("sooi", 0, "m", 52)):
         tests.append(dict(args=dict(seed=seed, kind=kind, sex=sex, age=age), face=face_for(seed, kind, sex, age)))
     out = {
         "about": "Face types for people2 (art-source/tools/blender/people2/face_types.py, docs/people.md 'Faces in the "
@@ -577,7 +588,7 @@ def to_json(path, cells_meta):
                          "sliders: the type's body[name] else (0, bodySpread[name]); origin_* and eye_fold 0 unless "
                          "the type names them; bust 0 for men; value = mean + spread * gauss, clamped to -1..1 (0..1 "
                          "one-way)); face_age set from the age (not drawn: (age-40)/35 clamped -0.6..1, -0.3 under "
-                         "15); hair (children: plaits/crop, still one pick; else kindHair[kind] or the type's styles "
+                         "15); hair (kindHair[kind], else children: plaits/crop, still one pick; else the type's styles "
                          "for the sex); the cell (floor(uniform * n) over the allowed cells: cellsFor); beard (men "
                          "18+), moustache (men 17+; a full beard forces walrus); the crook (uniform < chance, then "
                          "its size uniform)"},

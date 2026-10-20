@@ -1260,12 +1260,12 @@ def on_thigh(along=0.55, clear=0.02):
                  lambda fam, S, ctx=None: V(sgn(S) * 1.0, -0.6, 0.0), shape="rest", bone=None)
 
 
-def lap(along=0.42):
+def lap(along=0.42, clear=0.02):
     """Hands folded in the lap (the right over the left), on the thighs near the hips."""
 
     def at(fam, S, ctx):
         ps = ctx["posed"]
-        m = (_thigh_top(ps, "L", along, fam.k, CLOTH + 0.02) + _thigh_top(ps, "R", along, fam.k, CLOTH + 0.02)) / 2
+        m = (_thigh_top(ps, "L", along, fam.k, CLOTH + clear) + _thigh_top(ps, "R", along, fam.k, CLOTH + clear)) / 2
         return m + Vector((sgn(S) * 0.03 * fam.k, -0.01 if S == "R" else 0.0, 0.012 if S == "R" else 0.0))
 
     # the left hand palm up, the right one laid over it (each turned against its own forearm, as a wrist can)
@@ -1572,13 +1572,13 @@ def recipes():
         return {"L": (xl, fl, yl), "R": (xr, fr, yr)}
 
     thighs = lambda: both_each(on_thigh)
-    add("man_sit_bench", "man", lambda f: sit(f, "bench", seed=111, arms=between_knees(), lean_=24.0, tilt=-12.0,
+    add("man_sit_bench", "man", lambda f: sit(f, "bench", seed=111, arms=lap(0.55, clear=0.08), lean_=24.0, tilt=-12.0,
                                                feet=feet(0.16, 0.42, 10, -0.16, 0.40, -10), knees_out=0.45),
         role="sit_bench")
     add("man_sit_chair", "man", lambda f: sit(f, "chair", seed=112, arms=thighs(), lean_=-3.0, tilt=-6.0,
                                                feet=feet(0.13, 0.46, 8, -0.12, 0.37, -6), knees_out=0.3),
         role="sit_chair")
-    add("man_sit_crate", "man", lambda f: sit(f, "crate", seed=113, arms=between_knees(0.06, 0.02), lean_=32.0,
+    add("man_sit_crate", "man", lambda f: sit(f, "crate", seed=113, arms=lap(0.62, clear=0.08), lean_=32.0,
                                                tilt=-14.0, feet=feet(0.2, 0.37, 12, -0.2, 0.37, -12), knees_out=0.6),
         role="sit_crate")
     add("man_sit_step", "man", lambda f: sit(f, "step", seed=114, arms=on_knees(), lean_=14.0, tilt=-16.0,
@@ -1593,7 +1593,7 @@ def recipes():
     add("woman_sit_crate", "woman", lambda f: sit(f, "crate", seed=123, arms=lap(0.62), lean_=14.0, tilt=-8.0,
                                                    feet=feet(0.06, 0.36, 6, -0.06, 0.36, -6), knees_out=0.0),
         role="sit_crate")
-    add("woman_sit_step", "woman", lambda f: sit(f, "step", seed=124, arms=lap(0.72), lean_=12.0, tilt=-12.0,
+    add("woman_sit_step", "woman", lambda f: sit(f, "step", seed=124, arms=lap(0.72, clear=0.10), lean_=12.0, tilt=-12.0,
                                                   feet=feet(0.05, 0.33, 4, -0.05, 0.31, -4), knees_out=-0.02),
         role="sit_step")
     add("stout_sit_bench", "stout", lambda f: sit(f, "bench", seed=131, arms=thighs(), lean_=4.0, tilt=-8.0,

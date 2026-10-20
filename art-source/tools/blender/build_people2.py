@@ -126,6 +126,9 @@ def all_kinds():
     held_cast.register()
     from people2 import kinds_player  # the player's jef_* kinds go last: every other kind keeps its picture layer
     out += kinds_player.KINDS
+    # Register after aliases are resolved, so the undressed old-man reference
+    # keeps its own hair recipe while old_man_dressed gets hair under his cap.
+    ft.register_hats(out)
     return out
 
 

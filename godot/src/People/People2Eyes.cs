@@ -9,6 +9,7 @@ internal sealed class People2Eyes
     private readonly Node3D root;
     private readonly Skeleton3D sk;
     private readonly int head, left, right;
+    private readonly Quaternion leftRest, rightRest;
     private MeshInstance3D? near;
     private Mesh? lastMesh;
     private int blink = -1, brow = -1, smile = -1, sit = -1;
@@ -19,6 +20,8 @@ internal sealed class People2Eyes
     {
         this.root = root; sk = root.GetNode<Skeleton3D>("Skeleton3D");
         head = sk.FindBone("head"); left = sk.FindBone("eyeL"); right = sk.FindBone("eyeR");
+        leftRest = left >= 0 ? sk.GetBoneRest(left).Basis.GetRotationQuaternion() : Quaternion.Identity;
+        rightRest = right >= 0 ? sk.GetBoneRest(right).Basis.GetRotationQuaternion() : Quaternion.Identity;
         string bodyMesh = root.Name + "_lod0";
         foreach (var n in World.BakedWorld.All(root))
             if (n is MeshInstance3D mi && mi.Name.ToString() == bodyMesh) { near = mi; break; }
@@ -29,10 +32,11 @@ internal sealed class People2Eyes
     internal void Update(float dt, bool speaking, bool localPlayer = false, float seated = 0)
     {
         if (near == null || !GodotObject.IsInstanceValid(near) || !root.IsInsideTree()) return;
-        if (sit >= 0 && lastMesh == near.Mesh) Set(sit, seated); // (the skirt's seated fall: Human2.SitWeight)
-        if (near.Mesh != lastMesh)
+        var mesh = near.Mesh;
+        if (sit >= 0 && lastMesh == mesh) Set(sit, seated); // (the skirt's seated fall: Human2.SitWeight)
+        if (mesh != lastMesh)
         {
-            lastMesh = near.Mesh; blink = near.FindBlendShapeByName("blink"); brow = near.FindBlendShapeByName("brow_raise"); smile = near.FindBlendShapeByName("smile"); sit = near.FindBlendShapeByName("sit");
+            lastMesh = mesh; blink = near.FindBlendShapeByName("blink"); brow = near.FindBlendShapeByName("brow_raise"); smile = near.FindBlendShapeByName("smile"); sit = near.FindBlendShapeByName("sit");
         }
         float distance = localPlayer ? 0 : root.GlobalPosition.DistanceSquaredTo(Main.I.Cam.GlobalPosition);
         if (distance >= 225)
@@ -78,14 +82,15 @@ internal sealed class People2Eyes
             }
         }
         gaze = gaze.Lerp(want, 1 - MathF.Exp(-dt * 38));
-        Eye(left); Eye(right);
+        var turn = Quaternion.FromEuler(new Vector3(gaze.Y, 0, -gaze.X));
+        Eye(left, leftRest, turn); Eye(right, rightRest, turn);
     }
     private void Set(int key, float value) { if (key >= 0) near!.SetBlendShapeValue(key, value); }
-    private void Eye(int bone)
+    private void Eye(int bone, Quaternion rest, Quaternion turn)
     {
         if (bone < 0) return;
         // The eye bone's +y is forward; start at rest to replace HumanLayers' eye turn.
-        sk.SetBonePoseRotation(bone, sk.GetBoneRest(bone).Basis.GetRotationQuaternion() * Quaternion.FromEuler(new Vector3(gaze.Y, 0, -gaze.X)));
+        sk.SetBonePoseRotation(bone, rest * turn);
     }
     internal long AllocationProof()
     {

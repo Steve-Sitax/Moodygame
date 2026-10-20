@@ -28,7 +28,7 @@ Invoke-WorkshopEngine $engine (Join-Path (Get-Location) 'native-godot') @('--ren
 ```
 
 Set `$blender` to the installed Blender 5.2 executable. Use `--python-exit-code 1` so a Python failure cannot look like a successful build. Run Blender with a process
-timeout (25 minutes for the full build) and restore the environment after intake.
+timeout (70 minutes for the full 65-outfit build) and restore the environment after intake.
 Use disposable data/layout directories; retain logs and delete only those test data.
 The plain GLB has dense morph accessors and ordinary geometry. It replaces the retired
 Node decoder; there is no decoder or GLB import during game startup or export.
@@ -58,7 +58,7 @@ Copy the authored rig to `native-godot/world/data/shared/peopleRig.json` and reg
 cache version and fingerprints shipped resources, data and runtime source. `Paths.Shared`
 reads the extracted data cache. Host and guest must agree on this content identity.
 
-### Partial clothing-clearance correction (#82, #138)
+### J3 source-only lining correction (`02602f0b3`, #82, #138)
 
 The authoring solver now moves each lining with its own outer triangle, preserving its signed thickness and
 recessed facing offset as that triangle turns. Clearance ignores opposite-facing folded panels and excludes
@@ -66,18 +66,35 @@ mixed rim faces from outer-surface queries. The same lining binding follows the 
 `people2/check_layers.py` checks translated and rotated layers, a turning outer triangle, inward linings,
 opposite-facing panels, and unchanged relative shape-key offsets in Blender.
 
-This authoring-only split preserves the runtime people kit and fingerprints.
-The separate rebuilt candidate remains unaccepted. Its targeted renders still show retained skin
+That source-only commit preserved the runtime people kit and fingerprints.
+Its separate rebuilt candidate remained unaccepted. Its targeted renders showed retained skin
 through the fishwife's neckline and shoulders, plus broken old-woman shoulder edges. Symmetric cloth-over-skin
 and unchanged-skin experiments did not resolve these defects and are excluded. A coarse two-layer fixture also
 shows that vertex-only clearance can miss a face interior; general collision separation is not proved.
-No replacement native kit or day/rain/night runtime acceptance is included in this change.
+No replacement native kit or day/rain/night runtime acceptance was included in J3.
 
 Run the source regression directly from the checkout, without building or importing a kit:
 
 ```powershell
 & $blender --background --factory-startup --python-exit-code 1 -P art-source/tools/blender/people2/check_layers.py
 ```
+
+### Clothing rebuild (#82, #138)
+
+Rebuild `43fc789f1` changed garment UVs and pictures, while the old launcher accepted existing imports without
+checking their source hash. Matching native captures reproduce the colour patches with the preceding cached
+pictures and remove them by refreshing those imports. Launchers and people proofs now check imported-source hashes.
+The older geometry defects also reproduced before that rebuild; refreshing pictures alone cannot repair them.
+The shared source corrections are described in [People: clothes on the MakeHuman bodies](people.md#clothes-on-the-makehuman-bodies)
+and [clothing construction](people.md#clothes-high-detail-round-4-2026-10-13).
+
+`people2/check_cloth_fit.py` checks limb isolation, sleeve/identity binding, opening masks, facing UVs and weights,
+long-coat sleeves and boot winding. Native acceptance still requires close day/rain/night and motion review,
+the unchanged shader inventory, and isolated people timing as specified in [testing](testing.md).
+
+The rebuilt kit passed close native review of 36 kinds in day, rain and night, including walking, carrying and sitting.
+Isolated Vismarkt/Grote Markt people-and-animal means were 1.400/1.196 ms; crowd logic was 1.303/1.208 ms.
+The shader audit retained 41 programs and 153 kinds. Steve has not played this repair; unrelated leftovers in #82/#138 remain open.
 
 ## Runtime contract
 
@@ -594,10 +611,12 @@ The hair shader keeps face fragments where picture alpha + vertex alpha > 1. Ver
 by Capture; the surviving fragment uses opaque alpha-scissor depth/shadows. `old_woman` routes to
 `old_woman_dressed`, while `p2:old_woman` remains the base body exhibit. Proof runners accept 9100–9119.
 
-`People2Rotations` caches authored linear rotation keys once per shared clip. Human2 samples those arrays
-without a Godot call for every bone; other interpolation, boundary times and loop-seam gaps retain the engine
-sampler. The routing proof compares every cached key, midpoint and boundary with Godot (252 clips, 7,117
-tracks, 2,489,329 samples; maximum quaternion component difference 0.000000179). This changes no clips,
+`People2Rotations` caches authored linear rotation keys, matching key clocks and invariant interpolation arcs
+once per shared clip. Human2 uses managed vector normalization and blending; other interpolation, boundary
+times and loop-seam gaps retain the engine sampler. Key intervals below 1.7 degrees use normalized linear
+interpolation. Routing compares every key, interval quarters and boundary,
+plus blends and opposite quaternion signs, with Godot (253 clips, 12,074 tracks, 35,844,568 samples;
+maximum quaternion component difference 0.000000358). This changes no clips,
 motion names, rig geometry, identities or network messages. Final CPU acceptance still requires the exclusive
 Vismarkt/Grote Markt timing proof; sampler equivalence alone does not establish performance.
 Human2 also omits exact repeated rotations on joints without a procedural writer (fingers, sockets and

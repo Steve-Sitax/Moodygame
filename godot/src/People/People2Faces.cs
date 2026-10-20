@@ -390,7 +390,9 @@ public static class People2Faces
         }
         vals["face_age"] = age >= 15 ? Round3(Math.Clamp((age - 40) / 35.0, -0.6, 1.0)) : -0.3f;
         string hair;
-        if (age < 15) hair = rng.Pick(new[] { (sex == "f" ? "plaits" : "crop", 1.0) })!;
+        if (age < 15)
+            hair = rng.Pick(root.GetProperty("kindHair").TryGetProperty(kind, out var childHair)
+                ? Weights(childHair).ToArray() : new[] { (sex == "f" ? "plaits" : "crop", 1.0) })!;
         else
         {
             List<(string, double)> hw = root.GetProperty("kindHair").TryGetProperty(kind, out var kh) ? Weights(kh).ToList()

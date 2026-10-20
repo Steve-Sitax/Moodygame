@@ -113,7 +113,8 @@ public static class NativeConversationProof
                 if(from is {} start2)
                 {
                     by.X=start2.X;by.Z=start2.Y;people.Crowd!.PuppetGo(by,held.X-across.X*2.2,held.Y-across.Y*2.2,1.3);
-                    double closest=99;var shoved=0f;for(int f=0;f<90;f++){await Frames(1);closest=Math.Min(closest,Whereabouts.Hypot(by.X-p.X,by.Z-p.Z));shoved=MathF.Max(shoved,held.DistanceTo(new((float)p.X,(float)p.Z)));}
+                    // Include the contact we placed: avoidance can move him clear before the next rendered frame.
+                    double closest=Whereabouts.Hypot(by.X-p.X,by.Z-p.Z);var shoved=0f;for(int f=0;f<90;f++){await Frames(1);closest=Math.Min(closest,Whereabouts.Hypot(by.X-p.X,by.Z-p.Z));shoved=MathF.Max(shoved,held.DistanceTo(new((float)p.X,(float)p.Z)));}
                     File.WriteAllText(Path.Combine(output,"talk-passer.json"),JsonSerializer.Serialize(new{passer=passer.R.Id,closest,shoved,talker=new[]{p.X,p.Z},movedOut=people.Crowd.MoveOutLog.Skip(movedOutBefore).ToArray()}));
                     Check(shoved<.02f&&closest<.6,"a passer-by walking through a held talker does not shove him");
                 }
@@ -142,7 +143,34 @@ public static class NativeConversationProof
             people.Crowd!.PuppetVehicle(p,0);people.ActionRelease(walker,fixture);
             var posted=PostedPeople.I!.List.FirstOrDefault(n=>n.Present&&n.Human!=null);
             Check(posted!=null,"a working employer is available");
-            if(posted!=null){Jef.I.Place((float)posted.X+1.3f,(float)posted.Z+1,0);Talk.I.Open(posted.Id,posted.Name);var at=new Vector2((float)posted.X,(float)posted.Z);await Frames(45);Check(at.DistanceTo(new((float)posted.X,(float)posted.Z))<.03f&&posted.Human!.Motion=="talk","working employer stays at the post and talks");Talk.I.Close();}
+            if(posted!=null)
+            {
+                var cameraBefore=game.Cam.GlobalPosition;
+                Jef.I.Place((float)posted.X+1.3f,(float)posted.Z+1,0);
+                // Shots leave the free camera active. Keep this fixture's view beside its speaker.
+                game.Cam.GlobalPosition=new(Jef.I.X,(float)posted.Y+1.6f,Jef.I.Z);
+                await Frames(2);
+                Talk.I.Open(posted.Id,posted.Name);var at=new Vector2((float)posted.X,(float)posted.Z);
+                await Wait(()=>Talk.I.IsOpen&&ConversationHold.I!.Held(posted.Id)&&posted.Human!.Motion=="talk",8);
+                // Forty-five frames at the requested 30 fps meant 1.5 seconds. Use elapsed time:
+                // a slow render must not sample Sooi after his short reply has already closed.
+                var observed=System.Diagnostics.Stopwatch.StartNew();var trail=new List<object>();
+                float moved=0;bool talking=true;
+                do
+                {
+                    await Frames(1);
+                    moved=MathF.Max(moved,at.DistanceTo(new((float)posted.X,(float)posted.Z)));
+                    bool held=ConversationHold.I!.Held(posted.Id),open=Talk.I.IsOpen;
+                    talking&=held&&open&&posted.Human!.Motion=="talk";
+                    trail.Add(new{seconds=observed.Elapsed.TotalSeconds,moved,held,open,motion=posted.Human!.Motion});
+                }while(observed.Elapsed.TotalSeconds<1.5);
+                File.WriteAllText(Path.Combine(output,"posted-talk.json"),JsonSerializer.Serialize(new{
+                    id=posted.Id,cameraBefore=new[]{cameraBefore.X,cameraBefore.Y,cameraBefore.Z},
+                    cameraAfter=new[]{game.Cam.GlobalPosition.X,game.Cam.GlobalPosition.Y,game.Cam.GlobalPosition.Z},
+                    position=new[]{posted.X,posted.Y,posted.Z},fogDistance=people.Crowd!.FogDistance,
+                    moved,motion=posted.Human!.Motion,held=ConversationHold.I!.Held(posted.Id),open=Talk.I.IsOpen,trail}));
+                Check(moved<.03f&&talking,"working employer stays at the post and talks");Talk.I.Close();
+            }
             var roomFloor=game.World.NativeRoom(cafe.Id)!.Value.Frame.Origin.Y;
             Jef.I.Place((float)(cafe.Door.X-cafe.Out.X*2),(float)(cafe.Door.Z-cafe.Out.Z*2),0,0,roomFloor);game.Cam.GlobalPosition=new(Jef.I.X,roomFloor+1.6f,Jef.I.Z);await Frames(45);
             var outfitAt=indoors.StandingSpots(cafe).Where(p=>!indoors.Groups.Any(g=>new Vector2(g.Position.X-(float)p.X,g.Position.Z-(float)p.Z).Length()<.9f)).OrderBy(p=>Whereabouts.Hypot(p.X-cafe.Door.X,p.Z-cafe.Door.Z)).First();

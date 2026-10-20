@@ -99,7 +99,7 @@ def round_hat(fit, colour, style):
         brim = ck.Piece("cap_brim", cloth(colour, "felt", folds=0, wear=0.35), hat=True)
         width = 0.035 if style == "bowler" else 0.045
         pts = []
-        for d in (0, width * 0.45, width):
+        for d in (-.018, width * 0.45, width):
             y = band_y - 0.005 + 0.008 * (d / width) ** 2 * np.cos(a * 2)
             pts.append(np.stack((c[0] + (radius + d) * np.sin(a), y,
                                  c[2] + (radius + d) * np.cos(a)), -1))
@@ -119,7 +119,7 @@ def oilskin_hat(fit, colour):
     radius = ck.head_support(fit, y, a) + 0.015
     brim = ck.Piece("cap_brim", crown.cloth, hat=True)
     pts = []
-    for t in (0, 0.45, 1):
+    for t in (-0.4, 0.45, 1):
         width = 0.035 + 0.075 * (1 - np.cos(a)) / 2
         pts.append(np.stack((c[0] + (radius + width * t) * np.sin(a),
                              y - 0.045 * t * (1 - np.cos(a)) / 2,
@@ -182,6 +182,19 @@ def closed_coat(fit, spec):
     return [co, collar]
 
 
+def lengthen_coat(co, fit, new):
+    """Lengthen the coat skirts; sleeves hanging below the hips keep their arm weights."""
+    old, pivot = co.meta["hem"], fit.hip_y
+    for i, point in enumerate(co.V):
+        if point[1] < pivot and co.zone[i] != "arm":
+            q = point.copy()
+            q[1] = pivot + (q[1] - pivot) * (pivot - new) / (pivot - old)
+            co.V[i] = q
+            co.W[i] = ck.hang_weights(fit, q, front_legs=1, back_legs=0.6,
+                                     spring=0.25, springs=("coat",))
+    co.meta["hem"] = new
+
+
 def tailored(fit, spec):
     """Open coat/waistcoat block, or a closed jersey/short-sleeve shirt on its own."""
     pcs = sooi_dress(fit)
@@ -219,17 +232,7 @@ def tailored(fit, spec):
     # Coat skirts follow the legs and coat spring bones: lengthen only below the hips.
     if spec.get("long") and not spec.get("oilskin"):
         co = next(p for p in pcs if p.name == "coat")
-        old = co.meta["hem"]
-        new = bd.Y(fit.P, spec["long"])
-        pivot = fit.hip_y
-        for i, p in enumerate(co.V):
-            if p[1] < pivot:
-                q = p.copy()
-                q[1] = pivot + (q[1] - pivot) * (pivot - new) / (pivot - old)
-                co.V[i] = q
-                co.W[i] = ck.hang_weights(fit, q, front_legs=1, back_legs=0.6,
-                                         spring=0.25, springs=("coat",))
-        co.meta["hem"] = new
+        lengthen_coat(co, fit, bd.Y(fit.P, spec["long"]))
     if spec.get("breeches"):
         tr = next(p for p in pcs if p.name == "trousers")
         # Collapse the lower rings into a short, closed turned hem below the knee.
@@ -278,7 +281,8 @@ def women(fit, spec):
             recolour(pc, colours[pc.name])
         if pc.name == "skirt":
             pc.cloth.extra = plain_skirt
-        if spec.get("mourning") and pc.name == "shawl":
+        if spec.get("mourning") and pc.name in ("shawl", "shawl_fringe"):
+            recolour(pc, spec["shawl"])
             pc.cloth.extra = plain_shawl
         if pc.name == "shawl":
             # Keep the folded wool outside the reduced bodice through shoulder rotation.

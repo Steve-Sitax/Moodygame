@@ -104,7 +104,7 @@ def cap(fit, rgb=0x2e2a26, style="flat", badge=False):
         angles = np.arange(32) * 2 * math.pi / 32
         r = ck.head_support(fit, y, angles) + .013
         rows = []
-        for out, dy in ((0, 0), (.035, -.004), (.046, -.001), (.048, .004)):
+        for out, dy in ((-.018, 0), (.035, -.004), (.046, -.001), (.048, .004)):
             rows.append(np.stack([c[0] + (r + out) * np.sin(angles),
                                   np.full(32, y + dy), c[2] + (r + out) * np.cos(angles)], -1))
         rim.grid(np.array(rows), ck.hat_weights, closed=True, seam_col=16)
@@ -117,7 +117,7 @@ def cap(fit, rgb=0x2e2a26, style="flat", badge=False):
             height=max(.095,top+.020-y)
             rings=[]
             for t,factor in ((0,1),(.12,1),(.40,.95),(.70,.78),(.90,.48),(.985,.16)):
-                rings.append(np.stack([c[0]+radius*factor*np.sin(a),np.full(24,y+height*t),
+                rings.append(np.stack([c[0]+radius*factor*np.sin(a),np.full(24,y+height*t-(.012 if t==0 else 0)),
                                        c[2]+radius*factor*np.cos(a)],-1))
             ids=crown.grid(np.array(rings),ck.hat_weights,closed=True,seam_col=12)
             pole=crown.add((c[0],y+height,c[2]),dict(ck.HEAD_ONLY))
@@ -208,7 +208,8 @@ def clothing(fit, profile):
     p = profile
     kiel = p.get("kiel",False)
     pieces = kw.docker_a_dress(fit) if kiel else kc.sooi_dress(fit)
-    pieces = [pc for pc in pieces if pc.name not in ("cap","cap_peak","clogL","clogR","boots","soles")]
+    pieces = [pc for pc in pieces if pc.name not in ("cap","cap_peak","clogL","clogR","boots","soles")
+              and not pc.name.startswith("klomp")]
     if not kiel:
         if not p.get("coat"):
             pieces = [pc for pc in pieces if pc.name not in ("coat","coat_collar","cuffL","cuffR")]
@@ -226,16 +227,14 @@ def clothing(fit, profile):
             pieces = [pc for pc in pieces if pc.name not in ("shirt","shirt_collar")]
             sh = ck.Piece("shirt",copy.copy(kc.SHIRT))
             sleeve = "f1" if p.get("rolled") else "w1"
-            ck.upper(fit,sh,rows=(7 if p.get("vest") else 2,9),neck=0,sleeve=sleeve,ease=lambda i:.006)
+            ck.upper(fit,sh,rows=(2,9),neck=0,sleeve=sleeve,ease=lambda i:.006)
             ck.thicken(sh,.002,depth=.025)
             pieces.insert(0,sh)
         elif p.get("vest"):
-            # The lower shirt is fully hidden by the buttoned waistcoat. Keep
-            # its exposed neck/chest panel; a coarse full panel cuts through
-            # the waistcoat's broad FAR triangles despite vertex clearance.
+            # Keep a complete shirt below the waistcoat's V, including when posed.
             pieces=[pc for pc in pieces if pc.name!="shirt"]
             sh=ck.Piece("shirt",copy.copy(kc.SHIRT))
-            ck.upper(fit,sh,rows=(7,9),neck=0,sleeve=None,ease=lambda i:.006)
+            ck.upper(fit,sh,rows=(2,9),neck=0,sleeve=None,ease=lambda i:.006)
             ck.thicken(sh,.002,depth=.025)
             pieces.insert(0,sh)
         if p.get("coat") == "short":
@@ -305,7 +304,8 @@ def build_kind(kind, make_body, ref_uv, layout, atl, tex=2048, log=print):
     # Closed shirt/kiel sleeves replace the hidden upper arm even when a ray
     # misses the garment near a shoulder seam; slider blending can otherwise
     # uncover one retained skin triangle there. Hands and bare forearms stay.
-    hidden=lambda p,part: part=="torso" or part.startswith("arm") and p[1]>fit.Y(kind.sleeve_cut)
+    # The open collar can expose the upper torso at the nape when the head bends.
+    hidden=lambda p,part: part=="torso" and p[1]<fit.Y(.78) or part.startswith("arm") and p[1]>fit.Y(kind.sleeve_cut)
     cut0+=ck.cut_body(b["lod0"],hidden)
     cut1+=ck.cut_body(b["lod1"],hidden)
     if not kind.barefoot:
@@ -327,7 +327,9 @@ def build_kind(kind, make_body, ref_uv, layout, atl, tex=2048, log=print):
     cbl.clean_sleeves(near,b["P"]); cbl.clean_sleeves(cage,b["P"])  # (#140) a sleeve on its own arm
     cbl.follow_under(near,order0); cbl.follow_under(cage,order1)  # (#138) a layer moves with the one under it
     dr.reduce_cloth(near,14000-lod.tris(b["lod0"]))
-    dr.reduce_cloth(cage,2500-lod.tris(b["lod1"]))
+    # Keep a share for each far garment: the global mask reduced some boots to four triangles.
+    from .garments_cast import reduce_cast
+    reduce_cast(cage,2500-lod.tris(b["lod1"]))
     clear_worker_layers(near,b["lod0"],order0)
     clear_worker_layers(cage,b["lod1"],order1,clearance=.006,passes=4)
     if "coat" in names:
@@ -349,12 +351,21 @@ def build_kind(kind, make_body, ref_uv, layout, atl, tex=2048, log=print):
         bm.to_mesh(ob.data)
         bm.free()
         ob.data.update()
+    from .cloth_fit import apron_edges, coat_apron_ease
+    apron_edges(near)
+    apron_edges(cage)
+    coat_apron_ease(near)
+    coat_apron_ease(cage)
+    from .cloth_drape import pad_surface
+    pad_surface(near)
+    if lod.tris(near) + lod.tris(b["lod0"]) > 14000:
+        raise ValueError("Fitted shoulder pad exceeds the shared cloth budget: " + kind.name)
     scales={pc.name:pc.scale for pc in pieces}
     scales.update({"in_"+pc.name:pc.scale for pc in pieces})
     ck.unwrap(near,scales)
     ck.unwrap(cage,scales)
-    # Project every reduced face into one painted near triangle of its garment.
-    transfer_uv(near,cage)
+    from .cloth_lod import from_near
+    from_near(cage,near,2500-lod.tris(b["lod1"]),b["lod1"])
     crgb,cnrm=paint_pair(near,cage,pieces,fit,tex)
     atl.put("cloth_"+kind.name,crgb,cnrm)
     atl.clothes_zones("cloth_"+kind.name,dr.paint_clothes.zones)
@@ -370,6 +381,9 @@ def build_kind(kind, make_body, ref_uv, layout, atl, tex=2048, log=print):
     dr.join(b["lod1"],cage)
     dr.clothes_keys(b["lod0"],b,n0,0)
     dr.clothes_keys(b["lod1"],b,n1,1)
+    from .cloth_fit import bind_apron
+    bind_apron(b["lod0"])
+    bind_apron(b["lod1"])
     b.update(vparts=wt.parts(b["lod0"]),cparts=wt.parts(b["lod1"]),kind=kind,face=face,pieces=pieces,fit=fit)
     b["counts"].update(lod0=lod.tris(b["lod0"]),lod1=lod.tris(b["lod1"]))
     log("[workers] kind %s: %d / %d triangles; cut %d/%d; pieces %s" %
@@ -415,42 +429,6 @@ def paint_pair(near,far,pieces,fit,size):
     normal=np.where(covered[...,None],near_nrm,far_nrm)
     dr.paint_clothes.zones=np.where(covered,near_zones,far_zones)
     return rgb,normal
-
-
-def transfer_uv(near,far):
-    """Project by garment into painted triangles, preserving atlas boundaries."""
-    from mathutils.bvhtree import BVHTree
-    from mathutils import Vector
-    from mathutils.geometry import barycentric_transform
-    near.data.calc_loop_triangles()
-    triangles=list(near.data.loop_triangles)
-    parts=wt.parts(near)
-    fparts=wt.parts(far)
-    uv=near.data.uv_layers.active.data
-    points=[v.co[:] for v in near.data.vertices]
-    bypart={}
-    for i,t in enumerate(triangles):
-        bypart.setdefault(parts[t.vertices[0]],[]).append(i)
-    def tree(ids):return BVHTree.FromPolygons(points,[triangles[i].vertices[:] for i in ids],all_triangles=True)
-    trees={p:tree(ids) for p,ids in bypart.items()}
-    out=far.data.uv_layers.active.data
-    for face in far.data.polygons:
-        part=fparts[face.vertices[0]]
-        if part not in trees:continue
-        centre=sum((far.data.vertices[v].co for v in face.vertices),Vector())/len(face.vertices)
-        _,_,index,_=trees[part].find_nearest(centre)
-        chosen=bypart[part][index]
-        # Keep the reduced face inside one painted triangle. A chord across a
-        # concave chart can cut through another garment's packed UV island.
-        vertices=triangles[chosen].vertices
-        local=BVHTree.FromPolygons([points[v] for v in vertices],[(0,1,2)],all_triangles=True)
-        for li in face.loop_indices:
-            q=far.data.vertices[far.data.loops[li].vertex_index].co
-            loc,_,index,_=local.find_nearest(q)
-            t=triangles[chosen]
-            uvs=[Vector((*uv[l].uv,0)) for l in t.loops]
-            value=barycentric_transform(loc,*[near.data.vertices[v].co for v in t.vertices],*uvs)
-            out[li].uv=value[:2]
 
 
 def check_sheets(dressed, bodies, actions, move_clips, held_obs, directory, rig_path):
