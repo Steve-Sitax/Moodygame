@@ -97,6 +97,11 @@ def material(clothes, cell, tone=(1.0, 1.0, 1.0)):
 
 def _rig():
     # a trial build's rig and faces (build_people2 --out x.glb writes x_rig.json, x_faces.json): PEOPLE2_RIG
+    # Rendering a saved scene must use the exported clothing/hair recipes too;
+    # kind modules are not necessarily imported by the standalone sheet script.
+    faces = _faces_json()
+    ft.KIND_HAIR.update(faces.get("kindHair", {}))
+    ft.CAST.update(faces.get("cast", {}))
     with open(os.environ.get("PEOPLE2_RIG") or os.path.join(ROOT, "shared", "peopleRig.json"), encoding="utf-8") as f:
         return json.load(f)
 

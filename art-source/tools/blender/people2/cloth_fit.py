@@ -70,6 +70,7 @@ def plans(ob, bm):
         esf = {e: sum((f in fs for f in e.link_faces)) for f in fs for e in f.edges}
         edges = [e for e, c in esf.items() if c == 1]
         depth = (
+            100.0 if name == "apron" or name in ob.get("cloth_full_facings", ()) else
             0.12
             if name
             in (
@@ -128,6 +129,11 @@ def line(ob):
     bm.from_mesh(ob.data)
     bm.normal_update()
     jobs = list(plans(ob, bm))
+    # Keep the exact outer vertex, including at folds whose nearest face changes.
+    linked = bm.verts.layers.int.get("_facing_pair") or bm.verts.layers.int.new("_facing_pair")
+    bm.verts.ensure_lookup_table()
+    for i, v in enumerate(bm.verts):
+        v[linked] = i + 1
     deform = bm.verts.layers.deform.active
 
     def copyloop(dst, src):
@@ -143,6 +149,7 @@ def line(ob):
             normal = v.normal.copy()
             weights = dict(v[deform])
             nv = bm.verts.new(pos - normal * 0.003)
+            nv[linked] = v[linked]
             for gi, w in weights.items():
                 nv[deform][gi] = w
             nv[deform][outer.index] = 0
@@ -475,7 +482,7 @@ def wrap_shawl(ob):
                 continue
             if distance >= 0 and -1e-5 <= t <= 1 + 1e-5:
                 support = max(support, distance)
-        delta = Vector((*(direction * max(0.0, support + 0.025 - radius)), 0.0))
+        delta = Vector((*(direction * max(0.0, support + 0.040 - radius)), 0.0))
         vertex.co += delta
         if ob.data.shape_keys:
             for key in ob.data.shape_keys.key_blocks:
@@ -484,38 +491,344 @@ def wrap_shawl(ob):
     carry()
 
 
+def soften_wrap(ob):
+    """Relax sharp fold reversals in a knitted shoulder wrap before fitting it."""
+    from mathutils import Vector
+    raw = wt.parts(ob)
+    if "shawl" not in raw:
+        return
+    edges = {}
+    for face in ob.data.polygons:
+        ids = list(face.vertices)
+        if not all(raw[i] == "shawl" for i in ids):
+            continue
+        for a, b in zip(ids, ids[1:] + ids[:1]):
+            edge = tuple(sorted((a, b)))
+            edges[edge] = edges.get(edge, 0) + 1
+    adjacent, boundary = {}, set()
+    for (a, b), count in edges.items():
+        adjacent.setdefault(a, []).append(b)
+        adjacent.setdefault(b, []).append(a)
+        if count == 1:
+            boundary.update((a, b))
+    co = [v.co.copy() for v in ob.data.vertices]
+    # A coarse far ribbon may have only one interior row. Repeating the near
+    # relaxation collapses its whole width into a cord across the blouse.
+    for _ in range(1 if ob.name.endswith("_lod1") else 16):
+        before = [p.copy() for p in co]
+        for i, neighbours in adjacent.items():
+            mean = sum((before[j] for j in neighbours), Vector()) / len(neighbours)
+            co[i] = before[i].lerp(mean, .18 if i in boundary else .5)
+    for i in adjacent:
+        delta = co[i] - ob.data.vertices[i].co
+        ob.data.vertices[i].co = co[i]
+        if ob.data.shape_keys:
+            for key in ob.data.shape_keys.key_blocks:
+                key.data[i].co += delta
+    ob.data.update()
+
+
+def finish_wrap(ob):
+    """Remove small fold reversals after fitting without shrinking the shawl.
+
+    Alternating smoothing and inflation retains an open wrap's panel width.
+    Closed capes smooth only their neckline; coarse open wraps retain their width.
+    """
+    from collections import Counter
+    from mathutils import Vector
+    raw, me = wt.parts(ob), ob.data
+    if "shawl" not in raw:
+        return
+    edges = Counter()
+    for face in me.polygons:
+        ids = list(face.vertices)
+        if all(raw[i] == "shawl" for i in ids):
+            edges.update(tuple(sorted((a,b))) for a,b in zip(ids, ids[1:]+ids[:1]))
+    adjacent, rim = {}, {}
+    for (a,b), count in edges.items():
+        adjacent.setdefault(a, []).append(b); adjacent.setdefault(b, []).append(a)
+        if count == 1:
+            rim.setdefault(a, []).append(b); rim.setdefault(b, []).append(a)
+    left, loops = set(rim), []
+    while left:
+        found = {left.pop()}; stack = list(found)
+        while stack:
+            for j in rim[stack.pop()]:
+                if j in left:
+                    left.remove(j); found.add(j); stack.append(j)
+        loops.append(found)
+    if len(loops) == 2:
+        finish_cape_rim(ob)
+        return
+    if len(loops) != 1 or ob.name.endswith("_lod1"):
+        return
+    fringe = fringe_binding(ob)
+    co = [v.co.copy() for v in me.vertices]
+    for _ in range(24):
+        for factor in (.5, -.53):
+            before = [v.copy() for v in co]
+            for i, neighbours in adjacent.items():
+                mean = sum((before[j] for j in neighbours), Vector()) / len(neighbours)
+                co[i] = before[i].lerp(mean, factor)
+    for i in adjacent:
+        delta = co[i] - me.vertices[i].co
+        me.vertices[i].co = co[i]
+        if me.shape_keys:
+            for key in me.shape_keys.key_blocks:
+                key.data[i].co += delta
+    me.update()
+    wrap_shawl(ob)
+    for _ in range(4):
+        cb.tuck(ob, None, {("bodice", "shawl")}, lambda p,n: False,
+                clearance=.03, reach=.15, agree=.2)
+    fit_linings(ob)
+    fringe()
+
+
+def finish_cape_rim(ob):
+    """Smooth only a closed cape's neckline, retaining its draped lower edge."""
+    from collections import Counter
+    from mathutils import Vector
+    raw, me = wt.parts(ob), ob.data
+    edges = Counter()
+    for face in me.polygons:
+        ids = list(face.vertices)
+        if all(raw[i] == "shawl" for i in ids):
+            edges.update(tuple(sorted((a,b))) for a,b in zip(ids, ids[1:]+ids[:1]))
+    rim = {}
+    for (a,b), count in edges.items():
+        if count == 1:
+            rim.setdefault(a, []).append(b); rim.setdefault(b, []).append(a)
+    left, loops = set(rim), []
+    while left:
+        found = {left.pop()}; stack = list(found)
+        while stack:
+            for j in rim[stack.pop()]:
+                if j in left:
+                    left.remove(j); found.add(j); stack.append(j)
+        loops.append(found)
+    if len(loops) != 2:
+        return
+    co = [v.co.copy() for v in me.vertices]
+    top = max(loops, key=lambda loop: sum(co[i].z for i in loop)/len(loop))
+    for _ in range(24):
+        before = [v.copy() for v in co]
+        for i in top:
+            mean = sum((before[j] for j in rim[i]), Vector())/len(rim[i])
+            co[i] = before[i].lerp(mean, .5)
+    def shift(i, at):
+        delta = at - me.vertices[i].co
+        me.vertices[i].co = at
+        if me.shape_keys:
+            for key in me.shape_keys.key_blocks:
+                key.data[i].co += delta
+    for i in top:
+        shift(i, co[i])
+    me.update()
+    pair = me.attributes.get("_facing_pair")
+    if pair:
+        exact = {pair.data[i].value:i for i in top if pair.data[i].value > 0}
+        for i, name in enumerate(raw):
+            source = exact.get(pair.data[i].value) if name == "in_shawl" else None
+            if source is not None:
+                shift(i, me.vertices[source].co-me.vertices[source].normal*.003)
+    me.update()
+
+
+def fringe_binding(ob):
+    """Keep a fringe sewn to its original shawl edge through fitting and posing."""
+    from mathutils import Vector
+    from .rig import NAMES
+
+    raw = wt.parts(ob)
+    if not {"shawl", "shawl_fringe"} <= set(raw):
+        return lambda: None
+    co = [v.co.copy() for v in ob.data.vertices]
+    counts = {}
+    for face in ob.data.polygons:
+        ids = list(face.vertices)
+        if not all(raw[i] == "shawl" for i in ids):
+            continue
+        for a, b in zip(ids, ids[1:] + ids[:1]):
+            edge = tuple(sorted((a, b)))
+            counts[edge] = counts.get(edge, 0) + 1
+    edges = [edge for edge, count in counts.items() if count == 1]
+    if not edges:
+        raise ValueError("Fringed shawl has no edge: " + ob.name)
+    links = []
+    for i, part in enumerate(raw):
+        if part not in ("shawl_fringe", "in_shawl_fringe"):
+            continue
+        nearest = []
+        for a, b in edges:
+            edge = co[b] - co[a]
+            t = max(0, min(1, (co[i] - co[a]).dot(edge) / max(edge.length_squared, 1e-12)))
+            at = co[a].lerp(co[b], t)
+            nearest.append(((co[i] - at).length_squared, a, b, t, at))
+        _, a, b, t, at = min(nearest, key=lambda item: item[0])
+        links.append((i, a, b, t, max(0, at.z - co[i].z), part.startswith("in_")))
+
+    def apply():
+        weights = wt.read(ob)
+        changed = []
+        co = [v.co.copy() for v in ob.data.vertices]
+        for i, a, b, t, drop, inner in links:
+            va, vb = ob.data.vertices[a], ob.data.vertices[b]
+            normal = va.normal.lerp(vb.normal, t).normalized()
+            # Sew the top 8 mm beneath the hem; the hanging tassels clear its face.
+            at = va.co.lerp(vb.co, t) + Vector((0, 0, .008 - drop))
+            at += normal * (-.008 + min(.012, drop * .3) - (.003 if inner else 0))
+            ob.data.vertices[i].co = at
+            weights[i] = weights[a] * (1 - t) + weights[b] * t
+            changed.append(i)
+            if ob.data.shape_keys:
+                for key in ob.data.shape_keys.key_blocks:
+                    key.data[i].co = (at if key == ob.data.shape_keys.reference_key else at
+                                     + (key.data[a].co - co[a]) * (1 - t)
+                                     + (key.data[b].co - co[b]) * t)
+        for group in ob.vertex_groups:
+            if group.name in NAMES:
+                group.remove(changed)
+        wt.apply_rows(ob, weights, changed)
+        ob.data.update()
+    return apply
+
+
 def bind_apron(ob):
     """Carry sewn outer layers with their backing through seated and identity shapes."""
-    # Player jackets have a full blouse beneath them. Its corrected elbow bend
-    # must reach the jacket too; otherwise the blouse crosses the older cage bend.
-    if ob.name.startswith("jef_"):
-        for region in ("trunk", "armL", "armR"):
-            bind_layer(ob, "coat", "bodice", region=region)
-            bind_layer(ob, "smock", "bodice", region=region)
     from .cloth_drape import carry_apron
 
     if not carry_apron(ob):
         bind_layer(ob, "apron", "skirt")
-    if ob.name.startswith("jef_"):
-        for part in ("apron", "apron_band"):
-            bind_layer(
-                ob,
-                part,
-                "coat",
-                trunk_only=True,
-                reach=0.05,
-                interior_only=True,
-                margin=0.022,
-            )
+    bind_layer(ob, "veil", "guimpe", margin=0.025, interior_only=True)
+    bind_layer(ob, "veil", "coif", margin=0.025, interior_only=True)
+    fringe = fringe_binding(ob)
+    soften_wrap(ob)
     wrap_shawl(ob)
-    bind_layer(ob, "shawl", "bodice")
-    bind_layer(ob, "shawl_fringe", "shawl", margin=0.004)
+    bind_layer(ob, "shawl", "bodice", margin=0.035)
+    fringe()
     bind_layer(ob, "apron_bib", "bodice", trunk_only=True)
     bind_layer(ob, "pinafore_bib", "bodice", trunk_only=True)
     bind_layer(ob, "pinafore_straps", "bodice", trunk_only=True, margin=0.018)
+    if not carry_apron(ob, "pad", "shirt"):
+        for under in ("shirt", "smock"):
+            bind_layer(ob, "pad", under, margin=0.035, interior_only=True)
+    bind_layer(ob, "overskirt", "bodice", margin=0.025, reach=0.06, trunk_only=True)
     for side in "LR":
         bind_layer(ob, "cuff" + side, "coat", inset=True)
+    if "shawl" in wt.parts(ob):
+        for _ in range(4):
+            cb.tuck(ob, None, {("bodice", "shawl")}, lambda p, n: False,
+                    clearance=.03, reach=.15, agree=.2)
     fit_linings(ob)
+    covered_blouse_sleeves(ob)
+    from .cloth_masks import bib_under_veil
+    bib_under_veil(ob)
+
+
+def covered_blouse_sleeves(ob):
+    """A closed coat sleeve replaces the blouse sleeve underneath it.
+
+    This is an authored garment mask, independent of pose occlusion. The blouse
+    front remains complete behind the open coat; closed arm, side and back panels are hidden.
+    """
+    raw, zones = wt.parts(ob), cb.zones_of(ob)
+    under = {"bodice", "shirt", "waistcoat"}.intersection(raw)
+    if not under or not any(p in ("coat", "smock") and z == "arm" for p, z in zip(raw, zones)):
+        return
+    under |= {"in_" + name for name in under}
+    bm = bmesh.new()
+    bm.from_mesh(ob.data)
+    bm.verts.ensure_lookup_table()
+    gone = [f for f in bm.faces
+            if all(raw[v.index] in under for v in f.verts)
+            and (sum(zones[v.index] == "arm" for v in f.verts) >= len(f.verts) / 2
+                 or abs(sum(v.co.x for v in f.verts) / len(f.verts)) > 0.13
+                 or sum(v.co.y for v in f.verts) / len(f.verts) > 0.0)]
+    bmesh.ops.delete(bm, geom=gone, context="FACES_ONLY")
+    bmesh.ops.delete(bm, geom=[v for v in bm.verts if not v.link_faces], context="VERTS")
+    bm.to_mesh(ob.data)
+    bm.free()
+    ob.data.update()
+
+
+def apron_edges(ob):
+    """Keep a work apron's cut edge smooth after cloth reduction and clearance.
+
+    Pleats remain in the panel. Their rim must form one sewn edge rather than
+    alternating spikes from independently displaced boundary vertices.
+    Skirt aprons already obtain continuous edges from their clipping planes.
+    """
+    raw = wt.parts(ob)
+    if "apron" not in raw or "skirt" in raw:
+        return
+    strip(ob)
+    raw = wt.parts(ob)
+    counts = {}
+    for face in ob.data.polygons:
+        ids = list(face.vertices)
+        if not all(raw[i] == "apron" for i in ids):
+            continue
+        for a, b in zip(ids, ids[1:] + ids[:1]):
+            edge = tuple(sorted((a, b)))
+            counts[edge] = counts.get(edge, 0) + 1
+    adjacent = {}
+    for (a, b), count in counts.items():
+        if count == 1:
+            adjacent.setdefault(a, []).append(b)
+            adjacent.setdefault(b, []).append(a)
+    if not adjacent:
+        line(ob)
+        return
+    co = [v.co.copy() for v in ob.data.vertices]
+    bottom = min(co[i].z for i in adjacent)
+    top = max(co[i].z for i in adjacent)
+    ends = {i: top if co[i].z > top - .025 else bottom
+            for i in adjacent if co[i].z > top - .025 or co[i].z < bottom + .025}
+    for _ in range(8):
+        before = [p.copy() for p in co]
+        for i, neighbours in adjacent.items():
+            if len(neighbours) != 2:
+                continue
+            a, b = neighbours
+            co[i] = before[i] * .5 + (before[a] + before[b]) * .25
+            if i in ends:
+                co[i].z = ends[i]
+    for i in adjacent:
+        ob.data.vertices[i].co = co[i]
+    ob.data.update()
+    line(ob)
+
+
+def coat_apron_ease(ob, forward=0.04):
+    """Lay an apron outside the coat's front, excluding the arms beside it."""
+    from mathutils import Vector
+    from mathutils.bvhtree import BVHTree
+    raw, zones = wt.parts(ob), cb.zones_of(ob)
+    layers = {"coat", "waistcoat", "frock_coat"}.intersection(raw)
+    if "apron" not in raw or not layers:
+        return
+    co = [v.co.copy() for v in ob.data.vertices]
+    faces = [tuple(f.vertices) for f in ob.data.polygons
+             if all(raw[i] in layers and zones[i] != "arm" for i in f.vertices)]
+    tree = BVHTree.FromPolygons(co, faces) if faces else None
+    top = max(v.co.z for v in ob.data.vertices if raw[v.index] == "apron")
+    for v in ob.data.vertices:
+        if raw[v.index] not in ("apron", "in_apron"):
+            continue
+        fall = min(1.0, max(0.0, (top - v.co.z) / 0.06))
+        target = v.co.y - forward * fall
+        if tree:
+            start = v.co + Vector((0, -2, 0))
+            hit, _, _, _ = tree.ray_cast(start, Vector((0, 1, 0)), 3)
+            if hit is not None:
+                target = min(target, hit.y - (0.008 + 0.027 * fall))
+        delta = Vector((0, target - v.co.y, 0))
+        v.co += delta
+        if ob.data.shape_keys:
+            for key in ob.data.shape_keys.key_blocks:
+                key.data[v.index].co += delta
+    ob.data.update()
 
 
 def fit_linings(ob):
@@ -527,9 +840,12 @@ def fit_linings(ob):
 
     me, raw, weights = ob.data, wt.parts(ob), wt.read(ob)
     co = [v.co.copy() for v in me.vertices]
+    pair = me.attributes.get("_facing_pair")
+    exact = {(raw[i], pair.data[i].value): i for i in range(len(co))
+             if pair and pair.data[i].value > 0 and raw[i] and not raw[i].startswith("in_")}
     changed = []
     for part in sorted({p[3:] for p in raw if p and p.startswith("in_")}):
-        if part == "apron" and me.attributes.get("_apron_under") is not None:
+        if part in ("apron", "pad") and me.attributes.get("_" + part + "_under") is not None:
             continue
         faces = []
         for face in me.polygons:
@@ -544,11 +860,16 @@ def fit_linings(ob):
         for i, name in enumerate(raw):
             if name != "in_" + part:
                 continue
-            loc, normal, face, _ = tree.find_nearest(co[i])
-            if loc is None:
-                continue
-            ids = faces[face]
-            blend = poly_3d_calc([co[j] for j in ids], loc)
+            linked = exact.get((part, pair.data[i].value)) if pair else None
+            if linked is not None:
+                loc, normal = co[linked], me.vertices[linked].normal
+                ids, blend = [linked], [1.0]
+            else:
+                loc, normal, face, _ = tree.find_nearest(co[i])
+                if loc is None:
+                    continue
+                ids = faces[face]
+                blend = poly_3d_calc([co[j] for j in ids], loc)
             at = loc - normal * 0.003
             me.vertices[i].co = at
             weights[i] = sum(weights[j] * w for j, w in zip(ids, blend))

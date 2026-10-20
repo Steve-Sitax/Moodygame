@@ -18,6 +18,12 @@ def skirt_bends(ob, fit):
     if "skirt" not in raw or "apron" not in raw:
         return
     apron = [G(v.co)[1] for v in ob.data.vertices if raw[v.index] == "apron"]
+    # Bisection interpolates integer attributes, including facing IDs. Splitting
+    # both shells can therefore attach a new inner vertex to an unrelated fold.
+    # Cut only the outer surface and make its facings from the final topology.
+    from .cloth_fit import strip, line
+    strip(ob)
+    raw = wt.parts(ob)
     levels = sorted(set((min(apron), max(apron), fit.knee_y, fit.knee_y - 0.06)))
     bm = bmesh.new()
     bm.from_mesh(ob.data)
@@ -41,6 +47,8 @@ def skirt_bends(ob, fit):
     bm.normal_update()
     bm.to_mesh(ob.data)
     bm.free()
+    ob.data.update()
+    line(ob)
 
 
 def skirt_weights(ob, fit):
@@ -143,7 +151,7 @@ def apron_surface(ob):
             emit_face(face, lo, hi)
     if not pc.F:
         raise ValueError("No skirt surface under apron: " + ob.name)
-    inside = ck.thicken(pc, 0.003, depth=0.035, crease=0.7)
+    inside = ck.thicken(pc, 0.003, depth=None, crease=0.7)
     for outer, inner in inside.items():
         under[inner] = under[outer]
     apron, _ = ck.build_objects([pc], ob.name + "_apron")
@@ -173,13 +181,87 @@ def apron_surface(ob):
     return True
 
 
-def carry_apron(ob):
+def pad_surface(ob):
+    """Sew a shoulder pad onto the shirt's triangles, sharing their deformation.
+
+    A separately snapped strap folded back through itself at the shoulder. Clip
+    the shirt to the pad's authored width and length, then offset its surface.
+    """
+    raw = wt.parts(ob)
+    if not {"pad", "shirt"} <= set(raw):
+        return False
+    co = np.array([G(v.co) for v in ob.data.vertices])
+    normals = np.array([G(v.normal) for v in ob.data.vertices])
+    old = co[np.array(raw) == "pad"]
+    low, high = old[:, 0].min(), old[:, 0].max()
+    bottom = old[:, 1].min()
+    # The outer shoulder is the shirt's silhouette, not a vertical cut through
+    # its round upper arm. Such a cut would leave a U-shaped notch in the pad.
+    high = max(co[i, 0] for i, part in enumerate(raw)
+               if part == "shirt" and co[i, 1] >= bottom) + .001
+    weights = wt.read(ob)
+    pc = ck.Piece("pad", ck.Cloth((.3, .2, .1)))
+    weld, under = {}, {}
+    from .cloth_fit import clipped_face
+    for face in ob.data.polygons:
+        if not all(raw[i] == "shirt" for i in face.vertices):
+            continue
+        poly = [(co[i], normals[i], weights[i],
+                 np.array((co[i, 0] - low, high - co[i, 0], co[i, 1] - bottom)))
+                for i in face.vertices]
+        for plane in range(3):
+            clipped = []
+            for a, b in zip(poly, poly[1:] + poly[:1]):
+                da, db = a[3][plane], b[3][plane]
+                if da >= 0:
+                    clipped.append(a)
+                if (da >= 0) != (db >= 0):
+                    t = da / (da - db)
+                    clipped.append(tuple(a[k] * (1 - t) + b[k] * t for k in range(4)))
+            poly = clipped
+            if not poly:
+                break
+        if len(poly) < 3:
+            continue
+        ids = []
+        for p, n, w, _ in poly:
+            key = tuple(np.round(p, 7))
+            if key not in weld:
+                n = n / max(np.linalg.norm(n), 1e-9)
+                weld[key] = pc.add(p + n * .018,
+                    {NAMES[j]: float(v) for j, v in enumerate(w) if v > 1e-6})
+                under[weld[key]] = p.copy()
+            ids.append(weld[key])
+        clipped_face(pc, ids)
+    if not pc.F:
+        raise ValueError("No shirt surface under shoulder pad: " + ob.name)
+    inside = ck.thicken(pc, .003, depth=None, crease=.7)
+    for outer, inner in inside.items():
+        under[inner] = under[outer]
+    pad, _ = ck.build_objects([pc], ob.name + "_pad")
+    link = pad.data.attributes.new("_pad_under", "FLOAT_VECTOR", "POINT")
+    for i, point in under.items():
+        link.data[i].vector = B(*point)
+    bm = bmesh.new()
+    bm.from_mesh(ob.data)
+    bm.verts.ensure_lookup_table()
+    bmesh.ops.delete(bm, geom=[f for f in bm.faces
+        if any(raw[v.index] in ("pad", "in_pad") for v in f.verts)], context="FACES_ONLY")
+    bmesh.ops.delete(bm, geom=[v for v in bm.verts if not v.link_faces], context="VERTS")
+    bm.to_mesh(ob.data)
+    bm.free()
+    from .dress import join
+    join(ob, pad)
+    return True
+
+
+def carry_apron(ob, part="apron", support="skirt"):
     """Use the authored skirt correspondence, never a different nearby fold."""
     from mathutils import Vector
     from mathutils.bvhtree import BVHTree
     from mathutils.interpolate import poly_3d_calc
 
-    link = ob.data.attributes.get("_apron_under")
+    link = ob.data.attributes.get("_" + part + "_under")
     if link is None:
         return False
     raw, weights = wt.parts(ob), wt.read(ob)
@@ -187,16 +269,16 @@ def carry_apron(ob):
     faces = []
     for f in ob.data.polygons:
         ids = list(f.vertices)
-        if all(raw[i] == "skirt" for i in ids):
+        if all(raw[i] == support for i in ids):
             faces.extend((ids[0], ids[k], ids[k + 1]) for k in range(1, len(ids) - 1))
     tree = BVHTree.FromPolygons(co, faces, all_triangles=True)
     changed = []
-    for i, part in enumerate(raw):
-        if part not in ("apron", "in_apron"):
+    for i, name in enumerate(raw):
+        if name not in (part, "in_" + part):
             continue
         loc, _, face, distance = tree.find_nearest(link.data[i].vector)
         if loc is None or distance > 0.001:
-            raise ValueError("Lost skirt/apron correspondence: " + ob.name)
+            raise ValueError("Lost " + support + "/" + part + " correspondence: " + ob.name)
         ids = faces[face]
         blend = poly_3d_calc([co[j] for j in ids], loc)
         weights[i] = sum(weights[j] * w for j, w in zip(ids, blend))

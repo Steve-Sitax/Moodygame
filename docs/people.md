@@ -225,8 +225,8 @@ the base mesh (they carry the face and body sliders) and merged into the person 
   and white are pigment and white strands mixed one by one (`PIGMENT`); the African sailors' cells get tightly
   coiled hair. A bald crown is painted as clean skin from the forehead's colour (MakeHuman's old skins carry painted
   stubble there: the "ginger scalp"); the fringe takes the cell's mixed grey.
-- **Under hats:** the hats are fitted to the bare skin with a margin (caps and kepi 11 mm, the women's cap 9 mm), so
-  `KIND_HAIR` gives docker_a `capped` (or `bald`), police and Sooi `capped`, the capped women `undercap`. The hats'
+- **Under hats:** every dressed kind with authored headwear registers fitted hair in `KIND_HAIR`, including children;
+  men use `capped`, women `undercap`, preserving explicit recipes such as the tourist lady's bun. The hats'
   lines in head angles are `CAP_EL` and `HOOD_EL` in mhhair (measured on the built kinds; change them with the hats).
 
 **The fade contract (for the people2 shader):**
@@ -907,20 +907,31 @@ one garment triangle in five was stretched over 4:1 and the clothes had 2,000 to
   triangles (MakeHuman's face, the hands), so the clothes get 8,000 to 10,000. Hair and facial hair are separate.
 - **Clothing coverage.** Keep complete garments through reduction. Rest-pose occlusion cannot justify deleting
   clothing: a moving coat exposes the waistcoat underneath. Deleting it as well as the covered skin caused the
-  see-through abdomen in #138. The body cut remains separate.
+  see-through abdomen in #138. Explicit closed-panel masks may replace blouse sleeves, sides and backs beneath
+  a coat (including shirt and waistcoat panels), and the bib backing beneath a veil; these preserve the visible front.
+  The body cut remains separate; coarse neck triangles are clipped below a closed bodice's measured neckline.
 - **The body cut** (`clothes_kit.cut_body`): never the head, eyes, hair or the hands (MakeHuman's hand islands and the
   fingers); reach by part (`CUT_REACH`: 6 cm neck and arms, 25 cm torso, 30 cm legs); three of four tilted rays must
   meet cloth, so the skin just inside a cuff or collar stays. It runs again after the reduction. Before each cut,
   `cloth_fit.tuck_skin` places skin behind nearby outer cloth on the same limb; an arm must never bind to trousers.
   Arm skin within 65 mm of a visible sleeve edge stays, including elbow-weighted vertices; a hidden cuff edge does not protect skin.
-  Closed bodices replace covered neck/shoulder faces; skirts replace legs above their measured hems. The worker mask stops below the nape.
+  Closed upper garments replace covered mixed shoulder faces even when a torso ray misses; bodices also replace covered neck skin.
+  Skirts replace legs above their measured hems. The worker mask stops below the nape.
 - **Layer motion.** Aprons, bibs and shawls take their backing garment's weights and shape deltas after reduction,
   retaining clearance and recessed facings. Short shirt cuffs follow their own coat sleeve, never a nearby coat tail.
   Blouse sleeves bind to the uncut arm's surface weights and identity shapes. Long-coat lengthening never changes sleeves.
   Aprons share the skirt's final triangles and retain rows at the knee and hem; their binding cannot jump to another fold.
+  Keep that skirt continuous until the apron is made, then fit the apron outside any jacket worn beneath it.
+  Shirt-mounted shoulder pads also share their support's triangles and motion, rather than independently snapped straps.
+  A shawl fringe retains its sewn boundary through fitting and uses that edge's weights and identity offsets.
+  Final open-wrap smoothing removes fold reversals without collapsing the panel; closed capes smooth only their neckline.
+  Full brims mask hidden scalp at their inner crown rim after fitting, above the eyes; short peaks and tilted hats retain exposed scalp.
 - **Reduction** (`reduce`): collapse outer garments together, then rebuild 3 mm edge facings from the final triangles
   with matching bone weights (`cloth_fit.py`), inside the same clothing budget. Authored face roles remove
-  the old lining precisely; 12 cm facings close views down upper garments. Thin stitched rims retain their cut line
+  the old lining precisely; 12 cm facings close views down upper garments. Aprons, open caps and authored full-backed
+  headwear retain complete backs, including after far reduction. Hat brims overlap their crowns beneath the seam.
+  Exact facing pairs preserve each fold's own weights and identity motion; rebuild them after knee-row cuts, never interpolate their IDs.
+  Thin stitched rims retain their cut line
   through subdivision (crease at least 0.6), preventing gaps at collars, waistbands and brims. Protect the rims,
   creases and UV seams (`protect_weights`). After it `clothes_kit.clear_layers` (rays, 3.5 mm, skin 5 mm)
   and `tuck` (nearest point: whatever pokes out from under a garment, however far, is pulled under it).
@@ -934,7 +945,10 @@ one garment triangle in five was stretched over 4:1 and the clothes had 2,000 to
   (`ctx.edge`) and the cloth's own thread coordinates (`ctx.fu`, `ctx.fv`, from `Piece.fabric`: the shawl's check runs
   at 45 degrees to its folded edge, as a square shawl folded on the diagonal does). Woven shawls carry the same yarn
   pattern on both faces.
-- **The far copy** shares the near copy's picture: each far face takes the island nearest it (`project_uvs`).
+- **The far copy** reduces the finished near cloth with its UV charts (`cloth_lod.from_near`), then rebuilds
+  matching 3 mm facings within the existing triangle budget. Discard the cage's face mask after rebuilding an
+  apron: that joined mask does not describe the other garments. Skinning transfers only between matching
+  anatomical or garment parts, so a hand beside a sleeve cannot inherit the sleeve's elbow weights.
 - **Skin paint.** Garment-coloured skin masks are disabled for dressed bodies; actual stockings and gloves remain.
 - **Occlusion** (`bake_occlusion`) over body and clothes together in vertex colour blue, by the render lane's rule
   (1 open .. 0.22 closed; `AO_RULE`): 40 rays over 10 cm, an arm against the trunk below the armpit and a leg against
@@ -966,7 +980,7 @@ Worker expansion (`kinds_workers2.py`, `garments_workers.py`, `held_workers.py`)
 - [John Thomson, *Street Life in London*, 1877–1878, Rijksmuseum](https://www.rijksmuseum.nl/en/collection/object/Street-Life-in-London--d9eb89414ebab5cb4d04bb118b9deb8f) and [National Portrait Gallery, *The Temperance Sweep*, 1877](https://www.npg.org.uk/collections/interactives/room-21-street-life-london): worn street coats, caps and sweep equipment. Nearby period comparison; London is not evidence of an Antwerp trade regulation.
 - The original kind palettes and the Antwerp sources below determine the dockers' kiel and shoulder pad. The coalman's cut-sack hood, porter's brass cap badge, grinder's leather apron and baker boy's flour distribution are reconstruction choices; no exact Antwerp 1873 pattern is claimed.
 
-These twelve workers use 14,000 near / 2,500 far triangle ceilings. Garments are reduced and cleared of overlapping layers before their final unwrap and paint; each far face projects inside a painted near triangle of its garment, and both copies contribute coverage to the shared picture. Near hems, cuffs, collars, brims and soles keep the outside's texel density. Hands are excluded from body cutting. Complete shirt panels remain behind waistcoats when they move. Replacement boots remove both inherited clog shells and their top pieces; each boot keeps its own outward face winding. Soles join the boot upper at the welt and are excluded from garment layering. Thin stitched cloth lips and hidden mating surfaces are edge exceptions; hat brims, boots and leather pads use rounded geometry.
+These twelve workers use 14,000 near / 2,500 far triangle ceilings. Garments are reduced and cleared of overlapping layers before their final unwrap and paint; the far copy reduces the finished near cloth with its UVs, and both copies contribute coverage to the shared picture. Near hems, cuffs, collars, brims and soles keep the outside's texel density. Hands are excluded from body cutting. Complete shirt panels remain behind waistcoats when they move. Replacement boots remove both inherited clog shells and their top pieces; each boot keeps its own outward face winding. Soles join the boot upper at the welt and are excluded from garment layering. Thin stitched cloth lips and hidden mating surfaces are edge exceptions; hat brims, boots and leather pads use rounded geometry.
 The sack uses `work.loads.sack`; the handcart uses `PushCart` and the existing `props:tr_handcart`. The existing `quaygoods:sack_truck_bare` still needs a native two-grip attachment for the new porter: `People2Things.Has` does not support trucks. No second sack, truck or handcart is authored in a worker mesh. The chimney rods, brush and rope coil form one back-socket model shared by both sweeps.
 
 The look follows public photographs, paintings and sculpture of Antwerp's working people of the 1860s-1880s:

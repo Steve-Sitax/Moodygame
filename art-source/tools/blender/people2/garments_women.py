@@ -852,32 +852,20 @@ def hood_mantle(fit, pc, onto, hem_y, margin=0.016, front=-30.0, side=104.0, col
     hid = pc.grid(hood, lambda p: dict(HEAD))
     pc.orient(lambda q: q - c)
     # the shoulders' ring: from the left front edge round the back to the right front edge, at the neck's base
-    n = 2 * (cols - 1) + 1
-    angs = np.radians(np.linspace(open_half, 360.0 - open_half, n))
-    angs = np.where(angs > math.pi, angs - 2 * math.pi, angs)
     # the hood's bottom edge, in order from the left front to the right front: down the left side column, along
     # the last row, up the right side column (the same loop as the mantle's top ring)
     hood_edge = list(hid[:, 0]) + list(hid[-1, 1:-1]) + list(hid[::-1, -1])
-    # resample the hood edge to n points by angle round the head's axis
-    HE = np.array([pc.V[v] for v in hood_edge])
-    he_ang = np.arctan2(HE[:, 0], HE[:, 2] - c[2])
-    order = np.argsort(he_ang)
+    # Sew to the actual hood edge. Nearest-angle resampling duplicated vertices
+    # and left a disconnected, partly reversed strip across the nape.
+    top_ring = list(reversed(hood_edge))
+    n = len(top_ring)
+    angs = np.radians(np.linspace(open_half, 360.0 - open_half, n))
+    angs = np.where(angs > math.pi, angs - 2 * math.pi, angs)
     # the mantle's rows: hood edge (shared), shoulders, upper arm, elbow, hips, knee, hem
     sh_y = Yf(fit, 0.835)
     levels = [sh_y, Yf(fit, 0.76), Yf(fit, 0.66), Yf(fit, 0.56), 0.5 * (Yf(fit, 0.56) + hem_y), hem_y]
     levels = levels[:rows]
     body = ("torso", "arm", "neck", "leg")
-    # the top ring: the hood's edge points, matched by angle to the mantle's columns
-    top_ids = []
-    for a in angs:
-        d = np.abs(((he_ang - a) + math.pi) % (2 * math.pi) - math.pi)
-        top_ids.append(hood_edge[int(np.argmin(d))])
-    # make the top ring unique and ordered: rebuild it from new points on the hood edge
-    top_ring = []
-    for a in angs:
-        d = np.abs(((he_ang - a) + math.pi) % (2 * math.pi) - math.pi)
-        k = int(np.argmin(d))
-        top_ring.append(pc.add(HE[k] + np.array((0.0, -0.004, 0.0)), dict(HEAD)))
     rings = [top_ring]
     cz = -0.01
     prev_r = None

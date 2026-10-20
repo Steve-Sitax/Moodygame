@@ -134,6 +134,11 @@ internal partial class People2Proof : Node
             var wideExhibit = people[0].Root.GlobalPosition - new Vector3(0, 0, 4);
             bool clothing = Main.I.Flag("people2-clothing-proof");
             bool integration = Main.I.Flag("people2-integration-proof") || clothing;
+            if (clothing)
+            {
+                DisplayServer.WindowSetVsyncMode(DisplayServer.VSyncMode.Disabled);
+                Engine.MaxFps = 60;
+            }
             Node3D? stool = integration ? Models.ModelLibrary.Get("stalls")?.Copy("mk2_stool") : null;
             float seatHeight = 0.45f;
             if (integration && stool == null) throw new InvalidOperationException("Integration sitting proof needs the shared market stool.");
@@ -175,9 +180,15 @@ internal partial class People2Proof : Node
                     if (clothing) human.CarryLoad(pose == "carry" ? "crate" : null);
                     if (motion != "current") human.Play(pose, 0);
                     if (clothing) human.SetPhase(pose, motion.EndsWith("-late", StringComparison.Ordinal) ? .73f : .23f);
-                    if (integration) for (int settle = 0; settle < 60; settle++) await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+                    if (clothing)
+                    {
+                        // Held poses still ease the seated garment shape over 0.6 seconds.
+                        for (double settle = 0; settle < .7; settle += GetProcessDeltaTime())
+                            await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+                    }
+                    else if (integration) for (int settle = 0; settle < 60; settle++) await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
                     foreach (var (distance, angle) in clothing
-                        ? motion == "idle" ? new[] { (2.2f, "front"), (2.2f, "side"), (2.2f, "back-low"), (1f, "front"), (1f, "feet-low") }
+                        ? motion == "idle" ? new[] { (2.2f, "front"), (2.2f, "side"), (2.2f, "back-low"), (1f, "front"), (1f, "feet-low"), (3f, "far-front"), (18f, "far-front") }
                             : new[] { (2.2f, "front"), (2.2f, "side") }
                         : integration
                         ? motion == "idle" ? new[] { (1f, "front"), (3f, "front"), (8f, "front"), (1f, "side"), (3f, "back-low"), (1f, "feet-low"), (1f, "top") }
@@ -213,13 +224,24 @@ internal partial class People2Proof : Node
                         Main.I.Cam.LookAtFromPosition(from, target);
                         if (Main.I.Cam is Player.FlyCam fly) fly.Face(Main.I.Cam.GlobalBasis.GetRotationQuaternion());
                         for (int settle = 0; settle < 12; settle++) await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+                        bool nearReady = false;
+                        if (clothing)
+                        {
+                            var nearBody = World.BakedWorld.All(human.Root).OfType<MeshInstance3D>()
+                                .First(m => m.Name.ToString().EndsWith("_lod0", StringComparison.Ordinal));
+                            bool Ready() => nearBody.Mesh is ArrayMesh mesh && mesh.GetBlendShapeCount() is 3 or 4
+                                && mesh.GetBlendShapeName(0) == "blink";
+                            for (int settle = 0; !Ready() && settle < 1800; settle++) await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+                            if (!Ready()) throw new InvalidOperationException("Clothing identity mesh did not finish: " + human.Kind);
+                            nearReady = true;
+                        }
                         string name = $"{label}-{human.Kind.Replace(':', '_')}-{distance:0}m" + (angle == "front" ? "" : "-" + angle) + (motion == "current" ? "" : "-" + motion) + ".png";
                         Main.I.View.GetTexture().GetImage().SavePng(Path.Combine(dir, name));
                         var daylight = World.Daylight.I;
                         if (Math.Abs(daylight.Hour - hour) > 0.02 || daylight.Weather != weather)
                             throw new InvalidOperationException($"Capture {name} has wrong live clock/weather: {daylight.Hour} {daylight.Weather}");
                         if (Main.I.Cam.GlobalPosition.DistanceTo(from) > 0.01f) throw new InvalidOperationException("Capture camera moved: " + name);
-                        pictures.Add(new { name, hour = daylight.Hour, weather = daylight.Weather, daylight.Night, daylight.Rain, distance, angle, motion, clip = human.AnimationState.Clip, phase = human.AnimationState.Cycle, forcedFar = angle == "far-front", x = at.X, y = at.Y, z = at.Z });
+                        pictures.Add(new { name, hour = daylight.Hour, weather = daylight.Weather, daylight.Night, daylight.Rain, distance, angle, motion, clip = human.AnimationState.Clip, phase = human.AnimationState.Cycle, forcedFar = angle == "far-front", nearReady, x = at.X, y = at.Y, z = at.Z });
                         foreach (var mesh in World.BakedWorld.All(human.Root).OfType<MeshInstance3D>())
                         {
                             if (mesh.Name.ToString().EndsWith("_lod0", StringComparison.Ordinal)) mesh.Visible = true;

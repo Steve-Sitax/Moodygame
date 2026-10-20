@@ -24,6 +24,8 @@ from . import clothes_kit as ck
 from . import lod
 from . import paint
 from . import weights as wt
+from .cloth_lod import from_near
+from .clothes_build import tuck as tuck_finished
 
 
 class Kind:
@@ -468,11 +470,23 @@ def build(kind, make_body, ref_uv, layout, atl, tex=2048, log=print):
         if shared_apron:
             skirt_bends(ob, fit)
             skirt_weights(ob, fit)
+        for _ in range(4):
+            tuck_finished(ob, None, {("skirt", "coat")}, kind.covers,
+                          clearance=0.035, reach=0.15, agree=0.3)
+        if shared_apron:
             apron_surface(ob)
-            if cb.tris(ob) > budget:
+            # This far cage is only a fitting intermediate; from_near below
+            # replaces it with the reduced, painted near surface. Its final
+            # combined body/cloth budget is checked after masks and binding.
+            if ob == near and cb.tris(ob) > budget:
                 raise ValueError(f'Shared apron exceeds garment budget: {ob.name}, {cb.tris(ob)} > {budget}')
     cut0 += ck.cut_body(b["lod0"], kind.covers, near)
     cut1 += ck.cut_body(b["lod1"], kind.covers, cage)
+    from .cloth_fit import apron_edges, coat_apron_ease
+    apron_edges(near)
+    apron_edges(cage)
+    coat_apron_ease(near)
+    coat_apron_ease(cage)
     log("[people2]   %s layers: %s; points put back under the layer over them: %d near, %d far" % (
         kind.name, ", ".join("%s<%s" % (a, c) for a, c in sorted(order0)), m0, m1))
     # UVs after the reduction, straight into the kind's clothes rectangle; the picture painted on them
@@ -495,7 +509,7 @@ def build(kind, make_body, ref_uv, layout, atl, tex=2048, log=print):
     atl.clothes_zones("cloth_" + kind.name, paint_clothes.zones)
     if os.environ.get("PEOPLE2_SHOTS_CELLS"):
         paint.to_image("cloth_" + kind.name, crgb, os.path.join(SHOTS, "cloth_%s.png" % kind.name))
-    cb.project_uvs(cage, near)
+    from_near(cage, near, (getattr(kind, "far_budget", None) or FAR) - lod.tris(b["lod1"]), b["lod1"])
     for ob in (near, cage):
         cb.drop_layers(ob)
         flags(ob)
@@ -522,12 +536,21 @@ def build(kind, make_body, ref_uv, layout, atl, tex=2048, log=print):
     clothes_keys(b["lod0"], b, n0, 0)
     clothes_keys(b["lod1"], b, n1, 1)
     sk_n = sit_key(b["lod0"], b, n0)
-    from .cloth_fit import bind_apron
+    from .cloth_fit import bind_apron, finish_wrap
     if bind_sleeves:
         bind_sleeves(b["lod0"])
         bind_sleeves(b["lod1"])
     bind_apron(b["lod0"])
     bind_apron(b["lod1"])
+    finish_wrap(b["lod0"])
+    finish_wrap(b["lod1"])
+    from .cloth_masks import covered_hat_scalp
+    covered_hat_scalp(b["lod0"], kind.hats)
+    covered_hat_scalp(b["lod1"], kind.hats)
+    for level, ceiling in (("lod0", getattr(kind, "near_budget", None) or (NEAR_HERO if kind.hero else NEAR_CROWD)),
+                           ("lod1", getattr(kind, "far_budget", None) or FAR)):
+        if lod.tris(b[level]) > ceiling:
+            raise ValueError(f"Final body/cloth budget exceeded: {kind.name} {level}, {lod.tris(b[level])} > {ceiling}")
     if sk_n:
         log("[people2]   %s sit shape: %d points of skirt and apron" % (kind.name, sk_n))
     # baked occlusion over body and clothes (vertex colour blue; clothes_build.AO_RULE)

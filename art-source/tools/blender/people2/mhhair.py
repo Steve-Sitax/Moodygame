@@ -343,7 +343,7 @@ def styles_for(base):
     if base in ("woman", "old_woman"):
         return (list(WOMEN) if base == "woman" else ["bun", "undercap"]), [], []
     if base == "child":
-        return ["crop", "plaits"], [], []
+        return ["crop", "plaits", "capped"], [], []
     return list(MEN), list(BEARDS), list(MOUSTACHES)
 
 

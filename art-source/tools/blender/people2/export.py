@@ -46,8 +46,10 @@ def material(name, img, normal=None):
 
 def export_glb(path, plain=False, selected=False, animations=True):
     os.makedirs(os.path.dirname(path), exist_ok=True)
+    held = bpy.data.objects.get("people2_held")
+    held_meshes = set(held.children_recursive) if held is not None else set()
     for ob in bpy.data.objects:
-        if ob.type == "MESH" and ob.name.startswith("held_") and not ob.data.materials:
+        if ob.type == "MESH" and (ob in held_meshes or ob.name.startswith("held_")) and not ob.data.materials:
             # Saved authoring scenes precede build_people2's final held-material assignment.
             placeholder = bpy.data.materials.get("people2_atlas")
             if placeholder is not None:

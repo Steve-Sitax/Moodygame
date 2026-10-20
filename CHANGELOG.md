@@ -11,7 +11,7 @@ Bugs and loose ends are tracked as [issues](https://github.com/Steve-Sitax/Moody
 
 ## [Unreleased]
 
-- Rebuilt townspeople's clothes with complete underlayers, fitted necklines and sleeves, matching edge linings, stable aprons and shawls, and one pair of shoes per worker (#82, #138).
+- Rebuilt townspeople's clothes with covered inner panels and complete apron backs, fitted necklines and sleeves, matching edge linings, stable aprons and shawls, and one pair of shoes per worker (#82, #138).
 
 - Launchers refresh changed model and clothing pictures before play, preventing old cached colours from appearing as patches on rebuilt clothes (#138).
 - Townspeople keep their full body clear of static stall corners when walking near the edge of a navigation cell.
@@ -20,8 +20,6 @@ Bugs and loose ends are tracked as [issues](https://github.com/Steve-Sitax/Moody
 - Aligned pavement flag joints to kerbs and side-street rows to junctions; remapped gate, railway and Sint-Jansplein paving. Step and plinth tops, park paving and final junction checks remain unfinished (#199).
 - Street and boat washing is taken in during rain and overnight, returning between 08:00 and 18:00 in dry weather; ropes and posts stay in place (#203).
 - Removing a boat no longer leaves its sound emitter trying to read the deleted vessel.
-
-- Authoring only: cloth clearance preserves lining thickness and ignores opposite-facing folds (#82, #138). The runtime people kit is unchanged; neckline and shoulder defects remain unaccepted on the separate rebuilt candidate.
 
 - Floating scraps follow the local tide and settle onto the mud when the vlieten drain (#200).
 - Antigoon is now 3.85 m tall, with matching collision and reach, small enough to stand upright on the bed of a 4 m rui (#189).

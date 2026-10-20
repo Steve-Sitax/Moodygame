@@ -224,7 +224,7 @@ def round_hat(fit, style, colour=BLACK):
     extension = .090 if style == "wide" else .038
     rows = [np.stack((c[0] + (r + d) * np.sin(phis),
                       y0 + .003 + (.005 * np.sin(phis) ** 2 if style != "wide" else np.zeros(24)),
-                      c[2] + (r + d) * np.cos(phis)), -1) for d in (-.008, .015, extension)]
+                      c[2] + (r + d) * np.cos(phis)), -1) for d in (-.020, .015, extension)]
     brim.grid(np.array(rows), ck.hat_weights, closed=True, seam_col=12)
     brim.orient((0, 1, 0))
     ck.thicken(crown, .0025, depth=.035)

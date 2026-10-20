@@ -99,7 +99,7 @@ def round_hat(fit, colour, style):
         brim = ck.Piece("cap_brim", cloth(colour, "felt", folds=0, wear=0.35), hat=True)
         width = 0.035 if style == "bowler" else 0.045
         pts = []
-        for d in (0, width * 0.45, width):
+        for d in (-.018, width * 0.45, width):
             y = band_y - 0.005 + 0.008 * (d / width) ** 2 * np.cos(a * 2)
             pts.append(np.stack((c[0] + (radius + d) * np.sin(a), y,
                                  c[2] + (radius + d) * np.cos(a)), -1))
@@ -119,7 +119,7 @@ def oilskin_hat(fit, colour):
     radius = ck.head_support(fit, y, a) + 0.015
     brim = ck.Piece("cap_brim", crown.cloth, hat=True)
     pts = []
-    for t in (0, 0.45, 1):
+    for t in (-0.4, 0.45, 1):
         width = 0.035 + 0.075 * (1 - np.cos(a)) / 2
         pts.append(np.stack((c[0] + (radius + width * t) * np.sin(a),
                              y - 0.045 * t * (1 - np.cos(a)) / 2,

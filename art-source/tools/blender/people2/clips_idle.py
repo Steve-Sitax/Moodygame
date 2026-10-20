@@ -1572,13 +1572,13 @@ def recipes():
         return {"L": (xl, fl, yl), "R": (xr, fr, yr)}
 
     thighs = lambda: both_each(on_thigh)
-    add("man_sit_bench", "man", lambda f: sit(f, "bench", seed=111, arms=between_knees(), lean_=24.0, tilt=-12.0,
+    add("man_sit_bench", "man", lambda f: sit(f, "bench", seed=111, arms=lap(0.55, clear=0.08), lean_=24.0, tilt=-12.0,
                                                feet=feet(0.16, 0.42, 10, -0.16, 0.40, -10), knees_out=0.45),
         role="sit_bench")
     add("man_sit_chair", "man", lambda f: sit(f, "chair", seed=112, arms=thighs(), lean_=-3.0, tilt=-6.0,
                                                feet=feet(0.13, 0.46, 8, -0.12, 0.37, -6), knees_out=0.3),
         role="sit_chair")
-    add("man_sit_crate", "man", lambda f: sit(f, "crate", seed=113, arms=between_knees(0.06, 0.02), lean_=32.0,
+    add("man_sit_crate", "man", lambda f: sit(f, "crate", seed=113, arms=lap(0.62, clear=0.08), lean_=32.0,
                                                tilt=-14.0, feet=feet(0.2, 0.37, 12, -0.2, 0.37, -12), knees_out=0.6),
         role="sit_crate")
     add("man_sit_step", "man", lambda f: sit(f, "step", seed=114, arms=on_knees(), lean_=14.0, tilt=-16.0,

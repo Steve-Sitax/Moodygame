@@ -350,6 +350,8 @@ def thicken(pc, thick, depth=0.06, crease=0.08, rim_seam=True, skip=None):
     `depth` metres of an open edge (None: all of it), and a rim along every open edge (both its edges creased).
     The outer faces must already face outward (orient; their winding is made consistent here). skip: loops (lists of
     vertex ids) that get no rim (where a piece is joined to another one)."""
+    if depth is None and pc.hat:
+        pc.meta["full_facing"] = True
     pc.consistent()
     V = np.array(pc.V)
     Nv = pc.normals()
@@ -586,7 +588,9 @@ def head_axis(fit):
         top = H[:, 1].max()
         sk = H[H[:, 1] > top - 0.06]
         zc = 0.5 * (sk[:, 2].max() + sk[:, 2].min())
-        fit._haxis = (np.array((0.0, 0.0, zc)), float(top))
+        # Hair is a separate reusable mesh on MakeHuman bodies. Leave room for
+        # its capped shell and for the crown's subdivision/reduction shrinkage.
+        fit._haxis = (np.array((0.0, 0.0, zc)), float(top + 0.015))
     return fit._haxis
 
 
@@ -656,6 +660,9 @@ def build_objects(pieces, name):
     fl.data.foreach_set("uv", fab[lv].ravel())
     me.uv_layers.active = me.uv_layers["UVMap"]
     ob = bpy.data.objects.new(name, me)
+    # A bonnet or hood is visible from underneath; reduction must retain its
+    # authored full back rather than replacing it with a narrow edge facing.
+    ob["cloth_full_facings"] = [pc.name for pc in pieces if pc.meta.get("full_facing")]
     bpy.context.scene.collection.objects.link(ob)
     ek = {tuple(sorted(e.vertices)): e.index for e in me.edges}
     for a, b in seams:
@@ -737,10 +744,13 @@ def cut_body(ob, covered, over=None, reach=None, tilt=30.0):
     cov = np.array([(not str(p).startswith(("head", "eye", "hair", "finger"))) and not hand[i] and
                     bool(covered(co[i], p or "")) for i, p in enumerate(vparts)])
     closed_bodice = False
+    closed_shoulders = False
+    shoulder_cov = cov.copy()
     if over is not None:
         from .cloth_fit import protect_openings
         over_parts = wt.parts(over)
         closed_bodice = 'bodice' in over_parts
+        closed_shoulders = bool({'bodice', 'shirt', 'smock', 'coat', 'tunic', 'frock_coat'}.intersection(over_parts))
         hems = [G(v.co)[1] for v in over.data.vertices if over_parts[v.index] in ('skirt', 'habit_skirt')]
         skirt_hem = min(hems) + 0.06 if hems else None
         if skirt_hem is not None:
@@ -748,6 +758,7 @@ def cut_body(ob, covered, over=None, reach=None, tilt=30.0):
                 if (part or '').startswith('leg') and co[i, 1] > skirt_hem:
                     cov[i] = True
         protect_openings(ob, over, cov)
+        shoulder_cov = cov.copy()
         from mathutils.bvhtree import BVHTree
         tree = BVHTree.FromPolygons([tuple(v.co) for v in over.data.vertices],
                                     [tuple(f.vertices) for f in over.data.polygons])
@@ -788,9 +799,12 @@ def cut_body(ob, covered, over=None, reach=None, tilt=30.0):
     bm.verts.ensure_lookup_table()
     def covered_shoulder(face):
         parts = [vparts[v.index] or '' for v in face.verts]
-        return (closed_bodice and any(p.startswith('arm') for p in parts)
+        return (closed_shoulders and any(p.startswith('arm') for p in parts)
                 and all(p.startswith(('arm', 'neck', 'torso')) for p in parts)
-                and sum(cov[v.index] for v in face.verts) > len(face.verts) / 2)
+                and (sum(shoulder_cov[v.index] for v in face.verts) > len(face.verts) / 2
+                     or (all(p.startswith(('arm', 'torso')) for p in parts)
+                         and any(p.startswith('arm') and shoulder_cov[v.index]
+                                 for p, v in zip(parts, face.verts)))))
     gone = [f for f in bm.faces if all(cov[v.index] for v in f.verts) or covered_shoulder(f)
             or (all((vparts[v.index] or "").startswith("arm") for v in f.verts)
                 and sum(cov[v.index] for v in f.verts) > len(f.verts) / 2)]
@@ -1878,6 +1892,8 @@ def hood_cap(fit, pc, frill=None, margin=0.006, front=-18.0, back=112.0, side=11
     its front edge running over the head from ear to ear behind the hairline; with `frill` a goffered frill
     standing round that edge. Built on arcs from ear to ear over the head, tipped from the front edge (`front`
     degrees, forward of straight up) to the nape (`back`); weighted to the head."""
+    # The open cap is visible from below, beyond its narrow turned hem.
+    pc.meta["full_facing"] = True
     c, top = head_axis(fit)
     P = fit.P
     chin = bd.Y(P, 0.870)
@@ -1890,7 +1906,7 @@ def hood_cap(fit, pc, frill=None, margin=0.006, front=-18.0, back=112.0, side=11
         for u in us:
             # the arc from ear to ear over the top, tipped back about the left-right axis by v
             dirs.append(np.array((math.sin(u), math.cos(u) * math.cos(v), -math.cos(u) * math.sin(v))))
-        grid.append(head_hit(fit, centre, dirs, margin + 0.010))
+        grid.append(head_hit(fit, centre, dirs, margin + 0.025))
     pts = np.array(grid)
     ids = pc.grid(pts, hat_weights, closed=False, seam_col=None)
     pc.orient(lambda q: q - centre)

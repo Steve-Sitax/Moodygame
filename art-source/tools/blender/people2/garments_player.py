@@ -575,7 +575,10 @@ def women_dress(fit, cut):
         pieces += jk
         if cut == "jacket_apron":
             pieces += w_apron(fit, sk, bo, outer=jk[0])
-        hide_skirt_under(sk, jk[0].meta["hem"], front_gap=0.13)  # after the apron: it is laid on the skirt
+        # Keep the apron backing continuous: cutting the hidden skirt first
+        # also cut holes into the apron derived from its final surface.
+        if cut != "jacket_apron":
+            hide_skirt_under(sk, jk[0].meta["hem"], front_gap=0.13)
         return pieces
     ap = []
     if cut in ("apron", "shawl_apron"):

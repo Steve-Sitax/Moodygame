@@ -104,7 +104,7 @@ def cap(fit, rgb=0x2e2a26, style="flat", badge=False):
         angles = np.arange(32) * 2 * math.pi / 32
         r = ck.head_support(fit, y, angles) + .013
         rows = []
-        for out, dy in ((0, 0), (.035, -.004), (.046, -.001), (.048, .004)):
+        for out, dy in ((-.018, 0), (.035, -.004), (.046, -.001), (.048, .004)):
             rows.append(np.stack([c[0] + (r + out) * np.sin(angles),
                                   np.full(32, y + dy), c[2] + (r + out) * np.cos(angles)], -1))
         rim.grid(np.array(rows), ck.hat_weights, closed=True, seam_col=16)
@@ -351,12 +351,21 @@ def build_kind(kind, make_body, ref_uv, layout, atl, tex=2048, log=print):
         bm.to_mesh(ob.data)
         bm.free()
         ob.data.update()
+    from .cloth_fit import apron_edges, coat_apron_ease
+    apron_edges(near)
+    apron_edges(cage)
+    coat_apron_ease(near)
+    coat_apron_ease(cage)
+    from .cloth_drape import pad_surface
+    pad_surface(near)
+    if lod.tris(near) + lod.tris(b["lod0"]) > 14000:
+        raise ValueError("Fitted shoulder pad exceeds the shared cloth budget: " + kind.name)
     scales={pc.name:pc.scale for pc in pieces}
     scales.update({"in_"+pc.name:pc.scale for pc in pieces})
     ck.unwrap(near,scales)
     ck.unwrap(cage,scales)
-    # Project every reduced face into one painted near triangle of its garment.
-    transfer_uv(near,cage)
+    from .cloth_lod import from_near
+    from_near(cage,near,2500-lod.tris(b["lod1"]),b["lod1"])
     crgb,cnrm=paint_pair(near,cage,pieces,fit,tex)
     atl.put("cloth_"+kind.name,crgb,cnrm)
     atl.clothes_zones("cloth_"+kind.name,dr.paint_clothes.zones)
@@ -372,6 +381,9 @@ def build_kind(kind, make_body, ref_uv, layout, atl, tex=2048, log=print):
     dr.join(b["lod1"],cage)
     dr.clothes_keys(b["lod0"],b,n0,0)
     dr.clothes_keys(b["lod1"],b,n1,1)
+    from .cloth_fit import bind_apron
+    bind_apron(b["lod0"])
+    bind_apron(b["lod1"])
     b.update(vparts=wt.parts(b["lod0"]),cparts=wt.parts(b["lod1"]),kind=kind,face=face,pieces=pieces,fit=fit)
     b["counts"].update(lod0=lod.tris(b["lod0"]),lod1=lod.tris(b["lod1"]))
     log("[workers] kind %s: %d / %d triangles; cut %d/%d; pieces %s" %
@@ -417,42 +429,6 @@ def paint_pair(near,far,pieces,fit,size):
     normal=np.where(covered[...,None],near_nrm,far_nrm)
     dr.paint_clothes.zones=np.where(covered,near_zones,far_zones)
     return rgb,normal
-
-
-def transfer_uv(near,far):
-    """Project by garment into painted triangles, preserving atlas boundaries."""
-    from mathutils.bvhtree import BVHTree
-    from mathutils import Vector
-    from mathutils.geometry import barycentric_transform
-    near.data.calc_loop_triangles()
-    triangles=list(near.data.loop_triangles)
-    parts=wt.parts(near)
-    fparts=wt.parts(far)
-    uv=near.data.uv_layers.active.data
-    points=[v.co[:] for v in near.data.vertices]
-    bypart={}
-    for i,t in enumerate(triangles):
-        bypart.setdefault(parts[t.vertices[0]],[]).append(i)
-    def tree(ids):return BVHTree.FromPolygons(points,[triangles[i].vertices[:] for i in ids],all_triangles=True)
-    trees={p:tree(ids) for p,ids in bypart.items()}
-    out=far.data.uv_layers.active.data
-    for face in far.data.polygons:
-        part=fparts[face.vertices[0]]
-        if part not in trees:continue
-        centre=sum((far.data.vertices[v].co for v in face.vertices),Vector())/len(face.vertices)
-        _,_,index,_=trees[part].find_nearest(centre)
-        chosen=bypart[part][index]
-        # Keep the reduced face inside one painted triangle. A chord across a
-        # concave chart can cut through another garment's packed UV island.
-        vertices=triangles[chosen].vertices
-        local=BVHTree.FromPolygons([points[v] for v in vertices],[(0,1,2)],all_triangles=True)
-        for li in face.loop_indices:
-            q=far.data.vertices[far.data.loops[li].vertex_index].co
-            loc,_,index,_=local.find_nearest(q)
-            t=triangles[chosen]
-            uvs=[Vector((*uv[l].uv,0)) for l in t.loops]
-            value=barycentric_transform(loc,*[near.data.vertices[v].co for v in t.vertices],*uvs)
-            out[li].uv=value[:2]
 
 
 def check_sheets(dressed, bodies, actions, move_clips, held_obs, directory, rig_path):
