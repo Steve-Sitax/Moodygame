@@ -104,7 +104,9 @@ def cap(fit, rgb=0x2e2a26, style="flat", badge=False):
         angles = np.arange(32) * 2 * math.pi / 32
         r = ck.head_support(fit, y, angles) + .013
         rows = []
-        for out, dy in ((-.018, 0), (.035, -.004), (.046, -.001), (.048, .004)):
+        # A worker's bowler or topper has a narrow felt brim: 34 / 38 mm (was 48 mm, wider than the gentleman's).
+        w = .034 if style == "bowler" else .038
+        for out, dy in ((-.018, 0), (w - .012, -.004), (w - .002, -.001), (w, .004)):
             rows.append(np.stack([c[0] + (r + out) * np.sin(angles),
                                   np.full(32, y + dy), c[2] + (r + out) * np.cos(angles)], -1))
         rim.grid(np.array(rows), ck.hat_weights, closed=True, seam_col=16)
@@ -116,7 +118,8 @@ def cap(fit, rgb=0x2e2a26, style="flat", badge=False):
             radius=ck.head_support(fit,y+.012,a)+.013
             height=max(.095,top+.020-y)
             rings=[]
-            for t,factor in ((0,1),(.12,1),(.40,.95),(.70,.78),(.90,.48),(.985,.16)):
+            # straight sides and a rounded top, as the foreman's; a dome from 40 % up read as a helmet (#82)
+            for t,factor in ((0,1),(.12,1),(.45,.98),(.72,.92),(.88,.74),(.96,.46),(.995,.15)):
                 rings.append(np.stack([c[0]+radius*factor*np.sin(a),np.full(24,y+height*t-(.012 if t==0 else 0)),
                                        c[2]+radius*factor*np.cos(a)],-1))
             ids=crown.grid(np.array(rings),ck.hat_weights,closed=True,seam_col=12)
@@ -130,6 +133,8 @@ def cap(fit, rgb=0x2e2a26, style="flat", badge=False):
     if rim is not None:
         ck.thicken(rim, .003, depth=None, crease=.05)
         out.append(rim)
+    if style in ("bowler", "top"):
+        ck.tip_back(out, bd.Y(fit.P, .870) + fit.P["hs"] * .125)
     if badge:
         def brass(ctx):
             pos = fit.snap((0, bd.Y(fit.P, .95), .15), .018, ("head", "hair"))

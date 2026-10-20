@@ -54135,22 +54135,22 @@
    "formula": "colour = layer + T * (chosen - default[slot]) on the texels of a slot (sRGB-encoded values, as stored); T = <name>_tint.png red x 2; slot = green x 255 / 16 (0 fixed); check bars = blue (a plain shawl: layer / (1 - blue x 0.5) on slot coat); <name> is the kind, or held_jef for the hats and shoes",
    "checks": {
     "jef_m_shirt": {
-     "texels": 302575,
+     "texels": 302519,
      "meanAbs": 0.0004,
      "p99Abs": 0.0,
      "maxAbs": 0.6
     },
     "jef_m_jacket": {
-     "texels": 322637,
+     "texels": 322504,
      "meanAbs": 0.0005,
      "p99Abs": 0.0,
-     "maxAbs": 0.647
+     "maxAbs": 0.658
     },
     "jef_m_coat": {
-     "texels": 318495,
+     "texels": 317016,
      "meanAbs": 0.0005,
      "p99Abs": 0.0,
-     "maxAbs": 0.523
+     "maxAbs": 0.594
     }
    }
   },
@@ -54692,7 +54692,7 @@
    "jef_hat_knitcap": {
     "sex": "m",
     "socket": "headTop",
-    "triangles": 1298,
+    "triangles": 1300,
     "slots": [
      "boots",
      "hat"
@@ -54716,7 +54716,7 @@
    "jef_hat_tophat": {
     "sex": "m",
     "socket": "headTop",
-    "triangles": 1598,
+    "triangles": 1600,
     "slots": [
      "boots",
      "hat"
@@ -54780,7 +54780,7 @@
    "jef_hat_bonnet": {
     "sex": "f",
     "socket": "headTop",
-    "triangles": 1500,
+    "triangles": 1498,
     "slots": [
      "boots",
      "hat"
@@ -55278,33 +55278,33 @@
     "ride": "the smock's skirt rides up through the saddle"
    },
    "triangles": {
-    "lod0": 12473,
-    "lod1": 2448
+    "lod0": 12465,
+    "lod1": 2450
    },
    "pieceTriangles": {
     "lod0": {
-     "smock": 2350,
-     "trousers": 1447,
+     "smock": 2352,
+     "trousers": 1449,
      "klompL": 494,
      "klomp_topL": 348,
      "klompR": 494,
      "klomp_topR": 346,
-     "cap": 454,
+     "cap": 438,
      "cap_peak": 152,
-     "kerchief": 560,
+     "kerchief": 562,
      "kerchief_ends": 128,
-     "pad": 343
+     "pad": 345
     },
     "lod1": {
-     "smock": 288,
+     "smock": 291,
      "trousers": 268,
-     "klompL": 90,
+     "klompL": 92,
      "klomp_topL": 86,
-     "klompR": 90,
+     "klompR": 92,
      "klomp_topR": 93,
-     "cap": 122,
+     "cap": 119,
      "cap_peak": 72,
-     "kerchief": 174,
+     "kerchief": 172,
      "kerchief_ends": 60,
      "pad": 131
     }
@@ -55314,8 +55314,8 @@
      "lod0": 14832,
      "lod1": 3662
     },
-    "density": 277,
-    "rectShare": 0.76,
+    "density": 280,
+    "rectShare": 0.766,
     "stretched2": 0.0191,
     "worstStretch": 5.03,
     "islandCuts": 5,
@@ -55326,11 +55326,11 @@
     "reliefPoints": 1833,
     "occlusion": {
      "lod0": [
-      0.316,
+      0.317,
       1.0
      ],
      "lod1": [
-      0.341,
+      0.342,
       1.0
      ]
     }
@@ -55427,30 +55427,30 @@
    },
    "avoid": {},
    "triangles": {
-    "lod0": 12357,
-    "lod1": 2450
+    "lod0": 12347,
+    "lod1": 2451
    },
    "pieceTriangles": {
     "lod0": {
-     "smock": 2402,
-     "trousers": 1467,
+     "smock": 2408,
+     "trousers": 1475,
      "kerchief": 604,
      "kerchief_ends": 128,
      "pad": 352,
-     "boots": 820,
+     "boots": 824,
      "soles": 612,
-     "cap": 492,
+     "cap": 464,
      "cap_peak": 152
     },
     "lod1": {
-     "smock": 328,
-     "trousers": 292,
+     "smock": 325,
+     "trousers": 294,
      "kerchief": 198,
      "kerchief_ends": 64,
      "pad": 149,
      "boots": 132,
      "soles": 114,
-     "cap": 129,
+     "cap": 131,
      "cap_peak": 76
     }
    },
@@ -55547,7 +55547,7 @@
    },
    "avoid": {},
    "triangles": {
-    "lod0": 13072,
+    "lod0": 13074,
     "lod1": 2485
    },
    "pieceTriangles": {
@@ -55557,9 +55557,9 @@
      "kerchief": 616,
      "kerchief_ends": 128,
      "trousers": 1484,
-     "boots": 824,
+     "boots": 828,
      "soles": 616,
-     "cap": 414,
+     "cap": 412,
      "pad": 824
     },
     "lod1": {
@@ -55570,8 +55570,8 @@
      "trousers": 244,
      "boots": 108,
      "soles": 94,
-     "cap": 121,
-     "pad": 178
+     "cap": 118,
+     "pad": 181
     }
    },
    "clothChecks": {},
@@ -55667,19 +55667,19 @@
    },
    "avoid": {},
    "triangles": {
-    "lod0": 12279,
-    "lod1": 2450
+    "lod0": 12277,
+    "lod1": 2449
    },
    "pieceTriangles": {
     "lod0": {
-     "smock": 2343,
-     "trousers": 1458,
+     "smock": 2347,
+     "trousers": 1460,
      "kerchief": 596,
      "kerchief_ends": 128,
      "pad": 362,
-     "boots": 824,
+     "boots": 828,
      "soles": 616,
-     "cap": 484,
+     "cap": 472,
      "cap_peak": 152
     },
     "lod1": {
@@ -55688,9 +55688,9 @@
      "kerchief": 194,
      "kerchief_ends": 68,
      "pad": 145,
-     "boots": 132,
-     "soles": 116,
-     "cap": 130,
+     "boots": 134,
+     "soles": 114,
+     "cap": 129,
      "cap_peak": 76
     }
    },
@@ -55791,7 +55791,7 @@
    "avoid": {},
    "triangles": {
     "lod0": 12322,
-    "lod1": 2239
+    "lod1": 2237
    },
    "pieceTriangles": {
     "lod0": {
@@ -55799,14 +55799,14 @@
      "waistcoat": 788,
      "kerchief": 510,
      "kerchief_ends": 128,
-     "coat": 2168,
+     "coat": 2172,
      "coat_collar": 428,
      "cuffL": 192,
      "cuffR": 192,
-     "trousers": 1247,
+     "trousers": 1249,
      "boots": 652,
      "soles": 552,
-     "cap": 388,
+     "cap": 382,
      "cap_peak": 152
     },
     "lod1": {
@@ -55814,14 +55814,14 @@
      "waistcoat": 168,
      "kerchief": 138,
      "kerchief_ends": 60,
-     "coat": 221,
+     "coat": 218,
      "coat_collar": 132,
      "cuffL": 80,
      "cuffR": 80,
-     "trousers": 154,
-     "boots": 62,
+     "trousers": 158,
+     "boots": 64,
      "soles": 60,
-     "cap": 93,
+     "cap": 89,
      "cap_peak": 68
     }
    },
@@ -55916,28 +55916,28 @@
    },
    "avoid": {},
    "triangles": {
-    "lod0": 12269,
-    "lod1": 2427
+    "lod0": 12265,
+    "lod1": 2428
    },
    "pieceTriangles": {
     "lod0": {
-     "shirt": 2042,
-     "kerchief": 704,
+     "shirt": 2052,
+     "kerchief": 708,
      "kerchief_ends": 128,
-     "trousers": 1667,
-     "boots": 936,
+     "trousers": 1673,
+     "boots": 948,
      "soles": 680,
-     "cap": 560,
+     "cap": 524,
      "cap_peak": 168
     },
     "lod1": {
-     "shirt": 338,
-     "kerchief": 234,
+     "shirt": 348,
+     "kerchief": 232,
      "kerchief_ends": 68,
-     "trousers": 309,
-     "boots": 148,
+     "trousers": 312,
+     "boots": 152,
      "soles": 126,
-     "cap": 152,
+     "cap": 138,
      "cap_peak": 88
     }
    },
@@ -56032,27 +56032,27 @@
    },
    "avoid": {},
    "triangles": {
-    "lod0": 12800,
+    "lod0": 12789,
     "lod1": 2473
    },
    "pieceTriangles": {
     "lod0": {
-     "smock": 2361,
-     "trousers": 1425,
-     "kerchief": 580,
+     "smock": 2366,
+     "trousers": 1429,
+     "kerchief": 588,
      "kerchief_ends": 128,
      "pad": 350,
-     "boots": 808,
+     "boots": 812,
      "soles": 608,
-     "sack_hood": 1236
+     "sack_hood": 1204
     },
     "lod1": {
-     "smock": 317,
+     "smock": 315,
      "trousers": 279,
-     "kerchief": 198,
+     "kerchief": 194,
      "kerchief_ends": 68,
-     "pad": 149,
-     "boots": 124,
+     "pad": 153,
+     "boots": 126,
      "soles": 108,
      "sack_hood": 272
     }
@@ -56159,51 +56159,40 @@
    },
    "avoid": {},
    "triangles": {
-    "lod0": 12579,
-    "lod1": 2292
+    "lod0": 12971,
+    "lod1": 2326
    },
    "pieceTriangles": {
     "lod0": {
      "shirt": 996,
-     "kerchief": 536,
+     "kerchief": 538,
      "kerchief_ends": 128,
      "coat": 2169,
      "coat_collar": 428,
      "cuffL": 188,
      "cuffR": 188,
-     "trousers": 1286,
+     "trousers": 1288,
      "boots": 692,
      "soles": 560,
-     "cap": 494,
-     "cap_peak": 716
+     "cap": 500,
+     "cap_peak": 700
     },
     "lod1": {
      "shirt": 188,
      "kerchief": 144,
      "kerchief_ends": 60,
-     "coat": 232,
+     "coat": 236,
      "coat_collar": 128,
      "cuffL": 80,
      "cuffR": 80,
-     "trousers": 169,
+     "trousers": 171,
      "boots": 70,
-     "soles": 64,
-     "cap": 104,
-     "cap_peak": 172
+     "soles": 66,
+     "cap": 114,
+     "cap_peak": 160
     }
    },
-   "clothChecks": {
-    "occlusion": {
-     "lod0": [
-      0.332,
-      1.0
-     ],
-     "lod1": [
-      0.34,
-      1.0
-     ]
-    }
-   },
+   "clothChecks": {},
    "note": "sweep; fitted period workwear, closed hems, occupational wear"
   },
   "sweep_boy": {
@@ -56296,23 +56285,23 @@
    },
    "avoid": {},
    "triangles": {
-    "lod0": 13080,
+    "lod0": 13076,
     "lod1": 2471
    },
    "pieceTriangles": {
     "lod0": {
-     "shirt": 2695,
-     "kerchief": 932,
+     "shirt": 2699,
+     "kerchief": 936,
      "kerchief_ends": 136,
-     "trousers": 2113,
-     "cap": 644
+     "trousers": 2117,
+     "cap": 628
     },
     "lod1": {
-     "shirt": 409,
-     "kerchief": 296,
+     "shirt": 405,
+     "kerchief": 294,
      "kerchief_ends": 84,
-     "trousers": 376,
-     "cap": 185
+     "trousers": 380,
+     "cap": 187
     }
    },
    "clothChecks": {},
@@ -56413,55 +56402,44 @@
    },
    "avoid": {},
    "triangles": {
-    "lod0": 12856,
-    "lod1": 2325
+    "lod0": 13252,
+    "lod1": 2358
    },
    "pieceTriangles": {
     "lod0": {
-     "shirt": 925,
+     "shirt": 929,
      "kerchief": 480,
      "kerchief_ends": 128,
-     "coat": 1970,
+     "coat": 1982,
      "coat_collar": 400,
      "cuffL": 192,
      "cuffR": 192,
-     "trousers": 1157,
-     "boots": 560,
+     "trousers": 1159,
+     "boots": 568,
      "soles": 524,
-     "cap": 428,
+     "cap": 402,
      "cap_peak": 652,
-     "apron": 512,
-     "apron_band": 496
+     "apron": 508,
+     "apron_band": 504
     },
     "lod1": {
-     "shirt": 152,
+     "shirt": 156,
      "kerchief": 118,
      "kerchief_ends": 60,
-     "coat": 191,
+     "coat": 186,
      "coat_collar": 108,
      "cuffL": 84,
      "cuffR": 84,
-     "trousers": 136,
+     "trousers": 135,
      "boots": 52,
      "soles": 52,
-     "cap": 73,
-     "cap_peak": 136,
-     "apron": 116,
-     "apron_band": 132
+     "cap": 71,
+     "cap_peak": 144,
+     "apron": 112,
+     "apron_band": 136
     }
    },
-   "clothChecks": {
-    "occlusion": {
-     "lod0": [
-      0.342,
-      1.0
-     ],
-     "lod1": [
-      0.322,
-      1.0
-     ]
-    }
-   },
+   "clothChecks": {},
    "note": "grinder; fitted period workwear, closed hems, occupational wear"
   },
   "ragman": {
@@ -56556,51 +56534,40 @@
    },
    "avoid": {},
    "triangles": {
-    "lod0": 12705,
-    "lod1": 2324
+    "lod0": 12969,
+    "lod1": 2339
    },
    "pieceTriangles": {
     "lod0": {
-     "shirt": 1037,
+     "shirt": 1039,
      "kerchief": 538,
      "kerchief_ends": 128,
-     "coat": 2156,
+     "coat": 2162,
      "coat_collar": 428,
      "cuffL": 188,
      "cuffR": 188,
-     "trousers": 1285,
+     "trousers": 1293,
      "boots": 680,
      "soles": 556,
-     "cap": 478,
+     "cap": 472,
      "cap_peak": 724
     },
     "lod1": {
-     "shirt": 192,
-     "kerchief": 150,
+     "shirt": 188,
+     "kerchief": 146,
      "kerchief_ends": 60,
-     "coat": 233,
+     "coat": 237,
      "coat_collar": 136,
      "cuffL": 84,
      "cuffR": 84,
-     "trousers": 164,
+     "trousers": 163,
      "boots": 68,
      "soles": 62,
-     "cap": 94,
+     "cap": 93,
      "cap_peak": 172
     }
    },
-   "clothChecks": {
-    "occlusion": {
-     "lod0": [
-      0.328,
-      1.0
-     ],
-     "lod1": [
-      0.335,
-      1.0
-     ]
-    }
-   },
+   "clothChecks": {},
    "note": "ragman; fitted period workwear, closed hems, occupational wear"
   },
   "baker_boy": {
@@ -56691,8 +56658,8 @@
    },
    "avoid": {},
    "triangles": {
-    "lod0": 13065,
-    "lod1": 2482
+    "lod0": 13069,
+    "lod1": 2485
    },
    "pieceTriangles": {
     "lod0": {
@@ -56702,8 +56669,8 @@
      "trousers": 1513,
      "boots": 896,
      "soles": 660,
-     "cap": 480,
-     "apron": 712,
+     "cap": 476,
+     "apron": 720,
      "apron_band": 576
     },
     "lod1": {
@@ -56713,8 +56680,8 @@
      "trousers": 257,
      "boots": 116,
      "soles": 98,
-     "cap": 131,
-     "apron": 188,
+     "cap": 130,
+     "apron": 192,
      "apron_band": 176
     }
    },
@@ -56813,8 +56780,8 @@
    },
    "avoid": {},
    "triangles": {
-    "lod0": 12703,
-    "lod1": 2329
+    "lod0": 12959,
+    "lod1": 2341
    },
    "pieceTriangles": {
     "lod0": {
@@ -56835,29 +56802,18 @@
      "shirt": 188,
      "kerchief": 146,
      "kerchief_ends": 60,
-     "coat": 239,
+     "coat": 235,
      "coat_collar": 132,
      "cuffL": 84,
      "cuffR": 84,
      "trousers": 164,
      "boots": 66,
-     "soles": 62,
-     "cap": 107,
-     "cap_peak": 172
+     "soles": 64,
+     "cap": 106,
+     "cap_peak": 168
     }
    },
-   "clothChecks": {
-    "occlusion": {
-     "lod0": [
-      0.329,
-      1.0
-     ],
-     "lod1": [
-      0.343,
-      1.0
-     ]
-    }
-   },
+   "clothChecks": {},
    "note": "beggar; fitted period workwear, closed hems, occupational wear"
   },
   "fishwife_a": {
@@ -56977,35 +56933,35 @@
     "ride": "the skirt"
    },
    "triangles": {
-    "lod0": 13082,
-    "lod1": 2481
+    "lod0": 13063,
+    "lod1": 2494
    },
    "pieceTriangles": {
     "lod0": {
-     "skirt": 1879,
+     "skirt": 1893,
      "bodice": 897,
      "chemise": 332,
      "apron_band": 448,
-     "shawl": 864,
+     "shawl": 868,
      "shawl_fringe": 496,
      "cap": 444,
-     "cap_frill": 268,
+     "cap_frill": 272,
      "boots": 296,
      "soles": 440,
-     "apron": 988
+     "apron": 964
     },
     "lod1": {
-     "skirt": 264,
-     "bodice": 157,
+     "skirt": 266,
+     "bodice": 161,
      "chemise": 128,
-     "apron_band": 132,
-     "shawl": 188,
-     "shawl_fringe": 69,
+     "apron_band": 136,
+     "shawl": 192,
+     "shawl_fringe": 70,
      "cap": 100,
      "cap_frill": 108,
      "boots": 54,
-     "soles": 64,
-     "apron": 192
+     "soles": 66,
+     "apron": 188
     }
    },
    "clothChecks": {
@@ -57013,10 +56969,10 @@
      "lod0": 19552,
      "lod1": 4816
     },
-    "density": 220,
-    "rectShare": 0.72,
-    "stretched2": 0.0223,
-    "worstStretch": 12048.96,
+    "density": 222,
+    "rectShare": 0.719,
+    "stretched2": 0.0233,
+    "worstStretch": 10357.1,
     "islandCuts": 4,
     "hiddenDeleted": {
      "lod0": {},
@@ -57025,11 +56981,11 @@
     "reliefPoints": 1910,
     "occlusion": {
      "lod0": [
-      0.35,
+      0.357,
       1.0
      ],
      "lod1": [
-      0.302,
+      0.305,
       1.0
      ]
     }
@@ -57180,9 +57136,9 @@
      "lod1": 3218
     },
     "density": 258,
-    "rectShare": 0.752,
-    "stretched2": 0.0237,
-    "worstStretch": 30.67,
+    "rectShare": 0.753,
+    "stretched2": 0.0234,
+    "worstStretch": 30.54,
     "islandCuts": 5,
     "hiddenDeleted": {
      "lod0": {},
@@ -57191,11 +57147,11 @@
     "reliefPoints": 0,
     "occlusion": {
      "lod0": [
-      0.354,
+      0.353,
       1.0
      ],
      "lod1": [
-      0.342,
+      0.341,
       1.0
      ]
     }
@@ -57322,36 +57278,36 @@
     "ride": "the skirt"
    },
    "triangles": {
-    "lod0": 12680,
-    "lod1": 2455
+    "lod0": 12682,
+    "lod1": 2465
    },
    "pieceTriangles": {
     "lod0": {
-     "skirt": 1382,
-     "bodice": 1359,
+     "skirt": 1390,
+     "bodice": 1379,
      "cuffs": 352,
      "collar": 452,
      "apron_bib": 138,
      "apron_band": 408,
-     "apron_bow": 581,
-     "cap": 404,
+     "apron_bow": 595,
+     "cap": 368,
      "cap_frill": 212,
-     "cap_lappets": 176,
+     "cap_lappets": 168,
      "boots": 344,
-     "soles": 360,
-     "apron": 1008
+     "soles": 364,
+     "apron": 1016
     },
     "lod1": {
-     "skirt": 162,
-     "bodice": 156,
+     "skirt": 165,
+     "bodice": 162,
      "cuffs": 128,
      "collar": 140,
      "apron_bib": 68,
      "apron_band": 136,
-     "apron_bow": 151,
-     "cap": 100,
+     "apron_bow": 157,
+     "cap": 104,
      "cap_frill": 96,
-     "cap_lappets": 92,
+     "cap_lappets": 88,
      "boots": 50,
      "soles": 52,
      "apron": 164
@@ -57362,10 +57318,10 @@
      "lod0": 14672,
      "lod1": 3628
     },
-    "density": 261,
-    "rectShare": 0.764,
-    "stretched2": 0.0181,
-    "worstStretch": 11930.89,
+    "density": 267,
+    "rectShare": 0.78,
+    "stretched2": 0.0185,
+    "worstStretch": 18398.07,
     "islandCuts": 5,
     "hiddenDeleted": {
      "lod0": {},
@@ -57374,11 +57330,11 @@
     "reliefPoints": 0,
     "occlusion": {
      "lod0": [
-      0.384,
+      0.392,
       1.0
      ],
      "lod1": [
-      0.335,
+      0.346,
       1.0
      ]
     }
@@ -57496,17 +57452,17 @@
     "ride": "the skirt"
    },
    "triangles": {
-    "lod0": 12728,
-    "lod1": 2441
+    "lod0": 12726,
+    "lod1": 2437
    },
    "pieceTriangles": {
     "lod0": {
-     "skirt": 1453,
-     "bodice": 1457,
+     "skirt": 1447,
+     "bodice": 1469,
      "apron_band": 428,
      "shawl": 780,
      "shawl_fringe": 576,
-     "cap": 564,
+     "cap": 548,
      "cap_brim": 244,
      "cap_ties": 176,
      "boots": 368,
@@ -57516,15 +57472,15 @@
     "lod1": {
      "skirt": 194,
      "bodice": 175,
-     "apron_band": 144,
+     "apron_band": 148,
      "shawl": 192,
-     "shawl_fringe": 184,
+     "shawl_fringe": 180,
      "cap": 136,
      "cap_brim": 108,
      "cap_ties": 42,
      "boots": 58,
      "soles": 58,
-     "apron": 188
+     "apron": 184
     }
    },
    "clothChecks": {
@@ -57532,10 +57488,10 @@
      "lod0": 14072,
      "lod1": 3484
     },
-    "density": 235,
-    "rectShare": 0.72,
-    "stretched2": 0.0099,
-    "worstStretch": 7.27,
+    "density": 238,
+    "rectShare": 0.721,
+    "stretched2": 0.0118,
+    "worstStretch": 19.63,
     "islandCuts": 4,
     "hiddenDeleted": {
      "lod0": {},
@@ -57544,11 +57500,11 @@
     "reliefPoints": 0,
     "occlusion": {
      "lod0": [
-      0.363,
+      0.373,
       1.0
      ],
      "lod1": [
-      0.328,
+      0.327,
       1.0
      ]
     }
@@ -57664,7 +57620,7 @@
    },
    "triangles": {
     "lod0": 13642,
-    "lod1": 2493
+    "lod1": 2495
    },
    "pieceTriangles": {
     "lod0": {
@@ -57672,7 +57628,7 @@
      "bodice": 2356,
      "shawl": 1468,
      "shawl_tie": 464,
-     "kerchief": 786,
+     "kerchief": 792,
      "kerchief_knot": 234,
      "kerchief_point": 124,
      "clogs": 960
@@ -57682,7 +57638,7 @@
      "bodice": 281,
      "shawl": 316,
      "shawl_tie": 176,
-     "kerchief": 159,
+     "kerchief": 161,
      "kerchief_knot": 58,
      "kerchief_point": 68,
      "clogs": 120
@@ -57705,7 +57661,7 @@
     "reliefPoints": 0,
     "occlusion": {
      "lod0": [
-      0.318,
+      0.317,
       1.0
      ],
      "lod1": [
@@ -57836,36 +57792,36 @@
     "ride": "the skirt"
    },
    "triangles": {
-    "lod0": 13025,
-    "lod1": 2439
+    "lod0": 13016,
+    "lod1": 2450
    },
    "pieceTriangles": {
     "lod0": {
-     "skirt": 1556,
-     "bodice": 1697,
-     "collar": 460,
+     "skirt": 1560,
+     "bodice": 1716,
+     "collar": 464,
      "apron_band": 440,
      "apron_bib": 155,
-     "cap": 584,
-     "cap_frill": 244,
-     "cap_frill2": 248,
-     "cap_lappets": 184,
-     "boots": 436,
+     "cap": 552,
+     "cap_frill": 248,
+     "cap_frill2": 252,
+     "cap_lappets": 180,
+     "boots": 440,
      "soles": 380,
-     "apron": 1224
+     "apron": 1220
     },
     "lod1": {
-     "skirt": 194,
-     "bodice": 170,
+     "skirt": 195,
+     "bodice": 174,
      "collar": 148,
      "apron_band": 152,
      "apron_bib": 84,
-     "cap": 120,
+     "cap": 124,
      "cap_frill": 108,
-     "cap_frill2": 108,
-     "cap_lappets": 96,
+     "cap_frill2": 112,
+     "cap_lappets": 92,
      "boots": 60,
-     "soles": 56,
+     "soles": 58,
      "apron": 188
     }
    },
@@ -57874,10 +57830,10 @@
      "lod0": 12672,
      "lod1": 3140
     },
-    "density": 248,
-    "rectShare": 0.75,
-    "stretched2": 0.0108,
-    "worstStretch": 7.5,
+    "density": 255,
+    "rectShare": 0.767,
+    "stretched2": 0.0113,
+    "worstStretch": 14.23,
     "islandCuts": 5,
     "hiddenDeleted": {
      "lod0": {},
@@ -57886,11 +57842,11 @@
     "reliefPoints": 0,
     "occlusion": {
      "lod0": [
-      0.366,
+      0.382,
       1.0
      ],
      "lod1": [
-      0.328,
+      0.344,
       1.0
      ]
     }
@@ -58009,31 +57965,31 @@
    },
    "triangles": {
     "lod0": 13992,
-    "lod1": 2410
+    "lod1": 2425
    },
    "pieceTriangles": {
     "lod0": {
-     "skirt": 773,
-     "bodice": 3017,
-     "cap": 580,
-     "cap_frill": 244,
+     "skirt": 771,
+     "bodice": 3019,
+     "cap": 568,
+     "cap_frill": 240,
      "cap_frill2": 248,
-     "cap_ties": 646,
+     "cap_ties": 662,
      "boots": 384,
      "soles": 368,
      "shawl": 1387,
      "shawl_fringe": 896
     },
     "lod1": {
-     "skirt": 153,
-     "bodice": 226,
-     "cap": 148,
+     "skirt": 154,
+     "bodice": 227,
+     "cap": 152,
      "cap_frill": 112,
      "cap_frill2": 116,
-     "cap_ties": 150,
+     "cap_ties": 154,
      "boots": 60,
      "soles": 60,
-     "shawl": 190,
+     "shawl": 195,
      "shawl_fringe": 220
     }
    },
@@ -58042,10 +57998,10 @@
      "lod0": 29448,
      "lod1": 6338
     },
-    "density": 226,
-    "rectShare": 0.724,
-    "stretched2": 0.0341,
-    "worstStretch": 196.77,
+    "density": 234,
+    "rectShare": 0.769,
+    "stretched2": 0.0354,
+    "worstStretch": 125.51,
     "islandCuts": 42,
     "hiddenDeleted": {
      "lod0": {},
@@ -58054,11 +58010,11 @@
     "reliefPoints": 0,
     "occlusion": {
      "lod0": [
-      0.377,
+      0.388,
       1.0
      ],
      "lod1": [
-      0.351,
+      0.37,
       1.0
      ]
     }
@@ -58181,30 +58137,30 @@
     "ride": "the skirt"
    },
    "triangles": {
-    "lod0": 12763,
-    "lod1": 2440
+    "lod0": 12772,
+    "lod1": 2447
    },
    "pieceTriangles": {
     "lod0": {
-     "skirt": 1340,
-     "bodice": 1180,
+     "skirt": 1349,
+     "bodice": 1186,
      "shawl": 748,
      "apron_band": 432,
-     "cap": 524,
+     "cap": 508,
      "cap_frill": 236,
-     "cap_ties": 588,
-     "clogs": 508,
-     "apron": 992
+     "cap_ties": 596,
+     "clogs": 512,
+     "apron": 996
     },
     "lod1": {
-     "skirt": 190,
-     "bodice": 167,
-     "shawl": 188,
+     "skirt": 191,
+     "bodice": 171,
+     "shawl": 192,
      "apron_band": 156,
-     "cap": 132,
+     "cap": 128,
      "cap_frill": 108,
      "cap_ties": 146,
-     "clogs": 64,
+     "clogs": 66,
      "apron": 184
     }
    },
@@ -58213,10 +58169,10 @@
      "lod0": 14368,
      "lod1": 3556
     },
-    "density": 257,
-    "rectShare": 0.765,
+    "density": 263,
+    "rectShare": 0.787,
     "stretched2": 0.0273,
-    "worstStretch": 31.25,
+    "worstStretch": 24.7,
     "islandCuts": 4,
     "hiddenDeleted": {
      "lod0": {},
@@ -58225,11 +58181,11 @@
     "reliefPoints": 0,
     "occlusion": {
      "lod0": [
-      0.345,
+      0.355,
       1.0
      ],
      "lod1": [
-      0.316,
+      0.331,
       1.0
      ]
     }
@@ -58357,8 +58313,8 @@
     },
     "density": 381,
     "rectShare": 0.747,
-    "stretched2": 0.0102,
-    "worstStretch": 22.63,
+    "stretched2": 0.0103,
+    "worstStretch": 33.48,
     "islandCuts": 4,
     "hiddenDeleted": {
      "lod0": {},
@@ -58371,7 +58327,7 @@
       1.0
      ],
      "lod1": [
-      0.255,
+      0.256,
       1.0
      ]
     }
@@ -58678,7 +58634,7 @@
     "density": 219,
     "rectShare": 0.698,
     "stretched2": 0.0084,
-    "worstStretch": 270.03,
+    "worstStretch": 269.51,
     "islandCuts": 20,
     "hiddenDeleted": {
      "lod0": {},
@@ -58687,11 +58643,11 @@
     "reliefPoints": 0,
     "occlusion": {
      "lod0": [
-      0.396,
+      0.395,
       1.0
      ],
      "lod1": [
-      0.385,
+      0.386,
       1.0
      ]
     }
@@ -58809,40 +58765,40 @@
     "beg": "a beguine"
    },
    "triangles": {
-    "lod0": 13154,
-    "lod1": 2477
+    "lod0": 13130,
+    "lod1": 2478
    },
    "pieceTriangles": {
     "lod0": {
-     "skirt": 1094,
-     "bodice": 2324,
+     "skirt": 1096,
+     "bodice": 2338,
      "collar": 508,
-     "cap": 988,
-     "cap_frill": 268,
-     "falie": 1562,
-     "boots": 636,
-     "soles": 444
+     "cap": 928,
+     "cap_frill": 264,
+     "falie": 1574,
+     "boots": 644,
+     "soles": 448
     },
     "lod1": {
-     "skirt": 225,
-     "bodice": 300,
+     "skirt": 226,
+     "bodice": 296,
      "collar": 180,
-     "cap": 244,
-     "cap_frill": 116,
+     "cap": 252,
+     "cap_frill": 108,
      "falie": 269,
-     "boots": 106,
-     "soles": 88
+     "boots": 108,
+     "soles": 90
     }
    },
    "clothChecks": {
     "before": {
-     "lod0": 13056,
-     "lod1": 3236
+     "lod0": 13088,
+     "lod1": 3244
     },
     "density": 221,
-    "rectShare": 0.784,
-    "stretched2": 0.0059,
-    "worstStretch": 15.14,
+    "rectShare": 0.817,
+    "stretched2": 0.0147,
+    "worstStretch": 143.13,
     "islandCuts": 5,
     "hiddenDeleted": {
      "lod0": {},
@@ -58851,11 +58807,11 @@
     "reliefPoints": 0,
     "occlusion": {
      "lod0": [
-      0.376,
+      0.385,
       1.0
      ],
      "lod1": [
-      0.345,
+      0.365,
       1.0
      ]
     }
@@ -59029,7 +58985,7 @@
     "density": 211,
     "rectShare": 0.773,
     "stretched2": 0.0187,
-    "worstStretch": 170.87,
+    "worstStretch": 171.09,
     "islandCuts": 21,
     "hiddenDeleted": {
      "lod0": {},
@@ -59042,7 +58998,7 @@
       1.0
      ],
      "lod1": [
-      0.366,
+      0.364,
       1.0
      ]
     }
@@ -59174,8 +59130,8 @@
     "scrub": "not on duty"
    },
    "triangles": {
-    "lod0": 12533,
-    "lod1": 2482
+    "lod0": 12535,
+    "lod1": 2481
    },
    "pieceTriangles": {
     "lod0": {
@@ -59184,10 +59140,10 @@
      "belt": 560,
      "buckle": 100,
      "frog": 84,
-     "trousers": 1537,
+     "trousers": 1543,
      "boots": 792,
      "soles": 612,
-     "kepi": 406,
+     "kepi": 402,
      "kepi_peak": 152
     },
     "lod1": {
@@ -59196,10 +59152,10 @@
      "belt": 200,
      "buckle": 56,
      "frog": 52,
-     "trousers": 299,
-     "boots": 130,
+     "trousers": 298,
+     "boots": 128,
      "soles": 114,
-     "kepi": 125,
+     "kepi": 127,
      "kepi_peak": 80
     }
    },
@@ -59208,8 +59164,8 @@
      "lod0": 13048,
      "lod1": 3218
     },
-    "density": 291,
-    "rectShare": 0.717,
+    "density": 292,
+    "rectShare": 0.715,
     "stretched2": 0.0045,
     "worstStretch": 2.65,
     "islandCuts": 11,
@@ -59224,7 +59180,7 @@
       1.0
      ],
      "lod1": [
-      0.316,
+      0.318,
       1.0
      ]
     }
@@ -59334,8 +59290,8 @@
     "talk_f": "male voice gestures"
    },
    "triangles": {
-    "lod0": 12723,
-    "lod1": 2466
+    "lod0": 12726,
+    "lod1": 2467
    },
    "pieceTriangles": {
     "lod0": {
@@ -59343,13 +59299,13 @@
      "trouser_stripes": 544,
      "boots": 732,
      "soles": 584,
-     "tunic": 2250,
+     "tunic": 2239,
      "tunic_collar": 360,
      "belt": 536,
      "buckle": 100,
-     "shako": 534,
+     "shako": 540,
      "peak": 152,
-     "pompom": 154,
+     "pompom": 162,
      "shako_plate": 74
     },
     "lod1": {
@@ -59357,11 +59313,11 @@
      "trouser_stripes": 172,
      "boots": 108,
      "soles": 96,
-     "tunic": 278,
+     "tunic": 274,
      "tunic_collar": 136,
      "belt": 176,
      "buckle": 30,
-     "shako": 143,
+     "shako": 148,
      "peak": 72,
      "pompom": 42,
      "shako_plate": 24
@@ -59373,8 +59329,8 @@
      "lod1": 4000
     },
     "density": 260,
-    "rectShare": 0.727,
-    "stretched2": 0.0175,
+    "rectShare": 0.719,
+    "stretched2": 0.0171,
     "worstStretch": 11.59,
     "islandCuts": 12,
     "hiddenDeleted": {
@@ -59384,11 +59340,11 @@
     "reliefPoints": 0,
     "occlusion": {
      "lod0": [
-      0.334,
+      0.336,
       1.0
      ],
      "lod1": [
-      0.332,
+      0.331,
       1.0
      ]
     }
@@ -59497,8 +59453,8 @@
     "talk_f": "male voice gestures"
    },
    "triangles": {
-    "lod0": 12723,
-    "lod1": 2466
+    "lod0": 12726,
+    "lod1": 2467
    },
    "pieceTriangles": {
     "lod0": {
@@ -59506,13 +59462,13 @@
      "trouser_stripes": 544,
      "boots": 732,
      "soles": 584,
-     "tunic": 2250,
+     "tunic": 2239,
      "tunic_collar": 360,
      "belt": 536,
      "buckle": 100,
-     "shako": 534,
+     "shako": 540,
      "peak": 152,
-     "pompom": 154,
+     "pompom": 162,
      "shako_plate": 74
     },
     "lod1": {
@@ -59520,11 +59476,11 @@
      "trouser_stripes": 172,
      "boots": 108,
      "soles": 96,
-     "tunic": 278,
+     "tunic": 274,
      "tunic_collar": 136,
      "belt": 176,
      "buckle": 30,
-     "shako": 143,
+     "shako": 148,
      "peak": 72,
      "pompom": 42,
      "shako_plate": 24
@@ -59536,8 +59492,8 @@
      "lod1": 4000
     },
     "density": 260,
-    "rectShare": 0.727,
-    "stretched2": 0.0175,
+    "rectShare": 0.719,
+    "stretched2": 0.0171,
     "worstStretch": 11.59,
     "islandCuts": 12,
     "hiddenDeleted": {
@@ -59547,11 +59503,11 @@
     "reliefPoints": 0,
     "occlusion": {
      "lod0": [
-      0.334,
+      0.336,
       1.0
      ],
      "lod1": [
-      0.332,
+      0.33,
       1.0
      ]
     }
@@ -59662,35 +59618,35 @@
     "talk_f": "male voice gestures"
    },
    "triangles": {
-    "lod0": 12708,
+    "lod0": 12710,
     "lod1": 2458
    },
    "pieceTriangles": {
     "lod0": {
-     "trousers": 1313,
+     "trousers": 1315,
      "trouser_stripes": 544,
      "boots": 684,
      "soles": 568,
      "tunic": 2179,
      "tunic_collar": 360,
      "belt": 528,
-     "buckle": 98,
-     "shako": 528,
+     "buckle": 100,
+     "shako": 524,
      "peak": 152,
      "pompom": 142,
      "shako_plate": 66,
-     "cartridge_pouches": 184
+     "cartridge_pouches": 186
     },
     "lod1": {
-     "trousers": 229,
+     "trousers": 227,
      "trouser_stripes": 168,
      "boots": 100,
      "soles": 92,
-     "tunic": 268,
+     "tunic": 266,
      "tunic_collar": 132,
      "belt": 172,
-     "buckle": 28,
-     "shako": 139,
+     "buckle": 30,
+     "shako": 141,
      "peak": 72,
      "pompom": 38,
      "shako_plate": 22,
@@ -59702,9 +59658,9 @@
      "lod0": 17248,
      "lod1": 4192
     },
-    "density": 260,
-    "rectShare": 0.735,
-    "stretched2": 0.027,
+    "density": 261,
+    "rectShare": 0.729,
+    "stretched2": 0.0274,
     "worstStretch": 27.32,
     "islandCuts": 11,
     "hiddenDeleted": {
@@ -59714,11 +59670,11 @@
     "reliefPoints": 0,
     "occlusion": {
      "lod0": [
-      0.335,
+      0.337,
       1.0
      ],
      "lod1": [
-      0.331,
+      0.334,
       1.0
      ]
     }
@@ -59832,30 +59788,30 @@
     "talk_f": "male voice gestures"
    },
    "triangles": {
-    "lod0": 12382,
+    "lod0": 12385,
     "lod1": 2436
    },
    "pieceTriangles": {
     "lod0": {
      "trousers": 1430,
-     "boots": 784,
+     "boots": 788,
      "soles": 612,
-     "tunic": 2433,
+     "tunic": 2441,
      "tunic_collar": 368,
-     "belt": 560,
+     "belt": 564,
      "buckle": 108,
-     "kepi": 566,
+     "kepi": 560,
      "peak": 152
     },
     "lod1": {
      "trousers": 295,
-     "boots": 134,
+     "boots": 136,
      "soles": 118,
      "tunic": 332,
      "tunic_collar": 152,
      "belt": 192,
      "buckle": 34,
-     "kepi": 151,
+     "kepi": 149,
      "peak": 76
     }
    },
@@ -59864,8 +59820,8 @@
      "lod0": 14112,
      "lod1": 3456
     },
-    "density": 291,
-    "rectShare": 0.717,
+    "density": 290,
+    "rectShare": 0.713,
     "stretched2": 0.0084,
     "worstStretch": 17.66,
     "islandCuts": 14,
@@ -59880,7 +59836,7 @@
       1.0
      ],
      "lod1": [
-      0.324,
+      0.325,
       1.0
      ]
     }
@@ -59984,8 +59940,8 @@
     "talk_f": "male voice gestures"
    },
    "triangles": {
-    "lod0": 12205,
-    "lod1": 2449
+    "lod0": 12189,
+    "lod1": 2445
    },
    "pieceTriangles": {
     "lod0": {
@@ -60014,9 +59970,9 @@
      "lod0": 14344,
      "lod1": 3538
     },
-    "density": 250,
-    "rectShare": 0.778,
-    "stretched2": 0.0085,
+    "density": 253,
+    "rectShare": 0.784,
+    "stretched2": 0.0079,
     "worstStretch": 4.3,
     "islandCuts": 13,
     "hiddenDeleted": {
@@ -60026,11 +59982,11 @@
     "reliefPoints": 0,
     "occlusion": {
      "lod0": [
-      0.323,
+      0.322,
       1.0
      ],
      "lod1": [
-      0.292,
+      0.287,
       1.0
      ]
     }
@@ -60137,46 +60093,46 @@
     "talk_f": "male voice gestures"
    },
    "triangles": {
-    "lod0": 13122,
-    "lod1": 2447
+    "lod0": 12956,
+    "lod1": 2429
    },
    "pieceTriangles": {
     "lod0": {
-     "trousers": 1140,
+     "trousers": 1142,
      "boots": 576,
-     "soles": 536,
-     "shirt": 1713,
+     "soles": 540,
+     "shirt": 1727,
      "shirt_collar": 344,
-     "frock_coat": 1953,
+     "frock_coat": 1965,
      "frock_coat_collar": 336,
      "lapels": 348,
      "tie": 108,
-     "hat": 398,
-     "hat_brim": 440
+     "hat": 370,
+     "hat_brim": 432
     },
     "lod1": {
-     "trousers": 184,
-     "boots": 76,
-     "soles": 76,
-     "shirt": 219,
+     "trousers": 182,
+     "boots": 74,
+     "soles": 74,
+     "shirt": 213,
      "shirt_collar": 132,
-     "frock_coat": 255,
+     "frock_coat": 257,
      "frock_coat_collar": 128,
      "lapels": 128,
      "tie": 56,
-     "hat": 101,
+     "hat": 109,
      "hat_brim": 144
     }
    },
    "clothChecks": {
     "before": {
-     "lod0": 18976,
-     "lod1": 4696
+     "lod0": 18784,
+     "lod1": 4648
     },
-    "density": 205,
-    "rectShare": 0.798,
-    "stretched2": 0.0103,
-    "worstStretch": 4.2,
+    "density": 204,
+    "rectShare": 0.782,
+    "stretched2": 0.0104,
+    "worstStretch": 8.89,
     "islandCuts": 10,
     "hiddenDeleted": {
      "lod0": {},
@@ -60185,11 +60141,11 @@
     "reliefPoints": 0,
     "occlusion": {
      "lod0": [
-      0.382,
+      0.388,
       1.0
      ],
      "lod1": [
-      0.343,
+      0.337,
       1.0
      ]
     }
@@ -60292,35 +60248,35 @@
     "talk_f": "male voice gestures"
    },
    "triangles": {
-    "lod0": 13132,
-    "lod1": 2446
+    "lod0": 12940,
+    "lod1": 2425
    },
    "pieceTriangles": {
     "lod0": {
-     "trousers": 1156,
-     "boots": 580,
-     "soles": 544,
-     "shirt": 1740,
-     "shirt_collar": 348,
-     "frock_coat": 1929,
-     "frock_coat_collar": 340,
-     "lapels": 344,
+     "trousers": 1142,
+     "boots": 576,
+     "soles": 528,
+     "shirt": 1700,
+     "shirt_collar": 344,
+     "frock_coat": 1906,
+     "frock_coat_collar": 336,
+     "lapels": 340,
      "tie": 108,
-     "hat": 370,
-     "hat_brim": 440
+     "hat": 464,
+     "hat_brim": 432
     },
     "lod1": {
-     "trousers": 181,
-     "boots": 76,
+     "trousers": 182,
+     "boots": 78,
      "soles": 76,
-     "shirt": 218,
+     "shirt": 217,
      "shirt_collar": 132,
-     "frock_coat": 248,
-     "frock_coat_collar": 132,
+     "frock_coat": 253,
+     "frock_coat_collar": 128,
      "lapels": 128,
      "tie": 56,
-     "hat": 113,
-     "hat_brim": 144
+     "hat": 109,
+     "hat_brim": 140
     }
    },
    "clothChecks": {
@@ -60328,10 +60284,10 @@
      "lod0": 18976,
      "lod1": 4696
     },
-    "density": 212,
-    "rectShare": 0.786,
-    "stretched2": 0.0081,
-    "worstStretch": 4.83,
+    "density": 210,
+    "rectShare": 0.778,
+    "stretched2": 0.0079,
+    "worstStretch": 6.59,
     "islandCuts": 10,
     "hiddenDeleted": {
      "lod0": {},
@@ -60340,11 +60296,11 @@
     "reliefPoints": 0,
     "occlusion": {
      "lod0": [
-      0.378,
+      0.381,
       1.0
      ],
      "lod1": [
-      0.35,
+      0.336,
       1.0
      ]
     }
@@ -60452,35 +60408,35 @@
     "talk_f": "male voice gestures"
    },
    "triangles": {
-    "lod0": 13130,
-    "lod1": 2446
+    "lod0": 12948,
+    "lod1": 2421
    },
    "pieceTriangles": {
     "lod0": {
-     "trousers": 1142,
+     "trousers": 1126,
      "boots": 576,
-     "soles": 540,
-     "shirt": 1727,
+     "soles": 528,
+     "shirt": 1687,
      "shirt_collar": 344,
-     "frock_coat": 1965,
+     "frock_coat": 1939,
      "frock_coat_collar": 336,
-     "lapels": 348,
-     "tie": 108,
-     "hat": 374,
-     "hat_brim": 440
+     "lapels": 344,
+     "tie": 104,
+     "hat": 464,
+     "hat_brim": 432
     },
     "lod1": {
-     "trousers": 182,
-     "boots": 74,
+     "trousers": 183,
+     "boots": 78,
      "soles": 74,
-     "shirt": 213,
+     "shirt": 216,
      "shirt_collar": 132,
-     "frock_coat": 257,
+     "frock_coat": 252,
      "frock_coat_collar": 128,
      "lapels": 128,
-     "tie": 56,
-     "hat": 110,
-     "hat_brim": 144
+     "tie": 52,
+     "hat": 106,
+     "hat_brim": 140
     }
    },
    "clothChecks": {
@@ -60488,10 +60444,10 @@
      "lod0": 18976,
      "lod1": 4696
     },
-    "density": 208,
-    "rectShare": 0.796,
-    "stretched2": 0.01,
-    "worstStretch": 4.2,
+    "density": 206,
+    "rectShare": 0.792,
+    "stretched2": 0.0095,
+    "worstStretch": 7.69,
     "islandCuts": 10,
     "hiddenDeleted": {
      "lod0": {},
@@ -60500,11 +60456,11 @@
     "reliefPoints": 0,
     "occlusion": {
      "lod0": [
-      0.382,
+      0.386,
       1.0
      ],
      "lod1": [
-      0.341,
+      0.335,
       1.0
      ]
     }
@@ -60607,36 +60563,36 @@
     "talk_f": "male voice gestures"
    },
    "triangles": {
-    "lod0": 13878,
-    "lod1": 2440
+    "lod0": 13894,
+    "lod1": 2452
    },
    "pieceTriangles": {
     "lod0": {
-     "trousers": 1323,
-     "boots": 700,
+     "trousers": 1331,
+     "boots": 704,
      "soles": 580,
-     "shirt": 1657,
+     "shirt": 1669,
      "shirt_collar": 356,
-     "waistcoat": 1379,
-     "waistcoat_collar": 352,
+     "waistcoat": 1389,
+     "waistcoat_collar": 356,
      "lapels": 356,
      "apron": 472,
      "apron_ties": 544,
-     "cap": 472,
+     "cap": 450,
      "cap_peak": 152
     },
     "lod1": {
-     "trousers": 163,
+     "trousers": 160,
      "boots": 64,
      "soles": 60,
-     "shirt": 180,
+     "shirt": 187,
      "shirt_collar": 120,
-     "waistcoat": 209,
+     "waistcoat": 212,
      "waistcoat_collar": 120,
      "lapels": 128,
-     "apron": 108,
+     "apron": 104,
      "apron_ties": 152,
-     "cap": 88,
+     "cap": 97,
      "cap_peak": 68
     }
    },
@@ -60645,10 +60601,10 @@
      "lod0": 17568,
      "lod1": 4346
     },
-    "density": 230,
-    "rectShare": 0.779,
-    "stretched2": 0.0084,
-    "worstStretch": 4.16,
+    "density": 229,
+    "rectShare": 0.775,
+    "stretched2": 0.0089,
+    "worstStretch": 4.13,
     "islandCuts": 14,
     "hiddenDeleted": {
      "lod0": {},
@@ -60657,11 +60613,11 @@
     "reliefPoints": 0,
     "occlusion": {
      "lod0": [
-      0.397,
+      0.399,
       1.0
      ],
      "lod1": [
-      0.344,
+      0.347,
       1.0
      ]
     }
@@ -60760,12 +60716,12 @@
     "talk_f": "male voice gestures"
    },
    "triangles": {
-    "lod0": 13798,
-    "lod1": 2440
+    "lod0": 13802,
+    "lod1": 2441
    },
    "pieceTriangles": {
     "lod0": {
-     "trousers": 1406,
+     "trousers": 1410,
      "boots": 768,
      "soles": 596,
      "shirt": 1795,
@@ -60777,7 +60733,7 @@
      "apron_ties": 548
     },
     "lod1": {
-     "trousers": 172,
+     "trousers": 173,
      "boots": 74,
      "soles": 68,
      "shirt": 201,
@@ -60796,7 +60752,7 @@
     },
     "density": 228,
     "rectShare": 0.74,
-    "stretched2": 0.0076,
+    "stretched2": 0.0075,
     "worstStretch": 3.8,
     "islandCuts": 13,
     "hiddenDeleted": {
@@ -60810,7 +60766,7 @@
       1.0
      ],
      "lod1": [
-      0.339,
+      0.34,
       1.0
      ]
     }
@@ -60910,30 +60866,30 @@
     "talk_f": "male voice gestures"
    },
    "triangles": {
-    "lod0": 12839,
-    "lod1": 2492
+    "lod0": 12849,
+    "lod1": 2496
    },
    "pieceTriangles": {
     "lod0": {
-     "trousers": 1534,
-     "boots": 844,
-     "soles": 648,
-     "shirt": 2053,
+     "trousers": 1538,
+     "boots": 848,
+     "soles": 652,
+     "shirt": 2073,
      "shirt_collar": 380,
      "apron": 524,
      "apron_ties": 568,
-     "cap": 614,
+     "cap": 592,
      "cap_peak": 152
     },
     "lod1": {
      "trousers": 271,
      "boots": 120,
      "soles": 104,
-     "shirt": 311,
+     "shirt": 313,
      "shirt_collar": 152,
      "apron": 148,
      "apron_ties": 204,
-     "cap": 130,
+     "cap": 132,
      "cap_peak": 76
     }
    },
@@ -60942,10 +60898,10 @@
      "lod0": 13592,
      "lod1": 3352
     },
-    "density": 287,
-    "rectShare": 0.72,
-    "stretched2": 0.0041,
-    "worstStretch": 4.75,
+    "density": 293,
+    "rectShare": 0.745,
+    "stretched2": 0.004,
+    "worstStretch": 4.23,
     "islandCuts": 8,
     "hiddenDeleted": {
      "lod0": {},
@@ -60954,11 +60910,11 @@
     "reliefPoints": 0,
     "occlusion": {
      "lod0": [
-      0.321,
+      0.324,
       1.0
      ],
      "lod1": [
-      0.298,
+      0.299,
       1.0
      ]
     }
@@ -61046,23 +61002,23 @@
     "rifle_talk": "no rifle"
    },
    "triangles": {
-    "lod0": 13903,
-    "lod1": 2261
+    "lod0": 13901,
+    "lod1": 2255
    },
    "pieceTriangles": {
     "lod0": {
      "shirt": 695,
      "waistcoat": 993,
-     "kerchief": 634,
+     "kerchief": 646,
      "kerchief_ends": 128,
-     "coat": 2738,
+     "coat": 2742,
      "coat_collar": 513,
      "cuffL": 192,
      "cuffR": 192,
-     "trousers": 1591,
-     "boots": 808,
+     "trousers": 1593,
+     "boots": 812,
      "soles": 624,
-     "cap": 504,
+     "cap": 480,
      "cap_peak": 152
     },
     "lod1": {
@@ -61077,7 +61033,7 @@
      "trousers": 163,
      "boots": 64,
      "soles": 58,
-     "cap": 93,
+     "cap": 91,
      "cap_peak": 60
     }
    },
@@ -61086,10 +61042,10 @@
      "lod0": 16240,
      "lod1": 4010
     },
-    "density": 213,
-    "rectShare": 0.722,
-    "stretched2": 0.0088,
-    "worstStretch": 24.08,
+    "density": 221,
+    "rectShare": 0.771,
+    "stretched2": 0.009,
+    "worstStretch": 24.09,
     "islandCuts": 7,
     "hiddenDeleted": {
      "lod0": {},
@@ -61098,11 +61054,11 @@
     "reliefPoints": 1189,
     "occlusion": {
      "lod0": [
-      0.356,
+      0.358,
       1.0
      ],
      "lod1": [
-      0.338,
+      0.341,
       1.0
      ]
     }
@@ -61173,30 +61129,30 @@
     "rifle_talk": "no rifle"
    },
    "triangles": {
-    "lod0": 15852,
-    "lod1": 2427
+    "lod0": 15972,
+    "lod1": 2430
    },
    "pieceTriangles": {
     "lod0": {
-     "skirt": 1251,
-     "bodice": 3211,
+     "skirt": 1271,
+     "bodice": 3321,
      "chemise": 1588,
-     "cap": 644,
-     "boots": 480,
-     "soles": 536,
+     "cap": 584,
+     "boots": 500,
+     "soles": 540,
      "bonnet_ties": 224,
-     "shawl": 1447,
+     "shawl": 1465,
      "shawl_fringe": 904
     },
     "lod1": {
-     "skirt": 200,
+     "skirt": 206,
      "bodice": 211,
      "chemise": 236,
-     "cap": 140,
-     "boots": 64,
+     "cap": 132,
+     "boots": 66,
      "soles": 68,
      "bonnet_ties": 100,
-     "shawl": 193,
+     "shawl": 196,
      "shawl_fringe": 204
     }
    },
@@ -61206,10 +61162,10 @@
      "lod1": 7356
     },
     "density": 243,
-    "rectShare": 0.833,
-    "stretched2": 0.0405,
-    "worstStretch": 519.6,
-    "islandCuts": 47,
+    "rectShare": 0.816,
+    "stretched2": 0.0372,
+    "worstStretch": 520.42,
+    "islandCuts": 53,
     "hiddenDeleted": {
      "lod0": {},
      "lod1": {}
@@ -61217,11 +61173,11 @@
     "reliefPoints": 958,
     "occlusion": {
      "lod0": [
-      0.395,
+      0.399,
       1.0
      ],
      "lod1": [
-      0.377,
+      0.381,
       1.0
      ]
     }
@@ -61287,25 +61243,25 @@
     "rifle_talk": "no rifle"
    },
    "triangles": {
-    "lod0": 12990,
-    "lod1": 2377
+    "lod0": 12992,
+    "lod1": 2381
    },
    "pieceTriangles": {
     "lod0": {
-     "trousers": 2033,
-     "boots": 1180,
+     "trousers": 2049,
+     "boots": 1184,
      "soles": 764,
-     "jersey": 2266,
+     "jersey": 2286,
      "shirt_collar": 360,
-     "cap": 944
+     "cap": 906
     },
     "lod1": {
-     "trousers": 382,
+     "trousers": 386,
      "boots": 170,
      "soles": 124,
-     "jersey": 392,
+     "jersey": 394,
      "shirt_collar": 132,
-     "cap": 183
+     "cap": 181
     }
    },
    "clothChecks": {
@@ -61313,8 +61269,8 @@
      "lod0": 10784,
      "lod1": 2648
     },
-    "density": 342,
-    "rectShare": 0.794,
+    "density": 346,
+    "rectShare": 0.801,
     "stretched2": 0.0024,
     "worstStretch": 3.27,
     "islandCuts": 4,
@@ -61325,11 +61281,11 @@
     "reliefPoints": 624,
     "occlusion": {
      "lod0": [
-      0.275,
+      0.279,
       1.0
      ],
      "lod1": [
-      0.26,
+      0.266,
       1.0
      ]
     }
@@ -61400,20 +61356,20 @@
     "rifle_talk": "no rifle"
    },
    "triangles": {
-    "lod0": 15346,
+    "lod0": 15326,
     "lod1": 2420
    },
    "pieceTriangles": {
     "lod0": {
-     "skirt": 2341,
+     "skirt": 2339,
      "bodice": 1587,
      "chemise": 344,
      "apron_band": 492,
      "shawl": 1360,
      "shawl_fringe": 325,
-     "cap": 684,
-     "cap_frill": 280,
-     "boots": 496,
+     "cap": 676,
+     "cap_frill": 276,
+     "boots": 492,
      "soles": 532,
      "apron": 1288
     },
@@ -61422,9 +61378,9 @@
      "bodice": 179,
      "chemise": 112,
      "apron_band": 136,
-     "shawl": 204,
+     "shawl": 208,
      "shawl_fringe": 48,
-     "cap": 124,
+     "cap": 120,
      "cap_frill": 92,
      "boots": 56,
      "soles": 58,
@@ -61437,9 +61393,9 @@
      "lod1": 4602
     },
     "density": 236,
-    "rectShare": 0.756,
-    "stretched2": 0.0142,
-    "worstStretch": 31.54,
+    "rectShare": 0.743,
+    "stretched2": 0.0151,
+    "worstStretch": 31.7,
     "islandCuts": 4,
     "hiddenDeleted": {
      "lod0": {},
@@ -61448,11 +61404,11 @@
     "reliefPoints": 1926,
     "occlusion": {
      "lod0": [
-      0.328,
+      0.333,
       1.0
      ],
      "lod1": [
-      0.293,
+      0.3,
       1.0
      ]
     }
@@ -61514,31 +61470,31 @@
     "rifle_talk": "no rifle"
    },
    "triangles": {
-    "lod0": 13810,
-    "lod1": 2356
+    "lod0": 13813,
+    "lod1": 2357
    },
    "pieceTriangles": {
     "lod0": {
-     "shirt": 737,
+     "shirt": 739,
      "cuffL": 192,
      "cuffR": 192,
-     "trousers": 1779,
-     "boots": 920,
+     "trousers": 1789,
+     "boots": 940,
      "soles": 688,
-     "coat": 2839,
-     "coat_collar": 600,
-     "cap": 826
+     "coat": 2868,
+     "coat_collar": 604,
+     "cap": 764
     },
     "lod1": {
-     "shirt": 206,
+     "shirt": 205,
      "cuffL": 80,
      "cuffR": 80,
-     "trousers": 268,
-     "boots": 112,
+     "trousers": 265,
+     "boots": 116,
      "soles": 98,
-     "coat": 327,
+     "coat": 336,
      "coat_collar": 189,
-     "cap": 153
+     "cap": 144
     }
    },
    "clothChecks": {
@@ -61547,9 +61503,9 @@
      "lod1": 3394
     },
     "density": 245,
-    "rectShare": 0.749,
+    "rectShare": 0.741,
     "stretched2": 0.003,
-    "worstStretch": 3.84,
+    "worstStretch": 3.85,
     "islandCuts": 12,
     "hiddenDeleted": {
      "lod0": {},
@@ -61558,11 +61514,11 @@
     "reliefPoints": 618,
     "occlusion": {
      "lod0": [
-      0.334,
+      0.338,
       1.0
      ],
      "lod1": [
-      0.293,
+      0.306,
       1.0
      ]
     }
@@ -61663,33 +61619,33 @@
     "rifle_talk": "no rifle"
    },
    "triangles": {
-    "lod0": 12479,
-    "lod1": 2307
+    "lod0": 12466,
+    "lod1": 2303
    },
    "pieceTriangles": {
     "lod0": {
-     "shirt": 608,
+     "shirt": 616,
      "cuffL": 192,
      "cuffR": 192,
-     "trousers": 1415,
-     "boots": 724,
-     "soles": 580,
-     "coat": 2317,
-     "coat_collar": 499,
-     "cap": 584,
-     "cap_brim": 616
+     "trousers": 1421,
+     "boots": 728,
+     "soles": 584,
+     "coat": 2340,
+     "coat_collar": 503,
+     "cap": 540,
+     "cap_brim": 600
     },
     "lod1": {
      "shirt": 188,
      "cuffL": 92,
      "cuffR": 92,
-     "trousers": 203,
-     "boots": 84,
-     "soles": 78,
+     "trousers": 201,
+     "boots": 86,
+     "soles": 80,
      "coat": 259,
-     "coat_collar": 179,
-     "cap": 121,
-     "cap_brim": 188
+     "coat_collar": 175,
+     "cap": 122,
+     "cap_brim": 184
     }
    },
    "clothChecks": {
@@ -61698,8 +61654,8 @@
      "lod1": 3778
     },
     "density": 236,
-    "rectShare": 0.766,
-    "stretched2": 0.0079,
+    "rectShare": 0.746,
+    "stretched2": 0.0074,
     "worstStretch": 4.56,
     "islandCuts": 13,
     "hiddenDeleted": {
@@ -61709,11 +61665,11 @@
     "reliefPoints": 618,
     "occlusion": {
      "lod0": [
-      0.334,
+      0.335,
       1.0
      ],
      "lod1": [
-      0.305,
+      0.292,
       1.0
      ]
     }
@@ -61781,8 +61737,8 @@
     "rifle_talk": "no rifle"
    },
    "triangles": {
-    "lod0": 13889,
-    "lod1": 2320
+    "lod0": 13937,
+    "lod1": 2296
    },
    "pieceTriangles": {
     "lod0": {
@@ -61794,10 +61750,10 @@
      "coat_collar": 470,
      "cuffL": 192,
      "cuffR": 192,
-     "trousers": 1532,
-     "boots": 804,
+     "trousers": 1534,
+     "boots": 808,
      "soles": 620,
-     "cap": 464,
+     "cap": 460,
      "cap_brim": 472,
      "watch_chain": 184
     },
@@ -61810,10 +61766,10 @@
      "coat_collar": 120,
      "cuffL": 72,
      "cuffR": 72,
-     "trousers": 154,
+     "trousers": 153,
      "boots": 58,
      "soles": 52,
-     "cap": 90,
+     "cap": 93,
      "cap_brim": 120,
      "watch_chain": 68
     }
@@ -61823,9 +61779,9 @@
      "lod0": 17664,
      "lod1": 4362
     },
-    "density": 206,
-    "rectShare": 0.735,
-    "stretched2": 0.0064,
+    "density": 208,
+    "rectShare": 0.747,
+    "stretched2": 0.0063,
     "worstStretch": 4.41,
     "islandCuts": 22,
     "hiddenDeleted": {
@@ -61835,11 +61791,11 @@
     "reliefPoints": 1199,
     "occlusion": {
      "lod0": [
-      0.342,
+      0.341,
       1.0
      ],
      "lod1": [
-      0.355,
+      0.324,
       1.0
      ]
     }
@@ -61907,23 +61863,23 @@
     "rifle_talk": "no rifle"
    },
    "triangles": {
-    "lod0": 13945,
-    "lod1": 2296
+    "lod0": 13939,
+    "lod1": 2292
    },
    "pieceTriangles": {
     "lod0": {
      "shirt": 688,
      "waistcoat": 1022,
-     "kerchief": 612,
+     "kerchief": 614,
      "kerchief_ends": 128,
-     "coat": 2744,
-     "coat_collar": 481,
+     "coat": 2748,
+     "coat_collar": 485,
      "cuffL": 192,
      "cuffR": 192,
-     "trousers": 1550,
+     "trousers": 1554,
      "boots": 816,
      "soles": 628,
-     "cap": 500,
+     "cap": 480,
      "cap_peak": 152
     },
     "lod1": {
@@ -61931,14 +61887,14 @@
      "waistcoat": 182,
      "kerchief": 144,
      "kerchief_ends": 56,
-     "coat": 222,
-     "coat_collar": 136,
+     "coat": 221,
+     "coat_collar": 132,
      "cuffL": 76,
      "cuffR": 76,
      "trousers": 170,
      "boots": 68,
      "soles": 62,
-     "cap": 93,
+     "cap": 95,
      "cap_peak": 60
     }
    },
@@ -61947,9 +61903,9 @@
      "lod0": 16112,
      "lod1": 3978
     },
-    "density": 192,
-    "rectShare": 0.766,
-    "stretched2": 0.0056,
+    "density": 195,
+    "rectShare": 0.786,
+    "stretched2": 0.0055,
     "worstStretch": 4.42,
     "islandCuts": 22,
     "hiddenDeleted": {
@@ -61959,11 +61915,11 @@
     "reliefPoints": 1177,
     "occlusion": {
      "lod0": [
-      0.346,
+      0.347,
       1.0
      ],
      "lod1": [
-      0.34,
+      0.339,
       1.0
      ]
     }
@@ -62029,35 +61985,35 @@
     "rifle_talk": "no rifle"
    },
    "triangles": {
-    "lod0": 13532,
-    "lod1": 2204
+    "lod0": 13554,
+    "lod1": 2221
    },
    "pieceTriangles": {
     "lod0": {
-     "shirt": 695,
-     "waistcoat": 999,
-     "coat": 2727,
+     "shirt": 702,
+     "waistcoat": 1005,
+     "coat": 2757,
      "coat_collar": 513,
      "cuffL": 192,
      "cuffR": 192,
-     "trousers": 1596,
-     "boots": 812,
-     "soles": 624,
-     "cap": 736,
+     "trousers": 1612,
+     "boots": 824,
+     "soles": 628,
+     "cap": 616,
      "cap_brim": 480,
      "watch_chain": 176
     },
     "lod1": {
      "shirt": 169,
-     "waistcoat": 190,
-     "coat": 231,
-     "coat_collar": 132,
+     "waistcoat": 195,
+     "coat": 228,
+     "coat_collar": 136,
      "cuffL": 76,
      "cuffR": 76,
-     "trousers": 171,
+     "trousers": 175,
      "boots": 68,
      "soles": 62,
-     "cap": 99,
+     "cap": 96,
      "cap_brim": 132,
      "watch_chain": 64
     }
@@ -62067,10 +62023,10 @@
      "lod0": 16616,
      "lod1": 4106
     },
-    "density": 212,
-    "rectShare": 0.772,
+    "density": 209,
+    "rectShare": 0.744,
     "stretched2": 0.0053,
-    "worstStretch": 24.12,
+    "worstStretch": 24.11,
     "islandCuts": 7,
     "hiddenDeleted": {
      "lod0": {},
@@ -62079,11 +62035,11 @@
     "reliefPoints": 1200,
     "occlusion": {
      "lod0": [
-      0.324,
+      0.326,
       1.0
      ],
      "lod1": [
-      0.289,
+      0.278,
       1.0
      ]
     }
@@ -62147,34 +62103,34 @@
     "rifle_talk": "no rifle"
    },
    "triangles": {
-    "lod0": 13542,
-    "lod1": 2244
+    "lod0": 13532,
+    "lod1": 2242
    },
    "pieceTriangles": {
     "lod0": {
      "shirt": 700,
-     "waistcoat": 1026,
-     "coat": 2854,
+     "waistcoat": 1030,
+     "coat": 2856,
      "coat_collar": 508,
      "cuffL": 192,
      "cuffR": 192,
      "trousers": 1644,
      "boots": 860,
      "soles": 652,
-     "cap": 512,
+     "cap": 500,
      "cap_peak": 168
     },
     "lod1": {
      "shirt": 178,
      "waistcoat": 216,
-     "coat": 268,
+     "coat": 264,
      "coat_collar": 148,
      "cuffL": 76,
      "cuffR": 76,
      "trousers": 190,
-     "boots": 82,
+     "boots": 80,
      "soles": 74,
-     "cap": 103,
+     "cap": 107,
      "cap_peak": 72
     }
    },
@@ -62183,8 +62139,8 @@
      "lod0": 14744,
      "lod1": 3642
     },
-    "density": 235,
-    "rectShare": 0.758,
+    "density": 230,
+    "rectShare": 0.718,
     "stretched2": 0.0034,
     "worstStretch": 3.22,
     "islandCuts": 10,
@@ -62195,7 +62151,7 @@
     "reliefPoints": 1181,
     "occlusion": {
      "lod0": [
-      0.332,
+      0.333,
       1.0
      ],
      "lod1": [
@@ -62299,30 +62255,30 @@
     "rifle_talk": "no rifle"
    },
    "triangles": {
-    "lod0": 13397,
-    "lod1": 2348
+    "lod0": 13390,
+    "lod1": 2335
    },
    "pieceTriangles": {
     "lod0": {
-     "shirt": 609,
+     "shirt": 613,
      "waistcoat": 940,
-     "coat": 2663,
+     "coat": 2671,
      "coat_collar": 482,
      "cuffL": 188,
      "cuffR": 188,
-     "trousers": 1376,
-     "cap": 486,
+     "trousers": 1383,
+     "cap": 456,
      "cap_peak": 152
     },
     "lod1": {
      "shirt": 164,
-     "waistcoat": 184,
-     "coat": 232,
+     "waistcoat": 180,
+     "coat": 218,
      "coat_collar": 148,
      "cuffL": 96,
      "cuffR": 96,
      "trousers": 155,
-     "cap": 92,
+     "cap": 97,
      "cap_peak": 80
     }
    },
@@ -62331,11 +62287,11 @@
      "lod0": 12128,
      "lod1": 3024
     },
-    "density": 281,
-    "rectShare": 0.753,
+    "density": 279,
+    "rectShare": 0.731,
     "stretched2": 0.0014,
     "worstStretch": 3.09,
-    "islandCuts": 9,
+    "islandCuts": 20,
     "hiddenDeleted": {
      "lod0": {},
      "lod1": {}
@@ -62347,7 +62303,7 @@
       1.0
      ],
      "lod1": [
-      0.313,
+      0.317,
       1.0
      ]
     }
@@ -62445,19 +62401,19 @@
    },
    "triangles": {
     "lod0": 13249,
-    "lod1": 2466
+    "lod1": 2469
    },
    "pieceTriangles": {
     "lod0": {
-     "trousers": 2283,
+     "trousers": 2271,
      "cap": 754,
      "cap_peak": 168,
      "shirt": 2747,
      "shirt_collar": 356
     },
     "lod1": {
-     "trousers": 364,
-     "cap": 180,
+     "trousers": 361,
+     "cap": 186,
      "cap_peak": 96,
      "shirt": 417,
      "shirt_collar": 164
@@ -62468,8 +62424,8 @@
      "lod0": 7712,
      "lod1": 1920
     },
-    "density": 452,
-    "rectShare": 0.803,
+    "density": 445,
+    "rectShare": 0.754,
     "stretched2": 0.0011,
     "worstStretch": 2.67,
     "islandCuts": 4,
@@ -62480,11 +62436,11 @@
     "reliefPoints": 803,
     "occlusion": {
      "lod0": [
-      0.261,
+      0.263,
       1.0
      ],
      "lod1": [
-      0.283,
+      0.284,
       1.0
      ]
     }
@@ -62595,38 +62551,38 @@
     "rifle_talk": "no rifle"
    },
    "triangles": {
-    "lod0": 12580,
-    "lod1": 2301
+    "lod0": 12577,
+    "lod1": 2311
    },
    "pieceTriangles": {
     "lod0": {
-     "shirt": 589,
-     "waistcoat": 820,
+     "shirt": 593,
+     "waistcoat": 824,
      "kerchief": 528,
      "kerchief_ends": 128,
-     "coat": 2226,
+     "coat": 2239,
      "coat_collar": 424,
      "cuffL": 188,
      "cuffR": 188,
      "trousers": 1321,
      "boots": 628,
      "soles": 556,
-     "cap": 402,
+     "cap": 386,
      "cap_peak": 144
     },
     "lod1": {
-     "shirt": 157,
-     "waistcoat": 174,
+     "shirt": 156,
+     "waistcoat": 175,
      "kerchief": 142,
      "kerchief_ends": 60,
-     "coat": 226,
+     "coat": 231,
      "coat_collar": 124,
      "cuffL": 84,
      "cuffR": 84,
      "trousers": 161,
      "boots": 64,
      "soles": 60,
-     "cap": 89,
+     "cap": 93,
      "cap_peak": 64
     }
    },
@@ -62635,10 +62591,10 @@
      "lod0": 16104,
      "lod1": 3976
     },
-    "density": 211,
-    "rectShare": 0.764,
-    "stretched2": 0.0096,
-    "worstStretch": 4.49,
+    "density": 210,
+    "rectShare": 0.755,
+    "stretched2": 0.0093,
+    "worstStretch": 4.32,
     "islandCuts": 10,
     "hiddenDeleted": {
      "lod0": {},
@@ -62647,11 +62603,11 @@
     "reliefPoints": 1178,
     "occlusion": {
      "lod0": [
-      0.37,
+      0.371,
       1.0
      ],
      "lod1": [
-      0.322,
+      0.333,
       1.0
      ]
     }
@@ -62797,7 +62753,7 @@
     "reliefPoints": 534,
     "occlusion": {
      "lod0": [
-      0.36,
+      0.361,
       1.0
      ],
      "lod1": [
@@ -63070,7 +63026,7 @@
    },
    "triangles": {
     "lod0": 10842,
-    "lod1": 2038
+    "lod1": 2037
    },
    "pieceTriangles": {
     "lod0": {
@@ -63102,7 +63058,7 @@
     "density": 185,
     "rectShare": 0.786,
     "stretched2": 0.0031,
-    "worstStretch": 20.62,
+    "worstStretch": 20.63,
     "islandCuts": 20,
     "hiddenDeleted": {
      "lod0": {},
@@ -63115,7 +63071,7 @@
       1.0
      ],
      "lod1": [
-      0.34,
+      0.339,
       1.0
      ]
     }
@@ -63248,7 +63204,7 @@
     "density": 302,
     "rectShare": 0.788,
     "stretched2": 0.0016,
-    "worstStretch": 2.69,
+    "worstStretch": 2.7,
     "islandCuts": 4,
     "hiddenDeleted": {
      "lod0": {},
@@ -63261,7 +63217,7 @@
       1.0
      ],
      "lod1": [
-      0.315,
+      0.314,
       1.0
      ]
     }
@@ -63403,7 +63359,7 @@
     },
     "density": 229,
     "rectShare": 0.704,
-    "stretched2": 0.002,
+    "stretched2": 0.0019,
     "worstStretch": 6.93,
     "islandCuts": 12,
     "hiddenDeleted": {
@@ -63417,7 +63373,7 @@
       1.0
      ],
      "lod1": [
-      0.343,
+      0.344,
       1.0
      ]
     }
@@ -63530,7 +63486,7 @@
    },
    "triangles": {
     "lod0": 11189,
-    "lod1": 2057
+    "lod1": 2058
    },
    "pieceTriangles": {
     "lod0": {
@@ -63579,7 +63535,7 @@
       1.0
      ],
      "lod1": [
-      0.335,
+      0.336,
       1.0
      ]
     }
@@ -64033,7 +63989,7 @@
     "reliefPoints": 0,
     "occlusion": {
      "lod0": [
-      0.343,
+      0.347,
       1.0
      ],
      "lod1": [
@@ -64195,7 +64151,7 @@
     "reliefPoints": 0,
     "occlusion": {
      "lod0": [
-      0.369,
+      0.373,
       1.0
      ],
      "lod1": [
@@ -64350,7 +64306,7 @@
       1.0
      ],
      "lod1": [
-      0.304,
+      0.306,
       1.0
      ]
     }
@@ -64507,7 +64463,7 @@
       1.0
      ],
      "lod1": [
-      0.346,
+      0.347,
       1.0
      ]
     }
@@ -64656,7 +64612,7 @@
       1.0
      ],
      "lod1": [
-      0.297,
+      0.298,
       1.0
      ]
     }
@@ -64781,7 +64737,7 @@
     },
     "lod1": {
      "skirt": 172,
-     "bodice": 302,
+     "bodice": 298,
      "cuffL": 104,
      "cuffR": 108,
      "smock": 276,
@@ -64795,9 +64751,9 @@
      "lod1": 2224
     },
     "density": 230,
-    "rectShare": 0.812,
+    "rectShare": 0.813,
     "stretched2": 0.0021,
-    "worstStretch": 3.23,
+    "worstStretch": 3.22,
     "islandCuts": 9,
     "hiddenDeleted": {
      "lod0": {},

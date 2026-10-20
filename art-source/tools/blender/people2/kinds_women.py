@@ -219,7 +219,7 @@ def fishwife_a_dress(fit):
     # the white cap and its frill
     cap = ck.Piece("cap", LINEN_W, scale=1.3, hat=True)
     fr = ck.Piece("cap_frill", FRILL, scale=1.3, hat=True)
-    ck.hood_cap(fit, cap, frill=fr, margin=0.009, front=-34.0, back=108.0, side=96.0, cols=15, rows=10)
+    ck.hood_cap(fit, cap, frill=fr, margin=0.012, front=-34.0, back=108.0, side=96.0, cols=15, rows=10)
     ck.thicken(cap, 0.0018, depth=0.025)
     ck.thicken(fr, 0.0012, depth=None, crease=0.06)
     pieces += [cap, fr]

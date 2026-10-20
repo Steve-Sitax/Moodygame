@@ -153,7 +153,8 @@ def solid_hat(fit, style):
     band_y = chin + P["hs"] * 0.132
     n = 28
     a = np.arange(n) * 2 * math.pi / n
-    r0 = ck.head_support(fit, band_y, a) + 0.016
+    r0 = ck.head_support(fit, band_y, a) + 0.012  # 16 mm and a 4 % flare made broad crowns (#82)
+    scalp = ck.scalp_top(fit)
     col = hexrgb(HAT_COLOUR[style])
     width = 0.034 if style == "bowler" else 0.030
     band_h = 0.030 if style == "bowler" else 0.034
@@ -171,11 +172,11 @@ def solid_hat(fit, style):
     pr = 1.0 + 0.0008 / float(np.mean(r0))
     if style == "tophat":
         walls = [(band_y + 0.004, 1.0 * pr), (band_y + 0.020, 1.012 * pr), (band_y + 0.004 + band_h, 1.0135 * pr),
-                 (band_y + 0.0045 + band_h, 1.0135), (top + 0.045, 0.975), (top + 0.098, 0.955),
-                 (top + 0.108, 0.93), (top + 0.1115, 0.5)]
+                 (band_y + 0.0045 + band_h, 1.0135), (scalp + 0.024, 0.975), (scalp + 0.077, 0.955),
+                 (scalp + 0.087, 0.93), (scalp + 0.0905, 0.5)]  # 17 cm of crown (was 21 cm)
     else:
-        walls = [(band_y + 0.004, 1.0 * pr), (band_y + 0.016, 1.035 * pr), (band_y + 0.004 + band_h, 1.04 * pr),
-                 (band_y + 0.0045 + band_h, 1.04), (top - 0.018, 1.0), (top + 0.014, 0.84), (top + 0.029, 0.45)]
+        walls = [(band_y + 0.004, 1.0 * pr), (band_y + 0.016, 1.015 * pr), (band_y + 0.004 + band_h, 1.02 * pr),
+                 (band_y + 0.0045 + band_h, 1.02), (top - 0.018, 1.0), (top + 0.014, 0.84), (top + 0.029, 0.45)]
     rows = []
     # the brim: its edge rolled up, falling to the band
     curl = 0.007 + 0.006 * np.cos(a) ** 2 * (1 if style == "bowler" else 0)
@@ -208,7 +209,7 @@ def bonnet(fit):
     """A small felt bonnet worn back on the head, tied under the chin with two ribbons."""
     col = hexrgb(HAT_COLOUR["bonnet"])
     cap = _hat("bonnet", "", Cloth(col, "felt", wear=0.2, folds=0.2, lining=(0.7, 0.68, 0.64)), 1.4)
-    ck.hood_cap(fit, cap, margin=0.016, front=-12.0, back=110.0, side=104.0, cols=13, rows=9)
+    ck.hood_cap(fit, cap, margin=0.014, front=-12.0, back=110.0, side=104.0, cols=13, rows=9)
     ck.thicken(cap, 0.0022, depth=0.02)
     ties = _hat("bonnet", "_ties", Cloth(col, "cotton", wear=0.1, folds=0.0), 1.4)
     Y = lambda f: bd.Y(fit.P, f)
@@ -224,7 +225,7 @@ def whitecap(fit):
     """The women's linen cap with a goffered frill, tied under the chin (wife_a's)."""
     cap = _hat("whitecap", "", Cloth(hexrgb(0xe2ded2), "linen", wear=0.15, extra=kw2._linen_white, folds=0.3), 1.3)
     brim = _hat("whitecap", "_frill", Cloth(hexrgb(0xe2ded2), "linen", wear=0.1, extra=kw2._frill_extra, folds=0.0), 1.3)
-    cid = ck.hood_cap(fit, cap, frill=brim, margin=0.015, front=-30.0, back=110.0, side=100.0, cols=13, rows=9)
+    cid = ck.hood_cap(fit, cap, frill=brim, margin=0.012, front=-30.0, back=110.0, side=100.0, cols=13, rows=9)
     ck.thicken(cap, 0.0016, depth=0.02)
     ck.thicken(brim, 0.0011, depth=None, crease=0.06)
     tie = _hat("whitecap", "_ties", Cloth(hexrgb(0xe2ded2), "linen", wear=0.1, folds=0.0), 1.3)

@@ -74,16 +74,27 @@ def round_hat(fit, colour, style):
     band_y = chin + fit.P["hs"] * 0.132
     n = 24
     a = np.arange(n) * 2 * math.pi / n
-    radius = ck.head_support(fit, band_y, a) + 0.014
+    # Fitted over the band by 11 mm (the capped crop under it); 14 mm and a 4 % flare made the crowns broad (#82).
+    radius = ck.head_support(fit, band_y, a) + 0.011
     knit = style == "knitcap"
     pc = ck.Piece("cap", cloth(colour, "wool" if knit else "felt", folds=0.25,
                               extra=knitted if knit else None), hat=True, scale=1.2)
     pc.meta.update(band_y=band_y, centre_z=c[2])
+    scalp = ck.scalp_top(fit)
     if style == "tophat":
-        stations = [(band_y, 1), (band_y + 0.018, 1.01), (top + 0.09, 0.94),
-                    (top + 0.105, 0.97), (top + 0.108, 0.5)]
+        # about 17 cm of crown over the band (was 21 cm)
+        stations = [(band_y, 1), (band_y + 0.018, 1.01), (scalp + 0.072, 0.94),
+                    (scalp + 0.087, 0.97), (scalp + 0.090, 0.5)]
+    elif style == "souwester":
+        # oilskin over a low round crown, about 2.5 cm over the head's crown
+        stations = [(band_y, 1), (band_y + 0.014, 1.01), (band_y + 0.032, 1.0),
+                    (scalp - 0.018, 0.93), (scalp + 0.013, 0.73), (scalp + 0.025, 0.36)]
+    elif knit:
+        # a knitted cap lies on the head: its top about 2 cm over the crown (it stood 4.6 cm, a bowler's height)
+        stations = [(band_y, 1), (band_y + 0.014, 1.02), (band_y + 0.038, 1.0),
+                    (scalp - 0.022, 0.93), (scalp + 0.010, 0.74), (scalp + 0.021, 0.36)]
     else:
-        stations = [(band_y, 1), (band_y + 0.014, 1.04), (band_y + 0.038, 1.04),
+        stations = [(band_y, 1), (band_y + 0.014, 1.02), (band_y + 0.038, 1.02),
                     (top - 0.020, 1.0), (top + 0.015, 0.83), (top + 0.031, 0.45)]
     points = np.array([np.stack((c[0] + radius * r * np.sin(a), np.full(n, y),
                                 c[2] + radius * r * np.cos(a)), -1) for y, r in stations])
@@ -107,23 +118,29 @@ def round_hat(fit, colour, style):
         brim.orient((0, 1, 0))
         ck.thicken(brim, 0.003, depth=None)
         out.append(brim)
+        if style in ("bowler", "tophat"):
+            ck.tip_back(out, band_y)
     return out
 
 
 def oilskin_hat(fit, colour):
-    crown = round_hat(fit, colour, "bowler")[0]
+    """The sou'wester: a low round crown and a brim that is short in front and falls longer behind (8.5 cm) over the
+    collar. It had a bowler's crown and an 11 cm back brim: from the side it read as a helmet (#82)."""
+    crown = round_hat(fit, colour, "souwester")[0]
     crown.cloth = cloth(colour, "canvas", sheen=0.4, folds=0.2, wear=0.55)
     c, _ = ck.head_axis(fit)
     y = crown.meta["band_y"]
     a = np.arange(32) * 2 * math.pi / 32
-    radius = ck.head_support(fit, y, a) + 0.015
+    radius = ck.head_support(fit, y, a) + 0.012
     brim = ck.Piece("cap_brim", crown.cloth, hat=True)
     pts = []
     for t in (-0.4, 0.45, 1):
-        width = 0.035 + 0.075 * (1 - np.cos(a)) / 2
-        pts.append(np.stack((c[0] + (radius + width * t) * np.sin(a),
-                             y - 0.045 * t * (1 - np.cos(a)) / 2,
-                             c[2] + (radius + width * t) * np.cos(a)), -1))
+        width = 0.035 + 0.050 * (1 - np.cos(a)) / 2
+        # the inner row tucks 18 mm under the crown all round (a share of the long back brim went into the head)
+        out = width * t if t > 0 else np.full(len(a), -0.018)
+        pts.append(np.stack((c[0] + (radius + out) * np.sin(a),
+                             y - 0.035 * max(t, 0.0) * (1 - np.cos(a)) / 2,
+                             c[2] + (radius + out) * np.cos(a)), -1))
     brim.grid(np.array(pts), ck.hat_weights, closed=True, seam_col=16)
     brim.orient((0, 1, 0))
     ck.thicken(brim, 0.0025, depth=None)
