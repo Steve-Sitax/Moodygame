@@ -694,6 +694,32 @@ Action hands, the reflection/shadow body, MakeHuman character preview and profil
 [Jef in Godot](godot-jef.md), including the separate clothing intake boundary and current acceptance-gate status.
 Remote player packets remain unchanged; [the appearance transport proposal](jef-look-network.md) awaits approval.
 
+### Clothing surface finish (#82, #138; 2026-10-20)
+
+`art-source/tools/blender/people2/texture_finish.py` bakes generated neutral material scans onto the accepted
+clothing-kit UVs. Its inputs are the accepted source `.blend`, original `d9626473d` pictures (`--pictures`),
+`art-source/people-cloth-20261020` (`--samples`) and an external `--output` directory. The manifest records
+sample prompts and input hashes; the baker rejects a different UV layout or already-finished input pictures.
+It never saves or exports geometry. Skin pixels and material-ID alpha remain identical.
+Geometry re-exports must retain these finished pictures when UVs are unchanged. Changed UVs require a fresh
+unfinished picture set and updated source hashes before rebaking; do not overwrite the finish with the old painter.
+
+The twelve colour/normal pairs stay 1024px; four shared cloth/leather detail pairs stay 512px, with existing
+BC7 colour and BC5 normal imports and mipmaps. Rest-space sampling, padded islands and small hem stitches
+add weave, nap, leather creases, repairs and wood grain without changing the shared shader or light counts.
+The sack retains its separate existing jute material. Runtime texture allocation remains 303,394,016 bytes.
+
+`--people2-texture-proof` with the clothing, picture and light proof flags captures all twelve kinds at 2/3m,
+front/side/back-low, idle/walk/sit, clear day/rain/night. The picture flag hides passing residents.
+Porter/docker seated views explicitly force the native sit clip for inspection; gameplay `CanSit` is unchanged.
+Evidence and contact sheets: `D:/Code/_tmp_verify/people-textures-20261020/`.
+Both before/after sets contain 648 verified frames; all 36 final kind/weather sheets were reviewed.
+The isolated `reserved-timing` run passed under PERF-LOCK: people+animals 1.424 / 1.038 ms and logic
+1.230 / 1.130 ms (Vismarkt / Grote Markt), with no overlapping Godot windows or Blender jobs.
+The earlier run with a competing Blender rebuild failed at Vismarkt and is retained as rejected evidence.
+Thin shawl silhouettes, protruding cuff pieces, hat fit and seated skirt shapes remain geometry work; texture
+detail does not establish acceptance of those shapes. No meshes, UVs, garment layers or hat sizes changed here.
+
 ### Indoor conversations and recovered snapshots
 
 `Indoors` uses the resident's normal dressed kind and stable identity through `Humans.Make`; indoor and street
