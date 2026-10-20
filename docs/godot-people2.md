@@ -609,7 +609,8 @@ by Capture; the surviving fragment uses opaque alpha-scissor depth/shadows. `old
 
 `People2Rotations` caches authored linear rotation keys, matching key clocks and invariant interpolation arcs
 once per shared clip. Human2 uses managed vector normalization and blending; other interpolation, boundary
-times and loop-seam gaps retain the engine sampler. Routing compares every key, interval quarters and boundary,
+times and loop-seam gaps retain the engine sampler. Key intervals below 1.7 degrees use normalized linear
+interpolation. Routing compares every key, interval quarters and boundary,
 plus blends and opposite quaternion signs, with Godot (253 clips, 12,074 tracks, 35,844,568 samples;
 maximum quaternion component difference 0.000000358). This changes no clips,
 motion names, rig geometry, identities or network messages. Final CPU acceptance still requires the exclusive

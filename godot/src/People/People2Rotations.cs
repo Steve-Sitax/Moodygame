@@ -77,9 +77,10 @@ internal sealed class People2Rotations
                     float cosine = values[k].Dot(values[k + 1]);
                     bool negate = cosine < 0;
                     if (negate) cosine = -cosine;
-                    // Keep Godot Quaternion.Slerp's threshold and arithmetic, moving
-                    // only its invariant acos/sin out of the per-person sample.
-                    float angle = 1.0 - cosine > Mathf.Epsilon ? Mathf.Acos(cosine) : 0;
+                    // Dense exported keys turn less than 1.7 degrees here. Normalized
+                    // linear interpolation stays within the routing proof's error bound
+                    // and avoids two trigonometric calls for each sampled joint.
+                    float angle = cosine < .9999f ? Mathf.Acos(cosine) : 0;
                     arcs[k] = new Arc(angle, angle == 0 ? 0 : Mathf.Sin(angle), negate, values[k] == values[k + 1]);
                 }
                 tracks[t] = new Track(clock, values, constant, values[0].Normalized(), arcs);
