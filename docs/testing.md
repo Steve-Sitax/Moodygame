@@ -41,7 +41,7 @@ The same shape runs every other check below; give each its own option and folder
 active-frame budgets in `godot/src/Dev/PerformanceBudget.cs`, and `paths` and `shaders` must have no findings.
 
 For repeatable clothing comparisons, add `--people2-clothing-proof --people2-kinds porter,fishwife_a,old_man,ragman`
-to `--people2-captures <dir> --people2-light-proof`. Identities follow kind names, with front/side/back views at 2.2 and 3 m,
+to `--people2-captures <dir> --people2-light-proof`. Identities follow kind names, with front/side/back views,
 two held walking and carrying phases, sitting, and day/rain/night light. It waits for finished identity meshes
 and the seated garment shape, and includes forced far-mesh views at 3 and 18 metres. Compare the same flags and seed on both
 revisions; the JSON records identity readiness, the live clock, weather, clip and phase. With `--people2-motion <dir>`, the clothing
