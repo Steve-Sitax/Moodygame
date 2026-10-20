@@ -47,13 +47,10 @@ public partial class RuienHatch : Node3D
             // A real rebated meeting edge closes the centre joint beneath the other leaf.
             // The player's narrow ground probe must land on iron here, not pass through the seam.
             if(side<0)Box(new Vector3(half,-.052f,length/2),new Vector3(.05f,.025f,length-.04f),.001f);
-            foreach(float edge in new[]{.045f,half-.045f})Box(new Vector3(-side*edge,-.052f,length/2),new Vector3(.038f,.042f,length-.06f));
             for(float z=.10f;z<length;z+=.45f)
-            {
-                Box(new Vector3(x,-.052f,z),new Vector3(half-.04f,.04f,.038f));
                 foreach(float edge in new[]{.035f,half-.035f})
                     Box(new Vector3(-side*edge,.002f,z),new Vector3(.018f,.012f,.018f),.004f);
-            }
+            Underside(hinge,side,half,length);
             // Flush lifting recess and folding handle, and three substantial hinge straps.
             Box(new Vector3(-side*(half-.12f),.002f,length*.23f),new Vector3(.09f,.012f,.18f));
             foreach(float dz in new[]{-.055f,.055f})
@@ -76,6 +73,18 @@ public partial class RuienHatch : Node3D
                 foreach(float dz in new[]{-.027f,.027f})
                     anchors.AppendFrom(BevelMesh.Box(new Vector3(.022f,.012f,.022f),.003f,RuienMaterials.Get("ruien_iron")),0,
                         new Transform3D(Basis.Identity,new Vector3(side*(half+.13f),.084f,z+dz)));
+                // The shoe's strap runs down the stone reveal, leaded in and bolted: what one sees from the stair.
+                float reveal=Way.Hole.Size.X/2;
+                anchors.AppendFrom(BevelMesh.Box(new Vector3(.014f,.215f,.105f),.003f,RuienMaterials.Get("ruien_iron")),0,
+                    new Transform3D(Basis.Identity,new Vector3(side*(reveal-.007f),-.122f,z)));
+                anchors.AppendFrom(BevelMesh.Box(new Vector3(.03f,.012f,.105f),.003f,RuienMaterials.Get("ruien_iron")),0,
+                    new Transform3D(Basis.Identity,new Vector3(side*(reveal-.002f),-.021f,z)));
+                foreach(float by in new[]{-.075f,-.185f})foreach(float dz in new[]{-.03f,.03f})
+                    anchors.AppendFrom(BevelMesh.Box(new Vector3(.012f,.022f,.022f),.004f,RuienMaterials.Get("ruien_iron")),0,
+                        new Transform3D(Basis.Identity,new Vector3(side*(reveal-.019f),by,z+dz)));
+                // Lead caulking round the strap where it is let into the bluestone.
+                anchors.AppendFrom(BevelMesh.Box(new Vector3(.006f,.225f,.118f),.002f,RuienMaterials.Get("ruien_iron")),0,
+                    new Transform3D(Basis.Identity,new Vector3(side*(reveal-.002f),-.119f,z)));
             }
             RuienStair.Add(hinge,st,"ruien_iron",true);
         }
@@ -83,6 +92,67 @@ public partial class RuienHatch : Node3D
         // Providers are installed after the interaction part is ready.
         CallDeferred(MethodName.Install);
     }
+    /// <summary>
+    /// A leaf's underside as one sees it from the stair: riveted angle frame, a deep T-rib every 45 cm, a central
+    /// stiffener and a drop ring, with rust bloom and soot in the panels (weather colour) and their occlusion.
+    /// Built in the hinge's frame: u runs from the hinge (0) to the meeting edge, z along the flight.
+    /// </summary>
+    private static void Underside(Node3D hinge,float side,float half,float length)
+    {
+        var st=new SurfaceTool();st.Begin(Mesh.PrimitiveType.Triangles);st.SetCustomFormat(0,SurfaceTool.CustomFormat.Rgba8Unorm);
+        const float plate=-.042f;
+        void B(float u,float y,float z,Vector3 size,float r,Color w,float ao)
+        {
+            var a=BevelMesh.Box(size,r,null!).SurfaceGetArrays(0);
+            var p=a[(int)Mesh.ArrayType.Vertex].AsVector3Array();var n=a[(int)Mesh.ArrayType.Normal].AsVector3Array();var uv=a[(int)Mesh.ArrayType.TexUV].AsVector2Array();
+            var at=new Vector3(-side*u,y,z);
+            for(int i=0;i<p.Length;i++){st.SetNormal(n[i]);st.SetUV(uv[i]+new Vector2(at.X+at.Z*.37f,at.Y+at.Z));st.SetColor(w);st.SetCustom(0,new Color(0,0,0,ao));st.AddVertex(at+p[i]);}
+        }
+        // Rust bloom and soot vary from panel to panel (a hash of the panel), salts gather on the low edge.
+        Color Panel(int k)=>new(.12f+.2f*((k*37)%10)/10f,.03f+.08f*((k*53)%7)/7f,.04f+.12f*((k*29)%9)/9f,0);
+        float m=half-.006f;
+        // Soot-dark panel skin between the members.
+        B(m/2,plate-.0015f,length/2,new Vector3(m-.02f,.003f,length-.02f),.001f,new Color(.55f,.08f,.8f,0),.38f);
+        // Perimeter angle: flange riveted to the plate, leg hanging 60 mm.
+        foreach(float u in new[]{.068f,m-.028f})
+        {
+            B(u,plate-.004f,length/2,new Vector3(.05f,.008f,length-.03f),.002f,new Color(.15f,.05f,.1f,0),.85f);
+            B(u+(u<.1f?.022f:-.022f),plate-.038f,length/2,new Vector3(.009f,.06f,length-.05f),.002f,new Color(.2f,.04f,.12f,0),.8f);
+            for(float z=.06f;z<length-.04f;z+=.085f)B(u,plate-.011f,z,new Vector3(.019f,.009f,.019f),.0045f,new Color(.08f,.1f,.02f,0),.95f);
+        }
+        foreach(float z in new[]{.03f,length-.03f})
+        {
+            B(m/2+.02f,plate-.004f,z,new Vector3(m-.1f,.008f,.05f),.002f,new Color(.15f,.05f,.1f,0),.85f);
+            B(m/2+.02f,plate-.038f,z+(z<1?.022f:-.022f),new Vector3(m-.12f,.06f,.009f),.002f,new Color(.2f,.04f,.12f,0),.8f);
+            for(float u=.11f;u<m-.05f;u+=.085f)B(u,plate-.011f,z,new Vector3(.019f,.009f,.019f),.0045f,new Color(.08f,.1f,.02f,0),.95f);
+        }
+        // Transverse T-ribs and their rivet rows.
+        int k=0;
+        for(float z=.475f;z<length-.3f;z+=.45f,k++)
+        {
+            B(m/2+.02f,plate-.004f,z,new Vector3(m-.12f,.008f,.06f),.002f,Panel(k),.8f);
+            B(m/2+.02f,plate-.043f,z,new Vector3(m-.14f,.07f,.012f),.002f,Panel(k+3),.72f);
+            B(m/2+.02f,plate-.082f,z,new Vector3(m-.15f,.01f,.05f),.003f,Panel(k+5),.85f);
+            for(float u=.13f;u<m-.07f;u+=.1f)foreach(float dz in new[]{-.021f,.021f})
+                B(u,plate-.011f,z+dz,new Vector3(.018f,.009f,.018f),.0042f,new Color(.08f,.12f,.02f,0),.95f);
+        }
+        // Central stiffener along the leaf, stopping at each rib.
+        B(m*.55f,plate-.03f,length/2,new Vector3(.012f,.05f,length-.12f),.002f,new Color(.2f,.05f,.15f,0),.8f);
+        B(m*.55f,plate-.057f,length/2,new Vector3(.03f,.008f,length-.12f),.002f,new Color(.18f,.06f,.1f,0),.85f);
+        // A forged drop ring near the meeting edge, for pulling the leaf shut from below.
+        float rz=length*.62f,ru=m-.13f;
+        B(ru,plate-.02f,rz,new Vector3(.045f,.012f,.045f),.004f,new Color(.3f,.1f,.4f,0),.85f);
+        for(int i=0;i<12;i++)
+        {
+            float a=i*Mathf.Tau/12;var c=new Vector3(0,-.06f+.04f*MathF.Cos(a),.04f*MathF.Sin(a));
+            var b=BevelMesh.Box(new Vector3(.014f,.024f,.014f),.005f,null!).SurfaceGetArrays(0);
+            var p=b[(int)Mesh.ArrayType.Vertex].AsVector3Array();var n=b[(int)Mesh.ArrayType.Normal].AsVector3Array();var uv=b[(int)Mesh.ArrayType.TexUV].AsVector2Array();
+            var rot=new Basis(Vector3.Right,-a);var at=new Vector3(-side*ru,plate+c.Y,rz+c.Z);
+            for(int j=0;j<p.Length;j++){st.SetNormal(rot*n[j]);st.SetUV(uv[j]);st.SetColor(new Color(.3f,.1f,.35f,0));st.SetCustom(0,new Color(0,0,0,.85f));st.AddVertex(at+rot*p[j]);}
+        }
+        RuienStair.Add(hinge,st,"ruien_iron",true);
+    }
+
     private void Install()=>Interact.I?.AddProvider(Keys);
     public override void _ExitTree()=>All.Remove(Way.Id);
     private Offers? Keys(float x,float z)

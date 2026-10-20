@@ -9,7 +9,7 @@ namespace Scheldemist.World.Ruien;
 /// <summary>Dressed bluestone opening kit: deep reveals, recessed bearing seats and bonded corner stones.</summary>
 public static class RuienSurround
 {
-    public const float Bottom=-.30f, Joint=.005f, Seat=-.015f, LidTop=.027f;
+    public const float Bottom=-.30f, Joint=.009f, Seat=-.015f, LidTop=.027f;
     public static bool Applies(RuienData.Way w)=>w.Kind is "keeper_stair" or "stair" or "ladder" or "grate";
     public static float Width(RuienData.Way w)=>w.Kind is "keeper_stair" or "stair"?.32f:.23f;
     public static float Top(RuienData.Way w)=>w.Kind is "keeper_stair" or "stair"?.065f:.035f;
@@ -34,7 +34,7 @@ public static class RuienSurround
             new Vector2(inner,bottom),new Vector2(outer,bottom),new Vector2(outer,upper),
             new Vector2(lip,upper),new Vector2(lip,Seat),new Vector2(inner,Seat)};
         var profile=Round(Section(Bottom,top,0,width,.095f),.008f);
-        var bed=Round(Section(Bottom+.008f,top-.009f,.009f,width-.009f,.103f),.002f);
+        var bed=Round(Section(Bottom+.004f,top-.006f,.005f,width-.005f,.100f),.002f);
         // At a bonded corner the mortar reaches both arrises; an inset straight-course joint leaves a pinhole.
         var cornerBed=Round(Section(Bottom+.001f,top-.009f,-.005f,width+.005f,.10f),.001f);
         var bedding=new[]{new Vector2(-.004f,Bottom-.018f),new Vector2(width+.008f,Bottom-.018f),

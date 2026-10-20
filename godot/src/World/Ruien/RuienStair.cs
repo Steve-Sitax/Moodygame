@@ -111,7 +111,10 @@ public static class RuienStair
         {
             var tile=RuienTextures.Families()[family[6..]];
             a[(int)Mesh.ArrayType.TexUV]=a[(int)Mesh.ArrayType.TexUV].AsVector2Array().Select(uv=>uv/new Vector2(tile.TileU,tile.TileV)).ToArray();
-            a[(int)Mesh.ArrayType.Color]=p.Select(v=>new Color(.32f,.015f,.14f,0)).ToArray();
+            if(a[(int)Mesh.ArrayType.Color].VariantType==Variant.Type.Nil)
+                a[(int)Mesh.ArrayType.Color]=p.Select(v=>new Color(.32f,.015f,.14f,0)).ToArray();
+            // Separate boxes, vaults and reveals share one unfolded chart: courses continue round every corner.
+            if(family.StartsWith("ruien_brick"))RuienUnfold.Apply(a,family,null,0);
         }
         RuienUv.Repair(a,family);
         var done=new ArrayMesh();done.AddSurfaceFromArrays(Mesh.PrimitiveType.Triangles,a);done.SurfaceSetMaterial(0,RuienMaterials.Get(family));

@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using Godot;
+using Scheldemist.Models;
 
 namespace Scheldemist.World.Ruien;
 
@@ -189,6 +190,70 @@ public static class RuienKit
         }
         var root=new Node3D{Name="round_grate_"+w.Id,Position=w.Top+Vector3.Up*.037f};
         root.AddChild(new MeshInstance3D{Mesh=mesh,Layers=Ruien.Layer,CastShadow=GeometryInstance3D.ShadowCastingSetting.Off});
+        return root;
+    }
+
+    /// <summary>
+    /// The brick collar where a round shaft meets the vault crown (D1): a soffit ring of radial headers set 18 mm
+    /// proud on a mortar bed, rounded into the shaft at its rim, laid over the trimmed crown so the export's
+    /// decimated flare never shows. <paramref name="rim"/> is the crown height at the shaft, <paramref name="outer"/>
+    /// the collar's outer radius.
+    /// </summary>
+    public static Node3D Collar(Vector3 centre,float radius,float outer,float rim)
+    {
+        var root=new Node3D{Name="ruien_collar"};
+        var st=new SurfaceTool();st.Begin(Mesh.PrimitiveType.Triangles);st.SetCustomFormat(0,SurfaceTool.CustomFormat.Rgba8Unorm);
+        var bed=new SurfaceTool();bed.Begin(Mesh.PrimitiveType.Triangles);
+        float soffit=rim-.006f;
+        void Brick(Vector3 c,Basis b,Vector3 size,Color w,float ao)
+        {
+            var a=BevelMesh.Box(size,.008f,null!).SurfaceGetArrays(0);
+            var p=a[(int)Mesh.ArrayType.Vertex].AsVector3Array();var n=a[(int)Mesh.ArrayType.Normal].AsVector3Array();var uv=a[(int)Mesh.ArrayType.TexUV].AsVector2Array();
+            for(int i=0;i<p.Length;i++){st.SetNormal(b*n[i]);st.SetUV(uv[i]);st.SetColor(w);st.SetCustom(0,new Color(0,0,0,ao));st.AddVertex(c+b*p[i]);}
+        }
+        // Two rowlock rings: headers radial, their ends seen from below; the outer ring has more bricks.
+        // Rowlock rings out to the outer stretcher course; the last one narrows to meet it.
+        var inner=new List<float>();var span=new List<float>();
+        for(float r=radius+.004f;r<outer-.096f;r+=.114f){inner.Add(r);span.Add(Math.Min(.108f,outer-.094f-r));}
+        for(int ring=0;ring<inner.Count;ring++)
+        {
+            float r0=inner[ring],r1=r0+span[ring];int count=(int)MathF.Round(Mathf.Tau*(r0+.054f)/.072f);
+            for(int k=0;k<count;k++)
+            {
+                float a=(k+.5f)*Mathf.Tau/count;var dir=new Vector3(MathF.Cos(a),0,MathF.Sin(a));
+                float width=Mathf.Tau*r0/count-.007f;var tan=Vector3.Up.Cross(dir).Normalized();
+                var basis=new Basis(tan,Vector3.Up,dir);
+                // Damp and sooted nearest the opening, lime bloom on a few, as the shaft drips onto them.
+                float wet=ring==0?.7f:.45f;var w=new Color(wet,(k*7)%5==0?.35f:.06f,.35f+.15f*Math.Max(0,1-ring),0);
+                float depth=.09f-.006f*((k*5)%3);
+                Brick(centre+dir*(r0+span[ring]/2)+Vector3.Up*(soffit-.018f+depth/2),basis,new Vector3(width,depth,span[ring]-.004f),w,ring==0?.7f:.85f);
+            }
+        }
+        // Mortar bed flush with the crown, from the shaft rim to the collar's edge, lapping the trimmed vault.
+        const int seg=96;
+        for(int i=0;i<seg;i++)
+        {
+            float a0=i*Mathf.Tau/seg,a1=(i+1)*Mathf.Tau/seg;
+            Vector3 P(float a,float r)=>centre+new Vector3(MathF.Cos(a)*r,soffit+.012f,MathF.Sin(a)*r);
+            var p0=P(a0,radius-.004f);var p1=P(a1,radius-.004f);var p2=P(a1,outer);var p3=P(a0,outer);
+            foreach(var p in new[]{p0,p1,p2,p0,p2,p3}){bed.SetNormal(Vector3.Down);bed.SetColor(new Color(.3f,.04f,.12f,0));bed.SetUV(new Vector2(p.X,p.Z));bed.AddVertex(p);}
+        }
+        // Outer edge of the collar: a ring of stretchers on the flat, bonding it into the crown's courses.
+        int outerCount=(int)MathF.Round(Mathf.Tau*(outer-.046f)/.225f);
+        for(int k=0;k<outerCount;k++)
+        {
+            float a=(k+.5f)*Mathf.Tau/outerCount;var dir=new Vector3(MathF.Cos(a),0,MathF.Sin(a));var tan=Vector3.Up.Cross(dir).Normalized();
+            float len=Mathf.Tau*(outer-.046f)/outerCount-.008f;
+            Brick(centre+dir*(outer-.046f)+Vector3.Up*(soffit+.007f),new Basis(tan,Vector3.Up,dir),new Vector3(len,.05f,.088f),new Color(.35f,.08f,.3f,0),.9f);
+        }
+        RuienStair.Add(root,st,"ruien_brick_header",true);
+        var mortar=bed.Commit();var ma=mortar.SurfaceGetArrays(0);
+        var pa=ma[(int)Mesh.ArrayType.Vertex].AsVector3Array();
+        for(int i=0;i<pa.Length;i+=3)if((pa[i+1]-pa[i]).Cross(pa[i+2]-pa[i]).Dot(Vector3.Down)>0)(pa[i+1],pa[i+2])=(pa[i+2],pa[i+1]);
+        ma[(int)Mesh.ArrayType.Vertex]=pa;
+        var done=new ArrayMesh();done.AddSurfaceFromArrays(Mesh.PrimitiveType.Triangles,ma);done.SurfaceSetName(0,"ruien_misc_Mortar_header");
+        done.SurfaceSetMaterial(0,RuienMaterials.Get("ruien_misc_Mortar_header"));
+        root.AddChild(new MeshInstance3D{Mesh=done,Layers=Ruien.Layer,CastShadow=GeometryInstance3D.ShadowCastingSetting.Off});
         return root;
     }
 

@@ -1,5 +1,11 @@
 # Work log
 
+## Ruien O2 inside faults, 2026-10-20 (#212)
+
+Fixed the 13 inside-inspection faults: unfolded brick courses on every brick surface, open B2 drain throats with native header rings, cast-iron pipe outfalls with bores and floor stains, A1 lid undersides and hinge straps, D1 brick collar, side-channel water and bricked-up ends, dock jamb fillers, a metric setts chart at bends and varied vault weathering. Extra sky leaks at the old keeper-side drain and the side-channel mouths are closed.
+
+Native checks: 284/284; access rules 9/9; 111 inspection cameras plus mood/day/rain/night retaken. Shader kinds 41, no new lights. PERF-LOCK medians fix4 final5 -> fix5, ms/frame: gate 16.69 -> 16.76, gallery 13.53 -> 13.36, hall 11.11 -> 10.86, with no other Godot/Blender running. Evidence: `_tmp_verify/ruien-o2-fix5/RESULT.md`. Leftovers: #213 (6-pixel sliver at the C1 throat), #214 (setts joint flanks projected).
+
 ## Ruien O2 street-opening frames, 2026-10-20 (#211)
 
 Built one deep, jointed bluestone frame kit for the keeper, hall stair and both grates, with recessed lid seats, worn edges, hinge shoes and closed perimeter packing. Kerbs terminate against it; lining and paving no longer overlap, and the keeper crown stays underground. Fixed the missing iron leaf geometry, queued hatch requests and prompt timing; retained the hall's oak leaves and rail. Repaired the round grate's vertical-rim UVs.

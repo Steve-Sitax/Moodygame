@@ -11,7 +11,7 @@ namespace Scheldemist.World.Ruien;
 public static class RuienUv
 {
     /// <summary>Restore collapsed/sliver UV charts on exposed narrow faces; retain the authored phase and direction.</summary>
-    public static bool Repair(Godot.Collections.Array arrays,string family)
+    public static bool Repair(Godot.Collections.Array arrays,string family,bool continuous=false)
     {
         var families=RuienTextures.Families();
         if(!families.TryGetValue(family.StartsWith("ruien_")?family[6..]:family,out var f))return false;
@@ -31,6 +31,9 @@ public static class RuienUv
             float max=MathF.Sqrt(Math.Max(0,(aa+bb+disc)/2)),min=MathF.Sqrt(Math.Max(0,(aa+bb-disc)/2));
             // Relief slopes may shorten a chart slightly. Exposed thin faces still need the same metric scale.
             if(min>=.6f && max<=1.7f && max/Math.Max(min,1e-6f)<=1.3f)continue;
+            // A continuous floor chart keeps its relief flanks (projected, as laid): only collapsed slivers are re-charted,
+            // otherwise each repaired triangle starts its own phase and the setts shatter into mm-scale streaks.
+            if(continuous && min>=.25f && max<=3f && max/Math.Max(min,1e-6f)<=4f)continue;
             var u=du.LengthSquared()>.00001f?du.Normalized():new Vector2(1,0);
             float handed=du.Cross(dv)<0?-1:1;var v=new Vector2(-u.Y,u.X)*handed;
             var centre=(uv[a]+uv[b]+uv[c])*tile/3;

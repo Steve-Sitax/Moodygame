@@ -57,6 +57,8 @@ uniform float bake_k = 0.85;
 uniform float halo_k = 1.0;
 // the halo's slow mottle (20 cm), taken at the vertices: cheaper than per pixel, and the relief is that fine
 varying float halo_n;
+// the lime's slow variation from bay to bay (about 3 m): the study laid the same halo on every rib and groin
+varying float lime_mod;
 
 void vertex() {
 	vec4 view = MODELVIEW_MATRIX * vec4(VERTEX, 1.0);
@@ -65,6 +67,7 @@ void vertex() {
 	POSITION = PROJECTION_MATRIX * vec4(view.xyz * (1.0 - depth_bias), 1.0);
 	wx = COLOR;
 	halo_n = COLOR.g > 0.04 ? ruien_noise3(world * 5.0) : 0.5;
+	lime_mod = COLOR.g > 0.04 ? 0.3 + 1.0 * ruien_noise3(world * 0.33 + vec3(5.7, 1.3, 2.9)) : 1.0;
 	bake_ao = CUSTOM0.a > 0.0 ? CUSTOM0.a : 1.0;
 	bake = vec4(CUSTOM0.rgb * CUSTOM0.rgb, step(0.0005, dot(CUSTOM0.rgb, vec3(1.0))));
 	if (uv_metres > 0.5) UV /= tile_m;
@@ -105,10 +108,20 @@ void fragment() {
 	vec4 hra = texture(hra_tex, uv);
 	float h = hra.r;
 	vec3 dry = texture(albedo_tex, uv).rgb;
+	// The brick sets paint a few missing bricks black. The courses are now unfolded across the mesh, so they no longer
+	// fall on the geometry's own chipped recesses: lay the brick one course up (half a brick along) into the slot.
+	if (variants > 0.5 && dot(dry, vec3(0.333)) < 0.018) {
+		uv += vec2(0.0208, 0.025);
+		hra = texture(hra_tex, uv);
+		h = hra.r;
+		dry = texture(albedo_tex, uv).rgb;
+	}
 	// the weather, by cause (the vertex colour): wet and slimed low and under seeps, limed round deposits and down the
 	// runnels (in the joints first), soot over the lamps and under the crown, moss in damp joints near daylight
 	float wet = clamp(wx.r * weather_k, 0.0, 1.0);
-	float lime = clamp(wx.g * weather_k, 0.0, 1.0);
+	float lime = clamp(wx.g * weather_k * lime_mod, 0.0, 1.0);
+	// (broken up in world space at 15 cm: on coarse triangles the vertex mask alone draws straight-edged blotches)
+	if (lime > 0.02) lime = clamp(lime * mix(0.5, 1.35, ruien_noise3(world * 6.5 + vec3(1.7, 0.3, 4.1))), 0.0, 1.0);
 	float soot = clamp(wx.b, 0.0, 1.0);
 	float moss = clamp(wx.a, 0.0, 1.0);
 	vec3 c;
@@ -197,7 +210,8 @@ void fragment() {
 	NORMAL = normalize((VIEW_MATRIX * vec4(n, 0.0)).xyz);
 	// a wet film: the lamps' glints stronger, and the lamps mirrored as soft streaks on it (the renders' wet coping)
 	float film = smoothstep(0.3, 0.9, wet_all) * (1.0 - lime) * (1.0 - smoothstep(12.0, 30.0, len));
-	vec3 streak = film > 0.001 ? ruien_streaks(world, reflect(rd, n), 0.6) * film * 0.12 : vec3(0.0);
+	// (mirrored off the film, which lies smooth over the grain: the stone's own relief must not stripe the streaks)
+	vec3 streak = film > 0.001 ? ruien_streaks(world, reflect(rd, normalize(mix(nw, n, 0.25))), 0.6) * film * 0.12 * (1.0 - 0.6 * rough) : vec3(0.0);
 	EMISSION = c * (1.0 - metal * 0.6) * ((diff + sky + fill) * ao) + spec * spec_c * ao * (1.0 + 0.8 * film) + streak + halo;
 	FOG = vec4(fog.rgb + halo, fog.a);
 }

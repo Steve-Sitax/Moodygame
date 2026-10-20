@@ -14,9 +14,12 @@ public static class RuienPaving
     private static Image? height;
     private static RuienData.Zone[] paths=Array.Empty<RuienData.Zone>();
     private static RuienData.Zone[] rooms=Array.Empty<RuienData.Zone>();
-    public static void Layout(RuienData.Area area)
+    public static void Layout(RuienData.Area area,RuienData.Zone? built=null)
     {
         paths=System.Linq.Enumerable.ToArray(System.Linq.Enumerable.Where(area.Zones,z=>z.Kind=="line"));
+        // The export was swept along its own smoothed key line; rows must turn where its walls turn, not where the
+        // plan's coarser line bends (that put a phantom bend into the straight walk by the gate and smeared the setts).
+        if(built!=null&&paths.Length>0)paths[0]=built;
         rooms=System.Linq.Enumerable.ToArray(System.Linq.Enumerable.Where(area.Zones,z=>z.Kind=="room"));
     }
 
@@ -49,14 +52,35 @@ public static class RuienPaving
         }
         var f=Frame(u);var n=new Vector2(f.tangent.Y,-f.tangent.X);
         float side=(q-f.at).Dot(n),centre=MathF.Sign(side)*(z.S.Channel/2+z.S.Width/2)/2;
-        var t0=Frame(0).tangent;
-        float angle=t0.AngleTo(f.tangent);
-        float delta=.2f, lo=Math.Max(0,u-delta),hi=Math.Min(z.Length,u+delta);
-        float curvature=Frame(lo).tangent.AngleTo(Frame(hi).tangent)/Math.Max(.001f,hi-lo);
-        // Our normal is to the right, so an offset curve has metric 1 + k * side.
-        float k=curvature/(1+curvature*centre),offset=side-centre;
-        float across=MathF.Abs(k)<.0001f?offset:MathF.Log(Math.Max(.25f,1+k*offset))/k;
-        return new Vector2(across+centre,u+centre*angle);
+        // Rows run along the walk's own centre line: the path offset by the walk's centre, mitred at corners.
+        // Arc length on that line is metric for every vertex of the walk, at bends and sharp corners alike
+        // (a sharp corner meets under its dressed seam stone).
+        var line=Offset(z,centre);
+        float bestD=float.MaxValue,along=0,across=0;
+        for(int i=0;i+1<line.points.Length;i++)
+        {
+            var a=line.points[i];var b=line.points[i+1];var ab=b-a;float len=ab.Length();if(len<1e-5f)continue;
+            float t=Math.Clamp((q-a).Dot(ab)/(len*len),0,1);var c=a+ab*t;float d=q.DistanceSquaredTo(c);
+            if(d<bestD){bestD=d;along=line.cum[i]+t*len;var nn=new Vector2(ab.Y,-ab.X)/len;across=(q-c).Dot(nn);}
+        }
+        return new Vector2(across+centre,along);
+    }
+    private static readonly Dictionary<(RuienData.Zone,float),(Vector2[] points,float[] cum)> offsets=new();
+    private static (Vector2[] points,float[] cum) Offset(RuienData.Zone z,float d)
+    {
+        if(offsets.TryGetValue((z,d),out var hit))return hit;
+        var p=z.Path;var pts=new List<Vector2>();
+        Vector2 N(Vector2 a,Vector2 b){var t=(b-a).Normalized();return new Vector2(t.Y,-t.X);}
+        for(int i=0;i<p.Length;i++)
+        {
+            if(i==0){pts.Add(p[0]+N(p[0],p[1])*d);continue;}
+            if(i==p.Length-1){pts.Add(p[i]+N(p[i-1],p[i])*d);continue;}
+            var n0=N(p[i-1],p[i]);var n1=N(p[i],p[i+1]);var m=(n0+n1);
+            if(m.LengthSquared()<1e-6f){pts.Add(p[i]+n0*d);continue;}
+            m=m.Normalized();float c=Math.Max(.3f,m.Dot(n0));pts.Add(p[i]+m*(d/c));
+        }
+        var cum=new float[pts.Count];for(int i=1;i<pts.Count;i++)cum[i]=cum[i-1]+pts[i].DistanceTo(pts[i-1]);
+        return offsets[(z,d)]=(pts.ToArray(),cum);
     }
     private static Image Heights
     {
@@ -89,10 +113,13 @@ public static class RuienPaving
         foreach(var p0 in new[]{a,b,c})
         {
             var p=p0;var world=p+origin;var uv=(chart??Coordinates)(world);
-            float H(Vector3 at){var v=(chart??Coordinates)(at);return Sample(v.X,v.Y);}
-            float h=Sample(uv.X,uv.Y);
+            // Relief low-passed over 1 cm: the vertices are 4.5 cm apart, single texels alias into facets.
+            float S(Vector2 q)=>(Sample(q.X,q.Y)*2+Sample(q.X+.01f,q.Y)+Sample(q.X-.01f,q.Y)+Sample(q.X,q.Y+.01f)+Sample(q.X,q.Y-.01f))/6;
+            float H(Vector3 at)=>S((chart??Coordinates)(at));
+            float h=S(uv);
             p.Y+=Relief*h;
-            const float e=.006f;
+            // (sampled over 18 mm: the height picture's grain at 2.4 mm turned low daylight into streaks on each sett)
+            const float e=.018f;
             var n=new Vector3(-(H(world+Vector3.Right*e)-H(world-Vector3.Right*e))*Relief/(2*e),1,-(H(world+Vector3.Back*e)-H(world-Vector3.Back*e))*Relief/(2*e)).Normalized();
             st.SetNormal(n);st.SetUV(uv/Tile);
             // Existing dirt stays in the joints; the water-facing strip takes more slime and damp.

@@ -20,6 +20,27 @@ faces. Mortar beds and perimeter packing close the joints below the paving; no e
 Hatch commands queue behind an active poll, and action prompts are withheld during movement. Both leaves and
 their collision rotate about the same pivots. Review evidence for #211 is in `_tmp_verify/ruien-o2-fix4/`.
 
+Inside inspection repairs (#212), all reusable for the other areas:
+
+- `RuienUnfold` gives every brick surface (export and native) one metric chart per connected surface: level courses
+  on walls and vault webs, the frame carried round returns and soffits, ring courses at round shafts (`grates[].collar`).
+  The baked colour is low-passed so the old mortar lines do not ghost; the shader lays a whole brick over the
+  texture's black missing-brick slots, which no longer meet the geometry's recesses.
+- B2: the exported lining darkens with depth and runs on round a bend (`RuienDrain.Throat`); `RuienDrain` adds two
+  native rowlock header rings on a mortar bed (the decimated exported rings are dropped). The study's first drain,
+  now behind the keeper landing, is bricked up.
+- `RuienPipe` (areas.json `pipes`): beaded cast socket, open bore that darkens and holds silt, rough lime fillet,
+  brick backing and a run-off film; the exported closed outlets are retired and the vertex stain fans over the walk.
+- `RuienEnd` (`channelEnds`): bricked-up stub ends with an arched, barred culvert; the side channels carry water.
+- `RuienKit.Collar`: D1's brick collar of three header rings and an outer stretcher ring over the trimmed crown.
+- A1 leaves have riveted angle frames, T-ribs, a stiffener and a drop ring below; hinge straps run down the reveal.
+- Calcite crusts and baked lime vary from bay to bay; their ends fade instead of stopping square.
+- Walk setts are charted by arc length along the walk's own centre line (the export's swept key line offset to
+  the walk and mitred at corners), so the rows stay at one scale through bends; their UV repair keeps the chart
+  continuous and their relief is low-passed, which removed the striped setts at the gate seam.
+- The old drain mouth behind the keeper landing is bricked up, and an open strip of the east side channel's mouth
+  vault is closed.
+
 The town's broad river sheet is excluded beneath the Ruien by a world-space cover texture, including masonry and side galleries. This replaces the old water-level stencil lid, which could be clipped out at particular camera heights. The air volumes clip against sampled scene depth themselves, so the hardware depth test must not discard their enclosing box at the shaft rim. Neither fix adds a shader kind or a real light.
 
 ## Data

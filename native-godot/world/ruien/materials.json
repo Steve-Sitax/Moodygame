@@ -13,7 +13,7 @@
   "calcite": { "pom": 0.5, "normal": 1.2, "rough": 1.0, "weather": 0.25, "wrap": 0.45 },
   "oak": { "pom": 0.25, "normal": 1.0, "rough": 1.0, "weather": 0.8 },
   "oak_debris": { "textures": "oak", "pom": 0.15, "normal": 0.8, "rough": 1.0, "weather": 0.8, "moss": 0.3, "uvMetres": [1.0, 1.0] },
-  "iron": { "pom": 0.0, "normal": 1.0, "rough": 1.0, "weather": 0.12, "metal": 0.45 },
+  "iron": { "pom": 0.0, "normal": 1.0, "rough": 1.0, "weather": 0.12, "metal": 0.45, "grit": 0.35 },
   "silt": { "pom": 0.45, "normal": 0.45, "rough": 1.0, "weather": 0.22, "moss": 0.12, "roughFloor": 0.88 },
   "moss": { "pom": 0.2, "normal": 1.0, "rough": 1.0, "weather": 0.3 }
  },
@@ -37,7 +37,7 @@
   "Runoff_wet": { "color": [0.22, 0.1, 0.065], "rough": 0.15, "cover": 0.45, "weather": 0 },
   "Runoff_iron": { "color": [0.12, 0.05, 0.022], "rough": 0.7, "cover": 0.45, "weather": 0 },
   "Runoff_splash": { "color": [0.42, 0.4, 0.34], "rough": 0.85, "cover": 0.55, "weather": 0 },
-  "Mortar_header": { "color": [0.25, 0.23, 0.19], "rough": 1, "weather": 0, "bake": 0 }
+  "Mortar_header": { "color": [0.25, 0.23, 0.19], "rough": 1, "weather": 0, "bake": 0, "grit": 0.7 }
  },
  "water": {
   "misc_water": { "murk": [0.03, 0.026, 0.015], "absorb": [2.2, 2.6, 3.4], "scum": 0.35, "drips": 1.0 },

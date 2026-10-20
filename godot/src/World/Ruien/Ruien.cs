@@ -114,6 +114,17 @@ public partial class Ruien : Node
             else { (root, shape) = new RuienStandIn(area).Build(spec[area.Id]); how = "stand-in"; }
             Main.I.View.AddChild(RuienConnections.Build(spec[area.Id],area));
             if(area.Id=="o2")foreach(var(u,side) in RuienDrain.Mouths)Main.I.View.AddChild(RuienDrain.Build(area.Zones.First(z=>z.Kind=="line"),u,side));
+            // Shared kit pieces placed by the area's data: open cast outfalls and bricked-up stub ends.
+            var pipes=RuienPipe.Read(spec[area.Id]);
+            for(int i=0;i<pipes.Count;i++)Main.I.View.AddChild(RuienPipe.Build(pipes[i],i));
+            foreach(var end in RuienEnd.Read(spec[area.Id]))Main.I.View.AddChild(RuienEnd.Build(end));
+            if(spec[area.Id].TryGetProperty("grates",out var grates))
+                foreach(var g in grates.EnumerateArray())
+                    if(g.TryGetProperty("collar",out var collar))
+                    {
+                        var at=g.GetProperty("at");
+                        Main.I.View.AddChild(RuienKit.Collar(new Vector3(at[0].GetSingle(),0,at[2].GetSingle()),g.GetProperty("size").GetSingle()/2,collar.GetProperty("outer").GetSingle()+.17f,collar.GetProperty("rim").GetSingle()));
+                    }
             d.Root = root;
             Main.I.View.AddChild(root);
             if (shape != null)
