@@ -703,6 +703,8 @@ sample prompts and input hashes; the baker rejects a different UV layout or alre
 It never saves or exports geometry. Skin pixels and material-ID alpha remain identical.
 Geometry re-exports must retain these finished pictures when UVs are unchanged. Changed UVs require a fresh
 unfinished picture set and updated source hashes before rebaking; do not overwrite the finish with the old painter.
+The fitted-hat rebuild (2026-10-20) did this: a full build changes every kind's vertex order and UVs, so its
+unfinished pictures and `<kind>_lod0` digests went into `manifest.json` and `texture_finish.py` ran on the saved build.
 
 The twelve colour/normal pairs stay 1024px; four shared cloth/leather detail pairs stay 512px, with existing
 BC7 colour and BC5 normal imports and mipmaps. Rest-space sampling, padded islands and small hem stitches
