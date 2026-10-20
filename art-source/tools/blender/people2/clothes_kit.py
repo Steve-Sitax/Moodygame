@@ -579,6 +579,20 @@ def hang(fit, pc, loop, heights, clear=0.02, flare=0.0, folds=None, wfn=None, ce
 
 # ---------------------------------------------------------------- the head
 
+# How headwear clears the head (measured on the built kinds by rays from the skull's middle, 2026-10-20: snug as in
+# the period photographs, never through the hair under it). HAIR_ROOM: head_axis's crown allowance over the bare
+# scalp (the capped crop's shell and the crown's subdivision); HOOD_ROOM: added to a hood_cap's margin; CROWN_CLEAR:
+# how far a cap's or kepi's top is set over the scalp's crown before its cloth is thickened inward.
+HAIR_ROOM = 0.015
+HOOD_ROOM = 0.008
+CROWN_CLEAR = 0.009
+
+
+def scalp_top(fit):
+    """The bare scalp's highest point (game y), without head_axis's allowance."""
+    return head_axis(fit)[1] - HAIR_ROOM
+
+
 def head_axis(fit):
     """The head's vertical axis (x = 0, z through the middle of the skull) and its crown height, from the built near
     copy's head and hair vertices (not from the head's field: hats fit whatever head the face package makes)."""
@@ -590,7 +604,7 @@ def head_axis(fit):
         zc = 0.5 * (sk[:, 2].max() + sk[:, 2].min())
         # Hair is a separate reusable mesh on MakeHuman bodies. Leave room for
         # its capped shell and for the crown's subdivision/reduction shrinkage.
-        fit._haxis = (np.array((0.0, 0.0, zc)), float(top + 0.015))
+        fit._haxis = (np.array((0.0, 0.0, zc)), float(top + HAIR_ROOM))
     return fit._haxis
 
 
@@ -1437,8 +1451,10 @@ def flat_cap(fit, pc, peak, n=16, band=0.020, margin=0.011, puff=0.012, fwd=0.01
     P = fit.P
     chin = bd.Y(P, 0.870)
     hs = P["hs"]
-    c, top = head_axis(fit)
-    top += 0.012  # subdivision lowers the soft crown; keep it above the capped hair shell
+    c, _ = head_axis(fit)
+    # The soft crown lies low over the scalp (the capped crop is gone above the band): its flat top ends about
+    # 17 mm over the crown of the head, as in the period photographs (was 35 mm: a tall drum, #82).
+    top = scalp_top(fit) + CROWN_CLEAR
     phis = 2 * math.pi * np.arange(n) / n
     front = 0.5 + 0.5 * np.cos(phis)
     lift = 0.010 if "mh" in P else 0.0  # MakeHuman's head: the band sits on the forehead, not on the brows
@@ -1446,7 +1462,8 @@ def flat_cap(fit, pc, peak, n=16, band=0.020, margin=0.011, puff=0.012, fwd=0.01
     sup = lambda yy: np.array([head_support(fit, yy[j], phis[j:j + 1])[0] for j in range(n)])
     r0 = sup(y0) + margin
     r1 = np.maximum(sup(y0 + band) + margin + 0.001, r0 - 0.002)
-    ov = puff + 0.008 * front
+    # the crown overhangs the band by about a centimetre, a little more over the peak
+    ov = 0.6 * puff + 0.005 * front
     rings = [(y0 - 0.012, r0, 0.0), (y0 + band, r1, 0.0),
              (0.5 * (y0 + band) + 0.5 * (top - 0.012), r1 + 0.7 * ov, 0.5 * fwd * front),
              (top - 0.006 - 0.004 * front, r1 + ov, fwd * front),
@@ -1459,11 +1476,11 @@ def flat_cap(fit, pc, peak, n=16, band=0.020, margin=0.011, puff=0.012, fwd=0.01
         pc.face((ids[-1, j], ids[-1, (j + 1) % n], cv))
     pc.seam(ids[-1, n // 2], cv)
     pc.orient(lambda q: q - np.array((c[0], q[1] - 0.06, c[2])))
-    # the peak: a stiff plate curving round the band's front, out 5 cm and down, tucked under the crown
+    # the peak: a stiff plate curving round the band's front, out 4.5 cm and down, tucked under the crown
     pa = np.linspace(-1.0, 1.0, 7)
     rows = []
     y_front = chin + hs * (0.116 + lift + tilt) + 0.004
-    for out, dy in ((-0.003, 0.0), (0.024, -0.009), (0.050, -0.020)):
+    for out, dy in ((-0.003, 0.0), (0.022, -0.008), (0.045, -0.018)):
         rr = np.array([head_support(fit, y_front, [a])[0] for a in pa]) + margin + 0.003
         rr = rr + out * np.cos(pa) ** 0.7
         y = y_front + dy * np.cos(pa) ** 0.5 - 0.004 * (1 - np.cos(pa))
@@ -1849,7 +1866,10 @@ def kepi(fit, pc, peak, n=16, margin=0.011, height=0.075, slope=0.022, taper=0.0
     r0 = sup(y0) + margin
     r1 = np.maximum(sup(y0 + 0.02) + margin, r0)
     rb = np.maximum(r0, r1)
-    ytop = np.maximum(top + 0.020, y0 + height) - slope * front  # clear of the hair pieces under it
+    # The stiff top clears the scalp's crown by about a centimetre where it passes over it (the middle of the slope);
+    # it stood 35 mm over the back of the head, a drum taller than the period kepi (#82). A tall hat's own height
+    # (the shako, the sweep's topper) still wins.
+    ytop = np.maximum(scalp_top(fit) + CROWN_CLEAR + 0.004 + slope * 0.5, y0 + height) - slope * front
     rings = [(y0 - 0.012, r0), (y0 + 0.02, rb), (y0 + 0.5 * (ytop - y0), rb - 0.5 * taper),
              (ytop - 0.004, rb - taper), (ytop, rb - taper - 0.006), (ytop + 0.001, (rb - taper) * 0.55)]
     pts = np.array([np.stack([c[0] + r * np.sin(phis), y, c[2] + r * np.cos(phis)], -1) for y, r in rings])
@@ -1864,7 +1884,7 @@ def kepi(fit, pc, peak, n=16, margin=0.011, height=0.075, slope=0.022, taper=0.0
     pa = np.linspace(-1.05, 1.05, 7)
     rows = []
     y_front = y0[0] + 0.004
-    for out, dy in ((-0.003, 0.0), (0.024, -0.006), (0.048, -0.014)):
+    for out, dy in ((-0.003, 0.0), (0.022, -0.006), (0.043, -0.013)):
         rr = np.array([head_support(fit, y_front, [a])[0] for a in pa]) + margin + 0.003
         rr = rr + out * np.cos(pa) ** 0.7
         y = y_front + dy * np.cos(pa) ** 0.5 - 0.003 * (1 - np.cos(pa))
@@ -1872,6 +1892,23 @@ def kepi(fit, pc, peak, n=16, margin=0.011, height=0.075, slope=0.022, taper=0.0
     pk = peak.grid(np.array(rows), hat_weights)
     peak.orient((0, 1, 0.2))
     return ids, pk
+
+
+def tip_back(pieces, band_y, lift=0.010):
+    """Tip a stiff hat back about the back of its band, so its front edge rides `lift` metres higher on the forehead
+    (a bowler or a topper is worn above the brows, not pulled down onto them). The first piece is the crown."""
+    crown = np.array(pieces[0].V)
+    low = crown[crown[:, 1] < band_y + 0.02]
+    zb, zf = float(low[:, 2].min()), float(low[:, 2].max())
+    th = math.atan2(lift, zf - zb)
+    cs, sn = math.cos(th), math.sin(th)
+    pivot = np.array((0.0, band_y, zb))
+    for pc in pieces:
+        V = np.array(pc.V) - pivot
+        y = V[:, 1] * cs + V[:, 2] * sn
+        z = -V[:, 1] * sn + V[:, 2] * cs
+        V[:, 1], V[:, 2] = y, z
+        pc.V = list(V + pivot)
 
 
 def head_hit(fit, centre, dirs, margin):
@@ -1906,7 +1943,9 @@ def hood_cap(fit, pc, frill=None, margin=0.006, front=-18.0, back=112.0, side=11
         for u in us:
             # the arc from ear to ear over the top, tipped back about the left-right axis by v
             dirs.append(np.array((math.sin(u), math.cos(u) * math.cos(v), -math.cos(u) * math.sin(v))))
-        grid.append(head_hit(fit, centre, dirs, margin + 0.025))
+        # Undercap hair lies at most 2.6 mm (plus fuzz) over the scalp: the linen sits close on it. A 25 mm
+        # allowance made the caps stand off as bowls and pushed the beguine's cap through her hood (#82).
+        grid.append(head_hit(fit, centre, dirs, margin + HOOD_ROOM))
     pts = np.array(grid)
     ids = pc.grid(pts, hat_weights, closed=False, seam_col=None)
     pc.orient(lambda q: q - centre)

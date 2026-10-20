@@ -205,15 +205,30 @@ def round_hat(fit, style, colour=BLACK):
     crown = ck.Piece("hat", Cloth(colour, "felt", wear=.18, folds=0), hat=True, scale=1.2)
     brim = ck.Piece("hat_brim", Cloth(colour, "felt", wear=.25, folds=0), hat=True, scale=1.2)
     c, top = ck.head_axis(fit)
-    y0 = top - .064
     phis = np.linspace(0, 2 * math.pi, 24, endpoint=False)
-    r = ck.head_support(fit, y0, phis) + .015
-    height = .18 if style == "top" else .06 if style == "wide" else .105
+    if style == "wide":
+        # the priest's low round hat rides on the top of the head
+        y0 = top - .064
+        r = ck.head_support(fit, y0, phis) + .015
+        height = .06
+    else:
+        # A bowler or topper is seated on the brow like the other hats (its band 8.6 cm under the head's crown).
+        # It perched 5 cm under it, and the bowler's crown narrowed onto the head at the sides (#82).
+        y0 = bd.Y(fit.P, .870) + fit.P["hs"] * .132
+        r = ck.head_support(fit, y0, phis) + .011
+        height = ck.scalp_top(fit) + (.080 if style == "top" else .045) - y0
+    if style == "bowler":
+        # straight sides, then the rounded top (garments_cast.round_hat's bowler)
+        profile = ((0, 1), (.014, 1.02), (.038, 1.02), (height - .051, 1.0), (height - .016, .83),
+                   (height, .45))
+    elif style == "top":
+        # garments_cast.round_hat's topper: its waisted profile folded into creases down the crown when reduced
+        profile = ((0, 1), (.018, 1.01), (height - .018, .94), (height - .003, .97), (height, .5))
+    else:
+        profile = ((0, 1), (.015, 1), (height * .65, .93), (height - .006, 1.01), (height, .99),
+                   (height + .001, .55))
     rows = []
-    for dy, scale in ((0, 1), (.015, 1), (height * .65, .93), (height - .006, 1.01),
-                      (height, .99), (height + .001, .55)):
-        if style == "bowler":
-            scale *= 1 - .40 * (dy / height) ** 2
+    for dy, scale in profile:
         rows.append(np.stack((c[0] + r * scale * np.sin(phis), np.full(24, y0 + dy),
                               c[2] + r * scale * np.cos(phis)), -1))
     ids = crown.grid(np.array(rows), ck.hat_weights, closed=True, seam_col=12)
@@ -221,7 +236,8 @@ def round_hat(fit, style, colour=BLACK):
     for j in range(24):
         crown.face((ids[-1, j], ids[-1, (j + 1) % 24], centre))
     crown.orient(lambda p: p - (c[0], p[1] - .05, c[2]))
-    extension = .090 if style == "wide" else .038
+    # the priest's brim 7.5 cm (was 9 cm: 34 cm across, two and a half heads); a bowler's 3.5 cm, a topper's 3.8 cm
+    extension = .075 if style == "wide" else .035 if style == "bowler" else .038
     rows = [np.stack((c[0] + (r + d) * np.sin(phis),
                       y0 + .003 + (.005 * np.sin(phis) ** 2 if style != "wide" else np.zeros(24)),
                       c[2] + (r + d) * np.cos(phis)), -1) for d in (-.020, .015, extension)]
@@ -229,13 +245,16 @@ def round_hat(fit, style, colour=BLACK):
     brim.orient((0, 1, 0))
     ck.thicken(crown, .0025, depth=.035)
     ck.thicken(brim, .003, depth=None)
+    if style != "wide":
+        ck.tip_back([crown, brim], y0)
     return [crown, brim]
 
 
 def military_hat(fit, shako=True, colour=NAVY):
     pc = ck.Piece("shako" if shako else "kepi", Cloth(colour, "felt", wear=.2, folds=0), hat=True)
     pk = ck.Piece("peak", LEATHER, hat=True)
-    ids, _ = ck.kepi(fit, pc, pk, n=24, height=.19 if shako else .075,
+    # the shako about 16 cm over the band (it stood 20 cm, a Napoleonic height)
+    ids, _ = ck.kepi(fit, pc, pk, n=24, height=.145 if shako else .075,
                      slope=.010 if shako else .022, taper=-.006 if shako else .010)
     ck.thicken(pc, .003, depth=.04)
     ck.thicken(pk, .003, depth=None)
