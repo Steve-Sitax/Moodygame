@@ -414,6 +414,7 @@ def plaid(ctx, sett, base, thread=0.0012, twill=0.00008):
     tw = np.mod(np.floor(fu / thread) + np.floor(fv / thread), 4)
     warp_up = (tw < 2).astype(np.float32)
     mixc = cu * (0.35 + 0.3 * warp_up[:, None]) + cv * (0.65 - 0.3 * warp_up[:, None])
-    ctx.rgb[:] = np.where(ctx.inner[:, None], ctx.rgb, mixc * (np.asarray(base, np.float32) / np.maximum(
-        np.asarray(base, np.float32), 1e-3)))
+    # A woven shawl has the same yarn on both faces, including its turned edge.
+    # It has no separately dyed plain lining.
+    ctx.rgb[:] = mixc * (np.asarray(base, np.float32) / np.maximum(np.asarray(base, np.float32), 1e-3))
     ctx.bump(np.cos((fu + fv) * 2 * math.pi / (thread * 4)), twill)

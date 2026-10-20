@@ -11,6 +11,8 @@ Bugs and loose ends are tracked as [issues](https://github.com/Steve-Sitax/Moody
 
 ## [Unreleased]
 
+- Rebuilt townspeople's clothes with complete underlayers, fitted necklines and sleeves, matching edge linings, stable aprons and shawls, and one pair of shoes per worker (#82, #138).
+
 - Launchers refresh changed model and clothing pictures before play, preventing old cached colours from appearing as patches on rebuilt clothes (#138).
 - Townspeople keep their full body clear of static stall corners when walking near the edge of a navigation cell.
 - Town and park trunks use the photographed bark colour and relief maps (#84, partial); foliage and tree shapes are retained. Isolated day/rain/night review remains pending.

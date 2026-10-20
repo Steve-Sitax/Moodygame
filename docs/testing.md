@@ -40,6 +40,13 @@ cell and neighbouring cell centres. Add `--stuck-replay-only` for just this Vism
 The same shape runs every other check below; give each its own option and folder. Every place must be below the
 active-frame budgets in `godot/src/Dev/PerformanceBudget.cs`, and `paths` and `shaders` must have no findings.
 
+For repeatable clothing comparisons, add `--people2-clothing-proof --people2-kinds porter,fishwife_a,old_man,ragman`
+to `--people2-captures <dir> --people2-light-proof`. Identities follow kind names, with front/side/back views,
+two held walking and carrying phases, sitting, and day/rain/night light. Compare the same flags and seed on both
+revisions; the JSON records the live clock, weather, clip and phase. With `--people2-motion <dir>`, the clothing
+flag dresses the reference bodies and adds a ten-frame walk sequence alongside sitting transitions. These pictures
+do not replace the isolated timing gate.
+
 `perfcheck`, jobtest's `frames` step and peopletest's crowd timings acquire `D:/Code/_locks/PERF-LOCK` with an atomic
 create, waiting every 30 seconds for up to 20 minutes. They record concurrent Godot window PIDs/titles throughout
 measurement. A shared-window run or a lock timeout cannot pass an isolated performance gate; its numbers remain

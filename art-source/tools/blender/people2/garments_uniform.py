@@ -122,10 +122,9 @@ def upper(fit, name, colour, sleeve="w1", hem=None, ease=.018, facing=None,
         pc.meta.pop("facing")
     pc.meta["cuff"] = fit.Y(.499 if sleeve == "w1" else .60) + .055
     opening = lambda y: .018 + .065 * float(sm(fit.Y(.69), fit.Y(.84), y))
-    vm, dup = ck.upper(fit, pc, rows=(0, 9), neck=0, sleeve=sleeve,
+    vm, dup = ck.upper(fit, pc, rows=(0, 9), neck=0 if lapels else 1, sleeve=sleeve,
                       ease=lambda i: ease if ck.info(fit, i)[0] != "neck" else ease * .6,
-                      open_front=(lambda y: opening(y) if lapels else -.014,
-                                  lambda y: -opening(y) if lapels else .014, .003))
+                      open_front=(opening, lambda y: -opening(y), .003) if lapels else None)
     # Millimetre cloth rolls at elbow/waist: normal maps then add finer wrinkles.
     for source, vertex in vm.items():
         part, ring, col_ = ck.info(fit, source)
@@ -136,7 +135,7 @@ def upper(fit, name, colour, sleeve="w1", hem=None, ease=.018, facing=None,
             pc.V[vertex] += fit.N[source] * .0025 * math.sin(col_ * 2.2 + ring * 1.1)
     if hem:
         ck.hang(fit, pc, ck.row_loop(fit, vm, 0, dup),
-                np.linspace(fit.Y(.48), hem, 6), clear=ease + .015, flare=.12, closed=False,
+                np.linspace(fit.Y(.48), hem, 6), clear=ease + .015, flare=.12, closed=not lapels,
                 folds=lambda j, d: .003 * math.sin(j * 2.1) * min(1, d / .15),
                 wfn=lambda p: ck.hang_weights(fit, p, front_legs=1, back_legs=.75,
                                              spring=.08, springs=("coat",)))

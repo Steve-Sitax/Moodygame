@@ -37,12 +37,15 @@ internal partial class People2Proof : Node
         if (crowdProof)
             kinds = new[] { "docker_a", "fishwife_a", "police", "docker_a", "p2:man_middling", "p2:woman_middling", "fishwife_a", "police",
                             "p2:old_man", "p2:man_stout", "docker_a", "p2:woman_slight", "p2:child_middling", "sooi", "p2:old_woman", "p2:man_slight" };
+        if (Main.I.Arg("people2-kinds") is { Length: > 0 } requested)
+            kinds = requested.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
         expectedPeople = kinds.Length;
         for (int i = 0; i < kinds.Length; i++)
         {
             var human = Humans.Make(kinds[i]); if (human == null) continue;
             // a mixed crowd: every person their own face from their own id (as the town's residents get theirs)
             if (crowdProof) human.SetIdentity("crowd-proof:" + i);
+            if (Main.I.Flag("people2-clothing-proof")) human.SetIdentity("clothing-proof:" + kinds[i]);
             var at = crowdProof ? origin + new Vector3((i % 4 - 1.5f) * 0.95f + (i / 4 % 2) * 0.45f, 0, 3 + i / 4 * 1.1f)
                 : origin + new Vector3((i - 1.5f) * 1.25f, 0, 3 + (lightProof ? 0 : i * 0.7f));
             float ground = World.Lights.I?.GroundAt(at.X, at.Z) ?? 0;
@@ -129,7 +132,8 @@ internal partial class People2Proof : Node
             Input.MouseMode = Input.MouseModeEnum.Visible;
             var pictures = new List<object>();
             var wideExhibit = people[0].Root.GlobalPosition - new Vector3(0, 0, 4);
-            bool integration = Main.I.Flag("people2-integration-proof");
+            bool clothing = Main.I.Flag("people2-clothing-proof");
+            bool integration = Main.I.Flag("people2-integration-proof") || clothing;
             Node3D? stool = integration ? Models.ModelLibrary.Get("stalls")?.Copy("mk2_stool") : null;
             float seatHeight = 0.45f;
             if (integration && stool == null) throw new InvalidOperationException("Integration sitting proof needs the shared market stool.");
@@ -157,8 +161,9 @@ internal partial class People2Proof : Node
                         World.Blobs.I?.Set("people2-proof", new List<World.Blobs.Spot> { new(spot.X, spot.Z, spot.Y, 0.4f) });
                     }
                     var standingPosition = human.Root.GlobalPosition;
-                    foreach (string motion in integration ? new[] { "idle", "talk", "walk", "sit" } : Main.I.Flag("people2-dress-proof") ? new[] { "idle", "walk", "talk" } : new[] { "current" })
+                    foreach (string motion in clothing ? new[] { "idle", "walk", "walk-late", "sit", "carry", "carry-late" } : integration ? new[] { "idle", "talk", "walk", "sit" } : Main.I.Flag("people2-dress-proof") ? new[] { "idle", "walk", "talk" } : new[] { "current" })
                     {
+                    string pose = motion.Replace("-late", "", StringComparison.Ordinal);
                     if (motion == "sit" && !human.CanSit) continue;
                     human.Root.GlobalPosition = standingPosition;
                     if (stool != null)
@@ -167,9 +172,14 @@ internal partial class People2Proof : Node
                         stool.Visible = motion == "sit";
                         if (motion == "sit") human.Root.GlobalPosition += Vector3.Up * human.SitDrop(seatHeight);
                     }
-                    if (motion != "current") human.Play(motion, 0);
+                    if (clothing) human.CarryLoad(pose == "carry" ? "crate" : null);
+                    if (motion != "current") human.Play(pose, 0);
+                    if (clothing) human.SetPhase(pose, motion.EndsWith("-late", StringComparison.Ordinal) ? .73f : .23f);
                     if (integration) for (int settle = 0; settle < 60; settle++) await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
-                    foreach (var (distance, angle) in integration
+                    foreach (var (distance, angle) in clothing
+                        ? motion == "idle" ? new[] { (2.2f, "front"), (2.2f, "side"), (2.2f, "back-low"), (1f, "front"), (1f, "feet-low") }
+                            : new[] { (2.2f, "front"), (2.2f, "side") }
+                        : integration
                         ? motion == "idle" ? new[] { (1f, "front"), (3f, "front"), (8f, "front"), (1f, "side"), (3f, "back-low"), (1f, "feet-low"), (1f, "top") }
                             : motion == "sit" ? new[] { (1f, "front"), (3f, "front"), (3f, "side") }
                             : new[] { (1f, "front"), (3f, "front") }

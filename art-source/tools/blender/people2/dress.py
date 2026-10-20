@@ -147,6 +147,7 @@ def paint_body(b, kind, rect, size=1024, under=None):
     k2.__dict__.update(kind.__dict__)
 
     def skin(ctx):
+        ctx.paint_clothing_on_skin = False
         if kind.skin is not None:
             kind.skin(ctx)
         if under is not None:
@@ -406,6 +407,11 @@ def build(kind, make_body, ref_uv, layout, atl, tex=2048, log=print):
     fit = ck.Fit(b)
     # the garments: one cage, subdivided once (the near copy), on its limit surface (the far copy)
     pieces = kind.dress(fit)
+    from .cloth_fit import sleeve_binding
+    bind_sleeves = sleeve_binding(b["lod0"]) if any(p.name == "bodice" for p in pieces) else None
+    if fit.P['old'] and fit.P['female']:
+        from .cloth_fit import fit_old_shawl
+        pieces = fit_old_shawl(fit, pieces)
     log("[people2]   %s pieces (near triangles): %s" % (kind.name, ", ".join(
         "%s %d (%d faces, %d inner)" % (pc.name, sum(8 if len(f) == 4 else 6 for f in pc.F), len(pc.F),
                                         sum(1 for f in pc.F if all(pc.inner[v] for v in f))) for pc in pieces)))
@@ -418,14 +424,10 @@ def build(kind, make_body, ref_uv, layout, atl, tex=2048, log=print):
     nrel = cb.relief(near, pieces, fit)
     log("[people2]   %s islands before the reduction (islands, not disks, edges on 3+ faces): near %s far %s" % (
         kind.name, cb.island_census(near), cb.island_census(cage)))
-    # the garments' hidden layers and the body under the clothes
-    keep = tuple(getattr(kind, "keep_layers", ()))
-    if any(pc.name.startswith("shawl") for pc in pieces):
-        # (#138) a shawl moves on its own: the bodice under it is kept whole (deleted as hidden, it left holes at the
-        # elbows and shoulders where the shawl's edge swung off it)
-        keep += ("bodice",)
-    h0 = cb.delete_hidden(near, keep=keep)
-    h1 = cb.delete_hidden(cage, keep=keep, reach=0.045)
+    # Rest-pose occlusion is not a clothing mask: an open coat moves away from its waistcoat when posed.
+    # Cutting both the supposedly hidden garment and the skin below it left a view straight through the person.
+    # Keep complete garments, then reduce them to the same budgets and separate their surfaces below.
+    h0, h1 = {}, {}
     cut0 = ck.cut_body(b["lod0"], kind.covers, near)
     cut1 = ck.cut_body(b["lod1"], kind.covers, cage)
     log("[people2]   %s relief on %d points; hidden layers deleted near %s, far %s" % (kind.name, nrel, h0, h1))
@@ -435,6 +437,9 @@ def build(kind, make_body, ref_uv, layout, atl, tex=2048, log=print):
     # (#138) a skirt is always under a jacket, coat, smock or apron worn over it: where a full skirt flares out past
     # the jacket's skirts the rays voted the other way round, and the skirt showed through the jacket
     names = {pc.name for pc in pieces}
+    if {'bodice', 'shawl'} <= names:
+        told.add(('bodice', 'shawl'))
+
     told |= {(u, o) for (u, o) in SKIRT_UNDER if u in names and o in names and (o, u) not in told}
     order0 = {p for p in order0 if (p[1], p[0]) not in told} | told
     order1 = {p for p in order1 if (p[1], p[0]) not in told} | told
@@ -445,8 +450,9 @@ def build(kind, make_body, ref_uv, layout, atl, tex=2048, log=print):
     before = {"lod0": cb.tris(near), "lod1": cb.tris(cage)}
     budget0 = (getattr(kind, "near_budget", None) or (NEAR_HERO if kind.hero else NEAR_CROWD)) - lod.tris(b["lod0"])
     budget1 = (getattr(kind, "far_budget", None) or FAR) - lod.tris(b["lod1"])
-    cb.reduce(near, budget0, weights=kind.reduce_weights(near) if getattr(kind, "reduce_weights", None) else None)
-    cb.reduce(cage, budget1, weights=cb.protect_weights(cage, seam=0.4, rim=0.35))
+    shared_apron = {'skirt', 'apron'} <= names
+    cb.reduce(near, budget0 - (2400 if shared_apron else 0), weights=kind.reduce_weights(near) if getattr(kind, "reduce_weights", None) else None)
+    cb.reduce(cage, budget1 - (800 if shared_apron else 0), weights=cb.protect_weights(cage, seam=0.4, rim=0.35))
     thicken_far(cage)
     m0 = ck.clear_layers(near, b["lod0"], order0, clearance=0.0035, passes=3, body_clearance=0.005)
     m1 = ck.clear_layers(cage, b["lod1"], order1, clearance=0.004, body_clearance=0.006)
@@ -454,6 +460,17 @@ def build(kind, make_body, ref_uv, layout, atl, tex=2048, log=print):
     # still lies outside them goes
     m0 += cb.tuck(near, b["lod0"], order0, kind.covers)
     m1 += cb.tuck(cage, b["lod1"], order1, kind.covers, clearance=0.005, body_clearance=0.006)
+    from .cloth_fit import finish_ease
+    finish_ease(near)
+    finish_ease(cage)
+    from .cloth_drape import skirt_weights, skirt_bends, apron_surface
+    for ob, budget in ((near, budget0), (cage, budget1)):
+        if shared_apron:
+            skirt_bends(ob, fit)
+            skirt_weights(ob, fit)
+            apron_surface(ob)
+            if cb.tris(ob) > budget:
+                raise ValueError(f'Shared apron exceeds garment budget: {ob.name}, {cb.tris(ob)} > {budget}')
     cut0 += ck.cut_body(b["lod0"], kind.covers, near)
     cut1 += ck.cut_body(b["lod1"], kind.covers, cage)
     log("[people2]   %s layers: %s; points put back under the layer over them: %d near, %d far" % (
@@ -482,10 +499,8 @@ def build(kind, make_body, ref_uv, layout, atl, tex=2048, log=print):
     for ob in (near, cage):
         cb.drop_layers(ob)
         flags(ob)
-    # the body's picture, straight into the kind's body rectangle, the skin under the garments by the ray test
-    tree, face_piece = cb.garment_tree(near)
-    looks = {pc.name: pc.cloth for pc in pieces}
-    rgb, nmap = paint_body(b, kind, layout["body_" + kind.name], under=(tree, face_piece, looks, kind.covers))
+    # Skin revealed by a bent sleeve stays skin; a rest-pose cloth stain is not a lining.
+    rgb, nmap = paint_body(b, kind, layout["body_" + kind.name])
     atl.put("body_" + kind.name, rgb, nmap, placed=True)
     atl.clothes_zones("body_" + kind.name, paint_body.zones)
     b["piece_counts"] = {"lod0": piece_counts(near), "lod1": piece_counts(cage)}
@@ -507,6 +522,12 @@ def build(kind, make_body, ref_uv, layout, atl, tex=2048, log=print):
     clothes_keys(b["lod0"], b, n0, 0)
     clothes_keys(b["lod1"], b, n1, 1)
     sk_n = sit_key(b["lod0"], b, n0)
+    from .cloth_fit import bind_apron
+    if bind_sleeves:
+        bind_sleeves(b["lod0"])
+        bind_sleeves(b["lod1"])
+    bind_apron(b["lod0"])
+    bind_apron(b["lod1"])
     if sk_n:
         log("[people2]   %s sit shape: %d points of skirt and apron" % (kind.name, sk_n))
     # baked occlusion over body and clothes (vertex colour blue; clothes_build.AO_RULE)

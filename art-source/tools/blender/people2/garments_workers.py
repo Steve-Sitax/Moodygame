@@ -117,7 +117,7 @@ def cap(fit, rgb=0x2e2a26, style="flat", badge=False):
             height=max(.095,top+.020-y)
             rings=[]
             for t,factor in ((0,1),(.12,1),(.40,.95),(.70,.78),(.90,.48),(.985,.16)):
-                rings.append(np.stack([c[0]+radius*factor*np.sin(a),np.full(24,y+height*t),
+                rings.append(np.stack([c[0]+radius*factor*np.sin(a),np.full(24,y+height*t-(.012 if t==0 else 0)),
                                        c[2]+radius*factor*np.cos(a)],-1))
             ids=crown.grid(np.array(rings),ck.hat_weights,closed=True,seam_col=12)
             pole=crown.add((c[0],y+height,c[2]),dict(ck.HEAD_ONLY))
@@ -208,7 +208,8 @@ def clothing(fit, profile):
     p = profile
     kiel = p.get("kiel",False)
     pieces = kw.docker_a_dress(fit) if kiel else kc.sooi_dress(fit)
-    pieces = [pc for pc in pieces if pc.name not in ("cap","cap_peak","clogL","clogR","boots","soles")]
+    pieces = [pc for pc in pieces if pc.name not in ("cap","cap_peak","clogL","clogR","boots","soles")
+              and not pc.name.startswith("klomp")]
     if not kiel:
         if not p.get("coat"):
             pieces = [pc for pc in pieces if pc.name not in ("coat","coat_collar","cuffL","cuffR")]
@@ -226,16 +227,14 @@ def clothing(fit, profile):
             pieces = [pc for pc in pieces if pc.name not in ("shirt","shirt_collar")]
             sh = ck.Piece("shirt",copy.copy(kc.SHIRT))
             sleeve = "f1" if p.get("rolled") else "w1"
-            ck.upper(fit,sh,rows=(7 if p.get("vest") else 2,9),neck=0,sleeve=sleeve,ease=lambda i:.006)
+            ck.upper(fit,sh,rows=(2,9),neck=0,sleeve=sleeve,ease=lambda i:.006)
             ck.thicken(sh,.002,depth=.025)
             pieces.insert(0,sh)
         elif p.get("vest"):
-            # The lower shirt is fully hidden by the buttoned waistcoat. Keep
-            # its exposed neck/chest panel; a coarse full panel cuts through
-            # the waistcoat's broad FAR triangles despite vertex clearance.
+            # Keep a complete shirt below the waistcoat's V, including when posed.
             pieces=[pc for pc in pieces if pc.name!="shirt"]
             sh=ck.Piece("shirt",copy.copy(kc.SHIRT))
-            ck.upper(fit,sh,rows=(7,9),neck=0,sleeve=None,ease=lambda i:.006)
+            ck.upper(fit,sh,rows=(2,9),neck=0,sleeve=None,ease=lambda i:.006)
             ck.thicken(sh,.002,depth=.025)
             pieces.insert(0,sh)
         if p.get("coat") == "short":
@@ -305,7 +304,8 @@ def build_kind(kind, make_body, ref_uv, layout, atl, tex=2048, log=print):
     # Closed shirt/kiel sleeves replace the hidden upper arm even when a ray
     # misses the garment near a shoulder seam; slider blending can otherwise
     # uncover one retained skin triangle there. Hands and bare forearms stay.
-    hidden=lambda p,part: part=="torso" or part.startswith("arm") and p[1]>fit.Y(kind.sleeve_cut)
+    # The open collar can expose the upper torso at the nape when the head bends.
+    hidden=lambda p,part: part=="torso" and p[1]<fit.Y(.78) or part.startswith("arm") and p[1]>fit.Y(kind.sleeve_cut)
     cut0+=ck.cut_body(b["lod0"],hidden)
     cut1+=ck.cut_body(b["lod1"],hidden)
     if not kind.barefoot:
@@ -327,7 +327,9 @@ def build_kind(kind, make_body, ref_uv, layout, atl, tex=2048, log=print):
     cbl.clean_sleeves(near,b["P"]); cbl.clean_sleeves(cage,b["P"])  # (#140) a sleeve on its own arm
     cbl.follow_under(near,order0); cbl.follow_under(cage,order1)  # (#138) a layer moves with the one under it
     dr.reduce_cloth(near,14000-lod.tris(b["lod0"]))
-    dr.reduce_cloth(cage,2500-lod.tris(b["lod1"]))
+    # Keep a share for each far garment: the global mask reduced some boots to four triangles.
+    from .garments_cast import reduce_cast
+    reduce_cast(cage,2500-lod.tris(b["lod1"]))
     clear_worker_layers(near,b["lod0"],order0)
     clear_worker_layers(cage,b["lod1"],order1,clearance=.006,passes=4)
     if "coat" in names:

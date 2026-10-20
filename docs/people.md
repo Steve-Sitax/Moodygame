@@ -23,7 +23,7 @@ about 2 min, `--faces --hands --sheet` about 4 min, `--dress` (C's checks) about
 
 | Writes | What |
 |---|---|
-| `art-source/client/public/models/people2.glb`, `people2_<group><chunk>.glb`, `people2_parts.json` | Clothing-group parts (up to three kinds each), plus ten base bodies: 51 dressed kinds, with near/far meshes and sparse shape keys. The core holds `man_middling`, `people2_held` and all 252 shared clips; each remaining group or base body loads on demand. Every art/native/morph file is below 20 MB. Pictures live in `native-godot/assets/people2-pictures`. |
+| `art-source/client/public/models/people2.glb`, `people2_<group><chunk>.glb`, `people2_parts.json` | Clothing-group parts (up to three kinds each), plus ten base bodies: 65 dressed kinds (51 town outfits and 14 player cuts), with near/far meshes and sparse shape keys. The core holds `man_middling`, `people2_held` and all 253 shared clips; each remaining group or base body loads on demand. Every art/native/morph file is below 20 MB. Pictures live in `native-godot/assets/people2-pictures`. |
 | `art-source/shared/peopleRig.json` | the bones, sockets, grab marks, the Godot BoneMap, the grips and the shape keys, per body its joints, marks, figures and counts, `locomotion` (every D1 clip's speed, cycle, stride, travel and checks; the blend rule; the loads and handles), `idles` (D2 families, seats and clip checks), `heightFactor`, `oldStance`, and C's `kinds`, `held` and `pictures` manifest |
 | `art-source/shared/peopleSliders.json`, `faceTypes.json` | the sliders and the face types, pictures, cast and face recipe ("Bodies from MakeHuman" below) |
 | `art-source/third_party/makehuman/USED.json` | (full builds) the MakeHuman files the build read: nothing else is kept there |
@@ -187,9 +187,8 @@ the face's own paint fades into its plain skin; `bodyTone` (per picture, in `fac
 skin over the body picture's skin along the seam, so the body's skin (times `body_tone` in the shader) meets the face
 without a step. The body pictures: MakeHuman's skin of the body's group, the hands' weather, the base bodies' worn
 linen drawers and vest (by height, not by part: a part's edge is a staircase of triangles), a kind's own paint
-(stockings, chapped hands) and, under a garment's neckline and wherever the kind's cover rule hides the skin, the
-cloth worn under it or the garment's own colour (`clothes_kit.undershirt`), so a reduced neckline shows a shirt and a
-slider's broader shoulders pushing skin through a tunic show cloth, not bare skin.
+(stockings, chapped hands). Dressed skin keeps its skin colour: rest-pose `undershirt` and `under_cloth` paint
+produced dark patches when a bent sleeve exposed the arm. Garment clearance is handled by geometry.
 
 ### Hair (`mhhair.py`, round 4)
 
@@ -249,10 +248,13 @@ men's body in `morphs.bin` (the morph file grows by roughly 15 MB).
 
 ### Clothes on the MakeHuman bodies
 
-The garments are built on the cage `C`, fitted onto the MakeHuman surface (`fit_cage`: 1 to 15 mm). Since round 4
+The garments use the cage's actual body/armature rest positions (`C.co`, including the old-age stoop).
+The old woman's nearest-surface fit folded its shoulders and sleeves; her closed blouse instead follows the
+measured skin topology, and her shawl bridges convex blouse sections (`cloth_fit.py`). The old cage retains its
+measured landmarks for the remaining patterns. Since round 4
 (2026-10-13) the near copy of a dressed kind has 14,000 triangles for body and clothes (16,000 for the named cast),
 the far copy 2,500, and the clothes go through `clothes_build.py` (below, "Clothes: high detail"): garments reduced
-together with their hems and seams protected, hidden layers deleted, UVs and paint after the reduction, the skin under
+together with their hems and seams protected, complete clothing layers retained, UVs and paint after the reduction, the skin under
 the cloth chosen by rays, occlusion baked into vertex colour blue.
 
 ### Checks (`people2_sheets.py`)
@@ -698,20 +700,18 @@ frock coat/top hat/gloves, the thief's repaired dark short coat and the foreman'
 The recipient wears a blue-grey sack coat. The boy has a patched short jacket; the smaller urchin has rolled
 linen sleeves. Both have knee breeches and bare feet. The stooped old man wears a long rust-brown coat and carries
 a blackthorn stick. The undressed old-man root is prefixed `base_` to leave `old_man` for the dressed kind.
-The C4 wrapper temporarily selects 16,000 near triangles for cast, 14,000 for crowd, 2,500 far, including a hair
-allowance (the fixed recipe for named people, the largest available pieces for crowd), then restores the
-shared kit's limits. It reduces each garment separately, then unwraps and paints the near and far shells
-independently. Both bakes share the existing kind's cloth rectangle (80% near, 20% far), so a coarse triangle
-never crosses a near UV seam. Far copies keep edge facings but omit hidden lining faces and covered undershirts; near garments remain
-closed and fully thickened. Connected far shells receive coherent winding matched to the near surface.
-No additional texture layer is needed.
+The C4 wrapper uses the shared 16,000/14,000 near and 2,500 far body-and-clothes budgets. Hair and beards remain
+separate reusable meshes, as in the other families. Subtracting the largest hair and beard combination from that
+budget left an entire old man's coat with 276 triangles. Near garments now use the shared reducer and rebuild
+edge facings from the reduced outer triangles; far garments retain C4's per-piece reducer. Both use the shared
+unwrap/paint pipeline and the existing kind's texture layer.
 `--dress` uses the existing face-aware preview with the real pictures; unused original hair pieces are hidden.
 The fitted C4 layers keep their authored clearance; the shared post-reduction correction is disabled only
 inside the C4 wrapper, because it folds shoulder edges into the shawl. Fientje's cap includes her bun's envelope.
 Coat wear uses each coat's own colour; only the thief, boy and old man's coats receive the separate repair painter.
 
 
-C4 counts (default hair/beard included; props separate):
+Historical C4 counts from 2026-10-13 (default hair/beard included; props separate):
 
 | Kind | Near | Far |
 |---|---:|---:|
@@ -754,7 +754,7 @@ as its base body (`kinds.<kind>.body`), so every clip of that body plays on it u
 2. The face: the kind's default face (`face_of`); the game gives every person their own at spawn.
 3. The garments: `Kind.dress(fit)` returns `clothes_kit.Piece`s; joined into one cage (`build_objects`: every piece's
    winding made consistent first), subdivided once (the near copy), moved onto its limit surface (the far copy).
-4. `clothes_build.py`, in this order: relief (folds and bunching as geometry, near copy), hidden layers deleted, the
+4. `clothes_build.py`, in this order: relief (folds and bunching as geometry, near copy), the
    body cut (`clothes_kit.cut_body`), one reduction of all garments, layers cleared and tucked, the body cut again, the
    islands checked, the unwrap, the paint, the far copy's UVs, the body's picture with the skin under the cloth
    (`clothes_build` docstring and "Clothes: high detail" below).
@@ -904,29 +904,38 @@ and wood grain use the height map. No shader kind, gameplay light or collision i
 one garment triangle in five was stretched over 4:1 and the clothes had 2,000 to 6,000 near triangles.
 
 - **Budget.** `dress.NEAR_CROWD, NEAR_HERO, FAR = 14000, 16000, 2500`. The cut body keeps 5,000 to 6,000 near
-  triangles (MakeHuman's face, the hands), so the clothes get 8,000 to 10,000.
-- **Hidden layers** (`delete_hidden`): a garment's faces go where a ray out and four rays tilted 30 degrees meet
-  another garment within 3.5 cm, 2.5 cm from its visible edge (10 cm on hanging cloth, which swings off the legs): the
-  trousers under the smock, the bodice under the shawl, the leather inside the clog's wood.
+  triangles (MakeHuman's face, the hands), so the clothes get 8,000 to 10,000. Hair and facial hair are separate.
+- **Clothing coverage.** Keep complete garments through reduction. Rest-pose occlusion cannot justify deleting
+  clothing: a moving coat exposes the waistcoat underneath. Deleting it as well as the covered skin caused the
+  see-through abdomen in #138. The body cut remains separate.
 - **The body cut** (`clothes_kit.cut_body`): never the head, eyes, hair or the hands (MakeHuman's hand islands and the
   fingers); reach by part (`CUT_REACH`: 6 cm neck and arms, 25 cm torso, 30 cm legs); three of four tilted rays must
-  meet cloth, so the skin just inside a cuff or collar stays. It runs again after the reduction.
-- **Reduction** (`reduce`): one collapse of all garments together (the triangles go where the cloth curves), the rims,
-  creases and UV seams protected (`protect_weights`). After it `clothes_kit.clear_layers` (rays, 3.5 mm, skin 5 mm)
+  meet cloth, so the skin just inside a cuff or collar stays. It runs again after the reduction. Before each cut,
+  `cloth_fit.tuck_skin` places skin behind nearby outer cloth on the same limb; an arm must never bind to trousers.
+  Arm skin within 65 mm of a visible sleeve edge stays, including elbow-weighted vertices; a hidden cuff edge does not protect skin.
+  Closed bodices replace covered neck/shoulder faces; skirts replace legs above their measured hems. The worker mask stops below the nape.
+- **Layer motion.** Aprons, bibs and shawls take their backing garment's weights and shape deltas after reduction,
+  retaining clearance and recessed facings. Short shirt cuffs follow their own coat sleeve, never a nearby coat tail.
+  Blouse sleeves bind to the uncut arm's surface weights and identity shapes. Long-coat lengthening never changes sleeves.
+  Aprons share the skirt's final triangles and retain rows at the knee and hem; their binding cannot jump to another fold.
+- **Reduction** (`reduce`): collapse outer garments together, then rebuild 3 mm edge facings from the final triangles
+  with matching bone weights (`cloth_fit.py`), inside the same clothing budget. Authored face roles remove
+  the old lining precisely; 12 cm facings close views down upper garments. Thin stitched rims retain their cut line
+  through subdivision (crease at least 0.6), preventing gaps at collars, waistbands and brims. Protect the rims,
+  creases and UV seams (`protect_weights`). After it `clothes_kit.clear_layers` (rays, 3.5 mm, skin 5 mm)
   and `tuck` (nearest point: whatever pokes out from under a garment, however far, is pulled under it).
 - **UVs after the reduction** (`fix_islands`, `unwrap`): every island a disk (a tube gets a cut), Blender's
   minimum-stretch unwrap along the seams, an island that will not lie flat halved and unwrapped again, every face at
   its cloth's density (insides, rims, hems, cuffs and brims too), islands turned so the cloth's up is the picture's up,
   packed bottom-left (skyline) into the kind's clothes rectangle with square texels (the old square pack was squashed
-  2:1 into the rectangle). The rim of a hem belongs to the outside's island, so the picture runs over the edge as the
-  cloth does.
+  2:1 into the rectangle). Rebuilt near facings inherit the outer seams and have separate rim charts; otherwise
+  planar fallback can paint lining triangles across the outer cloth.
 - **Paint** at twice the layer (2048 px) and filtered down; the painter also sees the distance to the piece's edge
   (`ctx.edge`) and the cloth's own thread coordinates (`ctx.fu`, `ctx.fv`, from `Piece.fabric`: the shawl's check runs
-  at 45 degrees to its folded edge, as a square shawl folded on the diagonal does).
+  at 45 degrees to its folded edge, as a square shawl folded on the diagonal does). Woven shawls carry the same yarn
+  pattern on both faces.
 - **The far copy** shares the near copy's picture: each far face takes the island nearest it (`project_uvs`).
-- **The skin under the cloth** (`under_cloth`): a ray out and four tilted rays from each body texel the cover rule
-  hides; where they meet cloth the texel takes that garment's lining in shadow, with a soft edge. The old rule by
-  height painted an ink-blot on every nape above the collar.
+- **Skin paint.** Garment-coloured skin masks are disabled for dressed bodies; actual stockings and gloves remain.
 - **Occlusion** (`bake_occlusion`) over body and clothes together in vertex colour blue, by the render lane's rule
   (1 open .. 0.22 closed; `AO_RULE`): 40 rays over 10 cm, an arm against the trunk below the armpit and a leg against
   the other below the crotch not counted. The mesh is flagged `people2_occlusion_baked` so export does not bake it
@@ -957,7 +966,7 @@ Worker expansion (`kinds_workers2.py`, `garments_workers.py`, `held_workers.py`)
 - [John Thomson, *Street Life in London*, 1877–1878, Rijksmuseum](https://www.rijksmuseum.nl/en/collection/object/Street-Life-in-London--d9eb89414ebab5cb4d04bb118b9deb8f) and [National Portrait Gallery, *The Temperance Sweep*, 1877](https://www.npg.org.uk/collections/interactives/room-21-street-life-london): worn street coats, caps and sweep equipment. Nearby period comparison; London is not evidence of an Antwerp trade regulation.
 - The original kind palettes and the Antwerp sources below determine the dockers' kiel and shoulder pad. The coalman's cut-sack hood, porter's brass cap badge, grinder's leather apron and baker boy's flour distribution are reconstruction choices; no exact Antwerp 1873 pattern is claimed.
 
-These twelve workers use 14,000 near / 2,500 far triangle ceilings. Garments are reduced and cleared of overlapping layers before their final unwrap and paint; each far face projects inside a painted near triangle of its garment, and both copies contribute coverage to the shared picture. Near hems, cuffs, collars, brims and soles keep the outside's texel density. Hands are excluded from body cutting. Shirt panels wholly hidden under a waistcoat are omitted; this prevents coarse FAR faces cutting through the waistcoat. Thin stitched cloth lips and hidden mating surfaces are edge exceptions; hat brims, boots and leather pads use rounded geometry.
+These twelve workers use 14,000 near / 2,500 far triangle ceilings. Garments are reduced and cleared of overlapping layers before their final unwrap and paint; each far face projects inside a painted near triangle of its garment, and both copies contribute coverage to the shared picture. Near hems, cuffs, collars, brims and soles keep the outside's texel density. Hands are excluded from body cutting. Complete shirt panels remain behind waistcoats when they move. Replacement boots remove both inherited clog shells and their top pieces; each boot keeps its own outward face winding. Soles join the boot upper at the welt and are excluded from garment layering. Thin stitched cloth lips and hidden mating surfaces are edge exceptions; hat brims, boots and leather pads use rounded geometry.
 The sack uses `work.loads.sack`; the handcart uses `PushCart` and the existing `props:tr_handcart`. The existing `quaygoods:sack_truck_bare` still needs a native two-grip attachment for the new porter: `People2Things.Has` does not support trucks. No second sack, truck or handcart is authored in a worker mesh. The chimney rods, brush and rope coil form one back-socket model shared by both sweeps.
 
 The look follows public photographs, paintings and sculpture of Antwerp's working people of the 1860s-1880s:
@@ -1092,8 +1101,8 @@ How the garments are made (`garments_women.py`, on clothes_kit): skirts are full
 seated skirt and an apron fall from the knees instead of standing out like a plate; the lady's skirt has a bustle
 pad, a train and a pleated flounce. Bodices are oriented by the cage's normals (a few faces at the breast came out
 turned in, and their facing then lay outside the bodice, over the shawl) and pushed clear of MakeHuman's skin (the
-cage-made sleeves let the upper arm's skin stand out by up to 3 cm); the stooped old woman's cage arms are flat, so
-her sleeves are rebuilt round her own arms. Shawls are one band round the neck (point down the back, ends hanging or
+cage-made sleeves let the upper arm's skin stand out by up to 3 cm). The old woman's measured-surface exception
+is described under the MakeHuman garment fitting above. Shawls are one band round the neck (point down the back, ends hanging or
 crossed), weighted to the bodice without the elbow; fringes hang straight down as one row of creased tassels.
 Kerchiefs, caps with frills, ties, lappets and bows, the nun's coif, wimple and veil, the beguine's hood-and-mantle
 and the lady's hat are fitted by rays on the built head. Held things (`held_women.py`) hang from hipL: the maid's
@@ -1561,10 +1570,8 @@ node's frame in game axes). The native runtime: docs/godot-people2.md "Work".
   touching the chest at rest was dragged into a wing when the arm rose); `follow_under` gives a garment lying on
   another most of the lower one's weights within 4-12 mm (shawl over sleeve, apron over skirt, coat over waistcoat),
   never across an arm and the trunk or legs, and a coat's sprung tails stay free of the trousers. `dress.SKIRT_UNDER`:
-  a skirt is always under a jacket, coat or smock. `undershirt` judges the trunk's skin round the neck above the neck's
-  lowest point by the neck's height rule (a rule by part painted saw teeth of cloth along the triangles above a
-  neckline). `under_cloth` reaches 2 cm on the neck and 2.5 cm on the arms (7 cm
-  painted ragged dark collars on skin in sight). The far copy's lining lies 4 mm deeper (`dress.thicken_far`).
+  a skirt is always under a jacket, coat or smock. The final layer bindings and skin rules are listed under
+  “Clothes: high detail” above. The far copy's lining lies 4 mm deeper (`dress.thicken_far`).
 - **Occlusion.** `clothes_build.occlusion` counts an arm against the trunk only inside the armpit's hollow (60 mm round
   rig.py's armpit mark): the hanging arm no longer darkens the front of the shoulder.
 - **Seated skirts.** `dress.sit_key` writes a `sit` shape on a skirted kind's near copy (skirt, overskirt, flounce,

@@ -856,6 +856,11 @@ def fit_cage(C, body, iters=8):
     import bpy
     from mathutils import Vector
     from mathutils.bvhtree import BVHTree
+    # Nearest-surface iteration collapses this slender cage's arm rings and folds its
+    # shoulders inside out. Keep the measured cage; garment fitting still uses the
+    # actual skin surface, including the old woman's round sleeve reconstruction.
+    if body.base == "old_woman":
+        iters = 0
     b, P0 = body.b, body.P0
     btris, _ = b.tris()
     tpart = body.parts[btris[:, 0]]

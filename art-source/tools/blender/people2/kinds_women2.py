@@ -1048,7 +1048,7 @@ def girl_b_dress(fit):
     gw.bib(fit, bb, on_bodice, Y(0.61), Y(0.74), w_bottom=0.17, w_top=0.16, lift=0.005)
     ck.thicken(bb, 0.0018, depth=None, crease=0.08)
     st = ck.Piece("pinafore_straps", GB_PINAFORE, scale=1.1)
-    gw.straps(fit, st, ck.Onto([bo, bb]), 0.065, Y(0.74), Y(0.61), width=0.04, lift=0.006)
+    gw.straps(fit, st, ck.Onto([bo, bb]), 0.065, Y(0.74), Y(0.61), width=0.04, lift=0.012, rows=24)
     ck.thicken(st, 0.0018, depth=None, crease=0.08)
     pieces += [bb, st]
     boot_pair(fit, pieces)

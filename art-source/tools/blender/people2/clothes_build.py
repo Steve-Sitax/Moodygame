@@ -2,9 +2,7 @@
 
 After the garments are made (kinds_*.py with clothes_kit and cloth_detail) and subdivided:
 1. relief(): folds, seams and bunching that change the silhouette, as geometry on the near copy;
-2. delete_hidden(): faces of a garment that lie under another garment everywhere (a ray out meets the upper one, far
-   enough from its open edge, and tilted rays meet it too) are deleted, so a reduced upper layer has nothing to show
-   through it and costs nothing (the bodice under the shawl, the trousers' top under the smock);
+2. retain complete garment layers: a moving outer layer can expose anything hidden in the rest pose;
 3. cut_body() (clothes_kit): the skin under the garments, never the hands;
 4. reduce(): all the garments together in one collapse, with the rims (hems, cuffs, the edges of brims and
    collars) and the UV seams protected, so a hem keeps its line and every island stays a disk;
@@ -14,8 +12,7 @@ After the garments are made (kinds_*.py with clothes_kit and cloth_detail) and s
    square texels;
 7. paint (dress.paint_clothes) at twice the rectangle's size, filtered down;
 8. project_uvs(): the far copy's UVs from the near copy's islands (the two share one picture);
-9. under_cloth(): the skin under a garment painted as the garment's shadowed lining, by the same ray test, with a
-   soft edge (no cover rule by height: the ink-blot at the nape);
+9. keep dressed skin its own colour; use geometry for garment coverage, with stockings/gloves painted explicitly;
 10. bake_occlusion(): ambient occlusion over body and clothes in vertex colour blue.
 """
 
@@ -261,6 +258,14 @@ def protect_weights(ob, seam=0.15, rim=0.0, small=None):
 
 
 def reduce(ob, budget, symmetry=True, factor=1.0, weights=None):
+    """Keep near garment facings attached to the final reduced outer surface."""
+    if ob.name.endswith('_clothes_lod0'):
+        from .cloth_fit import reduce_lined
+        return reduce_lined(ob, budget, _reduce_surface, symmetry=symmetry, factor=factor, weights=weights)
+    return _reduce_surface(ob, budget, symmetry=symmetry, factor=factor, weights=weights)
+
+
+def _reduce_surface(ob, budget, symmetry=True, factor=1.0, weights=None):
     """Collapse the garments of one copy to `budget` triangles in one pass (every piece together: the collapse
     spends the triangles where the cloth curves: folds, collars, caps, clogs), the protected vertices (weights:
     protect_weights) last. UVs are made afterwards (unwrap)."""
@@ -332,6 +337,10 @@ def tuck(ob, body, order, covers, clearance=0.004, body_clearance=0.005, reach=0
         if loc is None or n.dot(v.normal) < agree:
             return 0
         h = (v.co - loc).dot(n)  # height over the upper surface (negative: under it)
+        # A nearest point beyond an open edge is beside the garment, not beneath it.
+        # Pulling such points collapsed boot toes onto the adjoining sole rim.
+        if (v.co - loc - n * h).length > 0.002:
+            return 0
         if h > -cl:
             shift(target, i, n * (-cl - h))
             return 1
@@ -1042,6 +1051,8 @@ def edge_layer(ob):
 
 def drop_layers(ob, names=("fabric", "_edge")):
     me = ob.data
+    if "cloth_outer" in me.attributes:
+        me.attributes.remove(me.attributes["cloth_outer"])
     for n in names:
         if n in me.uv_layers:
             me.uv_layers.remove(me.uv_layers[n])

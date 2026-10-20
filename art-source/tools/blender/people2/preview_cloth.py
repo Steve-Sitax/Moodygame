@@ -124,8 +124,9 @@ def sit_shape(meshes, value):
 
 def kind_sheets(kind, out, gas=False):
     rig, cells = pm._rig(), pm._faces_json()["cells"]
-    sex = "f" if rig["kinds"][kind]["sex"] == "f" else "m"
-    face = ft.face_for(2000 + len(kind), kind, sex, 40)
+    child = rig["kinds"][kind]["body"].startswith("child_")
+    sex = "f" if rig["kinds"][kind]["sex"] == "f" or kind in ("girl", "girl_b") else "m"
+    face = ft.face_for(2000 + len(kind), kind, sex, 9 if child else 40)
     if not os.path.exists(os.path.join(pm.PICS, face["cell"] + "_face_colour.png")):
         face["cell"] = "f_fair_brown" if sex == "f" else "m_mid_brown"  # a trial build has the default faces only
     pm.clear()
