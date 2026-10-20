@@ -133,6 +133,9 @@ internal partial class People2Proof : Node
             var pictures = new List<object>();
             var wideExhibit = people[0].Root.GlobalPosition - new Vector3(0, 0, 4);
             bool clothing = Main.I.Flag("people2-clothing-proof");
+            bool textures = Main.I.Flag("people2-texture-proof");
+            string[] textureMotions = Main.I.Arg("people2-texture-motions") is { Length: > 0 } requestedMotions
+                ? requestedMotions.Split(',') : new[] { "idle", "walk", "sit" };
             bool integration = Main.I.Flag("people2-integration-proof") || clothing;
             if (clothing)
             {
@@ -166,10 +169,11 @@ internal partial class People2Proof : Node
                         World.Blobs.I?.Set("people2-proof", new List<World.Blobs.Spot> { new(spot.X, spot.Z, spot.Y, 0.4f) });
                     }
                     var standingPosition = human.Root.GlobalPosition;
-                    foreach (string motion in clothing ? new[] { "idle", "walk", "walk-late", "sit", "carry", "carry-late" } : integration ? new[] { "idle", "talk", "walk", "sit" } : Main.I.Flag("people2-dress-proof") ? new[] { "idle", "walk", "talk" } : new[] { "current" })
+                    foreach (string motion in textures ? textureMotions : clothing ? new[] { "idle", "walk", "walk-late", "sit", "carry", "carry-late" } : integration ? new[] { "idle", "talk", "walk", "sit" } : Main.I.Flag("people2-dress-proof") ? new[] { "idle", "walk", "talk" } : new[] { "current" })
                     {
                     string pose = motion.Replace("-late", "", StringComparison.Ordinal);
-                    if (motion == "sit" && !human.CanSit) continue;
+                    bool forcedSeatedInspection = textures && motion == "sit" && !human.CanSit;
+                    if (motion == "sit" && !human.CanSit && !forcedSeatedInspection) continue;
                     human.Root.GlobalPosition = standingPosition;
                     if (stool != null)
                     {
@@ -180,6 +184,9 @@ internal partial class People2Proof : Node
                     if (clothing) human.CarryLoad(pose == "carry" ? "crate" : null);
                     if (motion != "current") human.Play(pose, 0);
                     if (clothing) human.SetPhase(pose, motion.EndsWith("-late", StringComparison.Ordinal) ? .73f : .23f);
+                    // Loaded trades do not sit during play. Inspect the same native mesh with the
+                    // existing seated clip as an explicit fixture, without changing that gameplay rule.
+                    if (forcedSeatedInspection) { human.ParadeClip("sit"); human.SetPhase("parade", .23f); }
                     if (clothing)
                     {
                         // Held poses still ease the seated garment shape over 0.6 seconds.
@@ -187,7 +194,9 @@ internal partial class People2Proof : Node
                             await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
                     }
                     else if (integration) for (int settle = 0; settle < 60; settle++) await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
-                    foreach (var (distance, angle) in clothing
+                    foreach (var (distance, angle) in textures
+                        ? new[] { (2f, "front"), (2f, "side"), (2f, "back-low"), (3f, "front"), (3f, "side"), (3f, "back-low") }
+                        : clothing
                         ? motion == "idle" ? new[] { (2.2f, "front"), (2.2f, "side"), (2.2f, "back-low"), (1f, "front"), (1f, "feet-low"), (3f, "far-front"), (18f, "far-front") }
                             : new[] { (2.2f, "front"), (2.2f, "side") }
                         : integration
@@ -241,7 +250,7 @@ internal partial class People2Proof : Node
                         if (Math.Abs(daylight.Hour - hour) > 0.02 || daylight.Weather != weather)
                             throw new InvalidOperationException($"Capture {name} has wrong live clock/weather: {daylight.Hour} {daylight.Weather}");
                         if (Main.I.Cam.GlobalPosition.DistanceTo(from) > 0.01f) throw new InvalidOperationException("Capture camera moved: " + name);
-                        pictures.Add(new { name, hour = daylight.Hour, weather = daylight.Weather, daylight.Night, daylight.Rain, distance, angle, motion, clip = human.AnimationState.Clip, phase = human.AnimationState.Cycle, forcedFar = angle == "far-front", nearReady, x = at.X, y = at.Y, z = at.Z });
+                        pictures.Add(new { name, hour = daylight.Hour, weather = daylight.Weather, daylight.Night, daylight.Rain, distance, angle, motion, clip = human.AnimationState.Clip, phase = human.AnimationState.Cycle, forcedFar = angle == "far-front", forcedSeatedInspection, nearReady, x = at.X, y = at.Y, z = at.Z });
                         foreach (var mesh in World.BakedWorld.All(human.Root).OfType<MeshInstance3D>())
                         {
                             if (mesh.Name.ToString().EndsWith("_lod0", StringComparison.Ordinal)) mesh.Visible = true;

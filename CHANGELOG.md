@@ -11,6 +11,7 @@ Bugs and loose ends are tracked as [issues](https://github.com/Steve-Sitax/Moody
 
 ## [Unreleased]
 
+- Twelve townspeople's outfits gain woven cloth, stitched hems, repairs, worn leather and finer clog grain; the milk woman's shawl and apron lose their harsh pale marks (#82, #138).
 - Ruien street openings get deep, jointed bluestone surrounds, recessed lid seats and finished kerb junctions. The keeper vault stays below the paving; hatch requests survive state polling and action prompts wait for the lids to settle (#211).
 - Ruien O2 gets saved, player-operated iron keeper lids, a vaulted bluestone stair, mortared drain gutters, a solid hall arch and a round street light grate. Repaired pipe runoff, worn edges, paving UVs, underground water and dimmer lamp pools; the hall stair now exits into the open street (#209).
 - Ruien O2 gains a keeper stair, escape ladders and swimming, worn stone walking surfaces laid along the paths with dressed junction stones, repaired drain mouths and a flowing sluice outlet; water, low mist and wet masonry now use separate treatments (#207).
