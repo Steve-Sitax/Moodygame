@@ -50,6 +50,23 @@ public sealed class RuienArea
                 {
                     var mesh = ResourceLoader.Load<ArrayMesh>(area.Export + "/" + e.GetProperty("file").GetString());
                     if (mesh == null) continue;
+                    if(mesh.GetAabb().End.Y>RuienSurround.Bottom-.015f)
+                    {
+                        var repaired=new ArrayMesh();
+                        for(int s=0;s<mesh.GetSurfaceCount();s++)
+                        {
+                            var arrays=mesh.SurfaceGetArrays(s);
+                            string family=mesh.SurfaceGetName(s);
+                            // Keep the hall's authored open wooden leaves and continuous handrail.
+                            // Only their masonry lining is replaced by the new cap.
+                            if(family.Contains("brick")||family.Contains("bluestone"))RuienSurround.Trim(arrays,area);
+                            if(arrays[(int)Mesh.ArrayType.Index].AsInt32Array().Length==0)continue;
+                            repaired.AddSurfaceFromArrays(Mesh.PrimitiveType.Triangles,arrays,null,null,mesh.SurfaceGetFormat(s)&~Mesh.ArrayFormat.FlagCompressAttributes);
+                            repaired.SurfaceSetName(repaired.GetSurfaceCount()-1,mesh.SurfaceGetName(s));
+                        }
+                        if(repaired.GetSurfaceCount()==0)continue;
+                        mesh=repaired;
+                    }
                     for (int s = 0; s < mesh.GetSurfaceCount(); s++) mesh.SurfaceSetMaterial(s, RuienMaterials.Get(mesh.SurfaceGetName(s)));
                     var mi = new MeshInstance3D { Name = e.GetProperty("file").GetString()!.Replace(".res", ""), Mesh = mesh, Layers = Ruien.Layer, CastShadow = GeometryInstance3D.ShadowCastingSetting.Off, Visible = false };
                     a.Root.AddChild(mi);
@@ -66,6 +83,16 @@ public sealed class RuienArea
         }
         string col = area.Export + "/collision.res";
         a.Shape = ResourceLoader.Exists(col) ? ResourceLoader.Load<ConcavePolygonShape3D>(col) : null;
+        if(a.Shape!=null)
+        {
+            var arrays=new Godot.Collections.Array();arrays.Resize((int)Mesh.ArrayType.Max);
+            arrays[(int)Mesh.ArrayType.Vertex]=a.Shape.Data;
+            if(RuienSurround.Trim(arrays,area))
+            {
+                var p=arrays[(int)Mesh.ArrayType.Vertex].AsVector3Array();var ix=arrays[(int)Mesh.ArrayType.Index].AsInt32Array();
+                a.Shape=new ConcavePolygonShape3D{Data=ix.Select(i=>p[i]).ToArray(),BackfaceCollision=true};
+            }
+        }
         return a;
     }
 

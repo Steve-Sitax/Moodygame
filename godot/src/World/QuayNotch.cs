@@ -108,7 +108,7 @@ public static class QuayNotch
     /// between y0 and y1 of every mesh whose box reaches the rectangle (x, z) loses the part inside it. Returns the
     /// triangles cut or dropped.
     /// </summary>
-    public static int CutFloor(Node3D world, Rect2 hole, float y0, float y1, bool round=false)
+    public static int CutFloor(Node3D world, Rect2 hole, float y0, float y1, bool round=false, bool solidCut=false)
     {
         int changed = 0;
         var box = new Aabb(new Vector3(hole.Position.X, y0, hole.Position.Y), new Vector3(hole.Size.X, y1 - y0, hole.Size.Y));
@@ -125,6 +125,7 @@ public static class QuayNotch
                 edges.Add(p=>radius-normal.Dot(new Vector2(p.X,p.Z)-centre));
             }
         }
+        if(solidCut){edges.Add(p=>p.Y-y0);edges.Add(p=>y1-p.Y);}
         foreach (var node in BakedWorld.All(world))
         {
             if (node is not MeshInstance3D { Mesh: ArrayMesh mesh } mi) continue;
@@ -137,9 +138,13 @@ public static class QuayNotch
             bool Level((Vector3, Vector3, Vector3) tri)
             {
                 var (a, b, c) = tri;
-                if (Math.Min(a.Y, Math.Min(b.Y, c.Y)) < y0 || Math.Max(a.Y, Math.Max(b.Y, c.Y)) > y1) return false;
+                if(solidCut)
+                {
+                    if(Math.Max(a.Y,Math.Max(b.Y,c.Y))<y0||Math.Min(a.Y,Math.Min(b.Y,c.Y))>y1)return false;
+                }
+                else if (Math.Min(a.Y, Math.Min(b.Y, c.Y)) < y0 || Math.Max(a.Y, Math.Max(b.Y, c.Y)) > y1) return false;
                 var fn = (b - a).Cross(c - a);
-                if (fn.LengthSquared() < 1e-12f || MathF.Abs(fn.Normalized().Y) < 0.7f) return false;
+                if (fn.LengthSquared() < 1e-12f || !solidCut && MathF.Abs(fn.Normalized().Y) < 0.7f) return false;
                 return Math.Max(a.X, Math.Max(b.X, c.X)) > hole.Position.X && Math.Min(a.X, Math.Min(b.X, c.X)) < hole.End.X
                     && Math.Max(a.Z, Math.Max(b.Z, c.Z)) > hole.Position.Y && Math.Min(a.Z, Math.Min(b.Z, c.Z)) < hole.End.Y;
             }

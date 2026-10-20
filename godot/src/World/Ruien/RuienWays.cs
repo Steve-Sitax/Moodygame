@@ -28,8 +28,10 @@ public partial class RuienWays : Node
                 if (w.Kind == "rungs") rungs.Add(w);
                 if(w.Kind=="grate")
                 {
-                    var lid=new StaticBody3D{Name="ruien_grate_"+w.Id,CollisionLayer=Solid.Layer,CollisionMask=0,Position=w.Top-Vector3.Up*.02f};
-                    lid.AddChild(new CollisionShape3D{Shape=new BoxShape3D{Size=new Vector3(w.Hole.Size.X+.06f,.06f,w.Hole.Size.Y+.06f)}});
+                    var lid=new StaticBody3D{Name="ruien_grate_"+w.Id,CollisionLayer=Solid.Layer,CollisionMask=0,Position=w.Top+Vector3.Up*.0085f};
+                    Shape3D shape=w.Round?new CylinderShape3D{Radius=w.Hole.Size.X/2+.08f,Height=.057f}:
+                        new BoxShape3D{Size=new Vector3(w.Hole.Size.X+.06f,.057f,w.Hole.Size.Y+.06f)};
+                    lid.AddChild(new CollisionShape3D{Shape=shape});
                     Main.I.View.AddChild(lid);
                 }
                 if (w.Kind != "ladder") continue;
@@ -44,7 +46,7 @@ public partial class RuienWays : Node
                 var stand = w.Bottom + new Vector3(toMid.X, 0, toMid.Y) * 0.55f;
                 ladders.Add((w, side * (w.Hole.Size.X / 2 + 0.55f), stand));
                 // the grate's lid: solid to walk over
-                var body = new StaticBody3D { Name = "ruien_grate_" + w.Id, CollisionLayer = Solid.Layer, CollisionMask = 0, Position = new Vector3(w.Top.X, w.Top.Y - 0.03f, w.Top.Z) };
+                var body = new StaticBody3D { Name = "ruien_grate_" + w.Id, CollisionLayer = Solid.Layer, CollisionMask = 0, Position = new Vector3(w.Top.X, w.Top.Y + 0.005f, w.Top.Z) };
                 body.AddChild(new CollisionShape3D { Shape = new BoxShape3D { Size = new Vector3(w.Hole.Size.X + 0.04f, 0.06f, w.Hole.Size.Y + 0.04f) } });
                 Main.I.View.AddChild(body);
             }

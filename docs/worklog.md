@@ -1,5 +1,13 @@
 # Work log
 
+## Ruien O2 street-opening frames, 2026-10-20 (#211)
+
+Built one deep, jointed bluestone frame kit for the keeper, hall stair and both grates, with recessed lid seats, worn edges, hinge shoes and closed perimeter packing. Kerbs terminate against it; lining and paving no longer overlap, and the keeper crown stays underground. Fixed the missing iron leaf geometry, queued hatch requests and prompt timing; retained the hall's oak leaves and rail. Repaired the round grate's vertical-rim UVs.
+
+Native rules: 9/9; final native checks: 283/283, including swimming, ten escape ladders, both stairs, street ladder, saved lids and crew clearance. Reviewed 100 cameras across daylight, rain, night and both tides; 18 generated meshes have no stretched textured area. Native build: zero errors; shader kinds remain 41, with no extra real lights. Proof, chosen reference and rejected iterations: `_tmp_verify/ruien-o2-fix4/PROOF-INDEX.md`.
+
+PERF-LOCK medians before -> after, ms/frame: gate 17.34 -> 16.69, gallery 14.48 -> 13.53, hall 11.31 -> 11.11. Background Blender work was recorded in the baseline and by the final capture's end; these figures do not establish an improvement. Clean matched timing remains #210.
+
 ## Ruien O2 selected designs and repairs, 2026-10-20 (#209)
 
 Built A1's saved, animated twin lids and native maintenance crew, B2's mortared drains and grated gutters, C1's solid arch and D1's round street grate/shaft. Closed and stained the pipes, repaired metric UVs and worn edges, moved the hall stair into the street and used dark bluestone treads. The broad town river sheet now excludes covered Ruien footprints; dimmer local sources and exposure keep the vaults dark. All twelve concepts and future placements are retained in `docs/plans/ruien/ideas/`.

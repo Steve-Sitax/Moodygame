@@ -216,6 +216,7 @@ public partial class Ruien : Node
         // irons up a channel wall
         foreach (var w in area.Ways)
         {
+            if (RuienSurround.Applies(w)) Main.I.View.AddChild(RuienSurround.Build(w));
             if (w.Kind is "ladder" or "grate") Main.I.View.AddChild(RuienKit.Grate(w));
             if (w.Kind == "rungs" && w.Irons) root.AddChild(RuienKit.StepIrons(w));
             if (w.Kind == "keeper_stair") Main.I.View.AddChild(RuienStair.Build(w));

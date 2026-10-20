@@ -62,11 +62,7 @@ public static class RuienConnections
                     float top=way.Bottom.Y+(i+1)*rise-.24f;
                     Box(brick,new Vector3(way.Bottom.X,(bed+top)/2,(z0+z1)/2),new Vector3(h.Size.X-.08f,top-bed,z1-z0),.009f);
                 }
-                foreach(float x in new[]{h.Position.X-.10f,h.End.X+.10f})
-                    for(float z=h.Position.Y;z<h.End.Y;z+=.61f)
-                        Box(stone,new Vector3(x,.015f,z+.30f),new Vector3(.22f,.18f,Math.Min(.60f,h.End.Y-z)),.012f);
-                // Entrance threshold remains flush; the hatch and existing rails keep their authored design.
-                Box(stone,new Vector3(h.GetCenter().X,-.045f,h.End.Y+.11f),new Vector3(h.Size.X+.4f,.12f,.22f),.012f);
+                // The complete street frame is the shared RuienSurround kit, also used by the keeper and grates.
             }
         if(spec.TryGetProperty("archBackings",out var backings))
             foreach(var backing in backings.EnumerateArray())

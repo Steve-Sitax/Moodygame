@@ -83,6 +83,7 @@ public static class RuienUv
                 if(!families.TryGetValue(key,out var family))continue;
                 var a=mesh.SurfaceGetArrays(s);var v=a[(int)Mesh.ArrayType.Vertex].AsVector3Array();
                 var uv=a[(int)Mesh.ArrayType.TexUV].AsVector2Array();var ix=a[(int)Mesh.ArrayType.Index].AsInt32Array();
+                if(ix.Length==0)ix=Enumerable.Range(0,v.Length).ToArray();
                 if(uv.Length!=v.Length)continue;
                 double area=0,bad=0;float worst=0;Vector3 where=default;var samples=new List<object>();
                 for(int i=0;i<ix.Length;i+=3)

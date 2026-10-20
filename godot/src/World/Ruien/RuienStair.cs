@@ -46,17 +46,15 @@ public static class RuienStair
         // Bonded retaining walls outside the flight. Lower east wall opens into the side-entry landing.
         foreach(float side in new[]{-1f,1f})
         {
-            Box(brick,new Vector3(side*(width/2+.14f),-drop/2-.08f,length/2),new Vector3(.28f,drop+.16f,length),.009f);
+            float wallTop=RuienSurround.Bottom-.015f,wallBase=-drop-.16f;
+            Box(brick,new Vector3(side*(width/2+.14f),(wallBase+wallTop)/2,length/2),new Vector3(.28f,wallTop-wallBase,length),.009f);
             var tilt=new Basis(Vector3.Right,MathF.Atan2(drop,length));
             // The closed lids leave a flush quay: handrails begin below their underside, not above the paving.
             float railStart=MathF.Ceiling(1.05f/rise)*going,railMid=(railStart+length)/2;
             Box(iron,new Vector3(side*(width/2-.09f),-railMid*drop/length+.93f,railMid),new Vector3(.035f,.035f,(length-railStart)*MathF.Sqrt(1+drop*drop/(length*length))),.003f,tilt);
             for(int i=(int)MathF.Round(railStart/going);i<steps;i+=4)
                 Box(iron,new Vector3(side*(width/2-.09f),-i*rise+.465f,i*going),new Vector3(.028f,.93f,.028f),.002f);
-            Box(stone,new Vector3(side*(width/2+.12f),-.08f,w.Hole.Size.Y/2),new Vector3(.24f,.16f,w.Hole.Size.Y+.26f),.012f);
         }
-        foreach(float z in new[]{-.12f,w.Hole.Size.Y+.12f})
-            Box(stone,new Vector3(0,-.08f,z),new Vector3(width+.48f,.16f,.24f),.012f);
         // Inclined barrel ceiling; the first four metres are open beneath the lifting lids.
         // Even the outer crown stays below the paving at the covered end of the hatch.
         float Ceiling(float z)=>-Math.Min(drop,z*drop/length)+1.88f;
@@ -68,7 +66,7 @@ public static class RuienStair
         // Leave the full flight-width opening in the near jamb: the stair turns here into the niche.
         Box(brick,new Vector3((exit+width/2)/2,-drop+1.35f,landing-.74f),new Vector3(exit-width/2,2.7f,.28f),.010f);
         Box(brick,new Vector3((exit-width/2)/2,-drop+1.35f,landing+.74f),new Vector3(exit+width/2,2.7f,.28f),.010f);
-        Box(brick,new Vector3(-width/2-.14f,-drop+1.775f,landing),new Vector3(.28f,3.55f,1.2f),.009f);
+        Box(brick,new Vector3(-width/2-.14f,-drop+1.625f,landing),new Vector3(.28f,3.25f,1.2f),.009f);
         Add(root,stone,"ruien_bluestone",true);Add(root,iron,"ruien_iron",true);Add(root,brick,"ruien_brick_stretcher",true);
         Add(root,paving,"ruien_setts",true,metric:false);
         root.AddChild(new RuienHatch{Way=w});
@@ -117,6 +115,7 @@ public static class RuienStair
         }
         RuienUv.Repair(a,family);
         var done=new ArrayMesh();done.AddSurfaceFromArrays(Mesh.PrimitiveType.Triangles,a);done.SurfaceSetMaterial(0,RuienMaterials.Get(family));
+        done.SurfaceSetName(0,family);
         root.AddChild(new MeshInstance3D{Mesh=done,Layers=Ruien.Layer,CastShadow=GeometryInstance3D.ShadowCastingSetting.Off});
         if(solid)
         {

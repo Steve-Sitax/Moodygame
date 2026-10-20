@@ -8,6 +8,18 @@ O2 access: the keeper hatch beside the outlet leads to the south winch; the hall
 
 The selected [construction options](plans/ruien/ideas/README.md) are A1/B2/C1/D1. A1's twin iron lids open and close with `E`; their native world state and the gate crew's route progress are included in ordinary saves. The flight lies behind the gallery wall and meets the ledge through a vaulted niche. B2's side drains cross the walkway in recessed grated gutters. C1 is a continuous brick arch; D1 has a round street grate and flared brick lining. The hall stair exits into the street on a supported route. All treads are bluestone.
 
+`RuienSurround` supplies the keeper, hall and grate frames: 30 cm deep reveals, 32 cm wide stair coping
+(23 cm at grates), 6.5/3.5 cm raised tops, recessed bearing seats and mortared joints. The street cut includes
+upright kerb faces and collision proxies; kerbs butt against the frame. The keeper aperture extends 40 cm farther
+over the flight so the vault crown stays below the street without lowering its headroom. Exported lining repairs
+apply to both LODs and collision; the hall's last tread, open oak leaves and handrail remain.
+
+Asset edge notes: coping profiles use 8 mm curved arrises and 6 mm rounded ends; the machined rebate is eased
+2 mm. Iron has 1–3 mm bevels; flat pin ends and hidden mating faces are intentional. Metric charts include narrow
+faces. Mortar beds and perimeter packing close the joints below the paving; no extra shader kind or light is used.
+Hatch commands queue behind an active poll, and action prompts are withheld during movement. Both leaves and
+their collision rotate about the same pivots. Review evidence for #211 is in `_tmp_verify/ruien-o2-fix4/`.
+
 The town's broad river sheet is excluded beneath the Ruien by a world-space cover texture, including masonry and side galleries. This replaces the old water-level stencil lid, which could be clipped out at particular camera heights. The air volumes clip against sampled scene depth themselves, so the hardware depth test must not discard their enclosing box at the shaft rim. Neither fix adds a shader kind or a real light.
 
 ## Data

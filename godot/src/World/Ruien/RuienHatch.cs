@@ -25,19 +25,25 @@ public partial class RuienHatch : Node3D
     private readonly List<(Node3D hinge,float sign)> leaves=new();
     private float poll;
     private bool pending;
+    private bool? requested;
 
     public override void _Ready()
     {
         All[Way.Id]=this;
-        float half=Way.Hole.Size.X/2,length=Way.Hole.Size.Y;
+        float half=Way.Hole.Size.X/2+.055f,length=Way.Hole.Size.Y;
+        var anchors=new SurfaceTool();anchors.Begin(Mesh.PrimitiveType.Triangles);
         foreach(float side in new[]{-1f,1f})
         {
-            var hinge=new Node3D{Name=side<0?"left_lid":"right_lid",Position=new Vector3(side*half,0,0)};
+            var hinge=new Node3D{Name=side<0?"left_lid":"right_lid",Position=new Vector3(side*half,RuienSurround.LidTop,0)};
             AddChild(hinge);leaves.Add((hinge,-side));
             var st=new SurfaceTool();st.Begin(Mesh.PrimitiveType.Triangles);
             void Box(Vector3 p,Vector3 size,float r=.002f)=>st.AppendFrom(BevelMesh.Box(size,r,RuienMaterials.Get("ruien_iron")),0,new Transform3D(Basis.Identity,p));
             float x=-side*half/2;
-            Box(new Vector3(x,-.021f,length/2),new Vector3(half-.008f,.042f,length-.01f),.003f);
+            Box(new Vector3(x,-.021f,length/2),new Vector3(half-.008f,.042f,length+.05f),.003f);
+            // Low cast traction ribs make the closed plate legible at a grazing angle.
+            for(float z=.12f;z<length-.06f;z+=.16f)
+                foreach(float u in new[]{.22f,.44f})
+                    Box(new Vector3(-side*u,.002f,z),new Vector3(.10f,.004f,.018f),.001f);
             // A real rebated meeting edge closes the centre joint beneath the other leaf.
             // The player's narrow ground probe must land on iron here, not pass through the seam.
             if(side<0)Box(new Vector3(half,-.052f,length/2),new Vector3(.05f,.025f,length-.04f),.001f);
@@ -62,9 +68,18 @@ public partial class RuienHatch : Node3D
                 var pin=new SurfaceTool();pin.CreateFrom(new CylinderMesh{TopRadius=.022f,BottomRadius=.022f,Height=.11f,RadialSegments=32},0);pin.Deindex();
                 st.AppendFrom(pin.Commit(),0,
                     new Transform3D(new Basis(Vector3.Right,Mathf.Pi/2),new Vector3(0,-.004f,z)));
+                // Fixed anchor shoe is let into the outer coping, separate from the rotating leaf.
+                anchors.AppendFrom(BevelMesh.Box(new Vector3(.18f,.025f,.10f),.003f,RuienMaterials.Get("ruien_iron")),0,
+                    new Transform3D(Basis.Identity,new Vector3(side*(half+.09f),.066f,z)));
+                anchors.AppendFrom(BevelMesh.Box(new Vector3(.05f,.065f,.115f),.003f,RuienMaterials.Get("ruien_iron")),0,
+                    new Transform3D(Basis.Identity,new Vector3(side*(half+.025f),.035f,z)));
+                foreach(float dz in new[]{-.027f,.027f})
+                    anchors.AppendFrom(BevelMesh.Box(new Vector3(.022f,.012f,.022f),.003f,RuienMaterials.Get("ruien_iron")),0,
+                        new Transform3D(Basis.Identity,new Vector3(side*(half+.13f),.084f,z+dz)));
             }
             RuienStair.Add(hinge,st,"ruien_iron",true);
         }
+        RuienStair.Add(this,anchors,"ruien_iron",true);
         // Providers are installed after the interaction part is ready.
         CallDeferred(MethodName.Install);
     }
@@ -73,7 +88,7 @@ public partial class RuienHatch : Node3D
     private Offers? Keys(float x,float z)
     {
         var j=Jef.I;
-        if(!Known||pending||j==null||j.Fly||j.Climbing||j.Frozen)return null;
+        if(!Known||pending||requested.HasValue||MathF.Abs(Open-(Target?1:0))>.01f||j==null||j.Fly||j.Climbing||j.Frozen)return null;
         var box=Way.Hole;var close=new Vector2(Math.Clamp(x,box.Position.X,box.End.X),Math.Clamp(z,box.Position.Y,box.End.Y));
         if(Target&&box.HasPoint(new Vector2(x,z))&&j.Y> -1.85f&&j.Y<.10f)return null;
         float distance=new Vector2(x,z).DistanceTo(close);
@@ -82,9 +97,8 @@ public partial class RuienHatch : Node3D
     }
     public void Set(bool open)
     {
-        var api=ServerLink.I?.Api;if(api==null||pending)return;
-        pending=true;
-        api.Run(api.Post<JsonElement>("api/ruien/hatches/"+Way.Id,new{open}),Read,_=>pending=false);
+        // An interaction must not disappear when a state poll is already in flight.
+        requested=open;
     }
     private void Read(JsonElement state)
     {
@@ -93,9 +107,18 @@ public partial class RuienHatch : Node3D
     }
     public override void _PhysicsProcess(double delta)
     {
-        if((poll-=(float)delta)<=0&&!pending&&ServerLink.I?.Api is{} api)
+        poll-=(float)delta;
+        if(!pending&&ServerLink.I?.Api is{} api)
         {
-            poll=1;pending=true;api.Run(api.Get<JsonElement>("api/ruien/hatches/"+Way.Id),Read,_=>pending=false);
+            if(requested is bool open)
+            {
+                requested=null;pending=true;poll=1;
+                api.Run(api.Post<JsonElement>("api/ruien/hatches/"+Way.Id,new{open}),Read,_=>pending=false);
+            }
+            else if(poll<=0)
+            {
+                poll=1;pending=true;api.Run(api.Get<JsonElement>("api/ruien/hatches/"+Way.Id),Read,_=>pending=false);
+            }
         }
         Open=Mathf.MoveToward(Open,Target?1:0,(float)delta*.48f);
         foreach(var (hinge,sign) in leaves)hinge.Rotation=new Vector3(0,0,sign*Open*Mathf.DegToRad(85));

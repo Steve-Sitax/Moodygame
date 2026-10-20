@@ -4,7 +4,7 @@ The twelve Codex-generated concepts are design references, not measured reconstr
 
 | Option | Placement and plan |
 | --- | --- |
-| A1 | Built at O2: flush twin iron lids, player-openable and saved, over a bluestone stair entering a vaulted wall niche. |
+| A1 | Built at O2: saved twin iron lids recessed into a low, deep bluestone frame, over a stair entering a vaulted wall niche. |
 | A2 | Keeper's hut alternative for another gate or entrance. |
 | A3 | Railed stairwell alternative for another gate or entrance. |
 | B1 | Plain double-ring drain for variety elsewhere. |

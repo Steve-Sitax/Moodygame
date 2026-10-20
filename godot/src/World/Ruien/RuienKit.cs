@@ -141,15 +141,22 @@ public static class RuienKit
             }
             for (int i = 1; i <= 5; i++) Bar(new Vector3(-half + i * s / 6, -0.02f, 0), new Vector3(0.025f, 0.05f, s));
             foreach (float k in new[] { -1f / 3, 1f / 3 }) Bar(new Vector3(0, -0.035f, k * half), new Vector3(s, 0.03f, 0.03f));
-            grate = st.Commit();
-            grate.SurfaceSetMaterial(0, RuienMaterials.Get("ruien_iron"));
+            grate = GrateMesh(st);
         }
-        var root = new Node3D { Name = "grate_" + w.Id, Position = w.Top + new Vector3(0, 0.01f, 0) };
+        var root = new Node3D { Name = "grate_" + w.Id, Position = w.Top + new Vector3(0, 0.02f, 0) };
         root.AddChild(new MeshInstance3D { Mesh = grate, CastShadow = GeometryInstance3D.ShadowCastingSetting.Off });
         return root;
     }
 
     private static readonly Dictionary<int,Mesh> RoundGrates=new();
+    private static ArrayMesh GrateMesh(SurfaceTool tool)
+    {
+        var arrays=tool.Commit().SurfaceGetArrays(0);
+        RuienUv.Repair(arrays,"ruien_iron");
+        var mesh=new ArrayMesh();mesh.AddSurfaceFromArrays(Mesh.PrimitiveType.Triangles,arrays);
+        mesh.SurfaceSetName(0,"ruien_iron");mesh.SurfaceSetMaterial(0,RuienMaterials.Get("ruien_iron"));
+        return mesh;
+    }
     private static Node3D RoundGrate(RuienData.Way w)
     {
         int key=(int)MathF.Round(w.Hole.Size.X*1000);
@@ -164,7 +171,13 @@ public static class RuienKit
                 Vector3 P(int k,int l){var q=profile[l%profile.Length];float a=k*Mathf.Tau/128;return new(q.X*MathF.Cos(a),q.Y,q.X*MathF.Sin(a));}
                 var a=P(i,j);var b=P(i+1,j);var c=P(i+1,j+1);var d=P(i,j+1);
                 var n=(b-a).Cross(c-a).Normalized();
-                foreach(var p in new[]{a,b,c,a,c,d}){st.SetNormal(n);st.SetUV(new Vector2(p.X,p.Z));st.SetColor(new Color(.15f,0,.12f,0));st.AddVertex(p);}
+                // Unwrap around the casting and across its section: projecting X/Z collapses the vertical rim.
+                float v=0;for(int k=0;k<j;k++)v+=profile[k].DistanceTo(profile[(k+1)%profile.Length]);
+                float dv=profile[j].DistanceTo(profile[(j+1)%profile.Length]);
+                float du=Mathf.Tau/128*(profile[j].X+profile[(j+1)%profile.Length].X)/2,u=i*du;
+                foreach(var (p,uv) in new[]{(a,new Vector2(u,v)),(b,new Vector2(u+du,v)),(c,new Vector2(u+du,v+dv)),
+                    (a,new Vector2(u,v)),(c,new Vector2(u+du,v+dv)),(d,new Vector2(u,v+dv))})
+                {st.SetNormal(n);st.SetUV(uv/.9f);st.SetColor(new Color(.15f,0,.12f,0));st.AddVertex(p);}
             }
             for(float offset=-r+.055f;offset<r-.035f;offset+=.085f)
             {
@@ -172,9 +185,9 @@ public static class RuienKit
                 Bar(st,new Vector3(offset,-.023f,0),new Vector3(.019f,.042f,length));
                 Bar(st,new Vector3(0,-.025f,offset),new Vector3(length,.038f,.019f));
             }
-            mesh=st.Commit();mesh.SurfaceSetMaterial(0,RuienMaterials.Get("ruien_iron"));RoundGrates[key]=mesh;
+            mesh=GrateMesh(st);RoundGrates[key]=mesh;
         }
-        var root=new Node3D{Name="round_grate_"+w.Id,Position=w.Top};
+        var root=new Node3D{Name="round_grate_"+w.Id,Position=w.Top+Vector3.Up*.037f};
         root.AddChild(new MeshInstance3D{Mesh=mesh,Layers=Ruien.Layer,CastShadow=GeometryInstance3D.ShadowCastingSetting.Off});
         return root;
     }
