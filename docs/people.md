@@ -928,8 +928,9 @@ one garment triangle in five was stretched over 4:1 and the clothes had 2,000 to
   Full brims mask hidden scalp at their inner crown rim after fitting, above the eyes; short peaks and tilted hats retain exposed scalp.
 - **Headwear fit (2026-10-20, #82).** Hats sit snug, as in the period photographs: `clothes_kit.HAIR_ROOM`,
   `HOOD_ROOM` and `CROWN_CLEAR` set the room over the head. Linen caps and hoods stand about 1.2 cm off the scalp
-  (the undercap hair is 2.6 mm; 3.2 cm made bowls of them and put the beguine's cap through her hood). The nun's coif
-  keeps 2.5 cm (it covers the ears; closer, ear and hair came through), her veil 4.2 cm (was 5.5). Flat and
+  (the undercap hair is 2.6 mm; 3.2 cm made bowls of them and put the beguine's cap through her hood). The nun keeps
+  her coif (2.5 cm) and veil (5.5 cm): closer, her ears and hair came through the coif, whose shreds over the ears
+  already show as two pale discs beside her face (open). Flat and
   knitted caps end about 1.7 cm over the crown of the head, kepis 1 cm over it in the middle of their slope; bowlers
   and toppers are seated on the brow, tipped back 1 cm (`tip_back`) so the forehead shows, with 11 mm over the band,
   3.5 cm brims (toppers 3.8, the sou'wester 3.5 in front to 8.5 behind, the priest 7.5) and 17 cm topper crowns; the

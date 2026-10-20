@@ -1,7 +1,7 @@
 {
   "man_middling": {
     "part": "people2",
-    "bytes": 14647752
+    "bytes": 14648616
   },
   "baker": {
     "part": "people2_uniform1",
@@ -129,15 +129,15 @@
   },
   "milk_woman": {
     "part": "people2_women3",
-    "bytes": 5672256
+    "bytes": 5683600
   },
   "nun": {
     "part": "people2_women3",
-    "bytes": 5672256
+    "bytes": 5683600
   },
   "old_woman_dressed": {
     "part": "people2_women3",
-    "bytes": 5672256
+    "bytes": 5683600
   },
   "shopwife": {
     "part": "people2_women4",

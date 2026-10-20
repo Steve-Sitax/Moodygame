@@ -58599,31 +58599,31 @@
     "beg": "a sister"
    },
    "triangles": {
-    "lod0": 12510,
-    "lod1": 2463
+    "lod0": 12492,
+    "lod1": 2493
    },
    "pieceTriangles": {
     "lod0": {
-     "habit_skirt": 1156,
-     "habit": 2074,
-     "belt": 464,
-     "guimpe": 643,
+     "habit_skirt": 1154,
+     "habit": 2066,
+     "belt": 460,
+     "guimpe": 637,
      "wimple": 408,
-     "coif": 928,
-     "veil": 1106,
+     "coif": 920,
+     "veil": 1118,
      "boots": 636,
      "soles": 444
     },
     "lod1": {
-     "habit_skirt": 197,
-     "habit": 235,
-     "belt": 168,
+     "habit_skirt": 199,
+     "habit": 232,
+     "belt": 164,
      "guimpe": 208,
      "wimple": 152,
-     "coif": 178,
-     "veil": 214,
+     "coif": 181,
+     "veil": 223,
      "boots": 80,
-     "soles": 70
+     "soles": 72
     }
    },
    "clothChecks": {
@@ -58631,10 +58631,10 @@
      "lod0": 14432,
      "lod1": 3580
     },
-    "density": 218,
-    "rectShare": 0.7,
-    "stretched2": 0.0089,
-    "worstStretch": 32.18,
+    "density": 219,
+    "rectShare": 0.698,
+    "stretched2": 0.0084,
+    "worstStretch": 269.51,
     "islandCuts": 20,
     "hiddenDeleted": {
      "lod0": {},
@@ -58643,11 +58643,11 @@
     "reliefPoints": 0,
     "occlusion": {
      "lod0": [
-      0.415,
+      0.395,
       1.0
      ],
      "lod1": [
-      0.407,
+      0.386,
       1.0
      ]
     }
