@@ -13,6 +13,9 @@ namespace Scheldemist.Movers;
 public partial class Traffic : Node
 {
     public static Traffic? I { get; private set; }
+    /// <summary>Each route once (its name, its path) with every rig's own bodies, for the route audit (Omnibus).</summary>
+    public IEnumerable<(string Name, OmnibusLines.Loop Path)> Routes() => vehicles.GroupBy(v => v.Route).Select(g => (g.Key, g.First().Path));
+    public IEnumerable<Rid> OwnBodies() => vehicles.SelectMany(v => v.Exclude);
     public sealed class Vehicle
     {
         public string Route = "", Kind = "", Load = "", State = "go";

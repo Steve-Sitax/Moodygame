@@ -40,11 +40,40 @@ public sealed partial class NativeTownTransportPopulation
     private JsonArray? BesideDoor(JsonNode person, int side, double room, List<JsonArray> taken, List<(double x, double z, double radius)> keep, bool cart = false)
     {
         var home = person["home"]!; var d = population.Doors.FirstOrDefault(q => N(q["house"]) == N(home["house"])); double ox = d != null ? N(d["out"]?[0]) : N(home["sx"]) - N(home["x"]), oz = d != null ? N(d["out"]?[1]) : N(home["sz"]) - N(home["z"]);
-        if (d == null) { double length = Math.Sqrt(ox * ox + oz * oz); if (length == 0) length = 1; ox /= length; oz /= length; } double ax = -oz * side, az = ox * side, wx = N(d?["x"] ?? home["x"]), wz = N(d?["z"] ?? home["z"]), yaw = cart ? Math.Atan2(-ox, -oz) : Math.Atan2(ax, az);
-        if (Math.Sqrt(ox * ox + oz * oz) >= .5) foreach (double outward in cart ? new[] { 1.4, 1.8, 2.2 } : new[] { 1.0, 1.25 }) foreach (double along in new[] { 2.0, 2.8, 3.6, 4.4 }) {
+        if (d == null) { double length = Math.Sqrt(ox * ox + oz * oz); if (length == 0) length = 1; ox /= length; oz /= length; } double ax = -oz * side, az = ox * side, wx = N(d?["x"] ?? home["x"]), wz = N(d?["z"] ?? home["z"]), yaw = cart ? OriginalCartSpots ? Math.Atan2(-ox, -oz) : Math.Atan2(-ax, -az) : Math.Atan2(ax, az);
+        // (Steve, 2026-10-26: a cart stood across the street before its door) A handcart is put out of the way: along its
+        // house's wall, close in, its shafts along the street, and only where the street beside it stays wide enough for
+        // an omnibus or another cart to pass; else only on an open square or in a court. (OriginalCartSpots: the
+        // original game's spots, square out from the wall, for the parity proof)
+        if (cart && OriginalCartSpots)
+        {
+            if (Math.Sqrt(ox * ox + oz * oz) >= .5) foreach (double outward in new[] { 1.4, 1.8, 2.2 }) foreach (double along in new[] { 2.0, 2.8, 3.6, 4.4 }) {
+                double x = wx + ox * outward + ax * along, z = wz + oz * outward + az * along; if (FreeSpot(x, z, room, taken, keep)) return Spot(x, z, yaw);
+            }
+            return SpotNear(N(home["sx"]) + ox * 1.5, N(home["sz"]) + oz * 1.5, room, taken, keep, 8, yaw);
+        }
+        if (cart)
+        {
+            // (the spot is the handles' tip, toward the door; the cart runs 3 m on along the wall, away from the door)
+            if (Math.Sqrt(ox * ox + oz * oz) >= .5) foreach (double outward in new[] { .85, 1.05, 1.25 }) foreach (double along in new[] { 1.0, 1.8, 2.6, 3.4 }) {
+                double x = wx + ox * outward + ax * along, z = wz + oz * outward + az * along;
+                if (CartAside(x, z, ax, az, ox, oz) && FreeSpot(x, z, .45, taken, keep)) return Spot(x, z, yaw);
+            }
+            return SpotNear(N(home["sx"]) + ox * 1.5, N(home["sz"]) + oz * 1.5, 2.8, taken, keep, 30, yaw);
+        }
+        if (Math.Sqrt(ox * ox + oz * oz) >= .5) foreach (double outward in new[] { 1.0, 1.25 }) foreach (double along in new[] { 2.0, 2.8, 3.6, 4.4 }) {
             double x = wx + ox * outward + ax * along, z = wz + oz * outward + az * along; if (FreeSpot(x, z, room, taken, keep)) return Spot(x, z, yaw);
         }
         return SpotNear(N(home["sx"]) + ox * 1.5, N(home["sz"]) + oz * 1.5, room, taken, keep, 8, yaw);
+    }
+    /// <summary>A parked handcart (ResidentJourneys.DrawParked: its spot the handles' tip, the cart 3.05 m long behind it
+    /// and 1.44 m wide) set along a wall at (x, z), running on along (ax, az), the street out (ox, oz): its whole length on
+    /// open ground, and a way 3 m wide left open beyond its outer side.</summary>
+    private bool CartAside(double x, double z, double ax, double az, double ox, double oz)
+    {
+        foreach (double d in new[] { .4, 1.5, 2.6 })
+            if (!population.Open(x + ax * d, z + az * d, .6) || !population.Open(x + ax * d + ox * 2.22, z + az * d + oz * 2.22, 1.5)) return false;
+        return true;
     }
     public static (double x, double z)? KeyPoint(JsonNode person, string key, JsonNode places)
     {

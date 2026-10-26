@@ -12,6 +12,10 @@ public sealed partial class NativeTownTransportPopulation
     private readonly NativeTownPopulation population;
     private readonly NativeTownAssets assets;
     public NativeTownTransportPopulation(NativeTownPopulation population, NativeTownAssets assets) { this.population = population; this.assets = assets; }
+    /// <summary>The original game's handcart spots (square out from the door's wall) and record version 5, for the parity
+    /// proof (NativeTransportPopulationProof); the game puts carts aside along the wall (version 6).</summary>
+    public bool OriginalCartSpots { get; init; }
+    private int Version => OriginalCartSpots ? 5 : 6;
     public JsonObject Record() => population.Host.Context.World("transport")?.DeepClone().AsObject() ?? new JsonObject { ["vehicles"] = new JsonArray(), ["extraVelos"] = new JsonArray() };
     public JsonObject Generate(JsonObject town)
     {
@@ -41,11 +45,11 @@ public sealed partial class NativeTownTransportPopulation
         foreach (var b in A(assets.GenerateRowing(town)["boats"])) { if (b?["family"]?.GetValue<bool>() != true || !byId.TryGetValue(S(b, "owner"), out var r)) continue; var home = new JsonArray(N(b["x"]), N(b["z"]), N(b["yaw"])); var v = Vehicle(S(b, "id"), "boat", r, home, new JsonObject { ["home"] = home.DeepClone() }, S(r, "name") + "'s " + (S(b, "kind") == "punt" ? "punt" : "rowing boat"));
             v["boat"] = new JsonObject { ["kind"] = S(b, "kind"), ["landing"] = b["landing"]!.DeepClone(), ["flight"] = S(b, "id") switch { "boat:canal" => new JsonArray(-70, 38), "boat:cartstand" => new JsonArray(50, 0), "boat:north" => new JsonArray(186, 0), _ => b["landing"]!.DeepClone() } }; vehicles.Add(v);
         }
-        return new JsonObject { ["v"] = 5, ["seed"] = town["seed"]!.DeepClone(), ["extraVelos"] = extras, ["vehicles"] = vehicles };
+        return new JsonObject { ["v"] = Version, ["seed"] = town["seed"]!.DeepClone(), ["extraVelos"] = extras, ["vehicles"] = vehicles };
     }
     public JsonObject Ensure(uint seed)
     {
-        var c = population.Host.Context; if (c.Scalar<long>("SELECT COUNT(*) FROM resident") == 0) return new JsonObject { ["made"] = false, ["vehicles"] = 0 }; var town = population.Snapshot(); var had = c.World("transport"); if (had != null && N(had["v"]) == 5 && N(had["seed"]) == N(town["seed"])) { population.Town.Clear(); return new JsonObject { ["made"] = false, ["vehicles"] = A(had["vehicles"]).Count }; }
+        var c = population.Host.Context; if (c.Scalar<long>("SELECT COUNT(*) FROM resident") == 0) return new JsonObject { ["made"] = false, ["vehicles"] = 0 }; var town = population.Snapshot(); var had = c.World("transport"); if (had != null && N(had["v"]) == Version && N(had["seed"]) == N(town["seed"])) { population.Town.Clear(); return new JsonObject { ["made"] = false, ["vehicles"] = A(had["vehicles"]).Count }; }
         var record = Generate(town); c.SetWorld("transport", record); population.Town.Clear(); assets.Clear(); return new JsonObject { ["made"] = true, ["vehicles"] = A(record["vehicles"]).Count };
     }
     public JsonObject TripPoints(string vehicleId)

@@ -771,10 +771,53 @@ public partial class Omnibus : Node
         b.Team.Transform = new Transform3D(new Basis(Vector3.Up, b.HorseYaw), new Vector3(b.Pc.X, 0, b.Pc.Y));
     }
 
+    private int auditWait = 120;
+    /// <summary>
+    /// <c>--omnibus-route-audit &lt;file&gt;</c> (Steve, 2026-10-26: a bus must never be stuck behind something that never
+    /// moves): once the town stands, every line's loop (and every traffic route) is walked every half metre with the bus's own probe across its width, 0.9 m up,
+    /// and every still solid (a static body: the town's walls, props, goods) found there is written to the file,
+    /// one hit a line: line, s, x, z, the body's node path.
+    /// </summary>
+    private void RouteAudit()
+    {
+        string file = Main.I.Arg("omnibus-route-audit");
+        var sphere = new SphereShape3D { Radius = .5f };
+        var cast = new ShapeCast3D { Shape = sphere, Enabled = false, TargetPosition = Vector3.Zero, CollisionMask = Solid.Layer, CollideWithAreas = false, MaxResults = 8 };
+        Main.I.View.AddChild(cast);
+        foreach (var b in buses) foreach (var rid in b.Exclude) cast.AddExceptionRid(rid);
+        if (Traffic.I is { } traffic) foreach (var rid in traffic.OwnBodies()) cast.AddExceptionRid(rid);
+        var lines = new List<string>();
+        // the omnibus lines, and the traffic's routes (the drays' and the pushed handcarts')
+        var routes = OmnibusLines.Lines.Select(l => (l.Id, OmnibusLines.LoopOf(l))).ToList();
+        if (Traffic.I is { } t) routes.AddRange(t.Routes().Select(r => ("traffic:" + r.Name, r.Path)));
+        foreach (var (id, lp) in routes)
+        {
+            for (float s = 0; s < lp.Length; s += .5f)
+            {
+                // (the bus's own probe: a half-metre ball 0.9 m up, here at its middle and 0.6 m to either side)
+                var p = lp.At(s); var q = lp.At(s + .5f) - p; var side = q.LengthSquared() > 0 ? new Vector2(-q.Y, q.X).Normalized() : Vector2.Zero;
+                foreach (float o in new[] { -.6f, 0f, .6f })
+                {
+                    var at = p + side * o;
+                    cast.GlobalPosition = new Vector3(at.X, 0.9f, at.Y);
+                    cast.ForceShapecastUpdate();
+                    for (int i = 0; i < cast.GetCollisionCount(); i++)
+                        // (moving bodies, the traffic's carts on their way, are not still: they pass)
+                        if (cast.GetCollider(i) is StaticBody3D body and not AnimatableBody3D)
+                            lines.Add($"{id}\t{s:0.0}\t{at.X:0.00}\t{at.Y:0.00}\t{body.GetPath()}");
+                }
+            }
+        }
+        cast.QueueFree();
+        System.IO.File.WriteAllLines(file, lines);
+        GD.Print($"omnibus route audit: {lines.Count} hits on {routes.Count} routes -> {file}");
+    }
+
     public override void _Process(double delta)
     {
         using var frameCost = Scheldemist.Dev.FrameCost.Track("Movers.Omnibus");
         if (buses.Count == 0) return;
+        if (auditWait > 0 && --auditWait == 0 && Main.I.Arg("omnibus-route-audit") != "") RouteAudit();
         MoverCost.Begin("omnibus");
         float dt = (float)MoverClock.Dt;
         var cam = Main.I.Cam?.GlobalPosition ?? Vector3.Zero;
