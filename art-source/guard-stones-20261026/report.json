@@ -1,0 +1,791 @@
+{
+ "stones": [
+  {
+   "node": "clutter/clutter_solid10",
+   "at": [
+    -125.37,
+    -0.0,
+    158.91
+   ],
+   "front": [
+    0.796,
+    -0.605
+   ],
+   "wall": 0.246,
+   "triangles": 1652
+  },
+  {
+   "node": "clutter/clutter_solid11",
+   "at": [
+    -44.69,
+    -0.0,
+    219.33
+   ],
+   "front": [
+    0.885,
+    -0.465
+   ],
+   "wall": 0.415,
+   "triangles": 1652
+  },
+  {
+   "node": "clutter/clutter_solid11",
+   "at": [
+    -37.69,
+    -0.0,
+    219.37
+   ],
+   "front": [
+    -0.741,
+    0.671
+   ],
+   "wall": 0.413,
+   "triangles": 1652
+  },
+  {
+   "node": "clutter/clutter_solid12",
+   "at": [
+    -91.86,
+    -0.0,
+    170.59
+   ],
+   "front": [
+    0.057,
+    0.998
+   ],
+   "wall": 0.396,
+   "triangles": 1652
+  },
+  {
+   "node": "clutter/clutter_solid12",
+   "at": [
+    -3.42,
+    0.119,
+    101.5
+   ],
+   "front": [
+    0.826,
+    0.564
+   ],
+   "wall": 0.416,
+   "triangles": 1652
+  },
+  {
+   "node": "clutter/clutter_solid13",
+   "at": [
+    -27.26,
+    0.12,
+    343.81
+   ],
+   "front": [
+    0.737,
+    0.676
+   ],
+   "wall": 0.417,
+   "triangles": 1652
+  },
+  {
+   "node": "clutter/clutter_solid14",
+   "at": [
+    44.42,
+    -0.0,
+    320.5
+   ],
+   "front": [
+    0.829,
+    -0.559
+   ],
+   "wall": 0.386,
+   "triangles": 1652
+  },
+  {
+   "node": "clutter/clutter_solid14",
+   "at": [
+    66.91,
+    0.12,
+    339.58
+   ],
+   "front": [
+    -0.682,
+    0.731
+   ],
+   "wall": 0.414,
+   "triangles": 1652
+  },
+  {
+   "node": "clutter/clutter_solid15",
+   "at": [
+    35.7,
+    0.0,
+    45.7
+   ],
+   "front": [
+    -0.992,
+    0.13
+   ],
+   "wall": 0.301,
+   "triangles": 1652
+  },
+  {
+   "node": "clutter/clutter_solid15",
+   "at": [
+    35.7,
+    0.0,
+    66.3
+   ],
+   "front": [
+    -0.992,
+    -0.128
+   ],
+   "wall": 0.301,
+   "triangles": 1652
+  },
+  {
+   "node": "clutter/clutter_solid15",
+   "at": [
+    35.7,
+    0.0,
+    72.7
+   ],
+   "front": [
+    -0.753,
+    -0.658
+   ],
+   "wall": 0.388,
+   "triangles": 1652
+  },
+  {
+   "node": "clutter/clutter_solid16",
+   "at": [
+    3.19,
+    -0.0,
+    256.06
+   ],
+   "front": [
+    0.498,
+    0.867
+   ],
+   "wall": 0.414,
+   "triangles": 1652
+  },
+  {
+   "node": "clutter/clutter_solid16",
+   "at": [
+    18.11,
+    -0.0,
+    260.98
+   ],
+   "front": [
+    0.444,
+    0.896
+   ],
+   "wall": 0.414,
+   "triangles": 1652
+  },
+  {
+   "node": "clutter/clutter_solid16",
+   "at": [
+    19.86,
+    -0.0,
+    256.09
+   ],
+   "front": [
+    0.871,
+    -0.491
+   ],
+   "wall": 0.386,
+   "triangles": 1652
+  },
+  {
+   "node": "clutter/clutter_solid16",
+   "at": [
+    50.18,
+    -0.0,
+    210.83
+   ],
+   "front": [
+    -0.716,
+    -0.698
+   ],
+   "wall": 0.417,
+   "triangles": 1652
+  },
+  {
+   "node": "clutter/clutter_solid16",
+   "at": [
+    67.9,
+    -0.0,
+    216.93
+   ],
+   "front": [
+    -0.655,
+    0.755
+   ],
+   "wall": 0.389,
+   "triangles": 1652
+  },
+  {
+   "node": "clutter/clutter_solid17",
+   "at": [
+    24.13,
+    -0.0,
+    176.32
+   ],
+   "front": [
+    0.658,
+    -0.753
+   ],
+   "wall": 0.388,
+   "triangles": 1652
+  },
+  {
+   "node": "clutter/clutter_solid17",
+   "at": [
+    28.94,
+    -0.0,
+    190.32
+   ],
+   "front": [
+    -0.655,
+    0.755
+   ],
+   "wall": 0.389,
+   "triangles": 1652
+  },
+  {
+   "node": "clutter/clutter_solid17",
+   "at": [
+    48.32,
+    -0.0,
+    190.32
+   ],
+   "front": [
+    0.655,
+    0.756
+   ],
+   "wall": 0.389,
+   "triangles": 1652
+  },
+  {
+   "node": "clutter/clutter_solid17",
+   "at": [
+    61.7,
+    0.12,
+    164.3
+   ],
+   "front": [
+    -0.699,
+    0.715
+   ],
+   "wall": 0.417,
+   "triangles": 1652
+  },
+  {
+   "node": "clutter/clutter_solid18",
+   "at": [
+    108.96,
+    0.119,
+    238.29
+   ],
+   "front": [
+    0.86,
+    -0.511
+   ],
+   "wall": 0.416,
+   "triangles": 1652
+  },
+  {
+   "node": "clutter/clutter_solid18",
+   "at": [
+    114.18,
+    0.119,
+    239.69
+   ],
+   "front": [
+    -0.509,
+    -0.861
+   ],
+   "wall": 0.415,
+   "triangles": 1652
+  },
+  {
+   "node": "clutter/clutter_solid18",
+   "at": [
+    130.29,
+    -0.0,
+    238.5
+   ],
+   "front": [
+    -0.977,
+    -0.213
+   ],
+   "wall": 0.209,
+   "triangles": 1652
+  },
+  {
+   "node": "clutter/clutter_solid18",
+   "at": [
+    144.14,
+    -0.0,
+    242.08
+   ],
+   "front": [
+    0.2,
+    0.98
+   ],
+   "wall": 0.363,
+   "triangles": 1652
+  },
+  {
+   "node": "clutter/clutter_solid18",
+   "at": [
+    159.21,
+    -0.0,
+    213.85
+   ],
+   "front": [
+    -0.981,
+    -0.192
+   ],
+   "wall": 0.413,
+   "triangles": 1652
+  },
+  {
+   "node": "clutter/clutter_solid18",
+   "at": [
+    177.78,
+    -0.0,
+    252.28
+   ],
+   "front": [
+    -0.244,
+    0.97
+   ],
+   "wall": 0.38,
+   "triangles": 1652
+  },
+  {
+   "node": "clutter/clutter_solid2",
+   "at": [
+    -331.7,
+    -0.0,
+    118.01
+   ],
+   "front": [
+    -0.76,
+    0.65
+   ],
+   "wall": 0.414,
+   "triangles": 1652
+  },
+  {
+   "node": "clutter/clutter_solid2",
+   "at": [
+    -325.94,
+    -0.0,
+    122.77
+   ],
+   "front": [
+    0.425,
+    -0.905
+   ],
+   "wall": 0.39,
+   "triangles": 1652
+  },
+  {
+   "node": "clutter/clutter_solid2",
+   "at": [
+    -309.7,
+    0.119,
+    154.2
+   ],
+   "front": [
+    0.754,
+    -0.657
+   ],
+   "wall": 0.389,
+   "triangles": 1652
+  },
+  {
+   "node": "clutter/clutter_solid22",
+   "at": [
+    200.3,
+    0.119,
+    202.05
+   ],
+   "front": [
+    0.716,
+    -0.698
+   ],
+   "wall": 0.417,
+   "triangles": 1652
+  },
+  {
+   "node": "clutter/clutter_solid22",
+   "at": [
+    213.8,
+    -0.0,
+    264.65
+   ],
+   "front": [
+    1.0,
+    -0.009
+   ],
+   "wall": 0.299,
+   "triangles": 1652
+  },
+  {
+   "node": "clutter/clutter_solid23",
+   "at": [
+    200.3,
+    0.119,
+    171.7
+   ],
+   "front": [
+    0.657,
+    -0.754
+   ],
+   "wall": 0.388,
+   "triangles": 1652
+  },
+  {
+   "node": "clutter/clutter_solid23",
+   "at": [
+    200.3,
+    -0.0,
+    125.7
+   ],
+   "front": [
+    0.656,
+    -0.755
+   ],
+   "wall": 0.388,
+   "triangles": 1652
+  },
+  {
+   "node": "clutter/clutter_solid24",
+   "at": [
+    -161.75,
+    -0.0,
+    77.64
+   ],
+   "front": [
+    0.657,
+    -0.754
+   ],
+   "wall": 0.296,
+   "triangles": 1652
+  },
+  {
+   "node": "clutter/clutter_solid24",
+   "at": [
+    -133.3,
+    0.119,
+    49.7
+   ],
+   "front": [
+    -0.7,
+    -0.714
+   ],
+   "wall": 0.297,
+   "triangles": 1652
+  },
+  {
+   "node": "clutter/clutter_solid24",
+   "at": [
+    -133.3,
+    0.119,
+    80.3
+   ],
+   "front": [
+    -0.718,
+    0.696
+   ],
+   "wall": 0.3,
+   "triangles": 1652
+  },
+  {
+   "node": "clutter/clutter_solid25",
+   "at": [
+    177.7,
+    0.0,
+    44.3
+   ],
+   "front": [
+    -0.75,
+    0.661
+   ],
+   "wall": 0.388,
+   "triangles": 1652
+  },
+  {
+   "node": "clutter/clutter_solid26",
+   "at": [
+    200.3,
+    0.0,
+    3.7
+   ],
+   "front": [
+    0.715,
+    -0.699
+   ],
+   "wall": 0.417,
+   "triangles": 1652
+  },
+  {
+   "node": "clutter/clutter_solid26",
+   "at": [
+    200.3,
+    0.0,
+    44.3
+   ],
+   "front": [
+    0.112,
+    0.994
+   ],
+   "wall": 0.416,
+   "triangles": 1652
+  },
+  {
+   "node": "clutter/clutter_solid28",
+   "at": [
+    -91.7,
+    0.12,
+    80.3
+   ],
+   "front": [
+    0.725,
+    0.689
+   ],
+   "wall": 0.302,
+   "triangles": 1652
+  },
+  {
+   "node": "clutter/clutter_solid28",
+   "at": [
+    -60.3,
+    0.12,
+    45.7
+   ],
+   "front": [
+    -0.689,
+    -0.725
+   ],
+   "wall": 0.301,
+   "triangles": 1652
+  },
+  {
+   "node": "clutter/clutter_solid28",
+   "at": [
+    -1.46,
+    0.12,
+    69.35
+   ],
+   "front": [
+    -0.759,
+    -0.651
+   ],
+   "wall": 0.413,
+   "triangles": 1652
+  },
+  {
+   "node": "clutter/clutter_solid3",
+   "at": [
+    -299.9,
+    -0.0,
+    271.67
+   ],
+   "front": [
+    -0.999,
+    0.039
+   ],
+   "wall": 0.264,
+   "triangles": 1652
+  },
+  {
+   "node": "clutter/clutter_solid4",
+   "at": [
+    -345.25,
+    0.119,
+    58.47
+   ],
+   "front": [
+    -0.769,
+    0.639
+   ],
+   "wall": 0.414,
+   "triangles": 1652
+  },
+  {
+   "node": "clutter/clutter_solid4",
+   "at": [
+    -325.78,
+    -0.0,
+    79.91
+   ],
+   "front": [
+    0.682,
+    -0.731
+   ],
+   "wall": 0.413,
+   "triangles": 1652
+  },
+  {
+   "node": "clutter/clutter_solid4",
+   "at": [
+    -309.7,
+    0.119,
+    66.71
+   ],
+   "front": [
+    0.715,
+    -0.699
+   ],
+   "wall": 0.417,
+   "triangles": 1652
+  },
+  {
+   "node": "clutter/clutter_solid4",
+   "at": [
+    -300.3,
+    0.12,
+    26.3
+   ],
+   "front": [
+    -0.752,
+    0.66
+   ],
+   "wall": 0.387,
+   "triangles": 1652
+  },
+  {
+   "node": "clutter/clutter_solid5",
+   "at": [
+    -207.7,
+    0.12,
+    63.7
+   ],
+   "front": [
+    0.716,
+    -0.698
+   ],
+   "wall": 0.416,
+   "triangles": 1652
+  },
+  {
+   "node": "clutter/clutter_solid8",
+   "at": [
+    -183.05,
+    -0.0,
+    229.58
+   ],
+   "front": [
+    -0.134,
+    -0.991
+   ],
+   "wall": 0.413,
+   "triangles": 1652
+  },
+  {
+   "node": "clutter/clutter_solid8",
+   "at": [
+    -180.71,
+    -0.0,
+    236.96
+   ],
+   "front": [
+    -0.991,
+    0.134
+   ],
+   "wall": 0.412,
+   "triangles": 1652
+  },
+  {
+   "node": "clutter/clutter_solid8",
+   "at": [
+    -178.02,
+    -0.0,
+    233.52
+   ],
+   "front": [
+    -0.106,
+    -0.994
+   ],
+   "wall": 0.413,
+   "triangles": 1652
+  },
+  {
+   "node": "clutter/clutter_solid8",
+   "at": [
+    -173.93,
+    -0.0,
+    236.73
+   ],
+   "front": [
+    0.994,
+    -0.107
+   ],
+   "wall": 0.413,
+   "triangles": 1652
+  },
+  {
+   "node": "clutter/clutter_solid8",
+   "at": [
+    -168.53,
+    -0.0,
+    232.38
+   ],
+   "front": [
+    -0.207,
+    0.978
+   ],
+   "wall": 0.415,
+   "triangles": 1652
+  },
+  {
+   "node": "clutter/clutter_solid8",
+   "at": [
+    -140.3,
+    0.12,
+    205.3
+   ],
+   "front": [
+    -0.707,
+    0.707
+   ],
+   "wall": 0.422,
+   "triangles": 1652
+  },
+  {
+   "node": "clutter/clutter_solid9",
+   "at": [
+    -184.66,
+    -0.0,
+    298.64
+   ],
+   "front": [
+    0.292,
+    -0.956
+   ],
+   "wall": 1.019,
+   "triangles": 1652
+  },
+  {
+   "node": "clutter/clutter_solid9",
+   "at": [
+    -181.11,
+    -0.0,
+    312.64
+   ],
+   "front": [
+    -0.658,
+    0.753
+   ],
+   "wall": 0.389,
+   "triangles": 1652
+  }
+ ],
+ "meshes": 21,
+ "oldTriangles": 2688,
+ "newTriangles": 92512
+}

@@ -11,6 +11,7 @@ Bugs and loose ends are tracked as [issues](https://github.com/Steve-Sitax/Moody
 
 ## [Unreleased]
 
+- The 56 guard stones at the house corners (the posts that kept cart wheels off the walls) are no longer six-sided blocks: each is now a round blue-stone guard stone with a tapering shaft, a chiselled groove and a domed head, in sharp stone texture that darkens in rain, with dirt at its foot and a worn band where wheels rubbed it. Each one differs a little in size, lean and tone.
 - Street gutters are laid as one row of long stones along the kerb everywhere, with no joint running down their middle and no stones slanting across; the kerb's rounded edges no longer show a squashed picture.
 - 79 house corners where the pavement stopped short now have a rounded corner (the corner stones and iron bollards that stood in the gap now stand on it): the flagstones, the kerb's rounded edge and the gutter stones curve round the corner, and the street setts fan round it. The corner is solid to walk on.
 - Ruien O2: the keeper's arched side entrance off the Vlietrui walkway no longer juts out of the vault as a brick block across the walk. Its jambs and arch now end flush in the curved gallery wall, the arch's soffit runs level into the opening, and the slot of daylight that showed above its head is closed.
