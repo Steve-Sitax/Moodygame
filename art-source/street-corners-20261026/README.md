@@ -37,3 +37,12 @@ square form only if its object does not fit the round flag: none here. 23 laid, 
 Left open, not street corners: inside a lean-to (-214.6, 298.9), the Carolus church's plinth (-126.7, 167.5), inside a
 house (-104.2, 146.8), and a pavement width step (-128.2, 266.2). Rendered at 8 of the corners at 13:00 and two at 21:00
 in rain; stretched street faces near them 0.004 m2.
+
+## Third pass: skewed corners and a square form (26 October 2026)
+
+Steve found two open corners (x 84, z 171 and x 40, z 152). Both were off square (73 and 105 degrees); the detector took
+only 90 +- 12. `SKEW` is now 35 degrees: 31 corners found, 24 laid (`corners-3.json`). Where a guard stone did not fit on
+the round flag, the corner is a rounded square instead (`SQUARE`: a superellipse of exponent 6 in place of the quarter
+ellipse, its tip still rounded; the kerb, gutter, street fan and the fit test all follow it): 3 such, each stone lifted
+onto its flag. Left: 4 not on the open street, 2 kerbs not measured (one a duplicate of a laid corner, one the pavement
+width step), 1 the Carolus church base.

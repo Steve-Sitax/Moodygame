@@ -16,6 +16,8 @@ from seam_stones import recut, polar, jacobians
 FLAGS = 'res://world/town/resources/r000016.res'
 STONE = 'res://world/town/resources/r000209.res'
 REPO = pathlib.Path(__file__).resolve().parents[3]
+# how far from square a corner may be (degrees): 12 at first; 35 since the skewed corners (Steve, 2026-10-26)
+SKEW = 35
 
 def elbows(R, mat):
     """Corners of the pavement tops whose two edges are both short and square, the square they span free."""
@@ -30,7 +32,7 @@ def elbows(R, mat):
                 a, b, d = c[i - 1], c[i], c[(i + 1) % m]
                 e1, e2 = a - b, d - b; l1, l2 = np.hypot(*e1), np.hypot(*e2)
                 if not (0.2 <= l1 <= 1.8 and 0.2 <= l2 <= 1.8): continue
-                if abs(math.degrees(math.acos(np.clip(e1 @ e2 / (l1 * l2), -1, 1))) - 90) > 12: continue
+                if abs(math.degrees(math.acos(np.clip(e1 @ e2 / (l1 * l2), -1, 1))) - 90) > SKEW: continue
                 u, v = e1 / l1, e2 / l2
                 sq = Polygon([b, b + u * l1, b + u * l1 + v * l2, b + v * l2])
                 if not sq.is_valid or sq.area < 0.08 or shapely.intersection(sq, F).area > 0.1 * sq.area: continue
@@ -115,6 +117,17 @@ def profile(m):
     return k + [(df, -0.01)], []
 
 ARC = 16     # pieces in the kerb's quarter round
+# the corner's form: a quarter ellipse (2); where what stands in the corner needs the room, a rounded square (Steve,
+# 2026-10-26: "round if it works, but square if more space is needed"), its tip still rounded
+ROUND, SQUARE = 2.0, 6.0
+
+def cs(a, p):
+    """The corner's curve at parameter a (0 .. pi/2): (along u, along v), a superellipse of exponent p."""
+    return np.abs(np.cos(a)) ** (2 / p), np.abs(np.sin(a)) ** (2 / p)
+
+def cs_at(s, t, p):
+    """The parameter a whose ray holds (s, t) (both scaled to the curve's half-axes)."""
+    return np.arctan(np.clip(np.abs(t) / np.maximum(np.abs(s), 1e-12), 0, 1e12) ** (p / 2))
 STONES = 4   # gutter stones round the corner (each its own way for the slab picture)
 
 def build(c, m1, m2):
@@ -124,10 +137,12 @@ def build(c, m1, m2):
     if bool(g1) != bool(g2): return None, 'one strip has a gutter, the other none'
     tk1, tg1 = c.ends(0, m1); tk2, tg2 = c.ends(1, m2)
     th = np.linspace(0, math.pi / 2, ARC + 1)
-    def P(d1, d2, t, y): return c.W((c.lu + d1) * math.cos(t), (c.lv + d2) * math.sin(t), y)
+    def P(d1, d2, t, y):
+        x, z = cs(t, c.p); return c.W((c.lu + d1) * x, (c.lv + d2) * z, y)
     def tangent(d1, d2, t):
         # the way round the corner, away from it at strip 1 (as the strips' gutters run)
-        w = (c.lu + d1) * math.sin(t) * c.u - (c.lv + d2) * math.cos(t) * c.v
+        (x0, z0), (x1, z1) = cs(max(t - 1e-3, 0), c.p), cs(min(t + 1e-3, math.pi / 2), c.p)
+        w = (c.lu + d1) * (x0 - x1) * c.u + (c.lv + d2) * (z0 - z1) * c.v
         w = w / np.hypot(*w); return np.array([w[0], 0.0, w[1], 1.0])
     faces = []
     def quad(a, b, cc, d, mat, side, tg=None): faces.extend([(np.array([a, b, cc]), mat, side, tg), (np.array([a, cc, d]), mat, side, tg)])
@@ -190,7 +205,7 @@ def standing(c, sq, near, m1, m2):
             if Q[:, :, 1].max() < 0.05: continue          # (litter lying flat, or under the street)
             if hull.intersection(sq).area < 0.95 * hull.area: return [], 'something stands across the edge of the corner'
             st = (Q[:, :, [0, 2]].reshape(-1, 2) - c.A) @ M.T
-            if (np.hypot(st[:, 0] / rs, st[:, 1] / rt) > 0.98).any(): return [], 'something stands where the round corner is too small'
+            if ((np.abs(st[:, 0] / rs) ** c.p + np.abs(st[:, 1] / rt) ** c.p) ** (1 / c.p) > 0.98).any(): return [], 'something stands where the round corner is too small'
             node, surf = k.rsplit('#', 1)
             out.append(dict(node=node, surface=int(surf), tris=near['tri'][idx[tl == l]].tolist(), pos=Q.tolist()))
     if not out: return [], 'something stands there that is not found'
@@ -234,7 +249,7 @@ def main():
     ob = shapely.polygons(O[:, :, [0, 2]].astype(np.float64)); otree = shapely.STRtree(ob)
     report = []; adds = {}; solids = {}; cuts = {k: [] for k in grounds}; clips = []
     for e in found:
-        c = Corner(e, R, mat, owner, tree, cen)
+        c = Corner(e, R, mat, owner, tree, cen); c.p = ROUND
         rec = dict(apex=np.round(c.A, 3).tolist(), size=[round(c.lu, 3), round(c.lv, 3)])
         report.append(rec)
         sq = Polygon([c.A, c.A + c.u * c.lu, c.A + c.u * c.lu + c.v * c.lv, c.A + c.v * c.lv])
@@ -254,6 +269,8 @@ def main():
         if stand > 0.03:
             if near is None: rec['skipped'] = f'something stands there ({stand:.2f} m2)'; continue
             mine, why = standing(c, sq, near, m1, m2)
+            if why and 'too small' in why:
+                c.p = SQUARE; mine, why = standing(c, sq, near, m1, m2); rec['form'] = 'square'
             if why: rec['skipped'] = why; continue
             rec['lifted'] = [m['node'] for m in mine]
         b, why = build(c, m1, m2)
@@ -305,7 +322,7 @@ def main():
             side1 = P([(so, back1), (so + band, back1), (so + band, 0), (so, 0)])
             side2 = P([(back2, to), (0, to), (0, to + band), (back2, to + band)])
             th = np.linspace(0, math.pi / 2, 33)
-            ring = lambda x: [(( so + x) * math.cos(a), (to + x) * math.sin(a)) for a in th]
+            ring = lambda x, p=c.p: [((so + x) * cs(a, p)[0], (to + x) * cs(a, p)[1]) for a in th]
             # what is left of the old corner's square past the course: the street's own field beyond the corner
             rest = shapely.difference(P([(0, 0), (so + band + 0.08, 0), (so + band + 0.08, to + band + 0.08), (0, to + band + 0.08)]),
                                       P([(0, 0)] + ring(band)))
@@ -313,20 +330,21 @@ def main():
             def lin(ch):
                 q0, J, uv0 = ch
                 return lambda pts: uv0 + (pts - q0) @ J.T
-            def fan(ch, A=c.A, u=c.u, v=c.v, so=so, to=to, band=band):
+            def fan(ch, A=c.A, u=c.u, v=c.v, so=so, to=to, band=band, p=c.p):
                 # (everything bound now: the cuts are laid after the last corner) Metric round the curve, also where the
                 # streets meet off square: across = distance from the gutter's edge, along = length round the course's middle
                 q0, J, uv0 = ch
                 aa = np.linspace(0, math.pi / 2, 721)
-                E = A + np.outer(so * np.cos(aa), u) + np.outer(to * np.sin(aa), v)
-                Mid = A + np.outer((so + band / 2) * np.cos(aa), u) + np.outer((to + band / 2) * np.sin(aa), v)
+                ca, sa = cs(aa, p)
+                E = A + np.outer(so * ca, u) + np.outer(to * sa, v)
+                Mid = A + np.outer((so + band / 2) * ca, u) + np.outer((to + band / 2) * sa, v)
                 L = np.r_[0, np.cumsum(np.hypot(*np.diff(Mid, axis=0).T))]
                 T = np.gradient(E, axis=0); T /= np.hypot(*T.T)[:, None]
                 N = np.stack([T[:, 1], -T[:, 0]], 1); N *= np.sign(((E - A) * N).sum(1))[:, None]
                 at = uv0 + (E[0] - q0) @ J.T; n0, t0 = N[0], T[0]
                 M = np.linalg.inv(np.stack([u, v], 1))
                 def f(pts):
-                    st = (pts - A) @ M.T; a = np.clip(np.arctan2(st[:, 1] * so, st[:, 0] * to), 0, math.pi / 2)
+                    st = (pts - A) @ M.T; a = np.clip(cs_at(st[:, 0] / so, st[:, 1] / to, p), 0, math.pi / 2)
                     k = np.clip(np.round(a / (math.pi / 2) * 720).astype(int), 0, 720)
                     d = pts - E[k]; x = (d * N[k]).sum(1); along = L[k] + (d * T[k]).sum(1)
                     return at + np.outer(x, J @ n0) + np.outer(along, J @ t0)
@@ -334,7 +352,7 @@ def main():
             # the fan's uv is round: small sectors, so no face spans much of the turn
             cuts[name] += [(side1, lin(c1)), (side2, lin(c2))]
             for k in range(len(th) - 1):
-                sector = P([((so + x) * math.cos(a), (to + x) * math.sin(a)) for x, a in
+                sector = P([((so + x) * cs(a, c.p)[0], (to + x) * cs(a, c.p)[1]) for x, a in
                             [(0, th[k]), (0, th[k + 1]), (band, th[k + 1]), (band, th[k])]])
                 cuts[name].append((sector, fan(c1)))
             if c3 is not None and not rest.is_empty: cuts[name].append((rest, lin(c3)))
