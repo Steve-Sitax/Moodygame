@@ -11,6 +11,7 @@ Bugs and loose ends are tracked as [issues](https://github.com/Steve-Sitax/Moody
 
 ## [Unreleased]
 
+- The town's 603 barrels, kegs and water butts are no longer eight-sided blocks: each has 16 bulging oak staves with joints between them, four iron hoops, a sunken head (or water in the butts), weathered wood grain and its own tone.
 - The 56 guard stones at the house corners (the posts that kept cart wheels off the walls) are no longer six-sided blocks: each is now a round blue-stone guard stone with a tapering shaft, a chiselled groove and a domed head, in sharp stone texture that darkens in rain, with dirt at its foot and a worn band where wheels rubbed it. Each one differs a little in size, lean and tone.
 - Street gutters are laid as one row of long stones along the kerb everywhere, with no joint running down their middle and no stones slanting across; the kerb's rounded edges no longer show a squashed picture.
 - 103 house corners where the pavement stopped short now have a rounded corner (also where the streets meet off square; where a guard stone needs the room, a rounded-square corner); the gutter's stones and the kerb's stone run round the curve (the corner stones and iron bollards that stood in the gap now stand on it): the flagstones, the kerb's rounded edge and the gutter stones curve round the corner, and the street setts fan round it. The corner is solid to walk on.

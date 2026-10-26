@@ -1,0 +1,11 @@
+{
+ "meshes": 28,
+ "kinds": {
+  "barrel": 298,
+  "keg": 231,
+  "butt": 74
+ },
+ "oldTriangles": 61506,
+ "woodTriangles": 325664,
+ "ironTriangles": 77184
+}
