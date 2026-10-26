@@ -1203,7 +1203,7 @@ varying vec3 world;
         if (k.TideWet) c.Append(TideWetGlsl);
         if (k.Ground) c.Append("uniform float vary = 0.0;\nuniform float puddles = 0.0;\n// the wet stone's highlight (three's Phong: specular and shininess; 0 when it never gets wet)\nuniform vec3 spec_color = vec3(0.0);\nuniform float shininess = 12.0;\nvarying float spec_k;\n");
         if (k.Wall) c.Append("uniform float foot = 0.0;\nuniform float foot_wear = 0.0;\nuniform float mottle = 0.0;\n");
-        if (k.Slabs) c.Append("uniform sampler2D slab_map : source_color, filter_linear_mipmap_anisotropic, repeat_enable;\nuniform sampler2D slab_h : filter_linear_mipmap, repeat_enable;\nuniform float slab_tile = 2.6;\nuniform float slab_ymax = 0.8;\nuniform float slab_dome = 2.5;\n// (#170) 1: a pavement's flags run along its kerb, the way its corners' tangents give (0: the world's x, z); 2: also offset by the face's uv\nuniform float slab_turn = 0.0;\nvarying vec2 slab_dir;\n");
+        if (k.Slabs) c.Append("uniform sampler2D slab_map : source_color, filter_linear_mipmap_anisotropic, repeat_enable;\nuniform sampler2D slab_h : filter_linear_mipmap, repeat_enable;\nuniform float slab_tile = 2.6;\nuniform float slab_ymax = 0.8;\nuniform float slab_dome = 2.5;\n// (#170) 1: a pavement's flags run along its kerb, the way its corners' tangents give (0: the world's x, z); 2: also offset by the face's uv\nuniform float slab_turn = 0.0;\nvarying vec2 slab_dir;\n// (2) a face whose tangent stands steeply up places its courses wholly by its uv: a corner's gutter, its courses round the curve\nvarying float slab_uvm;\n");
         c.Append(LampScatterGlsl);
         if (lit || k.Ground) c.Append(SkyGlsl).Append(SpillGlsl);
         if (noise) c.Append(NoiseGlsl);
@@ -1259,7 +1259,7 @@ void vertex() {
 	}
 ");
         if (k.Atlas > 0) c.Append("	cell = UV2;\n");
-        if (k.Slabs) c.Append("	slab_dir = (MODEL_MATRIX * vec4(TANGENT, 0.0)).xz;\n");
+        if (k.Slabs) c.Append("	slab_dir = (MODEL_MATRIX * vec4(TANGENT, 0.0)).xz;\n	slab_uvm = TANGENT.y > 0.5 ? 1.0 : 0.0;\n");
         // (a name plate: its cell in the names atlas, column and row, from the MultiMesh's custom data)
         if (k.NameCell > 0) c.Append("	name_cell = floor(INSTANCE_CUSTOM.xy + 0.5);\n");
         if (k.Grime > 0) c.Append("	gmat = CUSTOM0.xy; // (the house's wall picture and paint)\n");
@@ -1394,7 +1394,7 @@ void fragment() {
 			vec2 sp = vec2(-sd.y, sd.x);
 			vec2 suv = vec2(dot(world.xz, sd), dot(world.xz, sp)) / slab_tile;
 			// (2: the face's uv sets the courses' place too: a gutter one course wide, its joints at its edges)
-			if (slab_turn > 1.5) suv += UV;
+			if (slab_turn > 1.5) suv = slab_uvm > 0.5 ? UV : suv + UV;
 			c.rgb = albedo.rgb * texture(slab_map, suv).rgb * 1.25;
 			float e = 1.0 / 128.0;
 			float sh = texture(slab_h, suv).r;

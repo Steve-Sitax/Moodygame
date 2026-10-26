@@ -46,3 +46,17 @@ the round flag, the corner is a rounded square instead (`SQUARE`: a superellipse
 ellipse, its tip still rounded; the kerb, gutter, street fan and the fit test all follow it): 3 such, each stone lifted
 onto its flag. Left: 4 not on the open street, 2 kerbs not measured (one a duplicate of a laid corner, one the pavement
 width step), 1 the Carolus church base.
+
+## The stones follow the curve (26 October 2026)
+
+Steve: the texture in the corner must follow the curve, especially in the gutter. The corners' faces had taken the
+nearest strip face's picture, a straight projection: the gutter's courses ran straight across the curve.
+`native-godot/scripts/paving/corner_courses.py` gives every point of a corner's old-stone face its place measured round
+the curve: the strip's own picture continued from the strip's end, the distance along the curve (at the point's offset
+from the kerb) in place of the distance along the strip; each half of the turn continues its own strip, the halves
+meeting in a joint at the middle. Flat faces (the gutter) carry the slab picture's place wholly in their uv, flagged by a
+tangent standing steeply up (Psx `slab_uvm`; the slab kind r000204 rewritten in place by relief-repair, the shader
+baseline updated); their tangent's level part turns with the curve so the stones' relief light turns too. The kerb's
+face and arris take the strip's uv continued. The corner's flag takes the first strip's flags straight across (one
+joint, on the house's corner line). 103 corners, 22 648 faces; 781 faces kept their old picture (no strip face found);
+positions unchanged, collision identical (`courses-report.json`, `promotion-courses.json`).
