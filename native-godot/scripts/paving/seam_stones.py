@@ -91,6 +91,67 @@ def bary(tri, q):
     w = np.linalg.solve(M, (q - a).T).T
     return np.column_stack([1 - w.sum(1), w])
 
+def recut(R, eligible, cut, uv_of, log=print):
+    """Cut every eligible face a shape of `cut` touches (the shapes must not overlap): its part in each shape gets that
+    shape's uv (uv_of(shape index, corners (k, 3, 2)) -> (k, 3, 2)), the rest keeps its own. Positions, outline and every
+    other attribute stay (barycentric from the source face). Returns the rows and the area cut per shape (-1: kept)."""
+    n = len(R); P = R[:, :, [0, 2]]; _, A = jacobians(R); polys = shapely.polygons(P)
+    cut = np.array(cut, dtype=object)
+    ti, ci = shapely.STRtree(cut).query(polys, predicate='intersects')
+    f = eligible[ti]; ti, ci = ti[f], ci[f]
+    hit = np.unique(ti)
+    log(f'{len(hit)} faces to cut')
+    part_geom = list(shapely.intersection(polys[ti], cut[ci])); part_src = list(ti); part_kind = list(ci)
+    o = np.argsort(ti, kind='stable'); ts_, cs_ = ti[o], ci[o]
+    st = np.r_[0, np.nonzero(np.diff(ts_))[0] + 1, len(ts_)]
+    for x, y in zip(st[:-1], st[1:]):
+        t = ts_[x]
+        part_geom.append(shapely.difference(polys[t], shapely.union_all(cut[cs_[x:y]])))
+        part_src.append(t); part_kind.append(-1)
+    part_geom = np.array(part_geom, dtype=object); part_src = np.asarray(part_src)
+    # a face whose parts do not add up to it (cut shapes touching within float noise): cut again one shape at a time
+    got = np.bincount(part_src, weights=shapely.area(part_geom), minlength=n)
+    redo = hit[np.abs(got[hit] - A[hit]) > 1e-7 + A[hit] * 1e-6]
+    if len(redo):
+        drop = np.isin(part_src, redo)
+        part_geom, part_src = list(part_geom[~drop]), list(part_src[~drop])
+        part_kind = [k for k, d in zip(part_kind, drop) if not d]
+        starts = ts_[st[:-1]]
+        for t in redo:
+            j = np.searchsorted(starts, t); rest = polys[t]
+            for c in cs_[st[j]:st[j + 1]]:
+                part_geom.append(shapely.intersection(rest, cut[c])); part_src.append(t); part_kind.append(c)
+                rest = shapely.difference(rest, cut[c])
+            part_geom.append(rest); part_src.append(t); part_kind.append(-1)
+        part_geom = np.array(part_geom, dtype=object); part_src = np.asarray(part_src)
+        log(f'{len(redo)} faces cut again one shape at a time')
+    flat, owner = shapely.get_parts(part_geom, return_index=True)
+    ok = (shapely.get_type_id(flat) == 3) & (shapely.area(flat) > 1e-10)
+    flat, owner = flat[ok], owner[ok]
+    log(f'{len(flat)} pieces; area not in a piece {A[hit].sum() - shapely.area(flat).sum():.5f} m2')
+    tris, towner = shapely.get_parts(shapely.constrained_delaunay_triangles(flat), return_index=True)
+    C = shapely.get_coordinates(tris).reshape(-1, 4, 2)[:, :3]
+    piece = owner[towner]
+    src = part_src[piece]; kind = np.asarray(part_kind)[piece]
+    # each new face turns as its source face did
+    sP = P[src]
+    e1, e2 = sP[:, 1] - sP[:, 0], sP[:, 2] - sP[:, 0]; cs = e1[:, 0] * e2[:, 1] - e1[:, 1] * e2[:, 0]
+    d1, d2 = C[:, 1] - C[:, 0], C[:, 2] - C[:, 0]; cr = d1[:, 0] * d2[:, 1] - d1[:, 1] * d2[:, 0]
+    flip = np.sign(cr) != np.sign(cs); C[flip] = C[flip][:, [0, 2, 1]]
+    good = np.abs(cr) > 1e-12; C, src, kind = C[good], src[good], kind[good]
+    # every attribute from the source face (barycentric), positions exact
+    a0 = sP[good][:, 0]; M = np.stack([e1[good], e2[good]], 2)
+    w = np.linalg.solve(M[:, None].repeat(3, 1), (C - a0[:, None])[..., None])[..., 0]
+    W = np.concatenate([1 - w.sum(-1, keepdims=True), w], -1)
+    rr = np.einsum('tkj,tjc->tkc', W, R[src])
+    rr[:, :, 0] = C[:, :, 0]; rr[:, :, 2] = C[:, :, 1]
+    _, An = jacobians(rr)
+    area_of = {int(c): float(An[kind == c].sum()) for c in np.unique(kind)}
+    for c in np.unique(kind[kind >= 0]):
+        m = kind == c; rr[m, :, 6:8] = uv_of(int(c), C[m])
+    keep = np.ones(n, bool); keep[hit] = False
+    return np.concatenate([R[keep], rr]), area_of
+
 def run(source_path, tile, rows, out, report_path):
     t0 = time.time(); log = lambda *a: print(f'[{time.time() - t0:6.1f}s]', *a, flush=True)
     R = np.fromfile(source_path, np.float32).reshape(-1, 3, 16).astype(np.float64)
@@ -220,67 +281,15 @@ def run(source_path, tile, rows, out, report_path):
     taken = shapely.union_all([c for _, _, c in cells]) if cells else Polygon()
     log(f'{len(cells)} band cells, {sum(c[2].area for c in cells):.1f} m2')
     region_geoms = [shapely.difference(g, taken) for g in regions]
-    kinds = [(0, i) for i in range(len(cells))] + [(1, k) for k, g in enumerate(region_geoms) if not g.is_empty]
-    cut = np.array([c[2] for c in cells] + [g for g in region_geoms if not g.is_empty], dtype=object)
-    # 4. cut the faces they touch: each face's part in every band cell and patch, and the rest of it as laid
-    ti, ci = shapely.STRtree(cut).query(polys, predicate='intersects')
-    f = field[ti]; ti, ci = ti[f], ci[f]
-    hit = np.unique(ti)
-    log(f'{len(hit)} faces to cut')
-    part_geom = list(shapely.intersection(polys[ti], cut[ci])); part_src = list(ti); part_kind = [kinds[c] for c in ci]
-    o = np.argsort(ti, kind='stable'); ts_, cs_ = ti[o], ci[o]
-    st = np.r_[0, np.nonzero(np.diff(ts_))[0] + 1, len(ts_)]
-    for x, y in zip(st[:-1], st[1:]):
-        t = ts_[x]
-        part_geom.append(shapely.difference(polys[t], shapely.union_all(cut[cs_[x:y]])))
-        part_src.append(t); part_kind.append((2, -1))
-    part_geom = np.array(part_geom, dtype=object); part_src = np.asarray(part_src)
-    # a face whose parts do not add up to it (cut shapes touching within float noise): cut again one shape at a time
-    got = np.bincount(part_src, weights=shapely.area(part_geom), minlength=n)
-    redo = hit[np.abs(got[hit] - A[hit]) > 1e-7 + A[hit] * 1e-6]
-    if len(redo):
-        drop = np.isin(part_src, redo)
-        part_geom, part_src = list(part_geom[~drop]), list(part_src[~drop])
-        part_kind = [k for k, d in zip(part_kind, drop) if not d]
-        for t in redo:
-            rest = polys[t]
-            for c in cs_[st[np.searchsorted(ts_[st[:-1]], t)]:st[np.searchsorted(ts_[st[:-1]], t) + 1]]:
-                part_geom.append(shapely.intersection(rest, cut[c])); part_src.append(t); part_kind.append(kinds[c])
-                rest = shapely.difference(rest, cut[c])
-            part_geom.append(rest); part_src.append(t); part_kind.append((2, -1))
-        part_geom = np.array(part_geom, dtype=object); part_src = np.asarray(part_src)
-        log(f'{len(redo)} faces cut again one shape at a time')
-    flat, owner = shapely.get_parts(part_geom, return_index=True)
-    ok = (shapely.get_type_id(flat) == 3) & (shapely.area(flat) > 1e-10)
-    flat, owner = flat[ok], owner[ok]
-    lost = A[hit].sum() - shapely.area(flat).sum()
-    log(f'{len(flat)} pieces; area not in a piece {lost:.5f} m2')
-    tris, towner = shapely.get_parts(shapely.constrained_delaunay_triangles(flat), return_index=True)
-    C = shapely.get_coordinates(tris).reshape(-1, 4, 2)[:, :3]
-    piece = owner[towner]
-    src = np.asarray(part_src)[piece]
-    kind = np.array([part_kind[i][0] for i in piece]); pay = np.array([part_kind[i][1] for i in piece])
-    # each new face turns as its source face did
-    sP = P[src]
-    e1, e2 = sP[:, 1] - sP[:, 0], sP[:, 2] - sP[:, 0]; cs = e1[:, 0] * e2[:, 1] - e1[:, 1] * e2[:, 0]
-    d1, d2 = C[:, 1] - C[:, 0], C[:, 2] - C[:, 0]; cr = d1[:, 0] * d2[:, 1] - d1[:, 1] * d2[:, 0]
-    flip = np.sign(cr) != np.sign(cs); C[flip] = C[flip][:, [0, 2, 1]]
-    good = np.abs(cr) > 1e-12; C, src, kind, pay = C[good], src[good], kind[good], pay[good]
-    # every attribute from the source face (barycentric), positions exact
-    a0 = sP[good][:, 0]; M = np.stack([e1[good], e2[good]], 2)
-    w = np.linalg.solve(M[:, None].repeat(3, 1), (C - a0[:, None])[..., None])[..., 0]
-    W = np.concatenate([1 - w.sum(-1, keepdims=True), w], -1)
-    rr = np.einsum('tkj,tjc->tkc', W, R[src])
-    rr[:, :, 0] = C[:, :, 0]; rr[:, :, 2] = C[:, :, 1]
-    _, An = jacobians(rr)
-    stats = dict(band=float(An[kind == 0].sum()), patch=float(An[kind == 1].sum()), kept=float(An[kind == 2].sum()))
-    for i in np.nonzero(kind == 0)[0]:
-        bi, k, _ = cells[pay[i]]; rr[i, :, 6:8] = bands[bi].uv(k, C[i])
-    for k in np.unique(pay[kind == 1]):
-        m = (kind == 1) & (pay == k); rr[m, :, 6:8] = rigid(k, C[m].reshape(-1, 2)).reshape(-1, 3, 2)
-    new_rows = [rr]
-    keep = np.ones(n, bool); keep[hit] = False
-    result = np.concatenate([out_rows[keep]] + new_rows) if new_rows else out_rows
+    cut = [c[2] for c in cells] + [g for g in region_geoms if not g.is_empty]
+    owner = [(0, i) for i in range(len(cells))] + [(1, k) for k, g in enumerate(region_geoms) if not g.is_empty]
+    def uv_of(c, C):
+        kind, i = owner[c]
+        if kind == 0: bi, k, _ = cells[i]; return bands[bi].uv(k, C.reshape(-1, 2)).reshape(-1, 3, 2)
+        return rigid(i, C.reshape(-1, 2)).reshape(-1, 3, 2)
+    result, area_of = recut(out_rows, field, cut, uv_of, log)
+    stats = dict(band=float(sum(v for c, v in area_of.items() if c >= 0 and owner[c][0] == 0)),
+                 patch=float(sum(v for c, v in area_of.items() if c >= 0 and owner[c][0] == 1)), kept=float(area_of.get(-1, 0.0)))
     a_before = A.sum(); _, A2 = jacobians(result)
     log(f'area {a_before:.3f} -> {A2.sum():.3f} m2; faces {n} -> {len(result)}')
     if abs(A2.sum() - a_before) > max(0.01, a_before * 1e-6): raise RuntimeError('ground area changed')

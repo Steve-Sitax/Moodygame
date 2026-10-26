@@ -29,7 +29,7 @@ Asset = ExtResource("60_bench")
 metadata/bench_label = "a bench on the Conscienceplein"
 
 [node name="object_bench-sint-paulus" type="Node3D" parent="." unique_id=1813689893]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 47, 0, 261.9)
+transform = Transform3D(0.4062, 0, -0.91379, 0, 1, 0, 0.91379, 0, 0.4062, 54.47, 0, 268.74)
 script = ExtResource("1_obj")
 ObjectId = "bench-sint-paulus"
 Asset = ExtResource("62_bench")

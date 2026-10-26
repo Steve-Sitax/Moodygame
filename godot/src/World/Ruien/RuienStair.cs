@@ -23,9 +23,29 @@ public static class RuienStair
         return planes;
     }
 
-    public static Node3D Build(RuienData.Way w)
+    /// <summary>
+    /// How far a point stands inside the gallery's open section (metres, positive in the air): the wall face up to the
+    /// springing, then the basket vault. Native pieces set into its wall are cut `proud` out from that face, so the
+    /// exported relief (within about a centimetre of it) meets them without a gap.
+    /// </summary>
+    public static Func<Vector3,float>? GalleryAir(RuienData.Zone? zone,float proud=.02f)
+    {
+        if(zone is not { Kind: "line" })return null;
+        var s=zone.S;float wall=s.Width/2;
+        return p=>
+        {
+            if(p.Y<s.LedgeY-.06f || p.Y>s.Crown)return -1;
+            float t=Math.Clamp((p.Y-s.Spring)/(s.Crown-s.Spring),0,1);
+            return zone.Inside(new Vector2(p.X,p.Z),out _)-wall*(1-MathF.Sqrt(1-t*t))-proud;
+        };
+    }
+
+    public static Node3D Build(RuienData.Way w,RuienData.Zone? gallery=null)
     {
         var root=new Node3D{Name="keeper_stair_"+w.Id,Position=w.Top};
+        // The side entry's jambs and arch are set into the gallery wall: trimmed to its curved face, not standing proud.
+        var air=GalleryAir(gallery);
+        Func<Vector3,float>? flush=air==null?null:p=>air(p+w.Top);
         float length=w.Bottom.Z-w.Top.Z,drop=w.Top.Y-w.Bottom.Y,width=w.Hole.Size.X;
         var stone=new SurfaceTool();var iron=new SurfaceTool();var brick=new SurfaceTool();var paving=new SurfaceTool();
         foreach(var s in new[]{stone,iron,brick,paving})s.Begin(Mesh.PrimitiveType.Triangles);
@@ -62,12 +82,17 @@ public static class RuienStair
         Vault(brick,new Vector3(0,Ceiling(length),length),new Vector3(0,Ceiling(length+1.2f),length+1.2f),Vector3.Right,width/2,.27f,.22f);
         // The side niche is entirely behind the wall. Its crown meets the cut gallery vault.
         float spring=-drop+1.5f;
-        Vault(brick,new Vector3(-width/2,spring+1.10f,landing),new Vector3(exit,spring,landing),Vector3.Back,.60f,.60f,.24f);
+        // Level through the gallery wall's depth, so the soffit is the arch cut in its curved face (Cut). It runs out
+        // past the cut and is trimmed flush with the vault: ended at `exit`, it stopped short of the face at the crown
+        // and left a slot open behind the gallery vault. It rises behind the wall to meet the flight.
+        float level=exit-1.25f;
+        Vault(brick,new Vector3(-width/2,spring+1.10f,landing),new Vector3(level,spring,landing),Vector3.Back,.60f,.60f,.24f);
+        Vault(brick,new Vector3(level,spring,landing),new Vector3(exit+(flush==null?0:.3f),spring,landing),Vector3.Back,.60f,.60f,.24f);
         // Leave the full flight-width opening in the near jamb: the stair turns here into the niche.
         Box(brick,new Vector3((exit+width/2)/2,-drop+1.35f,landing-.74f),new Vector3(exit-width/2,2.7f,.28f),.010f);
         Box(brick,new Vector3((exit-width/2)/2,-drop+1.35f,landing+.74f),new Vector3(exit+width/2,2.7f,.28f),.010f);
         Box(brick,new Vector3(-width/2-.14f,-drop+1.625f,landing),new Vector3(.28f,3.25f,1.2f),.009f);
-        Add(root,stone,"ruien_bluestone",true);Add(root,iron,"ruien_iron",true);Add(root,brick,"ruien_brick_stretcher",true);
+        Add(root,stone,"ruien_bluestone",true);Add(root,iron,"ruien_iron",true);Add(root,brick,"ruien_brick_stretcher",true,trim:flush);
         Add(root,paving,"ruien_setts",true,metric:false);
         root.AddChild(new RuienHatch{Way=w});
         return root;
@@ -104,9 +129,12 @@ public static class RuienStair
         foreach(int i in new[]{0,count})Quad(P(a,i,0),P(a,i,thick),P(b,i,thick),P(b,i,0),0,0,thick,depth);
     }
 
-    internal static void Add(Node3D root,SurfaceTool tool,string family,bool solid,bool metric=true)
+    internal static void Add(Node3D root,SurfaceTool tool,string family,bool solid,bool metric=true,Func<Vector3,float>? trim=null)
     {
-        var mesh=tool.Commit();var a=mesh.SurfaceGetArrays(0);var p=a[(int)Mesh.ArrayType.Vertex].AsVector3Array();
+        var mesh=tool.Commit();var a=mesh.SurfaceGetArrays(0);
+        // Trimmed before the brick is charted, so the courses and the collision both follow the cut face.
+        if(trim!=null)RuienPatch.Trim(a,trim);
+        var p=a[(int)Mesh.ArrayType.Vertex].AsVector3Array();
         if(metric)
         {
             var tile=RuienTextures.Families()[family[6..]];

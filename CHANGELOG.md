@@ -11,6 +11,9 @@ Bugs and loose ends are tracked as [issues](https://github.com/Steve-Sitax/Moody
 
 ## [Unreleased]
 
+- 56 house corners where the pavement stopped short now have a rounded corner: the flagstones, the kerb's rounded edge and the gutter stones curve round the corner, and the street setts fan round it. The corner is solid to walk on.
+- Ruien O2: the keeper's arched side entrance off the Vlietrui walkway no longer juts out of the vault as a brick block across the walk. Its jambs and arch now end flush in the curved gallery wall, the arch's soffit runs level into the opening, and the slot of daylight that showed above its head is closed.
+- The bench at the Sint-Paulus stop no longer stands in the middle of the street, in the omnibus's path: it now stands square against the chemist's front under his window. The two Groenplaats benches, one blocking an alley mouth and one sunk into a house front by a door, now stand under shop windows on the pavement.
 - Street and quay setts are no longer smeared or stretched at street ends, tight corners and junctions: those places get straight courses of whole setts, and where two street patterns meet a row of setts is laid along the joint. The stones' bumps and lighting follow the setts exactly in every direction.
 - Townspeople's hats fit their heads: linen caps lie close instead of standing off like bowls, flat caps and kepis are lower, bowlers and top hats sit on the brow with narrower brims, the sou'wester and shako are smaller, and the beguine's cap no longer shows through her hood; hatted people wear the hair made for under a hat (#82).
 - Twelve townspeople's outfits gain woven cloth, stitched hems, repairs, worn leather and finer clog grain; the milk woman's shawl and apron lose their harsh pale marks (#82, #138).

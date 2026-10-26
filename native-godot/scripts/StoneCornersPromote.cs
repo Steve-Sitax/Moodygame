@@ -130,6 +130,16 @@ public partial class StoneCornersPromote : Node
             var node = scene.GetNode<MeshInstance3D>(e.GetProperty("nodePath").GetString()!);
             var old = ResourceLoader.Load<ArrayMesh>(path);
             string before = SupportHash(old);
+            // (#199 corners) new solid faces: world-space rows (16 floats a corner) added to the stand-in, so collision
+            // and the walk map get exactly the old faces and these
+            var added = new List<Vector3>();
+            if (e.TryGetProperty("solid", out var solid))
+            {
+                var inv = node.GlobalTransform.AffineInverse(); var bytes = File.ReadAllBytes(Path.Combine(candidate, solid.GetString()!));
+                var data = new float[bytes.Length / 4]; Buffer.BlockCopy(bytes, 0, data, 0, bytes.Length);
+                for (int j = 0; j < data.Length; j += 16) added.Add(inv * new Vector3(data[j], data[j + 1], data[j + 2]));
+            }
+            string expected = added.Count == 0 ? before : SupportHashOf(SupportList(old).Concat(added).ToList());
             var mesh = new ArrayMesh { ResourceName = old.ResourceName };
             foreach (var key in old.GetMetaList()) mesh.SetMeta(key, old.GetMeta(key));
             var surfaces = new Godot.Collections.Array((Godot.Collections.Array)old.Get("_surfaces"));
@@ -140,7 +150,8 @@ public partial class StoneCornersPromote : Node
             {
                 int si = s.GetProperty("index").GetInt32();
                 if (!skip.Contains(si)) { if (si < old.GetSurfaceCount()) stand.AddRange(SurfaceFaces(old, si)); skip.Add(si); }
-                var (arrays, _, tris) = Rows(Path.Combine(candidate, s.GetProperty("file").GetString()!), s.GetProperty("custom0").GetBoolean(), node.GlobalTransform);
+                bool tangent = s.TryGetProperty("tangent", out var tg) && tg.GetBoolean();
+                var (arrays, _, tris) = Rows(Path.Combine(candidate, s.GetProperty("file").GetString()!), s.GetProperty("custom0").GetBoolean(), node.GlobalTransform, tangent);
                 // Full float positions retain millimetre arrises on large combined landmark meshes.
                 var temp = new ArrayMesh();
                 var flags = s.GetProperty("custom0").GetBoolean() ? (Mesh.ArrayFormat)((long)Mesh.ArrayCustomFormat.RgFloat << (int)Mesh.ArrayFormat.FormatCustom0Shift) : 0;
@@ -151,9 +162,10 @@ public partial class StoneCornersPromote : Node
                 triangles += tris;
             }
             mesh.Set("_surfaces", surfaces);
+            stand.AddRange(added);
             mesh.SetMeta("native_solid_skip", skip.ToArray()); mesh.SetMeta("native_solid_stand_in", stand.ToArray());
-            if (SupportHash(mesh) != before) throw new IOException("Collision/support faces changed: " + path);
-            made.Add((path, mesh, before, triangles));
+            if (SupportHash(mesh) != expected) throw new IOException("Collision/support faces changed: " + path);
+            made.Add((path, mesh, expected, triangles));
         }
         var report = new List<object>();
         foreach (var (path, mesh, before, triangles) in made)
@@ -175,12 +187,19 @@ public partial class StoneCornersPromote : Node
         return a[(int)Mesh.ArrayType.Index].VariantType == Variant.Type.Nil ? p : a[(int)Mesh.ArrayType.Index].AsInt32Array().Select(i => p[i]).ToArray();
     }
 
-    static string SupportHash(ArrayMesh m)
+    static List<Vector3> SupportList(ArrayMesh m)
     {
-        // Sort whole triangles, never their corners: surface order may change, winding and every float must not.
         var skip = m.HasMeta("native_solid_skip") ? m.GetMeta("native_solid_skip").AsInt32Array() : Array.Empty<int>();
         var all = m.HasMeta("native_solid_stand_in") ? m.GetMeta("native_solid_stand_in").AsVector3Array().ToList() : new List<Vector3>();
         for (int s = 0; s < m.GetSurfaceCount(); s++) if (!skip.Contains(s)) all.AddRange(SurfaceFaces(m, s));
+        return all;
+    }
+
+    static string SupportHash(ArrayMesh m) => SupportHashOf(SupportList(m));
+
+    static string SupportHashOf(List<Vector3> all)
+    {
+        // Sort whole triangles, never their corners: surface order may change, winding and every float must not.
         var keys = new List<string>();
         for (int i = 0; i < all.Count; i += 3)
         {
@@ -198,22 +217,30 @@ public partial class StoneCornersPromote : Node
     }
 
     // rows -> indexed arrays in the node's space: identical rows share one vertex
-    static (Godot.Collections.Array, int, int) Rows(string file, bool custom0, Transform3D transform)
+    // tangent: 20 floats a corner, the last four the tangent (world xyz and its sign), as the slab path turns its flags by it
+    static (Godot.Collections.Array, int, int) Rows(string file, bool custom0, Transform3D transform, bool tangent = false)
     {
-        var bytes = File.ReadAllBytes(file); int count = bytes.Length / 64;
+        int stride = tangent ? 20 : 16;
+        var bytes = File.ReadAllBytes(file); int count = bytes.Length / (stride * 4);
         var index = new Dictionary<string, int>(); var order = new List<int>(); var indices = new int[count];
         for (int i = 0; i < count; i++)
         {
-            string key = Convert.ToBase64String(bytes, i * 64, 64);
+            string key = Convert.ToBase64String(bytes, i * stride * 4, stride * 4);
             if (!index.TryGetValue(key, out int at)) { at = order.Count; index[key] = at; order.Add(i); }
             indices[i] = at;
         }
         var data = new float[bytes.Length / 4]; Buffer.BlockCopy(bytes, 0, data, 0, bytes.Length);
         int n = order.Count; var inv = transform.AffineInverse();
         var pos = new Vector3[n]; var norm = new Vector3[n]; var uv = new Vector2[n]; var uv2 = new Vector2[n]; var col = new Color[n]; var custom = new float[n * 2];
+        var tan = new float[tangent ? n * 4 : 0];
         for (int k = 0; k < n; k++)
         {
-            int j = order[k] * 16; pos[k] = inv * new Vector3(data[j], data[j + 1], data[j + 2]);
+            int j = order[k] * stride;
+            if (tangent)
+            {
+                var t = (transform.Basis.Inverse() * new Vector3(data[j + 16], data[j + 17], data[j + 18])).Normalized();
+                tan[k * 4] = t.X; tan[k * 4 + 1] = t.Y; tan[k * 4 + 2] = t.Z; tan[k * 4 + 3] = data[j + 19] < 0 ? -1f : 1f;
+            } pos[k] = inv * new Vector3(data[j], data[j + 1], data[j + 2]);
             norm[k] = (transform.Basis.Transposed() * new Vector3(data[j + 3], data[j + 4], data[j + 5])).Normalized();
             uv[k] = new(data[j + 6], data[j + 7]); uv2[k] = new(data[j + 8], data[j + 9]); col[k] = new(data[j + 10], data[j + 11], data[j + 12], data[j + 13]);
             custom[k * 2] = data[j + 14]; custom[k * 2 + 1] = data[j + 15];
@@ -222,6 +249,7 @@ public partial class StoneCornersPromote : Node
         a[(int)Mesh.ArrayType.Vertex] = pos; a[(int)Mesh.ArrayType.Normal] = norm; a[(int)Mesh.ArrayType.TexUV] = uv; a[(int)Mesh.ArrayType.TexUV2] = uv2;
         a[(int)Mesh.ArrayType.Color] = col; a[(int)Mesh.ArrayType.Index] = indices;
         if (custom0) a[(int)Mesh.ArrayType.Custom0] = custom;
+        if (tangent) a[(int)Mesh.ArrayType.Tangent] = tan;
         return (a, n, count / 3);
     }
 }

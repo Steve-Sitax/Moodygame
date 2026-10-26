@@ -85,6 +85,75 @@ public static class RuienPatch
         return removed;
     }
 
+    /// <summary>
+    /// Cut away the part of a surface where `air` is positive, along a curved boundary (a vault's face): triangles
+    /// that reach it are bisected until their edges are under `edge` metres, then clipped. `air` should change by
+    /// at most about three metres per metre (near a signed distance), so a triangle farther from the boundary is left whole.
+    /// </summary>
+    public static int Trim(Godot.Collections.Array a,Func<Vector3,float> air,float edge=.04f)
+    {
+        var p=a[(int)Mesh.ArrayType.Vertex].AsVector3Array();
+        var ix=a[(int)Mesh.ArrayType.Index].VariantType==Variant.Type.Nil?Enumerable.Range(0,p.Length).ToArray():a[(int)Mesh.ArrayType.Index].AsInt32Array();
+        if(ix.Length==0)ix=Enumerable.Range(0,p.Length).ToArray();
+        // Every channel as rows of floats, interpolated at the new corners like QuayNotch's cut does.
+        var channels=new List<(int k,Variant.Type type,int stride,float[] data)>();
+        for(int k=0;k<(int)Mesh.ArrayType.Index;k++)
+        {
+            var v=a[k];
+            float[]? data=v.VariantType switch
+            {
+                Variant.Type.PackedVector3Array=>v.AsVector3Array().SelectMany(q=>new[]{q.X,q.Y,q.Z}).ToArray(),
+                Variant.Type.PackedVector2Array=>v.AsVector2Array().SelectMany(q=>new[]{q.X,q.Y}).ToArray(),
+                Variant.Type.PackedColorArray=>v.AsColorArray().SelectMany(q=>new[]{q.R,q.G,q.B,q.A}).ToArray(),
+                Variant.Type.PackedFloat32Array=>v.AsFloat32Array(),
+                Variant.Type.PackedByteArray=>v.AsByteArray().Select(b=>(float)b).ToArray(),
+                _=>null,
+            };
+            if(data==null)continue;
+            if(data.Length%p.Length!=0)throw new InvalidOperationException("Ruien trim: uneven channel "+(Mesh.ArrayType)k);
+            channels.Add((k,v.VariantType,data.Length/p.Length,data));
+        }
+        int width=channels.Sum(c=>c.stride);
+        float[] Row(int i){var r=new float[width];int at=0;foreach(var c in channels){Array.Copy(c.data,i*c.stride,r,at,c.stride);at+=c.stride;}return r;}
+        // Channel 0 (ArrayType.Vertex) comes first, so a row's first three floats are its position.
+        static Vector3 P(float[] r)=>new(r[0],r[1],r[2]);
+        static float[] Mid(float[] x,float[] y){var r=new float[x.Length];for(int i=0;i<r.Length;i++)r[i]=(x[i]+y[i])/2;return r;}
+        var rows=new List<float[]>();
+        void Split(float[] x,float[] y,float[] z,int depth)
+        {
+            float fx=air(P(x)),fy=air(P(y)),fz=air(P(z));
+            float lxy=P(x).DistanceTo(P(y)),lyz=P(y).DistanceTo(P(z)),lzx=P(z).DistanceTo(P(x)),longest=Math.Max(lxy,Math.Max(lyz,lzx));
+            bool near=Math.Min(fx,Math.Min(fy,fz))<3*longest && Math.Max(fx,Math.Max(fy,fz))> -3*longest;
+            if(!near || longest<=edge || depth>24){rows.Add(x);rows.Add(y);rows.Add(z);return;}
+            // Bisect the longest edge; the winding is kept.
+            if(lxy>=lyz && lxy>=lzx){var m=Mid(x,y);Split(x,m,z,depth+1);Split(m,y,z,depth+1);}
+            else if(lyz>=lzx){var m=Mid(y,z);Split(y,m,x,depth+1);Split(m,z,x,depth+1);}
+            else{var m=Mid(z,x);Split(z,m,y,depth+1);Split(m,x,y,depth+1);}
+        }
+        for(int t=0;t+2<ix.Length;t+=3)Split(Row(ix[t]),Row(ix[t+1]),Row(ix[t+2]),0);
+        int col=0;
+        foreach(var c in channels)
+        {
+            var d=new float[rows.Count*c.stride];
+            for(int i=0;i<rows.Count;i++)Array.Copy(rows[i],col,d,i*c.stride,c.stride);
+            col+=c.stride;
+            a[c.k]=c.type switch
+            {
+                Variant.Type.PackedVector3Array=>Enumerable.Range(0,rows.Count).Select(i=>
+                {
+                    var q=new Vector3(d[i*3],d[i*3+1],d[i*3+2]);
+                    return c.k==(int)Mesh.ArrayType.Normal&&q.LengthSquared()>1e-12f?q.Normalized():q;
+                }).ToArray(),
+                Variant.Type.PackedVector2Array=>Enumerable.Range(0,rows.Count).Select(i=>new Vector2(d[i*2],d[i*2+1])).ToArray(),
+                Variant.Type.PackedColorArray=>Enumerable.Range(0,rows.Count).Select(i=>new Color(d[i*4],d[i*4+1],d[i*4+2],d[i*4+3])).ToArray(),
+                Variant.Type.PackedFloat32Array=>d,
+                _=>d.Select(f=>(byte)Math.Clamp(MathF.Round(f),0,255)).ToArray(),
+            };
+        }
+        a[(int)Mesh.ArrayType.Index]=Enumerable.Range(0,rows.Count).ToArray();
+        return QuayNotch.CutSurfaceWith(a,Transform3D.Identity,_=>true,new List<Func<Vector3,float>>{air});
+    }
+
     /// <summary>A bevelled box as triangles (BevelMesh), placed by a transform.</summary>
     public static void Box(Tris t,Vector3 size,float bevel,Transform3D at,Color col,float ao=1,float tile=1)
     {
