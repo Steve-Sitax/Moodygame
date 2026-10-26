@@ -11,7 +11,7 @@ using Scheldemist.Render;
 // in the world, whichever way the uv runs (Psx.ReliefGlsl, the parallax). The town's relief shaders are the psx generator's
 // code for their kinds, stored in the bake's resources (a shader of its own, or inside its material); this writes the
 // generator's new code into each, so every one stays its kind (changed in place: no new shader kind). Run in Forward+:
-//   godot --rendering-method forward_plus --path . res://scripts/relief-repair.tscn -- --list | --dump <folder> | --write <backup folder>
+//   godot --rendering-method forward_plus --path . res://scripts/relief-repair.tscn -- --list | --dump <folder> | --write <backup folder> [--only <holder,...>]
 // --list prints each relief shader's holder and kind and whether it is the generator's code (old and new); --dump writes the
 // new code of each into <folder> (for an in-memory candidate); --write copies every holder to the backup folder first (never
 // overwriting a backup) and stores the new code. A shader whose code is not its kind's generated code is left alone.
@@ -70,7 +70,9 @@ public partial class ReliefRepair : Node
             bool isOld = was != "" && was == code, isNew = made != "" && made == code;
             rows.Add(new { holder, material, shader = sh.ResourcePath, kind = kindJson, users, generatedOld = isOld, generatedNew = isNew, codeHash = Convert.ToHexString(SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(code))) });
             GD.Print($"relief: {holder} ({sh.ResourcePath}) kind {(kindJson == "" ? "none" : "yes")} old-generator {isOld} new {isNew} users {string.Join(",", users)}");
-            if (made != "" && !isNew && (isOld || old == null)) writes.Add((holder, sh, made));
+            // --only <holder,...>: write just these (the other kinds' stored code may carry repairs of its own)
+            string only = Opt("only");
+            if (made != "" && !isNew && (isOld || old == null) && (only == "" || only.Split(',').Contains(holder))) writes.Add((holder, sh, made));
             if (dump != "" && made != "")
             {
                 Directory.CreateDirectory(ProjectSettings.GlobalizePath(dump));

@@ -1203,7 +1203,7 @@ varying vec3 world;
         if (k.TideWet) c.Append(TideWetGlsl);
         if (k.Ground) c.Append("uniform float vary = 0.0;\nuniform float puddles = 0.0;\n// the wet stone's highlight (three's Phong: specular and shininess; 0 when it never gets wet)\nuniform vec3 spec_color = vec3(0.0);\nuniform float shininess = 12.0;\nvarying float spec_k;\n");
         if (k.Wall) c.Append("uniform float foot = 0.0;\nuniform float foot_wear = 0.0;\nuniform float mottle = 0.0;\n");
-        if (k.Slabs) c.Append("uniform sampler2D slab_map : source_color, filter_linear_mipmap_anisotropic, repeat_enable;\nuniform sampler2D slab_h : filter_linear_mipmap, repeat_enable;\nuniform float slab_tile = 2.6;\nuniform float slab_ymax = 0.8;\nuniform float slab_dome = 2.5;\n// (#170) 1: a pavement's flags run along its kerb, the way its corners' tangents give (0: the world's x, z)\nuniform float slab_turn = 0.0;\nvarying vec2 slab_dir;\n");
+        if (k.Slabs) c.Append("uniform sampler2D slab_map : source_color, filter_linear_mipmap_anisotropic, repeat_enable;\nuniform sampler2D slab_h : filter_linear_mipmap, repeat_enable;\nuniform float slab_tile = 2.6;\nuniform float slab_ymax = 0.8;\nuniform float slab_dome = 2.5;\n// (#170) 1: a pavement's flags run along its kerb, the way its corners' tangents give (0: the world's x, z); 2: also offset by the face's uv\nuniform float slab_turn = 0.0;\nvarying vec2 slab_dir;\n");
         c.Append(LampScatterGlsl);
         if (lit || k.Ground) c.Append(SkyGlsl).Append(SpillGlsl);
         if (noise) c.Append(NoiseGlsl);
@@ -1393,6 +1393,8 @@ void fragment() {
 			if (slab_turn > 0.5 && dot(slab_dir, slab_dir) > 0.25) sd = normalize(slab_dir);
 			vec2 sp = vec2(-sd.y, sd.x);
 			vec2 suv = vec2(dot(world.xz, sd), dot(world.xz, sp)) / slab_tile;
+			// (2: the face's uv sets the courses' place too: a gutter one course wide, its joints at its edges)
+			if (slab_turn > 1.5) suv += UV;
 			c.rgb = albedo.rgb * texture(slab_map, suv).rgb * 1.25;
 			float e = 1.0 / 128.0;
 			float sh = texture(slab_h, suv).r;

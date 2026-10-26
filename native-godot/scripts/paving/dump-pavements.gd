@@ -2,12 +2,14 @@ extends SceneTree
 # The town blocks' pavements, kerbs and steps: every surface of the city meshes in the old stone (r000209) or the
 # kerb flags (r000016), world space, 20 floats a corner (position, normal, uv, uv2, colour, custom0 xy, tangent xyzw).
 # Read-only.
-# godot --headless --path native-godot --script res://scripts/paving/dump-pavements.gd -- <out folder>
+# godot --headless --path native-godot --script res://scripts/paving/dump-pavements.gd -- <out folder> [materials, comma]
 const MATS = ["res://world/town/resources/r000209.res", "res://world/town/resources/r000016.res"]
 func _initialize(): call_deferred("run")
 
 func run():
 	var out: String = OS.get_cmdline_user_args()[0]
+	var mats: Array = MATS
+	if OS.get_cmdline_user_args().size() > 1: mats = Array(OS.get_cmdline_user_args()[1].split(","))
 	DirAccess.make_dir_recursive_absolute(out)
 	var scene = load("res://world/town/scene.tscn").instantiate()
 	root.add_child(scene)
@@ -19,7 +21,7 @@ func run():
 		var m: Mesh = node.mesh
 		for s in m.get_surface_count():
 			var mat = node.get_active_material(s)
-			if mat == null or not (mat.resource_path in MATS): continue
+			if mat == null or not (mat.resource_path in mats): continue
 			var arr = m.surface_get_arrays(s)
 			var vs: PackedVector3Array = arr[Mesh.ARRAY_VERTEX]; var ns = arr[Mesh.ARRAY_NORMAL]; var uv = arr[Mesh.ARRAY_TEX_UV]
 			var tg = arr[Mesh.ARRAY_TANGENT]; var idx = arr[Mesh.ARRAY_INDEX]
