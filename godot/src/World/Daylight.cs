@@ -330,6 +330,9 @@ public partial class Daylight : Node
 
     /// <summary>A clear day at its full (#97): how far toward the haze the air goes, how much stronger the sun, how much further the fog, how much more light from the blue sky in the shade.</summary>
     private const float ClearDayHaze = 0.6f, ClearDaySun = 0.6f, ClearDayReach = 0.5f, ClearDaySky = 0.25f;
+    /// <summary>How much of the sun on the ground comes back into the shade (paving and walls, about a fifth), and its colour.</summary>
+    private const float SunBounce = 0.35f, SunShadeEase = 0.5f;
+    private static readonly Color SunBounceCol = Psx.Hex(0xc9b79c);
     /// <summary>How far from the eye the clear day's sun draws its shadow map (m).</summary>
     private const float SunShadowReach = 40;
 
@@ -439,8 +442,12 @@ public partial class Daylight : Node
         rs("psx_fog_color", fog);
         rs("psx_fog_near", FogNear);
         rs("psx_fog_far", FogFar);
-        rs("psx_hemi_sky", skyCol * (SkyIntensity * skySeen / MathF.PI));
-        rs("psx_hemi_ground", Ground * (SkyIntensity * skySeen / MathF.PI));
+        // (Steve, 2026-10-26: in the sun by day the shade was too dark) Sunlight given back by the sunlit paving and
+        // walls: the shade's light from below and the sides grows with the sun on the ground, warm as the stone it
+        // comes off; a little of it from above too (the lit fronts across a street)
+        var bounce = SunBounceCol * (SunIntensity * Mathf.Clamp(SunDir.Y, 0, 1) * SunBounce * skySeen / MathF.PI);
+        rs("psx_hemi_sky", skyCol * (SkyIntensity * skySeen / MathF.PI) + bounce * 0.45f);
+        rs("psx_hemi_ground", Ground * (SkyIntensity * skySeen / MathF.PI) + bounce);
         var fillNow = skyCol.Lerp(FillWarm, 0.6f) * SkyIntensity;
         var fillBake = SkyCold.Lerp(FillWarm, 0.6f) * bakeSky;
         rs("psx_fill", new Vector4(fillNow.R / fillBake.R, fillNow.G / fillBake.G, fillNow.B / fillBake.B, 1));
@@ -449,7 +456,12 @@ public partial class Daylight : Node
         foreach (var (m, e) in waterFill) m.SetShaderParameter("emission", e * (SkyIntensity / bakeSky));
         rs("psx_sun_dir", SunDir);
         // the houses' shadows: hard in a clear day's sun, soft in the glow through fog
-        rs("psx_sun_shade", 0.3f + 0.7f * bright);
+        // (Steve, 2026-10-26: the shade too dark in the sun) In bright sun a narrow street's floor and walls are lit by
+        // the sun given back off the lit fronts: the houses' hold on the sky's light eases (by half in full sun: the sun's strength on the ground, 4 at a clear noon); the
+        // sun's own shadows keep their depth (psx_sky_on and psx_sun_shade are multiplied together there)
+        float skyOn = Psx.SkyShadeOn ? 1 - SunShadeEase * Mathf.Clamp(SunIntensity * Mathf.Clamp(SunDir.Y * 2, 0, 1) / 4, 0, 1) : 0;
+        if (Psx.SkyShadeOn) rs("psx_sky_on", skyOn);
+        rs("psx_sun_shade", (0.3f + 0.7f * bright) / Math.Max(skyOn, 0.01f));
         rs("psx_scatter", Scatter * wNow[2] * (1 - Below));
         rs("psx_wet", Wet);
         rs("psx_rain", Rain);

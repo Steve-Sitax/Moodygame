@@ -11,6 +11,8 @@ Bugs and loose ends are tracked as [issues](https://github.com/Steve-Sitax/Moody
 
 ## [Unreleased]
 
+- The climbers on the old town wall are no longer flat pictures: each is a grown plant of ivy or Virginia creeper (red and orange in autumn), with woody stems climbing the wall's own face and sprays of leaves standing off it, its outline natural and its height its own.
+- On a sunny day the shade is no longer nearly black: the sunlit paving and fronts give light back into the shaded streets and courts. The sun's own shadows keep their depth; rain, fog and night are unchanged.
 - Families no longer leave their handcart standing across the street before their door: it is put along the house wall, handles toward the door, and only where a way 3 m wide stays open for the omnibus and other carts; where the street is too narrow, it stands on a nearby square or in a court. No still object stands in the way of an omnibus line or a dray or handcart route (checked with a new route audit).
 - The 288 flower pots on window sills and by doors are now potted geraniums: a terracotta pot with a rolled rim and soil, a rosette of scalloped leaves and scarlet or pink-and-white flower heads on thin stalks that stir a little in the wind.
 - The town's 603 barrels, kegs and water butts are no longer eight-sided blocks: each has 16 bulging oak staves with joints between them, four iron hoops, a sunken head (or water in the butts), weathered wood grain and its own tone.

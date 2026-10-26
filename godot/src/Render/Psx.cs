@@ -129,6 +129,8 @@ public static class Psx
     /// <summary>Dev: --psx-off bump (also for the models' own bump, Models/ModelBump.cs).</summary>
     public static bool BumpOff => Off.Contains("bump");
     private static ImageTexture? skyShade, dirt, spill, shore, foul, waves, waterTint;
+    /// <summary>The houses' sky shade is loaded (psx_sky_on 1); Daylight eases it in bright sun.</summary>
+    public static bool SkyShadeOn { get; private set; }
     private static Image? spillImage;
     private static readonly float[] SpillData = new float[MaxSpill * 4 * 4];
     private static readonly byte[] SpillBytes = new byte[MaxSpill * 4 * 4 * 4];
@@ -311,6 +313,7 @@ public static class Psx
             RenderingServer.GlobalShaderParameterSet("psx_sky_shade", skyShade.GetRid());
             if (Box(Find("skyshade.json")) is { } b) RenderingServer.GlobalShaderParameterSet("psx_sky_box", b);
             RenderingServer.GlobalShaderParameterSet("psx_sky_on", 1f);
+            SkyShadeOn = true;
         }
         else GD.Print("psx: no skyshade.png: no shadows of the houses");
         if (Find("dirt.png") is { } d)

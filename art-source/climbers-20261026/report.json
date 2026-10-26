@@ -1,0 +1,13 @@
+{
+ "meshes": 13,
+ "plants": 144,
+ "leaves": 134257,
+ "triangles": 401478,
+ "oldTriangles": 288,
+ "kinds": {
+  "1": 37,
+  "2": 45,
+  "3": 26,
+  "0": 36
+ }
+}
