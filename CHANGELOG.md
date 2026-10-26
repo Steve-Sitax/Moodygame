@@ -11,6 +11,7 @@ Bugs and loose ends are tracked as [issues](https://github.com/Steve-Sitax/Moody
 
 ## [Unreleased]
 
+- Street and quay setts are no longer smeared or stretched at street ends, tight corners and junctions: those places get straight courses of whole setts, and where two street patterns meet a row of setts is laid along the joint. The stones' bumps and lighting follow the setts exactly in every direction.
 - Townspeople's hats fit their heads: linen caps lie close instead of standing off like bowls, flat caps and kepis are lower, bowlers and top hats sit on the brow with narrower brims, the sou'wester and shako are smaller, and the beguine's cap no longer shows through her hood; hatted people wear the hair made for under a hat (#82).
 - Twelve townspeople's outfits gain woven cloth, stitched hems, repairs, worn leather and finer clog grain; the milk woman's shawl and apron lose their harsh pale marks (#82, #138).
 - Ruien O2 inside: brick courses now run on at one scale round corners, arch feet, collars and stair walls; the side drains open into dark brick throats behind new header rings; the pipes are real cast-iron outfalls with a bore, silt and a run-off stain onto the walk; the keeper lids show ribs and rivets from below, with hinge straps on the stone reveal; the side channels hold water up to bricked-up ends with barred culverts; the round air shaft has a clean brick collar, and gaps, stray brick slivers and repeated pale vault patches are gone (#212).
