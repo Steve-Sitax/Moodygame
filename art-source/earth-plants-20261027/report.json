@@ -1,0 +1,14 @@
+{
+ "edgeWall": 4113.000000001033,
+ "edgePaving": 4093.8000000010215,
+ "plants": {
+  "grass": 19463,
+  "blades": 3120,
+  "plume": 5521,
+  "box": 1372,
+  "privet": 1071,
+  "daisy": 3521
+ },
+ "triangles": 206804,
+ "meshes": 24
+}
