@@ -25,3 +25,15 @@ round its ends.
 
 Rendered at 12 corners spread through town at 13:00 and three of them at 21:00 in rain; the reported corner from Steve's
 view at 13:00, 18:42 and low down. Promotion support hashes: old faces kept, plus the new solid faces.
+
+## Second pass (#216)
+
+The 27 corners left: 21 held a corner guard stone (0.66 m) or a cast-iron bollard (0.82 m), placed on purpose at the
+corner, and one a crate; one was skipped because old map-aligned ground lay under part of its square. All stones and
+bollards fit wholly on the round corner's flag, so every one got the round corner and its object was lifted onto the
+flag (its triangles raised by the flag's height, the raised faces added to collision). `corner_kerbs.py --objects
+<dump-near.gd> <dump-meshes.gd>` does this; flat litter and things hanging overhead are ignored. A corner needs the
+square form only if its object does not fit the round flag: none here. 23 laid, 22 objects lifted (`corners-2.json`).
+Left open, not street corners: inside a lean-to (-214.6, 298.9), the Carolus church's plinth (-126.7, 167.5), inside a
+house (-104.2, 146.8), and a pavement width step (-128.2, 266.2). Rendered at 8 of the corners at 13:00 and two at 21:00
+in rain; stretched street faces near them 0.004 m2.

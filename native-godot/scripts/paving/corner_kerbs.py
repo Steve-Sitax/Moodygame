@@ -167,10 +167,49 @@ def clip(rows, keep):
         if len(poly) < 3: return []
     return [np.array([poly[0], poly[k], poly[k + 1]]) for k in range(1, len(poly) - 1)]
 
+def standing(c, sq, near, m1, m2):
+    """What stands on the ground in the corner's square, each piece whole (its triangles joined by shared corners);
+    each must lie wholly on the round corner's flag. -> ([dict(node, surface, tris, pos)], reason to skip or None)"""
+    from scipy.sparse import coo_matrix
+    from scipy.sparse.csgraph import connected_components
+    T = near['T']; sel = np.hypot(*(near['cen'] - c.A).T) < 2.0
+    sel &= ~np.char.startswith(near['node'], 'city/') & (T[:, :, 1].min(1) < 1.5)
+    out = []; M = np.linalg.inv(np.stack([c.u, c.v], 1))
+    rs, rt = c.lu + profile(m1)[0][0][0], c.lv + profile(m2)[0][0][0]
+    for k in np.unique(near['key'][sel]):
+        idx = np.nonzero(sel & (near['key'] == k))[0]; P = T[idx]
+        _, vid = np.unique(np.round(P.reshape(-1, 3) * 1e4).astype(np.int64), axis=0, return_inverse=True); vid = vid.reshape(-1, 3)
+        e = np.concatenate([vid[:, [0, 1]], vid[:, [1, 2]]]); n = vid.max() + 1
+        _, lab = connected_components(coo_matrix((np.ones(len(e)), (e[:, 0], e[:, 1])), shape=(n, n)), directed=False)
+        tl = lab[vid[:, 0]]
+        for l in np.unique(tl):
+            Q = P[tl == l]
+            hull = shapely.MultiPoint(Q[:, :, [0, 2]].reshape(-1, 2)).convex_hull
+            if hull.area < 0.005 or not hull.intersects(sq.buffer(-0.03)): continue
+            if Q[:, :, 1].min() > 0.05: continue          # (hanging over the corner, not standing in it)
+            if Q[:, :, 1].max() < 0.05: continue          # (litter lying flat, or under the street)
+            if hull.intersection(sq).area < 0.95 * hull.area: return [], 'something stands across the edge of the corner'
+            st = (Q[:, :, [0, 2]].reshape(-1, 2) - c.A) @ M.T
+            if (np.hypot(st[:, 0] / rs, st[:, 1] / rt) > 0.98).any(): return [], 'something stands where the round corner is too small'
+            node, surf = k.rsplit('#', 1)
+            out.append(dict(node=node, surface=int(surf), tris=near['tri'][idx[tl == l]].tolist(), pos=Q.tolist()))
+    if not out: return [], 'something stands there that is not found'
+    return out, None
+
 def main():
     pave, ground, out = map(pathlib.Path, sys.argv[1:4]); out.mkdir(parents=True, exist_ok=True)
     only = None
     if '--only' in sys.argv: only = np.array([float(x) for x in sys.argv[sys.argv.index('--only') + 1].split(',')])
+    # (#216) things standing in a corner's gap (a corner stone, a bollard, a crate): dump-near.gd round the corners and
+    # dump-meshes.gd of their meshes; each is lifted onto the corner's flag if the round corner holds it whole
+    near = None
+    if '--objects' in sys.argv:
+        nd, md = map(pathlib.Path, sys.argv[sys.argv.index('--objects') + 1:sys.argv.index('--objects') + 3])
+        ninfo = json.load(open(nd / 'near.json')); NT = np.fromfile(nd / 'near.f32', np.float32).reshape(-1, 3, 3).astype(np.float64)
+        near = dict(info=ninfo, T=NT, key=np.array([f'{i[0]}#{i[2]}' for i in ninfo]), tri=np.array([i[3] for i in ninfo]),
+                    node=np.array([i[0] for i in ninfo]), meshes=json.load(open(md / 'meshes.json')), dir=md)
+        near['cen'] = NT[:, :, [0, 2]].mean(1)
+    lifts = []
     info = json.load(open(pave / 'pavements.json'))
     R = np.fromfile(pave / 'pavements.f32', np.float32).reshape(-1, 3, 20).astype(np.float64)
     mat = np.zeros(len(R), int); owner = np.zeros(len(R), int)
@@ -203,17 +242,24 @@ def main():
         for g in grounds.values():
             h = g['tree'].query(sq, predicate='intersects'); h = h[~g['hidden'][h]]
             vis += shapely.area(shapely.intersection(g['polys'][h], sq)).sum()
-        if vis < 0.9 * sq.area: rec['skipped'] = 'not on the open street'; continue
-        inner = shapely.difference(sq.buffer(-0.04), shapely.Point(c.A).buffer(0.3))
-        h = otree.query(inner, predicate='intersects')
-        stand = shapely.intersection(shapely.union_all(ob[h]), inner).area if len(h) else 0.0
-        if stand > 0.03: rec['skipped'] = f'something stands there ({stand:.2f} m2)'; continue
+        # (half the square seen: the old picture under the houses still lies under some corners' squares)
+        if vis < 0.5 * sq.area: rec['skipped'] = 'not on the open street'; continue
         m1, m2 = c.measure(0), c.measure(1)
         if m1 is None or m2 is None: rec['skipped'] = 'kerb not measured'; continue
         if abs(m1['top'] - m2['top']) > 0.02: rec['skipped'] = 'strips at different heights'; continue
+        inner = shapely.difference(sq.buffer(-0.04), shapely.Point(c.A).buffer(0.3))
+        h = otree.query(inner, predicate='intersects')
+        stand = shapely.intersection(shapely.union_all(ob[h]), inner).area if len(h) else 0.0
+        mine = []
+        if stand > 0.03:
+            if near is None: rec['skipped'] = f'something stands there ({stand:.2f} m2)'; continue
+            mine, why = standing(c, sq, near, m1, m2)
+            if why: rec['skipped'] = why; continue
+            rec['lifted'] = [m['node'] for m in mine]
         b, why = build(c, m1, m2)
         if b is None: rec['skipped'] = why; continue
         clips.append((c.A, c.u, c.v))
+        lifts += [dict(m, dy=m1['top']) for m in mine]
         rec.update(laid=len(b['faces']), kerb=[round(m1['df'], 3), round(m2['df'], 3)], gutter=bool(m1['gutter']), ends=[b['tk'], b['tg']])
         # each new face: its strip's nearest face of the same material and way supplies uv, uv2, colour, custom0, tangent
         for tri, material, side, tg in b['faces']:
@@ -332,6 +378,22 @@ def main():
         if (mesh, node) in solids:
             sf = f'{pathlib.Path(mesh).stem}-solid.f32'; np.concatenate(solids[(mesh, node)]).astype(np.float32).tofile(out / sf); ent['solid'] = sf
         manifest.append(ent)
+    bynode = {}
+    for l in lifts: bynode.setdefault(l['node'], []).append(l)
+    for node, ls in bynode.items():
+        rec = near['meshes'][node]; surfs = []; solid = []
+        for sinfo in rec['surfaces']:
+            rows = np.fromfile(near['dir'] / sinfo['file'], np.float32).reshape(-1, 3, 20).astype(np.float64)
+            for l in ls:
+                if l['surface'] != sinfo['index']: continue
+                t = np.array(l['tris'])
+                if np.abs(rows[t, :, :3] - l['pos']).max() > 1e-3: raise RuntimeError(f'{node}: the object is not where it was found')
+                rows[t, :, 1] += l['dy']; solid.append(rows[t, :, :16].reshape(-1, 16))
+            f = f'{node.replace("/", "_")}-{sinfo["index"]}.f32'; rows.astype(np.float32).tofile(out / f)
+            surfs.append({'index': sinfo['index'], 'file': f, 'material': sinfo['material'], 'custom0': sinfo['custom0'], 'tangent': True})
+        sf = f'{node.replace("/", "_")}-solid.f32'; np.concatenate(solid).astype(np.float32).tofile(out / sf)
+        manifest.append({'mesh': rec['mesh'], 'nodePath': node, 'sourceHash': hashlib.sha256((REPO / 'native-godot' / rec['mesh'][6:]).read_bytes()).hexdigest(),
+                         'surfaces': surfs, 'solid': sf})
     for name, g in grounds.items():
         if not cuts[name]: continue
         geoms = [x[0] for x in cuts[name]]
