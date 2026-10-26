@@ -151,10 +151,12 @@ public partial class StoneCornersPromote : Node
                 int si = s.GetProperty("index").GetInt32();
                 if (!skip.Contains(si)) { if (si < old.GetSurfaceCount()) stand.AddRange(SurfaceFaces(old, si)); skip.Add(si); }
                 bool tangent = s.TryGetProperty("tangent", out var tg) && tg.GetBoolean();
-                var (arrays, _, tris) = Rows(Path.Combine(candidate, s.GetProperty("file").GetString()!), s.GetProperty("custom0").GetBoolean(), node.GlobalTransform, tangent);
+                // (custom0Rgba: four floats of custom0 a corner, as the park plants' foot: x, z, foot height, spare)
+                bool rgba = s.TryGetProperty("custom0Rgba", out var cr) && cr.GetBoolean();
+                var (arrays, _, tris) = Rows(Path.Combine(candidate, s.GetProperty("file").GetString()!), s.GetProperty("custom0").GetBoolean(), node.GlobalTransform, tangent, rgba);
                 // Full float positions retain millimetre arrises on large combined landmark meshes.
                 var temp = new ArrayMesh();
-                var flags = s.GetProperty("custom0").GetBoolean() ? (Mesh.ArrayFormat)((long)Mesh.ArrayCustomFormat.RgFloat << (int)Mesh.ArrayFormat.FormatCustom0Shift) : 0;
+                var flags = s.GetProperty("custom0").GetBoolean() ? (Mesh.ArrayFormat)((long)(rgba ? Mesh.ArrayCustomFormat.RgbaFloat : Mesh.ArrayCustomFormat.RgFloat) << (int)Mesh.ArrayFormat.FormatCustom0Shift) : 0;
                 temp.AddSurfaceFromArrays(Mesh.PrimitiveType.Triangles, arrays, null, null, flags);
                 temp.SurfaceSetMaterial(0, ResourceLoader.Load<Material>(s.GetProperty("material").GetString()!));
                 if (si == surfaces.Count) surfaces.Add(((Godot.Collections.Array)temp.Get("_surfaces"))[0]);
@@ -218,9 +220,11 @@ public partial class StoneCornersPromote : Node
 
     // rows -> indexed arrays in the node's space: identical rows share one vertex
     // tangent: 20 floats a corner, the last four the tangent (world xyz and its sign), as the slab path turns its flags by it
-    static (Godot.Collections.Array, int, int) Rows(string file, bool custom0, Transform3D transform, bool tangent = false)
+    // rgba: 2 more floats of custom0 after the first two (18 floats a corner, 22 with the tangent after them)
+    static (Godot.Collections.Array, int, int) Rows(string file, bool custom0, Transform3D transform, bool tangent = false, bool rgba = false)
     {
-        int stride = tangent ? 20 : 16;
+        int cn = rgba ? 4 : 2, toff = 14 + cn;
+        int stride = toff + (tangent ? 4 : 0);
         var bytes = File.ReadAllBytes(file); int count = bytes.Length / (stride * 4);
         var index = new Dictionary<string, int>(); var order = new List<int>(); var indices = new int[count];
         for (int i = 0; i < count; i++)
@@ -231,19 +235,19 @@ public partial class StoneCornersPromote : Node
         }
         var data = new float[bytes.Length / 4]; Buffer.BlockCopy(bytes, 0, data, 0, bytes.Length);
         int n = order.Count; var inv = transform.AffineInverse();
-        var pos = new Vector3[n]; var norm = new Vector3[n]; var uv = new Vector2[n]; var uv2 = new Vector2[n]; var col = new Color[n]; var custom = new float[n * 2];
+        var pos = new Vector3[n]; var norm = new Vector3[n]; var uv = new Vector2[n]; var uv2 = new Vector2[n]; var col = new Color[n]; var custom = new float[n * cn];
         var tan = new float[tangent ? n * 4 : 0];
         for (int k = 0; k < n; k++)
         {
             int j = order[k] * stride;
             if (tangent)
             {
-                var t = (transform.Basis.Inverse() * new Vector3(data[j + 16], data[j + 17], data[j + 18])).Normalized();
-                tan[k * 4] = t.X; tan[k * 4 + 1] = t.Y; tan[k * 4 + 2] = t.Z; tan[k * 4 + 3] = data[j + 19] < 0 ? -1f : 1f;
+                var t = (transform.Basis.Inverse() * new Vector3(data[j + toff], data[j + toff + 1], data[j + toff + 2])).Normalized();
+                tan[k * 4] = t.X; tan[k * 4 + 1] = t.Y; tan[k * 4 + 2] = t.Z; tan[k * 4 + 3] = data[j + toff + 3] < 0 ? -1f : 1f;
             } pos[k] = inv * new Vector3(data[j], data[j + 1], data[j + 2]);
             norm[k] = (transform.Basis.Transposed() * new Vector3(data[j + 3], data[j + 4], data[j + 5])).Normalized();
             uv[k] = new(data[j + 6], data[j + 7]); uv2[k] = new(data[j + 8], data[j + 9]); col[k] = new(data[j + 10], data[j + 11], data[j + 12], data[j + 13]);
-            custom[k * 2] = data[j + 14]; custom[k * 2 + 1] = data[j + 15];
+            for (int q = 0; q < cn; q++) custom[k * cn + q] = data[j + 14 + q];
         }
         var a = new Godot.Collections.Array(); a.Resize((int)Mesh.ArrayType.Max);
         a[(int)Mesh.ArrayType.Vertex] = pos; a[(int)Mesh.ArrayType.Normal] = norm; a[(int)Mesh.ArrayType.TexUV] = uv; a[(int)Mesh.ArrayType.TexUV2] = uv2;

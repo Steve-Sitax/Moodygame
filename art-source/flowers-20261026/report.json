@@ -1,0 +1,10 @@
+{
+ "meshes": 40,
+ "pots": 288,
+ "oldTriangles": 42624,
+ "newTriangles": 103638,
+ "flowers": {
+  "pink": 89,
+  "red": 199
+ }
+}

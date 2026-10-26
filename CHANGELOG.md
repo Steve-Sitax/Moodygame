@@ -11,6 +11,7 @@ Bugs and loose ends are tracked as [issues](https://github.com/Steve-Sitax/Moody
 
 ## [Unreleased]
 
+- The 288 flower pots on window sills and by doors are now potted geraniums: a terracotta pot with a rolled rim and soil, a rosette of scalloped leaves and scarlet or pink-and-white flower heads on thin stalks that stir a little in the wind.
 - The town's 603 barrels, kegs and water butts are no longer eight-sided blocks: each has 16 bulging oak staves with joints between them, four iron hoops, a sunken head (or water in the butts), weathered wood grain and its own tone.
 - The 56 guard stones at the house corners (the posts that kept cart wheels off the walls) are no longer six-sided blocks: each is now a round blue-stone guard stone with a tapering shaft, a chiselled groove and a domed head, in sharp stone texture that darkens in rain, with dirt at its foot and a worn band where wheels rubbed it. Each one differs a little in size, lean and tone.
 - Street gutters are laid as one row of long stones along the kerb everywhere, with no joint running down their middle and no stones slanting across; the kerb's rounded edges no longer show a squashed picture.
