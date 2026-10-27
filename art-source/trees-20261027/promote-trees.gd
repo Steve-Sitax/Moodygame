@@ -63,10 +63,12 @@ func run():
 	var leaves_mat: Material = load(DIR + "tree-leaves.tres")
 	var rec := {"material": DIR + "tree-leaves.tres", "meshes": {}}
 	for kind in MESHES:
-		var sf := FileAccess.get_file_as_bytes(trees + "/" + kind + "-solid.f32").to_float32_array()
-		var solid := PackedVector3Array()
-		for i in range(0, sf.size(), 3): solid.append(Vector3(sf[i], sf[i + 1], sf[i + 2]))
-		for pair in MESHES[kind]:
+		for v in MESHES[kind].size():
+			var pair: Array = MESHES[kind][v]
+			var name: String = "%s-v%d" % [kind, v]
+			var sf := FileAccess.get_file_as_bytes(trees + "/" + name + "-solid.f32").to_float32_array()
+			var solid := PackedVector3Array()
+			for i in range(0, sf.size(), 3): solid.append(Vector3(sf[i], sf[i + 1], sf[i + 2]))
 			for j in 2:
 				var path: String = "res://world/town/resources/%s.res" % pair[j]
 				var abs := ProjectSettings.globalize_path(path)
@@ -74,7 +76,7 @@ func run():
 				if not FileAccess.file_exists(kept): DirAccess.copy_absolute(abs, kept)
 				var old: ArrayMesh = load(path)
 				var mat: Material = old.surface_get_material(0) if j == 0 else leaves_mat
-				var mesh := build(trees + "/" + kind + ("-bark" if j == 0 else "-leaves"), old, mat, solid if j == 0 else PackedVector3Array())
+				var mesh := build(trees + "/" + name + ("-bark" if j == 0 else "-leaves"), old, mat, solid if j == 0 else PackedVector3Array())
 				if ResourceSaver.save(mesh, path, ResourceSaver.FLAG_COMPRESS) != OK: push_error("save " + path); quit(1); return
 				var back: ArrayMesh = ResourceLoader.load(path, "", ResourceLoader.CACHE_MODE_IGNORE)
 				if back.get_surface_count() != 1 or back.surface_get_array_index_len(0) != mesh.surface_get_array_index_len(0): push_error("reload " + path); quit(1); return

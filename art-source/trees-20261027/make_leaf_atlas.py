@@ -98,10 +98,14 @@ def sprig(img, x0, y0, kind, cols, seed, leafy=True):
         # side shoots, alternate (lime, elm) or few (plane); the bare fans branch more
         for k in range(1, steps):
             q = pts[k]; side = 1 if k % 2 else -1
-            if depth < (3 if kind == 'bare' else 2) and rr.random() < {'lime': 0.55, 'elm': 0.55, 'plane': 0.4}.get(kind, 0.8):
+            if depth < (3 if kind in ('bare', 'lime') else 2) and rr.random() < {'lime': 0.6, 'elm': 0.55, 'plane': 0.4}.get(kind, 0.8):
                 grow(q, a + side * rr.uniform(0.35, 0.8), length * rr.uniform(0.38, 0.6), width * 0.6, depth + 1)
             if kind != 'bare' and rr.random() < (0.85 if kind == 'elm' else 0.6):
                 leaves.append((q, a + side * rr.uniform(0.5, 1.2)))
+                if kind == 'lime':          # (small leaves: two at a node, and one between)
+                    leaves.append((q, a - side * rr.uniform(0.5, 1.2)))
+                    m = ((q[0] + pts[k - 1][0]) / 2, (q[1] + pts[k - 1][1]) / 2)
+                    leaves.append((m, a + side * rr.uniform(0.6, 1.3)))
             elif kind == 'bare' and leafy and rr.random() < 0.025:
                 leaves.append((q, a + side * rr.uniform(0.5, 1.2)))
         if kind != 'bare' or (leafy and rr.random() < 0.25):
@@ -113,7 +117,7 @@ def sprig(img, x0, y0, kind, cols, seed, leafy=True):
     for (q, la) in leaves:
         c = cols[int(rr.integers(len(cols)))]; base = shade(c, rr.uniform(0.84, 1.12))
         if kind == 'lime':
-            L = CELL * rr.uniform(0.13, 0.19); W = L * 0.48; stalk = L * 0.35
+            L = CELL * rr.uniform(0.065, 0.095); W = L * 0.48; stalk = L * 0.35
         elif kind == 'elm':
             L = CELL * rr.uniform(0.11, 0.15); W = L * 0.32; stalk = L * 0.08
         elif kind == 'plane':
