@@ -49,3 +49,22 @@ Steve also saw a gutter floating over a cleared plot. `NativeRazedHouses.Cut` no
 - anything above 0.5 m standing 0.3 m or more inside a razed outline (chimney caps with another house's alpha);
 - house 454, a sliver outline with no triangle a full 0.4 m inside it: its alpha is then read from the triangles inside.
 `Gutters` leaves out the broken-gutter stains and streams on a razed house's wall.
+
+## Leftovers swept · 27 October 2026 (#224, #229)
+
+`--razed-scan <file>` (`NativeRazedScan`, dev) lists every drawn triangle and copy 0.5 m or more up, within 1.5 m of a
+razed outline and nearer to it than to a standing house; churches, trees, churchyard, square dressing and benches apart.
+`--razed-scan-box x0,z0,x1,z1` lists a box instead, `--razed-scan-ray x,y,z,yaw,pitch,fx,fy` the triangles under a picture's
+point. Outside the churches and their yards: 121 groups, 2379 triangles before; 25 groups, 72 after (the cart's two
+barrels, moved there on purpose; single wall triangles of standing neighbours on the shared line; a low street piece). Causes:
+
+- Street dressing went a triangle at a time, so a lean-to roof running into standing house 210's wall kept its half on
+  that side and hung on the bared wall (the red-brown piece, #224), and a striped awning 1.4 m off razed house 459's back
+  wall stayed (#229, the cut reached 1.2 m). Now a piece (triangles joined by their corners) goes whole when most of what
+  shows of it is within 2.5 m of a razed house and nearer to it than to any standing one.
+- The bake's grime decals (soot, rust, damp) carry their strength in the colour alpha, not a house's: they now go by place.
+- Three razed chimneys still smoked (the dark bands in the Jacob south-west sky, #224): their smoke points go.
+- House 495, razed but left as baked (its alpha shared), now counts as standing for what lies nearer to it.
+
+Not in this lane: the Sint-Paulus north door's flat infill and the Jacob churchyard wall's sharp top are part of the church
+models (`church_stpaul_4`, `church_stjacob_6`).
