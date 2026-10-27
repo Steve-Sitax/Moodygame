@@ -11,6 +11,7 @@ Bugs and loose ends are tracked as [issues](https://github.com/Steve-Sitax/Moody
 
 ## [Unreleased]
 
+- The hanging candle crowns in Sint-Jacob, Sint-Paulus, Sint-Carolus and the cathedral are real aged brass now: a moulded ring pierced with quatrefoils, cast straps and rosettes, a fleur cresting, drip pans and turned sockets with wax candles burnt to different heights, and chains of real links up to an iron hook; the cathedral's crowns are two-tier with a turned pendant.
 - The trees on the new church squares and at the cathedral corner now stand in tree pits like the quay's, no longer growing out of the cobbles. Every tree pit, the quay's too, has a frame of Belgian blue stone with worn edges.
 - The ivy and Virginia creeper on the old town wall now climb from a clump of woody stems in long runs of 2 to 7.5 metres, fanning out and thinning toward the top; a third reach the coping and hang over it, with bare brick between the plants.
 - The town's limes, planes, elms and bare trees are grown again: real branching limbs and twigs, dark bark at true size, a flared foot set into the ground, and full crowns of drawn lime, plane and elm leaves turning yellow and ochre for late October.
