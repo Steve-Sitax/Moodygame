@@ -161,44 +161,54 @@ public static class NativeRazedHouses
     /// <summary>Marks the dressing's own nodes: their bodies bring their own collision (Solid leaves them).</summary>
     public const string DressingMeta = "native_razed_dressing";
 
-    // The corner opened by houses 536 and 537, north-east of the cathedral: a lime on the cleared ground and a bench against the
-    // blank end wall of house 538, facing the tree. World x, z; the bench's yaw turns its seat away from the wall.
-    private static readonly (float X, float Z) LimeAt = (-216.2f, 276.2f);
-    private static readonly (float X, float Z, float Yaw) BenchAt = (-212.7f, 272.7f, -0.396f);
+    // The squares the razing opened (world/town/squares.json): the cathedral's corner (houses 536 and 537) and, since
+    // 2026-10-26 (Steve: the houses hugging the churches cleared, the churches free on squares), round Sint-Paulus,
+    // Sint-Jacob and Sint-Carolus; also trees on the wide bare earth by the town wall. World x, z; a bench's yaw turns its
+    // seat. Each tree is a copy of the town's own trees of its kind (bark and leaves), named as theirs so the trunk is solid.
+    public const string SquaresFile = "res://world/town/squares.json";
+    private sealed record Tree(string Kind, float X, float Z, float Yaw, float Scale);
+    private sealed record Bench(string Id, float X, float Z, float Yaw, string Label, string Asset);
+    private sealed record Squares(Tree[] Trees, Bench[] Benches);
 
-    /// <summary>Plants the lime (a copy of the town's own street limes, bark and leaves) and sets the bench. Returns what was placed.</summary>
+    /// <summary>Plants the squares' trees and sets their benches. Returns what was placed.</summary>
     public static IReadOnlyList<string> Dress(Node3D town)
     {
         var placed = new List<string>();
+        if (!Godot.FileAccess.FileExists(SquaresFile)) return placed;
+        var plan = JsonSerializer.Deserialize<Squares>(Godot.FileAccess.GetFileAsString(SquaresFile), new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+        if (plan == null) return placed;
         var copies = town.GetChildren().OfType<MultiMeshInstance3D>().Where(m => m.Multimesh is { InstanceCount: > 0, Mesh: not null }).ToList();
-        // the street limes: the bark group with the most trees, and its leaves (the next source node)
-        var bark = copies.Where(m => Regex.IsMatch(m.Name.ToString(), "^INST\\d+_treelimebark_mm$")).MaxBy(m => m.Multimesh.InstanceCount);
-        if (bark != null && int.TryParse(Regex.Match(bark.Name.ToString(), "\\d+").Value, out int n)
-            && copies.FirstOrDefault(m => m.Name.ToString() == $"INST{n + 1}_treelimeleaves_mm") is { } leaves)
+        int next = 9001;
+        foreach (var group in plan.Trees.GroupBy(t => t.Kind))
         {
+            // the town's trees of the kind: the bark group with the most trees, and its leaves (the next source node)
+            var bark = copies.Where(m => Regex.IsMatch(m.Name.ToString(), $@"^INST\d+_tree{group.Key}bark_mm$")).MaxBy(m => m.Multimesh.InstanceCount);
+            if (bark == null || !int.TryParse(Regex.Match(bark.Name.ToString(), @"\d+").Value, out int n)
+                || copies.FirstOrDefault(m => m.Name.ToString() == $"INST{n + 1}_tree{group.Key}leaves_mm") is not { } leaves) continue;
             var basis = bark.Multimesh.GetInstanceTransform(0).Basis;
-            var at = new Transform3D(basis, new Vector3(LimeAt.X, 0, LimeAt.Z));
-            // (named as the town's own copies, so the trunk is solid like theirs)
-            foreach (var (source, name) in new[] { (bark, "INST9001_treelimebark_mm"), (leaves, "INST9002_treelimeleaves_mm") })
+            var trees = group.ToArray();
+            foreach (var (source, part) in new[] { (bark, "bark"), (leaves, "leaves") })
             {
-                var mm = new MultiMesh { TransformFormat = MultiMesh.TransformFormatEnum.Transform3D, Mesh = source.Multimesh.Mesh, InstanceCount = 1 };
-                mm.SetInstanceTransform(0, at);
-                var copy = new MultiMeshInstance3D { Name = name, Multimesh = mm };
+                var mm = new MultiMesh { TransformFormat = MultiMesh.TransformFormatEnum.Transform3D, Mesh = source.Multimesh.Mesh, InstanceCount = trees.Length };
+                for (int i = 0; i < trees.Length; i++)
+                    mm.SetInstanceTransform(i, new Transform3D(basis.Rotated(Vector3.Up, trees[i].Yaw).Scaled(Vector3.One * trees[i].Scale), new Vector3(trees[i].X, 0, trees[i].Z)));
+                var copy = new MultiMeshInstance3D { Name = $"INST{next++}_tree{group.Key}{part}_mm", Multimesh = mm };
                 foreach (var key in source.GetMetaList()) copy.SetMeta(key, source.GetMeta(key));
                 town.AddChild(copy);
             }
-            placed.Add("lime");
+            placed.Add($"{trees.Length} {group.Key}");
         }
-        if (ResourceLoader.Load<Scheldemist.Native.Authoring.AuthorAsset>("res://assets/library/bench-worn.tres") is { } bench)
+        foreach (var b in plan.Benches)
         {
-            var seat = new Scheldemist.Native.Authoring.AuthoredObject { Name = "razed_corner_bench", ObjectId = "razed-corner-bench", Asset = bench };
-            seat.Position = new Vector3(BenchAt.X, 0, BenchAt.Z);
-            seat.Rotation = new Vector3(0, BenchAt.Yaw, 0);
+            if (ResourceLoader.Load<Scheldemist.Native.Authoring.AuthorAsset>(b.Asset) is not { } bench) continue;
+            var seat = new Scheldemist.Native.Authoring.AuthoredObject { Name = "razed_" + b.Id.Replace('-', '_'), ObjectId = b.Id, Asset = bench };
+            seat.Position = new Vector3(b.X, 0, b.Z);
+            seat.Rotation = new Vector3(0, b.Yaw, 0);
             seat.SetMeta(DressingMeta, true);
-            seat.SetMeta(NativeBenches.LabelMeta, "a bench at the corner behind the cathedral");
+            seat.SetMeta(NativeBenches.LabelMeta, b.Label);
             town.AddChild(seat);
-            placed.Add("bench");
         }
+        if (plan.Benches.Length > 0) placed.Add($"{plan.Benches.Length} benches");
         return placed;
     }
 
@@ -262,7 +272,7 @@ public static class NativeRazedHouses
         var rebuilt = new ArrayMesh { ResourceName = source.ResourceName };
         // (its metadata too: Solid's stand-in faces and skipped surfaces live there, issue #163)
         foreach (var key in source.GetMetaList()) rebuilt.SetMeta(key, source.GetMeta(key));
-        int dropped = 0;
+        int dropped = 0, empty = 0;
         for (int s = 0; s < source.GetSurfaceCount(); s++)
         {
             var arrays = source.SurfaceGetArrays(s);
@@ -280,10 +290,21 @@ public static class NativeRazedHouses
                     if (drop(xf * v[index[t]], xf * v[index[t + 1]], xf * v[index[t + 2]], alpha)) { dropped++; continue; }
                     kept.Add(index[t]); kept.Add(index[t + 1]); kept.Add(index[t + 2]);
                 }
+                // (a surface left without a triangle keeps one of no size: an empty one cannot be built, and the surfaces
+                // after it would take the wrong material and the wrong Solid skips)
+                if (kept.Count == 0 && index.Length > 0) { empty++; kept.Add(index[0]); kept.Add(index[0]); kept.Add(index[0]); }
                 arrays[(int)Mesh.ArrayType.Index] = kept.ToArray();
             }
             rebuilt.AddSurfaceFromArrays(type, arrays, null, null, source.SurfaceGetFormat(s));
             rebuilt.SurfaceSetMaterial(s, source.SurfaceGetMaterial(s));
+        }
+        // (every triangle gone: the mesh keeps no surface at all, its metadata kept)
+        if (dropped > 0 && empty == source.GetSurfaceCount())
+        {
+            var none = new ArrayMesh { ResourceName = source.ResourceName };
+            foreach (var key in source.GetMetaList()) none.SetMeta(key, source.GetMeta(key));
+            mesh.Mesh = none;
+            return dropped;
         }
         if (dropped > 0) mesh.Mesh = rebuilt;
         return dropped;

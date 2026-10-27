@@ -1,6 +1,6 @@
 {
   "format": 2,
-  "version": "native-pack-c11cf791b718b55d540ca7427da4321415adb28ca31e3d4d7d71de4f7ab2e750",
+  "version": "native-pack-a70ac3ae8ede0ed9fc9b510f15617e1f18ffdfae43b7c479a6b81a3ad2b9b25d",
   "files": [
     {
       "file": "maps/dirt.json",
@@ -1756,9 +1756,9 @@
     },
     {
       "file": "services/native-ideas.json",
-      "blob": "blobs/905e00d939d70a6c8dd875035bfac955a9f9e2df35b19e91397369a6427c968a.bin",
-      "sha256": "905e00d939d70a6c8dd875035bfac955a9f9e2df35b19e91397369a6427c968a",
-      "bytes": 877960
+      "blob": "blobs/280e90a154404774c4e3082ef773656871badc56a824df09b6b7f0b92ac64c3f.bin",
+      "sha256": "280e90a154404774c4e3082ef773656871badc56a824df09b6b7f0b92ac64c3f",
+      "bytes": 812649
     },
     {
       "file": "services/native-intake.json",
@@ -1846,9 +1846,9 @@
     },
     {
       "file": "shared/city_build.json",
-      "blob": "blobs/027906066929b71183a682c7a96ebd1f48446bd69886af1bd53feb256ff5fdf1.bin",
-      "sha256": "027906066929b71183a682c7a96ebd1f48446bd69886af1bd53feb256ff5fdf1",
-      "bytes": 440181
+      "blob": "blobs/893ffe096cf27b99234768ad3a44144586c53fe16a12032c0f6022ce4e28e8da.bin",
+      "sha256": "893ffe096cf27b99234768ad3a44144586c53fe16a12032c0f6022ce4e28e8da",
+      "bytes": 441731
     },
     {
       "file": "shared/city_gable_windows.json",
