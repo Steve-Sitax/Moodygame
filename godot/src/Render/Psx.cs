@@ -128,6 +128,7 @@ public static class Psx
     private static readonly HashSet<string> Off = new((Array.IndexOf(OS.GetCmdlineUserArgs(), "--psx-off") is var i and >= 0 && i + 1 < OS.GetCmdlineUserArgs().Length ? OS.GetCmdlineUserArgs()[i + 1] : "").Split(',', StringSplitOptions.RemoveEmptyEntries));
     /// <summary>Dev: --psx-off bump (also for the models' own bump, Models/ModelBump.cs).</summary>
     public static bool BumpOff => Off.Contains("bump");
+    private static Vector4? skyBox;
     private static ImageTexture? skyShade, dirt, spill, shore, foul, waves, waterTint;
     /// <summary>The houses' sky shade is loaded (psx_sky_on 1); Daylight eases it in bright sun.</summary>
     public static bool SkyShadeOn { get; private set; }
@@ -291,6 +292,34 @@ public static class Psx
     /// <summary>Where the shared pictures are looked for, in order: the bake's texture folder, the project's own, the browser's.</summary>
     public static string[] SharedDirs() => new[] { sharedDir, Paths.Textures };
 
+    /// <summary>
+    /// Ground cleared after the sky map was made (the razed houses' plots, St James's churchyard): no roof stands there any
+    /// more, so the map's blue (the roof's height) and green (the houses' height round it) go to nothing where <paramref name="cleared"/>
+    /// holds, within the box (world x z); the sky seen (red) stays. Before, the cleared squares lay in a house's shadow at noon.
+    /// Returns the pixels cleared.
+    /// </summary>
+    public static int ClearRoofs(Rect2 box, Func<Vector2, bool> cleared)
+    {
+        if (!SkyShadeOn || skyShade == null) return 0;
+        if (skyBox is not { } sky) return 0;
+        var image = skyShade.GetImage();
+        if (image == null || image.IsCompressed()) return 0;
+        int w = image.GetWidth(), h = image.GetHeight(), n = 0;
+        int c0 = Math.Max(0, (int)MathF.Floor((box.Position.X - sky.X) / sky.Z * w)), c1 = Math.Min(w - 1, (int)MathF.Ceiling((box.End.X - sky.X) / sky.Z * w));
+        int r0 = Math.Max(0, (int)MathF.Floor((box.Position.Y - sky.Y) / sky.W * h)), r1 = Math.Min(h - 1, (int)MathF.Ceiling((box.End.Y - sky.Y) / sky.W * h));
+        for (int r = r0; r <= r1; r++)
+            for (int c = c0; c <= c1; c++)
+            {
+                var at = new Vector2(sky.X + (c + 0.5f) / w * sky.Z, sky.Y + (r + 0.5f) / h * sky.W);
+                if (!box.HasPoint(at) || !cleared(at)) continue;
+                var px = image.GetPixel(c, r);
+                if (px.B == 0 && px.G == 0) continue;
+                image.SetPixel(c, r, new Color(px.R, 0, 0, px.A)); n++;
+            }
+        if (n > 0) skyShade.Update(image);
+        return n;
+    }
+
     public static void LoadShared(string texDir)
     {
         EnsureGlobals();
@@ -311,7 +340,8 @@ public static class Psx
         {
             skyShade = ImageTexture.CreateFromImage(Image.LoadFromFile(sky));
             RenderingServer.GlobalShaderParameterSet("psx_sky_shade", skyShade.GetRid());
-            if (Box(Find("skyshade.json")) is { } b) RenderingServer.GlobalShaderParameterSet("psx_sky_box", b);
+            skyBox = Box(Find("skyshade.json"));
+            if (skyBox is { } b) RenderingServer.GlobalShaderParameterSet("psx_sky_box", b);
             RenderingServer.GlobalShaderParameterSet("psx_sky_on", 1f);
             SkyShadeOn = true;
         }

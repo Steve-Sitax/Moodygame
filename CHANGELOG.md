@@ -11,6 +11,7 @@ Bugs and loose ends are tracked as [issues](https://github.com/Steve-Sitax/Moody
 
 ## [Unreleased]
 
+- St James's churchyard at Sint-Jacob is larger: its east side now reaches over the cleared plots, with gravel walks, a new gate, and the old graves of important families: a chest tomb, an obelisk, a railed family plot, three burial vaults (one with steps down to its locked door) and worn headstones and ledger stones. The cleared squares round the churches no longer lie in the shadow of the houses that stood there.
 - More of the houses pressed against Sint-Paulus and Sint-Jacob are cleared, giving both churches wider squares with trees and benches. Gutters, cornices and chimney caps of cleared houses no longer float in the air.
 - Ruien: the walkway setts' raised edges and joints show their stones at true size, no longer stretched.
 - Door steps and plinth tops show their stone's grain along the step, not always east to west.
