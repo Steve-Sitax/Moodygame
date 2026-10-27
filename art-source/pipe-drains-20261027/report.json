@@ -1,0 +1,119 @@
+{
+ "feet": 1526,
+ "bare": 72,
+ "laid": 56,
+ "skipped": [
+  {
+   "at": [
+    -140.14,
+    231.52
+   ],
+   "why": "over a step"
+  },
+  {
+   "at": [
+    -134.92,
+    276.49
+   ],
+   "why": "its house is razed"
+  },
+  {
+   "at": [
+    -134.96,
+    333.48
+   ],
+   "why": "its house is razed"
+  },
+  {
+   "at": [
+    -87.12,
+    336.81
+   ],
+   "why": "its house is razed"
+  },
+  {
+   "at": [
+    -86.15,
+    211.89
+   ],
+   "why": "over a step"
+  },
+  {
+   "at": [
+    -80.75,
+    336.59
+   ],
+   "why": "its house is razed"
+  },
+  {
+   "at": [
+    -55.1,
+    276.5
+   ],
+   "why": "its house is razed"
+  },
+  {
+   "at": [
+    14.27,
+    309.72
+   ],
+   "why": "kerb not found"
+  },
+  {
+   "at": [
+    25.67,
+    282.25
+   ],
+   "why": "kerb not found"
+  },
+  {
+   "at": [
+    30.54,
+    285.52
+   ],
+   "why": "kerb not found"
+  },
+  {
+   "at": [
+    37.83,
+    147.69
+   ],
+   "why": "over a step"
+  },
+  {
+   "at": [
+    51.19,
+    260.68
+   ],
+   "why": "its house is razed"
+  },
+  {
+   "at": [
+    52.08,
+    281.76
+   ],
+   "why": "over a step"
+  },
+  {
+   "at": [
+    62.8,
+    259.16
+   ],
+   "why": "its house is razed"
+  },
+  {
+   "at": [
+    66.81,
+    240.99
+   ],
+   "why": "its house is razed"
+  },
+  {
+   "at": [
+    207.86,
+    118.82
+   ],
+   "why": "over a step"
+  }
+ ]
+}

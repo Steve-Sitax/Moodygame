@@ -11,6 +11,7 @@ Bugs and loose ends are tracked as [issues](https://github.com/Steve-Sitax/Moody
 
 ## [Unreleased]
 
+- 56 downpipes that ended on the pavement or the street with nothing under them now drain like the rest: a ribbed iron channel plate across the pavement to the kerb, or a grated gully at the street.
 - Sint-Paulus, Sint-Jacob and Sint-Carolus now stand free: the 62 houses built hard against them are cleared, and limes, planes and benches stand on the new squares round the churches. Trees also grow on the wide bare ground along the old town wall.
 - The bare earth along the old town wall and the houses is no longer bare: grass tufts, tall plume grass, daisies and small box and privet shrubs grow thick at the walls' foot, in the joints at the paving and in clumps on the open ground, and stir in the wind.
 - The climbers on the old town wall are no longer flat pictures: each is a grown plant of ivy or Virginia creeper (red and orange in autumn), with woody stems climbing the wall's own face and sprays of leaves standing off it, its outline natural and its height its own.
