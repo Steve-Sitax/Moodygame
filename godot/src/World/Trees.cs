@@ -82,7 +82,58 @@ public partial class Trees : Node
             groups++;
         }
         Info = (leaves, groups);
-        GD.Print($"trees: {feet.Count} trees, {leaves} falling leaves in {groups} groups");
+        int pieces = Piece(all);
+        GD.Print($"trees: {feet.Count} trees, {leaves} falling leaves in {groups} groups, drawn in {pieces} pieces");
+    }
+
+    /// <summary>The town's piece of ground a group of trees is drawn by (metres square).</summary>
+    private const float Cell = 120f;
+
+    /// <summary>
+    /// Each group of trees drawn in pieces of the town (Cell m square): a group of a hundred trees across the town went
+    /// to the card whole, in every pass, whenever one of its trees was in view; a piece only when its own box is. The
+    /// groups themselves stay as they were, none of their copies drawn, for the trunks' collision, the falling leaves'
+    /// feet and the squares' copies (same transforms, same mesh: the same picture).
+    /// </summary>
+    private int Piece(List<MultiMeshInstance3D> all)
+    {
+        int made = 0;
+        foreach (var mmi in all)
+        {
+            string n = mmi.Name.ToString();
+            if (!n.Contains("tree") || n.Contains("falling") || mmi.Multimesh is not { Mesh: not null } mm || !mmi.Visible
+                || mm.TransformFormat != MultiMesh.TransformFormatEnum.Transform3D || mm.InstanceCount < 6 || mm.VisibleInstanceCount >= 0) continue;
+            var xf = mmi.GlobalTransform;
+            var cells = new Dictionary<(int, int), List<int>>();
+            for (int i = 0; i < mm.InstanceCount; i++)
+            {
+                var o = (xf * mm.GetInstanceTransform(i)).Origin;
+                var key = ((int)MathF.Floor(o.X / Cell), (int)MathF.Floor(o.Z / Cell));
+                if (!cells.TryGetValue(key, out var list)) cells[key] = list = new List<int>();
+                list.Add(i);
+            }
+            if (cells.Count < 2) continue;
+            foreach (var (key, list) in cells)
+            {
+                var piece = new MultiMesh { TransformFormat = MultiMesh.TransformFormatEnum.Transform3D, UseColors = mm.UseColors, UseCustomData = mm.UseCustomData, Mesh = mm.Mesh, InstanceCount = list.Count };
+                for (int j = 0; j < list.Count; j++)
+                {
+                    piece.SetInstanceTransform(j, mm.GetInstanceTransform(list[j]));
+                    if (mm.UseColors) piece.SetInstanceColor(j, mm.GetInstanceColor(list[j]));
+                    if (mm.UseCustomData) piece.SetInstanceCustomData(j, mm.GetInstanceCustomData(list[j]));
+                }
+                var node = new MultiMeshInstance3D
+                {
+                    Name = $"{n}_piece_{key.Item1}_{key.Item2}", Multimesh = piece, CastShadow = mmi.CastShadow, Layers = mmi.Layers, MaterialOverride = mmi.MaterialOverride,
+                    VisibilityRangeBegin = mmi.VisibilityRangeBegin, VisibilityRangeEnd = mmi.VisibilityRangeEnd, VisibilityRangeEndMargin = mmi.VisibilityRangeEndMargin,
+                };
+                Main.I.View.AddChild(node);
+                node.GlobalTransform = xf;
+                made++;
+            }
+            mm.VisibleInstanceCount = 0;
+        }
+        return made;
     }
 
     /// <summary>trees3d.ts hash: a number 0..1 from a place and a key.</summary>

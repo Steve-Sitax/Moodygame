@@ -1,0 +1,117 @@
+{
+ "material": "res://assets/materials/trees-20261027/tree-leaves.tres",
+ "meshes": {
+  "res://world/town/resources/r009470.res": {
+   "installedHash": "18444824aac02f494a5e722d8ee66c3934a95cfea20758f60d3d209407172e36",
+   "kind": "plane",
+   "originalHash": "31f9d513ae4dbb45ddc6004edf72db3e0c62e1685eb82d7aff2886b55af51db5",
+   "part": "bark",
+   "triangles": 2344
+  },
+  "res://world/town/resources/r009478.res": {
+   "installedHash": "b8f376cbfb5acf4f46e94e0d8947516e1cf2a1e2674bca861ea372080e3863eb",
+   "kind": "plane",
+   "originalHash": "55cb92ca9e90036a41f5dd45df50cb3d16b1d2491b9797bdd06b783a2d73345b",
+   "part": "leaves",
+   "triangles": 1574
+  },
+  "res://world/town/resources/r009480.res": {
+   "installedHash": "200f632a1ad392312a244988c89523a084cbaa393053b92c08b2f74092c2e6da",
+   "kind": "lime",
+   "originalHash": "f63055c67d94337e95988f26469f054aeda75c145b9c4624a4508d2830940a0a",
+   "part": "bark",
+   "triangles": 3298
+  },
+  "res://world/town/resources/r009482.res": {
+   "installedHash": "22b1d26542c5684f02e38f8a035b9b95820ad1e5cff1d3b20a42021a3a278610",
+   "kind": "lime",
+   "originalHash": "07a3678037c55cf2a1d1a2bb3214d26dfd17266d70a9fcec85393e8d4640c178",
+   "part": "leaves",
+   "triangles": 2318
+  },
+  "res://world/town/resources/r009484.res": {
+   "installedHash": "c20b193c2819aa40a21b048e264788717b14650ee27053f4ffacc2c679c925ab",
+   "kind": "elm",
+   "originalHash": "36b54181f2c932ccbd96ede2f64de37d202b7fbf9e05e7cc633fda20fd135a1b",
+   "part": "bark",
+   "triangles": 3320
+  },
+  "res://world/town/resources/r009486.res": {
+   "installedHash": "07fe339c15d8ee72de688fb188f9a8d52078736f200d3ea14b168894092bbb15",
+   "kind": "elm",
+   "originalHash": "03e99f1e11f9249f07b524954f35e8d1031b439b504fd1624f264c138fbf1ba3",
+   "part": "leaves",
+   "triangles": 2406
+  },
+  "res://world/town/resources/r009496.res": {
+   "installedHash": "05817e2821d6235f32eb20c4a5ac33c996c9be79ef19948bc1a99739d8ab6860",
+   "kind": "lime",
+   "originalHash": "3e59bfbeffd49f6983b313f1a2908ea80aaf5f95d6473bacded0bf205c071975",
+   "part": "bark",
+   "triangles": 3298
+  },
+  "res://world/town/resources/r009503.res": {
+   "installedHash": "f7313434e22b42cc4133d62d0d9ffd86c5d317deb61d32ab690bb349a9db8c94",
+   "kind": "lime",
+   "originalHash": "484f8d5de6c3b6db39fe31b034968dd427d57c67fe6608d3f905a8f3096e57d5",
+   "part": "leaves",
+   "triangles": 2318
+  },
+  "res://world/town/resources/r009513.res": {
+   "installedHash": "75bb34af78e90cb32d050e34aedbc2c8a79e6f6f74c34a974a61551171970f25",
+   "kind": "lime",
+   "originalHash": "c4c37b0c0b5685afb24476e8c1e76839a099c43a103df6eefa602c16f80d60a1",
+   "part": "bark",
+   "triangles": 3298
+  },
+  "res://world/town/resources/r009520.res": {
+   "installedHash": "1506d7d5042c72105e5ddd5ad2e853a2ee2972dd0e48e6d5eade22669e63b9d6",
+   "kind": "lime",
+   "originalHash": "b79c9b24a8037f08ec7631bf85ace2a07d8c6ec4f81c4fe4c8539490c3236304",
+   "part": "leaves",
+   "triangles": 2318
+  },
+  "res://world/town/resources/r009522.res": {
+   "installedHash": "b046451a401e2d2ec56202d6e3f4ec39d60f2ebbc1dd11c44a58f4d65db94490",
+   "kind": "elm",
+   "originalHash": "b219f9b697f773fbb42a97bf16c20250da4e4757b47d935933c21645e97b47f1",
+   "part": "bark",
+   "triangles": 3320
+  },
+  "res://world/town/resources/r009524.res": {
+   "installedHash": "3e84683a97010a8078537d5efd6cf4da53a59552cfaeee47265042ec08342164",
+   "kind": "elm",
+   "originalHash": "55181ff351b8656d0e05e0c96623b3287fc2438627a7ead3caa65a3b98ff80ed",
+   "part": "leaves",
+   "triangles": 2406
+  },
+  "res://world/town/resources/r009526.res": {
+   "installedHash": "fcbd4fd064132a9cf1e6bbddd566e60e2c3684d51b5d9d4495c3e79436edaa3d",
+   "kind": "bare",
+   "originalHash": "ce442f8db7a665c84a1481c1b73773bfa9a5cb46e7f670059720f542707d0d82",
+   "part": "bark",
+   "triangles": 2940
+  },
+  "res://world/town/resources/r009528.res": {
+   "installedHash": "be14f6eb8b1af2f619d0c774bec4f785f799fe158d1a6af118abb8f079a9ce16",
+   "kind": "bare",
+   "originalHash": "1ae67ee420413fb767b96b28f40ea83283451a597360c4a33246eb62764ace6f",
+   "part": "leaves",
+   "triangles": 1300
+  },
+  "res://world/town/resources/r009530.res": {
+   "installedHash": "fc4e3e9f5fa2c5eb895db6ed2d0aa769139ccff04857f8fc035a5e0c8833eb34",
+   "kind": "plane",
+   "originalHash": "6d5b8cfb465e51f4094cd5994d667a9d41f8b0d6ae165eabb8524067e9dd1bf3",
+   "part": "bark",
+   "triangles": 2344
+  },
+  "res://world/town/resources/r009532.res": {
+   "installedHash": "e652c08cc5c46baa80fa54764c0b967ff1ecc4c018604920d9688a90cc837ab1",
+   "kind": "plane",
+   "originalHash": "49a4bca352e9ae087247588cc76ad481a0133253d525fb8ca3b90e2888982461",
+   "part": "leaves",
+   "triangles": 1574
+  }
+ }
+}

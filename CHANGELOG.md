@@ -11,6 +11,9 @@ Bugs and loose ends are tracked as [issues](https://github.com/Steve-Sitax/Moody
 
 ## [Unreleased]
 
+- The ivy and Virginia creeper on the old town wall now climb from a clump of woody stems in long runs of 2 to 7.5 metres, fanning out and thinning toward the top; a third reach the coping and hang over it, with bare brick between the plants.
+- The town's limes, planes, elms and bare trees are grown again: real branching limbs and twigs, dark bark at true size, a flared foot set into the ground, and full crowns of drawn lime, plane and elm leaves turning yellow and ochre for late October.
+- Trees are drawn by area, so the trees behind you no longer cost frame time.
 - More of the houses pressed against Sint-Paulus and Sint-Jacob are cleared, giving both churches wider squares with trees and benches. Gutters, cornices and chimney caps of cleared houses no longer float in the air.
 - Ruien: the walkway setts' raised edges and joints show their stones at true size, no longer stretched.
 - Door steps and plinth tops show their stone's grain along the step, not always east to west.
