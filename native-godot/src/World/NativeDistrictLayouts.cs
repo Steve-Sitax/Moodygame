@@ -78,7 +78,15 @@ public static class NativeDistrictLayouts
     public static Result Apply(Node3D town)
     {
         if (town.HasMeta("native_district_layouts")) throw new InvalidOperationException("District layouts are already attached to this town.");
-        // Prepare every district before mutating the town, so a bad saved file cannot leave a partial overlay.
+        return Attach(town, Prepare());
+    }
+
+    /// <summary>
+    /// Every district read and checked, not yet in a town (the town's start reads them while its scene loads, #230).
+    /// Prepare every district before mutating the town, so a bad saved file cannot leave a partial overlay.
+    /// </summary>
+    public static IReadOnlyList<DistrictState> Prepare()
+    {
         var prepared = new List<DistrictState>();
         try
         {
@@ -115,14 +123,39 @@ public static class NativeDistrictLayouts
                 }
                 catch { objects.Free(); throw; }
             }
+            return prepared;
+        }
+        catch
+        {
+            foreach (var item in prepared) item.Objects.Free();
+            throw;
+        }
+    }
+
+    /// <summary>The prepared districts laid into the town: a room's into its room, the rest at the top.</summary>
+    public static Result Attach(Node3D town, IReadOnlyList<DistrictState> prepared)
+    {
+        if (town.HasMeta("native_district_layouts")) throw new InvalidOperationException("District layouts are already attached to this town.");
+        try
+        {
+            // every room node by its id, in one walk of the town (and of what is laid into a room after it)
+            var rooms = new Dictionary<string, List<Node3D>>(StringComparer.Ordinal);
+            void Index(Node from)
+            {
+                foreach (var n in Scheldemist.World.BakedWorld.All(from).OfType<Node3D>())
+                    if (n.HasMeta("extras") && n.GetMeta("extras").AsGodotDictionary().TryGetValue("room", out var r) && r.AsGodotDictionary()["id"].AsString() is var id)
+                        (rooms.TryGetValue(id, out var list) ? list : rooms[id] = new()).Add(n);
+            }
+            if (prepared.Any(item => item.District.RoomId != "")) Index(town);
             foreach (var item in prepared)
             {
                 if (item.District.RoomId != "")
                 {
-                    var room = Scheldemist.World.BakedWorld.All(town).OfType<Node3D>().Single(n => n.HasMeta("extras") && n.GetMeta("extras").AsGodotDictionary().TryGetValue("room", out var r) && r.AsGodotDictionary()["id"].AsString() == item.District.RoomId);
+                    var room = rooms.GetValueOrDefault(item.District.RoomId, new List<Node3D>()).Single();
                     HideRecovered(room, item.District);
-                    if (item.District.RetainedStructure != null) room.AddChild(item.District.RetainedStructure.Instantiate<Node3D>());
+                    if (item.District.RetainedStructure != null) { var retained = item.District.RetainedStructure.Instantiate<Node3D>(); room.AddChild(retained); Index(retained); }
                     room.AddChild(item.Objects);
+                    Index(item.Objects);
                 }
                 else town.AddChild(item.Objects);
             }

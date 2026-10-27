@@ -100,10 +100,14 @@ public partial class NativeTown : BakedWorld
         attributes = JsonNode.Parse(Godot.FileAccess.GetFileAsString(Root + "/attributes.json"))!.AsArray();
         var intake = JsonNode.Parse(Godot.FileAccess.GetFileAsString(Root + "/intake.json"))!;
         foreach (var note in intake["unported"]!.AsArray()) Unported.Add(note!.GetValue<string>());
+        // #230: the town scene loads on a worker thread while the districts are read here (they need no town until they are laid)
+        string scene = Root + "/scene.tscn";
+        bool sceneLoading = ResourceLoader.LoadThreadedRequest(scene) == Error.Ok;
         Psx.LoadShared(Path.Combine(Scheldemist.Paths.NativeDataRoot!, "maps"));
         Stage = "build";
-        town = ResourceLoader.Load<PackedScene>(Root + "/scene.tscn").Instantiate<Node3D>();
-        Layouts = NativeDistrictLayouts.Apply(town);
+        var districts = NativeDistrictLayouts.Prepare();
+        town = (sceneLoading ? (PackedScene)ResourceLoader.LoadThreadedGet(scene) : ResourceLoader.Load<PackedScene>(scene)).Instantiate<Node3D>();
+        Layouts = NativeDistrictLayouts.Attach(town, districts);
         if(Godot.FileAccess.FileExists("res://world/interiors/seat-bindings.json"))
             seatBindings=JsonSerializer.Deserialize<SeatBinding[]>(Godot.FileAccess.GetFileAsString("res://world/interiors/seat-bindings.json"),new JsonSerializerOptions{PropertyNameCaseInsensitive=true})!;
         int eventSnapshots = 0;
@@ -145,15 +149,14 @@ public partial class NativeTown : BakedWorld
         // The Werf's ground chunk hangs a kerb and an apron out over the water, over the inner treads of its stone flight (issue 68).
         // Its footprint is cut out of the mesh, so what is drawn, what is walked on and what is solid agree with the steps.
         // (dev: --no-werf-cut leaves the ground as the bake has it, for a before-and-after)
-        int werfCut = Scheldemist.Main.I.Flag("no-werf-cut") ? 0 : QuayNotch.Cut(town, "city_-4_0_3", QuayExits.WerfFrame, QuayExits.WerfNotchS0, QuayExits.WerfNotchS1, QuayExits.WerfNotchU0, QuayExits.WerfNotchU1);
         // The Ruien's gates (docs/ruien-native.md): each area's outlet is cut through its quay wall here, before collision
         // and navigation read the meshes. (dev: --no-ruien-gates leaves the walls whole, for a before-and-after)
-        if (!Scheldemist.Main.I.Flag("no-ruien-gates"))
-            foreach (var note in Scheldemist.World.Ruien.RuienGates.Cut(town)) GD.Print("ruien: " + note);
+        int werfCut = CutBeforeRazing(town, !Scheldemist.Main.I.Flag("no-werf-cut"), !Scheldemist.Main.I.Flag("no-ruien-gates"), note => GD.Print("ruien: " + note));
         // Issue #176: the shutters, copies of one model per kind where the bake's flat boards stood (before the razed houses' cut, which takes theirs)
         Report["shutterCopies"] = NativeShutters.Install(town, Scheldemist.Main.I.Arg("shutters-file") is { Length: > 0 } shutterFile ? shutterFile : null);
         // Houses pulled down after the bake (city_build.json "razed"): cut out before collision and navigation read the meshes.
-        // (dev: --keep-razed leaves them standing, for a before-and-after)
+        // (dev: --keep-razed leaves them standing, for a before-and-after; those the razed bake took out of the resources stay gone, #230)
+        if (Scheldemist.Main.I.Flag("keep-razed") && Godot.FileAccess.FileExists(NativeRazedHouses.BakedFile)) GD.Print("razed houses: --keep-razed: the houses in razed-baked.json are baked out of the resources and stay gone");
         razed = Scheldemist.Main.I.Flag("keep-razed") ? new NativeRazedHouses.Result(0, 0, 0, Array.Empty<string>()) : NativeRazedHouses.Cut(town, Scheldemist.Paths.Shared("city_build.json"));
         foreach (var note in razed.Notes) GD.Print("razed houses: " + note);
         // (their roofs gone from the sky map too: the cleared ground is no longer in their shadow)
@@ -260,6 +263,16 @@ public partial class NativeTown : BakedWorld
         Report["hiddenLeftoverSnapshotKinds"] = string.Join(", ", leftoverCounts.Select(c => c.Value + " " + c.Key));
         Stage = "done";
         return Error.Ok;
+    }
+    /// <summary>
+    /// The cuts made before the razed houses' (the Werf's notch, the Ruien gates); the razed promote (scripts/RazedPromote.cs)
+    /// runs them too, to leave the meshes they change for the start. Returns the Werf's triangles cut.
+    /// </summary>
+    internal static int CutBeforeRazing(Node3D town, bool werf, bool gates, Action<string> note)
+    {
+        int werfCut = werf ? QuayNotch.Cut(town, "city_-4_0_3", QuayExits.WerfFrame, QuayExits.WerfNotchS0, QuayExits.WerfNotchS1, QuayExits.WerfNotchU0, QuayExits.WerfNotchU1) : 0;
+        if (gates) foreach (var line in Scheldemist.World.Ruien.RuienGates.Cut(town)) note(line);
+        return werfCut;
     }
     public override void _Ready()
     {
