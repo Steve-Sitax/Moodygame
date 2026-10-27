@@ -16,7 +16,8 @@ namespace Scheldemist.Native.World;
 ///   its grass (kept as what is walked on and collides);
 /// - the ground is cut away where a vault's stair goes down (the paving's triangles clipped along the hole's edges, its solid
 ///   stand-in faces with them), so the stair is open and nobody's floor runs over it;
-/// - the graves, vaults, railing and gravel are set, each with its own collision boxes (Solid leaves their meshes).
+/// - the graves, vaults, railing and gravel are set, each with its own collision boxes (Solid leaves their meshes);
+/// - the sexton's lantern hangs on the gate pier's bracket (NativeChurchyardLantern), the yard's one light at night.
 /// It stands on the razed houses' ground, so it is set only when the razing is (NativeTown: --keep-razed leaves it out).
 /// </summary>
 public static class NativeChurchyard
@@ -27,7 +28,7 @@ public static class NativeChurchyard
 
     public sealed record RailCut(string Node, float[] Box);
     public sealed record Item(string Id, string Model, float X, float Y, float Z, float Yaw, float Far);
-    public sealed record Plan(RailCut? RailCut, float[][] Holes, Item[] Items, float[]? Clear, float[]? Cover, float[]? Sky);
+    public sealed record Plan(RailCut? RailCut, float[][] Holes, Item[] Items, float[]? Clear, float[]? Cover, float[]? Sky, float[]? Lantern);
     public sealed record Result(int Items, int Boxes, int RailTriangles, int GroundMeshes, int GroundTriangles, int Cleared, IReadOnlyList<string> Notes);
 
     public static Result Install(Node3D town)
@@ -103,6 +104,7 @@ public static class NativeChurchyard
             }
             holder.AddChild(node); items++;
         }
+        if (plan.Lantern is { Length: 3 } lamp) NativeChurchyardLantern.Hang(holder, new Vector3(lamp[0], lamp[1], lamp[2]));
         town.AddChild(holder);
         // the old plots and the new ground lie under houses in the sky map (none stand there): their shadow and dimmed sky go
         if (plan.Sky is { Length: 4 } sky)

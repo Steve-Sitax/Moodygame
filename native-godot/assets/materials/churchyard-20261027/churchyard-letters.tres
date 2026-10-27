@@ -8,7 +8,7 @@
 resource_name = "churchyard_letters"
 render_priority = 0
 shader = ExtResource("1_hgm7s")
-shader_parameter/albedo = Color(0.74, 0.78, 0.84, 1)
+shader_parameter/albedo = Color(1.361529, 1.4328008, 1.5397087, 1)
 shader_parameter/tex = ExtResource("3_sef72")
 shader_parameter/emission = Color(0, 0, 0, 1)
 shader_parameter/fill = 0.0

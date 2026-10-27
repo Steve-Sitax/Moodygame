@@ -36,6 +36,8 @@ public static class NativeRazedHouses
     private const float Inset = 0.4f;
     // the materials of the parts added to the chunks after the bake: the drainage iron (gutters, pipes, plates) and the dressed stone
     private static readonly HashSet<string> LaterParts = new() { "res://world/town/resources/r000615.res", "res://assets/materials/stone-corners-20261017/dressed-stone.tres" };
+    // the raised flags' material: a razed house's plinth top in it stayed floating at 0.71 m over its cleared plot (2026-10-27)
+    private const string Flags = "res://world/town/resources/r000016.res";
     private static readonly Regex DressingChunk = new("^(lively|streetlife|clutter|posters|litter)_", RegexOptions.Compiled);
 
     public static Result Cut(Node3D town, string cityBuildPath)
@@ -74,6 +76,9 @@ public static class NativeRazedHouses
                 // the drainage iron and the dressed stone came after the bake (#163, the stone corners): their alpha is often a
                 // neighbour's, so they go by place alone: near a razed house and nearer to it than to any standing one
                 if (LaterParts.Contains(material) && cut.Any(h => Within(h.Outline, p, Reach)) && Belongs(new Vector2(p.X, p.Z), cutOutlines, standingLines0)) return true;
+                // a plinth top of raised flags left floating (0.5 to 1 m high), its alpha often a neighbour's: by place, as the iron
+                if (material == Flags && Math.Min(a.Y, Math.Min(b.Y, c.Y)) > 0.5f && Math.Max(a.Y, Math.Max(b.Y, c.Y)) < 1.0f
+                    && cut.Any(h => Within(h.Outline, p, Reach)) && Belongs(new Vector2(p.X, p.Z), cutOutlines, standingLines0)) return true;
                 // whatever stands well inside a razed outline above the street (chimney caps whose alpha is another house's)
                 var q = new Vector2(p.X, p.Z);
                 if (p.Y > 0.5f && cut.Any(h => Inside(h.Outline, q) && EdgeDistance(h.Outline, q) >= 0.3f) && Belongs(q, cutOutlines, standingLines0)) return true;

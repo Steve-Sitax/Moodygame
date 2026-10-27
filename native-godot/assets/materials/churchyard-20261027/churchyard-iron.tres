@@ -1,0 +1,23 @@
+[gd_resource type="ShaderMaterial" format=3]
+
+[ext_resource type="Shader" path="res://world/town/resources/r000211.res" id="1_j48yt"]
+[ext_resource type="Texture2D" path="res://assets/materials/environment-20261013/iron-height-texture.res" id="2_a324b"]
+[ext_resource type="Texture2D" path="res://assets/materials/environment-20261013/iron-texture.res" id="3_vi043"]
+
+[resource]
+resource_name = "churchyard_iron"
+render_priority = 0
+shader = ExtResource("1_j48yt")
+shader_parameter/albedo = Color(2.0974648, 2.0498965, 1.9785441, 1)
+shader_parameter/tex = ExtResource("3_vi043")
+shader_parameter/emission = Color(0, 0, 0, 1)
+shader_parameter/fill = 0.0
+shader_parameter/affine = 0.0
+shader_parameter/fog_reach = 1.0
+shader_parameter/alpha_cut = 0.5
+shader_parameter/uv_xform = Vector4(1, 1, 0, 0)
+shader_parameter/depth_bias = 0.0
+shader_parameter/bump_map = ExtResource("2_a324b")
+shader_parameter/bump_scale = 0.8
+shader_parameter/wet_paint = 0.4
+shader_parameter/cloth_sway = 0.0
