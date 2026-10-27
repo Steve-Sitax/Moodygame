@@ -13,6 +13,9 @@ Bugs and loose ends are tracked as [issues](https://github.com/Steve-Sitax/Moody
 
 - The churches' stained glass is real glass now. From the street it is dark with a hint of colour by day, and after dark it glows warm in its own colours while the church is lit. From inside it glows with colour by day and goes dark at night. You can no longer see the street, other houses or the far windows through it, and a far-off church no longer shows open holes. Church naves after dark are a little warmer with their candlelight.
 - The trees on the new church squares and at the cathedral corner now stand in tree pits like the quay's, no longer growing out of the cobbles. Every tree pit, the quay's too, has a frame of Belgian blue stone with worn edges.
+- The ivy and Virginia creeper on the old town wall now climb from a clump of woody stems in long runs of 2 to 7.5 metres, fanning out and thinning toward the top; a third reach the coping and hang over it, with bare brick between the plants.
+- The town's limes, planes, elms and bare trees are grown again: real branching limbs and twigs, dark bark at true size, a flared foot set into the ground, and full crowns of drawn lime, plane and elm leaves turning yellow and ochre for late October.
+- Trees are drawn by area, so the trees behind you no longer cost frame time.
 - More of the houses pressed against Sint-Paulus and Sint-Jacob are cleared, giving both churches wider squares with trees and benches. Gutters, cornices and chimney caps of cleared houses no longer float in the air.
 - Ruien: the walkway setts' raised edges and joints show their stones at true size, no longer stretched.
 - Door steps and plinth tops show their stone's grain along the step, not always east to west.
