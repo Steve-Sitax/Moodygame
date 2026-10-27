@@ -156,6 +156,14 @@ public partial class NativeTown : BakedWorld
         // (dev: --keep-razed leaves them standing, for a before-and-after)
         razed = Scheldemist.Main.I.Flag("keep-razed") ? new NativeRazedHouses.Result(0, 0, 0, Array.Empty<string>()) : NativeRazedHouses.Cut(town, Scheldemist.Paths.Shared("city_build.json"));
         foreach (var note in razed.Notes) GD.Print("razed houses: " + note);
+        // (their roofs gone from the sky map too: the cleared ground is no longer in their shadow)
+        int roofPixels = 0;
+        foreach (var outline in razed.Razed)
+        {
+            var lo = outline.Aggregate((a, b) => new Vector2(Math.Min(a.X, b.X), Math.Min(a.Y, b.Y))); var hi = outline.Aggregate((a, b) => new Vector2(Math.Max(a.X, b.X), Math.Max(a.Y, b.Y)));
+            roofPixels += Psx.ClearRoofs(new Rect2(lo, hi - lo).Grow(1.2f), p => razed.Owned(p.X, p.Y));
+        }
+        Report["razedRoofPixels"] = roofPixels;
         // Issue #174: the shop fronts, the shop windows with their goods, the front doors (none on a razed house)
         Report["shopFronts"] = NativeShopFronts.Install(town, razed, Scheldemist.Main.I.Arg("shopfronts-file") is { Length: > 0 } shopFile ? shopFile : null);
         // The corner they leave gets a lime and a bench (only when the cut happened, so a re-baked town shows no tree in a house).
@@ -172,6 +180,16 @@ public partial class NativeTown : BakedWorld
             Report["squareBaredWalls"] = bared; Report["squareBrickedTriangles"] = bricked; Report["squareGhostDecals"] = ghostDecals; Report["squareAnchors"] = anchors;
             Report["squareThingsInstalled"] = NativeSquareDressing.Install(town, squares);
             GD.Print($"square dressing: {bared} bared walls, {bricked} wall triangles bricked, {ghostDecals} ghost decals, {anchors} anchors in {squareClock.ElapsedMilliseconds} ms");
+        }
+        // St James's churchyard made larger over the razed plots east of it: its graves, vaults, railing and walks; the old
+        // plots' dividing rail and the ground over the vault stair cut away (before collision and the walk map read the town)
+        // (dev: --no-churchyard leaves the yard as baked, for a before-and-after)
+        if (razed.Houses > 0 && !Scheldemist.Main.I.Flag("no-churchyard"))
+        {
+            var churchyard = NativeChurchyard.Install(town);
+            foreach (var note in churchyard.Notes) GD.Print("churchyard: " + note);
+            Report["churchyardItems"] = churchyard.Items; Report["churchyardBoxes"] = churchyard.Boxes;
+            Report["churchyardRailTriangles"] = churchyard.RailTriangles; Report["churchyardGroundCut"] = churchyard.GroundTriangles; Report["churchyardStreetCleared"] = churchyard.Cleared;
         }
         // The bake's plain benches give way to the new bench models, turned and placed as they stood (#165).
         // (dev: --keep-old-benches leaves them, for a before-and-after)
@@ -295,6 +313,7 @@ public partial class NativeTown : BakedWorld
         Solid.Leave.Add(n => n.HasMeta("native_replaced_event_snapshot"));
         Solid.Leave.Add(n => n.HasMeta(Scheldemist.Native.World.NativeQuayLadders.LeaveMeta));
         Solid.Leave.Add(n => n.HasMeta(NativeRazedHouses.DressingMeta));
+        Solid.Leave.Add(n => n.HasMeta(NativeChurchyard.Meta));
         Solid.Leave.Add(n => n.HasMeta(NativeNearDetail.NoCollision));
         Solid.Leave.Add(n => n.HasMeta(NativeBenches.SwapMeta));
         Solid.Leave.Add(n => n.HasMeta(NativeStreetFurniture.Meta));

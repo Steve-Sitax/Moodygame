@@ -251,14 +251,6 @@
   },
   {
    "kind": "plane",
-   "x": -76.49,
-   "z": 338.47,
-   "yaw": 5.387,
-   "scale": 1.03,
-   "pit": 0.0
-  },
-  {
-   "kind": "plane",
    "x": -30.33,
    "z": 326.29,
    "yaw": 3.092,
@@ -311,14 +303,6 @@
    "z": 324.32,
    "yaw": 5.64,
    "scale": 1.02,
-   "pit": 0.0
-  },
-  {
-   "kind": "lime",
-   "x": -90.19,
-   "z": 340.17,
-   "yaw": 4.198,
-   "scale": 1.04,
    "pit": 0.0
   },
   {
@@ -463,14 +447,6 @@
    "z": 333.75,
    "yaw": 2.407,
    "scale": 1.01,
-   "pit": 0.0
-  },
-  {
-   "kind": "lime",
-   "x": -82.66,
-   "z": 343.02,
-   "yaw": 2.712,
-   "scale": 0.98,
    "pit": 0.0
   },
   {
@@ -1378,14 +1354,6 @@
    "asset": "res://assets/library/bench-worn.tres"
   },
   {
-   "id": "square-stjacob-bench-2",
-   "x": -76.49,
-   "z": 340.07,
-   "yaw": 3.142,
-   "label": "a bench on the square by the Sint-Jacob church",
-   "asset": "res://assets/library/bench-worn.tres"
-  },
-  {
    "id": "square-stjacob-bench-3",
    "x": -28.73,
    "z": 326.29,
@@ -1438,14 +1406,6 @@
    "x": -139.92,
    "z": 324.32,
    "yaw": 1.571,
-   "label": "a bench on the square by the Sint-Jacob church",
-   "asset": "res://assets/library/bench-worn.tres"
-  },
-  {
-   "id": "square-stjacob-bench-10",
-   "x": -90.19,
-   "z": 341.77,
-   "yaw": 3.142,
    "label": "a bench on the square by the Sint-Jacob church",
    "asset": "res://assets/library/bench-worn.tres"
   },

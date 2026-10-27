@@ -1,0 +1,220 @@
+{
+ "note": "NativeChurchyard: St James's churchyard made larger east over the razed houses' plots (scripts/churchyard.py). railCut: the old plots' dividing rail taken out of the baked railing (triangles whose middle lies in the box); holes: the ground cut away (world x0 z0 x1 z1) for the vault stair; clear: the street's litter, leaves and raised flags and floating plinth tops taken out of the new ground (x0 z0 x1 z1, under 1.2 m); cover: the paving's drawn faces cut under the new grass (its stand-in faces, what collides and is walked on, kept); sky: the old plots and the new ground, where the sky map still had houses' roofs (Psx.ClearRoofs); items: the models (assets/models/churchyard) with their collision boxes; far: how far each shows (0: always).",
+ "area": [
+  [
+   -94.6,
+   334.4
+  ],
+  [
+   -76.0,
+   334.4
+  ],
+  [
+   -76.0,
+   343.4
+  ],
+  [
+   -94.6,
+   343.4
+  ]
+ ],
+ "railCut": {
+  "node": "townplaces/place_stjacob_yard/stjacob_yard_railing",
+  "box": [
+   -95.02,
+   334.55,
+   -94.47999999999999,
+   340.45
+  ]
+ },
+ "holes": [
+  [
+   -81.32,
+   338.8,
+   -80.28,
+   340.27
+  ]
+ ],
+ "clear": [
+  -94.47999999999999,
+  334.52,
+  -76.12,
+  343.28
+ ],
+ "cover": [
+  -94.6,
+  334.4,
+  -76.0,
+  343.4
+ ],
+ "sky": [
+  -114.5,
+  334.2,
+  -75.8,
+  343.59999999999997
+ ],
+ "items": [
+  {
+   "id": "churchyard-ledger-1",
+   "model": "ledger_1",
+   "x": -92.9,
+   "y": 0.0,
+   "z": 335.6,
+   "yaw": 1.5708,
+   "far": 70
+  },
+  {
+   "id": "churchyard-chest-tomb",
+   "model": "chest_tomb",
+   "x": -89.6,
+   "y": 0.0,
+   "z": 335.6,
+   "yaw": 0.0,
+   "far": 150
+  },
+  {
+   "id": "churchyard-headstone-1",
+   "model": "headstone_1",
+   "x": -86.7,
+   "y": 0.0,
+   "z": 335.0,
+   "yaw": 0.0,
+   "far": 110.0
+  },
+  {
+   "id": "churchyard-headstone-2",
+   "model": "headstone_2",
+   "x": -85.1,
+   "y": 0.0,
+   "z": 335.05,
+   "yaw": 0.0,
+   "far": 110.0
+  },
+  {
+   "id": "churchyard-headstone-3",
+   "model": "headstone_3",
+   "x": -83.5,
+   "y": 0.0,
+   "z": 334.95,
+   "yaw": 0.0,
+   "far": 110.0
+  },
+  {
+   "id": "churchyard-obelisk",
+   "model": "obelisk",
+   "x": -81.0,
+   "y": 0.0,
+   "z": 335.65,
+   "yaw": 0.0,
+   "far": 220
+  },
+  {
+   "id": "churchyard-vault-ledger",
+   "model": "vault_ledger",
+   "x": -78.2,
+   "y": 0.0,
+   "z": 335.6,
+   "yaw": 0.0,
+   "far": 120
+  },
+  {
+   "id": "churchyard-vault-stairs",
+   "model": "vault_stairs",
+   "x": -80.8,
+   "y": 0.0,
+   "z": 340.25,
+   "yaw": 3.1416,
+   "far": 200
+  },
+  {
+   "id": "churchyard-vault-chapel",
+   "model": "vault_chapel",
+   "x": -92.6,
+   "y": 0.0,
+   "z": 341.0,
+   "yaw": 3.1416,
+   "far": 260
+  },
+  {
+   "id": "churchyard-family-plot",
+   "model": "family_plot",
+   "x": -88.4,
+   "y": 0.0,
+   "z": 340.85,
+   "yaw": 3.1416,
+   "far": 160
+  },
+  {
+   "id": "churchyard-headstone-4",
+   "model": "headstone_4",
+   "x": -83.4,
+   "y": 0.0,
+   "z": 340.0,
+   "yaw": 3.1416,
+   "far": 110.0
+  },
+  {
+   "id": "churchyard-headstone-5",
+   "model": "headstone_5",
+   "x": -83.3,
+   "y": 0.0,
+   "z": 342.3,
+   "yaw": 3.1416,
+   "far": 110.0
+  },
+  {
+   "id": "churchyard-headstone-6",
+   "model": "headstone_6",
+   "x": -77.5,
+   "y": 0.0,
+   "z": 339.4,
+   "yaw": 3.1416,
+   "far": 110.0
+  },
+  {
+   "id": "churchyard-headstone-cross",
+   "model": "headstone_cross",
+   "x": -77.5,
+   "y": 0.0,
+   "z": 341.9,
+   "yaw": 3.1416,
+   "far": 110.0
+  },
+  {
+   "id": "churchyard-ledger-2",
+   "model": "ledger_2",
+   "x": -77.6,
+   "y": 0.0,
+   "z": 342.55,
+   "yaw": 1.5708,
+   "far": 70
+  },
+  {
+   "id": "churchyard-gate",
+   "model": "gate",
+   "x": -84.9,
+   "y": 0.0,
+   "z": 343.4,
+   "yaw": 0.0,
+   "far": 160
+  },
+  {
+   "id": "churchyard-enclosure",
+   "model": "enclosure",
+   "x": 0.0,
+   "y": 0.0,
+   "z": 0.0,
+   "yaw": 0.0,
+   "far": 0
+  },
+  {
+   "id": "churchyard-ground",
+   "model": "ground",
+   "x": 0.0,
+   "y": 0.0,
+   "z": 0.0,
+   "yaw": 0.0,
+   "far": 0
+  }
+ ]
+}

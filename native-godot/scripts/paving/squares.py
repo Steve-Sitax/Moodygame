@@ -10,6 +10,8 @@ Writes the trees and benches NativeRazedHouses.Dress sets (world/town/squares.js
 - the bare earth: 3 m in from its edges, clear of houses and churches, trees 11 m apart (elm, lime, plane, bare).
 A tree on the paving (the corner's, the squares') stands in a pit like the quay's (Steve, 2026-10-27): "pit" is the yaw of
 its stone frame, square to the church (at the corner to the nearest house). The earth trees stand in earth and get none.
+- none in St James's churchyard (world/town/churchyard.json "area", scripts/churchyard.py, 2026-10-27) or within 1.2 m of its
+  railing: those drawn there are left out after the draw, so every other tree and bench stays where it stood.
 Fixed seed: the same plan every run.
 """
 import sys, json, math, pathlib
@@ -41,6 +43,8 @@ def main():
     corner = min((Polygon(h['fp']).buffer(0) for h in cb['houses'] if not h.get('gone') and len(h.get('fp', [])) >= 3),
                  key=lambda p: p.distance(Point(-216.2, 276.2)))
     trees = [dict(kind='lime', x=-216.2, z=276.2, yaw=0.0, scale=1.0, pit=square_to(corner))]
+    yard_file = REPO / 'native-godot/world/town/churchyard.json'
+    yard = Polygon(json.load(open(yard_file))['area']).buffer(1.2) if yard_file.exists() else Polygon()
     benches = [dict(id='razed-corner-bench', x=-212.7, z=272.7, yaw=-0.396, label='a bench at the corner behind the cathedral', asset=BENCH)]
 
     def scatter(area, spacing):
@@ -56,8 +60,9 @@ def main():
         area = cleared.difference(foot.buffer(3.5)).difference(standing.buffer(2.5)).difference(landmarks.difference(foot).buffer(2.5))
         pts = scatter(area, 7.0)
         for p in pts:
-            trees.append(dict(kind=['lime', 'lime', 'lime', 'plane'][int(rng.integers(4))], x=round(p.x, 2), z=round(p.y, 2),
-                              yaw=round(float(rng.uniform(0, 6.28)), 3), scale=round(float(rng.uniform(0.85, 1.05)), 2), pit=square_to(foot)))
+            tree = dict(kind=['lime', 'lime', 'lime', 'plane'][int(rng.integers(4))], x=round(p.x, 2), z=round(p.y, 2),
+                              yaw=round(float(rng.uniform(0, 6.28)), 3), scale=round(float(rng.uniform(0.85, 1.05)), 2), pit=square_to(foot))
+            if not yard.contains(p): trees.append(tree)
         nb = 0
         for p in pts:
             if nb >= max(2, len(pts) // 2): break
@@ -65,6 +70,7 @@ def main():
             b = np.array([p.x, p.y]) - d * 1.6
             if not area.buffer(1.0).contains(Point(b)) or standing.distance(Point(b)) < 1.5: continue
             nb += 1
+            if yard.contains(Point(b)) or yard.contains(p): continue
             benches.append(dict(id=f'square-{k}-bench-{nb}', x=round(b[0], 2), z=round(b[1], 2), yaw=round(math.atan2(d[0], d[1]), 3),
                                 label=f'a bench on the square by the {NAMES[k]} church', asset=BENCH))
         print(k, 'cleared', round(cleared.area), 'free', round(area.area), 'trees', len(pts), 'benches', nb)
