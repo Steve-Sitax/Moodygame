@@ -40,6 +40,11 @@ public partial class Rooms : Node, Dev.IInteriorAuditSource
         public float Day, Lit;
         /// <summary>A stove's or a hearth's glow (the bake's orange fire light, low in the room): it burns by day too.</summary>
         public bool Fire;
+        /// <summary>A church's lamp (ChurchLight.cs): its flame and its window (one light for both: at the window by day,
+        /// at the flame after dark), where it stands now, and its flicker's own phase.</summary>
+        public ChurchLight.Spec? Church, Window;
+        public bool AtWindow;
+        public float Seed;
     }
 
     private sealed class Room
@@ -59,6 +64,8 @@ public partial class Rooms : Node, Dev.IInteriorAuditSource
         public readonly List<GeometryInstance3D> Shafts = new();
         public bool? ShaftsOn;
         public Vector3 SkyDay, GroundDay, AmbDay, SkyLit, GroundLit, AmbLit;
+        /// <summary>A church: its light from its windows and its candles (ChurchLight.cs).</summary>
+        public bool Church;
         public bool? Open;
         public float Level;
         // what its meshes and lamps were last given (set again only when it changes)
@@ -78,8 +85,10 @@ public partial class Rooms : Node, Dev.IInteriorAuditSource
     private readonly Dictionary<ShaderMaterial, Color> sunPatches = new();
     private readonly Dictionary<ShaderMaterial, ShaderMaterial> sunPatchOf = new();
     private float sunPatchK = -1;
-    /// <summary>The halls' sun shafts (hallSun.ts hall_sun_shafts): their additive material, set from the same sun as the patches.</summary>
-    private readonly HashSet<ShaderMaterial> shaftMats = new();
+    /// <summary>The halls' sun shafts (hallSun.ts hall_sun_shafts): their additive material, set from the same sun as the
+    /// patches, and its strength (a church's a fifth: its air glowed more than its windows lit, Codex 2026-10-27).</summary>
+    private readonly Dictionary<ShaderMaterial, float> shaftMats = new();
+    private const float ChurchShafts = 0.2f;
     private Vector2 shaftK = new(-1, -1);
     /// <summary>The browser's patch lights what is under it by its own colour (dst * (1 + src)); drawn as alpha it covered
     /// the floor with the black of its unlit texels (issue 74). Added to the floor instead, at a floor's tone of about a third.</summary>
@@ -134,17 +143,9 @@ public partial class Rooms : Node, Dev.IInteriorAuditSource
             }
             Dress(room);
             if (houses.TryGetValue("house_" + Key(room.Id), out var house)) Doors(room, house);
-            Light(room, info.GetProperty("lights"), lit.TryGetValue(room.Id, out var l) ? l : (JsonElement?)null);
-            AddedLamps(room);
-            if (Churches.Contains(room.Id))
-            {
-                // (the churches' lighting pass, 2026-10-27: after dark their candles and lamps fill the nave a little, warm; the
-                // bake's night sky in them was the moon's alone, and the cathedral's nave stood black between its lamps)
-                room.SkyLit += ChurchCandleFill;
-                room.GroundLit += ChurchCandleFill * 0.5f;
-                room.AmbLit += ChurchCandleFill * 0.3f;
-            }
-            if(Main.I.World.NativeFurnitureRooms?.Contains(room.Id)==true)
+            if (ChurchLight.Lamps.TryGetValue(room.Id, out var church)) ChurchLamps(room, church);
+            else Light(room, info.GetProperty("lights"), lit.TryGetValue(room.Id, out var l) ? l : (JsonElement?)null);
+            if(!room.Church && Main.I.World.NativeFurnitureRooms?.Contains(room.Id)==true)
             {
                 var availableLights=room.Lamps.ToList();
                 foreach(var furniture in Main.I.World.NativeFurniture!.Where(p=>p.Room==room.Id && p.Kind is "stove" or "lamp").OrderBy(p=>p.Id,StringComparer.Ordinal))
@@ -309,7 +310,7 @@ public partial class Rooms : Node, Dev.IInteriorAuditSource
                 if (gi.Name.ToString().Contains("hall_sun_shafts") && kind is { Unlit: true, Add: true })
                 {
                     // (the shafts keep their own additive material; its strength follows the sun below, as hallSun.ts set)
-                    if (shaftMats.Add(m)) shaftK = new Vector2(-1, -1);
+                    if (shaftMats.TryAdd(m, ChurchLight.Lamps.ContainsKey(room.Id) ? ChurchShafts : 1)) shaftK = new Vector2(-1, -1);
                     continue;
                 }
                 if (kind.Unlit && m.ResourceName == "hall_sun_light" && kind is { Blend: true, Add: false })
@@ -401,33 +402,69 @@ public partial class Rooms : Node, Dev.IInteriorAuditSource
         }
     }
 
-    /// <summary>The churches' halls, and the warm light their candles and lamps add to a hall's night sky and ambient.</summary>
-    private static readonly HashSet<string> Churches = new() { "stpaul", "stjacob", "carolus", "cathedral" };
-    private static readonly Vector3 ChurchCandleFill = new(0.034f, 0.025f, 0.015f);
+    /// <summary>Lamps a room has that the bake did not light (#198: the cathedral's aisles were dark at night by the
+    /// confessionals): its standing lamps' flames, lit after dark among the church's lamps (ChurchLight.cs).</summary>
+    public static readonly Dictionary<string, Vector3[]> ExtraLamps = new() { ["cathedral"] = ChurchLight.LampStands };
+    /// <summary>A room keeps at most this many lamps (the bake's ROOM_POINT_LIGHTS).</summary>
+    public const int RoomPointLights = 10;
 
-    /// <summary>Lamps a room has that the bake did not light (#198: the cathedral's aisles were dark at night by the confessionals):
-    /// the flames of its standing lamps (church/lamp_stand, drawn by room-cathedral-source-8902-4), each lit as the transept altar's
-    /// candle light is (its colour and fall-off; a little weaker), out by day. A room keeps at most ROOM_POINT_LIGHTS (10) lamps:
-    /// the cathedral had eight.</summary>
-    public static readonly Dictionary<string, Vector3[]> ExtraLamps = new()
+    /// <summary>
+    /// A church's light (ChurchLight.cs): a low sky and ambient of its own, and its windows' and flames' lamps in place
+    /// of the bake's even fill (2026-10-27: the bake's hall sky and its big cold lamp lit the naves as tubes would).
+    /// </summary>
+    private void ChurchLamps(Room room, ChurchLight.Spec[] specs)
     {
-        ["cathedral"] = new[] { new Vector3(-239.45f, 2.27f, 183.35f), new Vector3(-284.55f, 2.27f, 180.45f) },
-    };
-    private void AddedLamps(Room room)
-    {
-        if (!ExtraLamps.TryGetValue(room.Id, out var flames)) return;
-        foreach (var at in flames)
+        room.Church = true;
+        (room.SkyDay, room.GroundDay, room.AmbDay) = (ChurchLight.SkyDay, ChurchLight.GroundDay, ChurchLight.AmbDay);
+        (room.SkyLit, room.GroundLit, room.AmbLit) = (ChurchLight.SkyNight, ChurchLight.GroundNight, ChurchLight.AmbNight);
+        // a votive rack's flame burns by day too: a light of its own; the night flames share theirs with the windows
+        var allDay = specs.Where(s => s.Role == ChurchLight.Role.Flame && s.DayShare > 0).ToList();
+        var night = specs.Where(s => s.Role == ChurchLight.Role.Flame && s.DayShare <= 0).ToList();
+        var windows = specs.Where(s => s.Role == ChurchLight.Role.Window).ToList();
+        var pairs = allDay.Select(f => ((ChurchLight.Spec?)f, (ChurchLight.Spec?)null)).Concat(Enumerable.Range(0, Math.Max(night.Count, windows.Count))
+            .Select(i => (i < night.Count ? night[i] : null, i < windows.Count ? windows[i] : null))).ToList();
+        if (pairs.Count > RoomPointLights) GD.PushWarning($"rooms: {room.Id} wants {pairs.Count} lamps; it keeps its {RoomPointLights}");
+        foreach (var (flame, window) in pairs.Take(RoomPointLights))
         {
-            if (room.Lamps.Count >= 10) { GD.PushWarning($"rooms: {room.Id} has its ten lamps; the lamp at {at} is not lit"); break; }
-            var o = new OmniLight3D
-            {
-                LightColor = new Color(1f, 0xa8 / 255f, 0x60 / 255f), LightEnergy = 0, OmniRange = 9, OmniAttenuation = 1.5f,
-                ShadowEnabled = false, LightCullMask = RoomLayer, LightSpecular = 0,
-            };
+            var o = new OmniLight3D { LightEnergy = 0, ShadowEnabled = false, LightCullMask = RoomLayer, LightSpecular = 0 };
             Main.I.View.AddChild(o);
-            o.GlobalPosition = at;
-            room.Lamps.Add(new Lamp { Light = o, Day = 0, Lit = 6.5f / MathF.PI, Fire = false });
+            var lamp = new Lamp { Light = o, Church = flame, Window = window, Seed = room.Lamps.Count * 2.39f };
+            Place(lamp, window != null);
+            room.Lamps.Add(lamp);
         }
+    }
+
+    /// <summary>A church lamp at its window (the day's light) or at its flame (the candles').</summary>
+    private static void Place(Lamp l, bool atWindow)
+    {
+        var s = (atWindow ? l.Window : l.Church)!;
+        l.AtWindow = atWindow;
+        l.Light.GlobalPosition = s.At;
+        l.Light.LightColor = atWindow ? ChurchLight.WindowColour : ChurchLight.FlameColour;
+        l.Light.OmniRange = s.Range;
+        l.Light.OmniAttenuation = s.Decay;
+        l.Light.ShadowEnabled = !atWindow && s.Shadow;
+        l.Light.ShadowBlur = 2.5f;
+    }
+
+    /// <summary>A church's lamps now: the windows by the day outside, the flames after dark (a votive rack's all day), each
+    /// flame flickering; their candles' glows with them. Out while the church is not shown.</summary>
+    private void ChurchNow(Room r, Daylight day, bool shown, float dayK)
+    {
+        float flameK = ChurchLight.FlameK(day);
+        double t = Time.GetTicksMsec() / 1000.0;
+        foreach (var l in r.Lamps)
+        {
+            bool atWindow = l.Window != null && (l.Church == null || day.Night < 0.5f);
+            if (atWindow != l.AtWindow) Place(l, atWindow);
+            var s = (atWindow ? l.Window : l.Church)!;
+            float e = !shown || off.Contains("lamps") ? 0
+                : atWindow ? s.Energy * dayK
+                : s.Energy * (s.DayShare + (1 - s.DayShare) * flameK) * ChurchLight.Flicker(t, l.Seed);
+            if (MathF.Abs(e - l.Light.LightEnergy) > 1e-4f) l.Light.LightEnergy = e;
+        }
+        if (Lights.I is { } li && ChurchLight.Flames.TryGetValue(r.Id, out var flames))
+            foreach (var (halo, allDay) in flames) li.SetFixedHalo(halo, shown ? (allDay ? 1 : flameK) * ChurchLight.FlameGlow : 0);
     }
 
     public override void _Process(double delta)
@@ -489,6 +526,7 @@ public partial class Rooms : Node, Dev.IInteriorAuditSource
                     }
                 }
             }
+            if (r.Church) ChurchNow(r, day, r.Root.Visible, ChurchLight.DayK(day));
             if (!r.Root.Visible)
             {
                 if (r.LampK != -2) foreach (var l in r.Lamps) l.Light.LightEnergy = 0;
@@ -500,7 +538,7 @@ public partial class Rooms : Node, Dev.IInteriorAuditSource
             // stove or a hearth burns; they are lit as the dark comes (a hall keeps its own light all day)
             bool hall = r.Kind == "hall";
             float lampsOn = hall ? 1 : night;
-            if (MathF.Abs(k - r.LampK) > 0.004f || MathF.Abs(lampsOn - r.LampOn) > 0.004f || r.Level is > 0.001f and < 0.999f)
+            if (!r.Church && (MathF.Abs(k - r.LampK) > 0.004f || MathF.Abs(lampsOn - r.LampOn) > 0.004f || r.Level is > 0.001f and < 0.999f))
             {
                 r.LampK = k;
                 r.LampOn = lampsOn;
@@ -516,7 +554,15 @@ public partial class Rooms : Node, Dev.IInteriorAuditSource
             }
             float dim = inside ? 1 : 1 - 0.45f * dayK;
             Vector3 sky, ground, amb;
-            if (hall)
+            if (r.Church)
+            {
+                // a church: the day's light through its windows over a low gloom, after dark only the gloom
+                float w = ChurchLight.WindowK(day);
+                sky = (r.SkyDay * w).Lerp(r.SkyLit, night) * dim;
+                ground = (r.GroundDay * w).Lerp(r.GroundLit, night) * dim;
+                amb = (r.AmbDay * w).Lerp(r.AmbLit, night) * dim;
+            }
+            else if (hall)
             {
                 sky = r.SkyDay.Lerp(r.SkyLit, night) * dim;
                 ground = r.GroundDay.Lerp(r.GroundLit, night) * dim;
@@ -555,8 +601,8 @@ public partial class Rooms : Node, Dev.IInteriorAuditSource
                 // (the moon's only faint: the churches' glass lets little of it through, Codex 2026-10-27)
                 var shaft = ShaftSun * (0.22f * sunK) + ShaftMoon * (0.005f * moonK);
                 // (the colour is set as the shader reads it, sRGB: the light adds in linear)
-                var c = new Color(shaft.X, shaft.Y, shaft.Z, 1).LinearToSrgb();
-                foreach (var m in shaftMats) Scheldemist.Render.UniformUpdates.Material(m, "albedo", c);
+                foreach (var (m, gain) in shaftMats)
+                    Scheldemist.Render.UniformUpdates.Material(m, "albedo", new Color(shaft.X * gain, shaft.Y * gain, shaft.Z * gain, 1).LinearToSrgb());
             }
         }
         // the glass: a little of the sky on it from outside by day (the street's air, by the square of the daylight)
