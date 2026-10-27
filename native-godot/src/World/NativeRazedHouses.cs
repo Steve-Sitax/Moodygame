@@ -25,6 +25,9 @@ public static class NativeRazedHouses
         internal IReadOnlyList<Vector2[]> Razed { get; init; } = Array.Empty<Vector2[]>();
         internal IReadOnlyList<Vector2[]> Standing { get; init; } = Array.Empty<Vector2[]>();
         internal Box[] RazedBoxes { get; init; } = Array.Empty<Box>();
+        // (for the razed promote: every razed house this cut weighed, with its outline's hash, and those it cut, with their alphas)
+        internal IReadOnlyDictionary<int, string> Weighed { get; init; } = new Dictionary<int, string>();
+        internal IReadOnlyDictionary<int, int> Tags { get; init; } = new Dictionary<int, int>();
         /// <summary>A point that belonged to a razed house: near one, and nearer to it than to any standing house.</summary>
         public bool Owned(float x, float z) => Razed.Count > 0 && InAny(RazedBoxes, new Vector2(x, z)) && Belongs(new Vector2(x, z), Razed, Standing);
     }
@@ -89,110 +92,165 @@ public static class NativeRazedHouses
     /// <summary>The last cut's houses (dev: <see cref="NativeRazedScan"/>).</summary>
     internal static Result Last { get; private set; } = new(0, 0, 0, Array.Empty<string>());
 
-    public static Result Cut(Node3D town, string cityBuildPath) => Last = CutHouses(town, cityBuildPath);
+    /// <summary>
+    /// The razed houses already cut out of the town's resources (scripts/RazedPromote.cs, #230): their triangles, collision
+    /// stand-ins, street dressing, window glows and copies are gone on disk, so the start cuts only a house razed since.
+    /// </summary>
+    public const string BakedFile = "res://world/town/razed-baked.json";
+    internal sealed record Baked(string RazedSet, Dictionary<int, string> Weighed, Dictionary<int, int> Tags, HashSet<string> AtStart, int Triangles, int WindowGlows, string[] Notes);
 
-    private static Result CutHouses(Node3D town, string cityBuildPath)
+    /// <summary>
+    /// Cuts the razed houses out of the town. A house the razed promote already cut out of the resources (<see cref="BakedFile"/>)
+    /// is not cut again: only the meshes the earlier cuts at start change too (the Ruien gates', so the order stays theirs), the
+    /// chimney smoke and the copies placed at start (the shutters) lose it here, and its outline still counts for the rest of the
+    /// town. (<paramref name="useBaked"/> false: every razed house is cut, as the promote does on the original chunks, leaving the
+    /// meshes named in <paramref name="leave"/>, node paths from the town.)
+    /// </summary>
+    public static Result Cut(Node3D town, string cityBuildPath, bool useBaked = true, IReadOnlySet<string>? leave = null) => Last = CutHouses(town, cityBuildPath, useBaked, leave);
+
+    private static Result CutHouses(Node3D town, string cityBuildPath, bool useBaked, IReadOnlySet<string>? leave)
     {
         var notes = new List<string>();
         var clock = System.Diagnostics.Stopwatch.StartNew();
         var houses = Read(cityBuildPath);
-        var razed = houses.Where(h => h.Razed).ToList();
-        if (razed.Count == 0) return new(0, 0, 0, notes);
-        var meshes = BakedWorld.All(town).OfType<MeshInstance3D>().Where(m => m.Mesh is ArrayMesh).ToList();
-        var chunks = meshes.Where(m => m.Name.ToString().StartsWith("city_", StringComparison.Ordinal)).ToList();
-        var glows = meshes.Where(m => m.Name.ToString().StartsWith("ambient_windows", StringComparison.Ordinal) || m.GetParent()?.Name.ToString().StartsWith("ambient_windows", StringComparison.Ordinal) == true).ToList();
-        var standing = houses.Where(h => !h.Razed && razed.Any(r => Near(h.Outline, r.Outline, Reach + 1))).ToList();
-
+        var allRazed = houses.Where(h => h.Razed).ToList();
+        if (allRazed.Count == 0) return new(0, 0, 0, notes);
+        var weighed = allRazed.ToDictionary(h => h.Index, h => OutlineHash(h.Outline));
+        var standing = houses.Where(h => !h.Razed && allRazed.Any(r => Near(h.Outline, r.Outline, Reach + 1))).ToList();
+        var baked = useBaked ? ReadBaked() : null;
+        // a baked house still razed with the same outline is done; one razed since (or moved) is weighed here
+        var done = baked == null ? new HashSet<int>() : allRazed.Where(h => baked.Weighed.TryGetValue(h.Index, out var hash) && hash == weighed[h.Index]).Select(h => h.Index).ToHashSet();
+        var razed = allRazed.Where(h => !done.Contains(h.Index)).ToList();
         var tags = new Dictionary<int, int>();
-        // every footprint's own alpha in one read of the chunks (the razed houses and their standing neighbours)
-        var owns = OwnAlphas(chunks, razed.Concat(standing).Select(h => h.Outline).ToList());
-        foreach (var house in razed)
+        if (baked != null)
         {
-            int? tag = owns[house.Outline];
-            if (tag == null) { notes.Add($"house {house.Index}: no own alpha found, left as baked"); continue; }
-            // a standing neighbour with the same alpha would lose its edge: leave the house rather than cut a neighbour
-            var near = standing.Where(n => Near(n.Outline, house.Outline, Reach + 1)).Where(n => owns[n.Outline] == tag).Select(n => n.Index).ToList();
-            if (near.Count > 0) { notes.Add($"house {house.Index}: alpha {tag} also on neighbour {string.Join(",", near)}, left as baked"); continue; }
-            tags[house.Index] = tag.Value;
+            notes.AddRange(baked.Notes);
+            notes.Add($"the razed bake (razed set {baked.RazedSet[..12]}) settled {done.Count} razed houses, {baked.Tags.Keys.Count(done.Contains)} of them cut from the town's resources; {razed.Count} to weigh at start");
+            foreach (var gone in baked.Weighed.Keys.Where(i => !done.Contains(i)))
+                notes.Add($"house {gone}: baked as razed, but city_build.json now has it standing or moved: run scripts/razed-promote.tscn again");
+            foreach (var (index, alpha) in baked.Tags) if (done.Contains(index)) tags[index] = alpha;
         }
-        var cut = razed.Where(h => tags.ContainsKey(h.Index)).ToList();
-        // a razed house left as baked (its alpha a neighbour's too, house 495) still stands: what is nearer to it is its own
-        standing.AddRange(razed.Where(h => !tags.ContainsKey(h.Index) && cut.Any(c => Near(h.Outline, c.Outline, Reach + 1))));
-        bool Touches(MeshInstance3D m) => cut.Any(h => Overlaps(WorldOf(m) * m.GetAabb(), h.Outline, Reach));
-        chunks = chunks.Where(Touches).ToList(); glows = glows.Where(Touches).ToList();
-        int triangles = 0, glowTriangles = 0;
-        var cutOutlines = cut.Select(h => h.Outline).ToList(); var standingLines0 = standing.Select(h => h.Outline).ToList();
-        // every test below needs the point within Reach of a razed house: only the houses whose grown box holds it are asked
-        var boxes = cut.Select(h => Box.Of(h.Outline, Reach)).ToArray();
-        var close = new List<House>(8);
-        List<House> Close(Vector2 q)
+        var atStart = baked?.AtStart ?? new HashSet<string>();
+        // (the chimney smoke is never baked: it goes at start, so --keep-razed-smoke still shows it)
+        bool Smoke(MeshInstance3D m) => m.Name == "ambient_smoke" || m.GetParent()?.Name == "ambient_smoke";
+        var everyMesh = BakedWorld.All(town).OfType<MeshInstance3D>().Where(m => m.Mesh is ArrayMesh).ToList();
+        var meshes = leave == null ? everyMesh : everyMesh.Where(m => !leave.Contains(town.GetPathTo(m).ToString())).ToList();
+
+        // every footprint's own alpha in one read of the chunks (the houses to weigh here and their standing neighbours)
+        if (razed.Count > 0)
         {
-            close.Clear();
-            for (int i = 0; i < boxes.Length; i++) if (boxes[i].Has(q)) close.Add(cut[i]);
-            return close;
-        }
-        // the gutter repair's iron (#163) mostly carries its house's alpha less one: that alpha goes too, where the triangle lies
-        // nearer to the razed house than to any standing one (Steve, 2026-10-27: a gutter left floating over a cleared plot)
-        foreach (var mesh in chunks)
-            triangles += Filter(mesh, (a, b, c, alpha, material) =>
+            var owns = OwnAlphas(everyMesh.Where(IsChunk).ToList(), razed.Concat(standing).Select(h => h.Outline).ToList());
+            foreach (var house in razed)
             {
-                var p = Centre(a, b, c);
-                var q = new Vector2(p.X, p.Z);
-                var nearBy = Close(q);
-                if (nearBy.Count == 0) return false;
-                if (nearBy.Any(h => alpha == tags[h.Index] && Within(h.Outline, p, Reach))) return true;
-                // the drainage iron and the dressed stone came after the bake (#163, the stone corners): their alpha is often a
-                // neighbour's, so they go by place alone: near a razed house and nearer to it than to any standing one
-                if ((LaterParts.Contains(material) || material == Grime) && nearBy.Any(h => Within(h.Outline, p, Reach)) && Belongs(new Vector2(p.X, p.Z), cutOutlines, standingLines0)) return true;
-                // a plinth top of raised flags left floating (0.5 to 1 m high), its alpha often a neighbour's: by place, as the iron
-                if (material == Flags && Math.Min(a.Y, Math.Min(b.Y, c.Y)) > 0.5f && Math.Max(a.Y, Math.Max(b.Y, c.Y)) < 1.0f
-                    && nearBy.Any(h => Within(h.Outline, p, Reach)) && Belongs(new Vector2(p.X, p.Z), cutOutlines, standingLines0)) return true;
-                // whatever stands well inside a razed outline above the street (chimney caps whose alpha is another house's)
-                if (p.Y > 0.5f && nearBy.Any(h => Inside(h.Outline, q) && EdgeDistance(h.Outline, q) >= 0.3f) && Belongs(q, cutOutlines, standingLines0)) return true;
-                return nearBy.Any(h => Math.Abs(alpha - tags[h.Index]) == 1 && Within(h.Outline, p, Reach)) && Belongs(new Vector2(p.X, p.Z), cutOutlines, standingLines0);
-            });
-        // A chunk's collision stand-ins (the plain boxes Solid takes for its fine stone and drainage, issues #157 #163) carry
-        // no alpha: a box goes when it lies near a razed house and nearer to it than to any standing one.
-        int standIns = 0;
-        foreach (var mesh in chunks)
-        {
-            if (mesh.Mesh is not ArrayMesh am || !am.HasMeta("native_solid_stand_in")) continue;
-            var faces = am.GetMeta("native_solid_stand_in").AsVector3Array(); var xf = WorldOf(mesh); var keptFaces = new List<Vector3>(faces.Length);
-            var razedLines = cut.Select(h => h.Outline).ToList(); var standingLines = standing.Select(h => h.Outline).ToList();
-            for (int t = 0; t + 2 < faces.Length; t += 3)
-            {
-                var c = Centre(xf * faces[t], xf * faces[t + 1], xf * faces[t + 2]);
-                if (InAny(boxes, new Vector2(c.X, c.Z)) && Belongs(new Vector2(c.X, c.Z), razedLines, standingLines)) { standIns++; continue; }
-                keptFaces.Add(faces[t]); keptFaces.Add(faces[t + 1]); keptFaces.Add(faces[t + 2]);
+                int? tag = owns[house.Outline];
+                if (tag == null) { notes.Add($"house {house.Index}: no own alpha found, left as baked"); continue; }
+                // a standing neighbour with the same alpha would lose its edge: leave the house rather than cut a neighbour
+                var near = standing.Where(n => Near(n.Outline, house.Outline, Reach + 1)).Where(n => owns[n.Outline] == tag).Select(n => n.Index).ToList();
+                if (near.Count > 0) { notes.Add($"house {house.Index}: alpha {tag} also on neighbour {string.Join(",", near)}, left as baked"); continue; }
+                tags[house.Index] = tag.Value;
             }
-            if (keptFaces.Count != faces.Length) am.SetMeta("native_solid_stand_in", keptFaces.ToArray());
+        }
+        var allCut = allRazed.Where(h => tags.ContainsKey(h.Index)).ToList();
+        var cut = allCut.Where(h => !done.Contains(h.Index)).ToList();
+        // a razed house left as baked (its alpha a neighbour's too, house 495) still stands: what is nearer to it is its own
+        standing.AddRange(allRazed.Where(h => !tags.ContainsKey(h.Index) && allCut.Any(c => Near(h.Outline, c.Outline, Reach + 1))));
+        int triangles = 0, standIns = 0, dressingTriangles = 0, glowTriangles = 0;
+        // the meshes the cuts before this one change too (baked: every house, here, in the order the start always cut them);
+        // the rest: the houses razed since the bake
+        CutMeshes(meshes.Where(m => atStart.Contains(town.GetPathTo(m).ToString())).ToList(), allCut);
+        CutMeshes(meshes.Where(m => !atStart.Contains(town.GetPathTo(m).ToString()) && !Smoke(m)).ToList(), cut);
+
+        void CutMeshes(List<MeshInstance3D> these, List<House> cut)
+        {
+            if (cut.Count == 0 || these.Count == 0) return;
+            bool Touches(MeshInstance3D m) => cut.Any(h => Overlaps(WorldOf(m) * m.GetAabb(), h.Outline, Reach));
+            var chunks = these.Where(IsChunk).Where(Touches).ToList();
+            var glows = these.Where(m => m.Name.ToString().StartsWith("ambient_windows", StringComparison.Ordinal) || m.GetParent()?.Name.ToString().StartsWith("ambient_windows", StringComparison.Ordinal) == true).Where(Touches).ToList();
+            var cutOutlines = cut.Select(h => h.Outline).ToList(); var standingLines0 = standing.Select(h => h.Outline).ToList();
+            // every test below needs the point within Reach of a razed house: only the houses whose grown box holds it are asked
+            var boxes = cut.Select(h => Box.Of(h.Outline, Reach)).ToArray();
+            var close = new List<House>(8);
+            List<House> Close(Vector2 q)
+            {
+                close.Clear();
+                for (int i = 0; i < boxes.Length; i++) if (boxes[i].Has(q)) close.Add(cut[i]);
+                return close;
+            }
+            // the gutter repair's iron (#163) mostly carries its house's alpha less one: that alpha goes too, where the triangle lies
+            // nearer to the razed house than to any standing one (Steve, 2026-10-27: a gutter left floating over a cleared plot)
+            foreach (var mesh in chunks)
+                triangles += Filter(mesh, (a, b, c, alpha, material) =>
+                {
+                    var p = Centre(a, b, c);
+                    var q = new Vector2(p.X, p.Z);
+                    var nearBy = Close(q);
+                    if (nearBy.Count == 0) return false;
+                    if (nearBy.Any(h => alpha == tags[h.Index] && Within(h.Outline, p, Reach))) return true;
+                    // the drainage iron and the dressed stone came after the bake (#163, the stone corners): their alpha is often a
+                    // neighbour's, so they go by place alone: near a razed house and nearer to it than to any standing one
+                    if ((LaterParts.Contains(material) || material == Grime) && nearBy.Any(h => Within(h.Outline, p, Reach)) && Belongs(new Vector2(p.X, p.Z), cutOutlines, standingLines0)) return true;
+                    // a plinth top of raised flags left floating (0.5 to 1 m high), its alpha often a neighbour's: by place, as the iron
+                    if (material == Flags && Math.Min(a.Y, Math.Min(b.Y, c.Y)) > 0.5f && Math.Max(a.Y, Math.Max(b.Y, c.Y)) < 1.0f
+                        && nearBy.Any(h => Within(h.Outline, p, Reach)) && Belongs(new Vector2(p.X, p.Z), cutOutlines, standingLines0)) return true;
+                    // whatever stands well inside a razed outline above the street (chimney caps whose alpha is another house's)
+                    if (p.Y > 0.5f && nearBy.Any(h => Inside(h.Outline, q) && EdgeDistance(h.Outline, q) >= 0.3f) && Belongs(q, cutOutlines, standingLines0)) return true;
+                    return nearBy.Any(h => Math.Abs(alpha - tags[h.Index]) == 1 && Within(h.Outline, p, Reach)) && Belongs(new Vector2(p.X, p.Z), cutOutlines, standingLines0);
+                });
+            // A chunk's collision stand-ins (the plain boxes Solid takes for its fine stone and drainage, issues #157 #163) carry
+            // no alpha: a box goes when it lies near a razed house and nearer to it than to any standing one.
+            foreach (var mesh in chunks)
+            {
+                if (mesh.Mesh is not ArrayMesh am || !am.HasMeta("native_solid_stand_in")) continue;
+                var faces = am.GetMeta("native_solid_stand_in").AsVector3Array(); var xf = WorldOf(mesh); var keptFaces = new List<Vector3>(faces.Length);
+                for (int t = 0; t + 2 < faces.Length; t += 3)
+                {
+                    var c = Centre(xf * faces[t], xf * faces[t + 1], xf * faces[t + 2]);
+                    if (InAny(boxes, new Vector2(c.X, c.Z)) && Belongs(new Vector2(c.X, c.Z), cutOutlines, standingLines0)) { standIns++; continue; }
+                    keptFaces.Add(faces[t]); keptFaces.Add(faces[t + 1]); keptFaces.Add(faces[t + 2]);
+                }
+                if (keptFaces.Count != faces.Length) am.SetMeta("native_solid_stand_in", keptFaces.ToArray());
+            }
+            // The street dressing the bake merged by kind (shop fronts, street life, clutter, posters, litter) carries no house alpha either.
+            // It goes a piece at a time (the triangles joined by their corners: an awning, a lean-to roof, a crate): a piece goes whole when
+            // most of what shows of it (what lies outside every standing house) is near a razed house and nearer to it than to any standing
+            // one, so a neighbour's door keeps its baskets. (Judged a triangle at a time, a lean-to roof running into a standing neighbour's
+            // wall kept its half on that side and hung on alone over the cleared plot, #224; a striped awning 1.4 m out from a razed back
+            // wall stayed, #229: hence the piece's own reach, PieceReach.)
+            // (the standing houses as far as a piece's reach can look: across a narrow street from a razed house too)
+            var standingLines1 = houses.Where(h => !h.Razed || !tags.ContainsKey(h.Index)).Where(h => cut.Any(c => Near(h.Outline, c.Outline, 2 * PieceReach + 1))).Select(h => h.Outline).ToList();
+            // (the quick tests first: a grid of the standing houses' boxes, and the razed houses' boxes grown by the piece's reach)
+            var standingGrid = new OutlineGrid(standingLines1, 8f); var pieceBoxes = cut.Select(h => Box.Of(h.Outline, PieceReach)).ToArray();
+            foreach (var mesh in these.Where(m => DressingChunk.IsMatch(m.Name.ToString())).Where(m => cut.Any(h => Overlaps(WorldOf(m) * m.GetAabb(), h.Outline, PieceReach))))
+            {
+                var gone = Pieces(mesh, standingGrid.AnyInside, q => InAny(pieceBoxes, q) && Belongs(q, cutOutlines, standingLines1, PieceReach));
+                if (gone.Count > 0) dressingTriangles += Filter(mesh, (surface, triangle, _, _, _, _, _) => gone.Contains((surface, triangle)));
+            }
+            foreach (var mesh in glows)
+                glowTriangles += Filter(mesh, (a, b, c, _) =>
+                {
+                    var centre = Centre(a, b, c);
+                    var nearBy = Close(new Vector2(centre.X, centre.Z));
+                    if (!nearBy.Any(h => Within(h.Outline, centre, 0.3f))) return false;
+                    var normal = (b - a).Cross(c - a);
+                    var flat = new Vector2(normal.X, normal.Z);
+                    if (flat.LengthSquared() < 1e-8f) return true;
+                    // a glow on a standing neighbour's front: its window looks out of that neighbour, into the cleared ground
+                    foreach (var n in standing)
+                        if (Within(n.Outline, centre, 0.3f) && !Inside(n.Outline, new Vector2(centre.X, centre.Z) + flat.Normalized() * 0.5f)) return false;
+                    return true;
+                });
         }
         if (standIns > 0) notes.Add($"collision stand-ins at the razed houses: {standIns} triangles");
-        // The street dressing the bake merged by kind (shop fronts, street life, clutter, posters, litter) carries no house alpha either.
-        // It goes a piece at a time (the triangles joined by their corners: an awning, a lean-to roof, a crate): a piece goes whole when
-        // most of what shows of it (what lies outside every standing house) is near a razed house and nearer to it than to any standing
-        // one, so a neighbour's door keeps its baskets. (Judged a triangle at a time, a lean-to roof running into a standing neighbour's
-        // wall kept its half on that side and hung on alone over the cleared plot, #224; a striped awning 1.4 m out from a razed back
-        // wall stayed, #229: hence the piece's own reach, PieceReach.)
-        int dressingTriangles = 0;
-        // (the standing houses as far as a piece's reach can look: across a narrow street from a razed house too)
-        var cutLines = cut.Select(h => h.Outline).ToList();
-        var standingLines1 = houses.Where(h => !h.Razed || !tags.ContainsKey(h.Index)).Where(h => cut.Any(c => Near(h.Outline, c.Outline, 2 * PieceReach + 1))).Select(h => h.Outline).ToList();
-        // (the quick tests first: a grid of the standing houses' boxes, and the razed houses' boxes grown by the piece's reach)
-        var standingGrid = new OutlineGrid(standingLines1, 8f); var pieceBoxes = cut.Select(h => Box.Of(h.Outline, PieceReach)).ToArray();
-        foreach (var mesh in meshes.Where(m => DressingChunk.IsMatch(m.Name.ToString())).Where(m => cut.Any(h => Overlaps(WorldOf(m) * m.GetAabb(), h.Outline, PieceReach))))
-        {
-            var gone = Pieces(mesh, standingGrid.AnyInside, q => InAny(pieceBoxes, q) && Belongs(q, cutLines, standingLines1, PieceReach));
-            if (gone.Count > 0) dressingTriangles += Filter(mesh, (surface, triangle, _, _, _, _, _) => gone.Contains((surface, triangle)));
-        }
         if (dressingTriangles > 0) notes.Add($"street dressing at the razed houses: {dressingTriangles} triangles");
         // copies (weeds at the wall foot, goods by the door) standing on or against a razed house: the copy set is rebuilt without them
+        // (the baked houses' too: the copies placed at start, the shutters, are not in the baked resources)
         int copiesGone = 0;
-        var razedOutlines = cut.Select(h => h.Outline).ToList(); var standingOutlines = standing.Select(h => h.Outline).ToList();
-        foreach (var copies in BakedWorld.All(town).OfType<MultiMeshInstance3D>().Where(m => m.Multimesh is { InstanceCount: > 0 }))
+        var razedOutlines = allCut.Select(h => h.Outline).ToList(); var standingOutlines = standing.Select(h => h.Outline).ToList();
+        var allBoxes = allCut.Select(h => Box.Of(h.Outline, Reach)).ToArray();
+        foreach (var copies in razedOutlines.Count == 0 ? Enumerable.Empty<MultiMeshInstance3D>() : BakedWorld.All(town).OfType<MultiMeshInstance3D>().Where(m => m.Multimesh is { InstanceCount: > 0 }))
         {
             var mm = copies.Multimesh; var xf = WorldOf(copies);
-            var keep = Enumerable.Range(0, mm.InstanceCount).Where(i => { var at = xf * mm.GetInstanceTransform(i).Origin; var q = new Vector2(at.X, at.Z); return !(InAny(boxes, q) && Belongs(q, razedOutlines, standingOutlines)); }).ToList();
+            var keep = Enumerable.Range(0, mm.InstanceCount).Where(i => { var at = xf * mm.GetInstanceTransform(i).Origin; var q = new Vector2(at.X, at.Z); return !(InAny(allBoxes, q) && Belongs(q, razedOutlines, standingOutlines)); }).ToList();
             if (keep.Count == mm.InstanceCount) continue;
             var transforms = keep.Select(mm.GetInstanceTransform).ToList();
             var colours = mm.UseColors ? keep.Select(mm.GetInstanceColor).ToList() : null;
@@ -207,30 +265,41 @@ public static class NativeRazedHouses
             }
         }
         if (copiesGone > 0) notes.Add($"copies at the razed houses: {copiesGone}");
-        foreach (var mesh in glows)
-            glowTriangles += Filter(mesh, (a, b, c, _) =>
-            {
-                var centre = Centre(a, b, c);
-                var nearBy = Close(new Vector2(centre.X, centre.Z));
-                if (!nearBy.Any(h => Within(h.Outline, centre, 0.3f))) return false;
-                var normal = (b - a).Cross(c - a);
-                var flat = new Vector2(normal.X, normal.Z);
-                if (flat.LengthSquared() < 1e-8f) return true;
-                // a glow on a standing neighbour's front: its window looks out of that neighbour, into the cleared ground
-                foreach (var n in standing)
-                    if (Within(n.Outline, centre, 0.3f) && !Inside(n.Outline, new Vector2(centre.X, centre.Z) + flat.Normalized() * 0.5f)) return false;
-                return true;
-            });
         // the chimney smoke's points (ambient_smoke, ChimneySmoke: fourteen a chimney): a razed house's chimney smokes no more
         // (#224: its smoke stood as dark bands in the empty sky over the cleared plot; dev: --keep-razed-smoke, for a before-and-after)
         int smokeGone = 0;
-        if (!Scheldemist.Main.I.Flag("keep-razed-smoke"))
-            foreach (var smoke in meshes.Where(m => m.Name == "ambient_smoke" || m.GetParent()?.Name == "ambient_smoke"))
-                smokeGone += DropChimneys(smoke, p => Belongs(new Vector2(p.X, p.Z), cutOutlines, standingLines0));
+        if (Scheldemist.Main.I?.Flag("keep-razed-smoke") != true && razedOutlines.Count > 0)
+            foreach (var smoke in meshes.Where(Smoke))
+                smokeGone += DropChimneys(smoke, p => Belongs(new Vector2(p.X, p.Z), razedOutlines, standingOutlines));
         if (smokeGone > 0) notes.Add($"chimney smoke at the razed houses: {smokeGone} chimneys");
         foreach (var h in cut) notes.Add($"house {h.Index}: razed (alpha {tags[h.Index]})");
         notes.Add($"cut in {clock.ElapsedMilliseconds} ms");
-        return new(cut.Count, triangles, glowTriangles, notes) { Razed = cut.Select(h => h.Outline).ToList(), Standing = standing.Select(h => h.Outline).ToList(), RazedBoxes = boxes };
+        return new(allCut.Count, triangles + (baked?.Triangles ?? 0), glowTriangles + (baked?.WindowGlows ?? 0), notes)
+        {
+            Razed = razedOutlines, Standing = standingOutlines, RazedBoxes = allBoxes,
+            Weighed = weighed, Tags = allCut.ToDictionary(h => h.Index, h => tags[h.Index]),
+        };
+    }
+
+    private static bool IsChunk(MeshInstance3D m) => m.Name.ToString().StartsWith("city_", StringComparison.Ordinal);
+
+    // (a house's outline as city_build.json gives it: a moved or reshaped razed house is weighed again)
+    internal static string OutlineHash(Vector2[] outline) =>
+        Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(string.Join(";", outline.Select(p => p.X.ToString("R", System.Globalization.CultureInfo.InvariantCulture) + "," + p.Y.ToString("R", System.Globalization.CultureInfo.InvariantCulture)))))).ToLowerInvariant()[..16];
+
+    /// <summary>The hash of a razed set: every weighed house with its outline's hash.</summary>
+    internal static string RazedSet(IReadOnlyDictionary<int, string> weighed) =>
+        Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(string.Join("\n", weighed.OrderBy(kv => kv.Key).Select(kv => kv.Key + ":" + kv.Value))))).ToLowerInvariant();
+
+    private static Baked? ReadBaked()
+    {
+        if (!Godot.FileAccess.FileExists(BakedFile)) return null;
+        var root = System.Text.Json.Nodes.JsonNode.Parse(Godot.FileAccess.GetFileAsString(BakedFile))!.AsObject();
+        return new Baked(root["razedSet"]!.GetValue<string>(),
+            root["weighed"]!.AsObject().ToDictionary(kv => int.Parse(kv.Key, System.Globalization.CultureInfo.InvariantCulture), kv => kv.Value!.GetValue<string>()),
+            root["cut"]!.AsObject().ToDictionary(kv => int.Parse(kv.Key, System.Globalization.CultureInfo.InvariantCulture), kv => kv.Value!.GetValue<int>()),
+            root["atStart"]!.AsArray().Select(n => n!.GetValue<string>()).ToHashSet(StringComparer.Ordinal), root["triangles"]!.GetValue<int>(), root["windowGlows"]!.GetValue<int>(),
+            root["notes"]!.AsArray().Select(n => n!.GetValue<string>()).ToArray());
     }
 
     private static bool Belongs(Vector2 q, IReadOnlyList<Vector2[]> razed, IReadOnlyList<Vector2[]> standing, float reach = Reach)

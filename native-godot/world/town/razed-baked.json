@@ -1,0 +1,1248 @@
+{
+  "about": "The razed houses cut into the town\u0027s resources by scripts/razed-promote.tscn (#230). The start skips the houses weighed here; run the promote again after a change to the cut\u0027s rules or to the razed houses.",
+  "razedSet": "fdfd1493f62e9d09d091e7495c3a08954518762220239354be03327be230ec95",
+  "weighed": {
+    "173": "1ae62ac671381086",
+    "174": "22661d9a568a9aac",
+    "175": "5f5c262ce42c8071",
+    "176": "13f15660b7e2288d",
+    "177": "a6fd97e962631700",
+    "178": "6e0732121d47c220",
+    "179": "6851513c21843915",
+    "180": "7bba6cd7867ffe05",
+    "181": "3a6c05510dc4d8f3",
+    "182": "bc04c1d2fd3ed50b",
+    "183": "3bf8122261f49335",
+    "186": "53e20a526308cfcd",
+    "187": "23cd56dd29012df5",
+    "188": "5c2bd3234c5659fd",
+    "189": "2300d4143ce96712",
+    "190": "6d3b01436054bec3",
+    "191": "75395168f897b0df",
+    "192": "2688ef498486b585",
+    "193": "b6ac8175c56522a0",
+    "200": "b7bfab1099198d2f",
+    "201": "b2903dd01d37ed28",
+    "202": "d4df9e3d695be6ee",
+    "203": "864a307516687d16",
+    "204": "480fbe37d108ba17",
+    "205": "eb55f486fc0fbbb9",
+    "206": "8b7bdeb7cb856c2e",
+    "207": "c8d7cd80a582d92a",
+    "211": "f2cddc46428ca248",
+    "212": "291cae747b752533",
+    "213": "75b710ef4e327f2e",
+    "435": "cb32280586a69477",
+    "436": "c7e567fc184c30d5",
+    "437": "c21bf6b18e4dfe86",
+    "438": "92d62672abbe8968",
+    "445": "d6e74362bfb1793c",
+    "446": "f8e626d1fb880f86",
+    "450": "959386d4edb0fb21",
+    "451": "51ed26f686ad8767",
+    "452": "4ae33c08b1b25c63",
+    "453": "67a101a5c55fb94d",
+    "454": "4304a6a13460712c",
+    "455": "0528c65dffab2fc1",
+    "456": "1120e431a884b32b",
+    "457": "dfd18928dedb1fe2",
+    "458": "852963b657a5acee",
+    "459": "fdc866971e9fd3ca",
+    "460": "58da39433b179866",
+    "461": "d7d3e2b2a5bf69e1",
+    "462": "76a255dbaf5951bc",
+    "463": "6560ac887db49858",
+    "466": "6d4d0f0adad59070",
+    "467": "4def01e0043dd080",
+    "468": "fe3e099e7b759ad0",
+    "469": "fee06069dbb699f6",
+    "470": "970e546594628691",
+    "471": "9ac9a65dea453899",
+    "472": "b2919ff5c572df5d",
+    "473": "10bf36feb6acc0f1",
+    "474": "8d6d1102f8f0c878",
+    "475": "f37e337708ee9649",
+    "476": "e64f32753a7efcbb",
+    "477": "06e5b346f29b8b81",
+    "478": "86f68bb9bb47d4db",
+    "479": "3a70612e0e332478",
+    "480": "4f9fe165d1f61e3e",
+    "481": "a59b4d2f6b6b23a4",
+    "482": "1564517e2318a20e",
+    "483": "2bf3d2aefdde0f20",
+    "486": "ca4c652a83edad11",
+    "487": "db119ebeab051289",
+    "488": "832adafe567d3a34",
+    "489": "3ee5fc42fdb7a927",
+    "491": "979065870ee55f0e",
+    "492": "0d5d28672c3cff6e",
+    "494": "4b2dfab8988d0de6",
+    "495": "e576f0f4e7c8964d",
+    "536": "de2d7dab08b7fc47",
+    "537": "58af557ac4d72033",
+    "896": "960e9ed3da51b53f",
+    "900": "a65c4b1fbbe9e00f",
+    "901": "b61d51e639dc23bf",
+    "902": "613d988bf9e94cbd",
+    "903": "d9f9720b97c9dd1e"
+  },
+  "cut": {
+    "173": 179,
+    "174": 120,
+    "175": 129,
+    "176": 146,
+    "177": 143,
+    "178": 171,
+    "179": 200,
+    "180": 230,
+    "181": 146,
+    "182": 235,
+    "183": 222,
+    "186": 232,
+    "187": 221,
+    "188": 139,
+    "189": 236,
+    "190": 248,
+    "191": 134,
+    "192": 192,
+    "193": 216,
+    "200": 195,
+    "201": 220,
+    "202": 240,
+    "203": 254,
+    "204": 192,
+    "205": 196,
+    "206": 247,
+    "207": 209,
+    "211": 220,
+    "212": 216,
+    "213": 253,
+    "435": 234,
+    "436": 202,
+    "437": 222,
+    "438": 252,
+    "445": 239,
+    "446": 247,
+    "450": 222,
+    "451": 218,
+    "452": 210,
+    "453": 76,
+    "454": 88,
+    "455": 93,
+    "456": 71,
+    "457": 57,
+    "458": 98,
+    "459": 86,
+    "460": 62,
+    "461": 57,
+    "462": 244,
+    "463": 155,
+    "466": 122,
+    "467": 243,
+    "468": 201,
+    "469": 226,
+    "470": 226,
+    "471": 239,
+    "472": 194,
+    "473": 168,
+    "474": 162,
+    "475": 170,
+    "476": 177,
+    "477": 142,
+    "478": 152,
+    "479": 128,
+    "480": 138,
+    "481": 81,
+    "482": 69,
+    "483": 51,
+    "486": 76,
+    "487": 116,
+    "488": 144,
+    "489": 160,
+    "491": 173,
+    "492": 214,
+    "494": 216,
+    "536": 120,
+    "537": 162,
+    "896": 31,
+    "900": 16,
+    "901": 23,
+    "902": 58,
+    "903": 116
+  },
+  "atStart": [
+    "city/city_-4_0_3",
+    "city/ground_cobble",
+    "city/ground_flags",
+    "city/ground_seams",
+    "city/quay_walls",
+    "clutter/clutter_sacks22",
+    "litter/litter_flat",
+    "litter/litter_solid",
+    "outfalls/outfall_dark",
+    "outfalls/outfall_runs",
+    "outfalls/outfall_stones"
+  ],
+  "triangles": 758075,
+  "windowGlows": 1204,
+  "notes": [
+    "house 495: alpha 213 also on neighbour 441, left as baked",
+    "collision stand-ins at the razed houses: 117257 triangles",
+    "street dressing at the razed houses: 123547 triangles",
+    "copies at the razed houses: 133",
+    "house 173: razed (alpha 179)",
+    "house 174: razed (alpha 120)",
+    "house 175: razed (alpha 129)",
+    "house 176: razed (alpha 146)",
+    "house 177: razed (alpha 143)",
+    "house 178: razed (alpha 171)",
+    "house 179: razed (alpha 200)",
+    "house 180: razed (alpha 230)",
+    "house 181: razed (alpha 146)",
+    "house 182: razed (alpha 235)",
+    "house 183: razed (alpha 222)",
+    "house 186: razed (alpha 232)",
+    "house 187: razed (alpha 221)",
+    "house 188: razed (alpha 139)",
+    "house 189: razed (alpha 236)",
+    "house 190: razed (alpha 248)",
+    "house 191: razed (alpha 134)",
+    "house 192: razed (alpha 192)",
+    "house 193: razed (alpha 216)",
+    "house 200: razed (alpha 195)",
+    "house 201: razed (alpha 220)",
+    "house 202: razed (alpha 240)",
+    "house 203: razed (alpha 254)",
+    "house 204: razed (alpha 192)",
+    "house 205: razed (alpha 196)",
+    "house 206: razed (alpha 247)",
+    "house 207: razed (alpha 209)",
+    "house 211: razed (alpha 220)",
+    "house 212: razed (alpha 216)",
+    "house 213: razed (alpha 253)",
+    "house 435: razed (alpha 234)",
+    "house 436: razed (alpha 202)",
+    "house 437: razed (alpha 222)",
+    "house 438: razed (alpha 252)",
+    "house 445: razed (alpha 239)",
+    "house 446: razed (alpha 247)",
+    "house 450: razed (alpha 222)",
+    "house 451: razed (alpha 218)",
+    "house 452: razed (alpha 210)",
+    "house 453: razed (alpha 76)",
+    "house 454: razed (alpha 88)",
+    "house 455: razed (alpha 93)",
+    "house 456: razed (alpha 71)",
+    "house 457: razed (alpha 57)",
+    "house 458: razed (alpha 98)",
+    "house 459: razed (alpha 86)",
+    "house 460: razed (alpha 62)",
+    "house 461: razed (alpha 57)",
+    "house 462: razed (alpha 244)",
+    "house 463: razed (alpha 155)",
+    "house 466: razed (alpha 122)",
+    "house 467: razed (alpha 243)",
+    "house 468: razed (alpha 201)",
+    "house 469: razed (alpha 226)",
+    "house 470: razed (alpha 226)",
+    "house 471: razed (alpha 239)",
+    "house 472: razed (alpha 194)",
+    "house 473: razed (alpha 168)",
+    "house 474: razed (alpha 162)",
+    "house 475: razed (alpha 170)",
+    "house 476: razed (alpha 177)",
+    "house 477: razed (alpha 142)",
+    "house 478: razed (alpha 152)",
+    "house 479: razed (alpha 128)",
+    "house 480: razed (alpha 138)",
+    "house 481: razed (alpha 81)",
+    "house 482: razed (alpha 69)",
+    "house 483: razed (alpha 51)",
+    "house 486: razed (alpha 76)",
+    "house 487: razed (alpha 116)",
+    "house 488: razed (alpha 144)",
+    "house 489: razed (alpha 160)",
+    "house 491: razed (alpha 173)",
+    "house 492: razed (alpha 214)",
+    "house 494: razed (alpha 216)",
+    "house 536: razed (alpha 120)",
+    "house 537: razed (alpha 162)",
+    "house 896: razed (alpha 31)",
+    "house 900: razed (alpha 16)",
+    "house 901: razed (alpha 23)",
+    "house 902: razed (alpha 58)",
+    "house 903: razed (alpha 116)"
+  ],
+  "resources": {
+    "res://world/town/resources/r000243.res": {
+      "source": "bc796e913b81d9ad65e7730334df33d2cd4dee94",
+      "original": "6bdcaa97c7063004d094a6ccbde2901309f3c34bf593f440e8d6ccbf710de2fc",
+      "installed": "48e66052a32be46edd584f927ceb742d3d4c3a4b4d0c22e1e3283bc5562c9f67"
+    },
+    "res://world/town/resources/r000244.res": {
+      "source": "bc796e913b81d9ad65e7730334df33d2cd4dee94",
+      "original": "656c16556aa768b80d9562a9f458b6cd5653fc87928112b52510cb83f4f2bc70",
+      "installed": "bf223765095d68c72f17dab261406b51a98c3608e24a449f8ff96cd6b38517b7"
+    },
+    "res://world/town/resources/r000245.res": {
+      "source": "bc796e913b81d9ad65e7730334df33d2cd4dee94",
+      "original": "302771e649322c2f54598139d407083cdd650106af366bb41d95f0d4099a03ab",
+      "installed": "eea9a524fd5d891f7e1f923c5911968e7bec860af383af18a760d40f2d73b501"
+    },
+    "res://world/town/resources/r000246.res": {
+      "source": "bc796e913b81d9ad65e7730334df33d2cd4dee94",
+      "original": "abf7bf7c54d6b2919becae5354330779d94ea11bb28b486d600ab95d355158fa",
+      "installed": "f943c075bd8b0cef5f3af9e6d1bd8991cdba86263a6aa2cb4b5e63ccb8c35296"
+    },
+    "res://world/town/resources/r000247.res": {
+      "source": "bc796e913b81d9ad65e7730334df33d2cd4dee94",
+      "original": "cf30776b55ad38eb36d9fa51ad17a617587c9d6fa747151e9b95d2d7ac931b9a",
+      "installed": "9a7d04ee266c6fca1ab486347def0d6dbb2de2e8ed018136656f09de4285b8fc"
+    },
+    "res://world/town/resources/r000248.res": {
+      "source": "bc796e913b81d9ad65e7730334df33d2cd4dee94",
+      "original": "0effe50ed6e512d51857c6ad41a85cc1202c503f376516e996096bc08185daed",
+      "installed": "010a8cba5945b964f0acf1c0637aa918385c3e0182c66fe8248c153582abe42a"
+    },
+    "res://world/town/resources/r000249.res": {
+      "source": "bc796e913b81d9ad65e7730334df33d2cd4dee94",
+      "original": "f7bec7b264dd373338855dd509a1082543e2c771afd3cd93fa3da57a5a6a4571",
+      "installed": "ea87b7e7230f4af65b64dd33dfe6e004fb3ede653eaea4de7942b584759cb17f"
+    },
+    "res://world/town/resources/r000250.res": {
+      "source": "bc796e913b81d9ad65e7730334df33d2cd4dee94",
+      "original": "d48ccbefb4696c8cf2a213632f81a2aea8f8a3d383913ca56ce4924d06d63630",
+      "installed": "14b1b2fdb0612e6e23a34f6976617156161b07a0661ea2dadd090b5c1b37d8d2"
+    },
+    "res://world/town/resources/r000251.res": {
+      "source": "bc796e913b81d9ad65e7730334df33d2cd4dee94",
+      "original": "9cc263800e612c136b42e2d99a9cf60e3766d250fff929026cf92e818bd574f2",
+      "installed": "a9be6fbc237e83d63ce9b0f30c4988c14dd527c2cd3290e27007c80155cf377c"
+    },
+    "res://world/town/resources/r000252.res": {
+      "source": "bc796e913b81d9ad65e7730334df33d2cd4dee94",
+      "original": "5ce48b8825d0178a622825e9a880f05fdefa2fb578ec3c5ee7523461550cf7b8",
+      "installed": "5b3998a940589b026e3bfda5ad133d9f3935c5f33ccba201e6a412153b9f835b"
+    },
+    "res://world/town/resources/r000255.res": {
+      "source": "bc796e913b81d9ad65e7730334df33d2cd4dee94",
+      "original": "0c0d50775b8673bae2c419c5cab779be898f05d559737b3a394ff6b9e98bbeb4",
+      "installed": "600ed48600ab7b73b8e36fdf2bcf14771ebef6a9462dd1171819d411caf86c76"
+    },
+    "res://world/town/resources/r000282.res": {
+      "source": "bc796e913b81d9ad65e7730334df33d2cd4dee94",
+      "original": "f3c9c579ddfe7b5944ea5f256a60a591fc869cdadaf8d0b9bd7e3aa646fed603",
+      "installed": "8287cb94a14c29540e12103341e1835d4eafa7f4c737871050c879becde5d174"
+    },
+    "res://world/town/resources/r000283.res": {
+      "source": "bc796e913b81d9ad65e7730334df33d2cd4dee94",
+      "original": "3e7656649fdea2990981112be30543536d2a7af1b226f60f78c4f0c8bd2b5eb0",
+      "installed": "ac610b3eb648cbcc8ca97f5cd6a8ec703bd8456f66b20da6ccd8dfc5779ebc3d"
+    },
+    "res://world/town/resources/r000284.res": {
+      "source": "bc796e913b81d9ad65e7730334df33d2cd4dee94",
+      "original": "49ce79130ede0e03ae10df0e0841eed57b6b448de31a01803640e339cc8b0686",
+      "installed": "fe1867262841c513634223340a22d9f67657c7cf67d9e18183d508c8ea1e4bff"
+    },
+    "res://world/town/resources/r000285.res": {
+      "source": "bc796e913b81d9ad65e7730334df33d2cd4dee94",
+      "original": "b99bf03d2f8a482f62af0146a8dec8b7977f254cfe5dc33c8e3543a88700463f",
+      "installed": "8d0009b3956d259c3bee6c0d1c113e5a2c974f6236782f7880eb39f05984074e"
+    },
+    "res://world/town/resources/r000286.res": {
+      "source": "bc796e913b81d9ad65e7730334df33d2cd4dee94",
+      "original": "e9ec21be45ddee0fe53a747c09d0057fbe4cea2731cd9aae45f0741aea4e9e9e",
+      "installed": "2535da8285729dee1096751ea66df557de7af276e52bb4729627aae16a0d2cf5"
+    },
+    "res://world/town/resources/r000287.res": {
+      "source": "bc796e913b81d9ad65e7730334df33d2cd4dee94",
+      "original": "e92226e61b5546424ea87600c3d545bf506c5c754f9ac35d487166fee15bd045",
+      "installed": "2d95cd4712bb25e5eefd246816460bf438dc816b3bafe4621b28856019a64af3"
+    },
+    "res://world/town/resources/r000288.res": {
+      "source": "bc796e913b81d9ad65e7730334df33d2cd4dee94",
+      "original": "f8aa4074e23d0c22bf74dbe936131a3605198ad33b1c7367af23c85cefcf2363",
+      "installed": "2df4b3420a39d983ad06d7ff0ed7c060f9a5efede0b475f3df01834f5b774168"
+    },
+    "res://world/town/resources/r000289.res": {
+      "source": "bc796e913b81d9ad65e7730334df33d2cd4dee94",
+      "original": "bf70b0eeffc8b288ae0d40f9676f1df833c125b4cfcdaf3688ffe2d053db01e3",
+      "installed": "3c9db4c31a43e5c0658ac7c90abc18127ae4e2a62b05f946f57146a5bd400d3f"
+    },
+    "res://world/town/resources/r000290.res": {
+      "source": "bc796e913b81d9ad65e7730334df33d2cd4dee94",
+      "original": "fc6d99183a71a9ee497c6cbb8ad651ffbea918d0e4f6e5c5b975e04db38af55d",
+      "installed": "b9384cb06cdf000d8bb0221b19d024c2552b6d0a55b34d881bed3cb1b23a885a"
+    },
+    "res://world/town/resources/r000291.res": {
+      "source": "bc796e913b81d9ad65e7730334df33d2cd4dee94",
+      "original": "f83fcc242df1d54e91186462a3c2b1ba75432b5a41155d04476721180691342c",
+      "installed": "48904faab49d8de175f6e798c49d135bf0a9bd0a5ef2aa3dc38ddd2e32fffdee"
+    },
+    "res://world/town/resources/r000346.res": {
+      "source": "bc796e913b81d9ad65e7730334df33d2cd4dee94",
+      "original": "1c0fed60953103fab132b7e5ac413d17ca9c64b5b17ae54516f1791f41510f38",
+      "installed": "cee90a26fad7d29f05cef11a33f8378e2e620a2bf98999e8406a08d71e7fd2fb"
+    },
+    "res://world/town/resources/r000347.res": {
+      "source": "bc796e913b81d9ad65e7730334df33d2cd4dee94",
+      "original": "fc56fa09776935398326e378b58b3cfb6639f5ef992ecc0f3702bc037a91289d",
+      "installed": "5fa0d9f464efec17903abff4b0508ea36b318030876c1fb6f609d57d2029f3ac"
+    },
+    "res://world/town/resources/r000348.res": {
+      "source": "bc796e913b81d9ad65e7730334df33d2cd4dee94",
+      "original": "a51c83f2d5560f03a43c202c5622da4c74356f8dedd901067e4a300c6651702c",
+      "installed": "46a2a81f7bc58fbbc8476f4ba1da80b574e1e814d47f867c20bfe6d8e017c72e"
+    },
+    "res://world/town/resources/r000349.res": {
+      "source": "bc796e913b81d9ad65e7730334df33d2cd4dee94",
+      "original": "21b44d7015f42900de82145f103a9729bda8750a1cbd8f0f473736c865b257ed",
+      "installed": "ee80dba83f50d55500d87288cf79551784e0fdcdccb07fcda68adbae05c7fd79"
+    },
+    "res://world/town/resources/r000350.res": {
+      "source": "bc796e913b81d9ad65e7730334df33d2cd4dee94",
+      "original": "a4b9e5fe8e4f2cccfa403b97c50f2e03c88034ec8e0e4cbecab8e0a935f0ef85",
+      "installed": "dbb7ce8fe13b5546cc1e1c05634b915472c1fc1bfe9d8b54634cd68ee833fb09"
+    },
+    "res://world/town/resources/r000351.res": {
+      "source": "bc796e913b81d9ad65e7730334df33d2cd4dee94",
+      "original": "196265539fded4dc4b2c878cb1870cfc533cf083e8ed40ecd234faa4f4688d5b",
+      "installed": "e7bc903c1f211565b83b27cc4a3b51c43ce68d9e32e3546f25aeb94b7549352b"
+    },
+    "res://world/town/resources/r000352.res": {
+      "source": "bc796e913b81d9ad65e7730334df33d2cd4dee94",
+      "original": "07bcbb40681e9e23735bdefe588ad9756b4ea7c3a77227df1a0cb2d8dfb7c962",
+      "installed": "f81822f9fd326879a290dc7c41a97c33df130af953ff3681fd4d18c21a01c0df"
+    },
+    "res://world/town/resources/r000353.res": {
+      "source": "bc796e913b81d9ad65e7730334df33d2cd4dee94",
+      "original": "3cac24b577b0f51a5bce6cfa7b4c88b294a24e11e0db4e8c9defb9657bbfde4d",
+      "installed": "181856ae525424cc908739fac82b6b4ad3c4acf2438938c91994f5140319051f"
+    },
+    "res://world/town/resources/r000354.res": {
+      "source": "bc796e913b81d9ad65e7730334df33d2cd4dee94",
+      "original": "ba88e0e3ba893c48564a4a5b1fa504169745cbffc92c942941826cadd3b1a883",
+      "installed": "20ae9a33f700a3d0b99ad74c1414e1ad80a2d588a9e7151fa995631fa0f27058"
+    },
+    "res://world/town/resources/r000355.res": {
+      "source": "bc796e913b81d9ad65e7730334df33d2cd4dee94",
+      "original": "5bd7e81577507c7235267671880cb90b962bf795b14514b43366ab0293f21fdd",
+      "installed": "06791047e13b3d1d9e30e9c61b03cf726dc09975b1265afbbc2e9964c8ec714c"
+    },
+    "res://world/town/resources/r000356.res": {
+      "source": "bc796e913b81d9ad65e7730334df33d2cd4dee94",
+      "original": "6066b67b92b1a91120c6aeb7ff14dd910ad08ad66bc9f71679bf9bb3426d1244",
+      "installed": "31d2d58b43e6f213f47174f713322e9dd74f615735a20a6d154a5710ae416501"
+    },
+    "res://world/town/resources/r000357.res": {
+      "source": "bc796e913b81d9ad65e7730334df33d2cd4dee94",
+      "original": "5d36a09b570370a4a371108b067cdfc18566a6d04bbed55fc7d822426f6af6ea",
+      "installed": "ad49919765186bb6a89bff1764562e384bc674a7c9e4cbfc7fe7d63c269d1f37"
+    },
+    "res://world/town/resources/r000358.res": {
+      "source": "bc796e913b81d9ad65e7730334df33d2cd4dee94",
+      "original": "7c63f7779715d757b4412ae854d38539f90074843b43f637a04b6dd3535d0e68",
+      "installed": "6bef3bf98f417abb8ebec7650a6d8af0fb48a03d6c5a2189d477640e7d7b5f26"
+    },
+    "res://world/town/resources/r000359.res": {
+      "source": "bc796e913b81d9ad65e7730334df33d2cd4dee94",
+      "original": "2ff1b48e6105b7a92cff96ea90a9e6e2ddf4bf5a24579de81a4270ec193f85d3",
+      "installed": "707da6b9155630be000c5068897a0aca8201a7eafb27ddf194d01f53f8226deb"
+    },
+    "res://world/town/resources/r000360.res": {
+      "source": "bc796e913b81d9ad65e7730334df33d2cd4dee94",
+      "original": "169b0bc3955d4975617fe1896d16ed51e36f7c0c81974e1e1a36f5c3df94b41b",
+      "installed": "10c06786283b6ed05623d663f89775246abb863c504774a7ba44728be2ff20a8"
+    },
+    "res://world/town/resources/r000361.res": {
+      "source": "bc796e913b81d9ad65e7730334df33d2cd4dee94",
+      "original": "3318eb0d22886eb07089f8aa143493121ca1b091ee7025f9896c3ed3ddaa5263",
+      "installed": "4c167bc91d5ff896c08e262700f6f9cc26ffecc3c96065fd6dcfb3e2508f8db3"
+    },
+    "res://world/town/resources/r000362.res": {
+      "source": "bc796e913b81d9ad65e7730334df33d2cd4dee94",
+      "original": "f0c22f286d26abe8c3a2d1cacb13993a08b873e9d42d478b10c1eea8c8b27b48",
+      "installed": "00dbf45204531b9581dcd0224a559e63858d029367f41daaab0faec32c23cf51"
+    },
+    "res://world/town/resources/r000363.res": {
+      "source": "bc796e913b81d9ad65e7730334df33d2cd4dee94",
+      "original": "1224c6de186c752770e75f7d3298793cc96d62538be557b4deb6974c2bedcc6e",
+      "installed": "7b3bbf64eeaca743c2b614d0941ed5033acf6470e3e4f675a3379c33b9202603"
+    },
+    "res://world/town/resources/r000364.res": {
+      "source": "bc796e913b81d9ad65e7730334df33d2cd4dee94",
+      "original": "d6e2126e1f4c454369ac783ed45bec798d66cc627bcf900a6fddd1b31d79f3fd",
+      "installed": "a225b90dae9b4de2254f6f4cebb8a99d04f0c29f79c63e56a8d3c9150e651f9e"
+    },
+    "res://world/town/resources/r000365.res": {
+      "source": "bc796e913b81d9ad65e7730334df33d2cd4dee94",
+      "original": "87e3bea02d6d8eb769198a4729055e4e8dff4e637f1fd181e551e8d7d7530fe2",
+      "installed": "af56d40005c58168f9473f3cd41e8616588c528f8fdb298438ae5642c6bd9639"
+    },
+    "res://world/town/resources/r000366.res": {
+      "source": "bc796e913b81d9ad65e7730334df33d2cd4dee94",
+      "original": "fafba629ce22e13bdc8bfa8dc9f453e0197d255517d9db8b9ca56016fb952181",
+      "installed": "a22f149381e3b5d57128bce9053808c33a2912b9dce3337ca93a5feac1e067c7"
+    },
+    "res://world/town/resources/r000367.res": {
+      "source": "bc796e913b81d9ad65e7730334df33d2cd4dee94",
+      "original": "c1ee5b5b6eabf06ff5c6ff86ff9631a0fa20fa2b3b136fa6d9296135d29acec2",
+      "installed": "0c47cfcd3c5e0e70d47e7f096bb9f16e4a0d226c59923589ccd74d983be205a8"
+    },
+    "res://world/town/resources/r000369.res": {
+      "source": "bc796e913b81d9ad65e7730334df33d2cd4dee94",
+      "original": "be9b463739cceae3b19aa9116690179b78332f85955ed879f826b8b01a2fb18f",
+      "installed": "f82160f52004a370498ce6832b67bdeedd51432ad92807297235395aafab3f10"
+    },
+    "res://world/town/resources/r000370.res": {
+      "source": "bc796e913b81d9ad65e7730334df33d2cd4dee94",
+      "original": "72c525085820567d9862025d4951b1283a2409d182a6ec8a1f4430eea5aef9a6",
+      "installed": "61928f9dbe0705cde3892893cdcbea06532c0d590c2ebaa77ee4901bfdd41ede"
+    },
+    "res://world/town/resources/r000371.res": {
+      "source": "bc796e913b81d9ad65e7730334df33d2cd4dee94",
+      "original": "944086169ef1a7d7554c928d7202ec6f7cf9e34d830df11b32f66e384775caa7",
+      "installed": "e8acfd0aa819236c5cf1622b56ed47b010e713a2fee0b83535dec5813a026c44"
+    },
+    "res://world/town/resources/r000372.res": {
+      "source": "bc796e913b81d9ad65e7730334df33d2cd4dee94",
+      "original": "b0428cf4458482af4c39d4ed4aebe2d462bccee7128fa80ea3e7973a7438533b",
+      "installed": "efa94afdb038e5d1c19d436d769e42fa9d485ef0ca2f4e214ea7fd1949737394"
+    },
+    "res://world/town/resources/r000373.res": {
+      "source": "bc796e913b81d9ad65e7730334df33d2cd4dee94",
+      "original": "c43095cb6915e87586f7965824e9c4d3aabe46651f52169b64682ca541615add",
+      "installed": "2c4623478e6bc4e4a81c6fc6785a703b914e25b0b53bb10576d01f17a6a6d0bd"
+    },
+    "res://world/town/resources/r000374.res": {
+      "source": "bc796e913b81d9ad65e7730334df33d2cd4dee94",
+      "original": "f3b4f87eb6c55eca858e6efd333e36cf601177ea7c93da267fe5b30388a12797",
+      "installed": "ae7bf4950ab116ce144c9d1068a6d8f88234897b7b15e7254cac5b8351327f50"
+    },
+    "res://world/town/resources/r000384.res": {
+      "source": "bc796e913b81d9ad65e7730334df33d2cd4dee94",
+      "original": "9a5272421e7392b38b277b1c5fed775d0fac8c64dce2b1510b52826cafd269a9",
+      "installed": "b47e0f3c39a97742a22f5a12efcb182d6ccd1699ed9964a74992e9adea99d506"
+    },
+    "res://world/town/resources/r000385.res": {
+      "source": "bc796e913b81d9ad65e7730334df33d2cd4dee94",
+      "original": "7b6caf714663b36571853a9b413a979752bed67b119d1a2e0f2459c81e69ad6d",
+      "installed": "1210cdd85457c4eafb288c951904bb5202c8fe4225d433165af1df34f2be11a1"
+    },
+    "res://world/town/resources/r000386.res": {
+      "source": "bc796e913b81d9ad65e7730334df33d2cd4dee94",
+      "original": "99e42f6a6c34146e6ace66d3ed74d7133bb8dcb988fad0a639cb2fc5eb2ce98d",
+      "installed": "e8ef637dc02340c638d0929e0402a3c4c7fe553fbc044cc52e9807b7a4f7edd9"
+    },
+    "res://world/town/resources/r000387.res": {
+      "source": "bc796e913b81d9ad65e7730334df33d2cd4dee94",
+      "original": "fd15ef03dad167c8d183ca240c880a400b3a11e9dba7f9931bdea143ebb88b53",
+      "installed": "b8abeb2c5c0b01e3d5254fe23246c7d2162bfeacfc8252824139877dfcff226a"
+    },
+    "res://world/town/resources/r000388.res": {
+      "source": "bc796e913b81d9ad65e7730334df33d2cd4dee94",
+      "original": "5265a0c7cb12d3a58a73bf4d77ffe937fe05702fdcb4cbe7f87c772d6651b976",
+      "installed": "b9c67a03bc8972968121ddfd7b032e92ae22cd883db82fa2637254cf626382f5"
+    },
+    "res://world/town/resources/r000389.res": {
+      "source": "bc796e913b81d9ad65e7730334df33d2cd4dee94",
+      "original": "d5c5d302a182184854a6e43868c7b8f352621ba82c5ca20f73608691d873d1ac",
+      "installed": "40f6186b589ae9ae43eecbffcfb6423a847aad9754b09c33081ee4d193bfd700"
+    },
+    "res://world/town/resources/r000390.res": {
+      "source": "bc796e913b81d9ad65e7730334df33d2cd4dee94",
+      "original": "8951a6ca98c09090a9989386d42d91fd733418420c5ff05b12b06528b95d42f5",
+      "installed": "459a47532b57e3b4aef32c56d3a6363de097650dfa39c92dab1b06e0a502501f"
+    },
+    "res://world/town/resources/r000392.res": {
+      "source": "bc796e913b81d9ad65e7730334df33d2cd4dee94",
+      "original": "73f397c0beafc83c211a8c16036a331c1c92fe429aa6acc90c8ae47c7e396a8c",
+      "installed": "5e10a416e899da09271957952f670678766bdcd47a52839cc9b4782195d46168"
+    },
+    "res://world/town/resources/r000393.res": {
+      "source": "bc796e913b81d9ad65e7730334df33d2cd4dee94",
+      "original": "e23a6098f86b49af8df6f9c44679887a85aeb2d7e9f24e55c937f736a7206711",
+      "installed": "b2a29439b851270250a2fe6f5333c09bb37bfa1f43729c4a9ddc246a408e85f9"
+    },
+    "res://world/town/resources/r000394.res": {
+      "source": "bc796e913b81d9ad65e7730334df33d2cd4dee94",
+      "original": "0925fafaeba4d47251c212f0d18e4d71a6dc8c7804160f0dd41061a9270f7249",
+      "installed": "5d87947a5004447165716ea77c7b80c63357d870634501216f692cef3a7bdc4a"
+    },
+    "res://world/town/resources/r000395.res": {
+      "source": "bc796e913b81d9ad65e7730334df33d2cd4dee94",
+      "original": "ce940cfbe9d3149e5995782304c1b34ccf2115ee9ccdf8fe019a6f41debd4f67",
+      "installed": "bfa2ed0c7ce6b57b599eee2d5ccbc1e15d2c2d0935a02b596c49f02741b5d0b7"
+    },
+    "res://world/town/resources/r000397.res": {
+      "source": "bc796e913b81d9ad65e7730334df33d2cd4dee94",
+      "original": "e5b3c4dd51122b75206214ed80c8a4708fec19448a0e8c0f7103a1d66decbc4e",
+      "installed": "71af89629a9ddabc9804c5aec381bcc0d3a7a00a5dc2dbbc40e0612dd1658ad9"
+    },
+    "res://world/town/resources/r000398.res": {
+      "source": "bc796e913b81d9ad65e7730334df33d2cd4dee94",
+      "original": "644b6ccf2a40d263c52ab350a9dd924155917261432abf0ab5082c82b1711ba0",
+      "installed": "9d9c1c40eed0c7dc69b1cc5340e7379722ca39ee267dfe25dac45bb6a915fc34"
+    },
+    "res://world/town/resources/r000399.res": {
+      "source": "bc796e913b81d9ad65e7730334df33d2cd4dee94",
+      "original": "cf68c83fc2b4d2510f87e64a08d83d34224953f27efb3afc09cc14581d451f27",
+      "installed": "f4d56e4ec53784c45e148a80b53a5ad3bc68897bb73fc84dcec2c78642a0feb5"
+    },
+    "res://world/town/resources/r000400.res": {
+      "source": "bc796e913b81d9ad65e7730334df33d2cd4dee94",
+      "original": "b516ae415e75c79c0d6e9c106d34595ab5278357b3643a2a14ca756555b05b1f",
+      "installed": "d1827ab19121c909cc3553b0c374c7b8eda1d495ced151224c113ff48853e34a"
+    },
+    "res://world/town/resources/r000401.res": {
+      "source": "bc796e913b81d9ad65e7730334df33d2cd4dee94",
+      "original": "2a6837c0f4a82ebaa8b31e3e5d974ff91e29c617e8eb4aa1d7c9d257a2a852aa",
+      "installed": "1b147d93b0a1bed6bdad0f2c90fc29a14749a114d568c6b9bf92c006af241887"
+    },
+    "res://world/town/resources/r000402.res": {
+      "source": "bc796e913b81d9ad65e7730334df33d2cd4dee94",
+      "original": "2ba2137cca2e8b278c05282a10ed8ac9a62e07cacf47855f0dd695a1a6a10c9b",
+      "installed": "d4c96e20539f32b996f7261e247e1488250d458264c10ad976a4524c06a51989"
+    },
+    "res://world/town/resources/r000403.res": {
+      "source": "bc796e913b81d9ad65e7730334df33d2cd4dee94",
+      "original": "81893855453bf7b0e6f39e4dd6aa72bbbf4a424425390121ba4ee182fc25fde2",
+      "installed": "e5be3c281659bd4010f8bebcbaf7112097f72c5a43fca06716fef08c2cb459c4"
+    },
+    "res://world/town/resources/r000404.res": {
+      "source": "bc796e913b81d9ad65e7730334df33d2cd4dee94",
+      "original": "368e01e3e9f5f9a835ac01caed3a9ac1c37fabf803a2c311416da40566305a76",
+      "installed": "ce9350bbf141959e44a59f958818bdd28594288898bfb0b1ce032a58a9626d10"
+    },
+    "res://world/town/resources/r000405.res": {
+      "source": "bc796e913b81d9ad65e7730334df33d2cd4dee94",
+      "original": "4c0ecfec068618a0d8f6ef532baaa89dc2db2e1a92baf9ed1bdaae06d3d49e14",
+      "installed": "793a54fa6af68ee27fbda4c9e48ef1b9cd010ca9890c4a6fe7a9df3a242f6de2"
+    },
+    "res://world/town/resources/r000406.res": {
+      "source": "bc796e913b81d9ad65e7730334df33d2cd4dee94",
+      "original": "0149f253c8e3c82a762db3bec4c9fe95c3640edb40d09381fbc9fbeb4771e176",
+      "installed": "2bd3bf32be0963f4e8b8afa24bd216bbbaf62914433cc1a9769dc9ade42abc47"
+    },
+    "res://world/town/resources/r000407.res": {
+      "source": "bc796e913b81d9ad65e7730334df33d2cd4dee94",
+      "original": "9c5e40b8093c7484daf571f5e538a163e028f719b40f4076744add9e22cb8224",
+      "installed": "5c891abb16f9171783104a26f9ed99678987c26803567ce478d3d3bbe917d107"
+    },
+    "res://world/town/resources/r000408.res": {
+      "source": "bc796e913b81d9ad65e7730334df33d2cd4dee94",
+      "original": "74362727cce41ca67e9052430cd5aaeed5e768afe13313e28abf10a1e48a6c1d",
+      "installed": "5c54d5d44fe347ca146f6b9ccf60f7db638a27edfa1505dd26e4e457897358b8"
+    },
+    "res://world/town/resources/r000409.res": {
+      "source": "bc796e913b81d9ad65e7730334df33d2cd4dee94",
+      "original": "ae65de8a6db7f30c3d2c7cb0c51b0d72daa82117019d972671832262f8ed4adf",
+      "installed": "19cfdf41f7849edde801aaeac28e69b939f2370295e9364de00ac1f6c68cda5e"
+    },
+    "res://world/town/resources/r000410.res": {
+      "source": "bc796e913b81d9ad65e7730334df33d2cd4dee94",
+      "original": "470295088480d82c7e6585ef9e5cf5ec2cffbd2a946bae18064579a02b1b1077",
+      "installed": "d431a5ebada5f1bd2d23a6e323b229b9d0b4a5b7ccf813d0bca0e46823c5dfa2"
+    },
+    "res://world/town/resources/r000411.res": {
+      "source": "bc796e913b81d9ad65e7730334df33d2cd4dee94",
+      "original": "05a6e48a6b72fa2e8701603a4a78ecd701a3d214851348ee34faadd259e2c2d4",
+      "installed": "7ed8d1357e66d122f3e226f9120c886cf8305a96bd207027a9c564d273b80d35"
+    },
+    "res://world/town/resources/r000432.res": {
+      "source": "bc796e913b81d9ad65e7730334df33d2cd4dee94",
+      "original": "61c96ecbe700b6974d36d8c1d89664ce997802f66e8d71c77a762417cbc892ed",
+      "installed": "f1ff89bf778f3d678f5e74ee78615bb524eaa56b06c0039b0ac3b1d6a349477e"
+    },
+    "res://world/town/resources/r000433.res": {
+      "source": "bc796e913b81d9ad65e7730334df33d2cd4dee94",
+      "original": "1f9658f7e2d00a8e11bf3a93e8b9d82fa4cdc9479e479ad0170f4b6d733a1d61",
+      "installed": "c374573541ef1e16fba206deb5ac271ab6e6ae2c7f2c85bfd0c0bc1351037afc"
+    },
+    "res://world/town/resources/r000434.res": {
+      "source": "bc796e913b81d9ad65e7730334df33d2cd4dee94",
+      "original": "7d2b4be9073bc7ebbbedb6bf8226e82416b8e9829cc882866da849b020fcb0b0",
+      "installed": "de1f65b209b7fd15391863f093fd65e377b88783d5cf8bf65c7af4f041c6c036"
+    },
+    "res://world/town/resources/r000435.res": {
+      "source": "bc796e913b81d9ad65e7730334df33d2cd4dee94",
+      "original": "4d6e9dfd4443325193466a1b17b9d775a3ca59934fc37e95dce8fd4bff447c58",
+      "installed": "bc0a68c6f5ec7d600126bd4c74a62a54af29ffdedc82428940c27268b2ab39e8"
+    },
+    "res://world/town/resources/r000436.res": {
+      "source": "bc796e913b81d9ad65e7730334df33d2cd4dee94",
+      "original": "077e27adc974102d2205fcbf21ec69adab86b34cb4dc84c73cd20db1cebf41ac",
+      "installed": "08150c176c145e77a8e128b813e1d983a9c36ce2f75cf8235d424861387c3558"
+    },
+    "res://world/town/resources/r000437.res": {
+      "source": "bc796e913b81d9ad65e7730334df33d2cd4dee94",
+      "original": "9f91a06098a2cb9a2387bd276e14f3682d3de7142549248b152fded0c86a9011",
+      "installed": "d6daac92c6933d261f582ff3475d347318abc9b0fa316482ed9d208a74109863"
+    },
+    "res://world/town/resources/r000438.res": {
+      "source": "bc796e913b81d9ad65e7730334df33d2cd4dee94",
+      "original": "b1be589adf6cc9b93e774e3e9dc517d1ef852da47277d15fbd8d6cb0a380d2bc",
+      "installed": "b6c4b1ca0496ad779a4863e85b9618b4bc5080b2f65ff4fb4eaae4af778dbe5b"
+    },
+    "res://world/town/resources/r000439.res": {
+      "source": "bc796e913b81d9ad65e7730334df33d2cd4dee94",
+      "original": "42c6265d4221f92d840d3c72c3de773ef8b926bfbba7108be2b77a3d6e5c9f8c",
+      "installed": "6e9d10e9d3401437ef5b3eec6419afb74cd67e26aed8aac45ef30ca3889c57f9"
+    },
+    "res://world/town/resources/r000440.res": {
+      "source": "bc796e913b81d9ad65e7730334df33d2cd4dee94",
+      "original": "299b54a2a45889bb08b4db02eead29e3e7b636ab45b9952a9ea7691402789fa6",
+      "installed": "ae39802a7cd52351ab53920af8ee290a6a87269ec162953bfd4cac10e09745b5"
+    },
+    "res://world/town/resources/r000502.res": {
+      "source": "bc796e913b81d9ad65e7730334df33d2cd4dee94",
+      "original": "093a665e577c284169394780e5c74f7961a22c0077f6b1625de9866efc68079d",
+      "installed": "f4bdef5a5545147732fed6ded4a83ce332c6554063d3c0ba238fde6a8fe5a061"
+    },
+    "res://world/town/resources/r000512.res": {
+      "source": "bc796e913b81d9ad65e7730334df33d2cd4dee94",
+      "original": "b4eeed65c7e19a3faed9c64063d20bc0bcd0d02816cbe283b2fc9cf1b99bf2bb",
+      "installed": "88b4b5ac73621c0e6929ba015bb7d095a4c4553ae2900f428f21966b25f73fbc"
+    },
+    "res://world/town/resources/r000514.res": {
+      "source": "bc796e913b81d9ad65e7730334df33d2cd4dee94",
+      "original": "00c13b2b27ebad7f238bc69d1703b56ddd3415c0433f458eed0e95f9f2fa09f4",
+      "installed": "80a9e8bdad16a2f784513fbc8cc19065aaafedee7d997325caf3f993f2fc1735"
+    },
+    "res://world/town/resources/r000516.res": {
+      "source": "bc796e913b81d9ad65e7730334df33d2cd4dee94",
+      "original": "bac0be0fe4e2c7321336c783e4ffe68928c7188809ffc973e8275e27acacd35f",
+      "installed": "aea6eba3b019ed4d78cb77343026ad0d5e91e54461b7937b2600032913a8a60e"
+    },
+    "res://world/town/resources/r000518.res": {
+      "source": "bc796e913b81d9ad65e7730334df33d2cd4dee94",
+      "original": "13891e02f03f95080098684c6dfc3379c3cd0812f4a85bde4a0532404f99fb4e",
+      "installed": "19c9590404a73347dd6410272278a1f43acbe49ec75478cfb91bfae9c1951b7b"
+    },
+    "res://world/town/resources/r000520.res": {
+      "source": "bc796e913b81d9ad65e7730334df33d2cd4dee94",
+      "original": "fce2d1b8766e8234766a919ed182ba6c64a3097b187f5f10328674af2487658b",
+      "installed": "3f26c000467adbff10bd914132746487386f47747f1562567c3587ba24eaf7a7"
+    },
+    "res://world/town/resources/r000522.res": {
+      "source": "bc796e913b81d9ad65e7730334df33d2cd4dee94",
+      "original": "34e4cafc73d43fd6795541ce7eca25a12fedebfc96ae62d635684264c0e476d5",
+      "installed": "baabcec975424735b186ff44bd4a1af7e97322c9728ebdbcc18203a5b521ab3a"
+    },
+    "res://world/town/resources/r000526.res": {
+      "source": "bc796e913b81d9ad65e7730334df33d2cd4dee94",
+      "original": "eb86d4e9eece5d1e248c7f3ce3bfcba12a838c2bd8676131c4868f4ce79e5b7e",
+      "installed": "e7abbce0bccc47fa185da348ddbbf4da9b17883f9b6497798dcc94c1f181b3fe"
+    },
+    "res://world/town/resources/r000528.res": {
+      "source": "bc796e913b81d9ad65e7730334df33d2cd4dee94",
+      "original": "b8a3a1bf096209b699fd887bb5f806ed5e852e6daa043ca3bf3419cb722d204f",
+      "installed": "b20d4fcd9bd3e527d32c458e84eafd401961ad393eb367dda227670501099eb4"
+    },
+    "res://world/town/resources/r002324.res": {
+      "source": "bc796e913b81d9ad65e7730334df33d2cd4dee94",
+      "original": "639ef23297bee6b77aa2556247272e1f35cf6efdd161658ec406828fd5a8edfa",
+      "installed": "c992bbc8917be1c92126d06016c0b022caa8e10d4919ff2b0a2e683fb54c085d"
+    },
+    "res://world/town/resources/r002332.res": {
+      "source": "bc796e913b81d9ad65e7730334df33d2cd4dee94",
+      "original": "2a7191a88de13a7c519c0032436a4ab678af8d83ee2d354d73753303f967cf66",
+      "installed": "0ce2c10e2ebe352b8b6ee601ca2c5d74d2c4c7ab99dca2978fbaf502f7a4783b"
+    },
+    "res://world/town/resources/r002333.res": {
+      "source": "bc796e913b81d9ad65e7730334df33d2cd4dee94",
+      "original": "6959ae6515020f27e6fed71c0de2a396a6efe6178f963c998b6c4fd629f75a0e",
+      "installed": "966c421cdece8284e754bc10a34b69c12a457683f85e359c5a4352e94a18042c"
+    },
+    "res://world/town/resources/r002334.res": {
+      "source": "bc796e913b81d9ad65e7730334df33d2cd4dee94",
+      "original": "19dc9c8cb41974931a39fd51157c744cc50c197e1d025a4ce7fd478fa0ed795b",
+      "installed": "e989d293fa75ce94bffaefca55fb1725053dfe615263f3e9dfd158e7e27c86e6"
+    },
+    "res://world/town/resources/r002339.res": {
+      "source": "bc796e913b81d9ad65e7730334df33d2cd4dee94",
+      "original": "4a2a028820fbd7423d3392ce00b35dc561cbf249441605664552257ca6e2ced7",
+      "installed": "c6a177002332dcff7433ecee8b1d1e72222e46b478c44bb01fc89fc4e04c3e10"
+    },
+    "res://world/town/resources/r002340.res": {
+      "source": "bc796e913b81d9ad65e7730334df33d2cd4dee94",
+      "original": "4ae7ad3d5da29c51342063e271a3d399e10097bdab4966c853ef2ce29f57071f",
+      "installed": "1a70c57ef16c9272052758c21bf9b706a22cb169e4eac60a81b94aca4e269acd"
+    },
+    "res://world/town/resources/r002341.res": {
+      "source": "bc796e913b81d9ad65e7730334df33d2cd4dee94",
+      "original": "1b62b8e6a95f3efa97bf4b5d3fc8df0fd776ca7aa4049a5a61d9c90b626f5a39",
+      "installed": "34a870c2bef43112e14d3c96e75e472b432aa1e3ab67af0190bb609f06ffb2bd"
+    },
+    "res://world/town/resources/r002387.res": {
+      "source": "bc796e913b81d9ad65e7730334df33d2cd4dee94",
+      "original": "cc4115e8ff185851ca1c3018f006da838aa39b199739c66257eec56ffad93606",
+      "installed": "cc71cadf965731641a8c58c4bdb0efb708a092b6cfb219cd433f7650e310941e"
+    },
+    "res://world/town/resources/r002391.res": {
+      "source": "bc796e913b81d9ad65e7730334df33d2cd4dee94",
+      "original": "20da80926a05869bd6a06768e07d2bd7e409c14d6a4b9862b2270597e4d811e5",
+      "installed": "9cb06c077bebfef41be91300f9218b2679eb119b40384fbba00dd9379f9b5450"
+    },
+    "res://world/town/resources/r002392.res": {
+      "source": "bc796e913b81d9ad65e7730334df33d2cd4dee94",
+      "original": "baf6c8717c92c24384901cdb5ed02db177c33efd92cddff8cf25581dc46810ad",
+      "installed": "38df83d08ee0dea0a66cd5e0260a17b150827d2a1b75a10e109eb398b62164fb"
+    },
+    "res://world/town/resources/r004452.res": {
+      "source": "bc796e913b81d9ad65e7730334df33d2cd4dee94",
+      "original": "eed97990ec70faa33ae3350463706fcf68af6edfd9d8fa2304e3e9e1686f5612",
+      "installed": "b7691e175ebc5eb873c9d88c4ddaac28e6e15108a1df62d00c923e9accc1b662"
+    },
+    "res://world/town/resources/r004457.res": {
+      "source": "bc796e913b81d9ad65e7730334df33d2cd4dee94",
+      "original": "b84bbbc126c0d7e1527de9b5b92cd597f6333bf84ead789dd28c1bd3dbc5ed1b",
+      "installed": "55487080822d8e288fb07e747cc5669a953b615d7638341555e70db879a85a94"
+    },
+    "res://world/town/resources/r004462.res": {
+      "source": "bc796e913b81d9ad65e7730334df33d2cd4dee94",
+      "original": "3b4c7eaf5a45792770343fd06b373e842ad2b13ab6809f8f78227e50c1c24f82",
+      "installed": "f06c98dddc408fb9cc7895bbcba73071a3290ec1653488ccf4d960ee2f52ab22"
+    },
+    "res://world/town/resources/r004953.res": {
+      "source": "bc796e913b81d9ad65e7730334df33d2cd4dee94",
+      "original": "237363c34d28332a2d07a7fff7553a0f215d3d474e99ee7cf91613d394a72dd5",
+      "installed": "ed7ed2c45f242f4f9aee096575a70587729141237e9aaa88d2d7b891b00dd88a"
+    },
+    "res://world/town/resources/r004956.res": {
+      "source": "bc796e913b81d9ad65e7730334df33d2cd4dee94",
+      "original": "da927ad1b80c208b3dc2052ef9a605dbc174ced1f88f9046130b920cc3513bb3",
+      "installed": "2b7e52052ff9d879413569c7eb399f0094e9eb7b338cff93a856add206457f90"
+    },
+    "res://world/town/resources/r004957.res": {
+      "source": "bc796e913b81d9ad65e7730334df33d2cd4dee94",
+      "original": "c39e79611c2d6e43901f23f2be388b2af3759d6c061498f55e0d6e57881418c6",
+      "installed": "f68d41e93bb6cda8e1d060875efb1aba12f0e7990fa69615d6e8fd8e2ca9bfeb"
+    },
+    "res://world/town/resources/r004969.res": {
+      "source": "bc796e913b81d9ad65e7730334df33d2cd4dee94",
+      "original": "ce265f6f94f3d44aa2c418e7e30f5a071169c6f8ebcf711ac21bcb4762e68495",
+      "installed": "99537bab3480e42ce7dab92f63f1a96f2c1bb81142703ac1096d1d12ea8ee168"
+    },
+    "res://world/town/resources/r004970.res": {
+      "source": "bc796e913b81d9ad65e7730334df33d2cd4dee94",
+      "original": "2ec867ed8d69762c054dcb0253136a6cad46f556b351522150e7a12cdc291f9b",
+      "installed": "9ee968395fd4c66c7be98fd8c71662ccdcea1af004158eb3e4771d68995eb458"
+    },
+    "res://world/town/resources/r004971.res": {
+      "source": "bc796e913b81d9ad65e7730334df33d2cd4dee94",
+      "original": "c748e77e8d371c5e8960f41dd4c4fa7c1cafe15379e6eb5419d62e57eba0a5db",
+      "installed": "f564e503c8e31a145e79bda1f8d3818faa0fc4273e8a50341b9095d74496cb42"
+    },
+    "res://world/town/resources/r004972.res": {
+      "source": "bc796e913b81d9ad65e7730334df33d2cd4dee94",
+      "original": "490171542f10b4181faa745ad97c07bc5d1b1fb0e7f95bf388498cd112e6188d",
+      "installed": "9bc6985583c6b5cdd4055d0ec353f1e7f154363a252811f4b9ce4b1c213e8d0b"
+    },
+    "res://world/town/resources/r004973.res": {
+      "source": "bc796e913b81d9ad65e7730334df33d2cd4dee94",
+      "original": "c4d9cdc01182fb907e01a4aa8fc3b39dd0405088cf8620117afaed6c73dbf6e8",
+      "installed": "8b5870a9c25fbabf878fc4cec54b9c217625e0d1414a0c909b7db152039651cb"
+    },
+    "res://world/town/resources/r004974.res": {
+      "source": "bc796e913b81d9ad65e7730334df33d2cd4dee94",
+      "original": "e422ba10a58ec43fec33cf788bce1d7cfc4458f98ae9bee80af4647fc309b0a0",
+      "installed": "0394f2092a89d2dd9f22595ff09ee6662afd8de4cdb567e0bdf2390a564e0e3f"
+    },
+    "res://world/town/resources/r004975.res": {
+      "source": "bc796e913b81d9ad65e7730334df33d2cd4dee94",
+      "original": "4068c30b9d2106dd1ee40be4b5f145d60644f58d79834f1c50e8929bb910ffb0",
+      "installed": "ae2d807a1a622111e7ce54bc31a0230db9f2d85d85127ea78d0d64be1f6b143b"
+    },
+    "res://world/town/resources/r004982.res": {
+      "source": "bc796e913b81d9ad65e7730334df33d2cd4dee94",
+      "original": "b95d3fd8aaa2899f692ce6ed8e0e063d3131b29ce7d2b8945c3d07364864f614",
+      "installed": "aad94e31d95fd019cd3679e9cded1187b6511eafcb3d9dc30d70af47244faeb2"
+    },
+    "res://world/town/resources/r004983.res": {
+      "source": "bc796e913b81d9ad65e7730334df33d2cd4dee94",
+      "original": "9e7fc3902053ce2d4065f70ee89778ca9b8250f25f6c7803c6231ca202791d64",
+      "installed": "d86b61edf243733ab10c7bb4e61a553307f63e1078506051b67ad8e84f3f4892"
+    },
+    "res://world/town/resources/r004985.res": {
+      "source": "bc796e913b81d9ad65e7730334df33d2cd4dee94",
+      "original": "2a07e1e71c4f48d7f3b281b16f1d84a1e95013a41dce6a52f8a257422637feaf",
+      "installed": "3dcd28b49c64502e626b275d3d0df49d3dc4a51f85c84d349dc089c12492a9e5"
+    },
+    "res://world/town/resources/r004987.res": {
+      "source": "bc796e913b81d9ad65e7730334df33d2cd4dee94",
+      "original": "673164de2f649848b024ffe2475852f7437aeb1dd5927a70d8a779be08f898ee",
+      "installed": "cf304846a6608c8013dca6d60eb2c5872faa24e16d827d87953b7e2ca67438e6"
+    },
+    "res://world/town/resources/r004988.res": {
+      "source": "bc796e913b81d9ad65e7730334df33d2cd4dee94",
+      "original": "ec2fd505dfd3b1c518b45995692db5641d39106914922272d23bc66fc02474cc",
+      "installed": "5bff36b51720b563782101449f3dc0cdec23f03fa9b6828856a7a41bd2422131"
+    },
+    "res://world/town/resources/r004989.res": {
+      "source": "bc796e913b81d9ad65e7730334df33d2cd4dee94",
+      "original": "8dfe866a1970e51db0d1e514eb4532cc14d693963b3ed2537b28c033ffaa35bf",
+      "installed": "8697d595e7e3501cd7b88270cf0f1b30ca714e6a4ac15d390a9ed61abfef5ef5"
+    },
+    "res://world/town/resources/r004990.res": {
+      "source": "bc796e913b81d9ad65e7730334df33d2cd4dee94",
+      "original": "67970086f38ac11bdc7c4c1b9ef7ce0a21bfc0ba727c4bd037761a7a8fb3af30",
+      "installed": "fe4de667cdb9ccecbbd2acfcd0d94712a4b176b0d115355aba36b19520a76f2a"
+    },
+    "res://world/town/resources/r004991.res": {
+      "source": "bc796e913b81d9ad65e7730334df33d2cd4dee94",
+      "original": "e3e77cbac320d50c0dc729c061f09cfafd318027a3cdf942fac86ea14be8e1b4",
+      "installed": "c942cab906915b9440ea73a2a6eebca69073441719032c9c831c4da3e666d253"
+    },
+    "res://world/town/resources/r004997.res": {
+      "source": "bc796e913b81d9ad65e7730334df33d2cd4dee94",
+      "original": "da3535d89c737fdec9277843d1c4b5f35ea8a91e89c20ca679791c2fe807d279",
+      "installed": "88dc7470be4e8de87f7b138c1e2907a85c5ac966196a3c667781970b77997706"
+    },
+    "res://world/town/resources/r004998.res": {
+      "source": "bc796e913b81d9ad65e7730334df33d2cd4dee94",
+      "original": "41c247ce2680f1bba3a988e50493e1e073546b2b12cd1a9075cdecd9d7af7275",
+      "installed": "6fc768d7488b9a8744dfa2c4e87a069442f0126bdcd62deb7a18e2339bd9e3f9"
+    },
+    "res://world/town/resources/r004999.res": {
+      "source": "bc796e913b81d9ad65e7730334df33d2cd4dee94",
+      "original": "6d7da381a20c048eac9c6d892a87a24c150ee6ebc6330226bcb24cdca947883c",
+      "installed": "5ee145d6303a20b95ae4aecb98c820fcbadfe43776188dd34cc5e959b1a643e1"
+    },
+    "res://world/town/resources/r005000.res": {
+      "source": "bc796e913b81d9ad65e7730334df33d2cd4dee94",
+      "original": "b771eb810b3aa81ba44040eaad65cff70805025043a52a798a4031ef178b8aac",
+      "installed": "7890805adae150ecd13f4b609e9603282890a6daeace3a7307b74b82ea1e679d"
+    },
+    "res://world/town/resources/r005001.res": {
+      "source": "bc796e913b81d9ad65e7730334df33d2cd4dee94",
+      "original": "2cacc7aaeaf6712ed0df40b0ced43c09ce186723157b29cc97d9c3008637226d",
+      "installed": "b28f5a2a88967caef0f9e24fd6afd2fea7d136da4f3068c8db89eae57ccdcec7"
+    },
+    "res://world/town/resources/r005002.res": {
+      "source": "bc796e913b81d9ad65e7730334df33d2cd4dee94",
+      "original": "7f07c5866444d51d55c376f4f46bf708f21dd13374d70fceef3a598c65bc5771",
+      "installed": "6f39f1c6e777fe02b8ea9b6bb3250f4deefe7ec583a12751ed9694260795ea6a"
+    },
+    "res://world/town/resources/r005003.res": {
+      "source": "bc796e913b81d9ad65e7730334df33d2cd4dee94",
+      "original": "14a7204c7e6c206c9f5dc03bbdb52d39b5bff903a9630252dc2d275e29389bda",
+      "installed": "e88d655ca99548df59eed86afa1e6fa642922cfcd02637d4460f8b22185e4f08"
+    },
+    "res://world/town/resources/r005004.res": {
+      "source": "bc796e913b81d9ad65e7730334df33d2cd4dee94",
+      "original": "fb765506045d35de2be1b215348b89b6b5cd32b00493643650fe490ef33e3a8f",
+      "installed": "81a7ab61bbf6662a2987b4d1d8ab509b94d038106369659eaec0585a6a2e6def"
+    },
+    "res://world/town/resources/r005005.res": {
+      "source": "bc796e913b81d9ad65e7730334df33d2cd4dee94",
+      "original": "9bf22f02c32badc15df04ebbff4c19bb82849a2b2e809177616257df0093c680",
+      "installed": "313e706bbd4261e4254a01cf8b41020f80369f7bac21476db3fa48f61b605c89"
+    },
+    "res://world/town/resources/r005008.res": {
+      "source": "bc796e913b81d9ad65e7730334df33d2cd4dee94",
+      "original": "e032f9a360675610806f17863fe877cfb591d12d7e02d4cc6c836cec87a48b4f",
+      "installed": "37e4a112ff615b678a3584c1c03dfa7ef8ab508828820d70d67f22042bd1a766"
+    },
+    "res://world/town/resources/r005009.res": {
+      "source": "bc796e913b81d9ad65e7730334df33d2cd4dee94",
+      "original": "3f2964af3ac13234e67c838e300be8ba28b2aa7259ce217470beb311ae93c867",
+      "installed": "eb6f022eb4dc161e77c0647f5df49b1a898b267d73db79ea69ff285fd80d4f71"
+    },
+    "res://world/town/resources/r005010.res": {
+      "source": "bc796e913b81d9ad65e7730334df33d2cd4dee94",
+      "original": "6bfad631ecd5df669aa25a7a0d3a2b152c226366df8612940caf600ca8843d01",
+      "installed": "cb004eff29d81466bda2f28fc82e1840140bd12f994a11009d320e4f27c1c449"
+    },
+    "res://world/town/resources/r005048.res": {
+      "source": "bc796e913b81d9ad65e7730334df33d2cd4dee94",
+      "original": "920164c38e8336db55ed52015b4be61cb0cfe7706f0e26be7b29ffe609ff86cc",
+      "installed": "3bc44185b17eace7f178b2105c37e8f1e446cae3dd68033ca1de0ad6ddccee84"
+    },
+    "res://world/town/resources/r005050.res": {
+      "source": "bc796e913b81d9ad65e7730334df33d2cd4dee94",
+      "original": "5853ee6c59ff31b8e7e6f8caec3e1196db4ea17d0c767841a65e17d0242d4a9b",
+      "installed": "63cf09e5f44998cc5779cc674f9a8b0a5d298d83624546e8657e0914cf4e3ed6"
+    },
+    "res://world/town/resources/r005059.res": {
+      "source": "bc796e913b81d9ad65e7730334df33d2cd4dee94",
+      "original": "871539e42c9eadde5f794ee608e75c726c11e50059e8eb003f54ade78be620bc",
+      "installed": "ffe4892599a5ca66e38dee6fc3206ea8294319f4db1ad2278e18543115c24ce4"
+    },
+    "res://world/town/resources/r005068.res": {
+      "source": "bc796e913b81d9ad65e7730334df33d2cd4dee94",
+      "original": "f77fd45f2abb0459ac607b9d0c4a737653caf393322b4e495eb4601da2fd232a",
+      "installed": "14b8a97b702d4612523aad7f877435624dcde6c12794a92e98179ba142414a1d"
+    },
+    "res://world/town/resources/r005074.res": {
+      "source": "bc796e913b81d9ad65e7730334df33d2cd4dee94",
+      "original": "6a0a3cd986c69070adccfcf27e3bae0ff2a1b7a78be96fc36103b74da40f9a02",
+      "installed": "0163fde4783ca5fb724c9d16c177db4f36c41796f92c61c3a234135b731223c8"
+    },
+    "res://world/town/resources/r005082.res": {
+      "source": "bc796e913b81d9ad65e7730334df33d2cd4dee94",
+      "original": "fd9158ffe1fa96c4ac03806c47c3cef94b33f7f4cab0b5dfdb4d40f775ccc2a9",
+      "installed": "a1a0500c1a5a3d39d5a10d26c724a6adcb1c52e28a5d61a524fc9ca6d8551e2d"
+    },
+    "res://world/town/resources/r005111.res": {
+      "source": "bc796e913b81d9ad65e7730334df33d2cd4dee94",
+      "original": "f78e67a3dc57ed4850f66c99239df8f53962ab852cc7e57d8813ad026df1c522",
+      "installed": "eb1a10782fbd03a8bdbcea101b7e32787111cbbd9489b2066431150980180dcd"
+    },
+    "res://world/town/resources/r005112.res": {
+      "source": "bc796e913b81d9ad65e7730334df33d2cd4dee94",
+      "original": "36311c0659cc10118e25b1043056a42a24867920124dd6fc0d610a4b0f452e66",
+      "installed": "07e84c5d97d9fde35f690380128fe9abc008c68bd0b262a5202e86a5e97ceaa5"
+    },
+    "res://world/town/resources/r005113.res": {
+      "source": "bc796e913b81d9ad65e7730334df33d2cd4dee94",
+      "original": "598b0e16a760e35649ae0346d67568add062c0455947da8923cf8ed26164dfc3",
+      "installed": "24f9badc05c7993ff6d96d88f583812cf26d5e143393e3c6c388af4c37623225"
+    },
+    "res://world/town/resources/r005115.res": {
+      "source": "bc796e913b81d9ad65e7730334df33d2cd4dee94",
+      "original": "28098a2cc823938a518f6a97f753225f31e8ce51aae59879ade8d617083109ab",
+      "installed": "c98c1b2c04e9a77c0b8033f001ff2bbcf0e2111b2300e236682911fd178fc7d3"
+    },
+    "res://world/town/resources/r005117.res": {
+      "source": "bc796e913b81d9ad65e7730334df33d2cd4dee94",
+      "original": "7996a8906fbc7ef9cd9ba1c570f1667a74cac94c3ce6136d3fe7aa368bdf4676",
+      "installed": "7b8055ae76e30f09578ca812a524a37cd0307f446c72a4e872308c477e08255d"
+    },
+    "res://world/town/resources/r005118.res": {
+      "source": "bc796e913b81d9ad65e7730334df33d2cd4dee94",
+      "original": "deb75d6e59e91f6e09dac942a8046bc911dbf1972f8536e02651949974533331",
+      "installed": "3d6d22bc10214a76dc83c37b7fe08a75e370a7cfa72fb61c7e72047fae2977d9"
+    },
+    "res://world/town/resources/r005127.res": {
+      "source": "bc796e913b81d9ad65e7730334df33d2cd4dee94",
+      "original": "3a69dd6b79ba583707ca3488e507a1f325fd3aa547a1f2f1acca7789b83bb577",
+      "installed": "52fb583b67e702b24208792e296673935233ebc382c26c2fd4e1cbb7ded45439"
+    },
+    "res://world/town/resources/r005136.res": {
+      "source": "bc796e913b81d9ad65e7730334df33d2cd4dee94",
+      "original": "e9ae0cb63d62d85f854a216c5f8ae46c4383aa00d7dcb199ac9d074ac8c59c67",
+      "installed": "4bbaa6a34fb3bc5e28e95e5affec9ded0ac649f9560e7e4980056a69f69089d6"
+    },
+    "res://world/town/resources/r005160.res": {
+      "source": "bc796e913b81d9ad65e7730334df33d2cd4dee94",
+      "original": "7bc6bb448505b04c0749c3ad6ea709a9c0b1e0257e7cd0937b1bbc6b095ab2bc",
+      "installed": "c71974df3ca183c2ef441f15cc9e3fbea0350189f6c918fce2a0286ec21f2ca8"
+    },
+    "res://world/town/resources/r005165.res": {
+      "source": "bc796e913b81d9ad65e7730334df33d2cd4dee94",
+      "original": "bdc4f87edf4b32d368446c0475c3568022f20f5e32f14acee6f7111f490e95ac",
+      "installed": "262655e3fe4588ca989b3e926caa42928014fb9902bf32532ede6ac5047451ca"
+    },
+    "res://world/town/resources/r005166.res": {
+      "source": "bc796e913b81d9ad65e7730334df33d2cd4dee94",
+      "original": "f0e3dffd252a90f7595acfdafa8668a8ca017bb659b80a6535c6110f08ab738d",
+      "installed": "d772b1ec944bfda76d98948394f58f5af9ce7626273e8d0230d223a70e2aff3b"
+    },
+    "res://world/town/resources/r005170.res": {
+      "source": "bc796e913b81d9ad65e7730334df33d2cd4dee94",
+      "original": "c0fb65133bdca7279141fbf4154b3b77520fef9510aed3c605214ab83cf64e6c",
+      "installed": "083552916eb88939dcec137c231d2ea904ead4e8d4a559c9988210863ec8d5a9"
+    },
+    "res://world/town/resources/r005172.res": {
+      "source": "bc796e913b81d9ad65e7730334df33d2cd4dee94",
+      "original": "46283e307c6225875877eabe798762e706a79886eb1d177485818197ad4101ac",
+      "installed": "9851aa2c267195da9a0314f58643d3b4ce034d080ea697c9aa217987d8b89409"
+    },
+    "res://world/town/resources/r005173.res": {
+      "source": "bc796e913b81d9ad65e7730334df33d2cd4dee94",
+      "original": "1ca53e267e4db3b3aecc68567f48d56dfe3b71829203478d9222283e50ea1467",
+      "installed": "479080899738f1fc15af704b0e9659772f4038ccb1474ec0cdadddebc343bc10"
+    },
+    "res://world/town/resources/r005174.res": {
+      "source": "bc796e913b81d9ad65e7730334df33d2cd4dee94",
+      "original": "5af8a02d05941df595044df7c8bcedd58a38cfb4d243b1ebe94a53d2c8a79d5e",
+      "installed": "283d704d5eddb3dccb2f0e149aec2f3b66bf7c3b7fb88b283c324f2e8ec08243"
+    },
+    "res://world/town/resources/r005176.res": {
+      "source": "bc796e913b81d9ad65e7730334df33d2cd4dee94",
+      "original": "29f5c71f726dd2f12f952a5b156127a0697e462e7e238b3bd9585fed72209fc4",
+      "installed": "c91c9e1e91115b0cb21111ed2ceb899645841d573c36b62a5b21549d17021b62"
+    },
+    "res://world/town/resources/r005585.res": {
+      "source": "bc796e913b81d9ad65e7730334df33d2cd4dee94",
+      "original": "76205ff7468b042fdcd4171231f4e3b17575a41008704c70e12a24d59dfb069d",
+      "installed": "2b3624ff9631ba4a3b32b143b35438d0156a887eb0b75ba49042ed5a93d205c4"
+    },
+    "res://world/town/resources/r005600.res": {
+      "source": "bc796e913b81d9ad65e7730334df33d2cd4dee94",
+      "original": "3870b862c7aaf4fcc756363c83591ea60ddca10dd3b6694c75e39f21fdeb673f",
+      "installed": "3b25d459f37a45b1a0d6fa999ed3d3a95d756a46ddcafce6f421b4ab36cd53dc"
+    },
+    "res://world/town/resources/r005618.res": {
+      "source": "bc796e913b81d9ad65e7730334df33d2cd4dee94",
+      "original": "e52a1da6de4a59a374cbfbaa86bebf14ae57c2b49c32e994b40ade74de464c0c",
+      "installed": "2694f9fdbd2d1841b16fbb47f4648a13e633ea6b0e085fab9c32f121d7cb9983"
+    },
+    "res://world/town/resources/r005622.res": {
+      "source": "bc796e913b81d9ad65e7730334df33d2cd4dee94",
+      "original": "15323138b515d0490f9becaf7e80fc07942ee39477d38271d3887faf693e9f65",
+      "installed": "6bd95615edc26ae555c5ef2c2800bc67f4a1fb5a170997e266ac4eae4aa67255"
+    },
+    "res://world/town/resources/r005623.res": {
+      "source": "bc796e913b81d9ad65e7730334df33d2cd4dee94",
+      "original": "fb764b376719d7e38cae7908959d292178b411158500d3c63c67085582f5fc3c",
+      "installed": "5c64ebb3f3ea44f787a99d189146edb0ac9128e59a0bd85e829843c1f338586e"
+    },
+    "res://world/town/resources/r005624.res": {
+      "source": "bc796e913b81d9ad65e7730334df33d2cd4dee94",
+      "original": "a74641351f5200f95bc887c10863a5763400aad1df6fd48a6d1268ba5d5f5a57",
+      "installed": "6b34c07bccbcedfc1ed7f532fa313b9e13fa47e4715caebee5c48100a668b57b"
+    },
+    "res://world/town/resources/r005625.res": {
+      "source": "bc796e913b81d9ad65e7730334df33d2cd4dee94",
+      "original": "7c092f11aa46a0c25e9a56da73d008ae2593a8865be18a1e2facf36f56037088",
+      "installed": "a032ee3e8e076d9404a77496df85ff382b9dc4f3d69cdfd0b43aef844f9d307e"
+    },
+    "res://world/town/resources/r005626.res": {
+      "source": "bc796e913b81d9ad65e7730334df33d2cd4dee94",
+      "original": "0fadd0de7e374d05f03ec73ec51fd2a59e7fd1d409dc633996339b9843c42fba",
+      "installed": "635010ec50458bfe42cdd5d5ebfaadefb8ddffed9a9a9a5750c41e414e88138e"
+    },
+    "res://world/town/resources/r005627.res": {
+      "source": "bc796e913b81d9ad65e7730334df33d2cd4dee94",
+      "original": "9666a6dd66e033386ccba61f32752374e47c020f9a18ae65f521e32b422337e5",
+      "installed": "038254482928e4c5a2f39b3a2a561fda4bc2aacb50f307e8e4e7b88b825bc034"
+    },
+    "res://world/town/resources/r005628.res": {
+      "source": "bc796e913b81d9ad65e7730334df33d2cd4dee94",
+      "original": "fa74b31b1a6d855db9ecd53e1f650e4748046ce7ee0abd8105889b1172aac4fd",
+      "installed": "a3c4ceb38b5a0ccbe4668c90f0d69c5e2d7bbf02fa65cf1392f48ecfeb273598"
+    },
+    "res://world/town/resources/r005629.res": {
+      "source": "bc796e913b81d9ad65e7730334df33d2cd4dee94",
+      "original": "a019c2b51402206d7ab8dc92601af3ed31b3d17783c320243749c8f68c856394",
+      "installed": "6a1ae602b733e632bed5efcf199eb492b19a67cb8cbc592ed69c013a38023be0"
+    },
+    "res://world/town/resources/r005630.res": {
+      "source": "bc796e913b81d9ad65e7730334df33d2cd4dee94",
+      "original": "31e9ba30edb5b46327034efe3ef83c9d10f1903224e04e022bdaca1126127e8b",
+      "installed": "05d3c2d8fe4a48092c5a6226b585cb8102ede135a92665757e95027a0b27d1a2"
+    },
+    "res://world/town/resources/r005631.res": {
+      "source": "bc796e913b81d9ad65e7730334df33d2cd4dee94",
+      "original": "097397fa2449a90a4efc2f72e9e78b69b9600cf64a06de2d2e8ebee28d0d007c",
+      "installed": "b6f6e9d7ea28dfc1886159408ed61c27bf93adb2812343ff25b41dbd42953b17"
+    },
+    "res://world/town/resources/r005633.res": {
+      "source": "bc796e913b81d9ad65e7730334df33d2cd4dee94",
+      "original": "1ac2ff8d7149c367e6bdf46d3d9847edef9b7e784a6ba42f60eba86b0dd90da8",
+      "installed": "236f511614bd79f3f21acbf7da757df9e7699595b0dccacebab2db33f1c9dfbf"
+    },
+    "res://world/town/resources/r005634.res": {
+      "source": "bc796e913b81d9ad65e7730334df33d2cd4dee94",
+      "original": "06a66b9de61aae1838829211b23abab1bbb4e53d8b7fac425ca5ee408bf3e244",
+      "installed": "4991ea0f34b479df2d3fef5e2035ee3b22846b88876e6046543fb8b86471c2ea"
+    },
+    "res://world/town/resources/r005637.res": {
+      "source": "bc796e913b81d9ad65e7730334df33d2cd4dee94",
+      "original": "b93636f636f5cd51be75d16c1a128abae39c8e2f2c233921616475b02d9791c1",
+      "installed": "70cd7f1636175bd9d419c216de0b83b54139b1431730f2c0f5b64fb92f7fde00"
+    },
+    "res://world/town/resources/r005638.res": {
+      "source": "bc796e913b81d9ad65e7730334df33d2cd4dee94",
+      "original": "5d86387384549389af46c9a3a2a453b0ba26704adf570fc5b47e95036b8a5192",
+      "installed": "27576007e99e454f37a785890aa5892f36d29bca96101765c895fc92d5b1a78a"
+    },
+    "res://world/town/resources/r005641.res": {
+      "source": "bc796e913b81d9ad65e7730334df33d2cd4dee94",
+      "original": "535a56f2f4eaf78921fcadafc6817b5677002186f00f23957f49bf1d20b1e876",
+      "installed": "ec00b9245c7df8ead77161d8556777835a5708504216046219ffd10a125ca0d2"
+    },
+    "res://world/town/resources/r005642.res": {
+      "source": "bc796e913b81d9ad65e7730334df33d2cd4dee94",
+      "original": "5c3ae3b1a564a907d342b0937cc20abd433d78cc1b210cf0f03501cdcf67ad90",
+      "installed": "73594e7dbf84b30c0045c159dc25a84db925637aaef046c601ca3e1ca1fad5a9"
+    },
+    "res://world/town/resources/r005646.res": {
+      "source": "bc796e913b81d9ad65e7730334df33d2cd4dee94",
+      "original": "d86844782dedc9bfac2d291375a58d8719d13553eda1e396af8de30120889a63",
+      "installed": "2e1ec29f613089b8f4834ce1c0fa3c3fddcfea39e954bec2976df85b60870507"
+    },
+    "res://world/town/resources/r005662.res": {
+      "source": "bc796e913b81d9ad65e7730334df33d2cd4dee94",
+      "original": "037f5e61c08cb71726f12100ce9f35fe0a03f1ba2b277cb83d51c218f58a5ed8",
+      "installed": "c9d7d1ad9d25034d39000e98d9bc3be12be84f36393d1b50a0203cae1a270351"
+    },
+    "res://world/town/resources/r005666.res": {
+      "source": "bc796e913b81d9ad65e7730334df33d2cd4dee94",
+      "original": "48d951fe626f47e1f68f743f9cc44509f258b4fd2657335e0188a2b2b460411e",
+      "installed": "d25ba8306ebe33c191601fe541ae9dee66f83ed4f1e9bd3455ff8fec47e46da8"
+    },
+    "res://world/town/resources/r005667.res": {
+      "source": "bc796e913b81d9ad65e7730334df33d2cd4dee94",
+      "original": "ab8921634d1a6b200cc0775a484cb864706d8d0bf7602009a0ea7790e7ea3b16",
+      "installed": "ab9f0ec4ade609895465061003df62c02c262b61c4c2af9fb4d55aea3131491c"
+    },
+    "res://world/town/resources/r005670.res": {
+      "source": "bc796e913b81d9ad65e7730334df33d2cd4dee94",
+      "original": "a517b49b40869faf175a9d77d89081a6d64fbd52a20da6de68d7ddf989f3da23",
+      "installed": "0e9347ba653af661f0f20eed5eb126d715ce1ab2bb05f9f53331974b75f9996c"
+    },
+    "res://world/town/resources/r005671.res": {
+      "source": "bc796e913b81d9ad65e7730334df33d2cd4dee94",
+      "original": "5f1846d0dd19f3d79f00d34966a1332bca43a71f82670be5767a8872e2d96be4",
+      "installed": "6b62415c66970d9bd91b92be059a4c3c568e3c097c24a8d4f7eb40d798d91cd7"
+    },
+    "res://world/town/resources/r005674.res": {
+      "source": "bc796e913b81d9ad65e7730334df33d2cd4dee94",
+      "original": "e8aaef249509702d277de192555c27b7315abfb6edadaa61b1fb2f3edf5fd4fa",
+      "installed": "71e02412b5dc21a0a36828194fcb3da2acfbcafd2e97d9a46a055fb3ef67844e"
+    },
+    "res://world/town/resources/r005698.res": {
+      "source": "bc796e913b81d9ad65e7730334df33d2cd4dee94",
+      "original": "6f073dd1f5b87ba803aa2727e37ed488fb461a924efd72f1c00d5daef5619ae1",
+      "installed": "0606024ea58fd0ef07bf610330e4778538b9fdb69e0faa6ae8f6358cb0c49d3d"
+    },
+    "res://world/town/resources/r005704.res": {
+      "source": "bc796e913b81d9ad65e7730334df33d2cd4dee94",
+      "original": "c8d6a247c823872001bc954567f8e6a4c52a9bceaf47a4a11cd0c0a61e63b8fd",
+      "installed": "7c4598e327ce390d1ef9956e31d304df38822c54cb76a2452924f62a06cc49cd"
+    },
+    "res://world/town/resources/r005710.res": {
+      "source": "bc796e913b81d9ad65e7730334df33d2cd4dee94",
+      "original": "855495b909e79d0c448b3f7f0d6151105c4428537b50abbf26f81d90db652378",
+      "installed": "27b530034ab3aaad8917aa55b152e5608596739265185a879e2fb5914fce3bd7"
+    },
+    "res://world/town/resources/r005763.res": {
+      "source": "bc796e913b81d9ad65e7730334df33d2cd4dee94",
+      "original": "ebcea96a40e86dcc97dc101dbe621a49a296acc8610db401b41f40a5e20d7a77",
+      "installed": "af09c6ca9586ced0225ccd0a8cb3116ed1dda14e7b05523c1ac9cd93d971a941"
+    },
+    "res://world/town/resources/r005767.res": {
+      "source": "bc796e913b81d9ad65e7730334df33d2cd4dee94",
+      "original": "b4d6eb8676ad3b21244675650fc115ff58c5cc21f01e4f1a006f2ee3978c33e4",
+      "installed": "0229591b7ffab3c1feed8cf3078f05cd9bd9364287660ab2fbda402fc3e77d08"
+    },
+    "res://world/town/resources/r005768.res": {
+      "source": "bc796e913b81d9ad65e7730334df33d2cd4dee94",
+      "original": "1e9983f668d88a558f28553b6ed4970d609c3620b3895f853e7605bf918a84f1",
+      "installed": "242de834df706fe534fa2b4acc109da069d494748dd2eea2e5d3290a5f955dad"
+    },
+    "res://world/town/resources/r005769.res": {
+      "source": "bc796e913b81d9ad65e7730334df33d2cd4dee94",
+      "original": "df161d7bb64bbbb247ea7a2b03d44533c646dfa8528258861ffb0c7ef4c803bd",
+      "installed": "f7d9426a23ddeafb47f4e00039dfbcfaa64cacb34b7ed49cda746c00a794e1db"
+    },
+    "res://world/town/resources/r005770.res": {
+      "source": "bc796e913b81d9ad65e7730334df33d2cd4dee94",
+      "original": "919dd06dde8584cc53c23e02ebfdecb80e41292a9b7fb818beccbe5552339dc9",
+      "installed": "e1e662e06842eff73b7790fc2b5826ffd5b192a01d039799c4bcc025d22a9b1f"
+    },
+    "res://world/town/resources/r005771.res": {
+      "source": "bc796e913b81d9ad65e7730334df33d2cd4dee94",
+      "original": "08308386bcc1f0f4daf3efc2da95c0e22b623130e2db0bc339ae8d9937a664c4",
+      "installed": "676a226f0b92190166c8c872dc08a07752dea78a01f07b1c8a495cfbdedbf145"
+    },
+    "res://world/town/resources/r005772.res": {
+      "source": "bc796e913b81d9ad65e7730334df33d2cd4dee94",
+      "original": "12c572f35eef5ff4d5a42305b2b889ab05af0f1d9e4d7e569f93a53e247eb94b",
+      "installed": "b986f8f387df6f9b26b5b8d5e4d99b5234e7798a018e809e4943b3a12211fa1b"
+    }
+  }
+}
