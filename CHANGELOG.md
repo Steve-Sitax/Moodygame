@@ -11,6 +11,7 @@ Bugs and loose ends are tracked as [issues](https://github.com/Steve-Sitax/Moody
 
 ## [Unreleased]
 
+- Ruien: the walkway setts' raised edges and joints show their stones at true size, no longer stretched.
 - Door steps and plinth tops show their stone's grain along the step, not always east to west.
 - 56 downpipes that ended on the pavement or the street with nothing under them now drain like the rest: a ribbed iron channel plate across the pavement to the kerb, or a grated gully at the street.
 - Sint-Paulus, Sint-Jacob and Sint-Carolus now stand free: the 62 houses built hard against them are cleared, and limes, planes and benches stand on the new squares round the churches. Trees also grow on the wide bare ground along the old town wall.

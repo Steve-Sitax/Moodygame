@@ -259,7 +259,7 @@ public static class RuienRepair
                 if(path.Contains("lod0"))pavedFaces.AddRange(pm.GetFaces());
                 var pavement=pm.SurfaceGetArrays(0);
                 if(path.Contains("gallery_s"))RuienSurfaceRepair.Apply(pavement,"ruien_setts",geometry,pipes);
-                RuienUv.Repair(pavement,"ruien_setts",continuous:true);
+                RuienUv.Repair(pavement,"ruien_setts",continuous:true);RuienUv.UnfoldFlanks(pavement,"ruien_setts"); // (#214)
                 mesh.AddSurfaceFromArrays(Mesh.PrimitiveType.Triangles,pavement);
                 mesh.SurfaceSetName(mesh.GetSurfaceCount()-1,"ruien_setts");
             }

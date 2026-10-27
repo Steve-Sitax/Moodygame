@@ -9,6 +9,7 @@ namespace Scheldemist.Native.World;
 /// The Ruien's one-time conversion of a Blender export into game resources (docs/ruien-native.md), headless:
 ///   godot --headless --path native-godot res://world/ruien/convert.tscn -- --ruien-textures &lt;export/textures&gt;
 ///   godot --headless --path native-godot res://world/ruien/convert.tscn -- --ruien-area &lt;export folder&gt; --area o2
+///   ... -- --ruien-unfold-flanks &lt;installed mesh folder&gt; --backup &lt;folder&gt; (#214: the setts' relief flanks)
 /// It writes under res://world/ruien and quits; the game itself only loads what it wrote.
 /// </summary>
 public partial class RuienConvert : Node
@@ -21,6 +22,7 @@ public partial class RuienConvert : Node
         try
         {
             if(Arg("ruien-uv-audit") is {Length:>0} audit)RuienUv.Audit(audit,Arg("report"));
+            if(Arg("ruien-unfold-flanks") is {Length:>0} flanks)RuienUv.UnfoldInstalled(flanks,Arg("backup"));
             if(args.Contains("--ruien-paving-textures")) RuienPaving.PrepareTextures();
             if(Arg("ruien-screen") is {Length:>0} screen) RuienRepair.Screen(screen);
             if (Arg("ruien-repair") is { Length: > 0 } repair)
