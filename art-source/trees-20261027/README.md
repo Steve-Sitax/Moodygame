@@ -46,3 +46,25 @@ before, 12.7 / 11.1 / 13.0 after (climbers included); the squares 22.9 / 18.6 / 
 17.0 / 15.5 after.
 
 Atlas sources: `tree-leaves.png`, `tree-leaves-height.png` (make_leaf_atlas.py writes them and `atlas-mips.bin`).
+
+## Round 2 · 27 October 2026
+
+Codex's review of round 1: compact solid lobes, lime leaves too large (coarse flakes in shelves), angular junctions,
+repetition between copies, little colour variation inside a crown, pointed root skirts.
+
+- `make_leaf_atlas.py`: the lime's leaves halved to 4 to 8 cm (heart-shaped, toothed), two at a node and one between,
+  on finer, more branched sprigs; plane (12 to 22 cm) and elm unchanged.
+- `trees.py`: each of a kind's meshes is its own tree (`VARIANTS`: lime 3, plane 2, elm 2, bare 1): own seed, crown
+  height 0.9 to 1.07, width 0.88 to 1.1 and leaves held 0.8 to 1.12 of the first. Crowns have irregular openings
+  (patches of a slow 3D wave hold a quarter of their sprigs); sprigs turn more freely (fewer flat shelves); the inside
+  darker, sprays leaning olive, yellow or ochre by their own chance and by the sun. Branches swell into a collar where
+  they leave their parent and start inside it (no abrupt joints); bark rounder: 14 sides on the trunk, 8 on limbs, 5 on
+  branches. The root flare is rounded: five soft lobes running into the ground.
+- `promote-trees.gd` writes each pair from its own variant (`<kind>-v<n>`), with that variant's collision trunk.
+
+| kind | bark faces | leaf cards |
+|---|---|---|
+| lime v0 / v1 / v2 | 4 306 / 3 964 / 4 626 | 1 161 / 1 156 / 920 |
+| plane v0 / v1 | 2 708 / 2 694 | 675 / 616 |
+| elm v0 / v1 | 3 978 / 3 608 | 1 019 / 765 |
+| bare | 3 164 | 650 |

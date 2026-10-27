@@ -14,7 +14,9 @@ buttresses sunk 25 cm into the ground (no tree floats where the ground dips a li
 along (no stretching), the bark darker toward the twigs. Leaves: sprig cards from make_leaf_atlas.py at the last
 two orders of branches, facing out of the crown, normals bent out of the crown so it shades as a whole; darker inside
 and low down. Collision (solid.json): a 10-sided trunk to 2.6 m, as the trunks were solid before.
-Writes <kind>-bark.f32 / <kind>-leaves.f32 (12 floats a corner: position, normal, uv, colour, three a triangle), the
+(2026-10-27, round 2: crowns with irregular openings and more varied sprays, lime leaves at 4 to 8 cm, branch collars,
+rounder bark (14 / 8 / 5 sides), rounded root lobes; each of a kind's meshes its own tree: <kind>-v<n>.)
+Writes <kind>-v<n>-bark.f32 / <kind>-v<n>-leaves.f32 (12 floats a corner: position, normal, uv, colour, three a triangle), the
 same welded for the game as <kind>-bark.vtx / .idx (16 floats a vertex: position, normal, tangent, uv, colour; int32
 indices), <kind>-solid.f32 (the collision trunk's corners) and report.json. Fixed seeds: the same trees every run.
 """
@@ -45,9 +47,18 @@ def perp(d):
     u = norm(np.cross(d, a)); return u, np.cross(d, u)
 
 
+# (round 2, 2026-10-27) each kind's two or three meshes are their own trees: height, crown width and how many leaves
+# it still holds (its retention) differ, and each its own seed
+VARIANTS = {'lime': 3, 'plane': 2, 'elm': 2, 'bare': 1}
+VARY = [dict(height=1.0, reach=1.0, cards=1.0), dict(height=0.9, reach=1.1, cards=0.8), dict(height=1.07, reach=0.88, cards=1.12)]
+
+
 class Tree:
-    def __init__(self, kind):
-        self.kind = kind; self.s = SPEC[kind]
+    def __init__(self, kind, variant=0):
+        self.kind = kind; self.s = dict(SPEC[kind]); vr = VARY[variant]
+        self.s['seed'] += 101 * variant
+        self.s['height'] = self.s['split'] + (self.s['height'] - self.s['split']) * vr['height']
+        self.s['reach'] *= vr['reach']; self.s['cards'] = int(self.s['cards'] * vr['cards'])
         self.rng = np.random.default_rng(self.s['seed'])
         self.branches = []      # (points [n,3], radii [n], order)
         self.tips = []          # (point, direction, order) where sprigs go
@@ -68,6 +79,10 @@ class Tree:
             pts.append(pts[-1] + d * (length / n))
         pts = np.array(pts)
         radii = r0 + (r1 - r0) * np.linspace(0, 1, len(pts)) ** 0.8
+        if order >= 1:
+            # (the branch collar: its foot swells and curves into the parent, no abrupt step)
+            L = np.cumsum(np.r_[0, np.linalg.norm(np.diff(pts, axis=0), axis=1)])
+            radii = radii * (1 + 0.45 * np.exp(-L / (0.12 + 2.5 * r0)))
         self.branches.append((pts, radii, order))
         return pts, radii
 
@@ -112,7 +127,7 @@ class Tree:
                 if self.crown_ok(p + nd * ln): break
                 ln *= 0.8
             if self.crown_ok(p + nd * ln) and ln > 0.15:
-                bpts, bradii = self.walk(p, nd, ln, r0, max(0.004, r0 * 0.18), order + 1, bend_up=up * 0.6,
+                bpts, bradii = self.walk(p - nd * r_here * 0.6, nd, ln, r0, max(0.004, r0 * 0.18), order + 1, bend_up=up * 0.6,
                                          gravity=droop * (1 + 0.3 * order), wobble=0.1 + 0.04 * order)
                 if order + 1 < max_order:
                     self.sub(bpts, bradii, order + 1, max_order, spacing * 0.55, angle * 0.95, length_k * 0.62, up * 0.7, droop)
@@ -159,12 +174,12 @@ class Tree:
         for pts, radii, order in self.branches:
             # (the finest twigs are drawn in the sprig cards: only the trunk, limbs and branches are tubes)
             if order >= 3: continue
-            sides = [12, 7, 4][order]
+            sides = [14, 8, 5][order]
             if order == 0:
                 # the trunk: rings close at the foot (its flare), farther apart above
                 keep = [0] + [i for i in range(1, len(pts) - 1) if pts[i][1] < 1.2 or i % 2 == 0] + [len(pts) - 1]
                 pts, radii = pts[keep], radii[keep]
-            if radii[0] < 0.012: sides = 3
+            if radii[0] < 0.012: sides = 4
             # ring frames (parallel transport, no twist)
             d0 = norm(pts[1] - pts[0]); u, v = perp(d0)
             frames = []
@@ -185,8 +200,11 @@ class Tree:
                     rr_ = r
                     if order == 0 and p[1] < 0.9:
                         # the flared foot and its buttress roots
+                        # (rounded lobes that run into the ground, no pointed skirts)
                         f = max(0.0, 0.9 - max(p[1], 0)) / 0.9
-                        rr_ = r * (1 + 0.55 * f ** 2 + 0.22 * f * max(0, math.cos(5 * a + 0.7)) ** 3)
+                        f = f * f * (3 - 2 * f)
+                        lobe = (0.5 + 0.5 * math.cos(5 * a + 0.7)) ** 1.6
+                        rr_ = r * (1 + 0.42 * f ** 1.5 + 0.2 * f ** 1.3 * lobe)
                     nrm = uu * math.cos(a) + vv * math.sin(a)
                     q = p + nrm * rr_
                     # darker toward the twigs and in the crown's shade; a little moss low on the trunk's north
@@ -221,12 +239,17 @@ class Tree:
                 d = norm(pts[i] - pts[max(i - 1, 0)])
                 places.append((pts[i], d, order))
         rng.shuffle(places)
+        # (irregular openings: patches of the crown hold fewer sprigs, so sky and inner branches show)
+        ph = rng.uniform(0, 6.3, 3)
+        def gap(q):
+            return (math.sin(q[0] * 1.7 + ph[0]) + math.sin(q[1] * 1.9 + q[2] * 0.6 + ph[1]) + math.sin(q[2] * 1.6 - q[0] * 0.5 + ph[2])) / 3
+        places = [pl for pl in places if gap(pl[0]) > -0.38 or rng.random() < 0.25]
         places = places[:s['cards']]
         for p, d, order in places:
             # the sprig points out along its twig, out of the crown and a little up
             out = norm((p - centre) / half)
-            ax = norm(d * 0.55 + out * 0.6 + np.array([0, rng.uniform(-0.05, 0.35), 0]) + rng.normal(0, 0.25, 3))
-            side = norm(np.cross(ax, out + rng.normal(0, 0.5, 3)))
+            ax = norm(d * 0.55 + out * 0.5 + np.array([0, rng.uniform(-0.25, 0.45), 0]) + rng.normal(0, 0.42, 3))
+            side = norm(np.cross(ax, out + rng.normal(0, 0.75, 3)))
             nrm = norm(np.cross(side, ax))
             if nrm @ out < 0: side = -side; nrm = -nrm          # (its front faces out of the crown)
             size = rng.uniform(*s['card'])
@@ -235,12 +258,14 @@ class Tree:
             if k == 'bare': col_cell = int(rng.choice([0, 1, 2, 3], p=[0.12, 0.12, 0.38, 0.38]))
             # shade: darker inside the crown and low in it; the sun side lighter
             depth = np.linalg.norm((p - centre) / half)
-            ao = np.clip(0.55 + 0.5 * depth, 0.5, 1.05) * (0.85 + 0.15 * np.clip((p[1] - s['split']) / (s['height'] - s['split']), 0, 1))
+            ao = np.clip(0.42 + 0.62 * depth, 0.45, 1.05) * (0.82 + 0.18 * np.clip((p[1] - s['split']) / (s['height'] - s['split']), 0, 1))
             tone = ao * rng.uniform(0.9, 1.08)
             # the crown turns unevenly: the sunny top and outside further on (warmer), the inside still greener,
             # in patches a metre or two across
-            warm = np.clip(0.45 + 0.35 * out[1] + 0.25 * (depth - 0.7) + 0.3 * math.sin(p[0] * 1.3 + p[2] * 0.9) * math.cos(p[1] * 1.1 - p[0] * 0.7), 0, 1)
-            col = np.array([tone * (0.94 + 0.12 * warm), tone * (1.02 - 0.06 * warm), tone * (1.04 - 0.2 * warm), 1.0])
+            warm = np.clip(0.45 + 0.35 * out[1] + 0.25 * (depth - 0.7) + 0.3 * math.sin(p[0] * 1.3 + p[2] * 0.9) * math.cos(p[1] * 1.1 - p[0] * 0.7)
+                           + rng.normal(0, 0.18), 0, 1)
+            olive = max(0.0, 0.6 - depth) * 0.5 + (0.25 if rng.random() < 0.18 else 0.0)     # (inner and some sprays still olive)
+            col = np.array([tone * (0.94 + 0.14 * warm - 0.1 * olive), tone * (1.02 - 0.06 * warm), tone * (1.04 - 0.24 * warm - 0.08 * olive), 1.0])
             # normals bent out of the crown, so the crown shades as one mass
             n_v = norm(nrm * 0.45 + out * 0.9)
             def uv(sx, ty):
@@ -303,8 +328,9 @@ def main():
     out = pathlib.Path(sys.argv[1]); out.mkdir(parents=True, exist_ok=True)
     kinds = sys.argv[2].split(',') if len(sys.argv) > 2 else list(SPEC)
     report = {}
-    for k in kinds:
-        t = Tree(k); t.grow()
+    for k0 in kinds:
+      for vi in range(VARIANTS[k0]):
+        t = Tree(k0, vi); t.grow(); k = f'{k0}-v{vi}'
         b = t.bark(); l = t.leaves(); sd = t.solid()
         b.tofile(out / f'{k}-bark.f32'); l.tofile(out / f'{k}-leaves.f32'); sd.tofile(out / f'{k}-solid.f32')
         for part, rows in (('bark', b), ('leaves', l)):
