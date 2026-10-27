@@ -1,0 +1,23 @@
+[gd_resource type="ShaderMaterial" format=3]
+
+[ext_resource type="Shader" path="res://world/town/resources/r000211.res" id="1_ouob8"]
+[ext_resource type="Texture2D" path="res://assets/materials/environment-20261013/stair-stone-height-texture.res" id="2_1ving"]
+[ext_resource type="Texture2D" path="res://assets/materials/environment-20261013/stair-stone-texture.res" id="3_66oos"]
+
+[resource]
+resource_name = "churchyard_stone"
+render_priority = 0
+shader = ExtResource("1_ouob8")
+shader_parameter/albedo = Color(1.361529, 1.4328008, 1.5397087, 1)
+shader_parameter/tex = ExtResource("3_66oos")
+shader_parameter/emission = Color(0, 0, 0, 1)
+shader_parameter/fill = 0.0
+shader_parameter/affine = 0.0
+shader_parameter/fog_reach = 1.0
+shader_parameter/alpha_cut = 0.5
+shader_parameter/uv_xform = Vector4(1, 1, 0, 0)
+shader_parameter/depth_bias = 0.0
+shader_parameter/bump_map = ExtResource("2_1ving")
+shader_parameter/bump_scale = 1.0
+shader_parameter/wet_paint = 0.6
+shader_parameter/cloth_sway = 0.0

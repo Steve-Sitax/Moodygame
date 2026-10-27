@@ -6,7 +6,10 @@ extends SceneTree
 # [cx, cy, cz, sx, sy, sz, yaw] in the model's frame) and assets/materials/churchyard-20261027/: the carved inscriptions'
 # picture and its height, churchyard-letters.tres and churchyard-ashlar.tres (copies of the guard stones' blue stone with the
 # letters' and the town plinths' coursed pictures: the same shader, no new kind).
-# The other surfaces use the town's own materials: the blue stone, the barrels' iron, the town grass and the park gravel.
+# Round 2: churchyard-stone.tres, churchyard-iron.tres and churchyard-bright.tres are the guard stone's and the barrels' iron
+# materials with their albedo raised (linear x STONE_GAIN, IRON_GAIN, BRIGHT_GAIN, as churchyard_kit.py), letters and ashlar
+# with them, so the baked vertex colour can lighten a worn arris or a lichen colony as well as darken a recess. The same
+# pictures and shader: no new kind, no new texture. The grass and the gravel are the town's and the park's own.
 const MATS := "res://assets/materials/churchyard-20261027"
 const MODELS := "res://assets/models/churchyard"
 const STONE := "res://assets/materials/guard-stones-20261026/guard-stone.tres"
@@ -15,6 +18,22 @@ const GRASS := "res://world/town/resources/r000030.res"
 const GRAVEL := "res://world/town/resources/r001150.res"
 const PLINTH := "res://assets/materials/environment-20261013/plinth-texture.res"
 const PLINTH_HEIGHT := "res://assets/materials/environment-20261013/plinth-height-texture.res"
+const STONE_GAIN := 4.0
+const IRON_GAIN := 8.0
+const BRIGHT_GAIN := 10.0
+
+# a copy of a material with its albedo brighter by `gain` in linear light
+func raised(path: String, gain: float, name: String, out: String, overrides := {}) -> ShaderMaterial:
+	var m: ShaderMaterial = load(path).duplicate()
+	m.resource_name = name
+	for k in overrides: m.set_shader_parameter(k, overrides[k])
+	var a: Color = m.get_shader_parameter("albedo")
+	var l := a.srgb_to_linear()
+	var c := Color(l.r * gain, l.g * gain, l.b * gain, 1.0).linear_to_srgb()
+	c.a = a.a
+	m.set_shader_parameter("albedo", c)
+	if ResourceSaver.save(m, out) != OK: push_error("could not save " + out)
+	return load(out)
 
 func _initialize(): call_deferred("run")
 
@@ -54,19 +73,25 @@ func run():
 	for d in [MATS, MODELS]: DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(d))
 	var tex := texture(src + "/letters.png", MATS + "/letters-texture.res", true)
 	var height := texture(src + "/letters-height.png", MATS + "/letters-height-texture.res", false)
-	var letters: ShaderMaterial = load(STONE).duplicate()
-	letters.resource_name = "churchyard_letters"
-	letters.set_shader_parameter("tex", tex); letters.set_shader_parameter("bump_map", height)
-	if ResourceSaver.save(letters, MATS + "/churchyard-letters.tres") != OK: push_error("could not save the letters material")
+	raised(STONE, STONE_GAIN, "churchyard_letters", MATS + "/churchyard-letters.tres", {"tex": tex, "bump_map": height})
 	# the vaults' coursed walls: the town plinths' blue-stone ashlar picture on the same shader
-	var ashlar: ShaderMaterial = load(STONE).duplicate()
-	ashlar.resource_name = "churchyard_ashlar"
-	ashlar.set_shader_parameter("tex", load(PLINTH)); ashlar.set_shader_parameter("bump_map", load(PLINTH_HEIGHT))
-	if ResourceSaver.save(ashlar, MATS + "/churchyard-ashlar.tres") != OK: push_error("could not save the ashlar material")
-	var mats := {"stone": load(STONE), "letters": load(MATS + "/churchyard-letters.tres"), "ashlar": load(MATS + "/churchyard-ashlar.tres"), "iron": load(IRON), "grass": load(GRASS), "gravel": load(GRAVEL)}
+	raised(STONE, STONE_GAIN, "churchyard_ashlar", MATS + "/churchyard-ashlar.tres", {"tex": load(PLINTH), "bump_map": load(PLINTH_HEIGHT)})
+	raised(STONE, STONE_GAIN, "churchyard_stone", MATS + "/churchyard-stone.tres")
+	raised(IRON, IRON_GAIN, "churchyard_iron", MATS + "/churchyard-iron.tres")
+	# the wreaths' dried flowers and straw: pale, in their own vertex colours (no bump: the heads are geometry)
+	raised(STONE, BRIGHT_GAIN, "churchyard_bright", MATS + "/churchyard-bright.tres", {"bump_scale": 0.3})
+	# the walks' gravel: the park's, its relief halved (compacted, 2 to 5 mm of stone showing, not ridges)
+	var gravel: ShaderMaterial = load(GRAVEL).duplicate()
+	gravel.resource_name = "churchyard_gravel"
+	for p in ["relief_depth", "relief_bump"]:
+		var v = gravel.get_shader_parameter(p)
+		if v != null: gravel.set_shader_parameter(p, v * 0.5)
+	if ResourceSaver.save(gravel, MATS + "/churchyard-gravel.tres") != OK: push_error("could not save the gravel material")
+	var mats := {"stone": load(MATS + "/churchyard-stone.tres"), "letters": load(MATS + "/churchyard-letters.tres"), "ashlar": load(MATS + "/churchyard-ashlar.tres"),
+		"carved": load(MATS + "/churchyard-stone.tres"), "carved_hi": load(MATS + "/churchyard-stone.tres"), "iron": load(MATS + "/churchyard-iron.tres"), "bright": load(MATS + "/churchyard-bright.tres"), "grass": load(GRASS), "gravel": load(MATS + "/churchyard-gravel.tres")}
 	var kit = JSON.parse_string(FileAccess.get_file_as_string(src + "/models.json"))
 	for name in kit:
-		var m := mesh_of(src, kit[name], mats, not name in ["ground", "enclosure"])
+		var m := mesh_of(src, kit[name], mats, not name in ["ground", "enclosure", "groundcover"])
 		m.resource_name = name
 		m.set_meta("boxes", kit[name].boxes)
 		if ResourceSaver.save(m, MODELS + "/" + name + ".res", ResourceSaver.FLAG_COMPRESS) != OK: push_error("could not save " + name)
