@@ -3,6 +3,7 @@
 [ext_resource type="Script" path="res://src/Interiors/FurnitureVisual.cs" id="1_j6ilc"]
 [ext_resource type="PackedScene" path="res://assets/props/candle-crowns/candle-crown-small.tscn" id="2_j6ilc"]
 [ext_resource type="ArrayMesh" path="res://assets/props/candle-crowns/hoist-small-1026.res" id="3_1ix42"]
+[ext_resource type="PackedScene" path="res://assets/props/candle-crowns/candle-crown-small-b.tscn" id="91_crownb"]
 
 [sub_resource type="BoxShape3D" id="BoxShape3D_2c0hy"]
 size = Vector3(1.6359997, 0.2500782, 1.6362534)
@@ -27,9 +28,10 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.00031280518, 9.449923, 0)
 metadata/candle_crown = "small"
 metadata/furniture_hulled_part = true
 
-[node name="Crown" type="Node3D" parent="CandleCrown0" unique_id=1199280000 instance=ExtResource("2_j6ilc")]
+[node name="Crown" type="Node3D" parent="CandleCrown0" unique_id=1199280000 instance=ExtResource("91_crownb")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0)
 metadata/candle_crown = "small"
-metadata/candle_flames = PackedVector3Array(0.7391036, 0.54583526, 0.30614674, 0.30614674, 0.58140147, 0.7391036, -0.30614674, 0.50606614, 0.7391036, -0.7391036, 0.6194563, 0.30614674, -0.7391036, 0.593462, -0.30614674, -0.30614674, 0.5826012, -0.7391036, 0.30614674, 0.5104859, -0.7391036, 0.7391036, 0.6100166, -0.30614674)
 
 [node name="Hoist" type="MeshInstance3D" parent="CandleCrown0" unique_id=1734785723]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0)
 mesh = ExtResource("3_1ix42")

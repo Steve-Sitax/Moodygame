@@ -176,6 +176,10 @@ public partial class NightLife : Node
             if (lamp) continue;
             float y = lights.GroundAt(x, z);
             if (!float.IsFinite(y)) continue;
+            // never inside a room or a hall: the walk map counts a church's pews as walls, and a cat's eyes shone as a
+            // bright square over Sint-Paulus' nave floor at night (2026-10-27)
+            var inside = new Vector3(x, y + 0.5f, z);
+            if (Rooms.I?.Around(inside) != null || Scheldemist.Play.LandmarkLife.I?.RoomAt(inside) != null) continue;
             // most on the ground, some up on a sill or a wall's coping
             spot = new Vector3(x, y + (up < 0.75f ? 0.24f : 0.9f + upH * 0.6f), z);
         }

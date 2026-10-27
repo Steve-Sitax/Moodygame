@@ -20,8 +20,13 @@ namespace Scheldemist.World;
 /// - a flame lamp sits at its candles: the altar's row, a votive rack, under a crown's ring; it flickers a little; the
 ///   high altar's and the crowns' cast soft shadows (pillars, pews, statues, the ring on the vault), at night only; a
 ///   window lamp and a night flame share one light (it moves at dusk while both are out);
-/// - each candle of the bake's wax (material lm_wax) near a lit flame lamp gets a small flame glow, one of the gas
-///   lamps' fixed halos (Lights.FixedHalos: no draw and no shader more). A votive rack's candles burn by day too.
+/// - each candle near a lit flame lamp gets its flame, one of the gas lamps' fixed halos drawn as a small teardrop on
+///   its wick with a white-yellow heart and a soft halo (Lights.AddFixedHalo: no draw and no shader more): the candle
+///   crowns' at their wick markers, the bake's candles (material lm_wax) on their tops. A votive rack's candles burn by
+///   day too;
+/// - (issue #227) the sanctuary lamp by each high altar: its ruby glass glowing day and night, on a cord from the vault; the
+///   gas brackets on the nave's pillars, their opal globes lit after dark with the crowns. Glows only, no light of their
+///   own: each church keeps its ten.
 /// </summary>
 [GamePart(28)]
 public partial class ChurchLight : Node
@@ -107,6 +112,62 @@ public partial class ChurchLight : Node
     /// <summary>How lit a candle's glow is (the gas lamps' halo is a lamp's: a candle's is about half of it).</summary>
     public const float FlameGlow = 0.55f;
 
+    /// <summary>A candle's flame: its height and its halo across, metres (2026-10-27: the round halos 13 to 16 cm across
+    /// read as blobs over the crowns; a church candle's flame is about 3 cm tall, its glow a hand across).</summary>
+    public const float FlameHeight = 0.030f, FlameHalo = 0.10f;
+
+    /// <summary>
+    /// A church's fixed lamps (issue #227). Its sanctuary lamp hangs by the high altar on a cord from the vault (the
+    /// place of its bowl's rim: the floor plus 2.75 m, the vault measured over it; the cord's length built to it in
+    /// art-source/church-lamps-20261027): its ruby glass glows day and night, a small red halo at the glass drawn close
+    /// so the bowl's brass hides it from below (Codex 2026-10-27). Its gas brackets stand on the nave's pillars (the place
+    /// on the pillar's face 2.85 m over the floor, the way the arm points), their opal globes lit after dark with the
+    /// crowns. Glows only: the lights stay the church's ten.
+    /// </summary>
+    public sealed record Fitting(Vector3 Sanctuary, (Vector3 at, Vector3 arm)[] Brackets);
+
+    public static readonly Dictionary<string, Fitting> Fittings = new()
+    {
+        ["stpaul"] = new(new Vector3(75.5f, 2.912f, 264.0f), new[]
+        {
+            (new Vector3(108.6f, 3.012f, 261.12f), Vector3.Back), (new Vector3(108.6f, 3.012f, 270.88f), Vector3.Forward),
+            (new Vector3(124.25f, 3.012f, 261.12f), Vector3.Back), (new Vector3(124.25f, 3.012f, 270.88f), Vector3.Forward),
+        }),
+        ["stjacob"] = new(new Vector3(-117.5f, 2.912f, 303.0f), new[]
+        {
+            (new Vector3(-87.75f, 3.012f, 299.62f), Vector3.Back), (new Vector3(-87.75f, 3.012f, 310.38f), Vector3.Forward),
+            (new Vector3(-74.8f, 3.012f, 299.62f), Vector3.Back), (new Vector3(-74.8f, 3.012f, 310.38f), Vector3.Forward),
+        }),
+        ["carolus"] = new(new Vector3(-114.2f, 3.80f, 196.8f), new[]
+        {
+            (new Vector3(-121.83f, 3.462f, 180.0f), Vector3.Right), (new Vector3(-110.17f, 3.462f, 180.0f), Vector3.Left),
+            (new Vector3(-121.83f, 3.462f, 189.2f), Vector3.Right), (new Vector3(-110.17f, 3.462f, 189.2f), Vector3.Left),
+        }),
+        ["cathedral"] = new(new Vector3(-259.6f, 3.41f, 246.0f), new[]
+        {
+            (new Vector3(-267.36f, 3.162f, 177.0f), Vector3.Right), (new Vector3(-256.64f, 3.162f, 177.0f), Vector3.Left),
+            (new Vector3(-267.16f, 3.162f, 195.0f), Vector3.Right), (new Vector3(-256.84f, 3.162f, 195.0f), Vector3.Left),
+        }),
+    };
+
+    /// <summary>The middle of a bracket's globe and the top of the lamp's ruby glass in their own frames (build-church-lamps.gd).</summary>
+    private static readonly Vector3 Globe = new(0, 0.215f, 0.384f), Ruby = new(0, 0.07f, 0);
+    private const string LampDir = "res://assets/props/church-lamps/";
+    /// <summary>The brackets' opal glass (the room's own copy, found once the room is dressed): lit after dark.</summary>
+    private static ShaderMaterial? opal;
+    private static MeshInstance3D? aBracket;
+    private static float opalK = -1;
+
+    /// <summary>The gas brackets' globes after dark (Rooms.ChurchNow): their own warm glow by the flames' level.</summary>
+    public static void Globes(float flameK)
+    {
+        if (aBracket == null || MathF.Abs(flameK - opalK) < 0.004f) return;
+        opal ??= aBracket.Mesh?.SurfaceGetMaterial(1) as ShaderMaterial;
+        if (opal == null) return;
+        opalK = flameK;
+        Scheldemist.Render.UniformUpdates.Material(opal, "emission", new Vector3(1.0f, 0.74f, 0.42f) * (0.55f * flameK));
+    }
+
     /// <summary>The flames' glows: per church, each fixed halo's index and whether it burns by day (a votive rack's).</summary>
     public static readonly Dictionary<string, List<(int halo, bool allDay)>> Flames = new();
 
@@ -132,7 +193,17 @@ public partial class ChurchLight : Node
             string id = JsonDocument.Parse(Json.Stringify(rv)).RootElement.GetProperty("id").GetString() ?? "";
             if (!Lamps.TryGetValue(id, out var specs) || Flames.ContainsKey(id)) continue;
             var list = Flames[id] = new();
-            foreach (var tip in CandleTips(root))
+            // the candle crowns' flames at their wick markers (every crown and variant, its candles burnt to their own
+            // heights), the bake's other candles on their tops
+            var wicks = root.FindChildren("Flame*", "Marker3D", true, false).OfType<Marker3D>().Where(m => m.IsInGroup("candle_flame")).Select(m => m.GlobalPosition).ToList();
+            // (nothing in a crown's ring is a bake candle: its own wax, the old wax in its pans, and the first bake's
+            // candles left hidden in the new band, which lit flames on the band: from the crown's foot to 2 m over it)
+            var crowns = root.FindChildren("CandleCrown*", "Node3D", true, false).OfType<Node3D>().Where(n => n.HasMeta("candle_crown"))
+                .Select(n => (at: n.GlobalPosition, r: (string)n.GetMeta("candle_crown") switch { "large" => 1.2f, "small" => 0.8f, _ => 1.05f } + 0.2f)).ToList();
+            var tips = wicks.Select(w => (at: w, crown: true)).Concat(CandleTips(root)
+                .Where(t => !crowns.Any(c => new Vector2(c.at.X - t.X, c.at.Z - t.Z).Length() < c.r && t.Y > c.at.Y - 0.3f && t.Y < c.at.Y + 2))
+                .Select(t => (at: t, crown: false))).ToList();
+            foreach (var (tip, crown) in tips)
             {
                 // a candle burns when a lit flame lamp stands by it: a crown's (high up) within its pool, an altar's or a
                 // rack's within three quarters of its reach
@@ -140,10 +211,36 @@ public partial class ChurchLight : Node
                     .OrderBy(s => s.At.DistanceSquaredTo(tip)).FirstOrDefault();
                 if (lamp == null) continue;
                 bool allDay = lamp.Votives?.Any(v => new Vector2(v.X - tip.X, v.Z - tip.Z).Length() < 0.7f && MathF.Abs(v.Y - tip.Y) < 0.8f) == true;
-                Lights.FixedHalos.Add((tip + new Vector3(0, 0.035f, 0), tip.Y > 4 ? 0.16f : 0.13f));
-                list.Add((Lights.FixedHalos.Count - 1, allDay));
+                list.Add((Lights.AddFixedHalo(crown ? tip : tip + new Vector3(0, 0.003f, 0), FlameHalo, FlameHeight), allDay));
             }
+            if (Fittings.TryGetValue(id, out var fit)) Hang(root, id, fit, list);
             GD.Print($"church light {id}: {specs.Length} lamps ({specs.Count(s => s.Role == Role.Window)} windows), {list.Count} candle flames ({list.Count(f => f.allDay)} burn all day)");
+        }
+    }
+
+    /// <summary>A church's sanctuary lamp and gas brackets (Fittings) in its room, with their glows. They cast no shadow
+    /// (small, and each would be drawn again into the six faces of every shadowed lamp's map).</summary>
+    private static void Hang(Node3D root, string id, Fitting fit, List<(int halo, bool allDay)> list)
+    {
+        var lamp = new MeshInstance3D { Name = "SanctuaryLamp", Mesh = GD.Load<Mesh>(LampDir + "sanctuary-lamp.res"), CastShadow = GeometryInstance3D.ShadowCastingSetting.Off };
+        var cord = new MeshInstance3D { Name = "SanctuaryCord", Mesh = GD.Load<Mesh>(LampDir + $"sanctuary-cord-{id}.res"), CastShadow = GeometryInstance3D.ShadowCastingSetting.Off };
+        root.AddChild(lamp);
+        root.AddChild(cord);
+        lamp.GlobalPosition = fit.Sanctuary;
+        cord.GlobalPosition = fit.Sanctuary;
+        // (its ruby glow over the glass that stands clear of the bowl: the bowl hides it from below)
+        list.Add((Lights.AddFixedHalo(fit.Sanctuary + Ruby, 0.16f, 0, 1), true));
+        var bracket = GD.Load<Mesh>(LampDir + "gas-bracket.res");
+        int n = 0;
+        foreach (var (at, arm) in fit.Brackets)
+        {
+            // (its plate 5 mm into the pillar: a round pillar meets the flat plate at its edge)
+            var basis = new Basis(Vector3.Up.Cross(arm).Normalized(), Vector3.Up, arm);
+            var mi = new MeshInstance3D { Name = $"GasBracket{n++}", Mesh = bracket, CastShadow = GeometryInstance3D.ShadowCastingSetting.Off };
+            root.AddChild(mi);
+            mi.GlobalTransform = new Transform3D(basis, at - arm * 0.005f);
+            aBracket ??= mi;
+            list.Add((Lights.AddFixedHalo(mi.GlobalTransform * Globe, 0.34f), false));
         }
     }
 

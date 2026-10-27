@@ -28,8 +28,9 @@ metadata/candle_crown = "large"
 metadata/furniture_hulled_part = true
 
 [node name="Crown" type="Node3D" parent="CandleCrown0" unique_id=1396597614 instance=ExtResource("2_hj438")]
+transform = Transform3D(-0.8660254, 0, 0.5, 0, 1, 0, -0.5, 0, -0.8660254, 0, 0, 0)
 metadata/candle_crown = "large"
-metadata/candle_flames = PackedVector3Array(1.159111, 0.6924784, 0.31058285, 0.84852815, 0.6893351, 0.84852815, 0.31058285, 0.6891989, 1.159111, -0.31058285, 0.6167071, 1.159111, -0.84852815, 0.60978115, 0.84852815, -1.159111, 0.6564449, 0.31058285, -1.159111, 0.6566086, -0.31058285, -0.84852815, 0.61995625, -0.84852815, -0.31058285, 0.575754, -1.159111, 0.31058285, 0.665364, -1.159111, 0.84852815, 0.6663395, -0.84852815, 1.159111, 0.5765531, -0.31058285)
 
 [node name="Hoist" type="MeshInstance3D" parent="CandleCrown0" unique_id=1083214448]
+transform = Transform3D(-0.8660254, 0, 0.5, 0, 1, 0, -0.5, 0, -0.8660254, 0, 0, 0)
 mesh = ExtResource("3_p0uq4")

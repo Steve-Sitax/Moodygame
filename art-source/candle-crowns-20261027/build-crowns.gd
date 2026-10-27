@@ -5,6 +5,11 @@ extends SceneTree
 ##   godot --headless --path native-godot --script <this> -- --install --textures <png dir> --record <dir> [--dry] [--textures-only]
 ##       textures, materials, the three crown models and their hoists; every old crown in St James's, St Paul's,
 ##       St Charles's and the cathedral taken out of its room piece and the new one hung where it hung.
+##   godot --headless --path native-godot --script <this> -- --rebuild --textures <png dir>
+##       (second pass, 2026-10-27) textures, materials, both variants of each crown model and scene, and every hoist
+##       already in use, rebuilt in place; vary-crowns.py then gives each hung crown its variant and turn.
+##   godot --headless --path native-godot --script <this> -- --cut-glows
+##       (second pass) the old crowns' flat flame glows taken out of the room pieces (ChurchLight.cs draws the flames)
 ## make_textures.py writes the pictures; crown_mesh.gd builds the faces.
 
 const Crown := preload("crown_mesh.gd")
@@ -35,12 +40,18 @@ func _initialize() -> void:
 func run() -> void:
 	if args.has("preview"): await preview(args["preview"])
 	elif args.has("install"): install()
+	elif args.has("rebuild"): rebuild()
+	elif args.has("cut-glows"): cut_glows()
 	quit()
 
 ## ---- models --------------------------------------------------------------------------------------------------------
 
-func body(kind: String, mats: Array) -> Dictionary:
-	var c := Crown.new(1873 + ["large", "small", "tiered"].find(kind))
+## The model's variants: a second burn-down of the same crown (its own candle heights, runs and pools), so neighbouring
+## crowns differ (Codex 2026-10-27); variant 0 keeps the first pass's seed.
+const VARIANTS := 2
+
+func body(kind: String, mats: Array, variant := 0) -> Dictionary:
+	var c := Crown.new(1873 + ["large", "small", "tiered"].find(kind) + 100 * variant)
 	match kind:
 		"large": c.large_body(HANG.large)
 		"small": c.small(-1.0)
@@ -366,6 +377,147 @@ func install() -> void:
 		DirAccess.make_dir_recursive_absolute(rec_dir)
 		var f := FileAccess.open(rec_dir + "/promotion.json", FileAccess.WRITE)
 		f.store_string(JSON.stringify(record, "  ")); f.close()
+
+## The second pass (2026-10-27): rebuild the pictures, materials, both variants of each model and the hoists in use,
+## in place; the room pieces keep their crowns (vary-crowns.py turns them and picks their variant).
+func materials(tex: String) -> Array:
+	var t := {}
+	for name in ["brass", "brass-height", "wax", "wax-height"]:
+		t[name] = load_png(tex + "/" + name + ".png")
+		save(t[name], "%s/%s-texture.res" % [MAT_DIR, name])
+		if not args.has("dry"): t[name] = load("%s/%s-texture.res" % [MAT_DIR, name])
+	var mats := [material(t["brass"], t["brass-height"], Color(1.0, 1.0, 1.0, 1), 0.6),
+		material(t["wax"], t["wax-height"], Color(1, 1, 1, 1), 0.5),
+		material(load("res://assets/materials/environment-20261013/iron-texture.res"), load("res://assets/materials/environment-20261013/iron-height-texture.res"), Color(0.85, 0.83, 0.8, 1), 0.8)]
+	for i in 3:
+		save(mats[i], "%s/crown-%s.tres" % [MAT_DIR, ["brass", "wax", "iron"][i]])
+		if not args.has("dry"): mats[i] = load("%s/crown-%s.tres" % [MAT_DIR, ["brass", "wax", "iron"][i]])
+	return mats
+
+func scene_for(kind: String, variant: int, b: Dictionary) -> void:
+	var suffix := "" if variant == 0 else "-" + "abcdefgh"[variant]
+	save(b.mesh, "%s/crown-%s%s.res" % [PROP_DIR, kind, suffix])
+	var crown := Node3D.new()
+	crown.name = "CandleCrown"
+	crown.set_meta("candle_crown", kind)
+	crown.set_meta("candle_flames", b.flames)
+	var mi := MeshInstance3D.new()
+	mi.name = "Body"
+	mi.mesh = b.mesh if args.has("dry") else load("%s/crown-%s%s.res" % [PROP_DIR, kind, suffix])
+	crown.add_child(mi); mi.owner = crown
+	var hull := MeshInstance3D.new()
+	hull.name = "Hull"
+	hull.mesh = load("%s/crown-%s-hull.res" % [PROP_DIR, kind])
+	hull.visible = false
+	hull.set_meta("furniture_collision_hull", true)
+	crown.add_child(hull); hull.owner = crown
+	var fl := Node3D.new(); fl.name = "Flames"
+	crown.add_child(fl); fl.owner = crown
+	for i in b.flames.size():
+		var m := Marker3D.new()
+		m.name = "Flame%02d" % i
+		m.position = b.flames[i]
+		m.add_to_group("candle_flame", true)
+		m.set_meta("candle_flame", true)
+		fl.add_child(m); m.owner = crown
+	var ps := PackedScene.new(); ps.pack(crown)
+	save(ps, "%s/candle-crown-%s%s.tscn" % [PROP_DIR, kind, suffix])
+	crown.free()
+
+func rebuild() -> void:
+	var mats := materials(args.get("textures", ""))
+	var report := {}
+	for kind in ["large", "small", "tiered"]:
+		for v in VARIANTS:
+			var b := body(kind, mats, v)
+			scene_for(kind, v, b)
+			report["%s-%d" % [kind, v]] = {"triangles": b.tris, "lights": b.flames.size()}
+	for f in DirAccess.get_files_at(PROP_DIR):
+		if not f.begins_with("hoist-") or not f.ends_with(".res"): continue
+		var parts := f.get_basename().split("-")
+		var kind := parts[1]
+		var h := hoist(kind, int(parts[2]) / 100.0, mats)
+		save(h.mesh, "%s/%s" % [PROP_DIR, f])
+		report[f.get_basename()] = {"triangles": h.tris}
+	print(JSON.stringify(report, "  "))
+
+## The old crowns' flat flame glows (the bake's glow triangles r006515, r006873, r006992, r005876 at the old candles'
+## tips) taken out of their room pieces: they floated under and beside the new candles (2026-10-27); ChurchLight.cs
+## draws each new candle's flame on its wick. Only the glows within a crown's ring, from its foot to 1.8 m over it.
+const GLOWS := ["res://world/town/resources/r006515.res", "res://world/town/resources/r006873.res", "res://world/town/resources/r006992.res", "res://world/town/resources/r005876.res"]
+
+func cut_glows() -> void:
+	var record := []
+	for room in ROOMS:
+		var objects: Node = load("res://world/interiors/room-%s.objects.tscn" % room).instantiate()
+		var props := []
+		var crowns := []   # [centre (room frame), ring radius]
+		for o in objects.get_children():
+			var asset = o.get("Asset")
+			if asset == null or asset.get("Scene") == null: continue
+			var inst: Node = asset.Scene.instantiate()
+			var ms := []
+			meshes_of(inst, o.transform, ms)
+			props.append({"id": str(o.get("ObjectId")), "path": asset.Scene.resource_path, "inst": inst, "meshes": ms})
+			for h in inst.get_children():
+				if not str(h.name).begins_with("CandleCrown"): continue
+				var R: float = {"large": 1.2, "small": 0.8, "tiered": 1.05}[str(h.get_meta("candle_crown"))]
+				crowns.append([o.transform * (h as Node3D).position, R])
+		for p in props:
+			var changed := false
+			var cut := 0
+			for m in p.meshes:
+				var mi: MeshInstance3D = m[0]
+				var remove := {}
+				for si in mi.mesh.get_surface_count():
+					var mat := mi.mesh.surface_get_material(si)
+					var mp := mat.resource_path if mat else ""
+					if mi.get_surface_override_material(si): mp = mi.get_surface_override_material(si).resource_path
+					if mp not in GLOWS: continue
+					for g in clusters(mi.mesh.surface_get_arrays(si), m[1]):
+						var c: Vector3 = (g.box as AABB).get_center()
+						for cr in crowns:
+							var at: Vector3 = cr[0]
+							if Vector2(c.x - at.x, c.z - at.z).length() < cr[1] + 0.25 and c.y > at.y - 0.1 and c.y < at.y + 1.8:
+								if not remove.has(si): remove[si] = {}
+								for f in g.tris: remove[si][f] = true
+								cut += g.tris.size()
+								break
+				if remove.is_empty(): continue
+				var nm := ArrayMesh.new()
+				for si in mi.mesh.get_surface_count():
+					var arr := mi.mesh.surface_get_arrays(si)
+					var mat := mi.mesh.surface_get_material(si)
+					var nme: String = mi.mesh.surface_get_name(si)
+					if remove.has(si):
+						var idx: PackedInt32Array = arr[Mesh.ARRAY_INDEX] if arr[Mesh.ARRAY_INDEX] != null else PackedInt32Array()
+						if idx.is_empty():
+							idx.resize(arr[Mesh.ARRAY_VERTEX].size())
+							for i in idx.size(): idx[i] = i
+						var keep := PackedInt32Array()
+						for f in idx.size() / 3:
+							if not remove[si].has(f):
+								keep.append(idx[f * 3]); keep.append(idx[f * 3 + 1]); keep.append(idx[f * 3 + 2])
+						if keep.is_empty(): continue
+						arr = compact(arr, keep)
+					nm.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arr)
+					nm.surface_set_material(nm.get_surface_count() - 1, mat)
+					if nme != "": nm.surface_set_name(nm.get_surface_count() - 1, nme)
+				nm.resource_name = mi.mesh.resource_name
+				if nm.get_surface_count() == 0:
+					mi.get_parent().remove_child(mi); mi.free()
+				else:
+					mi.mesh = nm
+				changed = true
+			if changed:
+				var ps := PackedScene.new()
+				var err := ps.pack(p.inst)
+				if err != OK: push_error("pack %s: %d" % [p.path, err])
+				save(ps, p.path)
+				record.append({"room": room, "object": p.id, "scene": p.path, "glow_triangles_cut": cut})
+		for p in props: p.inst.free()
+		objects.free()
+	print(JSON.stringify(record, "  "))
 
 ## A surface's arrays keeping only the corners `keep` uses (renumbered).
 func compact(arr: Array, keep: PackedInt32Array) -> Array:

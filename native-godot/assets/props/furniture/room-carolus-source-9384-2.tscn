@@ -6,15 +6,17 @@
 [sub_resource type="BoxShape3D" id="BoxShape3D_1uet2"]
 size = Vector3(1.5999999, 11.150065, 13.365685)
 
-[sub_resource type="ArrayMesh" id="ArrayMesh_gn6t6"]
+[sub_resource type="ArrayMesh" id="ArrayMesh_1vuc6"]
 _surfaces = [{
-"aabb": AABB(-0.8, 9.7540045, -6.682843, 1.6, 0.01198101, 13.365685),
-"format": 34359738369,
+"aabb": AABB(-1.4695762e-16, 9.754902, -6.682843, 0.8, 0.010835648, 13.365685),
+"format": 34359742465,
+"index_count": 6,
+"index_data": PackedByteArray("AAABAAIAAwAEAAUA"),
 "material": ExtResource("2_yitoy"),
 "primitive": 3,
 "uv_scale": Vector4(0, 0, 0, 0),
-"vertex_count": 18,
-"vertex_data": PackedByteArray("zcxMP3pBHEFAQLzAw9AQP4MnHEEoJqrAT+hhJNIQHEGmpqLAPG4ppT4WHEHa2dXAw9AQPyo7HEFYWs7AzcxMP/02HEEA8O89w9AQP3ZAHEGApeW+zcxMP80eHEHAv8NAw9AQPxQUHEHY2dVAzcxMvy8rHEEA8O89w9AQv2cQHEGApeW+PG4ppREtHEHQzi6/w9AQPyQTHEHAzi4/T+hhJI8gHEHQymo/w9AQv/JAHEHAzi4/w9AQvzYdHEGopbFAPG4ppeE/HEEoJqpAw9AQP84uHEGopbFA")
+"vertex_count": 6,
+"vertex_data": PackedByteArray("PG4ppT4WHEHa2dXAw9AQPyo7HEFYWs7AzcxMP/02HEEA8O89w9AQP3ZAHEGApeW+zcxMP80eHEHAv8NAw9AQPxQUHEHY2dVA")
 }]
 
 [node name="fitting" type="Node3D" unique_id=928932979]
@@ -33,4 +35,4 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -5.9604645e-08, 15.124968, -4
 shape = SubResource("BoxShape3D_1uet2")
 
 [node name="Batch" type="MeshInstance3D" parent="." unique_id=1555417406]
-mesh = SubResource("ArrayMesh_gn6t6")
+mesh = SubResource("ArrayMesh_1vuc6")
