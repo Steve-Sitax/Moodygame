@@ -38,6 +38,33 @@ public static class NativeRazedHouses
         public bool Has(Vector2 q) => q.X >= X0 && q.X <= X1 && q.Y >= Z0 && q.Y <= Z1;
     }
 
+    // the outlines by plan cells: a point is asked only against the outlines whose box covers its cell
+    private sealed class OutlineGrid
+    {
+        private readonly float cell;
+        private readonly Dictionary<(int, int), List<(Box Box, Vector2[] Outline)>> cells = new();
+        public OutlineGrid(IReadOnlyList<Vector2[]> outlines, float cell)
+        {
+            this.cell = cell;
+            foreach (var outline in outlines)
+            {
+                var box = Box.Of(outline, 0);
+                for (int x = (int)MathF.Floor(box.X0 / cell); x <= (int)MathF.Floor(box.X1 / cell); x++)
+                    for (int z = (int)MathF.Floor(box.Z0 / cell); z <= (int)MathF.Floor(box.Z1 / cell); z++)
+                    {
+                        if (!cells.TryGetValue((x, z), out var list)) cells[(x, z)] = list = new();
+                        list.Add((box, outline));
+                    }
+            }
+        }
+        public bool AnyInside(Vector2 q)
+        {
+            if (!cells.TryGetValue(((int)MathF.Floor(q.X / cell), (int)MathF.Floor(q.Y / cell)), out var list)) return false;
+            foreach (var (box, outline) in list) if (box.Has(q) && Inside(outline, q)) return true;
+            return false;
+        }
+    }
+
     private static bool InAny(Box[] boxes, Vector2 q)
     {
         foreach (var box in boxes) if (box.Has(q)) return true;
@@ -46,15 +73,25 @@ public static class NativeRazedHouses
 
     // the house's own parts reach this far past its outline (cornices, sills, eaves, drainpipes)
     private const float Reach = 1.2f;
+    // and its street dressing this far (an awning, a lean-to, the goods by its door), judged a whole piece at a time
+    private const float PieceReach = 2.5f;
     // the triangles that name a house's alpha lie at least this far inside its outline
     private const float Inset = 0.4f;
     // the materials of the parts added to the chunks after the bake: the drainage iron (gutters, pipes, plates) and the dressed stone
     private static readonly HashSet<string> LaterParts = new() { "res://world/town/resources/r000615.res", "res://assets/materials/stone-corners-20261017/dressed-stone.tres" };
     // the raised flags' material: a razed house's plinth top in it stayed floating at 0.71 m over its cleared plot (2026-10-27)
     private const string Flags = "res://world/town/resources/r000016.res";
+    // the bake's grime decals (soot, rust, damp on a wall): their colour alpha is the decal's strength, not a house's, so a razed
+    // house's stains hung on in the air over its cleared plot (#224: the red-brown piece in the Paulus wall view)
+    private const string Grime = "res://world/town/resources/r000221.res";
     private static readonly Regex DressingChunk = new("^(lively|streetlife|clutter|posters|litter)_", RegexOptions.Compiled);
 
-    public static Result Cut(Node3D town, string cityBuildPath)
+    /// <summary>The last cut's houses (dev: <see cref="NativeRazedScan"/>).</summary>
+    internal static Result Last { get; private set; } = new(0, 0, 0, Array.Empty<string>());
+
+    public static Result Cut(Node3D town, string cityBuildPath) => Last = CutHouses(town, cityBuildPath);
+
+    private static Result CutHouses(Node3D town, string cityBuildPath)
     {
         var notes = new List<string>();
         var clock = System.Diagnostics.Stopwatch.StartNew();
@@ -79,6 +116,8 @@ public static class NativeRazedHouses
             tags[house.Index] = tag.Value;
         }
         var cut = razed.Where(h => tags.ContainsKey(h.Index)).ToList();
+        // a razed house left as baked (its alpha a neighbour's too, house 495) still stands: what is nearer to it is its own
+        standing.AddRange(razed.Where(h => !tags.ContainsKey(h.Index) && cut.Any(c => Near(h.Outline, c.Outline, Reach + 1))));
         bool Touches(MeshInstance3D m) => cut.Any(h => Overlaps(WorldOf(m) * m.GetAabb(), h.Outline, Reach));
         chunks = chunks.Where(Touches).ToList(); glows = glows.Where(Touches).ToList();
         int triangles = 0, glowTriangles = 0;
@@ -104,7 +143,7 @@ public static class NativeRazedHouses
                 if (nearBy.Any(h => alpha == tags[h.Index] && Within(h.Outline, p, Reach))) return true;
                 // the drainage iron and the dressed stone came after the bake (#163, the stone corners): their alpha is often a
                 // neighbour's, so they go by place alone: near a razed house and nearer to it than to any standing one
-                if (LaterParts.Contains(material) && nearBy.Any(h => Within(h.Outline, p, Reach)) && Belongs(new Vector2(p.X, p.Z), cutOutlines, standingLines0)) return true;
+                if ((LaterParts.Contains(material) || material == Grime) && nearBy.Any(h => Within(h.Outline, p, Reach)) && Belongs(new Vector2(p.X, p.Z), cutOutlines, standingLines0)) return true;
                 // a plinth top of raised flags left floating (0.5 to 1 m high), its alpha often a neighbour's: by place, as the iron
                 if (material == Flags && Math.Min(a.Y, Math.Min(b.Y, c.Y)) > 0.5f && Math.Max(a.Y, Math.Max(b.Y, c.Y)) < 1.0f
                     && nearBy.Any(h => Within(h.Outline, p, Reach)) && Belongs(new Vector2(p.X, p.Z), cutOutlines, standingLines0)) return true;
@@ -129,16 +168,23 @@ public static class NativeRazedHouses
             if (keptFaces.Count != faces.Length) am.SetMeta("native_solid_stand_in", keptFaces.ToArray());
         }
         if (standIns > 0) notes.Add($"collision stand-ins at the razed houses: {standIns} triangles");
-        // The street dressing the bake merged by kind (shop fronts, street life, clutter, posters, litter) carries no house alpha either:
-        // a piece goes when it is near a razed house and nearer to it than to any standing one, so a neighbour's door keeps its baskets.
+        // The street dressing the bake merged by kind (shop fronts, street life, clutter, posters, litter) carries no house alpha either.
+        // It goes a piece at a time (the triangles joined by their corners: an awning, a lean-to roof, a crate): a piece goes whole when
+        // most of what shows of it (what lies outside every standing house) is near a razed house and nearer to it than to any standing
+        // one, so a neighbour's door keeps its baskets. (Judged a triangle at a time, a lean-to roof running into a standing neighbour's
+        // wall kept its half on that side and hung on alone over the cleared plot, #224; a striped awning 1.4 m out from a razed back
+        // wall stayed, #229: hence the piece's own reach, PieceReach.)
         int dressingTriangles = 0;
-        foreach (var mesh in meshes.Where(m => DressingChunk.IsMatch(m.Name.ToString())).Where(Touches))
-            dressingTriangles += Filter(mesh, (a, b, c, _) =>
-            {
-                var p = Centre(a, b, c);
-                var q = new Vector2(p.X, p.Z);
-                return InAny(boxes, q) && Belongs(q, cutOutlines, standingLines0);
-            });
+        // (the standing houses as far as a piece's reach can look: across a narrow street from a razed house too)
+        var cutLines = cut.Select(h => h.Outline).ToList();
+        var standingLines1 = houses.Where(h => !h.Razed || !tags.ContainsKey(h.Index)).Where(h => cut.Any(c => Near(h.Outline, c.Outline, 2 * PieceReach + 1))).Select(h => h.Outline).ToList();
+        // (the quick tests first: a grid of the standing houses' boxes, and the razed houses' boxes grown by the piece's reach)
+        var standingGrid = new OutlineGrid(standingLines1, 8f); var pieceBoxes = cut.Select(h => Box.Of(h.Outline, PieceReach)).ToArray();
+        foreach (var mesh in meshes.Where(m => DressingChunk.IsMatch(m.Name.ToString())).Where(m => cut.Any(h => Overlaps(WorldOf(m) * m.GetAabb(), h.Outline, PieceReach))))
+        {
+            var gone = Pieces(mesh, standingGrid.AnyInside, q => InAny(pieceBoxes, q) && Belongs(q, cutLines, standingLines1, PieceReach));
+            if (gone.Count > 0) dressingTriangles += Filter(mesh, (surface, triangle, _, _, _, _, _) => gone.Contains((surface, triangle)));
+        }
         if (dressingTriangles > 0) notes.Add($"street dressing at the razed houses: {dressingTriangles} triangles");
         // copies (weeds at the wall foot, goods by the door) standing on or against a razed house: the copy set is rebuilt without them
         int copiesGone = 0;
@@ -175,16 +221,23 @@ public static class NativeRazedHouses
                     if (Within(n.Outline, centre, 0.3f) && !Inside(n.Outline, new Vector2(centre.X, centre.Z) + flat.Normalized() * 0.5f)) return false;
                 return true;
             });
+        // the chimney smoke's points (ambient_smoke, ChimneySmoke: fourteen a chimney): a razed house's chimney smokes no more
+        // (#224: its smoke stood as dark bands in the empty sky over the cleared plot; dev: --keep-razed-smoke, for a before-and-after)
+        int smokeGone = 0;
+        if (!Scheldemist.Main.I.Flag("keep-razed-smoke"))
+            foreach (var smoke in meshes.Where(m => m.Name == "ambient_smoke" || m.GetParent()?.Name == "ambient_smoke"))
+                smokeGone += DropChimneys(smoke, p => Belongs(new Vector2(p.X, p.Z), cutOutlines, standingLines0));
+        if (smokeGone > 0) notes.Add($"chimney smoke at the razed houses: {smokeGone} chimneys");
         foreach (var h in cut) notes.Add($"house {h.Index}: razed (alpha {tags[h.Index]})");
         notes.Add($"cut in {clock.ElapsedMilliseconds} ms");
         return new(cut.Count, triangles, glowTriangles, notes) { Razed = cut.Select(h => h.Outline).ToList(), Standing = standing.Select(h => h.Outline).ToList(), RazedBoxes = boxes };
     }
 
-    private static bool Belongs(Vector2 q, IReadOnlyList<Vector2[]> razed, IReadOnlyList<Vector2[]> standing)
+    private static bool Belongs(Vector2 q, IReadOnlyList<Vector2[]> razed, IReadOnlyList<Vector2[]> standing, float reach = Reach)
     {
         float Away(Vector2[] outline) => Inside(outline, q) ? 0 : EdgeDistance(outline, q);
         float razedAt = razed.Min(Away);
-        return razedAt <= Reach && standing.All(n => Away(n) > razedAt);
+        return razedAt <= reach && standing.All(n => Away(n) > razedAt);
     }
 
     /// <summary>The bake's light facts (lights.json) for the razed houses go too: their window and door-lantern spill and their lit panes.</summary>
@@ -346,10 +399,13 @@ public static class NativeRazedHouses
     }
 
     /// <summary>Drops the triangles a test picks; returns how many went.</summary>
-    private static int Filter(MeshInstance3D mesh, Func<Vector3, Vector3, Vector3, int, bool> drop) => Filter(mesh, (a, b, c, alpha, _) => drop(a, b, c, alpha));
+    private static int Filter(MeshInstance3D mesh, Func<Vector3, Vector3, Vector3, int, bool> drop) => Filter(mesh, (_, _, a, b, c, alpha, _) => drop(a, b, c, alpha));
 
     /// <summary>Drops the triangles a test picks, the test also given the surface's material path; returns how many went.</summary>
-    private static int Filter(MeshInstance3D mesh, Func<Vector3, Vector3, Vector3, int, string, bool> drop)
+    private static int Filter(MeshInstance3D mesh, Func<Vector3, Vector3, Vector3, int, string, bool> drop) => Filter(mesh, (_, _, a, b, c, alpha, material) => drop(a, b, c, alpha, material));
+
+    /// <summary>Drops the triangles a test picks (given the surface, the triangle's number in it, its corners, alpha and material); returns how many went.</summary>
+    private static int Filter(MeshInstance3D mesh, Func<int, int, Vector3, Vector3, Vector3, int, string, bool> drop)
     {
         var xf = WorldOf(mesh);
         var source = (ArrayMesh)mesh.Mesh;
@@ -372,7 +428,7 @@ public static class NativeRazedHouses
                 for (int t = 0; t + 2 < index.Length; t += 3)
                 {
                     int alpha = col != null ? (int)MathF.Round(col[index[t]].A * 255) : -1;
-                    if (drop(xf * v[index[t]], xf * v[index[t + 1]], xf * v[index[t + 2]], alpha, material)) { dropped++; continue; }
+                    if (drop(s, t / 3, xf * v[index[t]], xf * v[index[t + 1]], xf * v[index[t + 2]], alpha, material)) { dropped++; continue; }
                     kept.Add(index[t]); kept.Add(index[t + 1]); kept.Add(index[t + 2]);
                 }
                 // (a surface left without a triangle keeps one of no size: an empty one cannot be built, and the surfaces
@@ -393,6 +449,83 @@ public static class NativeRazedHouses
         }
         if (dropped > 0) mesh.Mesh = rebuilt;
         return dropped;
+    }
+
+    /// <summary>
+    /// The triangles (surface, number) of the pieces that go: a piece is the triangles joined by their corners (welded by place, to the
+    /// millimetre); it goes when <paramref name="owned"/> holds for at least half the area of what shows of it, the triangles whose
+    /// middle no standing house hides (<paramref name="hidden"/>).
+    /// </summary>
+    private static HashSet<(int, int)> Pieces(MeshInstance3D mesh, Func<Vector2, bool> hidden, Func<Vector2, bool> owned)
+    {
+        var gone = new HashSet<(int, int)>();
+        if (mesh.Mesh is not ArrayMesh source) return gone;
+        var xf = WorldOf(mesh);
+        var tris = new List<(int Surface, int Number, Vector3 A, Vector3 B, Vector3 C)>();
+        for (int s = 0; s < source.GetSurfaceCount(); s++)
+        {
+            if (source.SurfaceGetPrimitiveType(s) != Mesh.PrimitiveType.Triangles) continue;
+            var arrays = source.SurfaceGetArrays(s);
+            var v = arrays[(int)Mesh.ArrayType.Vertex].AsVector3Array();
+            var index = Indices(arrays, v.Length);
+            for (int t = 0; t + 2 < index.Length; t += 3) tris.Add((s, t / 3, xf * v[index[t]], xf * v[index[t + 1]], xf * v[index[t + 2]]));
+        }
+        var parent = Enumerable.Range(0, tris.Count).ToArray();
+        int Root(int i) { while (parent[i] != i) i = parent[i] = parent[parent[i]]; return i; }
+        var first = new Dictionary<(long, long, long), int>();
+        for (int i = 0; i < tris.Count; i++)
+            foreach (var p in new[] { tris[i].A, tris[i].B, tris[i].C })
+            {
+                var key = ((long)MathF.Round(p.X * 1000), (long)MathF.Round(p.Y * 1000), (long)MathF.Round(p.Z * 1000));
+                if (first.TryGetValue(key, out int j)) parent[Root(i)] = Root(j); else first[key] = i;
+            }
+        var shown = new Dictionary<int, float>(); var theirs = new Dictionary<int, float>();
+        for (int i = 0; i < tris.Count; i++)
+        {
+            var (_, _, a, b, c) = tris[i];
+            var centre = Centre(a, b, c); var q = new Vector2(centre.X, centre.Z);
+            if (hidden(q)) continue;
+            float area = (b - a).Cross(c - a).Length() * 0.5f + 1e-6f;
+            int r = Root(i);
+            shown[r] = shown.GetValueOrDefault(r) + area;
+            if (owned(q)) theirs[r] = theirs.GetValueOrDefault(r) + area;
+        }
+        for (int i = 0; i < tris.Count; i++)
+        {
+            int r = Root(i);
+            if (theirs.GetValueOrDefault(r) >= shown.GetValueOrDefault(r) * 0.5f && theirs.ContainsKey(r)) gone.Add((tris[i].Surface, tris[i].Number));
+        }
+        return gone;
+    }
+
+    /// <summary>Drops the chimneys (fourteen points each, as <see cref="ChimneySmoke"/> reads them from the vertices, never the index) whose first point a test picks.</summary>
+    private static int DropChimneys(MeshInstance3D mesh, Func<Vector3, bool> drop)
+    {
+        const int Per = 14;
+        if (mesh.Mesh is not ArrayMesh source || source.GetSurfaceCount() == 0) return 0;
+        var arrays = source.SurfaceGetArrays(0);
+        var v = arrays[(int)Mesh.ArrayType.Vertex].AsVector3Array();
+        var xf = WorldOf(mesh);
+        var keep = new List<int>(v.Length);
+        int gone = 0;
+        for (int i = 0; i < v.Length; i += Per)
+        {
+            if (drop(xf * v[i])) { gone++; continue; }
+            for (int k = i; k < Math.Min(i + Per, v.Length); k++) keep.Add(k);
+        }
+        if (gone == 0 || keep.Count == 0) return 0;
+        var kept = new Godot.Collections.Array();
+        kept.Resize((int)Mesh.ArrayType.Max);
+        kept[(int)Mesh.ArrayType.Vertex] = keep.Select(k => v[k]).ToArray();
+        if (arrays[(int)Mesh.ArrayType.Normal].VariantType == Variant.Type.PackedVector3Array) { var n = arrays[(int)Mesh.ArrayType.Normal].AsVector3Array(); kept[(int)Mesh.ArrayType.Normal] = keep.Select(k => n[k]).ToArray(); }
+        if (arrays[(int)Mesh.ArrayType.Color].VariantType == Variant.Type.PackedColorArray) { var c = arrays[(int)Mesh.ArrayType.Color].AsColorArray(); kept[(int)Mesh.ArrayType.Color] = keep.Select(k => c[k]).ToArray(); }
+        if (arrays[(int)Mesh.ArrayType.TexUV].VariantType == Variant.Type.PackedVector2Array) { var t = arrays[(int)Mesh.ArrayType.TexUV].AsVector2Array(); kept[(int)Mesh.ArrayType.TexUV] = keep.Select(k => t[k]).ToArray(); }
+        var rebuilt = new ArrayMesh { ResourceName = source.ResourceName };
+        foreach (var key in source.GetMetaList()) rebuilt.SetMeta(key, source.GetMeta(key));
+        rebuilt.AddSurfaceFromArrays(source.SurfaceGetPrimitiveType(0), kept);
+        rebuilt.SurfaceSetMaterial(0, source.SurfaceGetMaterial(0));
+        mesh.Mesh = rebuilt;
+        return gone;
     }
 
     private static int[] Indices(Godot.Collections.Array arrays, int count)
@@ -416,7 +549,7 @@ public static class NativeRazedHouses
         return Inside(outline, q) || EdgeDistance(outline, q) <= margin;
     }
 
-    private static bool Inside(Vector2[] p, Vector2 q)
+    internal static bool Inside(Vector2[] p, Vector2 q)
     {
         bool inside = false;
         for (int i = 0, j = p.Length - 1; i < p.Length; j = i++)
@@ -424,7 +557,7 @@ public static class NativeRazedHouses
         return inside;
     }
 
-    private static float EdgeDistance(Vector2[] p, Vector2 q)
+    internal static float EdgeDistance(Vector2[] p, Vector2 q)
     {
         float best = float.MaxValue;
         for (int i = 0, j = p.Length - 1; i < p.Length; j = i++)

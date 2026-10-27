@@ -22,6 +22,8 @@ public partial class NativeTownGame
     {
         foreach (var part in base.CreateParts()) yield return part;
         if (!DedicatedServer && !Flag("no-antigoon")) yield return new Characters.NativeAntigoonClient { Name = "AntigoonEncounter" };
+        // (dev: --razed-scan <file> lists what still stands over the razed houses' plots)
+        if (Arg("razed-scan") != "") yield return new NativeRazedScan { Name = "NativeRazedScan" };
     }
     private void AttachAntigoon(NativeServiceHost host, NativeMultiplayer multiplayer, WalkMap map, NativeStreetLighting lamps, NativeActions actions, JsonObject city)
     {
