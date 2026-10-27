@@ -24,11 +24,25 @@ public static class NativeRazedHouses
     {
         internal IReadOnlyList<Vector2[]> Razed { get; init; } = Array.Empty<Vector2[]>();
         internal IReadOnlyList<Vector2[]> Standing { get; init; } = Array.Empty<Vector2[]>();
+        internal Box[] RazedBoxes { get; init; } = Array.Empty<Box>();
         /// <summary>A point that belonged to a razed house: near one, and nearer to it than to any standing house.</summary>
-        public bool Owned(float x, float z) => Razed.Count > 0 && Belongs(new Vector2(x, z), Razed, Standing);
+        public bool Owned(float x, float z) => Razed.Count > 0 && InAny(RazedBoxes, new Vector2(x, z)) && Belongs(new Vector2(x, z), Razed, Standing);
     }
 
     private sealed record House(int Index, Vector2[] Outline, bool Razed);
+
+    // an outline's plan box grown by a margin: a point outside it is not within that margin of the outline (the cheap test first)
+    internal readonly record struct Box(float X0, float Z0, float X1, float Z1)
+    {
+        public static Box Of(Vector2[] outline, float margin) => new(outline.Min(p => p.X) - margin, outline.Min(p => p.Y) - margin, outline.Max(p => p.X) + margin, outline.Max(p => p.Y) + margin);
+        public bool Has(Vector2 q) => q.X >= X0 && q.X <= X1 && q.Y >= Z0 && q.Y <= Z1;
+    }
+
+    private static bool InAny(Box[] boxes, Vector2 q)
+    {
+        foreach (var box in boxes) if (box.Has(q)) return true;
+        return false;
+    }
 
     // the house's own parts reach this far past its outline (cornices, sills, eaves, drainpipes)
     private const float Reach = 1.2f;
@@ -43,6 +57,7 @@ public static class NativeRazedHouses
     public static Result Cut(Node3D town, string cityBuildPath)
     {
         var notes = new List<string>();
+        var clock = System.Diagnostics.Stopwatch.StartNew();
         var houses = Read(cityBuildPath);
         var razed = houses.Where(h => h.Razed).ToList();
         if (razed.Count == 0) return new(0, 0, 0, notes);
@@ -52,12 +67,14 @@ public static class NativeRazedHouses
         var standing = houses.Where(h => !h.Razed && razed.Any(r => Near(h.Outline, r.Outline, Reach + 1))).ToList();
 
         var tags = new Dictionary<int, int>();
+        // every footprint's own alpha in one read of the chunks (the razed houses and their standing neighbours)
+        var owns = OwnAlphas(chunks, razed.Concat(standing).Select(h => h.Outline).ToList());
         foreach (var house in razed)
         {
-            int? tag = OwnAlpha(chunks, house.Outline);
+            int? tag = owns[house.Outline];
             if (tag == null) { notes.Add($"house {house.Index}: no own alpha found, left as baked"); continue; }
             // a standing neighbour with the same alpha would lose its edge: leave the house rather than cut a neighbour
-            var near = standing.Where(n => Near(n.Outline, house.Outline, Reach + 1)).Where(n => OwnAlpha(chunks, n.Outline) == tag).Select(n => n.Index).ToList();
+            var near = standing.Where(n => Near(n.Outline, house.Outline, Reach + 1)).Where(n => owns[n.Outline] == tag).Select(n => n.Index).ToList();
             if (near.Count > 0) { notes.Add($"house {house.Index}: alpha {tag} also on neighbour {string.Join(",", near)}, left as baked"); continue; }
             tags[house.Index] = tag.Value;
         }
@@ -66,23 +83,34 @@ public static class NativeRazedHouses
         chunks = chunks.Where(Touches).ToList(); glows = glows.Where(Touches).ToList();
         int triangles = 0, glowTriangles = 0;
         var cutOutlines = cut.Select(h => h.Outline).ToList(); var standingLines0 = standing.Select(h => h.Outline).ToList();
+        // every test below needs the point within Reach of a razed house: only the houses whose grown box holds it are asked
+        var boxes = cut.Select(h => Box.Of(h.Outline, Reach)).ToArray();
+        var close = new List<House>(8);
+        List<House> Close(Vector2 q)
+        {
+            close.Clear();
+            for (int i = 0; i < boxes.Length; i++) if (boxes[i].Has(q)) close.Add(cut[i]);
+            return close;
+        }
         // the gutter repair's iron (#163) mostly carries its house's alpha less one: that alpha goes too, where the triangle lies
         // nearer to the razed house than to any standing one (Steve, 2026-10-27: a gutter left floating over a cleared plot)
         foreach (var mesh in chunks)
             triangles += Filter(mesh, (a, b, c, alpha, material) =>
             {
                 var p = Centre(a, b, c);
-                if (cut.Any(h => alpha == tags[h.Index] && Within(h.Outline, p, Reach))) return true;
+                var q = new Vector2(p.X, p.Z);
+                var nearBy = Close(q);
+                if (nearBy.Count == 0) return false;
+                if (nearBy.Any(h => alpha == tags[h.Index] && Within(h.Outline, p, Reach))) return true;
                 // the drainage iron and the dressed stone came after the bake (#163, the stone corners): their alpha is often a
                 // neighbour's, so they go by place alone: near a razed house and nearer to it than to any standing one
-                if (LaterParts.Contains(material) && cut.Any(h => Within(h.Outline, p, Reach)) && Belongs(new Vector2(p.X, p.Z), cutOutlines, standingLines0)) return true;
+                if (LaterParts.Contains(material) && nearBy.Any(h => Within(h.Outline, p, Reach)) && Belongs(new Vector2(p.X, p.Z), cutOutlines, standingLines0)) return true;
                 // a plinth top of raised flags left floating (0.5 to 1 m high), its alpha often a neighbour's: by place, as the iron
                 if (material == Flags && Math.Min(a.Y, Math.Min(b.Y, c.Y)) > 0.5f && Math.Max(a.Y, Math.Max(b.Y, c.Y)) < 1.0f
-                    && cut.Any(h => Within(h.Outline, p, Reach)) && Belongs(new Vector2(p.X, p.Z), cutOutlines, standingLines0)) return true;
+                    && nearBy.Any(h => Within(h.Outline, p, Reach)) && Belongs(new Vector2(p.X, p.Z), cutOutlines, standingLines0)) return true;
                 // whatever stands well inside a razed outline above the street (chimney caps whose alpha is another house's)
-                var q = new Vector2(p.X, p.Z);
-                if (p.Y > 0.5f && cut.Any(h => Inside(h.Outline, q) && EdgeDistance(h.Outline, q) >= 0.3f) && Belongs(q, cutOutlines, standingLines0)) return true;
-                return cut.Any(h => Math.Abs(alpha - tags[h.Index]) == 1 && Within(h.Outline, p, Reach)) && Belongs(new Vector2(p.X, p.Z), cutOutlines, standingLines0);
+                if (p.Y > 0.5f && nearBy.Any(h => Inside(h.Outline, q) && EdgeDistance(h.Outline, q) >= 0.3f) && Belongs(q, cutOutlines, standingLines0)) return true;
+                return nearBy.Any(h => Math.Abs(alpha - tags[h.Index]) == 1 && Within(h.Outline, p, Reach)) && Belongs(new Vector2(p.X, p.Z), cutOutlines, standingLines0);
             });
         // A chunk's collision stand-ins (the plain boxes Solid takes for its fine stone and drainage, issues #157 #163) carry
         // no alpha: a box goes when it lies near a razed house and nearer to it than to any standing one.
@@ -95,7 +123,7 @@ public static class NativeRazedHouses
             for (int t = 0; t + 2 < faces.Length; t += 3)
             {
                 var c = Centre(xf * faces[t], xf * faces[t + 1], xf * faces[t + 2]);
-                if (Belongs(new Vector2(c.X, c.Z), razedLines, standingLines)) { standIns++; continue; }
+                if (InAny(boxes, new Vector2(c.X, c.Z)) && Belongs(new Vector2(c.X, c.Z), razedLines, standingLines)) { standIns++; continue; }
                 keptFaces.Add(faces[t]); keptFaces.Add(faces[t + 1]); keptFaces.Add(faces[t + 2]);
             }
             if (keptFaces.Count != faces.Length) am.SetMeta("native_solid_stand_in", keptFaces.ToArray());
@@ -108,7 +136,8 @@ public static class NativeRazedHouses
             dressingTriangles += Filter(mesh, (a, b, c, _) =>
             {
                 var p = Centre(a, b, c);
-                return Belongs(new Vector2(p.X, p.Z), cut.Select(h => h.Outline).ToList(), standing.Select(h => h.Outline).ToList());
+                var q = new Vector2(p.X, p.Z);
+                return InAny(boxes, q) && Belongs(q, cutOutlines, standingLines0);
             });
         if (dressingTriangles > 0) notes.Add($"street dressing at the razed houses: {dressingTriangles} triangles");
         // copies (weeds at the wall foot, goods by the door) standing on or against a razed house: the copy set is rebuilt without them
@@ -117,7 +146,7 @@ public static class NativeRazedHouses
         foreach (var copies in BakedWorld.All(town).OfType<MultiMeshInstance3D>().Where(m => m.Multimesh is { InstanceCount: > 0 }))
         {
             var mm = copies.Multimesh; var xf = WorldOf(copies);
-            var keep = Enumerable.Range(0, mm.InstanceCount).Where(i => { var at = xf * mm.GetInstanceTransform(i).Origin; return !Belongs(new Vector2(at.X, at.Z), razedOutlines, standingOutlines); }).ToList();
+            var keep = Enumerable.Range(0, mm.InstanceCount).Where(i => { var at = xf * mm.GetInstanceTransform(i).Origin; var q = new Vector2(at.X, at.Z); return !(InAny(boxes, q) && Belongs(q, razedOutlines, standingOutlines)); }).ToList();
             if (keep.Count == mm.InstanceCount) continue;
             var transforms = keep.Select(mm.GetInstanceTransform).ToList();
             var colours = mm.UseColors ? keep.Select(mm.GetInstanceColor).ToList() : null;
@@ -136,7 +165,8 @@ public static class NativeRazedHouses
             glowTriangles += Filter(mesh, (a, b, c, _) =>
             {
                 var centre = Centre(a, b, c);
-                if (!cut.Any(h => Within(h.Outline, centre, 0.3f))) return false;
+                var nearBy = Close(new Vector2(centre.X, centre.Z));
+                if (!nearBy.Any(h => Within(h.Outline, centre, 0.3f))) return false;
                 var normal = (b - a).Cross(c - a);
                 var flat = new Vector2(normal.X, normal.Z);
                 if (flat.LengthSquared() < 1e-8f) return true;
@@ -146,7 +176,8 @@ public static class NativeRazedHouses
                 return true;
             });
         foreach (var h in cut) notes.Add($"house {h.Index}: razed (alpha {tags[h.Index]})");
-        return new(cut.Count, triangles, glowTriangles, notes) { Razed = cut.Select(h => h.Outline).ToList(), Standing = standing.Select(h => h.Outline).ToList() };
+        notes.Add($"cut in {clock.ElapsedMilliseconds} ms");
+        return new(cut.Count, triangles, glowTriangles, notes) { Razed = cut.Select(h => h.Outline).ToList(), Standing = standing.Select(h => h.Outline).ToList(), RazedBoxes = boxes };
     }
 
     private static bool Belongs(Vector2 q, IReadOnlyList<Vector2[]> razed, IReadOnlyList<Vector2[]> standing)
@@ -254,18 +285,28 @@ public static class NativeRazedHouses
         return result;
     }
 
-    /// <summary>The alpha byte that covers most of a footprint's inner part (by the triangles' plan area and height).</summary>
-    private static int? OwnAlpha(List<MeshInstance3D> chunks, Vector2[] outline) => OwnAlpha(chunks, outline, Inset) ?? OwnAlpha(chunks, outline, 0);
-
-    // (a sliver of an outline, house 454 by Sint-Jacob, has no triangle a full inset inside it: then those inside it count)
-    private static int? OwnAlpha(List<MeshInstance3D> chunks, Vector2[] outline, float inset)
+    /// <summary>The alpha byte that covers most of each footprint's inner part (by the triangles' plan area and height).</summary>
+    private static Dictionary<Vector2[], int?> OwnAlphas(List<MeshInstance3D> chunks, IReadOnlyList<Vector2[]> outlines)
     {
-        var area = new Dictionary<int, float>();
+        var owns = OwnAlphas(chunks, outlines, Inset);
+        // (a sliver of an outline, house 454 by Sint-Jacob, has no triangle a full inset inside it: then those inside it count)
+        var slivers = owns.Where(kv => kv.Value == null).Select(kv => kv.Key).ToList();
+        if (slivers.Count > 0) foreach (var (outline, own) in OwnAlphas(chunks, slivers, 0)) owns[outline] = own;
+        return owns;
+    }
+
+    private static Dictionary<Vector2[], int?> OwnAlphas(List<MeshInstance3D> chunks, IReadOnlyList<Vector2[]> outlines, float inset)
+    {
+        var unique = outlines.Distinct(ReferenceEqualityComparer.Instance).Cast<Vector2[]>().ToList();
+        var boxes = unique.Select(o => Box.Of(o, 0)).ToArray();
+        var areas = unique.Select(_ => new Dictionary<int, float>()).ToArray();
+        var here = new List<int>();
         foreach (var mesh in chunks)
         {
             var xf = WorldOf(mesh);
             var box = xf * mesh.GetAabb();
-            if (!Overlaps(box, outline, 0)) continue;
+            var touching = Enumerable.Range(0, unique.Count).Where(i => Overlaps(box, unique[i], 0)).ToArray();
+            if (touching.Length == 0) continue;
             var m = (ArrayMesh)mesh.Mesh;
             for (int s = 0; s < m.GetSurfaceCount(); s++)
             {
@@ -280,15 +321,28 @@ public static class NativeRazedHouses
                     Vector3 a = xf * v[index[t]], b = xf * v[index[t + 1]], c = xf * v[index[t + 2]];
                     var centre = Centre(a, b, c);
                     var p = new Vector2(centre.X, centre.Z);
-                    if (!Inside(outline, p) || EdgeDistance(outline, p) < inset) continue;
+                    here.Clear();
+                    foreach (int i in touching) if (boxes[i].Has(p)) here.Add(i);
+                    if (here.Count == 0) continue;
                     int alpha = (int)MathF.Round(col[index[t]].A * 255);
-                    area[alpha] = area.GetValueOrDefault(alpha) + (b - a).Cross(c - a).Length() * 0.5f;
+                    float size = (b - a).Cross(c - a).Length() * 0.5f;
+                    foreach (int i in here)
+                    {
+                        if (!Inside(unique[i], p) || EdgeDistance(unique[i], p) < inset) continue;
+                        areas[i][alpha] = areas[i].GetValueOrDefault(alpha) + size;
+                    }
                 }
             }
         }
-        if (area.Count == 0) return null;
-        var best = area.MaxBy(kv => kv.Value);
-        return best.Value >= area.Values.Sum() * 0.5f ? best.Key : null;
+        var owns = new Dictionary<Vector2[], int?>(ReferenceEqualityComparer.Instance);
+        for (int i = 0; i < unique.Count; i++)
+        {
+            var area = areas[i];
+            if (area.Count == 0) { owns[unique[i]] = null; continue; }
+            var best = area.MaxBy(kv => kv.Value);
+            owns[unique[i]] = best.Value >= area.Values.Sum() * 0.5f ? best.Key : null;
+        }
+        return owns;
     }
 
     /// <summary>Drops the triangles a test picks; returns how many went.</summary>
