@@ -11,6 +11,7 @@ Bugs and loose ends are tracked as [issues](https://github.com/Steve-Sitax/Moody
 
 ## [Unreleased]
 
+- The churches' stained glass is real glass now. From the street it is dark with a hint of colour by day, and after dark it glows warm in its own colours while the church is lit. From inside it glows with colour by day and goes dark at night. You can no longer see the street, other houses or the far windows through it, and a far-off church no longer shows open holes. Church naves after dark are a little warmer with their candlelight.
 - More of the houses pressed against Sint-Paulus and Sint-Jacob are cleared, giving both churches wider squares with trees and benches. Gutters, cornices and chimney caps of cleared houses no longer float in the air.
 - Ruien: the walkway setts' raised edges and joints show their stones at true size, no longer stretched.
 - Door steps and plinth tops show their stone's grain along the step, not always east to west.

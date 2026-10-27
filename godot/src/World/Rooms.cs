@@ -136,6 +136,14 @@ public partial class Rooms : Node, Dev.IInteriorAuditSource
             if (houses.TryGetValue("house_" + Key(room.Id), out var house)) Doors(room, house);
             Light(room, info.GetProperty("lights"), lit.TryGetValue(room.Id, out var l) ? l : (JsonElement?)null);
             AddedLamps(room);
+            if (Churches.Contains(room.Id))
+            {
+                // (the churches' lighting pass, 2026-10-27: after dark their candles and lamps fill the nave a little, warm; the
+                // bake's night sky in them was the moon's alone, and the cathedral's nave stood black between its lamps)
+                room.SkyLit += ChurchCandleFill;
+                room.GroundLit += ChurchCandleFill * 0.5f;
+                room.AmbLit += ChurchCandleFill * 0.3f;
+            }
             if(Main.I.World.NativeFurnitureRooms?.Contains(room.Id)==true)
             {
                 var availableLights=room.Lamps.ToList();
@@ -392,6 +400,10 @@ public partial class Rooms : Node, Dev.IInteriorAuditSource
             }
         }
     }
+
+    /// <summary>The churches' halls, and the warm light their candles and lamps add to a hall's night sky and ambient.</summary>
+    private static readonly HashSet<string> Churches = new() { "stpaul", "stjacob", "carolus", "cathedral" };
+    private static readonly Vector3 ChurchCandleFill = new(0.034f, 0.025f, 0.015f);
 
     /// <summary>Lamps a room has that the bake did not light (#198: the cathedral's aisles were dark at night by the confessionals):
     /// the flames of its standing lamps (church/lamp_stand, drawn by room-cathedral-source-8902-4), each lit as the transept altar's
