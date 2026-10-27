@@ -1,5 +1,5 @@
 {
- "note": "The squares the razing opened, made to read as 1873 (Steve 2026-10-27; art-source/square-mood-20261027). NativeSquareDressing.cs reads it. ground: the dirt mask redrawn on the cut plots (base mud, grime at standing walls' feet within wallReach m, pathWear on the swept paths, mud spots); churches: their plans (art-source/church-squares-20261027/foot-*.json, simplified 0.25 m). things: kind pump (the street kit's), guard (the town's guard stone), handcart[:load], bricks, rubble, or pack:model; at [x, z], yaw in degrees, size [x, y, z] the solid box (none: not solid).",
+ "note": "The squares the razing opened, made to read as 1873 (Steve 2026-10-27; art-source/square-mood-20261027). NativeSquareDressing.cs reads it. ground: the dirt mask redrawn on the cut plots (base mud, grime at standing walls' feet within wallReach m, pathWear on the swept paths, mud spots); churches: their plans (art-source/church-squares-20261027/foot-*.json, simplified 0.25 m). things: kind pump (the street kit's), guard (the town's guard stone), handcart[:load], bricks, rubble, or pack:model; at [x, z], yaw in degrees, size [x, y, z] the solid box (none: not solid). paving: the old fronts of the cut houses (their outline's free edges) keep their blue-stone plinth in the street; on a front, patchChance of a mended patch of re-laid setts (at most maxPatches by each church), half with a hollow beside it where the fill settled; hollows: more (at, radius, mud = how deep, 0-1), filled first when it rains. A thing's lift raises it off the street (a kit object level with it). keepOut: boxes (x0, z0, x1, z1) the paving leaves alone (the Sint-Jacob churchyard's south side, another piece of work).",
  "ground": {
   "base": 0.2,
   "wallGrime": 0.62,
@@ -586,6 +586,16 @@
    "yaw": 90
   },
   {
+   "id": "square-paulus-gully",
+   "kind": "kit:gutter-grate",
+   "at": [
+    112.25,
+    297.0
+   ],
+   "yaw": 0,
+   "lift": 0.012
+  },
+  {
    "id": "square-paulus-cart",
    "kind": "handcart:tr_handcart_load",
    "at": [
@@ -890,5 +900,56 @@
     1.53
    ]
   }
- ]
+ ],
+ "paving": {
+  "seed": 1873,
+  "patchChance": 0.6,
+  "maxPatches": 6,
+  "hollows": [
+   {
+    "id": "paulus-pump-gully",
+    "at": [
+     112.3,
+     296.55
+    ],
+    "radius": 0.75,
+    "mud": 0.95
+   },
+   {
+    "id": "paulus-cart-rut",
+    "at": [
+     136.6,
+     297.9
+    ],
+    "radius": 1.0,
+    "mud": 0.85
+   },
+   {
+    "id": "jacob-salvage-rut",
+    "at": [
+     -70.2,
+     271.6
+    ],
+    "radius": 0.9,
+    "mud": 0.8
+   },
+   {
+    "id": "jacob-lane-dip",
+    "at": [
+     -38.2,
+     343.4
+    ],
+    "radius": 1.1,
+    "mud": 0.85
+   }
+  ],
+  "keepOut": [
+   [
+    -118,
+    330,
+    -57,
+    348
+   ]
+  ]
+ }
 }

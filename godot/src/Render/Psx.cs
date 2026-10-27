@@ -1599,10 +1599,15 @@ void fragment() {
 		float water = smoothstep(th, th + 0.018, pn);
 		// broken into puddles a few metres across
 		water *= smoothstep(0.46, 0.56, pud_val(pp / 2.1 + 57.1)) * smoothstep(0.3, 0.42, pud_val(pp / 4.7 - 23.9));
+		// the hollows the dirt mask's alpha marks (1 - how deep: the cleared squares, NativeSquareDressing): they fill
+		// first, deeper with the rain, their edge broken by the stones
+		float hol = 1.0 - texture(psx_dirt, (pp - psx_dirt_box.xy) / psx_dirt_box.zw).a;
+		hol += (pud_val(pp / 0.45 + 3.3) - 0.5) * 0.22 * smoothstep(0.02, 0.15, hol);
+		water = max(water, smoothstep(0.66 - lvl * 0.45, 0.72 - lvl * 0.45, hol));
 ");
             if (k.Relief > 0) c.Append("		// stones and pebbles stand out of the water: the shallower the puddle, the more of them\n		water *= 1.0 - smoothstep(0.66 + lvl * 0.2, 0.84 + lvl * 0.2, psx_h) * (1.0 - smoothstep(th + 0.03, th + 0.2, pn));\n");
             c.Append(@"		water = clamp(water, 0.0, 1.0);
-		float damp = smoothstep(th - 0.09, th, pn);
+		float damp = max(smoothstep(th - 0.09, th, pn), smoothstep(0.4 - lvl * 0.35, 0.66 - lvl * 0.45, hol));
 		float dk = 1.0 - 0.38 * damp * (1.0 - water);
 		k3 *= dk;
 		ad *= dk;

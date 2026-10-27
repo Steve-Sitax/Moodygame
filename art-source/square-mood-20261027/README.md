@@ -73,6 +73,42 @@ drain and gully at the pump; the pump's own stone and edges (the street kit's mo
 the Paulus north door's flat infill; a red-brown leftover behind the tree in the Paulus wall view (there before, too);
 the translucent bands in the Jacob south-west sky.
 
+## Round 2 (27 October 2026): the walls, the paving, the water
+
+The coordinator's review of round 1: the plaster patches read as flat pale cloud-shaped stickers. Rebuilt
+(`NativeSquareDressing.Room`, `Coat`), and Codex's #1, #3 and #4 added.
+
+- **Bared walls.** The brick is worn 0.82 (the shader's own soot, streaks and damp: darker and blotched, a party wall never
+  meant to be seen). Each room's coat is a field on the wall (`Room.Field`): straight along the floor (a hand over it, where
+  the skirting came off), the ceiling (under the joists), the front and back walls, a partition's chase and the chimney
+  breast; cut by a warped three-octave noise where it fell (more at its edges and under the ground floor's damp line). It is
+  drawn by marching squares on an 8 cm grid: the face 20 mm proud, a 4 mm lip at the break, the broken face slanting 6 mm
+  out to the brick (the lip a paler fresh lime, the break in its own shadow). Its picture is the town's dirty render (a room
+  in four the ochre plaster), in a limewash or distemper per room (grey-ochre, faded blue-green, dirty pink, lime grey, buff,
+  green-grey), low against the brick; every vertex its own grime: blotches, rain runs, the stove's smoke under the ceiling,
+  the flue's soot beside the breast, dirt at its foot; over it the ghost cell's mottle multiplied dark. A gabled house's attic
+  is limewashed now and then, its top the rafters' slope. The chimney breast is a sooted band of bare brick 1.2 m wide with
+  the flue up its middle and a fireplace's soot on every floor. Wallpaper scraps lie only where the coat is whole round them.
+- **Paving** (`square-dressing.json` `paving`, `Lay`, `Pave`). The cut houses' free edges are their old fronts. The street's
+  pavement often still runs along them, so the stones go behind it, inside the plot (`GroundHeight` reads the street's own
+  upward faces: setts, pavement and kerb slabs): a blue-grey plinth of blocks 0.45-0.95 m on the front's line, 12-16 mm
+  proud, an 8 mm arris, one in ten taken; and up to six mended patches by each church of reclaimed setts (16-26 x 12-18 cm,
+  1-2 cm earth joints, running bond along the old front, stepped course ends, each a hair turned, its top crowned 4-8 mm and
+  worn round, a worn grey, warm grey, dark or sandy tone). Both in the facade material (the render picture's grain), one mesh
+  per 60 m of town, no collision (stepped over). They keep clear of trees, benches and things, and of `keepOut` (the Sint-Jacob
+  churchyard's south side, another helper's).
+- **Water.** Hollows in the dirt mask's alpha (1 - how deep; it was 1 everywhere): half the patches have one beside them where
+  the trench's fill settled, plus the pump's gully, a cart rut by the trough, the Jacob salvage and the Jacob lane. The ground
+  shader's puddles fill them first, deeper with the rain, their edges broken by noise and by the stones (Psx.cs, the ground
+  kind's own puddle code: no new kind; elsewhere the alpha is 1 and nothing changes). The pump's run-off goes to the street
+  kit's gutter grate (`kit:gutter-grate`, lifted 12 mm: level with the street it was hidden).
+- **Fault found.** A mesh's visibility range is measured to its middle: the paving, as one mesh over all the squares, had its
+  middle far from every square and never showed. The paving and the walls' ghosts, coats and anchors are now one set of meshes
+  per 60 m of town.
+
+Not built: notices on the walls (#14) and a scaffold or hoarding (#20-22). Load: the dressing takes about 3 s (1 s round 1;
+the street's height read takes 1 s of it).
+
 ## Checked
 
 Game photos of every before view (13:00) and at 13:00 in rain and 22:00, before (`--no-square-dressing`) and after, in
