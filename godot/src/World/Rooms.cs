@@ -552,7 +552,8 @@ public partial class Rooms : Node, Dev.IInteriorAuditSource
             if (MathF.Abs(sunK - shaftK.X) > 0.004f || MathF.Abs(moonK - shaftK.Y) > 0.004f)
             {
                 shaftK = new Vector2(sunK, moonK);
-                var shaft = ShaftSun * (0.22f * sunK) + ShaftMoon * (0.035f * moonK);
+                // (the moon's only faint: the churches' glass lets little of it through, Codex 2026-10-27)
+                var shaft = ShaftSun * (0.22f * sunK) + ShaftMoon * (0.005f * moonK);
                 // (the colour is set as the shader reads it, sRGB: the light adds in linear)
                 var c = new Color(shaft.X, shaft.Y, shaft.Z, 1).LinearToSrgb();
                 foreach (var m in shaftMats) Scheldemist.Render.UniformUpdates.Material(m, "albedo", c);
