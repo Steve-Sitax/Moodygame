@@ -110,6 +110,20 @@ public partial class Lights : Node
         return level => src.Level = level;
     }
 
+    /// <summary>Every landmark window's light on the street with this label (spill.ts kind "hall") at this share of its
+    /// power (ChurchGlass: the churches' glass shows its own light, the stone round the windows less); how many.</summary>
+    public int ScaleWindows(string label, float share)
+    {
+        int n = 0;
+        foreach (var s in sources)
+            if (s.Kind == "hall" && s.Label == label)
+            {
+                s.Power *= share;
+                n++;
+            }
+        return n;
+    }
+
     /// <summary>A landmark window light whose vertex colours are kept at a fraction (8-bit colours stop at 1): its
     /// strength times this (LandmarkRooms.cs).</summary>
     public readonly Dictionary<ShaderMaterial, float> LandmarkGain = new();
