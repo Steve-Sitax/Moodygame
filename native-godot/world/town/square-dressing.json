@@ -1,0 +1,894 @@
+{
+ "note": "The squares the razing opened, made to read as 1873 (Steve 2026-10-27; art-source/square-mood-20261027). NativeSquareDressing.cs reads it. ground: the dirt mask redrawn on the cut plots (base mud, grime at standing walls' feet within wallReach m, pathWear on the swept paths, mud spots); churches: their plans (art-source/church-squares-20261027/foot-*.json, simplified 0.25 m). things: kind pump (the street kit's), guard (the town's guard stone), handcart[:load], bricks, rubble, or pack:model; at [x, z], yaw in degrees, size [x, y, z] the solid box (none: not solid).",
+ "ground": {
+  "base": 0.2,
+  "wallGrime": 0.62,
+  "wallReach": 0.9,
+  "pathWear": 0.5,
+  "churches": [
+   {
+    "name": "Sint-Paulus",
+    "outline": [
+     [
+      65.42,
+      246.54
+     ],
+     [
+      65.41,
+      285.46
+     ],
+     [
+      90.26,
+      285.59
+     ],
+     [
+      94.97,
+      284.91
+     ],
+     [
+      99.68,
+      285.59
+     ],
+     [
+      140.16,
+      285.23
+     ],
+     [
+      140.75,
+      281.49
+     ],
+     [
+      140.2,
+      277.7
+     ],
+     [
+      140.78,
+      268.78
+     ],
+     [
+      140.75,
+      260.0
+     ],
+     [
+      140.2,
+      257.2
+     ],
+     [
+      140.2,
+      254.3
+     ],
+     [
+      140.75,
+      250.51
+     ],
+     [
+      140.04,
+      247.09
+     ],
+     [
+      132.55,
+      246.41
+     ],
+     [
+      127.28,
+      246.96
+     ],
+     [
+      124.69,
+      246.41
+     ],
+     [
+      121.32,
+      246.96
+     ],
+     [
+      116.83,
+      246.41
+     ],
+     [
+      111.56,
+      246.96
+     ],
+     [
+      108.97,
+      246.41
+     ],
+     [
+      103.7,
+      246.96
+     ],
+     [
+      97.77,
+      246.32
+     ]
+    ]
+   },
+   {
+    "name": "Sint-Jacob",
+    "outline": [
+     [
+      -134.46,
+      277.0
+     ],
+     [
+      -134.48,
+      332.99
+     ],
+     [
+      -55.7,
+      332.97
+     ],
+     [
+      -55.69,
+      325.78
+     ],
+     [
+      -56.38,
+      325.76
+     ],
+     [
+      -59.48,
+      322.29
+     ],
+     [
+      -56.41,
+      319.53
+     ],
+     [
+      -55.44,
+      319.49
+     ],
+     [
+      -56.22,
+      313.73
+     ],
+     [
+      -55.47,
+      310.94
+     ],
+     [
+      -55.77,
+      307.05
+     ],
+     [
+      -55.47,
+      299.05
+     ],
+     [
+      -56.22,
+      296.76
+     ],
+     [
+      -55.44,
+      291.49
+     ],
+     [
+      -55.72,
+      277.01
+     ],
+     [
+      -101.61,
+      276.95
+     ],
+     [
+      -106.78,
+      277.73
+     ],
+     [
+      -111.33,
+      276.95
+     ]
+    ]
+   },
+   {
+    "name": "Sint-Carolus",
+    "outline": [
+     [
+      -138.24,
+      169.01
+     ],
+     [
+      -137.65,
+      171.45
+     ],
+     [
+      -137.65,
+      181.34
+     ],
+     [
+      -138.24,
+      188.33
+     ],
+     [
+      -137.65,
+      191.25
+     ],
+     [
+      -137.65,
+      199.65
+     ],
+     [
+      -138.22,
+      203.16
+     ],
+     [
+      -137.46,
+      203.55
+     ],
+     [
+      -103.31,
+      203.75
+     ],
+     [
+      -94.84,
+      203.55
+     ],
+     [
+      -94.07,
+      203.14
+     ],
+     [
+      -94.79,
+      199.35
+     ],
+     [
+      -94.44,
+      196.34
+     ],
+     [
+      -94.79,
+      194.15
+     ],
+     [
+      -94.44,
+      191.14
+     ],
+     [
+      -94.79,
+      187.35
+     ],
+     [
+      -94.06,
+      183.31
+     ],
+     [
+      -94.79,
+      176.95
+     ],
+     [
+      -94.44,
+      175.54
+     ],
+     [
+      -94.79,
+      173.35
+     ],
+     [
+      -94.08,
+      168.84
+     ],
+     [
+      -94.94,
+      168.23
+     ],
+     [
+      -103.22,
+      167.87
+     ],
+     [
+      -105.11,
+      165.2
+     ],
+     [
+      -107.6,
+      165.2
+     ],
+     [
+      -110.5,
+      166.1
+     ],
+     [
+      -113.41,
+      165.2
+     ],
+     [
+      -118.59,
+      165.2
+     ],
+     [
+      -121.5,
+      166.1
+     ],
+     [
+      -124.4,
+      165.2
+     ],
+     [
+      -126.89,
+      165.2
+     ],
+     [
+      -128.78,
+      167.87
+     ],
+     [
+      -131.54,
+      168.31
+     ],
+     [
+      -137.47,
+      168.45
+     ]
+    ]
+   }
+  ],
+  "paths": [
+   {
+    "id": "paulus-south-walk",
+    "points": [
+     [
+      62,
+      295.5
+     ],
+     [
+      88,
+      293.6
+     ],
+     [
+      110,
+      293.0
+     ],
+     [
+      126,
+      292.6
+     ],
+     [
+      146,
+      293.8
+     ]
+    ],
+    "width": 1.6
+   },
+   {
+    "id": "paulus-north-door",
+    "points": [
+     [
+      97,
+      232
+     ],
+     [
+      97,
+      246.5
+     ]
+    ],
+    "width": 1.8
+   },
+   {
+    "id": "paulus-north-walk",
+    "points": [
+     [
+      50,
+      250
+     ],
+     [
+      66,
+      241
+     ],
+     [
+      100,
+      241.2
+     ],
+     [
+      132,
+      243.5
+     ]
+    ],
+    "width": 1.5
+   },
+   {
+    "id": "paulus-west-walk",
+    "points": [
+     [
+      47,
+      247
+     ],
+     [
+      57,
+      268
+     ],
+     [
+      64,
+      287
+     ],
+     [
+      66,
+      295
+     ]
+    ],
+    "width": 1.5
+   },
+   {
+    "id": "jacob-north-walk",
+    "points": [
+     [
+      -140,
+      274
+     ],
+     [
+      -110,
+      275.5
+     ],
+     [
+      -80,
+      274.8
+     ],
+     [
+      -60,
+      276.2
+     ],
+     [
+      -36,
+      281
+     ]
+    ],
+    "width": 1.5
+   },
+   {
+    "id": "jacob-east-walk",
+    "points": [
+     [
+      -36,
+      281
+     ],
+     [
+      -48,
+      296
+     ],
+     [
+      -50,
+      318
+     ],
+     [
+      -48,
+      336
+     ],
+     [
+      -36,
+      346
+     ]
+    ],
+    "width": 1.6
+   },
+   {
+    "id": "jacob-west-walk",
+    "points": [
+     [
+      -138,
+      276
+     ],
+     [
+      -136.5,
+      300
+     ],
+     [
+      -137,
+      334
+     ]
+    ],
+    "width": 1.4
+   },
+   {
+    "id": "carolus-front",
+    "points": [
+     [
+      -140,
+      164.5
+     ],
+     [
+      -127,
+      163.8
+     ],
+     [
+      -108,
+      163.5
+     ],
+     [
+      -92,
+      166
+     ]
+    ],
+    "width": 1.6
+   }
+  ],
+  "mud": [
+   {
+    "id": "paulus-pump",
+    "at": [
+     112,
+     294.8
+    ],
+    "radius": 1.6,
+    "mud": 0.75
+   },
+   {
+    "id": "paulus-pump-runnel",
+    "at": [
+     112.2,
+     297.2
+    ],
+    "radius": 1.2,
+    "mud": 0.6
+   },
+   {
+    "id": "paulus-salvage",
+    "at": [
+     127.5,
+     295.2
+    ],
+    "radius": 3.4,
+    "mud": 0.7
+   },
+   {
+    "id": "jacob-salvage",
+    "at": [
+     -72.5,
+     268.5
+    ],
+    "radius": 3.0,
+    "mud": 0.7
+   },
+   {
+    "id": "paulus-cart-lane",
+    "at": [
+     138.4,
+     296.3
+    ],
+    "radius": 2.2,
+    "mud": 0.55
+   },
+   {
+    "id": "jacob-lane",
+    "at": [
+     -36,
+     346
+    ],
+    "radius": 2.4,
+    "mud": 0.5
+   }
+  ]
+ },
+ "things": [
+  {
+   "id": "square-paulus-pump",
+   "kind": "pump",
+   "at": [
+    112.0,
+    294.0
+   ],
+   "yaw": 0
+  },
+  {
+   "id": "square-paulus-pail",
+   "kind": "lively:bucket",
+   "at": [
+    112.1,
+    295.05
+   ],
+   "yaw": 20
+  },
+  {
+   "id": "square-paulus-wet",
+   "kind": "clutter:wet",
+   "at": [
+    112.0,
+    295.6
+   ],
+   "yaw": 90
+  },
+  {
+   "id": "square-paulus-cart",
+   "kind": "handcart:tr_handcart_load",
+   "at": [
+    124.6,
+    295.0
+   ],
+   "yaw": 90
+  },
+  {
+   "id": "square-paulus-door-barrels",
+   "kind": "move:props_dressing/Mesh984,props_dressing/Mesh985",
+   "at": [
+    31.4,
+    50.9
+   ],
+   "yaw": 0
+  },
+  {
+   "id": "square-paulus-bricks",
+   "kind": "bricks",
+   "at": [
+    129.9,
+    294.2
+   ],
+   "yaw": 2,
+   "size": [
+    0.9,
+    0.56,
+    0.66
+   ],
+   "seed": 12
+  },
+  {
+   "id": "square-paulus-rubble",
+   "kind": "rubble",
+   "at": [
+    132.2,
+    295.4
+   ],
+   "yaw": 4,
+   "size": [
+    2.4,
+    0.55,
+    1.15
+   ],
+   "seed": 11
+  },
+  {
+   "id": "square-paulus-sack",
+   "kind": "props:sack_standing",
+   "at": [
+    126.7,
+    293.9
+   ],
+   "yaw": 30,
+   "size": [
+    0.5,
+    0.85,
+    0.45
+   ]
+  },
+  {
+   "id": "square-paulus-straw",
+   "kind": "litter:straw_wisp",
+   "at": [
+    126.6,
+    295.9
+   ],
+   "yaw": 40
+  },
+  {
+   "id": "square-paulus-straw-2",
+   "kind": "litter:straw_wisp",
+   "at": [
+    125.4,
+    296.3
+   ],
+   "yaw": 160
+  },
+  {
+   "id": "square-paulus-dung",
+   "kind": "litter:dung_1",
+   "at": [
+    117.6,
+    300.6
+   ],
+   "yaw": 70
+  },
+  {
+   "id": "square-paulus-dung-2",
+   "kind": "litter:dung_2",
+   "at": [
+    138.2,
+    300.9
+   ],
+   "yaw": 20
+  },
+  {
+   "id": "square-paulus-leaves-1",
+   "kind": "litter:leafpile_0",
+   "at": [
+    101.5,
+    288.4
+   ],
+   "yaw": 10
+  },
+  {
+   "id": "square-paulus-leaves-2",
+   "kind": "litter:leafpile_1",
+   "at": [
+    86.0,
+    288.5
+   ],
+   "yaw": -8
+  },
+  {
+   "id": "square-paulus-leaves-3",
+   "kind": "litter:leafpile_0",
+   "at": [
+    138.6,
+    288.7
+   ],
+   "yaw": 95
+  },
+  {
+   "id": "square-paulus-guard-1",
+   "kind": "guard",
+   "at": [
+    86.25,
+    302.8
+   ],
+   "yaw": 0
+  },
+  {
+   "id": "square-jacob-rubble",
+   "kind": "rubble",
+   "at": [
+    -71.7,
+    267.4
+   ],
+   "yaw": -80,
+   "size": [
+    2.4,
+    0.55,
+    1.1
+   ],
+   "seed": 21
+  },
+  {
+   "id": "square-jacob-bricks",
+   "kind": "bricks",
+   "at": [
+    -71.5,
+    270.9
+   ],
+   "yaw": -80,
+   "size": [
+    0.9,
+    0.56,
+    0.66
+   ],
+   "seed": 22
+  },
+  {
+   "id": "square-jacob-cart",
+   "kind": "handcart",
+   "at": [
+    -74.3,
+    268.6
+   ],
+   "yaw": 10
+  },
+  {
+   "id": "square-jacob-straw",
+   "kind": "litter:straw_wisp",
+   "at": [
+    -73.8,
+    271.4
+   ],
+   "yaw": -30
+  },
+  {
+   "id": "square-jacob-leaves-1",
+   "kind": "litter:leafpile_1",
+   "at": [
+    -88.0,
+    276.0
+   ],
+   "yaw": 3
+  },
+  {
+   "id": "square-jacob-guard-1",
+   "kind": "guard",
+   "at": [
+    -70.4,
+    263.2
+   ],
+   "yaw": 0
+  },
+  {
+   "id": "square-jacob-guard-2",
+   "kind": "guard",
+   "at": [
+    -92.9,
+    274.3
+   ],
+   "yaw": 0
+  },
+  {
+   "id": "square-jacob-guard-3",
+   "kind": "guard",
+   "at": [
+    -30.4,
+    288.2
+   ],
+   "yaw": 0
+  },
+  {
+   "id": "square-carolus-guard-1",
+   "kind": "guard",
+   "at": [
+    -91.7,
+    164.3
+   ],
+   "yaw": 0
+  },
+  {
+   "id": "square-paulus-trough",
+   "kind": "laundry:trough",
+   "at": [
+    137.6,
+    295.3
+   ],
+   "yaw": 0,
+   "size": [
+    2.04,
+    0.62,
+    0.74
+   ]
+  },
+  {
+   "id": "square-paulus-hitching-post",
+   "kind": "kit:hitching-post",
+   "at": [
+    139.3,
+    294.9
+   ],
+   "yaw": 0
+  },
+  {
+   "id": "square-paulus-dung-3",
+   "kind": "litter:dung_0",
+   "at": [
+    138.9,
+    296.6
+   ],
+   "yaw": 10
+  },
+  {
+   "id": "square-jacob-barrow",
+   "kind": "trades:mk_barrow_veg",
+   "at": [
+    -108.6,
+    266.1
+   ],
+   "yaw": 4,
+   "size": [
+    2.2,
+    0.75,
+    0.8
+   ]
+  },
+  {
+   "id": "square-jacob-basket",
+   "kind": "trades:mk_basket_veg",
+   "at": [
+    -107.1,
+    266.95
+   ],
+   "yaw": -20
+  },
+  {
+   "id": "square-jacob-cabbage",
+   "kind": "litter:cabbage_1",
+   "at": [
+    -109.5,
+    266.85
+   ],
+   "yaw": 30
+  },
+  {
+   "id": "square-jacob-sacks",
+   "kind": "props:sack_pile",
+   "at": [
+    -75.9,
+    265.6
+   ],
+   "yaw": 10,
+   "size": [
+    1.08,
+    0.74,
+    1.53
+   ]
+  }
+ ]
+}

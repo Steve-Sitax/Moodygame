@@ -11,6 +11,7 @@ Bugs and loose ends are tracked as [issues](https://github.com/Steve-Sitax/Moody
 
 ## [Unreleased]
 
+- The new church squares look lived in: the mud that covered them is gone, the paving shows worn paths, grime along the walls and mud where carts stand; the walls bared by the cleared houses show old brick with each room's torn plaster, floor lines, flue soot, wallpaper scraps and iron anchors; Sint-Paulus has a hand pump, a horse trough and a hitching post, and both squares have a handcart by a rubble heap and stacked reclaimed bricks, straw, dung and leaves.
 - More of the houses pressed against Sint-Paulus and Sint-Jacob are cleared, giving both churches wider squares with trees and benches. Gutters, cornices and chimney caps of cleared houses no longer float in the air.
 - Ruien: the walkway setts' raised edges and joints show their stones at true size, no longer stretched.
 - Door steps and plinth tops show their stone's grain along the step, not always east to west.

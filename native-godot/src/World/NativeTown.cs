@@ -41,6 +41,7 @@ public partial class NativeTown : BakedWorld
     public override JsonDocument? NativeLights => lights;
     private List<QuayExits.Ladder>? quayLadders;
     private NativeRazedHouses.Result razed = new(0, 0, 0, Array.Empty<string>());
+    private NativeSquareDressing.Plan? squarePlan;
     public override IReadOnlyList<QuayExits.Ladder>? NativeQuayLadders => quayLadders;
     public override Scheldemist.Town.WalkMap? NativeWalk
     {
@@ -159,6 +160,19 @@ public partial class NativeTown : BakedWorld
         Report["shopFronts"] = NativeShopFronts.Install(town, razed, Scheldemist.Main.I.Arg("shopfronts-file") is { Length: > 0 } shopFile ? shopFile : null);
         // The corner they leave gets a lime and a bench (only when the cut happened, so a re-baked town shows no tree in a house).
         var dressing = razed.Houses > 0 ? NativeRazedHouses.Dress(town) : Array.Empty<string>();
+        // The squares the razing opened, made to read as 1873 ground with its houses just gone: the mud mask redrawn on the
+        // plots, the neighbours' bared walls (brick, the ghost of the house, its anchors), the pump, guard stones and the
+        // things that need no pack (art-source/square-mood-20261027). (dev: --no-square-dressing, for a before-and-after)
+        if (razed.Houses > 0 && !Scheldemist.Main.I.Flag("no-square-dressing") && NativeSquareDressing.Read() is { } squares)
+        {
+            var squareClock = System.Diagnostics.Stopwatch.StartNew();
+            squarePlan = squares;
+            Report["squareGroundPixels"] = NativeSquareDressing.Ground(squares, razed, Path.Combine(Scheldemist.Paths.NativeDataRoot!, "maps"));
+            var (bared, bricked, ghostDecals, anchors) = NativeSquareDressing.Walls(town, NativeSquareDressing.Bared(razed, Scheldemist.Paths.Shared("city_build.json")));
+            Report["squareBaredWalls"] = bared; Report["squareBrickedTriangles"] = bricked; Report["squareGhostDecals"] = ghostDecals; Report["squareAnchors"] = anchors;
+            Report["squareThingsInstalled"] = NativeSquareDressing.Install(town, squares);
+            GD.Print($"square dressing: {bared} bared walls, {bricked} wall triangles bricked, {ghostDecals} ghost decals, {anchors} anchors in {squareClock.ElapsedMilliseconds} ms");
+        }
         // The bake's plain benches give way to the new bench models, turned and placed as they stood (#165).
         // (dev: --keep-old-benches leaves them, for a before-and-after)
         if (!Scheldemist.Main.I.Flag("keep-old-benches"))
@@ -234,6 +248,7 @@ public partial class NativeTown : BakedWorld
         // #160 #164: the horse troughs and the washing on its lines and poles (the pack's materials are made on this thread)
         var washing = NativeStreetFurniture.Dress(town, Scheldemist.Main.I.Arg("street-furniture-file") is { Length: > 0 } washingFile ? washingFile : null);
         Report["troughs"] = washing.Troughs; Report["washingLines"] = washing.Lines; Report["washingPieces"] = washing.Pieces; Report["washingPegs"] = washing.Pegs; Report["washPoles"] = washing.Poles;
+        if (squarePlan != null) Report["squareThingsDressed"] = NativeSquareDressing.Dress(town, squarePlan);
         // Authored objects arrive with editor materials, which the game's fog and light never reach (issue 79).
         var authoredMaterials = new NativeTownMaterials(); authoredMaterials.Apply(town);
         Report["authoredMaterialsSwapped"] = authoredMaterials.Swapped; Report["authoredMaterialsLeft"] = authoredMaterials.Left;
@@ -283,6 +298,7 @@ public partial class NativeTown : BakedWorld
         Solid.Leave.Add(n => n.HasMeta(NativeNearDetail.NoCollision));
         Solid.Leave.Add(n => n.HasMeta(NativeBenches.SwapMeta));
         Solid.Leave.Add(n => n.HasMeta(NativeStreetFurniture.Meta));
+        Solid.Leave.Add(n => n.HasMeta(NativeSquareDressing.Meta));
         Report["benches"] = NativeBenches.Index(town);
         BuildLights();
     }
