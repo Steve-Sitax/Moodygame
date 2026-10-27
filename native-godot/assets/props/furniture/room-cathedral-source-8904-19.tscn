@@ -1,20 +1,8 @@
 [gd_scene format=3]
 
 [ext_resource type="Script" path="res://src/Interiors/FurnitureVisual.cs" id="1_2qt0j"]
-[ext_resource type="Material" path="res://world/town/resources/r005876.res" id="2_1s67s"]
-[ext_resource type="PackedScene" path="res://assets/props/candle-crowns/candle-crown-tiered.tscn" id="3_v62uc"]
 [ext_resource type="ArrayMesh" path="res://assets/props/candle-crowns/hoist-tiered-1750.res" id="4_2qt0j"]
-
-[sub_resource type="ArrayMesh" id="ArrayMesh_68bcf"]
-_surfaces = [{
-"aabb": AABB(0.0004272461, 10.294915, 0.0012893677, 0.6, 0.010814667, 0.5999985),
-"format": 34359738369,
-"material": ExtResource("2_1s67s"),
-"primitive": 3,
-"uv_scale": Vector4(0, 0, 0, 0),
-"vertex_count": 3,
-"vertex_data": PackedByteArray(154, 181, 25, 63, 249, 183, 36, 65, 0, 0, 169, 58, 36, 113, 217, 62, 140, 194, 36, 65, 0, 226, 217, 62, 0, 0, 224, 57, 69, 228, 36, 65, 0, 238, 25, 63)
-}]
+[ext_resource type="PackedScene" path="res://assets/props/candle-crowns/candle-crown-tiered-b.tscn" id="91_crownb"]
 
 [sub_resource type="BoxShape3D" id="BoxShape3D_tyxme"]
 size = Vector3(2.139492, 19.199715, 2.139557)
@@ -25,9 +13,6 @@ Kind = "fitting"
 ModelSize = Vector3(2.139492, 19.199715, 2.139557)
 ModelOffset = Vector3(2.670288e-05, 9.299996, -7.6293945e-06)
 GeometryCollision = true
-
-[node name="Part" type="MeshInstance3D" parent="." unique_id=1538772515]
-mesh = SubResource("ArrayMesh_68bcf")
 
 [node name="Solid" type="StaticBody3D" parent="." unique_id=739230363]
 collision_layer = 2
@@ -42,9 +27,10 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 6.1035156e-05, 9.399919, 0.00
 metadata/candle_crown = "tiered"
 metadata/furniture_hulled_part = true
 
-[node name="Crown" type="Node3D" parent="CandleCrown0" unique_id=1969073288 instance=ExtResource("3_v62uc")]
+[node name="Crown" type="Node3D" parent="CandleCrown0" unique_id=1969073288 instance=ExtResource("91_crownb")]
+transform = Transform3D(-0.8660254, 0, 0.5, 0, 1, 0, -0.5, 0, -0.8660254, 0, 0, 0)
 metadata/candle_crown = "tiered"
-metadata/candle_flames = PackedVector3Array(1.0142221, 0.6653221, 0.27176, 0.7424621, 0.64238715, 0.7424621, 0.27176, 0.686038, 1.0142221, -0.27176, 0.6636281, 1.0142221, -0.7424621, 0.67646766, 0.7424621, -1.0142221, 0.55443907, 0.27176, -1.0142221, 0.54823697, -0.27176, -0.7424621, 0.67687833, -0.7424621, -0.27176, 0.55091935, -1.0142221, 0.27176, 0.6042813, -1.0142221, 0.7424621, 0.6516031, -0.7424621, 1.0142221, 0.5444703, -0.27176, 0.5543277, 1.1320704, 0.22961006, 0.22961006, 1.189295, 0.5543277, -0.22961006, 1.1223311, 0.5543277, -0.5543277, 1.0901957, 0.22961006, -0.5543277, 1.2013409, -0.22961006, -0.22961006, 1.1663558, -0.5543277, 0.22961006, 1.1622528, -0.5543277, 0.5543277, 1.1241359, -0.22961006)
 
 [node name="Hoist" type="MeshInstance3D" parent="CandleCrown0" unique_id=1024739036]
+transform = Transform3D(-0.8660254, 0, 0.5, 0, 1, 0, -0.5, 0, -0.8660254, 0, 0, 0)
 mesh = ExtResource("4_2qt0j")

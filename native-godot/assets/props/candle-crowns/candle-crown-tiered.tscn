@@ -3,96 +3,96 @@
 [ext_resource type="ArrayMesh" path="res://assets/props/candle-crowns/crown-tiered.res" id="1_eahp3"]
 [ext_resource type="ArrayMesh" path="res://assets/props/candle-crowns/crown-tiered-hull.res" id="2_8a60f"]
 
-[node name="CandleCrown" type="Node3D" unique_id=1969073288]
+[node name="CandleCrown" type="Node3D" unique_id=1287317623]
 metadata/candle_crown = "tiered"
-metadata/candle_flames = PackedVector3Array(1.0142221, 0.6653221, 0.27176, 0.7424621, 0.64238715, 0.7424621, 0.27176, 0.686038, 1.0142221, -0.27176, 0.6636281, 1.0142221, -0.7424621, 0.67646766, 0.7424621, -1.0142221, 0.55443907, 0.27176, -1.0142221, 0.54823697, -0.27176, -0.7424621, 0.67687833, -0.7424621, -0.27176, 0.55091935, -1.0142221, 0.27176, 0.6042813, -1.0142221, 0.7424621, 0.6516031, -0.7424621, 1.0142221, 0.5444703, -0.27176, 0.5543277, 1.1320704, 0.22961006, 0.22961006, 1.189295, 0.5543277, -0.22961006, 1.1223311, 0.5543277, -0.5543277, 1.0901957, 0.22961006, -0.5543277, 1.2013409, -0.22961006, -0.22961006, 1.1663558, -0.5543277, 0.22961006, 1.1622528, -0.5543277, 0.5543277, 1.1241359, -0.22961006)
+metadata/candle_flames = PackedVector3Array(1.0133874, 0.5998608, 0.2705137, 0.7419094, 0.6148021, 0.74106765, 0.2728528, 0.44197783, 1.0131947, -0.27027684, 0.68008494, 1.0139979, -0.7439186, 0.6184636, 0.74282074, -1.0150439, 0.6625719, 0.27301493, -1.0154598, 0.64836454, -0.2726075, -0.743891, 0.56951785, -0.7420057, -0.27048638, 0.51772714, -1.0150145, 0.27134532, 0.52372193, -1.0156637, 0.7439615, 0.4511019, -0.742505, 1.0127221, 0.57715917, -0.27175903, 0.5532283, 1.095864, 0.22858964, 0.22823335, 1.1949856, 0.55373216, -0.22970194, 1.1460369, 0.5528305, -0.5552625, 1.0995481, 0.23078316, -0.5531898, 1.181076, -0.22863276, -0.22841407, 1.0662663, -0.55523306, 0.22834045, 1.1338406, -0.55512655, 0.55579257, 0.99764943, -0.22993277)
 
-[node name="Body" type="MeshInstance3D" parent="." unique_id=1437505323]
+[node name="Body" type="MeshInstance3D" parent="." unique_id=2106378613]
 mesh = ExtResource("1_eahp3")
 
-[node name="Hull" type="MeshInstance3D" parent="." unique_id=1543483778]
+[node name="Hull" type="MeshInstance3D" parent="." unique_id=970945606]
 visible = false
 mesh = ExtResource("2_8a60f")
 metadata/furniture_collision_hull = true
 
-[node name="Flames" type="Node3D" parent="." unique_id=1259236967]
+[node name="Flames" type="Node3D" parent="." unique_id=2111380139]
 
-[node name="Flame00" type="Marker3D" parent="Flames" unique_id=776542522 groups=["candle_flame"]]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.0142221, 0.6653221, 0.27176)
+[node name="Flame00" type="Marker3D" parent="Flames" unique_id=2017761825 groups=["candle_flame"]]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.0133874, 0.5998608, 0.2705137)
 metadata/candle_flame = true
 
-[node name="Flame01" type="Marker3D" parent="Flames" unique_id=1673746401 groups=["candle_flame"]]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.7424621, 0.64238715, 0.7424621)
+[node name="Flame01" type="Marker3D" parent="Flames" unique_id=1212143659 groups=["candle_flame"]]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.7419094, 0.6148021, 0.74106765)
 metadata/candle_flame = true
 
-[node name="Flame02" type="Marker3D" parent="Flames" unique_id=481492818 groups=["candle_flame"]]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.27176, 0.686038, 1.0142221)
+[node name="Flame02" type="Marker3D" parent="Flames" unique_id=1389360895 groups=["candle_flame"]]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.2728528, 0.44197783, 1.0131947)
 metadata/candle_flame = true
 
-[node name="Flame03" type="Marker3D" parent="Flames" unique_id=597022085 groups=["candle_flame"]]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.27176, 0.6636281, 1.0142221)
+[node name="Flame03" type="Marker3D" parent="Flames" unique_id=906819943 groups=["candle_flame"]]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.27027684, 0.68008494, 1.0139979)
 metadata/candle_flame = true
 
-[node name="Flame04" type="Marker3D" parent="Flames" unique_id=775908723 groups=["candle_flame"]]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.7424621, 0.67646766, 0.7424621)
+[node name="Flame04" type="Marker3D" parent="Flames" unique_id=429718127 groups=["candle_flame"]]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.7439186, 0.6184636, 0.74282074)
 metadata/candle_flame = true
 
-[node name="Flame05" type="Marker3D" parent="Flames" unique_id=2084775514 groups=["candle_flame"]]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.0142221, 0.55443907, 0.27176)
+[node name="Flame05" type="Marker3D" parent="Flames" unique_id=838964027 groups=["candle_flame"]]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.0150439, 0.6625719, 0.27301493)
 metadata/candle_flame = true
 
-[node name="Flame06" type="Marker3D" parent="Flames" unique_id=1001282540 groups=["candle_flame"]]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.0142221, 0.54823697, -0.27176)
+[node name="Flame06" type="Marker3D" parent="Flames" unique_id=113365839 groups=["candle_flame"]]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.0154598, 0.64836454, -0.2726075)
 metadata/candle_flame = true
 
-[node name="Flame07" type="Marker3D" parent="Flames" unique_id=821921548 groups=["candle_flame"]]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.7424621, 0.67687833, -0.7424621)
+[node name="Flame07" type="Marker3D" parent="Flames" unique_id=1635058284 groups=["candle_flame"]]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.743891, 0.56951785, -0.7420057)
 metadata/candle_flame = true
 
-[node name="Flame08" type="Marker3D" parent="Flames" unique_id=2052995357 groups=["candle_flame"]]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.27176, 0.55091935, -1.0142221)
+[node name="Flame08" type="Marker3D" parent="Flames" unique_id=1671914921 groups=["candle_flame"]]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.27048638, 0.51772714, -1.0150145)
 metadata/candle_flame = true
 
-[node name="Flame09" type="Marker3D" parent="Flames" unique_id=208354761 groups=["candle_flame"]]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.27176, 0.6042813, -1.0142221)
+[node name="Flame09" type="Marker3D" parent="Flames" unique_id=8240201 groups=["candle_flame"]]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.27134532, 0.52372193, -1.0156637)
 metadata/candle_flame = true
 
-[node name="Flame10" type="Marker3D" parent="Flames" unique_id=1256363746 groups=["candle_flame"]]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.7424621, 0.6516031, -0.7424621)
+[node name="Flame10" type="Marker3D" parent="Flames" unique_id=706684888 groups=["candle_flame"]]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.7439615, 0.4511019, -0.742505)
 metadata/candle_flame = true
 
-[node name="Flame11" type="Marker3D" parent="Flames" unique_id=1733650079 groups=["candle_flame"]]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.0142221, 0.5444703, -0.27176)
+[node name="Flame11" type="Marker3D" parent="Flames" unique_id=1851970291 groups=["candle_flame"]]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.0127221, 0.57715917, -0.27175903)
 metadata/candle_flame = true
 
-[node name="Flame12" type="Marker3D" parent="Flames" unique_id=34402678 groups=["candle_flame"]]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.5543277, 1.1320704, 0.22961006)
+[node name="Flame12" type="Marker3D" parent="Flames" unique_id=1928206779 groups=["candle_flame"]]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.5532283, 1.095864, 0.22858964)
 metadata/candle_flame = true
 
-[node name="Flame13" type="Marker3D" parent="Flames" unique_id=1312585136 groups=["candle_flame"]]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.22961006, 1.189295, 0.5543277)
+[node name="Flame13" type="Marker3D" parent="Flames" unique_id=1629434029 groups=["candle_flame"]]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.22823335, 1.1949856, 0.55373216)
 metadata/candle_flame = true
 
-[node name="Flame14" type="Marker3D" parent="Flames" unique_id=1016976209 groups=["candle_flame"]]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.22961006, 1.1223311, 0.5543277)
+[node name="Flame14" type="Marker3D" parent="Flames" unique_id=2001007026 groups=["candle_flame"]]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.22970194, 1.1460369, 0.5528305)
 metadata/candle_flame = true
 
-[node name="Flame15" type="Marker3D" parent="Flames" unique_id=61593076 groups=["candle_flame"]]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.5543277, 1.0901957, 0.22961006)
+[node name="Flame15" type="Marker3D" parent="Flames" unique_id=1723619511 groups=["candle_flame"]]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.5552625, 1.0995481, 0.23078316)
 metadata/candle_flame = true
 
-[node name="Flame16" type="Marker3D" parent="Flames" unique_id=1772527776 groups=["candle_flame"]]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.5543277, 1.2013409, -0.22961006)
+[node name="Flame16" type="Marker3D" parent="Flames" unique_id=782050220 groups=["candle_flame"]]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.5531898, 1.181076, -0.22863276)
 metadata/candle_flame = true
 
-[node name="Flame17" type="Marker3D" parent="Flames" unique_id=1086113439 groups=["candle_flame"]]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.22961006, 1.1663558, -0.5543277)
+[node name="Flame17" type="Marker3D" parent="Flames" unique_id=319317868 groups=["candle_flame"]]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.22841407, 1.0662663, -0.55523306)
 metadata/candle_flame = true
 
-[node name="Flame18" type="Marker3D" parent="Flames" unique_id=1167969154 groups=["candle_flame"]]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.22961006, 1.1622528, -0.5543277)
+[node name="Flame18" type="Marker3D" parent="Flames" unique_id=1672467252 groups=["candle_flame"]]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.22834045, 1.1338406, -0.55512655)
 metadata/candle_flame = true
 
-[node name="Flame19" type="Marker3D" parent="Flames" unique_id=368145905 groups=["candle_flame"]]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.5543277, 1.1241359, -0.22961006)
+[node name="Flame19" type="Marker3D" parent="Flames" unique_id=485067674 groups=["candle_flame"]]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.55579257, 0.99764943, -0.22993277)
 metadata/candle_flame = true

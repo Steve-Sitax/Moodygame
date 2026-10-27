@@ -72,8 +72,9 @@ is that band. The hoist chains have none (the old 2 cm rods had theirs; nobody r
 No light, emission or flame was added or changed. Each crown scene (`assets/props/candle-crowns/candle-crown-*.tscn`)
 has `Flames/FlameNN` Marker3D nodes at the wick tips (group `candle_flame`, meta `candle_flame`); its root carries
 `candle_flames` (PackedVector3Array, crown space). In a room piece the crown sits under `CandleCrownN` (meta
-`candle_crown` = large, small or tiered). The old crowns' flat glow triangles (r006515, r006873, r006992, r005876) stay
-where they were. The cathedral's existing room light sits next to the new pendant and glares orange on it at night.
+`candle_crown` = large, small or tiered). (First pass: the old crowns' flat glow triangles r006515, r006873, r006992,
+r005876 stayed where they were; the second pass cut them.) The cathedral's existing room light sits next to the new
+pendant and glares orange on it at night.
 
 ## Review
 
@@ -83,6 +84,43 @@ quatrefoil lobes at the stated sizes; narrow cresting cusps and the beaded foot 
 and the old bowls under it taken out. Left: easing the pierced sheet's cut edges (sheet-lip exception) and the flame
 clearance, which waits for the lighting.
 
+## Second pass (27 October, evening)
+
+Codex's final review of the first pass said "rework" (brass, wax, tops, chains, burn-down, small edges); after the
+lighting merge the flames read as round blobs, and some floated beside the candles.
+
+- Brass (`make_textures.py`): the 30 to 100 mm tarnish islands that repeated as brown blots are gone. A muted body
+  #9B824F with a gentle broad ageing at a third of the old contrast toward tarnish #756344, rarely rubbed #B69A62;
+  fine casting grain of one to two pixels, sparse 3 to 15 mm marks, short scratches, a few verdigris specks only in the
+  tarnish. The darker accumulation stays in the vertex colour (recesses, joints, socket roots, soot over the flames).
+  The shader kind has no roughness (specular off), so the variation is in colour only. Every turned part, strap, link
+  and run now takes its own random offset into the pictures, so no two pans or sockets show the same patch.
+- Wax: warm ivory #E5D8B5 with older runs toward #D8C79D (picture); 14-sided candles; 0 to 3 runs a candle, more on
+  the older (shorter) ones, 3 to 5 mm wide, 10 to 45 mm long, 1.5 to 2.2 mm proud, from the rim's low side mostly, half of
+  them ending in a bead; old wax 1 to 3 mm thick in about half the pans (more under old candles), in two to four
+  uneven lobes with brass between them.
+- Candle tops: the rim burnt lower on one side (1.5 to 5 mm), rounded 1.5 mm, a melted pool 3.5 to 6 mm deep in
+  #CBB98D, a charred wick (#29231E) 1.6 mm across standing 5 to 7 mm and bent over at its glowing tip.
+- Chains: the brass links' ends in 8 segments, the wire 8-sided; the eyes 16 by 8; the iron hoists 5 segments an end,
+  6-sided.
+- Burn-down: about 55, 70, 85 and 100 % of the longest candle (unchanged) shared out in a shuffled order with 10 to
+  25 mm more or less each, one or two burnt down to 40 to 80 mm on each large ring, none or one on each small one. Each
+  model has a second variant (`-b`, its own seed) and `vary-crowns.py` gives every hung crown its variant and a turn by
+  whole light spacings (and turns its hoist with it), so no two neighbours repeat.
+- Edges: the quatrefoils' cut edges a 45-degree bevel of a fifth of the sheet (0.8 mm on the 4 mm band, 0.6 on the 3
+  mm), the cresting's shoulders rounded 1.5 mm and its cut edge bevelled 0.6 mm to each face (the tips stay pointed),
+  the drip pans' rolled lips rounded about 0.5 mm.
+- The old crowns' flat glow triangles were cut from their pieces (`--cut-glows`, 42 triangles in 23 pieces).
+
+Triangles (variant a / b): large 66 114 / 66 620, small 49 724 / 49 508, tiered 96 742 / 96 142 (most of the rise is
+the round chains and the candles' runs, pools and tops); the hoists 19 388 to 40 412. Every mesh keeps its generated
+LODs.
+
+Flames (ChurchLight.cs): each lit crown candle's flame stands on its wick marker, a small teardrop (3 cm tall) with a
+white-yellow heart, a dim blue root and a soft halo 10 cm across, swaying and flickering a little; it is drawn by the
+gas lamps' halo shader (a shape mode, no new kind). The first bake's crown candles are still in the town bake, hidden
+in the new band: nothing in a crown's ring is taken for a bake candle any more.
+
 ## Reproduce
 
 ```
@@ -90,5 +128,14 @@ python art-source/candle-crowns-20261027/make_textures.py <png dir>
 godot --headless --path native-godot --script art-source/candle-crowns-20261027/build-crowns.gd -- --install --textures <png dir> --record <dir>
 ```
 
-Run it on the room pieces as they were before this change (the install finds the old rings by material and size).
+The second pass, on the pieces as they are now:
+
+```
+python art-source/candle-crowns-20261027/make_textures.py <png dir>
+godot --headless --path native-godot --script res://../art-source/candle-crowns-20261027/build-crowns.gd -- --rebuild --textures <png dir>
+godot --headless --path native-godot --script res://../art-source/candle-crowns-20261027/build-crowns.gd -- --cut-glows
+python art-source/candle-crowns-20261027/vary-crowns.py
+```
+
+Run the first pass's install on the room pieces as they were before this change (the install finds the old rings by material and size).
 `--preview <dir>` (windowed) photographs the three models alone; `--textures-only` rewrites only pictures and materials.

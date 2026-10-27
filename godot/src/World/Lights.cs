@@ -336,25 +336,88 @@ global uniform float psx_fog_near;
 global uniform float psx_fog_far;
 varying float fog_depth;
 varying float lit;
+// a candle's flame (INSTANCE_CUSTOM.z: its height, m; 0 a lamp's round halo): the fragment's place in the flame's own
+// frame (m across, m up from the flame's middle), the halo's size, the flame's height, sway and stretch now
+varying vec2 fq;
+varying float fsize;
+varying float fh;
+varying float sway;
+varying float stretch;
+// INSTANCE_CUSTOM.w: 1 for a ruby glass (the sanctuary lamp's): its glow red
+varying float ruby;
 void vertex() {
 	// each lamp's own: how lit it is now (INSTANCE_CUSTOM.x); a fixed lantern's halo its own size (INSTANCE_CUSTOM.y)
 	lit = INSTANCE_CUSTOM.x;
 	float size = INSTANCE_CUSTOM.y > 0.0 ? INSTANCE_CUSTOM.y : 1.1;
-	// a halo about 1.1 m across that faces the eye, a little in front of the glass (the fogged glass never cuts a
-	// dark lamp shape out of its own glow)
+	fh = INSTANCE_CUSTOM.z;
+	ruby = INSTANCE_CUSTOM.w;
+	fsize = size;
+	fq = vec2(0.0);
+	sway = 0.0;
+	stretch = 1.0;
 	vec3 c = (MODELVIEW_MATRIX * vec4(0.0, 0.0, 0.0, 1.0)).xyz;
-	c += normalize(-c) * 0.45;
-	fog_depth = -c.z;
-	POSITION = PROJECTION_MATRIX * vec4(c + vec3(VERTEX.xy * size, 0.0), 1.0);
+	if (fh > 0.0) {
+		// a candle's flame stands on its wick (the instance's place): a teardrop along the world's up as the eye sees
+		// it, shorter seen from below or above; drawn 2 cm toward the eye only, so the candle, its pan and the ring in
+		// front of it still hide it; never under about two pixels across (far off it would wink in and out)
+		vec3 up = (MODELVIEW_MATRIX * vec4(0.0, 1.0, 0.0, 0.0)).xyz;
+		float l = length(up.xy);
+		vec2 ay = l > 0.05 ? up.xy / l : vec2(0.0, 1.0);
+		vec2 ax = vec2(ay.y, -ay.x);
+		float fore = max(l, 0.35);
+		float px = PROJECTION_MATRIX[1][1] * VIEWPORT_SIZE.y * 0.5 / max(-c.z, 0.05);
+		float grow = clamp(2.0 / max(fh * 0.32 * px, 1e-4), 1.0, 3.0);
+		float seed = float(INSTANCE_ID) * 1.618;
+		sway = fh * (0.05 * sin(TIME * 2.3 + seed) + 0.03 * sin(TIME * 6.1 + seed * 2.7));
+		stretch = 1.0 + 0.07 * sin(TIME * 9.7 + seed * 1.3) + 0.04 * sin(TIME * 23.0 + seed * 3.1);
+		fq = VERTEX.xy * size;
+		vec3 p = c + normalize(-c) * 0.02;
+		vec2 off = (ax * fq.x + ay * (fq.y + fh * 0.5 - 0.002) * fore) * grow;
+		fog_depth = -p.z;
+		POSITION = PROJECTION_MATRIX * vec4(p + vec3(off, 0.0), 1.0);
+	} else {
+		// a halo about 1.1 m across that faces the eye, a little in front of the glass (the fogged glass never cuts a
+		// dark lamp shape out of its own glow); a ruby glass's only 3 cm, so its brass holder hides it from below
+		c += normalize(-c) * (ruby > 0.5 ? 0.03 : 0.45);
+		fog_depth = -c.z;
+		POSITION = PROJECTION_MATRIX * vec4(c + vec3(VERTEX.xy * size, 0.0), 1.0);
+	}
 	if (lit < 0.01) POSITION = vec4(2.0, 2.0, 2.0, 1.0);
 }
+// a teardrop's distance: 0 at its heart, 1 at its edge; round at the foot (`w` across), drawn up to a point `h` over it
+float drop(vec2 f, float w, float h) {
+	float r = w * 0.5;
+	float y0 = -h * 0.5 + r;
+	if (f.y < y0) return length(vec2(f.x, f.y - y0)) / r;
+	float t = (f.y - y0) / max(h * 0.5 - y0, 1e-5);
+	return length(vec2(f.x / (r * max(pow(max(1.0 - t, 0.0), 0.65), 0.04)), t));
+}
 void fragment() {
-	float r = clamp(length(UV - 0.5) * 2.0, 0.0, 1.0);
-	// (the browser's halo picture: a soft round gradient)
-	vec4 a = vec4(1.0, 0.745, 0.431, 0.95), b = vec4(1.0, 0.588, 0.275, 0.4), c = vec4(1.0, 0.471, 0.157, 0.0);
-	vec4 tx = r < 0.35 ? mix(a, b, r / 0.35) : mix(b, c, (r - 0.35) / 0.65);
 	float fog = smoothstep(psx_fog_near, psx_fog_far * 1.4, fog_depth);
-	ALBEDO = tx.rgb * tx.a * lit * 0.6 * (1.0 - fog * 0.8);
+	vec3 col;
+	if (fh > 0.0) {
+		// the candle's flame: a white-yellow heart over a dim blue root at the wick, an orange-yellow mantle, a soft halo
+		float h = fh * stretch;
+		vec2 f = fq;
+		float up = clamp((f.y + h * 0.5) / h, 0.0, 1.0);
+		f.x -= sway * up * up;
+		float mantle = 1.0 - smoothstep(0.6, 1.0, drop(f, h * 0.34, h));
+		float heart = 1.0 - smoothstep(0.2, 1.0, drop(f + vec2(0.0, h * 0.1), h * 0.2, h * 0.62));
+		float root = smoothstep(0.0, 0.22, up);
+		col = vec3(1.0, 0.56, 0.16) * mantle * mix(0.25, 1.0, root) + vec3(0.12, 0.16, 0.5) * mantle * (1.0 - root) * 0.8
+			+ vec3(1.0, 0.92, 0.7) * heart * root * 1.5;
+		float g = length(f - vec2(0.0, h * 0.05)) / (fsize * 0.5);
+		col += vec3(1.0, 0.52, 0.2) * pow(max(1.0 - g, 0.0), 2.4) * 0.45;
+	} else {
+		float r = clamp(length(UV - 0.5) * 2.0, 0.0, 1.0);
+		// (the browser's halo picture: a soft round gradient)
+		vec4 a = vec4(1.0, 0.745, 0.431, 0.95), b = vec4(1.0, 0.588, 0.275, 0.4), c = vec4(1.0, 0.471, 0.157, 0.0);
+		vec4 tx = r < 0.35 ? mix(a, b, r / 0.35) : mix(b, c, (r - 0.35) / 0.65);
+		col = tx.rgb * tx.a * 0.6;
+		// (through ruby glass: a deep red)
+		col = mix(col, vec3(col.r * 0.55, col.r * 0.04, col.r * 0.045), ruby);
+	}
+	ALBEDO = col * lit * (1.0 - fog * 0.8);
 }
 ";
 
@@ -363,6 +426,17 @@ void fragment() {
     /// part with a lower order); lit with SetFixedHalo. They join the gas lamps' halos: no draw and no shader more.
     /// </summary>
     public static readonly List<(Vector3 at, float size)> FixedHalos = new();
+    /// <summary>A fixed halo's shape, by its index: a candle's flame (its height, m: a teardrop on its wick, ChurchLight.cs)
+    /// and a ruby glass (1: the sanctuary lamps' red). None: a lamp's round halo.</summary>
+    public static readonly Dictionary<int, (float flame, float ruby)> HaloShapes = new();
+
+    /// <summary>A fixed halo with its shape (a candle's flame `flame` m tall, or a ruby glow); returns its index.</summary>
+    public static int AddFixedHalo(Vector3 at, float size, float flame = 0, float ruby = 0)
+    {
+        FixedHalos.Add((at, size));
+        if (flame > 0 || ruby > 0) HaloShapes[FixedHalos.Count - 1] = (flame, ruby);
+        return FixedHalos.Count - 1;
+    }
     private readonly List<float> fixedHaloLevel = new();
 
     /// <summary>A fixed lantern's halo: how lit (0..1). Written only when it changes.</summary>
@@ -370,7 +444,8 @@ void fragment() {
     {
         if (haloMM == null || i < 0 || i >= fixedHaloLevel.Count || MathF.Abs(fixedHaloLevel[i] - level) < 0.002f) return;
         fixedHaloLevel[i] = level;
-        haloMM.SetInstanceCustomData(lamps.Count + i, new Color(level, FixedHalos[i].size, 0, 0));
+        var shape = HaloShapes.GetValueOrDefault(i);
+        haloMM.SetInstanceCustomData(lamps.Count + i, new Color(level, FixedHalos[i].size, shape.flame, shape.ruby));
     }
 
     /// <summary>
@@ -393,7 +468,8 @@ void fragment() {
         for (int i = 0; i < FixedHalos.Count; i++)
         {
             mm.SetInstanceTransform(lamps.Count + i, new Transform3D(Basis.Identity, FixedHalos[i].at));
-            mm.SetInstanceCustomData(lamps.Count + i, new Color(0, FixedHalos[i].size, 0, 0));
+            var shape = HaloShapes.GetValueOrDefault(i);
+            mm.SetInstanceCustomData(lamps.Count + i, new Color(0, FixedHalos[i].size, shape.flame, shape.ruby));
             fixedHaloLevel.Add(0);
         }
         haloMM = mm;

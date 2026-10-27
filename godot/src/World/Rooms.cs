@@ -465,6 +465,7 @@ public partial class Rooms : Node, Dev.IInteriorAuditSource
         }
         if (Lights.I is { } li && ChurchLight.Flames.TryGetValue(r.Id, out var flames))
             foreach (var (halo, allDay) in flames) li.SetFixedHalo(halo, shown ? (allDay ? 1 : flameK) * ChurchLight.FlameGlow : 0);
+        ChurchLight.Globes(flameK);
     }
 
     public override void _Process(double delta)

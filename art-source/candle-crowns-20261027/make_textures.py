@@ -59,36 +59,41 @@ def save(a, path, mode):
     Image.fromarray((a * 255 + 0.5).astype(np.uint8), mode).save(path)
 
 def brass(out):
-    # body 75 %, tarnish 20 %, worn bright 5 %, in patches 30 to 100 mm (Codex review, 27 October); the darkest
-    # tarnish (76, 59, 34) only where the vertex colour shades the recesses and joints
-    body = np.array([151, 119, 65]) / 255; tarn = np.array([114, 89, 50]) / 255; wear = np.array([188, 155, 91]) / 255
-    patch = fbm(5, 4, gain=0.5)
-    tn = smooth(np.quantile(patch, 0.55), np.quantile(patch, 0.97), patch)
-    wr = smooth(np.quantile(patch, 0.04), np.quantile(patch, 0.0), patch)
-    grain = noise(160)
-    mid = fbm(14, 3)
+    # (second pass, Codex 2026-10-27: the 30 to 100 mm tarnish islands repeated as a camouflage of brown blots) a muted
+    # body #9B824F with only a gentle broad ageing (a third of the old patches' contrast) toward tarnish #756344 and,
+    # rarely, rubbed #B69A62; the life is in fine casting grain (one to two pixels: 0.8 to 1.5 mm), sparse 3 to 15 mm
+    # marks and short scratches. The dark accumulation sits in the recesses, in the vertex colour, not in the picture.
+    body = np.array([155, 130, 79]) / 255; tarn = np.array([117, 99, 68]) / 255; wear = np.array([182, 154, 98]) / 255
+    broad = fbm(2, 4, gain=0.5)
+    tn = smooth(np.quantile(broad, 0.35), np.quantile(broad, 0.98), broad) * 0.35
+    wr = smooth(np.quantile(broad, 0.10), np.quantile(broad, 0.0), broad) * 0.30
+    grain = noise(220)
+    fine = noise(120)
     c = body * (1 - tn[..., None]) + tarn * tn[..., None]
     c = c * (1 - wr[..., None]) + wear * wr[..., None]
-    c *= (0.95 + 0.08 * grain + 0.06 * (mid - 0.5))[..., None]
-    scr = lines(120, 4, 18, 0.25)          # short fine scratches, any way
-    c += scr[..., None] * np.array([0.03, 0.025, 0.012])
-    pits = dots(300, 0.5, 1.3)
-    c *= (1 - 0.4 * pits)[..., None]
-    verd = dots(24, 0.7, 1.8) * tn
-    c = c * (1 - verd[..., None] * 0.7) + np.array([0.33, 0.42, 0.31]) * verd[..., None] * 0.7
-    h = 0.5 + 0.08 * (mid - 0.5) + 0.12 * (grain - 0.5) - 0.10 * scr - 0.35 * pits
+    c *= (0.975 + 0.045 * (grain - 0.5) + 0.03 * (fine - 0.5))[..., None]
+    marks = dots(26, 2.0, 9.0)
+    c *= (1 - 0.06 * smooth(0.0, 1.0, marks))[..., None]
+    scr = lines(90, 4, 16, 0.25)          # short fine scratches, any way
+    c += scr[..., None] * np.array([0.022, 0.018, 0.009])
+    pits = dots(220, 0.5, 1.1)
+    c *= (1 - 0.28 * pits)[..., None]
+    verd = dots(8, 0.6, 1.2) * smooth(0.5, 1.0, tn / 0.35)
+    c = c * (1 - verd[..., None] * 0.5) + np.array([0.33, 0.42, 0.31]) * verd[..., None] * 0.5
+    h = 0.5 + 0.10 * (grain - 0.5) + 0.06 * (fine - 0.5) - 0.04 * marks - 0.10 * scr - 0.35 * pits
     save(c, out / 'brass.png', 'RGB'); save(h, out / 'brass-height.png', 'L')
 
 def wax(out):
+    # warm ivory #E5D8B5, older wax toward #D8C79D in faint runs (Codex 2026-10-27: not white)
     runs = fbm(26, 4, fy_ratio=0.12)       # runs down the candle (picture y = up the candle)
     mott = fbm(4, 4)
     fine = noise(90)
-    base = np.array([239, 227, 194]) / 255; yellow = np.array([222, 207, 171]) / 255
-    k = smooth(0.3, 0.8, mott * 0.6 + runs * 0.4)
-    c = base * (1 - k[..., None] * 0.8) + yellow * (k[..., None] * 0.8)
-    c *= (0.93 + 0.10 * runs + 0.03 * fine)[..., None]
-    dust = dots(70, 0.5, 1.4)
-    c *= (1 - 0.35 * dust)[..., None]
+    base = np.array([229, 216, 181]) / 255; older = np.array([216, 199, 157]) / 255
+    k = smooth(0.35, 0.85, mott * 0.6 + runs * 0.4)
+    c = base * (1 - k[..., None] * 0.6) + older * (k[..., None] * 0.6)
+    c *= (0.96 + 0.06 * runs + 0.025 * fine)[..., None]
+    dust = dots(50, 0.5, 1.2)
+    c *= (1 - 0.25 * dust)[..., None]
     h = 0.5 + 0.5 * (runs - 0.5) + 0.06 * (fine - 0.5) - 0.2 * dust
     save(c, out / 'wax.png', 'RGB'); save(h, out / 'wax-height.png', 'L')
 

@@ -18,6 +18,7 @@
 [ext_resource type="Material" path="res://world/town/resources/r006892.res" id="16_g0i0w"]
 [ext_resource type="PackedScene" path="res://assets/props/candle-crowns/candle-crown-small.tscn" id="17_ifncp"]
 [ext_resource type="ArrayMesh" path="res://assets/props/candle-crowns/hoist-small-1476.res" id="18_5o48o"]
+[ext_resource type="PackedScene" path="res://assets/props/candle-crowns/candle-crown-small-b.tscn" id="91_crownb"]
 
 [sub_resource type="ArrayMesh" id="ArrayMesh_bva81"]
 _surfaces = [{
@@ -58,15 +59,17 @@ _surfaces = [{
 [sub_resource type="BoxShape3D" id="BoxShape3D_5o48o"]
 size = Vector3(75.41931, 27.324936, 53.633976)
 
-[sub_resource type="ArrayMesh" id="ArrayMesh_i4cum"]
+[sub_resource type="ArrayMesh" id="ArrayMesh_5o48o"]
 _surfaces = [{
-"aabb": AABB(-37.916973, 1.1643131, -26.05, 39.973946, 9.451416, 52.1),
-"format": 34359738369,
+"aabb": AABB(-37.916973, 1.1643131, -26.05, 39.973946, 9.451291, 52.1),
+"format": 34359742465,
+"index_count": 60,
+"index_data": PackedByteArray("AAABAAIAAwAEAAUABgAHAAgACQAKAAsADAANAA4ADwAQABEAEgATABQAFQAWABcAGAAZABoAGwAcAB0AHgAfACAAIQAiACMAJAAlACYAJwAoACkAKgArACwALQAuAC8AMAAxADIAMwA0ADUANgA3ADgAOQA6ADsA"),
 "material": ExtResource("5_i4cum"),
 "primitive": 3,
 "uv_scale": Vector4(0, 0, 0, 0),
-"vertex_count": 69,
-"vertex_data": PackedByteArray("rO1ywbMBoz9mZmZA4CB2wTgVlT/NzExA4CB2wUrjmz+amVlAfLpvwYEmoj9mZmZArO1ywSUrlT/NzExArO1ywda4nD+amVlA4CB2wcDNoT/NzEzAfLpvwW/9lT/NzExAfLpvwWbbnD+amVlArO1ywdtloj/NzEzA4CB2wXuGlj9mZmbA4CB2wfofnD+amVnAfLpvwZgxoz/NzEzArO1ywcsblj9mZmbArO1ywbtvmz+amVnASId0wYEzoz9mZsJBfLpvwRhClT9mZmbAfLpvweylmz+amVnAFFRxwTZpoj9mZsJBSId0wTYIlT8zM79BSId0wSF/nD/NzMBB4CBuwWDOoT9mZsJBFFRxwSe2lT8zM79BFFRxwSTtnD/NzMBBSId0wZ8joj8zM7/B4CBuwYhzlj8zM79B4CBuwRhnnD/NzMBBFFRxweb+oj8zM7/BSId0wb9Ulj9mZsLBSId0wcGTmz/NzMDB4CBuwWpPoz8zM7/BFFRxwRmAlT9mZsLBFFRxwQh6mz/NzMDBSIdEwbutKUHNzEy/PHo7wU64KUHD0BC/fLo3wQfaKUHh80IoVJRNwZyuKUHD0BA/FFRRwVzTKUHo4UwoVJRNwS7SKUHD0BC/cKUDQE7IKUHrygwo4EzpP4TZKUHD0BA/SIdEwea2KUHNzEw/gOSgPy7PKUHNzEw/QPgwPwWsKUHD0BA/gPjpPr+7KUHyuBYo1naHwQudAUBU40VA1naHwQdtAUCamVlA1naHwbHoAEDfT21A1naHwRWVAUBU40XA1naHwZwBAUAOLTLA1naHwVYMAUAOLTJA7CJZwa0YAUBmZtDB7CJZwVujAUBmZtBBHNVOwQ9fAUBmZtBBdDk6wdmFAUBmZtDBSIdEwTCLAUBmZtDBHNVOwR74AEBmZtDB+6oXwq6lAUAlBgE/+6oXwgkfAUAlBoE/oOsvwSj0AEBmZtDB+6oXwpNQAUAlBoG/+6oXwnPlAEAlBgG/+6oXwhpYAUD7qpcoPt3hwWfwAEDNTIQoPt3hwREmAUA9Clc/Pt3hwZ+nAUA9Ctc/1naHwdQsAUASg4DA1naHwV3tAEDfT23A1naHwc95AUCamVnA")
+"vertex_count": 60,
+"vertex_data": PackedByteArray("rO1ywbMBoz9mZmZA4CB2wTgVlT/NzExA4CB2wUrjmz+amVlAfLpvwYEmoj9mZmZArO1ywSUrlT/NzExArO1ywda4nD+amVlA4CB2wcDNoT/NzEzAfLpvwW/9lT/NzExAfLpvwWbbnD+amVlArO1ywdtloj/NzEzA4CB2wXuGlj9mZmbA4CB2wfofnD+amVnAfLpvwZgxoz/NzEzArO1ywcsblj9mZmbArO1ywbtvmz+amVnASId0wYEzoz9mZsJBfLpvwRhClT9mZmbAfLpvweylmz+amVnAFFRxwTZpoj9mZsJBSId0wTYIlT8zM79BSId0wSF/nD/NzMBB4CBuwWDOoT9mZsJBFFRxwSe2lT8zM79BFFRxwSTtnD/NzMBBSId0wZ8joj8zM7/B4CBuwYhzlj8zM79B4CBuwRhnnD/NzMBBFFRxweb+oj8zM7/BSId0wb9Ulj9mZsLBSId0wcGTmz/NzMDB4CBuwWpPoz8zM7/BFFRxwRmAlT9mZsLBFFRxwQh6mz/NzMDBcKUDQE7IKUHrygwo4EzpP4TZKUHD0BA/SIdEwea2KUHNzEw/1naHwQudAUBU40VA1naHwQdtAUCamVlA1naHwbHoAEDfT21A1naHwRWVAUBU40XA1naHwZwBAUAOLTLA1naHwVYMAUAOLTJA7CJZwa0YAUBmZtDB7CJZwVujAUBmZtBBHNVOwQ9fAUBmZtBBdDk6wdmFAUBmZtDBSIdEwTCLAUBmZtDBHNVOwR74AEBmZtDB+6oXwq6lAUAlBgE/+6oXwgkfAUAlBoE/oOsvwSj0AEBmZtDB+6oXwpNQAUAlBoG/+6oXwnPlAEAlBgG/+6oXwhpYAUD7qpcoPt3hwWfwAEDNTIQoPt3hwREmAUA9Clc/Pt3hwZ+nAUA9Ctc/1naHwdQsAUASg4DA1naHwV3tAEDfT23A1naHwc95AUCamVnA")
 }]
 
 [sub_resource type="ArrayMesh" id="ArrayMesh_2yx4p"]
@@ -232,7 +235,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.20731735, 13.692468, 0)
 shape = SubResource("BoxShape3D_5o48o")
 
 [node name="Batch" type="MeshInstance3D" parent="." unique_id=571490247]
-mesh = SubResource("ArrayMesh_i4cum")
+mesh = SubResource("ArrayMesh_5o48o")
 
 [node name="@MeshInstance3D@9438" type="MeshInstance3D" parent="." unique_id=1556838430]
 mesh = SubResource("ArrayMesh_2yx4p")
@@ -272,11 +275,12 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -12.2827835, 10.299894, -0.00
 metadata/candle_crown = "small"
 metadata/furniture_hulled_part = true
 
-[node name="Crown" type="Node3D" parent="CandleCrown0" unique_id=1199280000 instance=ExtResource("17_ifncp")]
+[node name="Crown" type="Node3D" parent="CandleCrown0" unique_id=1199280000 instance=ExtResource("91_crownb")]
+transform = Transform3D(0.7071068, 0, -0.7071068, 0, 1, 0, 0.7071068, 0, 0.7071068, 0, 0, 0)
 metadata/candle_crown = "small"
-metadata/candle_flames = PackedVector3Array(0.7391036, 0.54583526, 0.30614674, 0.30614674, 0.58140147, 0.7391036, -0.30614674, 0.50606614, 0.7391036, -0.7391036, 0.6194563, 0.30614674, -0.7391036, 0.593462, -0.30614674, -0.30614674, 0.5826012, -0.7391036, 0.30614674, 0.5104859, -0.7391036, 0.7391036, 0.6100166, -0.30614674)
 
 [node name="Hoist" type="MeshInstance3D" parent="CandleCrown0" unique_id=806619584]
+transform = Transform3D(0.7071068, 0, -0.7071068, 0, 1, 0, 0.7071068, 0, 0.7071068, 0, 0, 0)
 mesh = ExtResource("18_5o48o")
 
 [node name="CandleCrown1" type="Node3D" parent="." unique_id=749823697]
@@ -285,10 +289,11 @@ metadata/candle_crown = "small"
 metadata/furniture_hulled_part = true
 
 [node name="Crown" type="Node3D" parent="CandleCrown1" unique_id=343332853 instance=ExtResource("17_ifncp")]
+transform = Transform3D(-0.7071068, 0, 0.7071068, 0, 1, 0, -0.7071068, 0, -0.7071068, 0, 0, 0)
 metadata/candle_crown = "small"
-metadata/candle_flames = PackedVector3Array(0.7391036, 0.54583526, 0.30614674, 0.30614674, 0.58140147, 0.7391036, -0.30614674, 0.50606614, 0.7391036, -0.7391036, 0.6194563, 0.30614674, -0.7391036, 0.593462, -0.30614674, -0.30614674, 0.5826012, -0.7391036, 0.30614674, 0.5104859, -0.7391036, 0.7391036, 0.6100166, -0.30614674)
 
 [node name="Hoist" type="MeshInstance3D" parent="CandleCrown1" unique_id=1894475925]
+transform = Transform3D(-0.7071068, 0, 0.7071068, 0, 1, 0, -0.7071068, 0, -0.7071068, 0, 0, 0)
 mesh = ExtResource("18_5o48o")
 
 [node name="CandleCrown2" type="Node3D" parent="." unique_id=1285103022]
@@ -296,9 +301,10 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 18.177528, 10.299894, -0.0003
 metadata/candle_crown = "small"
 metadata/furniture_hulled_part = true
 
-[node name="Crown" type="Node3D" parent="CandleCrown2" unique_id=899935771 instance=ExtResource("17_ifncp")]
+[node name="Crown" type="Node3D" parent="CandleCrown2" unique_id=899935771 instance=ExtResource("91_crownb")]
+transform = Transform3D(0.7071068, 0, 0.7071068, 0, 1, 0, -0.7071068, 0, 0.7071068, 0, 0, 0)
 metadata/candle_crown = "small"
-metadata/candle_flames = PackedVector3Array(0.7391036, 0.54583526, 0.30614674, 0.30614674, 0.58140147, 0.7391036, -0.30614674, 0.50606614, 0.7391036, -0.7391036, 0.6194563, 0.30614674, -0.7391036, 0.593462, -0.30614674, -0.30614674, 0.5826012, -0.7391036, 0.30614674, 0.5104859, -0.7391036, 0.7391036, 0.6100166, -0.30614674)
 
 [node name="Hoist" type="MeshInstance3D" parent="CandleCrown2" unique_id=785992470]
+transform = Transform3D(0.7071068, 0, 0.7071068, 0, 1, 0, -0.7071068, 0, 0.7071068, 0, 0, 0)
 mesh = ExtResource("18_5o48o")

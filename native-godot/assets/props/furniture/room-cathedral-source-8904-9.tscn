@@ -1,23 +1,12 @@
-[gd_scene format=4]
+[gd_scene format=3]
 
 [ext_resource type="Script" path="res://src/Interiors/FurnitureVisual.cs" id="1_boi20"]
-[ext_resource type="Material" path="res://world/town/resources/r005876.res" id="2_eyv7v"]
 [ext_resource type="PackedScene" path="res://assets/props/candle-crowns/candle-crown-tiered.tscn" id="3_cc7ch"]
 [ext_resource type="ArrayMesh" path="res://assets/props/candle-crowns/hoist-tiered-1850.res" id="4_boi20"]
+[ext_resource type="PackedScene" path="res://assets/props/candle-crowns/candle-crown-tiered-b.tscn" id="91_crownb"]
 
 [sub_resource type="BoxShape3D" id="BoxShape3D_boi20"]
 size = Vector3(2.139492, 20.199852, 26.140514)
-
-[sub_resource type="ArrayMesh" id="ArrayMesh_eyv7v"]
-_surfaces = [{
-"aabb": AABB(-0.9088994, 9.694004, -13.049572, 1.9593266, 0.6119957, 25.649998),
-"format": 34359738369,
-"material": ExtResource("2_eyv7v"),
-"primitive": 3,
-"uv_scale": Vector4(0, 0, 0, 0),
-"vertex_count": 39,
-"vertex_data": PackedByteArray("ZnSGP3ZJG0FA/j/BouVoP6g6G0HalzfBZoIGPwQbG0GmcTHBmrUZP6rXJEFA/j/BJHHZPoq1JEF2NDnBAADgOe/HJEGmZDbBAADgOeUiG0EMy1DBZoIGPxAjG0Haik7BouVoP6lHG0GmZEjBAADgOfkxG0F0MS/BZkoGv7NLG0GmcTHBoq1ovx0uG0HalzfBmn0Zvw3BJEEAAOA5JAHZvrjjJEEAAdm+AADgOaXSJEGAfRm/JHHZPljcJEEAcdk+AADgOa3dJEGAtRk/JAHZvum4JEEAcdk+ZoIGP7NKG0HArWi/ouVoPwopG0GASga/mrUZP+u3JEEAAOA5oq1ov2w1G0GASga/ZkoGv6QaG0HArWi/AADgOU43G0FgWIa/ouVoP3sgG0GAggY/ZoIGP2dFG0HA5Wg/AADgOTpBG0FgdIY/JAHZvgy+JEH4NzlBAADgOTa7JEEoaDZBJHHZPhbgJEH4NzlBAADgOQe1JEFYm0lBJAHZvgvWJEGIy0ZBmn0ZvzHiJEHAAUBBouVoP/svG0FYmzdBmrUZP2DlJEHAAUBBJHHZPq/JJEGIy0ZBZkoGv4pIG0EkdTFBAADgOYk8G0H0NC9BZoIGP3QbG0EkdTFB")
-}]
 
 [node name="fitting" type="Node3D" unique_id=1556329969]
 script = ExtResource("1_boi20")
@@ -34,19 +23,17 @@ collision_mask = 0
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.670288e-05, 19.399921, -1.335144e-05)
 shape = SubResource("BoxShape3D_boi20")
 
-[node name="Batch" type="MeshInstance3D" parent="." unique_id=354515544]
-mesh = SubResource("ArrayMesh_eyv7v")
-
 [node name="CandleCrown0" type="Node3D" parent="." unique_id=839257209]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 6.1035156e-05, 9.399919, -0.00018310547)
 metadata/candle_crown = "tiered"
 metadata/furniture_hulled_part = true
 
-[node name="Crown" type="Node3D" parent="CandleCrown0" unique_id=1969073288 instance=ExtResource("3_cc7ch")]
+[node name="Crown" type="Node3D" parent="CandleCrown0" unique_id=1969073288 instance=ExtResource("91_crownb")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0)
 metadata/candle_crown = "tiered"
-metadata/candle_flames = PackedVector3Array(1.0142221, 0.6653221, 0.27176, 0.7424621, 0.64238715, 0.7424621, 0.27176, 0.686038, 1.0142221, -0.27176, 0.6636281, 1.0142221, -0.7424621, 0.67646766, 0.7424621, -1.0142221, 0.55443907, 0.27176, -1.0142221, 0.54823697, -0.27176, -0.7424621, 0.67687833, -0.7424621, -0.27176, 0.55091935, -1.0142221, 0.27176, 0.6042813, -1.0142221, 0.7424621, 0.6516031, -0.7424621, 1.0142221, 0.5444703, -0.27176, 0.5543277, 1.1320704, 0.22961006, 0.22961006, 1.189295, 0.5543277, -0.22961006, 1.1223311, 0.5543277, -0.5543277, 1.0901957, 0.22961006, -0.5543277, 1.2013409, -0.22961006, -0.22961006, 1.1663558, -0.5543277, 0.22961006, 1.1622528, -0.5543277, 0.5543277, 1.1241359, -0.22961006)
 
 [node name="Hoist" type="MeshInstance3D" parent="CandleCrown0" unique_id=1739467410]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0)
 mesh = ExtResource("4_boi20")
 
 [node name="CandleCrown1" type="Node3D" parent="." unique_id=1249211354]
@@ -55,10 +42,11 @@ metadata/candle_crown = "tiered"
 metadata/furniture_hulled_part = true
 
 [node name="Crown" type="Node3D" parent="CandleCrown1" unique_id=515532728 instance=ExtResource("3_cc7ch")]
+transform = Transform3D(0.8660254, 0, 0.5, 0, 1, 0, -0.5, 0, 0.8660254, 0, 0, 0)
 metadata/candle_crown = "tiered"
-metadata/candle_flames = PackedVector3Array(1.0142221, 0.6653221, 0.27176, 0.7424621, 0.64238715, 0.7424621, 0.27176, 0.686038, 1.0142221, -0.27176, 0.6636281, 1.0142221, -0.7424621, 0.67646766, 0.7424621, -1.0142221, 0.55443907, 0.27176, -1.0142221, 0.54823697, -0.27176, -0.7424621, 0.67687833, -0.7424621, -0.27176, 0.55091935, -1.0142221, 0.27176, 0.6042813, -1.0142221, 0.7424621, 0.6516031, -0.7424621, 1.0142221, 0.5444703, -0.27176, 0.5543277, 1.1320704, 0.22961006, 0.22961006, 1.189295, 0.5543277, -0.22961006, 1.1223311, 0.5543277, -0.5543277, 1.0901957, 0.22961006, -0.5543277, 1.2013409, -0.22961006, -0.22961006, 1.1663558, -0.5543277, 0.22961006, 1.1622528, -0.5543277, 0.5543277, 1.1241359, -0.22961006)
 
 [node name="Hoist" type="MeshInstance3D" parent="CandleCrown1" unique_id=741901385]
+transform = Transform3D(0.8660254, 0, 0.5, 0, 1, 0, -0.5, 0, 0.8660254, 0, 0, 0)
 mesh = ExtResource("4_boi20")
 
 [node name="CandleCrown2" type="Node3D" parent="." unique_id=1660822647]
@@ -66,9 +54,10 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 6.1035156e-05, 9.399919, 11.9
 metadata/candle_crown = "tiered"
 metadata/furniture_hulled_part = true
 
-[node name="Crown" type="Node3D" parent="CandleCrown2" unique_id=1432246719 instance=ExtResource("3_cc7ch")]
+[node name="Crown" type="Node3D" parent="CandleCrown2" unique_id=1432246719 instance=ExtResource("91_crownb")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0)
 metadata/candle_crown = "tiered"
-metadata/candle_flames = PackedVector3Array(1.0142221, 0.6653221, 0.27176, 0.7424621, 0.64238715, 0.7424621, 0.27176, 0.686038, 1.0142221, -0.27176, 0.6636281, 1.0142221, -0.7424621, 0.67646766, 0.7424621, -1.0142221, 0.55443907, 0.27176, -1.0142221, 0.54823697, -0.27176, -0.7424621, 0.67687833, -0.7424621, -0.27176, 0.55091935, -1.0142221, 0.27176, 0.6042813, -1.0142221, 0.7424621, 0.6516031, -0.7424621, 1.0142221, 0.5444703, -0.27176, 0.5543277, 1.1320704, 0.22961006, 0.22961006, 1.189295, 0.5543277, -0.22961006, 1.1223311, 0.5543277, -0.5543277, 1.0901957, 0.22961006, -0.5543277, 1.2013409, -0.22961006, -0.22961006, 1.1663558, -0.5543277, 0.22961006, 1.1622528, -0.5543277, 0.5543277, 1.1241359, -0.22961006)
 
 [node name="Hoist" type="MeshInstance3D" parent="CandleCrown2" unique_id=416053682]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0)
 mesh = ExtResource("4_boi20")
