@@ -8,6 +8,8 @@ Writes the trees and benches NativeRazedHouses.Dress sets (world/town/squares.js
 - each church's square: on the ground its razed houses left, 3.5 m clear of the church, 2.5 m of a standing house or
   another landmark, trees 7 m apart (limes, some planes), and benches beside about half of them facing the church;
 - the bare earth: 3 m in from its edges, clear of houses and churches, trees 11 m apart (elm, lime, plane, bare).
+A tree on the paving (the corner's, the squares') stands in a pit like the quay's (Steve, 2026-10-27): "pit" is the yaw of
+its stone frame, square to the church (at the corner to the nearest house). The earth trees stand in earth and get none.
 Fixed seed: the same plan every run.
 """
 import sys, json, math, pathlib
@@ -17,6 +19,13 @@ from shapely.geometry import Polygon, Point, shape
 REPO = pathlib.Path(__file__).resolve().parents[3]
 NAMES = {'carolus': 'Sint-Carolus', 'stpaul': 'Sint-Paulus', 'stjacob': 'Sint-Jacob'}
 BENCH = 'res://assets/library/bench-worn.tres'
+
+def square_to(poly):
+    """The yaw (Godot's, about +y) that turns a pit's frame square to a plan's long sides, within a quarter turn."""
+    c = list(poly.minimum_rotated_rectangle.exterior.coords)
+    sides = [(c[i + 1][0] - c[i][0], c[i + 1][1] - c[i][1]) for i in range(2)]
+    dx, dz = max(sides, key=lambda s: math.hypot(*s))
+    return round(math.atan2(-dz, dx) % (math.pi / 2), 3)
 
 def main():
     razed_j, feet_dir, earth_dir, out = sys.argv[1:5]
@@ -29,7 +38,9 @@ def main():
     feet = {k: shape(json.load(open(pathlib.Path(feet_dir) / f'foot-{k}.json'))) for k in NAMES}
     churches = shapely.union_all(list(feet.values()))
     taken = [Point(t[0], t[1]) if isinstance(t, list) else Point(t['x'], t['z']) for t in city['decor'].get('trees', [])]
-    trees = [dict(kind='lime', x=-216.2, z=276.2, yaw=0.0, scale=1.0)]
+    corner = min((Polygon(h['fp']).buffer(0) for h in cb['houses'] if not h.get('gone') and len(h.get('fp', [])) >= 3),
+                 key=lambda p: p.distance(Point(-216.2, 276.2)))
+    trees = [dict(kind='lime', x=-216.2, z=276.2, yaw=0.0, scale=1.0, pit=square_to(corner))]
     benches = [dict(id='razed-corner-bench', x=-212.7, z=272.7, yaw=-0.396, label='a bench at the corner behind the cathedral', asset=BENCH)]
 
     def scatter(area, spacing):
@@ -46,7 +57,7 @@ def main():
         pts = scatter(area, 7.0)
         for p in pts:
             trees.append(dict(kind=['lime', 'lime', 'lime', 'plane'][int(rng.integers(4))], x=round(p.x, 2), z=round(p.y, 2),
-                              yaw=round(float(rng.uniform(0, 6.28)), 3), scale=round(float(rng.uniform(0.85, 1.05)), 2)))
+                              yaw=round(float(rng.uniform(0, 6.28)), 3), scale=round(float(rng.uniform(0.85, 1.05)), 2), pit=square_to(foot)))
         nb = 0
         for p in pts:
             if nb >= max(2, len(pts) // 2): break

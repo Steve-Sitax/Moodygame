@@ -182,7 +182,8 @@ public static class NativeRazedHouses
     // Sint-Jacob and Sint-Carolus; also trees on the wide bare earth by the town wall. World x, z; a bench's yaw turns its
     // seat. Each tree is a copy of the town's own trees of its kind (bark and leaves), named as theirs so the trunk is solid.
     public const string SquaresFile = "res://world/town/squares.json";
-    private sealed record Tree(string Kind, float X, float Z, float Yaw, float Scale);
+    // (Pit: the yaw of the tree's pit frame, for a tree on the paving; none for a tree in earth)
+    private sealed record Tree(string Kind, float X, float Z, float Yaw, float Scale, float? Pit);
     private sealed record Bench(string Id, float X, float Z, float Yaw, string Label, string Asset);
     private sealed record Squares(Tree[] Trees, Bench[] Benches);
 
@@ -214,6 +215,8 @@ public static class NativeRazedHouses
             }
             placed.Add($"{trees.Length} {group.Key}");
         }
+        // a tree on the paving stands in a pit like the quay's (NativeTreePits; dev: --no-tree-pits leaves the bake's, for a before-and-after)
+        if (!Scheldemist.Main.I.Flag("no-tree-pits")) placed.Add(NativeTreePits.Dig(town, plan.Trees.Where(t => t.Pit != null).Select(t => (t.X, t.Z, t.Pit!.Value)).ToArray()));
         foreach (var b in plan.Benches)
         {
             if (ResourceLoader.Load<Scheldemist.Native.Authoring.AuthorAsset>(b.Asset) is not { } bench) continue;
