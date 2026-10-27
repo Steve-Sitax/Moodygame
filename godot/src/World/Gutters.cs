@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System;
+using System.Linq;
 using Godot;
 
 namespace Scheldemist.World;
@@ -177,7 +178,10 @@ void fragment() {
             SetProcess(false);
             return;
         }
-        // --- the stains, as baked
+        // --- the stains, as baked; not those on a razed house's wall (Steve, 2026-10-27: nothing left floating on a cleared plot)
+        (pos, uv, kind, seed, int dropped) = WithoutRazed(pos, uv, kind, seed);
+        n = pos.Length / 3;
+        if (dropped > 0) GD.Print($"gutters: {dropped} broken gutters of razed houses left out");
         var P = new Vector3[n];
         var U = new Vector2[n];
         var U2 = new Vector2[n];
@@ -456,6 +460,55 @@ void fragment() {
                 Street(h, 0), Street(h, 2)));
         }
         return list;
+    }
+
+    /// <summary>
+    /// The stains (12 corners each: the wall quad, then the wet patch) less those whose wall lies on a razed house
+    /// (city_build.json "razed": nearer to its outline than to any standing house's, within 1.2 m of it).
+    /// </summary>
+    private static (float[] pos, float[] uv, float[] kind, float[] seed, int dropped) WithoutRazed(float[] pos, float[] uv, float[] kind, float[] seed)
+    {
+        string file = Paths.Shared("city_build.json");
+        if (!System.IO.File.Exists(file)) return (pos, uv, kind, seed, 0);
+        var razed = new List<Vector2[]>(); var standing = new List<Vector2[]>();
+        using (var doc = System.Text.Json.JsonDocument.Parse(System.IO.File.ReadAllText(file)))
+            foreach (var h in doc.RootElement.GetProperty("houses").EnumerateArray())
+            {
+                bool gone = h.TryGetProperty("gone", out var g) && g.GetBoolean(), isRazed = h.TryGetProperty("razed", out var r) && r.GetBoolean();
+                if (gone && !isRazed || !h.TryGetProperty("fp", out var fp) || fp.GetArrayLength() < 3) continue;
+                var outline = new Vector2[fp.GetArrayLength()];
+                for (int k = 0; k < outline.Length; k++) outline[k] = new Vector2(fp[k][0].GetSingle(), fp[k][1].GetSingle());
+                (isRazed ? razed : standing).Add(outline);
+            }
+        if (razed.Count == 0) return (pos, uv, kind, seed, 0);
+        static float Distance(Vector2[] p, Vector2 q)
+        {
+            bool inside = false; float best = float.MaxValue;
+            for (int i = 0, j = p.Length - 1; i < p.Length; j = i++)
+            {
+                if ((p[i].Y > q.Y) != (p[j].Y > q.Y) && q.X < (p[j].X - p[i].X) * (q.Y - p[i].Y) / (p[j].Y - p[i].Y) + p[i].X) inside = !inside;
+                var ab = p[i] - p[j];
+                float t = ab.LengthSquared() < 1e-9f ? 0 : Math.Clamp((q - p[j]).Dot(ab) / ab.LengthSquared(), 0, 1);
+                best = Math.Min(best, q.DistanceTo(p[j] + ab * t));
+            }
+            return inside ? 0 : best;
+        }
+        var keep = new List<int>();
+        for (int o = 0; o + 12 <= pos.Length / 3; o += 12)
+        {
+            var mid = new Vector2((pos[o * 3] + pos[(o + 1) * 3]) / 2, (pos[o * 3 + 2] + pos[(o + 1) * 3 + 2]) / 2);
+            float toRazed = razed.Min(p => Distance(p, mid));
+            if (toRazed > 1.2f || toRazed >= standing.Select(p => Distance(p, mid)).DefaultIfEmpty(float.MaxValue).Min()) keep.Add(o);
+        }
+        int dropped = pos.Length / 36 - keep.Count;
+        if (dropped == 0) return (pos, uv, kind, seed, 0);
+        float[] Take(float[] a, int width)
+        {
+            var b = new float[keep.Count * 12 * width];
+            for (int k = 0; k < keep.Count; k++) Array.Copy(a, keep[k] * width, b, k * 12 * width, 12 * width);
+            return b;
+        }
+        return (Take(pos, 3), Take(uv, 2), Take(kind, 1), Take(seed, 1), dropped);
     }
 
     private static bool Street(System.Text.Json.JsonElement h, int i) => h.TryGetProperty("street", out var st) && st.GetArrayLength() > i && st[i].GetDouble() != 0;

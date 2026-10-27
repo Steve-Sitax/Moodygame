@@ -41,7 +41,7 @@ def main():
         return pts
 
     for k, foot in feet.items():
-        cleared = shapely.union_all([Polygon(cb['houses'][i]['fp']).buffer(0) for i in ids if Polygon(cb['houses'][i]['fp']).distance(foot) < 3])
+        cleared = shapely.union_all([Polygon(cb['houses'][i]['fp']).buffer(0) for i in ids if Polygon(cb['houses'][i]['fp']).distance(foot) < 20])
         area = cleared.difference(foot.buffer(3.5)).difference(standing.buffer(2.5)).difference(landmarks.difference(foot).buffer(2.5))
         pts = scatter(area, 7.0)
         for p in pts:

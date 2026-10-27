@@ -34,6 +34,8 @@ public static class NativeRazedHouses
     private const float Reach = 1.2f;
     // the triangles that name a house's alpha lie at least this far inside its outline
     private const float Inset = 0.4f;
+    // the materials of the parts added to the chunks after the bake: the drainage iron (gutters, pipes, plates) and the dressed stone
+    private static readonly HashSet<string> LaterParts = new() { "res://world/town/resources/r000615.res", "res://assets/materials/stone-corners-20261017/dressed-stone.tres" };
     private static readonly Regex DressingChunk = new("^(lively|streetlife|clutter|posters|litter)_", RegexOptions.Compiled);
 
     public static Result Cut(Node3D town, string cityBuildPath)
@@ -61,8 +63,22 @@ public static class NativeRazedHouses
         bool Touches(MeshInstance3D m) => cut.Any(h => Overlaps(WorldOf(m) * m.GetAabb(), h.Outline, Reach));
         chunks = chunks.Where(Touches).ToList(); glows = glows.Where(Touches).ToList();
         int triangles = 0, glowTriangles = 0;
+        var cutOutlines = cut.Select(h => h.Outline).ToList(); var standingLines0 = standing.Select(h => h.Outline).ToList();
+        // the gutter repair's iron (#163) mostly carries its house's alpha less one: that alpha goes too, where the triangle lies
+        // nearer to the razed house than to any standing one (Steve, 2026-10-27: a gutter left floating over a cleared plot)
         foreach (var mesh in chunks)
-            triangles += Filter(mesh, (a, b, c, alpha) => cut.Any(h => alpha == tags[h.Index] && Within(h.Outline, Centre(a, b, c), Reach)));
+            triangles += Filter(mesh, (a, b, c, alpha, material) =>
+            {
+                var p = Centre(a, b, c);
+                if (cut.Any(h => alpha == tags[h.Index] && Within(h.Outline, p, Reach))) return true;
+                // the drainage iron and the dressed stone came after the bake (#163, the stone corners): their alpha is often a
+                // neighbour's, so they go by place alone: near a razed house and nearer to it than to any standing one
+                if (LaterParts.Contains(material) && cut.Any(h => Within(h.Outline, p, Reach)) && Belongs(new Vector2(p.X, p.Z), cutOutlines, standingLines0)) return true;
+                // whatever stands well inside a razed outline above the street (chimney caps whose alpha is another house's)
+                var q = new Vector2(p.X, p.Z);
+                if (p.Y > 0.5f && cut.Any(h => Inside(h.Outline, q) && EdgeDistance(h.Outline, q) >= 0.3f) && Belongs(q, cutOutlines, standingLines0)) return true;
+                return cut.Any(h => Math.Abs(alpha - tags[h.Index]) == 1 && Within(h.Outline, p, Reach)) && Belongs(new Vector2(p.X, p.Z), cutOutlines, standingLines0);
+            });
         // A chunk's collision stand-ins (the plain boxes Solid takes for its fine stone and drainage, issues #157 #163) carry
         // no alpha: a box goes when it lies near a razed house and nearer to it than to any standing one.
         int standIns = 0;
@@ -231,7 +247,10 @@ public static class NativeRazedHouses
     }
 
     /// <summary>The alpha byte that covers most of a footprint's inner part (by the triangles' plan area and height).</summary>
-    private static int? OwnAlpha(List<MeshInstance3D> chunks, Vector2[] outline)
+    private static int? OwnAlpha(List<MeshInstance3D> chunks, Vector2[] outline) => OwnAlpha(chunks, outline, Inset) ?? OwnAlpha(chunks, outline, 0);
+
+    // (a sliver of an outline, house 454 by Sint-Jacob, has no triangle a full inset inside it: then those inside it count)
+    private static int? OwnAlpha(List<MeshInstance3D> chunks, Vector2[] outline, float inset)
     {
         var area = new Dictionary<int, float>();
         foreach (var mesh in chunks)
@@ -253,7 +272,7 @@ public static class NativeRazedHouses
                     Vector3 a = xf * v[index[t]], b = xf * v[index[t + 1]], c = xf * v[index[t + 2]];
                     var centre = Centre(a, b, c);
                     var p = new Vector2(centre.X, centre.Z);
-                    if (!Inside(outline, p) || EdgeDistance(outline, p) < Inset) continue;
+                    if (!Inside(outline, p) || EdgeDistance(outline, p) < inset) continue;
                     int alpha = (int)MathF.Round(col[index[t]].A * 255);
                     area[alpha] = area.GetValueOrDefault(alpha) + (b - a).Cross(c - a).Length() * 0.5f;
                 }
@@ -265,7 +284,10 @@ public static class NativeRazedHouses
     }
 
     /// <summary>Drops the triangles a test picks; returns how many went.</summary>
-    private static int Filter(MeshInstance3D mesh, Func<Vector3, Vector3, Vector3, int, bool> drop)
+    private static int Filter(MeshInstance3D mesh, Func<Vector3, Vector3, Vector3, int, bool> drop) => Filter(mesh, (a, b, c, alpha, _) => drop(a, b, c, alpha));
+
+    /// <summary>Drops the triangles a test picks, the test also given the surface's material path; returns how many went.</summary>
+    private static int Filter(MeshInstance3D mesh, Func<Vector3, Vector3, Vector3, int, string, bool> drop)
     {
         var xf = WorldOf(mesh);
         var source = (ArrayMesh)mesh.Mesh;
@@ -279,6 +301,7 @@ public static class NativeRazedHouses
             var type = source.SurfaceGetPrimitiveType(s);
             if (type == Mesh.PrimitiveType.Triangles)
             {
+                string material = source.SurfaceGetMaterial(s)?.ResourcePath ?? "";
                 var v = arrays[(int)Mesh.ArrayType.Vertex].AsVector3Array();
                 var colours = arrays[(int)Mesh.ArrayType.Color];
                 var col = colours.VariantType == Variant.Type.PackedColorArray ? colours.AsColorArray() : null;
@@ -287,7 +310,7 @@ public static class NativeRazedHouses
                 for (int t = 0; t + 2 < index.Length; t += 3)
                 {
                     int alpha = col != null ? (int)MathF.Round(col[index[t]].A * 255) : -1;
-                    if (drop(xf * v[index[t]], xf * v[index[t + 1]], xf * v[index[t + 2]], alpha)) { dropped++; continue; }
+                    if (drop(xf * v[index[t]], xf * v[index[t + 1]], xf * v[index[t + 2]], alpha, material)) { dropped++; continue; }
                     kept.Add(index[t]); kept.Add(index[t + 1]); kept.Add(index[t + 2]);
                 }
                 // (a surface left without a triangle keeps one of no size: an empty one cannot be built, and the surfaces
