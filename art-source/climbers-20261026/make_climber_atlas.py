@@ -7,10 +7,12 @@ Four rows of four cells (512 each), each cell drawn at true size (the climbers.p
          three-to-five-lobed leaves 4 to 8 cm wide on petioles, tips hanging down and out, pale veins #788164)
          and a mat (0.6 m: a knot of shoots, leaves overlapping)
   row 1: ivy mid green #40543A: two shoots, a mat, a thin runner with small leaves (the airy tips)
-  row 2: Virginia creeper (Parthenocissus), 0.45 m cells: burgundy #6B2531, crimson #8F3032, red #A64032 compound
-         leaves of five separate serrated leaflets 5 to 10 cm long on a wiry runner; cell 3 a sparse young tip
-  row 3: creeper turning: cell 0 red and orange #BC6938, cell 1 orange, brown #70503A and dull green, cell 2 brown and
-         crimson; cell 3 four quarters: two branched tendrils ending in adhesive pads, moss in a joint, fallen leaflets
+  (young ivy leaves, near a shoot's tip, a little lighter with a pale margin #808E5C, so the mats read in shade)
+  row 2: Virginia creeper (Parthenocissus), 0.45 m cells: burgundy #6B2531, crimson #8F3032, scarlet #B8322A compound
+         leaves of five separate serrated leaflets 5 to 10 cm long on a wiry runner (cell 0 two runners in full leaf);
+         cell 3 a sparse young tip
+  row 3: creeper turning: cell 0 scarlet and orange #BC6938, cell 1 orange, a little brown #70503A and dull green,
+         cell 2 burgundy, crimson and orange; cell 3 four quarters: two branched tendrils ending in adhesive pads, moss in a joint, fallen leaflets
   y 2048-2176: the woody stems' bark (grey-brown, fibrous, along x), opaque
   y 2176-2304: the ivy's aerial rootlets: a fringe of fine hairs either side of the stem's line
 A shoot cell's foot (its bottom middle) is where it joins the stem; a mat and a quarter are centred.
@@ -29,6 +31,8 @@ IVY_DARK = [(36, 59, 42), (41, 61, 45), (33, 54, 38), (46, 68, 47)]
 IVY_MID = [(64, 84, 58), (58, 80, 52), (70, 90, 60), (52, 74, 48)]
 VEIN = (120, 129, 100)
 BURGUNDY, CRIMSON, RED, ORANGE, BROWN, DULL = (107, 37, 49), (143, 48, 50), (166, 64, 50), (188, 105, 56), (112, 80, 58), (98, 102, 56)
+SCARLET = (184, 50, 42)          # #B8322A: late October's brightest creeper
+YOUNG_RIM = (128, 142, 92)       # the paler margin of a young ivy leaf
 
 
 def shade(c, k):
@@ -53,16 +57,18 @@ def ivy_outline(cx, cy, size, ang, lobes, rr):
     return pts
 
 
-def ivy_leaf(d, cx, cy, size, ang, cols, rr):
+def ivy_leaf(d, cx, cy, size, ang, cols, rr, young=False):
+    """young: a new leaf, a little lighter, its margin paler (so the mats read in shade)."""
     lobes = 5 if rr.random() < 0.65 else 3
-    c = cols[int(rr.integers(len(cols)))]; base = shade(c, rr.uniform(0.86, 1.12))
+    c = cols[int(rr.integers(len(cols)))]; base = shade(c, rr.uniform(0.86, 1.12) * (1.12 if young else 1.0))
     pts = ivy_outline(cx, cy, size, ang, lobes, rr)
-    d.polygon(pts, fill=shade(base, 0.78) + (255,))                       # the rim, a little darker
+    rim = tuple(int(b + (v - b) * 0.6) for b, v in zip(base, YOUNG_RIM)) if young else shade(base, 0.78)
+    d.polygon(pts, fill=rim + (255,))                                     # the rim, darker (old) or paler (young)
     inner = [(cx + (x - cx) * 0.93 + math.cos(ang) * size * 0.04, cy + (y - cy) * 0.93 + math.sin(ang) * size * 0.04) for x, y in pts]
     d.polygon(inner, fill=base + (255,))
     # one half catches the light (the blade folds a little along its midrib)
     m = len(inner) // 2
-    d.polygon([(cx, cy)] + inner[m:] , fill=shade(base, 1.1) + (255,))
+    d.polygon([(cx, cy)] + inner[m:] , fill=shade(base, 1.16) + (255,))
     for vd, vr in ((0, .8), (50, .62), (-50, .62), (104, .45), (-104, .45))[:lobes]:
         va = ang + math.radians(vd)
         vc = tuple(int(b + (v - b) * 0.55) for b, v in zip(base, VEIN))
@@ -155,26 +161,41 @@ def ivy_shoot(img, x0, y0, cols, seed, mat=False, tip=False):
             pl = size * rr.uniform(0.5, 0.9)
             q = (p[0] + math.cos(pa) * pl, p[1] + math.sin(pa) * pl)
             la = math.pi / 2 + side * rr.uniform(-0.2, 1.0)            # the blade's tip down and out
-            leaves.append((rr.random(), p, q, size, la))
-    for _, p, q, size, la in sorted(leaves, key=lambda l: l[0]):
+            young = tip or t > 0.62 or rr.random() < 0.18          # the shoot's newest leaves near its tip
+            leaves.append((rr.random(), p, q, size, la, young))
+    for _, p, q, size, la, young in sorted(leaves, key=lambda l: l[0]):
         d.line([p, q], fill=(70, 78, 46, 255), width=2 * S)
-        ivy_leaf(d, q[0], q[1], size, la, cols, rr)
+        ivy_leaf(d, q[0], q[1], size, la, cols, rr, young)
 
 
-def creeper_shoot(img, x0, y0, cols, seed, tip=False):
+def creeper_shoot(img, x0, y0, cols, seed, tip=False, dense=False):
+    """dense: a runner in full leaf, a second runner beside it and leaves at every node (the colony's thick middle).
+    Drawn in a cell of its own, so no leaf reaches into the neighbouring cell."""
+    cell = Image.new('RGBA', (CELL, CELL), (0, 0, 0, 0))
+    _creeper_shoot(cell, cols, seed, tip, dense)
+    img.alpha_composite(cell, (x0, y0))
+
+
+def _creeper_shoot(img, cols, seed, tip, dense):
     rr = np.random.default_rng(seed)
     d = ImageDraw.Draw(img)
     px_m = CELL / CREEPER_M
-    pts = shoot_line(rr, (x0 + CELL / 2, y0 + CELL * 0.985), CELL * 0.92, 0.3)
+    x0 = y0 = 0
+    pts = shoot_line(rr, (x0 + CELL / 2, y0 + CELL * 0.985), CELL * (0.8 if dense else 0.92), 0.3)
     d.line(pts, fill=(92, 70, 52, 255), width=(2 if tip else 3) * S)
     if not tip:      # a side runner from low on the shoot
         q = pts[int(rr.integers(2, 4))]
         side_pts = shoot_line(rr, q, CELL * rr.uniform(0.4, 0.55), 0.45)
         d.line(side_pts, fill=(92, 70, 52, 255), width=2 * S)
-    nn = 4 if tip else 4
-    nodes = np.linspace(0.12, 0.9, nn) + rr.uniform(-0.04, 0.04, nn)
+    nn = 4 if tip else 6 if dense else 5
+    nodes = np.linspace(0.1, 0.92, nn) + rr.uniform(-0.03, 0.03, nn)
     side = 1 if rr.random() < 0.5 else -1
-    spots = [(t, pts) for t in nodes] + ([(t, side_pts) for t in (0.5, 0.95)] if not tip else [])
+    spots = [(t, pts) for t in nodes] + ([(t, side_pts) for t in ((0.3, 0.65, 0.97) if dense else (0.5, 0.95))] if not tip else [])
+    if dense:        # a second runner on the other side
+        q = pts[int(rr.integers(1, 3))]
+        other = shoot_line(rr, q, CELL * rr.uniform(0.45, 0.58), 0.4)
+        d.line(other, fill=(92, 70, 52, 255), width=2 * S)
+        spots += [(t, other) for t in (0.35, 0.7, 0.98)]
     for t, line in spots:
         i = t * (len(line) - 1); i0 = int(i)
         p = line[i0]; side = -side
@@ -274,12 +295,13 @@ def main():
     ivy_shoot(img, 2 * CELL, 0, IVY_DARK, 13); ivy_shoot(img, 3 * CELL, 0, IVY_DARK, 14, mat=True)
     ivy_shoot(img, 0 * CELL, CELL, IVY_MID, 21); ivy_shoot(img, 1 * CELL, CELL, IVY_MID, 22)
     ivy_shoot(img, 2 * CELL, CELL, IVY_MID, 23, mat=True); ivy_shoot(img, 3 * CELL, CELL, IVY_MID + IVY_DARK, 24, tip=True)
-    deep = [BURGUNDY, CRIMSON, CRIMSON, RED]
-    creeper_shoot(img, 0 * CELL, 2 * CELL, deep, 31); creeper_shoot(img, 1 * CELL, 2 * CELL, [CRIMSON, RED, RED, BURGUNDY], 32)
-    creeper_shoot(img, 2 * CELL, 2 * CELL, deep, 33); creeper_shoot(img, 3 * CELL, 2 * CELL, [RED, CRIMSON, ORANGE], 34, tip=True)
-    creeper_shoot(img, 0 * CELL, 3 * CELL, [RED, ORANGE, ORANGE, CRIMSON], 41)
-    creeper_shoot(img, 1 * CELL, 3 * CELL, [ORANGE, BROWN, DULL, ORANGE, RED], 42)
-    creeper_shoot(img, 2 * CELL, 3 * CELL, [BROWN, CRIMSON, BURGUNDY, ORANGE], 43)
+    deep = [BURGUNDY, CRIMSON, CRIMSON, SCARLET]
+    creeper_shoot(img, 0 * CELL, 2 * CELL, deep, 31, dense=True); creeper_shoot(img, 1 * CELL, 2 * CELL, [CRIMSON, SCARLET, SCARLET, RED], 32)
+    creeper_shoot(img, 2 * CELL, 2 * CELL, [SCARLET, CRIMSON, BURGUNDY, SCARLET], 33)
+    creeper_shoot(img, 3 * CELL, 2 * CELL, [SCARLET, CRIMSON, ORANGE], 34, tip=True)
+    creeper_shoot(img, 0 * CELL, 3 * CELL, [SCARLET, ORANGE, SCARLET, CRIMSON], 41, dense=True)
+    creeper_shoot(img, 1 * CELL, 3 * CELL, [ORANGE, SCARLET, BROWN, ORANGE, DULL, RED], 42)
+    creeper_shoot(img, 2 * CELL, 3 * CELL, [BURGUNDY, CRIMSON, SCARLET, ORANGE], 43)
     quarters(img, 3 * CELL, 3 * CELL, 44)
     # the bark: fibres along x, a few darker cracks
     bw, bh = CELL * 4, 128 * S

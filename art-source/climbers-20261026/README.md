@@ -72,3 +72,32 @@ crowns, sprays tilted out), the leaves as tiny noise, the two kinds as separate 
   hitched run left out): the wall close 14.5 / 14.0, the wall front 14.3 / 13.4, along the wall 16.9 / 15.5; the
   squares 26.1 / 24.8, 24.6 / 21.3, 22.4 / 18.7, 18.6 / 16.8 (trees included). A first, denser cut (135 433 cards,
   16-sided trunks) cost 2 to 3 ms at the wall and 3.5 ms on a square; it was thinned to this.
+
+## Fuller columns, red creeper · 27 October 2026 (round 3)
+
+Review of round 2: the wall was 65 to 75 % bare and the plants read as thin streaks; the creeper had gone dull brown-red;
+the ivy read nearly black in shade; from the front some plants still stood as upright bushes.
+
+- Cover. Leaves were piling up on the stems at the wall's foot (a bush there, thin above). Now fewer leaves at the
+  foot and more up the middle of the run; mats chosen for cover; more leaders (five to eight ivy, four to six creeper)
+  rooted along a joint 1 to 3 m wide; the leaves of a strand spread a little across it. Straight on, the leaves
+  now hide about 35 % of the wall face where plants grow (round 2: 15 %, same measure, 0 to 7.5 m up); in the eye-level
+  views about 45 to 60 % of the wall stays bare brick.
+- Shape. Side runners level or slanting up at any height, the low ones sending up shoots of their own; tall bare lanes
+  between strands (noise stretched up the wall); the colony's edge eaten away unevenly and its mass wandering off the
+  root's line as it climbs; leaders of unequal reach, so the top ends in several tips; ivy bulging off the wall only
+  mid-run. A colony now reads as a ragged column, not a crown on a narrow foot.
+- Creeper. Scarlet #B8322A added beside crimson #8F3032 and burgundy #6B2531; orange #BC6938 in patches (spatial
+  noise), little brown; a creeper colony takes an ivy companion one time in five (was one in two), so whole red runs
+  show from 20 m. Two atlas cells now carry two runners in full leaf (more cover per card); each creeper cell is drawn
+  in its own picture so no leaf reaches into the cell above.
+- Ivy. The vertex shade no longer darkens it (0.75 to 0.85 before, now 0.94 to 1.02); young leaves near a shoot's tip
+  a little lighter with a pale margin #808E5C; the lit half of a leaf brighter. Base colours unchanged (#243B2A,
+  #40543A).
+- Cheaper stems: bark points every 24 cm (was 16), three faces only on stems over 4.4 cm, rootlets on every fourth
+  segment, fewer tendril cards. 144 colonies plus 43 recruits, 329 837 cards, 923 366 triangles (round 2: 116 905 cards,
+  494 458 triangles). Bake places, ids and nodes untouched; the climbers are still no solid.
+- Frame time (same PC, rounds 1, 2 and 3 in turns, two passes, mean ms a frame; other test sessions shared the PC, so
+  only the comparison counts): the wall close 13.6 / 12.4 / 13.2, the wall front 13.5 / 13.5 / 12.4, along the wall
+  14.5 / 14.0 / 13.3; the squares 25.3 / 23.7 / 21.5, 20.9 / 18.7 / 18.7, 17.5 / 17.7 / 16.2, 15.6 / 15.7 / 15.2 (trees
+  included). At or under round 1 everywhere; the wall close about 0.8 ms over round 2.
