@@ -35,7 +35,9 @@ public static class NativeDirt
             GD.Print($"dirt: {bed.Name} soil, {perMetre:0.###} uv a metre");
             n++;
         }
-        return n + Mud(town);
+        // (the deepened mud read as dry, dug earth on the foreshore (Codex review, #244): the sand ripples stay until the
+        // reworked wet silt passes; dev: --new-tide-mud shows it)
+        return n + (Scheldemist.Main.I.Flag("new-tide-mud") ? Mud(town) : 0);
     }
 
     /// <summary>
