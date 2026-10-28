@@ -1306,7 +1306,10 @@ public static class NativeSquareDressing
     /// 4-12 mm proud, 6-10 mm joints, a 10 mm worn arris; the run's two end stones broken short now and then, none under a
     /// mended patch, a tree, bench or thing. (Codex on #231: with one block in six taken and one in four broken anywhere,
     /// each stepped back on its own where the pavement still ran, the run read as loose slabs scattered on the setts; now
-    /// the blocks lie joined on one line and the run ends with a whole stone or a broken one.)
+    /// the blocks lie joined on one line and the run ends with a whole stone or a broken one.) (Codex on #237: the joined
+    /// line looked freshly laid.) Each block worn as an old stone (WornStone: its arris a worn round of 6-20 mm, wider at
+    /// its ends, its corners rounded), set a little off the line and turned a hair, its joint 6-18 mm, and the street's
+    /// dirt packed against its foot and into the joints; its top grimed in patches and darker at its ends.
     /// </summary>
     private static int Plinth(SurfaceTool st, Strip s, List<Patch> patches, GroundHeight ground)
     {
@@ -1341,15 +1344,46 @@ public static class NativeSquareDressing
             bool under = patches.Any(p => Math.Abs((mid - p.At).Dot(p.Along)) < p.Length / 2 + bl / 2 && Math.Abs((mid - p.At).Dot(new Vector2(-p.Along.Y, p.Along.X))) < p.Depth / 2 + 0.2f);
             if (under || !Keep.All(k => mid.DistanceTo(k.At) > k.R + bl / 2)) continue;
             float k = 0.26f + 0.1f * (float)rng.NextDouble();
-            float joint = 0.006f + 0.004f * (float)rng.NextDouble();
+            float joint = 0.006f + 0.012f * (float)rng.NextDouble();
             // (an end stone broken off short, its broken end toward the run's end)
             bool endStone = i == 0 || i == blocks.Count - 1;
             float keep = endStone && rng.NextDouble() < 0.35 ? 0.5f + 0.3f * (float)rng.NextDouble() : 1;
             var shift = i == 0 ? u * bl * (1 - keep) / 2 : -u * bl * (1 - keep) / 2;
-            Block(st, mid + shift, u, (bl * keep - joint) / 2, 0.15f + 0.03f * (float)rng.NextDouble(), ground.At(mid) + 0.004f + 0.008f * (float)rng.NextDouble(), 0.01f, new Color(0.9f * k, 0.97f * k, 1.0f * k), rng, 0.002f, 0.008f);
+            // (settled since: each a little off the line, turned a hair)
+            shift += s.In * (((float)rng.NextDouble() - 0.5f) * 0.02f);
+            float tw = ((float)rng.NextDouble() - 0.5f) * 0.026f;
+            var along = new Vector2(u.X * MathF.Cos(tw) - u.Y * MathF.Sin(tw), u.X * MathF.Sin(tw) + u.Y * MathF.Cos(tw));
+            float bed = ground.At(mid);
+            OldStone(st, mid + shift, along, (bl * keep - joint) / 2, 0.15f + 0.03f * (float)rng.NextDouble(), bed + 0.004f + 0.008f * (float)rng.NextDouble(), bed, new Color(0.9f * k, 0.97f * k, 1.0f * k), rng);
             laid++;
         }
         return laid;
+    }
+    /// <summary>
+    /// One old plinth stone (WornStone) in the facade material: the tooled top in its tone, grimed in patches and darker at
+    /// its ends, the worn arris a little paler, the sides darker down to the street, the dirt at its foot.
+    /// </summary>
+    private static void OldStone(SurfaceTool st, Vector2 at, Vector2 along, float ha, float hc, float top, float under, Color tone, Random rng)
+    {
+        float ph = (float)rng.NextDouble() * 40;
+        WornStone.Build(at, along, ha, hc, top, top - 0.045f, 0.01f, rng, (a, b, c) =>
+        {
+            foreach (var v in new[] { a, b, c })
+            {
+                float k;
+                var p = v.P;
+                if (v.Dirt >= 0) k = 0.3f + 0.25f * v.Dirt;
+                else
+                {
+                    float patch = Math.Clamp(MathF.Sin(p.X * 7.9f + ph) * MathF.Sin(p.Z * 9.3f - ph) + 0.5f * MathF.Sin(p.X * 21.1f - p.Z * 17.3f + ph), -1, 1) * 0.5f + 0.5f;
+                    float grime = 1.02f - 0.26f * patch - 0.22f * v.End;
+                    k = v.Up > 0.92f ? grime : v.Up > 0.15f ? Mathf.Lerp(0.82f, 1.04f, v.Up) * grime : 0.78f * (0.62f + 0.38f * Math.Clamp(v.Over / 0.012f, 0, 1));
+                }
+                var col = v.Dirt >= 0 ? new Color(0.24f * k, 0.2f * k, 0.16f * k, 0.5f) : new Color(tone.R * k, tone.G * k, tone.B * k, 0.5f);
+                st.SetNormal(v.N); st.SetUV(WallUv); st.SetUV2(WallCell ?? Vector2.Zero); st.SetCustom(0, new Color(RenderPicture, 1, 0, 0));
+                st.SetColor(col); st.AddVertex(p);
+            }
+        }, endWear: 1.0f, ground: under, tilt: 0.003f, dirt: 0.024f);
     }
     /// <summary>
     /// The street's height under the new stones: the town's upward faces near the ground (pavements, kerbs, steps, the
