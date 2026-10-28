@@ -1,0 +1,317 @@
+{
+  "dry_earth_albedo.png": {
+    "size": [
+      2048,
+      2048
+    ],
+    "png_bit_depth": 8,
+    "min": 35,
+    "max": 120,
+    "edge_gradient_ratio": 1.02
+  },
+  "dry_earth_height.png": {
+    "size": [
+      2048,
+      2048
+    ],
+    "png_bit_depth": 16,
+    "min": 0,
+    "max": 65535,
+    "edge_gradient_ratio": 1.015
+  },
+  "dry_earth_normal.png": {
+    "size": [
+      2048,
+      2048
+    ],
+    "png_bit_depth": 8,
+    "min": 6,
+    "max": 255,
+    "edge_gradient_ratio": 0.972
+  },
+  "dry_earth_roughness.png": {
+    "size": [
+      2048,
+      2048
+    ],
+    "png_bit_depth": 8,
+    "min": 165,
+    "max": 248,
+    "edge_gradient_ratio": 1.041
+  },
+  "dry_earth_ao.png": {
+    "size": [
+      2048,
+      2048
+    ],
+    "png_bit_depth": 8,
+    "min": 187,
+    "max": 255,
+    "edge_gradient_ratio": 1.056
+  },
+  "dry_earth_wet_albedo.png": {
+    "size": [
+      2048,
+      2048
+    ],
+    "png_bit_depth": 8,
+    "min": 30,
+    "max": 76,
+    "edge_gradient_ratio": 1.021
+  },
+  "dry_earth_wet_roughness.png": {
+    "size": [
+      2048,
+      2048
+    ],
+    "png_bit_depth": 8,
+    "min": 48,
+    "max": 99,
+    "edge_gradient_ratio": 1.02
+  },
+  "pit_soil_albedo.png": {
+    "size": [
+      2048,
+      2048
+    ],
+    "png_bit_depth": 8,
+    "min": 30,
+    "max": 114,
+    "edge_gradient_ratio": 1.066
+  },
+  "pit_soil_height.png": {
+    "size": [
+      2048,
+      2048
+    ],
+    "png_bit_depth": 16,
+    "min": 0,
+    "max": 65535,
+    "edge_gradient_ratio": 0.93
+  },
+  "pit_soil_normal.png": {
+    "size": [
+      2048,
+      2048
+    ],
+    "png_bit_depth": 8,
+    "min": 1,
+    "max": 255,
+    "edge_gradient_ratio": 0.983
+  },
+  "pit_soil_roughness.png": {
+    "size": [
+      2048,
+      2048
+    ],
+    "png_bit_depth": 8,
+    "min": 185,
+    "max": 249,
+    "edge_gradient_ratio": 1.056
+  },
+  "pit_soil_ao.png": {
+    "size": [
+      2048,
+      2048
+    ],
+    "png_bit_depth": 8,
+    "min": 122,
+    "max": 255,
+    "edge_gradient_ratio": 0.927
+  },
+  "pit_soil_wet_albedo.png": {
+    "size": [
+      2048,
+      2048
+    ],
+    "png_bit_depth": 8,
+    "min": 30,
+    "max": 73,
+    "edge_gradient_ratio": 1.083
+  },
+  "pit_soil_wet_roughness.png": {
+    "size": [
+      2048,
+      2048
+    ],
+    "png_bit_depth": 8,
+    "min": 24,
+    "max": 99,
+    "edge_gradient_ratio": 0.965
+  },
+  "wet_mud_albedo.png": {
+    "size": [
+      2048,
+      2048
+    ],
+    "png_bit_depth": 8,
+    "min": 30,
+    "max": 116,
+    "edge_gradient_ratio": 1.088
+  },
+  "wet_mud_height.png": {
+    "size": [
+      2048,
+      2048
+    ],
+    "png_bit_depth": 16,
+    "min": 0,
+    "max": 65535,
+    "edge_gradient_ratio": 1.069
+  },
+  "wet_mud_normal.png": {
+    "size": [
+      2048,
+      2048
+    ],
+    "png_bit_depth": 8,
+    "min": 10,
+    "max": 255,
+    "edge_gradient_ratio": 1.032
+  },
+  "wet_mud_roughness.png": {
+    "size": [
+      2048,
+      2048
+    ],
+    "png_bit_depth": 8,
+    "min": 14,
+    "max": 96,
+    "edge_gradient_ratio": 0.96
+  },
+  "wet_mud_ao.png": {
+    "size": [
+      2048,
+      2048
+    ],
+    "png_bit_depth": 8,
+    "min": 201,
+    "max": 255,
+    "edge_gradient_ratio": 0.981
+  },
+  "grave_soil_albedo.png": {
+    "size": [
+      2048,
+      2048
+    ],
+    "png_bit_depth": 8,
+    "min": 30,
+    "max": 116,
+    "edge_gradient_ratio": 0.938
+  },
+  "grave_soil_height.png": {
+    "size": [
+      2048,
+      2048
+    ],
+    "png_bit_depth": 16,
+    "min": 0,
+    "max": 65535,
+    "edge_gradient_ratio": 1.093
+  },
+  "grave_soil_normal.png": {
+    "size": [
+      2048,
+      2048
+    ],
+    "png_bit_depth": 8,
+    "min": 1,
+    "max": 255,
+    "edge_gradient_ratio": 1.053
+  },
+  "grave_soil_roughness.png": {
+    "size": [
+      2048,
+      2048
+    ],
+    "png_bit_depth": 8,
+    "min": 182,
+    "max": 249,
+    "edge_gradient_ratio": 0.991
+  },
+  "grave_soil_ao.png": {
+    "size": [
+      2048,
+      2048
+    ],
+    "png_bit_depth": 8,
+    "min": 122,
+    "max": 255,
+    "edge_gradient_ratio": 1.124
+  },
+  "yard_dirt_albedo.png": {
+    "size": [
+      2048,
+      2048
+    ],
+    "png_bit_depth": 8,
+    "min": 33,
+    "max": 119,
+    "edge_gradient_ratio": 1.034
+  },
+  "yard_dirt_height.png": {
+    "size": [
+      2048,
+      2048
+    ],
+    "png_bit_depth": 16,
+    "min": 0,
+    "max": 65535,
+    "edge_gradient_ratio": 1.062
+  },
+  "yard_dirt_normal.png": {
+    "size": [
+      2048,
+      2048
+    ],
+    "png_bit_depth": 8,
+    "min": 5,
+    "max": 255,
+    "edge_gradient_ratio": 1.007
+  },
+  "yard_dirt_roughness.png": {
+    "size": [
+      2048,
+      2048
+    ],
+    "png_bit_depth": 8,
+    "min": 165,
+    "max": 244,
+    "edge_gradient_ratio": 1.05
+  },
+  "yard_dirt_ao.png": {
+    "size": [
+      2048,
+      2048
+    ],
+    "png_bit_depth": 8,
+    "min": 179,
+    "max": 255,
+    "edge_gradient_ratio": 1.04
+  },
+  "yard_dirt_wet_albedo.png": {
+    "size": [
+      2048,
+      2048
+    ],
+    "png_bit_depth": 8,
+    "min": 30,
+    "max": 76,
+    "edge_gradient_ratio": 1.03
+  },
+  "yard_dirt_wet_roughness.png": {
+    "size": [
+      2048,
+      2048
+    ],
+    "png_bit_depth": 8,
+    "min": 49,
+    "max": 99,
+    "edge_gradient_ratio": 1.009
+  },
+  "water": {
+    "flat": true,
+    "roughness": 0.054901960784313725,
+    "coverage": 0.12000012397766113
+  }
+}

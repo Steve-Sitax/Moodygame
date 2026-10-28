@@ -194,6 +194,8 @@ public partial class NativeTown : BakedWorld
             Report["churchyardItems"] = churchyard.Items; Report["churchyardBoxes"] = churchyard.Boxes;
             Report["churchyardRailTriangles"] = churchyard.RailTriangles; Report["churchyardGroundCut"] = churchyard.GroundTriangles; Report["churchyardStreetCleared"] = churchyard.Cleared;
         }
+        // #244: the planted beds' and the liberty tree's bare earth in the tree pits' soil (dev: --keep-old-dirt leaves them)
+        if (Scheldemist.Main.I?.Flag("keep-old-dirt") != true) Report["dirtBeds"] = NativeDirt.Lay(town);
         // The bake's plain benches give way to the new bench models, turned and placed as they stood (#165).
         // (dev: --keep-old-benches leaves them, for a before-and-after)
         if (!Scheldemist.Main.I.Flag("keep-old-benches"))

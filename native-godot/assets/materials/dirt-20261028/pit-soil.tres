@@ -1,0 +1,34 @@
+[gd_resource type="ShaderMaterial" format=3]
+
+[ext_resource type="Shader" path="res://world/town/resources/r000002.res" id="1_oxne8"]
+[ext_resource type="Texture2D" path="res://assets/materials/dirt-20261028/pit_soil_height.res" id="2_igkxp"]
+[ext_resource type="Texture2D" path="res://assets/materials/dirt-20261028/pit_soil_wet.res" id="3_7qnte"]
+[ext_resource type="Texture2D" path="res://assets/materials/dirt-20261028/pit_soil_dry.res" id="4_5pfgp"]
+
+[resource]
+resource_name = "pit-soil"
+render_priority = 0
+shader = ExtResource("1_oxne8")
+shader_parameter/albedo = Color(1, 1, 1, 1)
+shader_parameter/tex = ExtResource("4_5pfgp")
+shader_parameter/emission = Color(0, 0, 0, 1)
+shader_parameter/fill = 0.0
+shader_parameter/affine = 0.0
+shader_parameter/fog_reach = 1.0
+shader_parameter/alpha_cut = 0.5
+shader_parameter/uv_xform = Vector4(1, 1, 0, 0)
+shader_parameter/depth_bias = 0.0
+shader_parameter/vary = 0.0
+shader_parameter/puddles = 0.01
+shader_parameter/soil = 1.0
+shader_parameter/soil_wet = ExtResource("3_7qnte")
+shader_parameter/soil_pool = 0.42
+shader_parameter/spec_color = Vector3(0.02, 0.02, 0.02)
+shader_parameter/shininess = 24.0
+shader_parameter/relief_h = ExtResource("2_igkxp")
+shader_parameter/relief_depth = 0.0
+shader_parameter/relief_tile = 1.0
+shader_parameter/relief_bump = 6.0
+shader_parameter/relief_holes = 0.0
+shader_parameter/relief_reach = 1.0
+shader_parameter/relief_dome = 1.5

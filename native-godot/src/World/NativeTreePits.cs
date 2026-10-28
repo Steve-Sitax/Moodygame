@@ -27,6 +27,8 @@ public static class NativeTreePits
     private static readonly string[] Parts = { "vegetation/INST167_x_mm", "vegetation/INST166_x_mm", "vegetation/INST168_x_mm", "vegetation/INST169_x_mm", "vegetation/INST170_x_mm" };
     // the earth's half width (a weed inside it is the pit's), and how near a pit's earth and leaves lie to its frame
     private const float Earth = 0.8f, Near = 0.5f;
+    // the pit's soil (#244: assets/materials/dirt-20261028, art-source/dirt-20261028)
+    private const string SoilMaterial = "res://assets/materials/dirt-20261028/pit-soil.tres", SoilHeight = "res://assets/materials/dirt-20261028/pit_soil_height.res";
 
     /// <summary>Gives the trees (world x, z, the frame's yaw) their pits and every pit the blue-stone frame; says what it did.</summary>
     public static string Dig(Node3D town, (float X, float Z, float Yaw)[] trees)
@@ -213,10 +215,13 @@ public static class NativeTreePits
     /// place, compacted earth 4-16 mm up in lumps, heaped a little round the trunk (the root flare). Codex on #240 (the soil
     /// smooth, the frame newly laid): clods of 2-6 cm a few millimetres proud, a crumb finer still, and the earth banked
     /// against the frame's inner faces, swept and washed up to a centimetre or two under the kerbs' tops, ragged along
-    /// them. Never under the paving's plane, which runs on under it.
+    /// them. Never under the paving's plane, which runs on under it. #244: in the soil's material (pit-soil.tres) on a 2.5 cm
+    /// grid, its clods the soil picture's own height (<see cref="SoilRelief"/>).
     /// </summary>
     private static ArrayMesh? EarthModel(Mesh? bake)
     {
+        // (#244: the soil's own 1 m picture with its height, wet and dry, laid in metres; else, or with --keep-old-dirt, the card's)
+        var soil = ResourceLoader.Exists(SoilMaterial) && Scheldemist.Main.I?.Flag("keep-old-dirt") != true ? GD.Load<Material>(SoilMaterial) : null;
         if (bake is not ArrayMesh card || card.GetSurfaceCount() == 0) return null;
         var arrays = card.SurfaceGetArrays(0);
         var v = arrays[(int)Mesh.ArrayType.Vertex].AsVector3Array();
@@ -225,13 +230,16 @@ public static class NativeTreePits
         // the card's picture as a plane through its corners (uv = a + bx x + bz z)
         var (a0, bx, bz) = UvPlane(v, uv);
         float h0 = v.Min(p => p.Y), half = v.Max(p => Math.Abs(p.X));
-        const int N = 32;
+        // (#244: the soil's clods are the soil picture's own height map, low-passed to the grid: real relief at the pits'
+        // close range, its edges too, where a parallax cost 2 ms; a finer grid for them)
+        var relief = soil != null ? SoilRelief() : null;
+        int N = relief != null ? 64 : 32;
         // (the frame's inner faces: Outer - Width from the middle)
         const float Inner = Outer - Width;
         float Height(float x, float z)
         {
             float lump = Noise2(x * 7.1f, z * 7.1f) * 0.6f + Noise2(x * 19 + 4, z * 19 - 2) * 0.4f;
-            float clod = MathF.Max(0, Noise2(x * 31 + 7, z * 31 - 5) - 0.45f) * 0.018f + (Noise2(x * 67 - 3, z * 67 + 9) - 0.5f) * 0.005f;
+            float clod = relief?.Invoke(x, z) ?? MathF.Max(0, Noise2(x * 31 + 7, z * 31 - 5) - 0.45f) * 0.018f + (Noise2(x * 67 - 3, z * 67 + 9) - 0.5f) * 0.005f;
             float r = MathF.Sqrt(x * x + z * z), collar = Mathf.Clamp(1 - r / 0.45f, 0, 1);
             // banked against the kerbs: up toward their faces over the last 8-14 cm, raggedly
             float toFrame = Inner - Math.Max(Math.Abs(x), Math.Abs(z)), reach = 0.08f + 0.06f * Noise2(x * 5.3f + 11, z * 5.3f - 7);
@@ -247,14 +255,40 @@ public static class NativeTreePits
             {
                 var q = new[] { P(i, j), P(i + 1, j), P(i + 1, j + 1), P(i, j + 1) };
                 // (Godot's front face clockwise as seen from above)
-                foreach (int k in new[] { 0, 1, 2, 0, 2, 3 }) { st.SetUV(a0 + bx * q[k].X + bz * q[k].Z); st.AddVertex(q[k]); }
+                foreach (int k in new[] { 0, 1, 2, 0, 2, 3 }) { st.SetUV(soil != null ? new Vector2(q[k].X, q[k].Z) : a0 + bx * q[k].X + bz * q[k].Z); st.AddVertex(q[k]); }
             }
         st.Index();
         st.GenerateNormals();
         var mesh = st.Commit();
-        mesh.SurfaceSetMaterial(0, card.SurfaceGetMaterial(0));
+        mesh.SurfaceSetMaterial(0, soil ?? card.SurfaceGetMaterial(0));
         mesh.ResourceName = "tree_pit_earth";
         return mesh;
+    }
+
+    /// <summary>
+    /// The soil picture's height in metres at x, z (its 1 m tile, laid as the soil's uv is): pit_soil_height at 64 px a metre,
+    /// 0 at its middle height, about 2.4 cm from the lowest hollow to the highest clod (#244).
+    /// </summary>
+    private static Func<float, float, float>? SoilRelief()
+    {
+        if (!ResourceLoader.Exists(SoilHeight) || GD.Load<Texture2D>(SoilHeight)?.GetImage() is not { } im) return null;
+        if (im.IsCompressed()) im.Decompress();
+        im.Convert(Image.Format.L8);
+        const int S = 64;
+        im.Resize(S, S, Image.Interpolation.Lanczos);
+        var h = new float[S * S];
+        for (int y = 0; y < S; y++)
+            for (int x = 0; x < S; x++) h[y * S + x] = (im.GetPixel(x, y).R - 0.25f) / 0.75f;
+        float mid = h.Average();
+        float At(int x, int y) => h[((y % S + S) % S) * S + (x % S + S) % S];
+        return (x, z) =>
+        {
+            float fx = x * S - 0.5f, fz = z * S - 0.5f;
+            int ix = (int)MathF.Floor(fx), iz = (int)MathF.Floor(fz);
+            float tx = fx - ix, tz = fz - iz;
+            float v = Mathf.Lerp(Mathf.Lerp(At(ix, iz), At(ix + 1, iz), tx), Mathf.Lerp(At(ix, iz + 1), At(ix + 1, iz + 1), tx), tz);
+            return (v - mid) * 0.024f;
+        };
     }
 
     /// <summary>The card's uv as a plane over x and z (least squares over its corners): a, and its steps along x and z.</summary>

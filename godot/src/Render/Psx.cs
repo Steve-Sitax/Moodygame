@@ -1167,6 +1167,58 @@ float psx_h13(vec3 p3) { p3 = fract(p3 * 0.1031); p3 += dot(p3, p3.zyx + 31.32);
     /// <summary>A wet-paint kind's code without the washing's sway (the code it had before #164).</summary>
     public static string WithoutClothSway(string code) => code.Replace(ClothSwayDecl, "").Replace(ClothSwayVertex, "");
 
+    /// <summary>
+    /// Issue #244: the town's bare earth (the tree pits, the planted beds) is a real soil: a 1 m picture with its height
+    /// and relief light, wet and dry. It is drawn with the park's relief ground shader (the town's r000002: one
+    /// stored kind, older than this generator's ground code), and scripts/SoilWetRepair.cs puts these lines into that
+    /// resource at the anchors given (changed in place: no new kind). Off unless a material sets `soil`: then the dry
+    /// picture's alpha shades its hollows, the wet picture (`soil_wet`; alpha: how glossy) comes in with the rain and stays as
+    /// long as water lies (psx_wet, psx_puddle: Daylight), the stone's patchy wet is left out, and water stands level in the
+    /// height map's hollows up to `soil_pool` (0..1 of the height) as the puddles rise, the clods and ridges out of it.
+    /// </summary>
+    public static readonly (string Anchor, bool After, string Code)[] SoilLines =
+    {
+        ("uniform float puddles = 0.0;\n", true,
+            "// #244: soil (0: off): the dry picture's alpha its shading, the wet picture (alpha: its gloss), water in the hollows\n"
+            + "uniform float soil = 0.0;\nuniform sampler2D soil_wet : source_color, filter_linear_mipmap_anisotropic, repeat_enable, hint_default_black;\nuniform float soil_pool = 0.0;\n"),
+        ("\tc *= albedo;\n", true,
+            "\t// (#244) soil: shaded in its hollows; darker and warmer wet, with the rain and as long as water lies\n"
+            + "\tfloat soil_w = clamp(max(psx_wet, (psx_puddle - 0.14) * 1.8), 0.0, 1.0) * soil;\n\tfloat soil_gloss = 0.0;\n"
+            + "\tif (soil > 0.0) {\n\t\tvec4 soil_c = mix(textureGrad(soil_wet, uv, rel_g.xy, rel_g.zw), texture(soil_wet, uv2), dm);\n"
+            + "\t\tc.rgb = mix(c.rgb, soil_c.rgb * albedo.rgb, soil_w) * mix(1.0, c.a, soil);\n\t\tsoil_gloss = soil_c.a * soil_w;\n\t}\n"),
+        ("\tvec3 n_flat = NORMAL;\n", false,
+            "\t// (#244) water stands level in the soil's hollows, rising with the puddles; the clods and ridges stay out of it\n"
+            + "\tfloat soil_water = 0.0;\n\tif (soil > 0.0 && soil_pool > 0.0) {\n"
+            + "\t\tfloat soil_lvl = soil_pool * smoothstep(0.36, 0.68, psx_puddle) * (0.45 + 1.1 * pud_val(world.xz * 1.6 + 3.7));\n"
+            + "\t\tsoil_water = (1.0 - smoothstep(soil_lvl - 0.025, soil_lvl, psx_h)) * step(0.002, soil_lvl);\n"
+            + "\t\tground_dn *= 1.0 - soil_water;\n\t}\n"),
+        ("\t\tfloat wet_k = psx_wet * smoothstep(0.15, 0.65, patchy + psx_wet * 0.35);\n", true,
+            "\t\twet_k *= 1.0 - soil; // (#244: the soil's wet is its own picture)\n"),
+        ("\tif (psx_puddle > 0.001 && puddles > 0.0) {\n", false,
+            "\tspec_k = max(spec_k, mix(soil_gloss, 1.0, soil_water)); // (#244: wet soil glistens, its water shines)\n"),
+        ("\t\twater = clamp(water, 0.0, 1.0);\n", true,
+            "\t\twater = max(water, soil_water); // (#244)\n"),
+    };
+    /// <summary>The stored code with the soil lines put in at their anchors (each anchor must be there once).</summary>
+    public static string WithSoil(string code)
+    {
+        code = code.Replace("\r\n", "\n");
+        foreach (var (anchor, after, add) in SoilLines)
+        {
+            int i = code.IndexOf(anchor, StringComparison.Ordinal);
+            if (i < 0 || code.IndexOf(anchor, i + 1, StringComparison.Ordinal) >= 0) throw new InvalidOperationException("soil: the anchor is not there once: " + anchor.Trim());
+            code = code.Insert(after ? i + anchor.Length : i, add);
+        }
+        return code;
+    }
+    /// <summary>A soil kind's code without its soil lines (the code it had before #244).</summary>
+    public static string WithoutSoil(string code)
+    {
+        code = code.Replace("\r\n", "\n");
+        foreach (var (_, _, add) in SoilLines) code = code.Replace(add, "");
+        return code;
+    }
+
     public static Shader ShaderOf(Kind k)
     {
         if (Shaders.TryGetValue(k, out var s)) return s;
