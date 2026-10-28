@@ -27,6 +27,9 @@ in red, 3 creeper turning orange); about half carry a few leaders of the other k
 - leaves fewer at the foot and more up the middle of the run, mats placed for cover rather than piled on the stems,
   tall bare lanes between strands, the colony's edge eaten away unevenly and its mass wandering off the root's line;
 - whole colonies of creeper (an ivy companion in one of five), crimson and scarlet with orange in patches.
+(2026-10-28, round 4, #231: the colonies repeated at the bake's even spacing.) Each card's place has its own dice: one in
+five is left bare brick, the others root up to 1.5 m along the joint from the card's middle and spread 0.55 to 1.6 times
+as wide, so runs of plants, gaps and single columns alternate unevenly.
 Material climbers.tres: the park plants' shader kind (cut out, both sides, wet, relief); the plant foot (custom0) set
 per corner so the leaves only shiver a little in the wind. The whole surface is replaced; the climbers are no solid.
 Writes manifest.json (surfaceRepairs) and report.json.
@@ -48,6 +51,7 @@ IVY_N, CR_N, MAT_P, CR_DENSE, SPREAD, TIER = 2.0, 1.6, 0.75, 0.45, 0.07, 0.75   
 STRAND, ROOTS_W, EDGE = 0.3, 2.0, 0.9            # leaves left in the bare lanes between strands; the root's spread along the joint
 WIDE = 1.25                            # the colonies' reach along the wall
 FOOT, MID = 0.7, 0.6                   # leaves at the foot (share) and up the middle of the run (extra)
+SKIP = 0.2                             # the bake's places left bare (2026-10-28, round 4)
 
 
 def cell_uv(row, col, s, t, quarter=None):
@@ -160,8 +164,9 @@ class Mesh:
         self.cards += 1
 
 
-def grow(rng, base, along, out, width, kind, face, seed, shift=0.0, recruit=False):
-    """One colony's rows (22 floats a corner, custom0 four); a recruit is a young plant beside it, shift along the wall."""
+def grow(rng, base, along, out, width, kind, face, seed, shift=0.0, recruit=False, spread=1.0):
+    """One colony's rows (22 floats a corner, custom0 four); a recruit is a young plant beside it, shift along the wall;
+    spread scales the colony's reach along the wall."""
     M = Mesh(along)
     ivy = kind in (0, 1)
     tone = rng.uniform(0.9, 1.05)
@@ -175,7 +180,7 @@ def grow(rng, base, along, out, width, kind, face, seed, shift=0.0, recruit=Fals
     else: H = avail * rng.uniform(0.75, 0.95)
     H = min(H, 8.5)
     wide = rng.uniform(0.6, 1.35)                                 # (each colony its own width)
-    span = (rng.uniform(0.6, 1.0) if young else rng.uniform(1.9, 3.1) * WIDE if ivy else rng.uniform(2.1, 3.4) * WIDE) * min(1.0, width / 3.0 + 0.45) * (1 if young else wide)
+    span = (rng.uniform(0.6, 1.0) if young else rng.uniform(1.9, 3.1) * WIDE if ivy else rng.uniform(2.1, 3.4) * WIDE) * min(1.0, width / 3.0 + 0.45) * (1 if young else wide * spread)
     root = shift + rng.normal(0, 0.15)
     hole_seed = seed % 997
     stems = []          # (pts [(s, h)], thick [m], depth, species ivy?, length so far at each point)
@@ -471,12 +476,21 @@ def colony_mesh(job):
         seed = int(hashlib.sha256(f'{base[0]:.2f},{base[2]:.2f}'.encode()).hexdigest()[:8], 16)
         face = Face(wallT[m], base, along, outn)
         rng = np.random.default_rng(seed)
-        rows, cards, H, caps, reached = grow(rng, base, along, outn, width, kind, face, seed)
+        # (Codex on #231: the colonies stood at the bake's even spacing, one at each of its cards, alike in width, a row
+        # of planted shrubs) each place its own dice, apart from the plant's: one in five left bare brick, the others
+        # rooted up to 1.5 m along the joint from the card's middle, some narrow, some spread wide
+        place = np.random.default_rng(seed ^ 0x51DE)
+        if place.random() < SKIP:
+            rep['bare'] = rep.get('bare', 0) + 1
+            continue
+        shift = float(np.clip(place.normal(0, 0.75), -1.5, 1.5))
+        spread = float(place.choice([0.55, 0.8, 1.0, 1.25, 1.6], p=[0.18, 0.24, 0.26, 0.2, 0.12]))
+        rows, cards, H, caps, reached = grow(rng, base, along, outn, width, kind, face, seed, shift=shift, spread=spread)
         rep['heights'].append(round(reached, 2)); rep['caps'] += caps
         allrows.append(rows)
         # now and then a young plant beside the colony, rooted in a joint of its own
         if rng.random() < 0.3:
-            side = rng.choice([-1, 1]) * rng.uniform(1.8, 2.6)
+            side = shift + rng.choice([-1, 1]) * rng.uniform(1.8, 2.6) * max(spread, 0.8)
             kind2 = kind if rng.random() < 0.6 else (2 if kind in (0, 1) else 0)
             rows2, cards2, *_ = grow(rng, base, along, outn, width, kind2, face, seed + 1, shift=side, recruit=True)
             if len(rows2): allrows.append(rows2); cards += cards2; rep['recruits'] = rep.get('recruits', 0) + 1

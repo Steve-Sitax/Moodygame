@@ -101,3 +101,18 @@ the ivy read nearly black in shade; from the front some plants still stood as up
   only the comparison counts): the wall close 13.6 / 12.4 / 13.2, the wall front 13.5 / 13.5 / 12.4, along the wall
   14.5 / 14.0 / 13.3; the squares 25.3 / 23.7 / 21.5, 20.9 / 18.7 / 18.7, 17.5 / 17.7 / 16.2, 15.6 / 15.7 / 15.2 (trees
   included). At or under round 1 everywhere; the wall close about 0.8 ms over round 2.
+
+## Uneven placement · 28 October 2026 (round 4, #231)
+
+Codex's review of the cleared squares' photos: the ivy and creeper colonies repeated at very regular spacing (the awning
+and Sint-Jacob wall views). Each colony still stood at one of the bake's 144 card places, evenly spaced along the wall,
+and was about as wide as the next: a row of planted shrubs.
+
+- Each card's place now has its own dice, apart from the plant's: one in five is left bare brick; the others root up to
+  1.5 m along the joint from the card's middle and spread 0.55 to 1.6 times as wide. Runs of plants, gaps and single
+  columns alternate unevenly; the young plants beside a colony follow its new root.
+- 114 colonies plus 22 recruits, 257 587 cards, 725 146 triangles (round 3: 144 plus 43, 329 837 cards, 923 366
+  triangles). Promoted with `scripts/stone-corners-promote.tscn` from the saved card dump; support faces identical
+  before and after reload; ids and nodes untouched; the climbers are still no solid.
+- Frame time in the two wall views (same PC, mean ms a frame, before / after; the before run shared the PC with
+  another test, so only "not worse" is claimed): the awning view 12.4 / 11.8, the Sint-Jacob wall 12.6 / 11.7.
