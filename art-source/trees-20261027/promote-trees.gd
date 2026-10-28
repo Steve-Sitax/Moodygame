@@ -49,17 +49,19 @@ func run():
 	var trees: String = a[0]; var atlas: String = a[1]; var backup: String = a[2]; var record: String = a[3]
 	DirAccess.make_dir_recursive_absolute(backup); DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(DIR))
 	# the leaf atlas with its own mipmaps (the leaves' cover kept far off) and its height
-	var col := Image.create_from_data(2048, 2048, true, Image.FORMAT_RGBA8, FileAccess.get_file_as_bytes(atlas + "/atlas-mips.bin"))
-	var hm := Image.load_from_file(atlas + "/tree-leaves-height.png"); hm.convert(Image.FORMAT_L8); hm.generate_mipmaps()
-	ResourceSaver.save(ImageTexture.create_from_image(col), DIR + "tree-leaves-texture.res", ResourceSaver.FLAG_COMPRESS)
-	ResourceSaver.save(ImageTexture.create_from_image(hm), DIR + "tree-leaves-height-texture.res", ResourceSaver.FLAG_COMPRESS)
-	var src: ShaderMaterial = load("res://world/town/resources/r009519.res")
-	var m: ShaderMaterial = src.duplicate()
-	m.set_shader_parameter("tex", load(DIR + "tree-leaves-texture.res"))
-	m.set_shader_parameter("bump_map", load(DIR + "tree-leaves-height-texture.res"))
-	m.set_shader_parameter("bump_scale", 0.5)
-	m.resource_name = "tree_leaves"
-	ResourceSaver.save(m, DIR + "tree-leaves.tres")
+	# (atlas "-": the meshes only, the leaf atlas and material kept as installed: the 2026-10-28 winding fix)
+	if atlas != "-":
+		var col := Image.create_from_data(2048, 2048, true, Image.FORMAT_RGBA8, FileAccess.get_file_as_bytes(atlas + "/atlas-mips.bin"))
+		var hm := Image.load_from_file(atlas + "/tree-leaves-height.png"); hm.convert(Image.FORMAT_L8); hm.generate_mipmaps()
+		ResourceSaver.save(ImageTexture.create_from_image(col), DIR + "tree-leaves-texture.res", ResourceSaver.FLAG_COMPRESS)
+		ResourceSaver.save(ImageTexture.create_from_image(hm), DIR + "tree-leaves-height-texture.res", ResourceSaver.FLAG_COMPRESS)
+		var src: ShaderMaterial = load("res://world/town/resources/r009519.res")
+		var m: ShaderMaterial = src.duplicate()
+		m.set_shader_parameter("tex", load(DIR + "tree-leaves-texture.res"))
+		m.set_shader_parameter("bump_map", load(DIR + "tree-leaves-height-texture.res"))
+		m.set_shader_parameter("bump_scale", 0.5)
+		m.resource_name = "tree_leaves"
+		ResourceSaver.save(m, DIR + "tree-leaves.tres")
 	var leaves_mat: Material = load(DIR + "tree-leaves.tres")
 	var rec := {"material": DIR + "tree-leaves.tres", "meshes": {}}
 	for kind in MESHES:

@@ -321,7 +321,9 @@ def weld(rows):
     t[bad] = np.cross(n[bad], np.array([0, 1.0, 0]) + 1e-3)
     t /= np.maximum(np.linalg.norm(t, axis=1, keepdims=True), 1e-9)
     out = np.concatenate([v[:, :6], t, np.ones((len(v), 1)), v[:, 6:12]], 1).astype(np.float32)
-    return out, inverse.astype(np.int32)
+    # Godot's front faces turn clockwise as seen: the rows above turn counter-clockwise round their outward normals,
+    # so each triangle's last two corners swap here (else the bark's outside was culled and its inside showed, 2026-10-28)
+    return out, inverse.reshape(-1, 3)[:, [0, 2, 1]].reshape(-1).astype(np.int32)
 
 
 def main():

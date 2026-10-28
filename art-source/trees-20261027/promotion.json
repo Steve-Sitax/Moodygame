@@ -2,112 +2,112 @@
  "material": "res://assets/materials/trees-20261027/tree-leaves.tres",
  "meshes": {
   "res://world/town/resources/r009470.res": {
-   "installedHash": "1a30865323830a0a2bf1722d4f88edb709d33394bc743cdbeb8b2b71fab400b6",
+   "installedHash": "39c241aa5ad254d8263d06f3781140dfd0c9afe62c475b08edabc2137101bcae",
    "kind": "plane",
    "originalHash": "a23efdc411895e0bf8945e28606a20077fd461ee8fcd40f62cbbd21b757f0049",
    "part": "bark",
    "triangles": 2708
   },
   "res://world/town/resources/r009478.res": {
-   "installedHash": "26d516ee0aba5641bb858117c98ebe92c57f3b10541d685dd1a987da4eef203b",
+   "installedHash": "894b1dd1fe06e71f080bd6acd010e99b0c2767eebaf5fef6f679afa334eeb762",
    "kind": "plane",
    "originalHash": "26d516ee0aba5641bb858117c98ebe92c57f3b10541d685dd1a987da4eef203b",
    "part": "leaves",
    "triangles": 1350
   },
   "res://world/town/resources/r009480.res": {
-   "installedHash": "34af16984b559ebdc8c6b72af707f120a1ab0984d0cd5a421fb4abebe56ae3b5",
+   "installedHash": "91bb5baf156c539f2d084ec9bd40157c450ea0d1e41620ef5d38c5c5f9b3af4f",
    "kind": "lime",
    "originalHash": "b267d39991fbc89e7d5a5dd0462b1e637a99f25b3c16e2e13b731292043e5d0c",
    "part": "bark",
    "triangles": 4306
   },
   "res://world/town/resources/r009482.res": {
-   "installedHash": "b37386821d1677c050c0b60f3f392abe5a9b03c227e6640d3e1f04b526696586",
+   "installedHash": "e83cc24681edb6d8fab19b41919c92811c4838acf345fbe1f81abc8c852c889a",
    "kind": "lime",
    "originalHash": "b37386821d1677c050c0b60f3f392abe5a9b03c227e6640d3e1f04b526696586",
    "part": "leaves",
    "triangles": 2322
   },
   "res://world/town/resources/r009484.res": {
-   "installedHash": "3c75420003342c35645753c14536ff56ae07dbe2e44a3e699b0e2374c85ed0ef",
+   "installedHash": "c1f4a0fce473d5ffa98665247fbe1fecea536cede6855e4e3107227aeeb11edd",
    "kind": "elm",
    "originalHash": "fb6b90178dbe1ee2b991f2dfcdb9997a77880a48745bf0d39c1a0adf5081d81f",
    "part": "bark",
    "triangles": 3978
   },
   "res://world/town/resources/r009486.res": {
-   "installedHash": "abd2cce1f52510c10b9ddea62f0923a999c59735d5ba7eeb7995cecc05e5fdad",
+   "installedHash": "f174d2d65ea1ef08b66c5d4eccd36f7ae3abab117cd8b632ea5cc606d84cff5e",
    "kind": "elm",
    "originalHash": "abd2cce1f52510c10b9ddea62f0923a999c59735d5ba7eeb7995cecc05e5fdad",
    "part": "leaves",
    "triangles": 2038
   },
   "res://world/town/resources/r009496.res": {
-   "installedHash": "2ac0a003a52b1ce0fb15b39f3e35ce965fa45083a7fe1fd263cd81e227d653a0",
+   "installedHash": "5a951aa0c63889d85c79d6c8944f8d86e0fd90c64c718cd75814bbecc32eb2ad",
    "kind": "lime",
    "originalHash": "46fc32880faf951941890555f51cc0ca76ff663dd181808193a57d5718bf754e",
    "part": "bark",
    "triangles": 3964
   },
   "res://world/town/resources/r009503.res": {
-   "installedHash": "8c6227db2395799191703d7cc8c18c237d4f43f9500fca7e3b5287518fe795c5",
+   "installedHash": "18890c889f056b17e8c6003dde73b7f782e1d70fac0f2afbd3477e5d502b96f9",
    "kind": "lime",
    "originalHash": "8c6227db2395799191703d7cc8c18c237d4f43f9500fca7e3b5287518fe795c5",
    "part": "leaves",
    "triangles": 2312
   },
   "res://world/town/resources/r009513.res": {
-   "installedHash": "b7e15e0357eef0af8ffeca2f1277822c353f361e860646888efafa21df8e3e18",
+   "installedHash": "f688e53c597c12d5c33f979f947b07f6066d747d855ba4e4d09bb694caf17976",
    "kind": "lime",
    "originalHash": "4dfe056c5ff75f3b83bcd7762933bef8e102ecbaf3173c3e09a756f125d94992",
    "part": "bark",
    "triangles": 4626
   },
   "res://world/town/resources/r009520.res": {
-   "installedHash": "3cfc06cd8873da82830fb1249c5875c915f430df788a4c0f1442e4a3068b03f4",
+   "installedHash": "97a792933953a4f1fff21781c86018c88dbfe336c481c75339d9b4ebb3aa7dee",
    "kind": "lime",
    "originalHash": "3cfc06cd8873da82830fb1249c5875c915f430df788a4c0f1442e4a3068b03f4",
    "part": "leaves",
    "triangles": 1840
   },
   "res://world/town/resources/r009522.res": {
-   "installedHash": "294e1de0d5e74c363db602fdeba3f108527f93befe39b013114c9b9ce2a86cca",
+   "installedHash": "1b464cccb18fd5375490a869b9494315643aacbc1d4441142c826df32c14cb46",
    "kind": "elm",
    "originalHash": "6498520575dc0334c5d81c84eb3252f943e83a0f0cbd846656aee207c374ea64",
    "part": "bark",
    "triangles": 3608
   },
   "res://world/town/resources/r009524.res": {
-   "installedHash": "0bf873eea186d37f52312c693f772856b00f1f397822df7dd568d2c8d9883ff3",
+   "installedHash": "584e6c9e23dde3ca34ba2b1c944b39af3c9c59092cde29f86e50694469fd2e66",
    "kind": "elm",
    "originalHash": "0bf873eea186d37f52312c693f772856b00f1f397822df7dd568d2c8d9883ff3",
    "part": "leaves",
    "triangles": 1530
   },
   "res://world/town/resources/r009526.res": {
-   "installedHash": "cd757740251b38161065f9c869455301df0d629c24c687f98b992a1a692e9fb1",
+   "installedHash": "930fd082b5786edabf071c1cca6ff766ccdfcfaeb3c7f843e7f06015ec25b525",
    "kind": "bare",
    "originalHash": "fc3c4aaade306a450f3f28ca9a563cb6dc86240405f380ea59cbec517016f994",
    "part": "bark",
    "triangles": 3164
   },
   "res://world/town/resources/r009528.res": {
-   "installedHash": "376933da67e10c70b218b52c9648c809497a9bc212e1ca0b726f7bb1ed7e9e83",
+   "installedHash": "b4777a4b89bd7128ba2a9c043eaf5bb00cb41933ff9f2b4fee482d063335740c",
    "kind": "bare",
    "originalHash": "376933da67e10c70b218b52c9648c809497a9bc212e1ca0b726f7bb1ed7e9e83",
    "part": "leaves",
    "triangles": 1300
   },
   "res://world/town/resources/r009530.res": {
-   "installedHash": "a5338882ee26a6c8de547adef1251df6894ef6b08c6a4e452db9eb63b043e03d",
+   "installedHash": "f91c8bcc48e850896f4c23eff7e68583074ecb0b67cf3d49f4cf80d2278b48f0",
    "kind": "plane",
    "originalHash": "e2da59b6b6104b9ffac1263e24c9c104db7f9296e7d743504394ab65aaa4b525",
    "part": "bark",
    "triangles": 2694
   },
   "res://world/town/resources/r009532.res": {
-   "installedHash": "d48efa7945d86ea39857d0c4f1d27e01db169307b7e7dd65b45e9d32a8a5be21",
+   "installedHash": "17e4abfc86639ca19756e9b17e6b4d9401d95ceaa01b95c926a26d964b3a7298",
    "kind": "plane",
    "originalHash": "d48efa7945d86ea39857d0c4f1d27e01db169307b7e7dd65b45e9d32a8a5be21",
    "part": "leaves",
