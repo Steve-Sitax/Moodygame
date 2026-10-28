@@ -26,6 +26,18 @@ the earth a flat insert, the trunks ending flat on it.
 - Roots. Each pit tree (quay and squares, 90) gets a root collar: four or five half-round roots 15-35 cm long and 2-5 cm
   proud, tapering into the earth, copies in the tree's own bark at the tree's own place.
 
+## #239 and #240 (28 October 2026)
+
+- Roots. The separate roots read as stony toes, the front one cut off from the trunk by a dark hollow, and paler than the
+  trunk (they had no vertex colour; the bark has one). `NativeTreePits.RootModel` now builds one root flare per bark
+  model: a height field on rings round the trunk that starts inside the trunk's foot (its radius read per angle and
+  height from the trunk's own rings), swells steeply away from it and carries four to six uneven roots, the big ones
+  mostly forked, all sinking under the earth; the bark picture goes on from the trunk's, in the bark's own colour.
+- Earth. A 5 cm grid now, with clods and crumb, banked against the kerbs up to a centimetre under their tops.
+- Leaves. `make_leaf_patch.py` draws smaller leaves (lime 4-7.5 cm, plane 7-11 cm, more pieces) and, in the earth, a
+  litter about four times as thick pressed into the soil (darker, the soil cutting parts of each leaf away). Stored again
+  as `leaf-patch.res` (mipmapped DXT5, 1024 px), the same size and material.
+
 ## Not done here
 
 - Wet matching (Codex point 5): the earth, leaf and weed materials have no wet input; making them darken in rain needs

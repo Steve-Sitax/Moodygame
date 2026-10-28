@@ -11,6 +11,9 @@ across, its middle the tree): 1024 px, 4.1 mm a pixel, the pit's earth the middl
   turned a quarter at a time from tree to tree, so the drifts lie another way at each); outside, two narrow drifts along
   the frame's foot tapering out over 0.5-1.5 m, a few leaves blown farther, the swept paving round it almost bare.
 Fixed seed. The alpha is cut at 0.5 in the game: a leaf is whole or nothing.
+#240 (Codex: the pit's leaves flat and oversized on smooth earth): smaller leaves (lime 4-7.5 cm, plane 7-11 cm) and more
+broken pieces (8 mm-3 cm); in the earth a litter about four times as thick, pressed into the soil: each leaf there damper and darker,
+and the soil over parts of it (a ragged 2-3 cm noise cuts the leaf away where the earth covers it).
 """
 import sys, math
 import numpy as np
@@ -147,7 +150,7 @@ def main():
     X, Z = (xs + 0.5 - c) * M, (ys + 0.5 - c) * M
     ax, az = np.abs(X), np.abs(Z)
     inside = (ax < earth) & (az < earth)
-    dens = np.where(inside, 0.1 + 0.45 * np.clip(1 - (earth - X) / 0.4, 0, 1) ** 1.5 + 0.3 * np.clip(1 - (earth - Z) / 0.3, 0, 1) ** 1.5, 0.0)
+    dens = np.where(inside, 0.55 + 0.45 * np.clip(1 - (earth - X) / 0.4, 0, 1) ** 1.5 + 0.3 * np.clip(1 - (earth - Z) / 0.3, 0, 1) ** 1.5, 0.0)
     # outside: the frame's foot on its two sheltered sides (+x, +z), drifting out 0.5-1.5 m, raggedly
     dx = X - frame; dz = Z - frame
     reach = 0.5 + 1.0 * (0.5 + 0.5 * np.sin(Z * 2.3 + 1.1) * np.sin(Z * 0.9))
@@ -169,10 +172,21 @@ def main():
         px, py = rng.uniform(0, N), rng.uniform(0, N)
         if rng.random() > dens[int(py), int(px)] * 2.2: continue
         r = rng.random()
-        kind, size = ('piece', rng.uniform(0.01, 0.04)) if r < 0.2 else ('plane', rng.uniform(0.1, 0.17)) if r < 0.27 else ('lime', rng.uniform(0.06, 0.11))
+        kind, size = ('piece', rng.uniform(0.008, 0.03)) if r < 0.35 else ('plane', rng.uniform(0.07, 0.11)) if r < 0.42 else ('lime', rng.uniform(0.04, 0.075))
         draw_leaf(canvas, px, py, size, rng.uniform(0, 2 * math.pi), kind)
         area += size * size * (0.42 if kind == 'lime' else 0.4 if kind == 'plane' else 0.3)
         placed += 1
+    # pressed into the soil (#240): in the earth each leaf damper and darker, and the earth over parts of it
+    def value_noise(cell):
+        g = rng.random((int(N * M / cell) + 3,) * 2)
+        u = (xs + 0.5) * M / cell; v = (ys + 0.5) * M / cell
+        i, j = u.astype(int), v.astype(int); fu, fv = u - i, v - j
+        fu, fv = fu * fu * (3 - 2 * fu), fv * fv * (3 - 2 * fv)
+        return (g[j, i] * (1 - fu) + g[j, i + 1] * fu) * (1 - fv) + (g[j + 1, i] * (1 - fu) + g[j + 1, i + 1] * fu) * fv
+    soil = value_noise(0.028) * 0.65 + value_noise(0.011) * 0.35
+    soft = np.clip(1 - (np.maximum(ax, az) - (earth - 0.05)) / 0.05, 0, 1) * inside
+    canvas[:, :, :3] *= (1 - 0.12 * soft)[:, :, None]
+    canvas[:, :, 3] *= np.where((soft > 0) & (soil > 0.66 - 0.04 * soft), 0, 1)
     img = Image.fromarray(np.clip(canvas, 0, 255).astype(np.uint8), 'RGBA')
     img.save(out)
     a = np.asarray(img)[:, :, 3] > 127
