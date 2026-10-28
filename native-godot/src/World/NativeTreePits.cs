@@ -139,8 +139,9 @@ public static class NativeTreePits
                 if (!(gx1 - gx0 > -Joint * 1.5f && gz1 - gz0 > -Joint * 1.5f && (gx1 - gx0 > 0.02f || gz1 - gz0 > 0.02f))) continue;
                 if (gx1 - gx0 < 0.02f) { float c = (gx0 + gx1) / 2; gx0 = c - 0.012f; gx1 = c + 0.012f; }
                 if (gz1 - gz0 < 0.02f) { float c = (gz0 + gz1) / 2; gz0 = c - 0.012f; gz1 = c + 0.012f; }
-                float y = Top - 0.022f + 0.006f * (float)rng.NextDouble(), k = 0.2f + 0.06f * (float)rng.NextDouble();
-                var fill = new Color(k * 1.05f, k, k * 0.9f, 1);
+                // (#243: dirtier: packed nearly to the arris, now and then a green-black of moss)
+                float y = Top - 0.014f + 0.005f * (float)rng.NextDouble(), k = 0.16f + 0.06f * (float)rng.NextDouble();
+                var fill = rng.NextDouble() < 0.3 ? new Color(k * 0.8f, k * 0.95f, k * 0.6f, 1) : new Color(k * 1.05f, k, k * 0.86f, 1);
                 var q = new[] { new Vector3(gx0, y, gz0), new Vector3(gx0, y, gz1), new Vector3(gx1, y, gz1), new Vector3(gx1, y, gz0) };
                 foreach (int v in new[] { 0, 2, 1, 0, 3, 2 }) { st.SetNormal(Vector3.Up); st.SetUV(new Vector2(q[v].X, q[v].Z) / Tile); st.SetColor(fill); st.AddVertex(q[v]); }
             }
@@ -155,7 +156,9 @@ public static class NativeTreePits
     private static void Kerb(SurfaceTool st, float x0, float z0, float x1, float z1, float top, Random rng)
     {
         var off = new Vector2((float)rng.NextDouble(), (float)rng.NextDouble());
-        float tone = 0.86f + 0.12f * (float)rng.NextDouble();
+        // (#243, Codex: the surround still looked new) each stone its own tone, a few of them warmer, browner with the years
+        float tone = 0.8f + 0.16f * (float)rng.NextDouble();
+        var warm = rng.NextDouble() < 0.35 ? new Vector3(1.04f, 1.0f, 0.9f) : new Vector3(0.97f, 0.99f, 1f);
         var centre = new Vector2((x0 + x1) / 2, (z0 + z1) / 2);
         bool alongX = x1 - x0 >= z1 - z0;
         var along = alongX ? Vector2.Right : Vector2.Down;
@@ -175,11 +178,14 @@ public static class NativeTreePits
             float toEarth = Mathf.Clamp(1 - (Math.Max(Math.Abs(p.X), Math.Abs(p.Z)) - (Outer - Width)) / Width, 0, 1);
             // grime in patches (the town's soot and the trodden dirt), more at the joints
             float patch = Mathf.Clamp(Mathf.Sin(p.X * 9.3f + gph) * Mathf.Sin(p.Z * 8.1f - gph * 0.7f) * 0.9f + Mathf.Sin(p.X * 23.7f - p.Z * 19.1f + gph) * 0.35f, -1, 1) * 0.5f + 0.5f;
-            float grime = 0.92f - 0.2f * patch - 0.2f * c.End - 0.1f * toEarth;
+            float grime = 0.92f - 0.22f * patch - 0.24f * c.End - 0.14f * toEarth;
             float k;
-            // the tooled top weathered pale, the worn arris rubbed between it and the sawn sides' darker blue
+            // the earth's stain on the top's inner edge (splash, the leaves rotting on it), ragged, browner: restrained
+            float stain = toEarth * toEarth * Mathf.Clamp(0.55f + 0.6f * Mathf.Sin(p.X * 17.3f - p.Z * 11.9f + gph) * Mathf.Sin(p.X * 6.1f + p.Z * 8.7f), 0, 1) * (c.Up > 0.15f ? 1 : 0);
+            // the tooled top weathered pale, the worn arris on the street side rubbed paler by the feet, on the earth side
+            // darker; the sawn sides a darker blue
             if (c.Up > 0.92f) k = tone * grime;
-            else if (c.Up > 0.15f) k = tone * Mathf.Lerp(0.8f, 0.94f, c.Up) * grime;
+            else if (c.Up > 0.15f) k = tone * Mathf.Lerp(0.84f, 0.96f, c.Up) * grime * (new Vector2(c.N.X, c.N.Z).Dot(-centre) > 0 ? 0.9f : 1.06f);
             else
             {
                 k = tone * 0.74f * (0.62f + 0.38f * Mathf.Clamp((p.Y - Foot) / (top - Foot), 0, 1));
@@ -188,7 +194,8 @@ public static class NativeTreePits
                 // and dirt where it goes into the paving
                 k *= 0.62f + 0.38f * Mathf.Clamp(c.Over / 0.012f, 0, 1);
             }
-            return new Color(k * 0.97f, k * 0.99f, k, 1);
+            var stone = new Color(k * 0.97f * warm.X, k * 0.99f * warm.Y, k * warm.Z, 1);
+            return stone.Lerp(new Color(0.26f, 0.21f, 0.15f, 1), 0.55f * stain);
         }
         Vector2 Uv(Vector3 p, Vector3 n) => (n.Y > 0.7f ? new Vector2(p.X, p.Z) : Math.Abs(n.X) > Math.Abs(n.Z) ? new Vector2(p.Z, -p.Y) : new Vector2(p.X, -p.Y)) / Tile + off;
         WornStone.Build(centre, along, ha, hc, top, Foot, Arris, rng, (a, b, c) =>
@@ -369,8 +376,8 @@ public static class NativeTreePits
     // ------------------------------------------------------------------ the roots
 
     /// <summary>
-    /// Each pit tree's root flare (Codex on #222: the trunks ended flat on the earth): the trunk's foot swelling into four
-    /// to six uneven roots, most of the big ones forked, sinking into the earth (<see cref="RootModel"/>), in the tree's
+    /// Each pit tree's root flare (Codex on #222: the trunks ended flat on the earth): the trunk's foot swelling into five
+    /// to seven uneven roots, the big ones forked, sinking into the earth (<see cref="RootModel"/>), in the tree's
     /// own bark (copies at the trees' own places, so they turn and scale with each tree; under 2 m the bark's wind leaves
     /// them still). One flare and a copy set for each tree kind's bark; not solid (a few centimetres, stepped over).
     /// Returns the flares laid.
@@ -424,7 +431,7 @@ public static class NativeTreePits
     /// laid round the trunk read as stony toes, the front one cut off from the trunk by a dark hollow). The trunk's radius
     /// round its foot, its bark picture and its colour are read from its own lowest 30 cm. A height field over rings round
     /// the trunk: the surface starts inside the trunk's foot, 24 cm up, so it leaves the bark without a seam; an all-round
-    /// swell falls steeply away from the trunk; on it four to six roots of uneven size run out (one or two big, the rest
+    /// swell falls steeply away from the trunk; on it five to seven roots of uneven size run out (one or two big, the rest
     /// smaller), each bending its own way, its back rounded and its sides falling into the swell (a smooth union, no crease
     /// where root meets flare); the bigger ones mostly fork once, unevenly, the branch thinner; each sinks as it goes and
     /// ends under the earth, so no root has a tip. The bark's own picture goes on down the flare from the trunk's foot (its
@@ -498,7 +505,7 @@ public static class NativeTreePits
         const float Bed = -0.03f, Join = 0.2f;
         // (the trunk's radius where the flare leaves it, round the turn)
         float JoinR(float th) => Math.Clamp(TrunkR(th, Join), radius * 0.7f, radius * 1.3f);
-        float reach = Math.Min(0.68f, radius + 0.42f);
+        float reach = Math.Min(0.72f, radius + 0.46f);
         var roots = new List<(Vector2 P, float T, float W)[]>();
         (Vector2 P, float T, float W)[] Line(Vector2 p0, float h0, float bend, float len, float top, float half, float sink)
         {
@@ -510,39 +517,47 @@ public static class NativeTreePits
             {
                 float t = (float)i / Steps;
                 float h = h0 + bend * t * t + 0.1f * MathF.Sin(t * 4.1f + ph);
-                // high where it leaves the flare, a long low back, under the earth by its end (Bed: well under it)
-                float y = Bed + (top - Bed) * MathF.Pow(1 - t, sink) + 0.006f * MathF.Sin(t * 11 + ph) * (1 - t);
-                float w = half * (1 - 0.65f * t) * (1 + 0.6f * MathF.Pow(1 - t, 3));
+                // high where it leaves the flare, its back falling evenly into the earth, under it by its end (Bed: well
+                // under it); a knot or two along it
+                float y = Bed + (top - Bed) * MathF.Pow(1 - t, sink) + 0.008f * MathF.Sin(t * 11 + ph) * (1 - t);
+                // (#243: the roots read as a broad pointed skirt: each one narrows all the way, a thin end going under)
+                float w = half * (1 - 0.72f * t) * (1 + 0.5f * MathF.Pow(1 - t, 4));
                 line[i] = (p, y, w);
                 p += new Vector2(MathF.Cos(h), MathF.Sin(h)) * (len / Steps);
             }
             return line;
         }
-        int count = 4 + rng.Next(3);
+        // (#243, Codex: a broad pointed skirt; the roots should be uneven, branch and taper into the soil) five to seven
+        // roots, one or two big, the rest of mixed sizes, unevenly spaced; each narrower than it is high where it leaves
+        // the trunk, running out to 0.4-0.7 m, its back falling evenly into the earth; the bigger ones fork once or twice,
+        // unevenly, each branch thinner, a small root now and then forking too
+        int count = 5 + rng.Next(3);
         float turn = (float)(rng.NextDouble() * MathF.Tau);
-        // (uneven: one or two big roots, the rest smaller, not evenly spaced)
-        int big = rng.Next(count), big2 = rng.NextDouble() < 0.5 ? (big + 2 + rng.Next(count - 3)) % count : -1;
+        int big = rng.Next(count), big2 = rng.NextDouble() < 0.6 ? (big + 2 + rng.Next(count - 3)) % count : -1;
+        void Fork((Vector2 P, float T, float W)[] line, float len, int depth)
+        {
+            int at = 3 + rng.Next(6);
+            var (p, y, w) = line[at];
+            var dir = line[at + 1].P - line[at].P;
+            float h = MathF.Atan2(dir.Y, dir.X), side = rng.NextDouble() < 0.5 ? -1 : 1;
+            float rest = len * (1 - at / 14f);
+            var branch = Line(p, h + side * (0.4f + 0.55f * (float)rng.NextDouble()), -side * 0.5f * (float)rng.NextDouble(),
+                rest * (0.55f + 0.45f * (float)rng.NextDouble()), y, w * (0.5f + 0.2f * (float)rng.NextDouble()), 0.9f + 0.3f * (float)rng.NextDouble());
+            roots.Add(branch);
+            if (depth < 1 && rng.NextDouble() < 0.4) Fork(branch, rest * 0.7f, depth + 1);
+        }
         for (int r = 0; r < count; r++)
         {
-            float a = turn + r * MathF.Tau / count + ((float)rng.NextDouble() - 0.5f) * 0.9f;
-            float size = r == big ? 1f : r == big2 ? 0.85f : 0.45f + 0.3f * (float)rng.NextDouble();
-            var start = centre + new Vector2(MathF.Cos(a), MathF.Sin(a)) * JoinR(a) * 0.9f;
-            float len = (0.45f + 0.55f * size) * (reach - radius * 0.9f);
-            float top = 0.05f + 0.11f * size, half = 0.06f + 0.07f * size;
-            float bend = ((float)rng.NextDouble() - 0.5f) * 1.1f;
-            var line = Line(start, a, bend, len, top, half, 1.3f + 0.4f * (float)rng.NextDouble());
+            float a = turn + r * MathF.Tau / count + ((float)rng.NextDouble() - 0.5f) * 0.8f;
+            float size = r == big ? 1f : r == big2 ? 0.8f : 0.3f + 0.4f * (float)rng.NextDouble();
+            var start = centre + new Vector2(MathF.Cos(a), MathF.Sin(a)) * JoinR(a) * 0.92f;
+            float len = (0.55f + 0.45f * size) * (reach - radius * 0.9f) + 0.06f;
+            float top = 0.04f + 0.1f * size, half = 0.035f + 0.05f * size;
+            float bend = ((float)rng.NextDouble() - 0.5f) * 1.3f;
+            var line = Line(start, a, bend, len, top, half, 0.85f + 0.4f * (float)rng.NextDouble());
             roots.Add(line);
-            // a fork, a fifth to a half out, turned off 25-55 degrees, thinner and sinking sooner
-            if (rng.NextDouble() < 0.65 && size > 0.5f)
-            {
-                int at = 3 + rng.Next(5);
-                var (p, y, w) = line[at];
-                var dir = line[at + 1].P - line[at].P;
-                float h = MathF.Atan2(dir.Y, dir.X), side = rng.NextDouble() < 0.5 ? -1 : 1;
-                float rest = len * (1 - at / 14f);
-                roots.Add(Line(p, h + side * (0.45f + 0.5f * (float)rng.NextDouble()), -side * 0.4f * (float)rng.NextDouble(),
-                    rest * (0.5f + 0.4f * (float)rng.NextDouble()), y, w * (0.55f + 0.15f * (float)rng.NextDouble()), 1.1f));
-            }
+            if (size > 0.6f || rng.NextDouble() < 0.3) Fork(line, len, size > 0.9f ? 0 : 1);
+            if (size > 0.9f && rng.NextDouble() < 0.6) Fork(line, len, 1);
         }
         // the height at a point: the swell round the trunk and the roots, smoothly together
         static float SMax(float a, float b, float k) { float h = Math.Clamp(0.5f + 0.5f * (b - a) / k, 0, 1); return Mathf.Lerp(a, b, h) + k * h * (1 - h); }
@@ -550,7 +565,8 @@ public static class NativeTreePits
         {
             // (inside the trunk's foot: up into it, hidden)
             if (rho < rj) return Join + (rj - rho) * 2.5f;
-            float h = Bed + (Join - Bed) * MathF.Exp(-(rho - rj) / 0.055f);
+            // (the all-round swell kept close to the trunk: wider, it read as a skirt)
+            float h = Bed + (Join - Bed) * MathF.Exp(-(rho - rj) / 0.04f);
             foreach (var line in roots)
             {
                 float bestD = float.MaxValue, bt = 0, bw = 0;
@@ -564,12 +580,16 @@ public static class NativeTreePits
                 }
                 if (bestD >= bw) continue;
                 float x = bestD / bw;
-                h = SMax(h, Bed + (bt - Bed) * MathF.Pow(1 - x * x, 1.4f), 0.03f);
+                // (under the earth before the flare's outer edge: a root running on to it was cut off square there)
+                bt = Bed + (bt - Bed) * Math.Clamp((reach - 0.03f - rho) / 0.1f, 0, 1);
+                // (a rounded back, its sides falling steeply into the earth)
+                h = SMax(h, Bed + (bt - Bed) * MathF.Pow(1 - x * x, 0.7f), 0.02f);
             }
             // (the bark's own small lumps)
             return h + 0.004f * (Noise2(q.X * 23 + 3, q.Y * 23) - 0.5f) * Math.Clamp((h - Bed) / 0.05f, 0, 1);
         }
-        const int Round = 72, Rings = 20;
+        // (fine enough round for the thinner roots: 3 cm apart at 0.6 m out)
+        const int Round = 120, Rings = 24;
         var grid = new Vector3[Round + 1, Rings + 1];
         // the grain's place down the flare: the trunk's own up to the join, then the surface's length out from it
         var grain = new float[Round + 1, Rings + 1];
@@ -618,11 +638,16 @@ public static class NativeTreePits
                     foreach (var (x, y) in t) normals[x % Round, y] += f;
                 }
         Vector3 Normal(int i, int j) => normals[i, j].LengthSquared() > 1e-16f ? normals[i, j].Normalized() : Vector3.Up;
-        void Corner(int i, int j)
+        // (#243: the bark stretched round the flare: its picture goes once round the trunk's foot, so 0.6 m out it was
+        // twice as wide. Out there it goes twice round: a quad's band (k) by its outer ring's distance from the middle, the
+        // picture's place round continuous within the band, its step where the band changes, low on the roots)
+        int Band(int i, int j) => new Vector2(grid[i, j].X - centre.X, grid[i, j].Z - centre.Y).Length() > radius * 1.7f ? 2 : 1;
+        void Corner(int i, int j, int i0, int band)
         {
             var p = grid[i, j];
             st.SetNormal(Normal(i % Round, j));
-            st.SetUV(new Vector2(u0 + (u1 - u0) * i / Round, va + vb * grain[i, j]));
+            float f0 = (float)band * i0 / Round;
+            st.SetUV(new Vector2(u0 + (u1 - u0) * (f0 - MathF.Floor(f0) + (float)band * (i - i0) / Round), va + vb * grain[i, j]));
             // the bark's colour, darker where it meets the earth
             float k = Mathf.Lerp(0.72f, 1, Math.Clamp((p.Y - 0.005f) / 0.07f, 0, 1));
             st.SetColor(new Color(bark0.R * k, bark0.G * k, bark0.B * k, bark0.A));
@@ -634,6 +659,7 @@ public static class NativeTreePits
                 // (all well under the earth: not drawn)
                 if (Math.Max(Math.Max(grid[i, j].Y, grid[i + 1, j].Y), Math.Max(grid[i, j + 1].Y, grid[i + 1, j + 1].Y)) < -0.004f) continue;
                 var q = new[] { (i, j), (i + 1, j), (i + 1, j + 1), (i, j + 1) };
+                int band = Math.Max(Band(i, j + 1), Band(i + 1, j + 1));
                 // (Godot's front face clockwise as seen from outside: a height field's outside is up, so each triangle
                 // on its own turns clockwise seen from above; a quad twisted where the trunk's foot is lumpy would have
                 // one of its two the wrong way by a corner's normal)
@@ -642,7 +668,7 @@ public static class NativeTreePits
                     Vector3 a = grid[q[t[0]].Item1, q[t[0]].Item2], b = grid[q[t[1]].Item1, q[t[1]].Item2], c = grid[q[t[2]].Item1, q[t[2]].Item2];
                     var up = Out(a, b, c);
                     if (Inside(up, (a + b + c) / 3)) continue;
-                    foreach (int k in (b - a).Cross(c - a).Dot(up) > 0 ? new[] { t[0], t[2], t[1] } : t) Corner(q[k].Item1, q[k].Item2);
+                    foreach (int k in (b - a).Cross(c - a).Dot(up) > 0 ? new[] { t[0], t[2], t[1] } : t) Corner(q[k].Item1, q[k].Item2, i, band);
                 }
             }
         var mesh = st.Commit();

@@ -140,26 +140,10 @@ public static class NativeSquareDressing
                     drawn++;
                 }
         }
-        // the mended patches: earth in their joints (the old paving under them reads only as the dark between the setts)
-        var lay = Laid = Lay(plan, razed);
-        foreach (var p in lay.Patches)
-        {
-            var n = new Vector2(-p.Along.Y, p.Along.X);
-            float reach = (p.Length + p.Depth) / 2 + 0.5f;
-            int i0 = Math.Max(0, (int)((p.At.X - reach - x0) / px)), i1 = Math.Min(iw - 1, (int)((p.At.X + reach - x0) / px));
-            int j0 = Math.Max(0, (int)((p.At.Y - reach - z0) / pz)), j1 = Math.Min(ih - 1, (int)((p.At.Y + reach - z0) / pz));
-            for (int j = j0; j <= j1; j++)
-                for (int i = i0; i <= i1; i++)
-                {
-                    var q = new Vector2(x0 + (i + 0.5f) * px, z0 + (j + 0.5f) * pz) - p.At;
-                    if (Math.Abs(q.Dot(p.Along)) > p.Length / 2 + 0.1f || Math.Abs(q.Dot(n)) > p.Depth / 2 + 0.1f) continue;
-                    var old = image.GetPixel(i, j);
-                    float r = Math.Max(old.R, 0.6f);
-                    image.SetPixel(i, j, new Color(r, old.G, r, old.A));
-                }
-        }
+        var lay = Lay(plan, razed);
+        GD.Print($"square dressing: {lay.Hollows.Count} hollows; no stones laid over the street (the old fronts' plinths and the mended patches are gone)");
         // the hollows the water stands in when it rains (the dirt mask's alpha: 1 - how deep; the ground shader's puddles
-        // fill them first): beside the patches where the trench's fill settled, at the pump and in the carts' ruts
+        // fill them first): where a torn-out step's trench settled by an old front, at the pump and in the carts' ruts
         foreach (var hole in lay.Hollows)
         {
             var at = new Vector2(hole.At[0], hole.At[1]);
@@ -1112,28 +1096,26 @@ public static class NativeSquareDressing
     // ------------------------------------------------------------------ the paving
 
     /// <summary>
-    /// Where the houses' fronts stood and where the street was mended: Paving in square-dressing.json (chance of a mended
-    /// patch on a front, how many in all, the hollows the water stands in besides those beside the patches).
+    /// Where the houses' fronts stood: Paving in square-dressing.json (the chance of a torn-out step's trench on a front, how
+    /// many by each church, the hollows the water stands in besides those over the trenches).
     /// </summary>
     public sealed record PavingPlan(int Seed, float PatchChance, int MaxPatches, Spot[] Hollows, float[][]? KeepOut = null);
-    /// <summary>A patch of re-laid setts: its middle, its run (unit, along the old front), its length and depth.</summary>
-    public sealed record Patch(Vector2 At, Vector2 Along, float Length, float Depth, int Seed);
-    /// <summary>A run of the old front's foundation (its blue-stone plinth) from A to B; In: into the plot.</summary>
-    public sealed record Strip(Vector2 A, Vector2 B, Vector2 In, int Seed);
-    public sealed record Layout(List<Patch> Patches, List<Strip> Strips, List<Spot> Hollows);
+    public sealed record Layout(List<Spot> Hollows);
     private sealed record SquareFile(SquareTree[] Trees, SquareBench[] Benches);
     private sealed record SquareTree(float X, float Z);
     private sealed record SquareBench(float X, float Z);
-    /// <summary>The paving laid out on the cut plots (Ground makes it; Install lays its stones).</summary>
-    public static Layout? Laid { get; private set; }
-
     /// <summary>
     /// The razed houses' fronts (their outline's edges that stood free: on no standing house, church or other cut house)
-    /// and, on them, the mended patches and the hollows beside them; away from the trees, benches and things.
+    /// and the hollows by them where a torn-out step's trench settled; away from the trees, benches and things. (Steve,
+    /// 2026-10-28: the old fronts' plinth stones read as a weird row of loose flags beside the kerb, the mended patches'
+    /// setts as 3D tiles over the street with deep gaps between them. A repaved 1873 square keeps neither: both are gone,
+    /// the street's own setts run on; the hollows stay where they were, the same draws of the same seed.)
     /// </summary>
     public static Layout Lay(Plan plan, NativeRazedHouses.Result razed)
     {
-        var lay = new Layout(new(), new(), new());
+        var lay = new Layout(new());
+        // (the fronts already taken: one two houses share is taken once)
+        var taken = new List<Vector2>();
         if (plan.Paving is not { } pv) return lay;
         var rng = new Random(pv.Seed);
         var churches = plan.Ground.Churches.Select(c => c.Outline.Select(p => new Vector2(p[0], p[1])).ToArray()).ToList();
@@ -1171,20 +1153,20 @@ public static class NativeSquareDressing
                     if (!against) free++;
                 }
                 if (free < 6 || Out(a) || Out(b) || Out((a + b) / 2)) continue;
-                // (a front two houses share is laid once)
                 var m = (a + b) / 2;
-                if (lay.Strips.Any(s => (s.A + s.B).DistanceTo(m * 2) < 0.6f)) continue;
-                var inward = new Vector2(-u.Y, u.X);
-                if ((centre - m).Dot(inward) < 0) inward = -inward;
-                lay.Strips.Add(new Strip(a + u * 0.12f, b - u * 0.12f, inward, rng.Next()));
+                if (taken.Any(t => t.DistanceTo(m) < 0.3f)) continue;
+                taken.Add(m);
+                // (the seed the front's plinth stones drew)
+                rng.Next();
                 if (len >= 2.5f) fronts.Add((a, b, u, len, centre));
             }
         }
-        // a mended patch where the doorway's step and the cellar's hatch were torn out (straddling the old front): the
-        // fronts taken in a shuffled order, at most maxPatches by each church
+        // the trench where the doorway's step and the cellar's hatch were torn out, behind the old front: the fronts taken
+        // in a shuffled order, at most maxPatches by each church
         for (int i = fronts.Count - 1; i > 0; i--) { int j = rng.Next(i + 1); (fronts[i], fronts[j]) = (fronts[j], fronts[i]); }
         var centres = churches.Select(c => c.Aggregate(Vector2.Zero, (s, p) => s + p) / c.Length).ToList();
         var per = new Dictionary<int, int>();
+        int trenches = 0;
         foreach (var (a, b, u, len, centre) in fronts)
         {
             var m = (a + b) / 2;
@@ -1203,59 +1185,23 @@ public static class NativeSquareDressing
                 var probe = new[] { at, at + u * plen / 2, at - u * plen / 2, at + n * depth / 2, at - n * depth / 2 };
                 if (!probe.All(p => Clear(p, 0.4f))) continue;
                 if (probe.Any(p => razed.Standing.Any(s => Inside(s, p)) || churches.Any(c => Inside(c, p)))) continue;
-                lay.Patches.Add(new Patch(at, u, plen, depth, rng.Next()));
+                // (the seed its setts drew)
+                rng.Next();
                 per[square] = per.GetValueOrDefault(square) + 1;
-                // the fill of the trench under it settled: the old paving beside it sank, and water stands there
+                trenches++;
+                // the trench's fill settled: the paving beside it sank, and water stands there
                 if (rng.NextDouble() < 0.5)
                 {
                     float hr = 0.8f + 0.5f * (float)rng.NextDouble();
                     var hole = at + u * (plen / 2 + hr + 0.1f) * (rng.NextDouble() < 0.5 ? -1 : 1) + n * (((float)rng.NextDouble() - 0.5f) * depth * 0.6f);
                     // (the whole hollow off the trees' pits and the things, not just its middle)
-                    if (Clear(hole, hr)) lay.Hollows.Add(new Spot($"patch-{lay.Patches.Count}", new[] { hole.X, hole.Y }, hr, 0.85f + 0.15f * (float)rng.NextDouble()));
+                    if (Clear(hole, hr)) lay.Hollows.Add(new Spot($"patch-{trenches}", new[] { hole.X, hole.Y }, hr, 0.85f + 0.15f * (float)rng.NextDouble()));
                 }
                 break;
             }
         }
         lay.Hollows.AddRange(pv.Hollows);
         return lay;
-    }
-
-    /// <summary>
-    /// The mended patches' setts and the old fronts' plinth stones (one mesh in the facade material, as the salvage, so
-    /// no new shader kind; no collision: 1-2 cm proud, stepped over). Returns the stones laid.
-    /// </summary>
-    public static int Pave(Node3D town, Layout lay)
-    {
-        if (lay.Patches.Count == 0 && lay.Strips.Count == 0) return 0;
-        if (ResourceLoader.Load<Material>(FacadeMaterial) is not { } stone) return 0;
-        var ground = new GroundHeight(town, lay.Patches.Select(p => new Rect2(p.At - Vector2.One * ((p.Length + p.Depth) / 2 + 0.5f), Vector2.One * (p.Length + p.Depth + 1)))
-            .Concat(lay.Strips.Select(s => new Rect2(new Vector2(Math.Min(s.A.X, s.B.X), Math.Min(s.A.Y, s.B.Y)) - Vector2.One * 2, (s.B - s.A).Abs() + Vector2.One * 4))));
-        // one mesh for each 60 m of the town (a square's stones together: each its own bounds for the visibility range)
-        (int, int) Area(Vector2 p) => ((int)MathF.Floor(p.X / 60), (int)MathF.Floor(p.Y / 60));
-        var areas = lay.Patches.Select(p => Area(p.At)).Concat(lay.Strips.Select(s => Area((s.A + s.B) / 2))).Distinct().ToList();
-        int stones = 0, right = 0, wrong = 0;
-        foreach (var area in areas)
-        {
-            var st = Begin();
-            int laid = 0;
-            foreach (var p in lay.Patches.Where(p => Area(p.At) == area)) laid += Setts(st, p, ground);
-            foreach (var s in lay.Strips.Where(s => Area((s.A + s.B) / 2) == area)) laid += Plinth(st, s, lay.Patches, ground);
-            if (laid == 0) continue;
-            st.SetMaterial(stone);
-            var mesh = st.Commit();
-            mesh.ResourceName = "square_paving";
-            var (r, w) = MeshWinding.Count(mesh); right += r; wrong += w;
-            var node = new MeshInstance3D
-            {
-                Name = $"paving_{area.Item1}_{area.Item2}", Mesh = mesh, CastShadow = GeometryInstance3D.ShadowCastingSetting.Off,
-                VisibilityRangeEnd = 110, VisibilityRangeEndMargin = 12, VisibilityRangeFadeMode = GeometryInstance3D.VisibilityRangeFadeModeEnum.Self,
-            };
-            node.SetMeta(Meta, true);
-            Holder(town).AddChild(node);
-            stones += laid;
-        }
-        GD.Print($"square dressing: winding: the paving's stones {right} wound right, {wrong} wrong");
-        return stones;
     }
 
     /// <summary>
@@ -1309,12 +1255,7 @@ public static class NativeSquareDressing
             var colour = C4(s.GetProperty("colour")); var cu = s.GetProperty("custom");
             var custom = new Color(cu[0].GetSingle(), cu[1].GetSingle(), 0, 0);
             var st = For(sides, Area((a + b) / 2), true);
-            // the face from the pavement's top to under the street, its picture in metres along and up (the kerbs' own scale)
-            float len = new Vector2(b.X - a.X, b.Z - a.Z).Length(), s0 = a.X * 0.37f + a.Z * 0.61f;
-            var q = new[] { a, b, new Vector3(b.X, foot, b.Z), new Vector3(a.X, foot, a.Z) };
-            var qu = new[] { new Vector2(s0, a.Y), new Vector2(s0 + len, b.Y), new Vector2(s0 + len, foot), new Vector2(s0, foot) };
-            var order = (q[1] - q[0]).Cross(q[2] - q[0]).Dot(n) > 0 ? new[] { 0, 2, 1, 0, 3, 2 } : new[] { 0, 1, 2, 0, 2, 3 };
-            foreach (int k in order) { st.SetNormal(n); st.SetTangent(new Plane(0, -1, 0, 1)); st.SetUV(qu[k] / 3); st.SetCustom(0, custom); st.SetColor(colour); st.AddVertex(q[k]); }
+            Kerb(st, a, b, n, foot, colour, custom);
             faces++;
         }
         foreach (var area in tops.Keys.Union(sides.Keys).ToList())
@@ -1341,277 +1282,75 @@ public static class NativeSquareDressing
     }
 
     /// <summary>
-    /// A patch of reclaimed setts re-laid where the house's front stood: courses along the old front (the street's own run
-    /// another way), stones 16-26 x 12-18 cm with 1-2 cm earth joints, in running bond, the courses' ends stepped; each sett
-    /// its own height (1-1.8 cm proud: a new course over the old), a slight tilt, a 6 mm worn arris, a reused stone's tone.
+    /// An open edge's kerb face from a to b (its top, the pavement's) down to the foot under the street, facing out (n):
+    /// (#243: one flat quad in the kerbs' darkest look read as a black void at Sint-Carolus) kerb stones 0.5-1.0 m long,
+    /// each its own tone, with a dark 7 mm joint; the top's arris worn round by 6-12 mm (AGENTS.md: worn stone 5-15 mm),
+    /// paler where the feet and the light catch it; the face less weathered than the old kerbs' (their wear, the kerb
+    /// shader's damp and grime, turned the whole 12 cm face nearly black), and the street's dirt packed against its foot
+    /// where it meets the setts. The kerbs' own picture at their scale (1 a metre along, 0.4 up), their colour and custom.
     /// </summary>
-    private static int Setts(SurfaceTool st, Patch p, GroundHeight ground)
+    private static void Kerb(SurfaceTool st, Vector3 a, Vector3 b, Vector3 n, float foot, Color look, Color custom)
     {
-        var rng = new Random(p.Seed);
-        var n = new Vector2(-p.Along.Y, p.Along.X);
-        int laid = 0;
-        float y = -p.Depth / 2;
-        int course = 0;
-        while (y < p.Depth / 2)
+        float len = new Vector2(b.X - a.X, b.Z - a.Z).Length(), s0 = a.X * 0.37f + a.Z * 0.61f;
+        if (len < 1e-4f) return;
+        var rng = new Random((int)(a.X * 1000) ^ (int)(a.Z * 977) ^ (int)(b.X * 313));
+        // (the street meets the face here: its dirt packed against the foot)
+        const float Street = 0.03f, Joint = 0.007f;
+        void Quad(Vector3[] q, Vector2[] u, Color[] c, Vector3 nrm)
         {
-            float cw = 0.12f + 0.06f * (float)rng.NextDouble();
-            if (y + cw > p.Depth / 2 + 0.04f) break;
-            // the course's ends stepped by a sett or so, as a repair is laid out to the stones left standing
-            float x0 = -p.Length / 2 + ((float)rng.NextDouble() - 0.3f) * 0.3f, x1 = p.Length / 2 - ((float)rng.NextDouble() - 0.3f) * 0.3f;
-            float x = x0 + (course % 2 == 0 ? 0 : -0.09f);
-            while (x < x1)
+            // (Godot's front face turns clockwise as seen from outside)
+            var order = (q[1] - q[0]).Cross(q[2] - q[0]).Dot(nrm) > 0 ? new[] { 0, 2, 1, 0, 3, 2 } : new[] { 0, 1, 2, 0, 2, 3 };
+            foreach (int k in order) { st.SetNormal(nrm); st.SetTangent(new Plane(0, -1, 0, 1)); st.SetUV(new Vector2(u[k].X, u[k].Y * 0.4f)); st.SetCustom(0, custom); st.SetColor(c[k]); st.AddVertex(q[k]); }
+        }
+        // (less of the old kerbs' wear: the shader's damp and grime follow the colour's alpha)
+        float wear = Math.Min(look.A, 0.45f);
+        // (and against the damp's green-black, which the shader lays on every low face: a blue-grey stone again)
+        Color Tone(float k, float w) => new(Math.Min(1, look.R * k * 0.92f), Math.Min(1, look.G * k * 0.86f), Math.Min(1, look.B * k * 1.08f), w);
+        var arrisN = (n + Vector3.Up).Normalized();
+        for (float t = 0; t < len - 1e-3f;)
+        {
+            float sl = 0.5f + 0.5f * (float)rng.NextDouble();
+            if (len - t - sl < 0.35f) sl = len - t;
+            float t0 = t, t1 = Math.Min(len, t + sl);
+            t = t1;
+            float tone = 1.65f * (0.9f + 0.18f * (float)rng.NextDouble()), r = 0.006f + 0.006f * (float)rng.NextDouble();
+            // (the joint: the stone's end held back from the next, dark between)
+            float j0 = t0 > 0 ? t0 + Joint / 2 : t0, j1 = t1 < len ? t1 - Joint / 2 : t1;
+            Vector3 At(float s, float y, float inset) { var p = a.Lerp(b, s / len) - n * inset; return new Vector3(p.X, y, p.Z); }
+            float Top(float s) => Mathf.Lerp(a.Y, b.Y, s / len);
+            Vector2 Uv(float s, float y) => new(s0 + s, y);
+            // the worn arris, then the face down to the street and on to the foot
+            float re0 = r, re1 = r;
+            var top = new[] { At(j0, Top(j0), re0), At(j1, Top(j1), re1) };
+            var edge = new[] { At(j0, Top(j0) - re0, 0), At(j1, Top(j1) - re1, 0) };
+            Quad(new[] { top[0], top[1], edge[1], edge[0] }, new[] { Uv(j0, Top(j0) + re0), Uv(j1, Top(j1) + re1), Uv(j1, edge[1].Y), Uv(j0, edge[0].Y) },
+                new[] { Tone(tone * 1.15f, wear * 0.7f), Tone(tone * 1.15f, wear * 0.7f), Tone(tone * 1.05f, wear), Tone(tone * 1.05f, wear) }, arrisN);
+            var street = new[] { At(j0, Street, 0), At(j1, Street, 0) };
+            Quad(new[] { edge[0], edge[1], street[1], street[0] }, new[] { Uv(j0, edge[0].Y), Uv(j1, edge[1].Y), Uv(j1, Street), Uv(j0, Street) },
+                new[] { Tone(tone, wear), Tone(tone, wear), Tone(tone * 0.8f, wear), Tone(tone * 0.8f, wear) }, n);
+            var low = new[] { At(j0, foot, 0), At(j1, foot, 0) };
+            Quad(new[] { street[0], street[1], low[1], low[0] }, new[] { Uv(j0, Street), Uv(j1, Street), Uv(j1, foot), Uv(j0, foot) },
+                new[] { Tone(tone * 0.8f, wear), Tone(tone * 0.8f, wear), new Color(0.2f, 0.18f, 0.15f, wear), new Color(0.2f, 0.18f, 0.15f, wear) }, n);
+            // the joint after it: a dark slot 7 mm wide, a centimetre in
+            if (t1 < len)
             {
-                float sl = 0.16f + 0.1f * (float)rng.NextDouble(), joint = 0.01f + 0.012f * (float)rng.NextDouble();
-                float a = Math.Max(x, x0), b = Math.Min(x + sl, x1);
-                if (b - a > 0.08f)
+                var d = new Color(0.12f, 0.11f, 0.1f, wear);
+                Vector3 J(float s, float y) => At(s, y, 0.01f);
+                Quad(new[] { J(j1, Top(j1)), J(j1 + Joint, Top(j1 + Joint)), J(j1 + Joint, foot), J(j1, foot) },
+                    new[] { Uv(j1, Top(j1)), Uv(j1 + Joint, Top(j1 + Joint)), Uv(j1 + Joint, foot), Uv(j1, foot) }, new[] { d, d, d, d }, n);
+                // (the stones' ends into the joint)
+                foreach (var (s, side) in new[] { (j1, 1f), (j1 + Joint, -1f) })
                 {
-                    var mid = p.At + p.Along * ((a + b) / 2) + n * (y + cw / 2);
-                    float top = 0.01f + 0.008f * (float)rng.NextDouble();
-                    // (the repair stops at the pavement's kerb, a step or a tree pit: only on the street's own setts)
-                    float under = ground.At(mid);
-                    if (under > 0.025f) { x += sl; continue; }
-                    // (reclaimed: a worn grey, a warm grey, now and then a darker or a sandier one)
-                    double pick = rng.NextDouble();
-                    float k = 0.22f + 0.22f * (float)rng.NextDouble();
-                    var tone = pick < 0.45 ? new Color(1.0f * k, 1.0f * k, 0.94f * k) : pick < 0.8 ? new Color(1.03f * k, 1.0f * k, 0.92f * k) : pick < 0.95 ? new Color(0.9f * k, 0.98f * k, 1.0f * k) : new Color(1.05f * k, 0.98f * k, 0.84f * k);
-                    Block(st, mid, p.Along, (b - a - joint) / 2, (cw - joint) / 2, under + top, 0.01f, tone, rng, 0.003f + 0.006f * (float)rng.NextDouble(), 0.05f);
-                    laid++;
-                }
-                x += sl;
-            }
-            y += cw;
-            course++;
-        }
-        return laid;
-    }
-
-    /// <summary>
-    /// The old front's plinth left in the street: blue-stone blocks 0.45-0.95 m long and 0.30-0.36 m wide on the wall's line,
-    /// 4-12 mm proud, 6-10 mm joints, a 10 mm worn arris; the run's two end stones broken short now and then, none under a
-    /// mended patch, a tree, bench or thing. (Codex on #231: with one block in six taken and one in four broken anywhere,
-    /// each stepped back on its own where the pavement still ran, the run read as loose slabs scattered on the setts; now
-    /// the blocks lie joined on one line and the run ends with a whole stone or a broken one.) (Codex on #237: the joined
-    /// line looked freshly laid.) Each block worn as an old stone (WornStone: its arris a worn round of 6-20 mm, wider at
-    /// its ends, its corners rounded), set a little off the line and turned a hair, its joint 6-18 mm, and the street's
-    /// dirt packed against its foot and into the joints; its top grimed in patches and darker at its ends.
-    /// </summary>
-    private static int Plinth(SurfaceTool st, Strip s, List<Patch> patches, GroundHeight ground)
-    {
-        var rng = new Random(s.Seed);
-        float len = s.A.DistanceTo(s.B);
-        var u = (s.B - s.A) / len;
-        // the blocks' lengths along the run, the last one taking what is left
-        var blocks = new List<(float T, float L)>();
-        for (float t = 0; t < len - 0.3f;)
-        {
-            float bl = Math.Min(0.45f + 0.5f * (float)rng.NextDouble(), len - t);
-            if (len - t - bl < 0.3f) bl = len - t;
-            blocks.Add((t, bl));
-            t += bl;
-        }
-        // (where the street's pavement still runs along the old front, the whole run lies at its back, inside the plot)
-        float High(Vector2 c, float bl) => Math.Max(ground.At(c - u * bl / 2), Math.Max(ground.At(c), ground.At(c + u * bl / 2)));
-        float back = 0;
-        foreach (var (t, bl) in blocks)
-        {
-            var mid = s.A + u * (t + bl / 2);
-            float b = 0;
-            while (b < 1.8f && High(mid + s.In * b, bl) > 0.025f) b += 0.1f;
-            if (b < 1.8f) back = Math.Max(back, b);
-        }
-        int laid = 0;
-        for (int i = 0; i < blocks.Count; i++)
-        {
-            var (t, bl) = blocks[i];
-            var mid = s.A + u * (t + bl / 2) + s.In * (back + 0.12f);
-            if (High(mid, bl) > 0.025f) continue;
-            bool under = patches.Any(p => Math.Abs((mid - p.At).Dot(p.Along)) < p.Length / 2 + bl / 2 && Math.Abs((mid - p.At).Dot(new Vector2(-p.Along.Y, p.Along.X))) < p.Depth / 2 + 0.2f);
-            if (under || !Keep.All(k => mid.DistanceTo(k.At) > k.R + bl / 2)) continue;
-            float k = 0.26f + 0.1f * (float)rng.NextDouble();
-            float joint = 0.006f + 0.012f * (float)rng.NextDouble();
-            // (an end stone broken off short, its broken end toward the run's end)
-            bool endStone = i == 0 || i == blocks.Count - 1;
-            float keep = endStone && rng.NextDouble() < 0.35 ? 0.5f + 0.3f * (float)rng.NextDouble() : 1;
-            var shift = i == 0 ? u * bl * (1 - keep) / 2 : -u * bl * (1 - keep) / 2;
-            // (settled since: each a little off the line, turned a hair)
-            shift += s.In * (((float)rng.NextDouble() - 0.5f) * 0.02f);
-            float tw = ((float)rng.NextDouble() - 0.5f) * 0.026f;
-            var along = new Vector2(u.X * MathF.Cos(tw) - u.Y * MathF.Sin(tw), u.X * MathF.Sin(tw) + u.Y * MathF.Cos(tw));
-            float bed = ground.At(mid);
-            OldStone(st, mid + shift, along, (bl * keep - joint) / 2, 0.15f + 0.03f * (float)rng.NextDouble(), bed + 0.004f + 0.008f * (float)rng.NextDouble(), bed, new Color(0.9f * k, 0.97f * k, 1.0f * k), rng);
-            laid++;
-        }
-        return laid;
-    }
-    /// <summary>
-    /// One old plinth stone (WornStone) in the facade material: the tooled top in its tone, grimed in patches and darker at
-    /// its ends, the worn arris a little paler, the sides darker down to the street, the dirt at its foot.
-    /// </summary>
-    private static void OldStone(SurfaceTool st, Vector2 at, Vector2 along, float ha, float hc, float top, float under, Color tone, Random rng)
-    {
-        float ph = (float)rng.NextDouble() * 40;
-        WornStone.Build(at, along, ha, hc, top, top - 0.045f, 0.01f, rng, (a, b, c) =>
-        {
-            foreach (var v in new[] { a, b, c })
-            {
-                float k;
-                var p = v.P;
-                if (v.Dirt >= 0) k = 0.3f + 0.25f * v.Dirt;
-                else
-                {
-                    float patch = Math.Clamp(MathF.Sin(p.X * 7.9f + ph) * MathF.Sin(p.Z * 9.3f - ph) + 0.5f * MathF.Sin(p.X * 21.1f - p.Z * 17.3f + ph), -1, 1) * 0.5f + 0.5f;
-                    float grime = 1.02f - 0.26f * patch - 0.22f * v.End;
-                    k = v.Up > 0.92f ? grime : v.Up > 0.15f ? Mathf.Lerp(0.82f, 1.04f, v.Up) * grime : 0.78f * (0.62f + 0.38f * Math.Clamp(v.Over / 0.012f, 0, 1));
-                }
-                var col = v.Dirt >= 0 ? new Color(0.24f * k, 0.2f * k, 0.16f * k, 0.5f) : new Color(tone.R * k, tone.G * k, tone.B * k, 0.5f);
-                st.SetNormal(v.N); st.SetUV(WallUv); st.SetUV2(WallCell ?? Vector2.Zero); st.SetCustom(0, new Color(RenderPicture, 1, 0, 0));
-                st.SetColor(col); st.AddVertex(p);
-            }
-        }, endWear: 1.0f, ground: under, tilt: 0.003f, dirt: 0.024f);
-    }
-    /// <summary>
-    /// The street's height under the new stones: the town's upward faces near the ground (pavements, kerbs, steps, the
-    /// setts) in the given boxes, the highest under a point (0 where none is: the squares' setts lie at y 0).
-    /// </summary>
-    private sealed class GroundHeight
-    {
-        private readonly Dictionary<(int, int), List<(Vector3 A, Vector3 B, Vector3 C)>> cells = new();
-
-        public GroundHeight(Node3D town, IEnumerable<Rect2> boxes)
-        {
-            var want = new HashSet<(int, int)>();
-            foreach (var b in boxes)
-                for (int i = (int)MathF.Floor(b.Position.X / 2); i <= (int)MathF.Floor(b.End.X / 2); i++)
-                    for (int j = (int)MathF.Floor(b.Position.Y / 2); j <= (int)MathF.Floor(b.End.Y / 2); j++) want.Add((i, j));
-            if (want.Count == 0) return;
-            bool Wanted(float x0, float z0, float x1, float z1)
-            {
-                for (int i = (int)MathF.Floor(x0 / 2); i <= (int)MathF.Floor(x1 / 2); i++)
-                    for (int j = (int)MathF.Floor(z0 / 2); j <= (int)MathF.Floor(z1 / 2); j++) if (want.Contains((i, j))) return true;
-                return false;
-            }
-            foreach (var mesh in BakedWorld.All(town).OfType<MeshInstance3D>().Where(m => m.Mesh is ArrayMesh && !m.HasMeta(Meta)))
-            {
-                var xf = WorldOf(mesh);
-                var box = xf * mesh.GetAabb();
-                if (box.Position.Y > 0.5f || !Wanted(box.Position.X, box.Position.Z, box.End.X, box.End.Z)) continue;
-                var am = (ArrayMesh)mesh.Mesh;
-                for (int s = 0; s < am.GetSurfaceCount(); s++)
-                {
-                    if (am.SurfaceGetPrimitiveType(s) != Mesh.PrimitiveType.Triangles || !Street(am.SurfaceGetMaterial(s))) continue;
-                    var arrays = am.SurfaceGetArrays(s);
-                    var v = arrays[(int)Mesh.ArrayType.Vertex].AsVector3Array();
-                    var index = arrays[(int)Mesh.ArrayType.Index].VariantType == Variant.Type.PackedInt32Array ? arrays[(int)Mesh.ArrayType.Index].AsInt32Array() : Enumerable.Range(0, v.Length).ToArray();
-                    for (int t = 0; t + 2 < index.Length; t += 3)
-                    {
-                        Vector3 a = xf * v[index[t]], b = xf * v[index[t + 1]], c = xf * v[index[t + 2]];
-                        if (Math.Max(a.Y, Math.Max(b.Y, c.Y)) > 0.45f || Math.Min(a.Y, Math.Min(b.Y, c.Y)) < -0.3f) continue;
-                        var n = (b - a).Cross(c - a);
-                        if (n.LengthSquared() < 1e-12f || Math.Abs(n.Normalized().Y) < 0.85f) continue;
-                        float x0 = Math.Min(a.X, Math.Min(b.X, c.X)), x1 = Math.Max(a.X, Math.Max(b.X, c.X)), z0 = Math.Min(a.Z, Math.Min(b.Z, c.Z)), z1 = Math.Max(a.Z, Math.Max(b.Z, c.Z));
-                        if (!Wanted(x0, z0, x1, z1)) continue;
-                        for (int i = (int)MathF.Floor(x0); i <= (int)MathF.Floor(x1); i++)
-                            for (int j = (int)MathF.Floor(z0); j <= (int)MathF.Floor(z1); j++)
-                            {
-                                if (!cells.TryGetValue((i, j), out var list)) cells[(i, j)] = list = new();
-                                list.Add((a, b, c));
-                            }
-                    }
+                    var along = (new Vector3(b.X - a.X, 0, b.Z - a.Z) / len) * side;
+                    Quad(new[] { At(s, Top(s), 0), At(s, Top(s), 0.01f), At(s, foot, 0.01f), At(s, foot, 0) },
+                        new[] { Uv(s, Top(s)), Uv(s + 0.01f, Top(s)), Uv(s + 0.01f, foot), Uv(s, foot) }, new[] { d, d, d, d }, along);
                 }
             }
         }
-
-        // (only the street's own surfaces: the ground's setts and the pavements' and kerbs' slabs, not the houses' walls
-        // and roofs, whose arrays are the big ones)
-        private readonly Dictionary<Material, bool> street = new();
-        private bool Street(Material? m)
-        {
-            if (m is not ShaderMaterial sm) return false;
-            if (!street.TryGetValue(m, out bool yes))
-                street[m] = yes = sm.GetShaderParameter("puddles").VariantType != Variant.Type.Nil || sm.GetShaderParameter("slab_tile").VariantType != Variant.Type.Nil;
-            return yes;
-        }
-
-        public float At(Vector2 p)
-        {
-            if (!cells.TryGetValue(((int)MathF.Floor(p.X), (int)MathF.Floor(p.Y)), out var list)) return 0;
-            float best = float.NegativeInfinity;
-            foreach (var (a, b, c) in list)
-            {
-                // (barycentric, in plan)
-                float d = (b.Z - c.Z) * (a.X - c.X) + (c.X - b.X) * (a.Z - c.Z);
-                if (Math.Abs(d) < 1e-9f) continue;
-                float l1 = ((b.Z - c.Z) * (p.X - c.X) + (c.X - b.X) * (p.Y - c.Z)) / d, l2 = ((c.Z - a.Z) * (p.X - c.X) + (a.X - c.X) * (p.Y - c.Z)) / d, l3 = 1 - l1 - l2;
-                if (l1 < -1e-4f || l2 < -1e-4f || l3 < -1e-4f) continue;
-                best = Math.Max(best, l1 * a.Y + l2 * b.Y + l3 * c.Y);
-            }
-            return float.IsNegativeInfinity(best) ? 0 : best;
-        }
     }
 
-    /// <summary>The trees, benches and things the stones keep clear of (Lay fills it).</summary>
+    /// <summary>The trees, benches and things the hollows keep clear of (Lay fills it).</summary>
     private static readonly List<(Vector2 At, float R)> Keep = new();
-
-    /// <summary>
-    /// One stone in the paving: a block (half sizes along and across its run) whose top stands `top` over the street, its
-    /// top's arris worn by `arris` all round, its sides down to 3 cm under the street; tilted a hair, its tone dirtier at
-    /// the foot. In the facade material (as the salvage's bricks): the render picture's grey grain in world metres, so
-    /// each stone shows its own piece of it, in the stone's own colour (the vertex colour), worn 0.5 (the town's coal film).
-    /// </summary>
-    private static void Block(SurfaceTool st, Vector2 at, Vector2 along, float ha, float hc, float top, float arris, Color tone, Random rng, float crown = 0, float turn = 0)
-    {
-        // (a hand-laid stone is turned a hair off its course)
-        float tw = ((float)rng.NextDouble() - 0.5f) * 2 * turn;
-        along = new Vector2(along.X * MathF.Cos(tw) - along.Y * MathF.Sin(tw), along.X * MathF.Sin(tw) + along.Y * MathF.Cos(tw));
-        var ac = new Vector2(-along.Y, along.X);
-        float tiltA = ((float)rng.NextDouble() - 0.5f) * 0.006f, tiltC = ((float)rng.NextDouble() - 0.5f) * 0.006f;
-        float Foot = top - 0.045f;
-        Vector3 P(float a, float c, float y)
-        {
-            var q = at + along * a + ac * c;
-            float lift = y > 0 ? (a / Math.Max(ha, 0.01f)) * tiltA + (c / Math.Max(hc, 0.01f)) * tiltC : 0;
-            return new Vector3(q.X, y + lift, q.Y);
-        }
-        void Face(Vector3 a, Vector3 b, Vector3 c, Vector3 d, Vector3 nrm, float shade)
-        {
-            // Godot's front face turns clockwise as seen from outside
-            bool tri = c == d;
-            if ((b - a).Cross(c - a).Dot(nrm) > 0) { if (tri) (b, c) = (c, b); else (b, d) = (d, b); }
-            foreach (var p in tri ? new[] { a, b, c } : new[] { a, b, c, a, c, d })
-            {
-                float k = shade * (p.Y < Foot + 0.001f ? 0.8f : 1);
-                st.SetNormal(nrm); st.SetUV(WallUv); st.SetUV2(WallCell ?? Vector2.Zero); st.SetCustom(0, new Color(RenderPicture, 1, 0, 0));
-                st.SetColor(new Color(tone.R * k, tone.G * k, tone.B * k, 0.5f)); st.AddVertex(p);
-            }
-        }
-        float y = top - arris, ia = ha - arris, ic = hc - arris;
-        var up = Vector3.Up;
-        Vector3 A3 = new(along.X, 0, along.Y), C3 = new(ac.X, 0, ac.Y);
-        // the worn top: flat, or crowned (worn round by the wheels and the feet: four faces up to a middle a few mm higher)
-        if (crown <= 0) Face(P(-ia, -ic, top), P(ia, -ic, top), P(ia, ic, top), P(-ia, ic, top), up, 1);
-        else
-        {
-            var mid = P(0, 0, top + crown);
-            var ring = new[] { P(-ia, -ic, top), P(ia, -ic, top), P(ia, ic, top), P(-ia, ic, top) };
-            for (int k = 0; k < 4; k++)
-            {
-                Vector3 a = ring[k], b = ring[(k + 1) % 4];
-                var nrm = (b - a).Cross(mid - a).Normalized();
-                if (nrm.Y < 0) nrm = -nrm;
-                Face(a, b, mid, mid, nrm, 1.02f);
-            }
-        }
-        // the arris, all round
-        Face(P(-ia, ic, top), P(ia, ic, top), P(ha, hc, y), P(-ha, hc, y), (up + C3).Normalized(), 0.92f);
-        Face(P(ia, -ic, top), P(-ia, -ic, top), P(-ha, -hc, y), P(ha, -hc, y), (up - C3).Normalized(), 0.92f);
-        Face(P(ia, ic, top), P(ia, -ic, top), P(ha, -hc, y), P(ha, hc, y), (up + A3).Normalized(), 0.92f);
-        Face(P(-ia, -ic, top), P(-ia, ic, top), P(-ha, hc, y), P(-ha, -hc, y), (up - A3).Normalized(), 0.92f);
-        // the sides, into the street
-        Face(P(-ha, hc, y), P(ha, hc, y), P(ha, hc, Foot), P(-ha, hc, Foot), C3, 0.78f);
-        Face(P(ha, -hc, y), P(-ha, -hc, y), P(-ha, -hc, Foot), P(ha, -hc, Foot), -C3, 0.78f);
-        Face(P(ha, hc, y), P(ha, -hc, y), P(ha, -hc, Foot), P(ha, hc, Foot), A3, 0.78f);
-        Face(P(-ha, -hc, y), P(-ha, hc, y), P(-ha, hc, Foot), P(-ha, -hc, Foot), -A3, 0.78f);
-    }
 
     // ------------------------------------------------------------------ the things
 
@@ -1620,11 +1359,6 @@ public static class NativeSquareDressing
     {
         var holder = Holder(town);
         int placed = 0;
-        if (Laid is { } lay)
-        {
-            int stones = Pave(town, lay);
-            GD.Print($"square dressing: {lay.Patches.Count} mended patches and {lay.Strips.Count} old fronts paved ({stones} stones), {lay.Hollows.Count} hollows");
-        }
         var (fills, faces) = Mend(town);
         GD.Print($"square dressing: the old pavements' broken ends mended: {fills} flag pieces laid, {faces} open edges faced");
         AuthorAsset? pump = null;
