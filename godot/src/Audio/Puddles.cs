@@ -25,8 +25,8 @@ public static class Puddles
     public static double At(double x, double z, double level, double scale = 1.1)
     {
         // (the shader's pud_warp)
-        double wx = x+(Value(x/3.7+5.3,z/3.7+5.3)-.5)*2.4, wz = z+(Value(x/3.7-9.1,z/3.7-9.1)-.5)*2.4;
-        double pn = Turned(wx,wz,.814,.581,17,0)*.55+Turned(wx,wz,-.333,.943,7.3,31.7)*.3+Turned(wx,wz,-.951,.309,2.9,-12.1)*.15;
+        double wx = x+(Value(x/2.6+5.3,z/2.6+5.3)-.5)*.7+(Value(x/.9+1.7,z/.9+1.7)-.5)*.35, wz = z+(Value(x/2.6-9.1,z/2.6-9.1)-.5)*.7+(Value(x/.9-4.3,z/.9-4.3)-.5)*.35;
+        double pn = Value(wx/17,wz/17)*.55+Value(wx/7.3+31.7,wz/7.3+31.7)*.3+Value(wx/2.9-12.1,wz/2.9-12.1)*.15;
         pn = Math.Clamp((pn-.5)*2.4+.5,0,1); double threshold = .97-Math.Clamp(level*scale,0,1)*.22;
         if (pn <= threshold) return 0;
         return Smooth(threshold,threshold+.018,pn)*Smooth(.46,.56,Turned(wx,wz,.454,-.891,2.1,57.1))*Smooth(.3,.42,Turned(wx,wz,-.6,-.8,4.7,-23.9));

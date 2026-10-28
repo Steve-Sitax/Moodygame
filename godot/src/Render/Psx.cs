@@ -552,10 +552,11 @@ float pud_val(vec2 p) {
 	vec2 u = f * f * (3.0 - 2.0 * f);
 	return mix(mix(pud_hash(i), pud_hash(i + vec2(1.0, 0.0)), u.x), mix(pud_hash(i + vec2(0.0, 1.0)), pud_hash(i + vec2(1.0, 1.0)), u.x), u.y);
 }
-// the puddles' ground (Audio/Puddles.cs keeps the same sums): warped by up to 1.2 m, each stretch of the noise turned its own
-// way. On the noise's square grid alone the puddles had straight sides and square corners (Codex on #231).
+// the puddles' ground (Audio/Puddles.cs keeps the same sums): warped by up to half a metre in two stretches, and the cuts
+// that break the water into puddles each turned its own way. On the noise's square grid alone the puddles had straight
+// sides and square corners (Codex on #231); the wet stretches stay where they always lay (#237: turned too, they moved).
 vec2 pud_turn(vec2 p, float c, float s) { return vec2(c * p.x - s * p.y, s * p.x + c * p.y); }
-vec2 pud_warp(vec2 p) { return p + (vec2(pud_val(p / 3.7 + 5.3), pud_val(p / 3.7 - 9.1)) - 0.5) * 2.4; }
+vec2 pud_warp(vec2 p) { return p + (vec2(pud_val(p / 2.6 + 5.3), pud_val(p / 2.6 - 9.1)) - 0.5) * 0.7 + (vec2(pud_val(p / 0.9 + 1.7), pud_val(p / 0.9 - 4.3)) - 0.5) * 0.35; }
 ";
 
     /// <summary>The light one spill source gives a point (psx.ts spillGlsl), and all of them (psxSpill).</summary>
@@ -1596,7 +1597,7 @@ void fragment() {
 		// ground under it looking down and the sky at a slant (the street mirrored in it: the mirrors' step)
 		vec2 pp = world.xz;
 		vec2 pw = pud_warp(pp);
-		float pn = pud_val(pud_turn(pw, 0.814, 0.581) / 17.0) * 0.55 + pud_val(pud_turn(pw, -0.333, 0.943) / 7.3 + 31.7) * 0.3 + pud_val(pud_turn(pw, -0.951, 0.309) / 2.9 - 12.1) * 0.15;
+		float pn = pud_val(pw / 17.0) * 0.55 + pud_val(pw / 7.3 + 31.7) * 0.3 + pud_val(pw / 2.9 - 12.1) * 0.15;
 		pn = clamp((pn - 0.5) * 2.4 + 0.5, 0.0, 1.0);
 		float lvl = clamp(psx_puddle * puddles, 0.0, 1.0);
 		// at most about a quarter of the ground is puddle, even in a storm
@@ -1607,7 +1608,7 @@ void fragment() {
 		// the hollows the dirt mask's alpha marks (1 - how deep: the cleared squares, NativeSquareDressing): they fill
 		// first, deeper with the rain, their edge broken by the stones
 		// (read a little off its place, by the same warp: the mask's half-metre texels drew the hollows' edges straight)
-		float hol = 1.0 - texture(psx_dirt, (pp + (pw - pp) * 0.25 - psx_dirt_box.xy) / psx_dirt_box.zw).a;
+		float hol = 1.0 - texture(psx_dirt, (pp + (pw - pp) * 0.6 - psx_dirt_box.xy) / psx_dirt_box.zw).a;
 		hol += (pud_val(pp / 0.45 + 3.3) - 0.5) * 0.22 * smoothstep(0.02, 0.15, hol);
 		water = max(water, smoothstep(0.66 - lvl * 0.45, 0.72 - lvl * 0.45, hol));
 ");
