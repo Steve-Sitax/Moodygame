@@ -1,0 +1,14 @@
+{
+ "pit_soil": {
+  "size": 2048,
+  "metres": 0.03059,
+  "hollows_12pct": 0.384
+ },
+ "wet_mud": {
+  "size": 1024,
+  "metres": 0.04957,
+  "water_level": 0.0,
+  "note": "deepened: ridges, lumps, crust and cracks",
+  "hollows_12pct": 0.416
+ }
+}

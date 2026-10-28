@@ -22,6 +22,15 @@ layout and grain seeds; lettering is flat ink, excluded from height. Kenney's Pi
 Quaternius's Fantasy Props MegaKit (both CC0) were researched as references; no pack files imported.
 
 
+## Procedural dirt: pit soil and wet mud (#244, 2026-10-28)
+
+`native-godot/assets/materials/dirt-20261028/` (pit_soil, wet_mud) is original procedural artwork. Codex (OpenAI Codex
+CLI, Steve's OK for textures, 2026-09-29) generated the sets with its own Python, NumPy, SciPy and Pillow scripts from noise
+and geometry only: no photographs, no downloaded or third-party images, nothing to attribute (Codex's `LICENCES.txt`:
+reference images were looked at, none were copied). Its maps, scripts, README and checks are kept in
+`art-source/dirt-20261028/codex/`; `art-source/dirt-20261028/build_dirt.py` packs them for the game and deepens the mud.
+Checksums of every source map: `art-source/dirt-20261028/README.md`.
+
 ## Sound
 
 | Asset | Where in repo | Source | Licence | Checked |

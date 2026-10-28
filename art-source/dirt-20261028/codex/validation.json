@@ -1,0 +1,67 @@
+{
+  "dry_earth": {
+    "height_min_metres": -0.007881857454776764,
+    "height_range_metres": 0.0158911170437932,
+    "height_peak_to_peak_mm": 15.89,
+    "water_coverage_percent": 0.0,
+    "seam_to_interior_gradient_ratio": {
+      "albedo": 1.02,
+      "height": 1.015,
+      "normal": 0.972,
+      "roughness": 1.041,
+      "ao": 1.056
+    }
+  },
+  "pit_soil": {
+    "height_min_metres": -0.009207280352711678,
+    "height_range_metres": 0.03723515570163727,
+    "height_peak_to_peak_mm": 37.24,
+    "water_coverage_percent": 0.0,
+    "seam_to_interior_gradient_ratio": {
+      "albedo": 1.066,
+      "height": 0.93,
+      "normal": 0.983,
+      "roughness": 1.056,
+      "ao": 0.927
+    }
+  },
+  "wet_mud": {
+    "height_min_metres": -0.0027855352964252234,
+    "height_range_metres": 0.011489595985040069,
+    "height_peak_to_peak_mm": 11.49,
+    "water_coverage_percent": 12.0,
+    "seam_to_interior_gradient_ratio": {
+      "albedo": 1.088,
+      "height": 1.069,
+      "normal": 1.032,
+      "roughness": 0.96,
+      "ao": 0.981
+    }
+  },
+  "grave_soil": {
+    "height_min_metres": -0.010970588773488998,
+    "height_range_metres": 0.04331176355481148,
+    "height_peak_to_peak_mm": 43.31,
+    "water_coverage_percent": 0.0,
+    "seam_to_interior_gradient_ratio": {
+      "albedo": 0.938,
+      "height": 1.093,
+      "normal": 1.053,
+      "roughness": 0.991,
+      "ao": 1.124
+    }
+  },
+  "yard_dirt": {
+    "height_min_metres": -0.0069922818802297115,
+    "height_range_metres": 0.016865525860339403,
+    "height_peak_to_peak_mm": 16.87,
+    "water_coverage_percent": 0.0,
+    "seam_to_interior_gradient_ratio": {
+      "albedo": 1.034,
+      "height": 1.062,
+      "normal": 1.007,
+      "roughness": 1.05,
+      "ao": 1.04
+    }
+  }
+}
