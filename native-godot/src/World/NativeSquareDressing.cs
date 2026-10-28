@@ -51,6 +51,14 @@ public static class NativeSquareDressing
     {
         /// <summary>The house's chimney breast and its rooms' paper: on the longest stretch it shared with this neighbour, 3 m or more.</summary>
         public bool Flue { get; init; }
+        /// <summary>
+        /// Where the stretch reaches the standing house's own front (its corner on the street, before A or after B): the
+        /// corner and the front's outward way. There the bake stopped the party wall 15 cm short (SEAM_SET) of the corner.
+        /// </summary>
+        public (Vector2 At, Vector2 Front)? CornerA { get; init; }
+        public (Vector2 At, Vector2 Front)? CornerB { get; init; }
+        /// <summary>A flat-roofed neighbour (city_build.json): the bake gave it a parapet or, for most, a low hipped roof.</summary>
+        public bool Parapet { get; init; }
     }
 
     private sealed record House(int Index, Vector2[] Outline, bool Razed, bool Gone, JsonElement Data);
@@ -85,8 +93,11 @@ public static class NativeSquareDressing
         int drawn = 0;
         foreach (var outline in cut)
         {
-            // the plot and a metre round it (where it meets the street, the new drawing fades into the old)
-            float ox0 = outline.Min(p => p.X) - 1.2f, ox1 = outline.Max(p => p.X) + 1.2f, oz0 = outline.Min(p => p.Y) - 1.2f, oz1 = outline.Max(p => p.Y) + 1.2f;
+            // the plot and two metres round it (where it meets the street, the new drawing fades into the old). The old
+            // mask's grime along the house's foot ran a metre out over its pavement and kerb: kept, it blackened the kerb
+            // face as a wall's foot (Codex on #231, the Paulus kerb that seemed to float); so the first 0.9 m out is drawn
+            // anew, then it fades into the street's own by 2.2 m.
+            float ox0 = outline.Min(p => p.X) - Reach, ox1 = outline.Max(p => p.X) + Reach, oz0 = outline.Min(p => p.Y) - Reach, oz1 = outline.Max(p => p.Y) + Reach;
             int i0 = Math.Max(0, (int)((ox0 - x0) / px)), i1 = Math.Min(iw - 1, (int)((ox1 - x0) / px));
             int j0 = Math.Max(0, (int)((oz0 - z0) / pz)), j1 = Math.Min(ih - 1, (int)((oz1 - z0) / pz));
             var nearWalls = standing.Where(s => Near(s, ox0 - 4, oz0 - 4, ox1 + 4, oz1 + 4)).Concat(churches.Where(c => Near(c, ox0 - 4, oz0 - 4, ox1 + 4, oz1 + 4))).ToList();
@@ -96,7 +107,7 @@ public static class NativeSquareDressing
                     var q = new Vector2(x0 + (i + 0.5f) * px, z0 + (j + 0.5f) * pz);
                     // (inside a standing house or a church: not ground)
                     if (standing.Any(s => Inside(s, q)) || churches.Any(c => Inside(c, q))) continue;
-                    float inPlot = Inside(outline, q) ? 1 : 1 - Math.Clamp(EdgeDistance(outline, q) / 1.2f, 0, 1);
+                    float inPlot = Inside(outline, q) ? 1 : 1 - SmoothStep(0.9f, Reach, EdgeDistance(outline, q));
                     if (inPlot <= 0) continue;
                     // (a pixel another cut plot already drew fully stays as drawn)
                     if (!Inside(outline, q) && cut.Any(o => o != outline && Inside(o, q))) continue;
@@ -173,6 +184,8 @@ public static class NativeSquareDressing
     }
     /// <summary>The redrawn mask (kept alive while the town is).</summary>
     public static ImageTexture? Dirt { get; private set; }
+    // how far round a cut plot the dirt mask is drawn again
+    private const float Reach = 2.2f;
 
     private static float PathDistance(Path path, Vector2 q)
     {
@@ -225,9 +238,23 @@ public static class NativeSquareDressing
             foreach (var s in standing.Where(s => Near(s.Outline, r.Outline, 0.6f)))
             {
                 float sh = s.Data.GetProperty("h").GetSingle();
+                int sn = s.Outline.Length;
+                var streets = s.Data.TryGetProperty("street", out var sv2) ? sv2.EnumerateArray().Select(e => e.ValueKind == JsonValueKind.Number && e.GetInt32() == 1).ToArray() : Array.Empty<bool>();
+                bool Street(int e) => e >= 0 && e < streets.Length && streets[e];
+                var sc = s.Outline.Aggregate(Vector2.Zero, (t, p) => t + p) / sn;
+                bool flat = s.Data.TryGetProperty("roof", out var sr) && sr.GetString() == "flat";
+                // the outward way of the standing house's edge e (fp[e] to fp[e + 1])
+                Vector2 OutOf(int e)
+                {
+                    Vector2 p = s.Outline[e], q = s.Outline[(e + 1) % sn];
+                    var o = new Vector2(-(q - p).Y, (q - p).X).Normalized();
+                    return (sc - (p + q) / 2).Dot(o) > 0 ? -o : o;
+                }
                 for (int i = 0; i < s.Outline.Length; i++)
                 {
                     Vector2 a = s.Outline[(i + s.Outline.Length - 1) % s.Outline.Length], b = s.Outline[i];
+                    // (this edge is fp[e] to fp[e + 1]; the edge before a is e - 1, the one after b e + 1)
+                    int e = (i + sn - 1) % sn;
                     float len = a.DistanceTo(b);
                     if (len < 0.5f) continue;
                     var u = (b - a) / len;
@@ -246,7 +273,13 @@ public static class NativeSquareDressing
                         float rl = c.DistanceTo(d);
                         if (ridge is { } rd && rl > 0.5f && Math.Abs(((d - c) / rl).Dot(rd)) < 0.3f)
                             rise = MathF.Tan(Mathf.DegToRad(pitch)) * rl / 2 * (hi - lo) / Math.Max(0.1f, Math.Abs(td - tc));
-                        result.Add(new BaredWall(s.Index, r.Index, p0, p1, outward, sh, rh, st, rise, seed));
+                        int before = (e + sn - 1) % sn, after = (e + 1) % sn;
+                        result.Add(new BaredWall(s.Index, r.Index, p0, p1, outward, sh, rh, st, rise, seed)
+                        {
+                            CornerA = lo < 0.3f && Street(before) ? (a, OutOf(before)) : null,
+                            CornerB = hi > len - 0.3f && Street(after) ? (b, OutOf(after)) : null,
+                            Parapet = flat,
+                        });
                     }
                 }
             }
@@ -291,13 +324,33 @@ public static class NativeSquareDressing
             var st = new SurfaceTool(); st.Begin(Mesh.PrimitiveType.Triangles);
             var ir = new SurfaceTool(); ir.Begin(Mesh.PrimitiveType.Triangles);
             var pl = Begin();
-            int q0 = 0, a0 = 0;
+            var fin = Begin();
+            var cope = new SurfaceTool(); cope.Begin(Mesh.PrimitiveType.Triangles);
+            int q0 = 0, a0 = 0, f0 = 0, c0 = 0;
             foreach (var w in area)
             {
                 var (q, a) = GhostMarks(st, ir, pl, w);
                 q0 += q; a0 += a;
+                var (f, c) = Finish(town, fin, cope, w);
+                f0 += f; c0 += c;
             }
             string tag = $"{area.Key.Item1}_{area.Key.Item2}";
+            if (f0 > 0)
+            {
+                var corners = Commit(fin, ResourceLoader.Load<Material>(FacadeMaterial), "corners_" + tag, normals: false);
+                corners.VisibilityRangeEnd = 220; corners.VisibilityRangeEndMargin = 20; corners.VisibilityRangeFadeMode = GeometryInstance3D.VisibilityRangeFadeModeEnum.Self;
+                holder.AddChild(corners);
+            }
+            if (c0 > 0 && ResourceLoader.Load<Material>(GuardStoneMaterial) is { } blue)
+            {
+                cope.GenerateTangents();
+                cope.SetMaterial(blue);
+                holder.AddChild(new MeshInstance3D
+                {
+                    Name = "copings_" + tag, Mesh = cope.Commit(),
+                    VisibilityRangeEnd = 220, VisibilityRangeEndMargin = 20, VisibilityRangeFadeMode = GeometryInstance3D.VisibilityRangeFadeModeEnum.Self,
+                });
+            }
             if (q0 > 0)
             {
                 st.SetMaterial(decal);
@@ -325,6 +378,188 @@ public static class NativeSquareDressing
         }
         foreach (var n in holder.GetChildren()) ((Node)n).SetMeta(Meta, true);
         return (walls.Count, bricked, quads, anchors);
+    }
+
+    // ------------------------------------------------------------------ the bared walls' corners and copings
+
+    // (Brick: the bared brick's own vertex colour, summed, per standing house; alpha the count)
+    private static readonly Dictionary<int, Color> BrickTone = new();
+    // (Brick: the top of each bared stretch's own faces)
+    private static readonly Dictionary<BaredWall, float> WallTop = new();
+    // the bake's party wall stopped this far short of a front corner where two fronts met (build_city.py SEAM_SET)
+    private const float SeamSet = 0.15f;
+    // a coping stone: 75 mm thick, 0.24 m over the parapet's thickness and 60 mm proud of its face (the fronts' own
+    // coping: build_city.py cornice_top), in lengths of 0.6-1.0 m with 5 mm joints, a 10 mm worn arris
+    private const float CopeT = 0.075f, CopeIn = 0.24f, CopeOut = 0.06f, CopeArris = 0.01f, CopeJoint = 0.005f;
+
+    /// <summary>The front's own finish at a corner: its picture and paint (CUSTOM0), place in the atlas and colour.</summary>
+    private sealed record Look(Color Custom, Vector2 Uv, Vector2 Cell, Color Tone);
+    private static readonly Dictionary<(ulong, int), Godot.Collections.Array> SurfaceCache = new();
+
+    /// <summary>The front's facade triangle nearest the corner, 1.2 to 3 m up, on the front's own plane (null: none).</summary>
+    private static Look? FrontLook(Node3D town, Vector2 corner, Vector2 front)
+    {
+        var facade = ResourceLoader.Load<Material>(FacadeMaterial);
+        Look? best = null;
+        float bestD = 0.9f;
+        foreach (var mesh in BakedWorld.All(town).OfType<MeshInstance3D>().Where(m => m.Mesh is ArrayMesh && m.Name.ToString().StartsWith("city_", StringComparison.Ordinal)))
+        {
+            var xf = WorldOf(mesh);
+            var box = xf * mesh.GetAabb();
+            if (corner.X < box.Position.X - 1 || corner.X > box.End.X + 1 || corner.Y < box.Position.Z - 1 || corner.Y > box.End.Z + 1) continue;
+            var am = (ArrayMesh)mesh.Mesh;
+            for (int s = 0; s < am.GetSurfaceCount(); s++)
+            {
+                if (am.SurfaceGetMaterial(s) != facade) continue;
+                var key = (mesh.GetInstanceId(), s);
+                if (!SurfaceCache.TryGetValue(key, out var arrays)) SurfaceCache[key] = arrays = am.SurfaceGetArrays(s);
+                if (arrays[(int)Mesh.ArrayType.Custom0].VariantType != Variant.Type.PackedFloat32Array || arrays[(int)Mesh.ArrayType.Color].VariantType != Variant.Type.PackedColorArray
+                    || arrays[(int)Mesh.ArrayType.TexUV2].VariantType != Variant.Type.PackedVector2Array) continue;
+                var v = arrays[(int)Mesh.ArrayType.Vertex].AsVector3Array();
+                var nrm = arrays[(int)Mesh.ArrayType.Normal].AsVector3Array();
+                var c0 = arrays[(int)Mesh.ArrayType.Custom0].AsFloat32Array();
+                var col = arrays[(int)Mesh.ArrayType.Color].AsColorArray();
+                var uv = arrays[(int)Mesh.ArrayType.TexUV].AsVector2Array();
+                var uv2 = arrays[(int)Mesh.ArrayType.TexUV2].AsVector2Array();
+                int stride = v.Length == 0 ? 0 : c0.Length / v.Length;
+                if (stride < 2) continue;
+                var index = arrays[(int)Mesh.ArrayType.Index].VariantType == Variant.Type.PackedInt32Array ? arrays[(int)Mesh.ArrayType.Index].AsInt32Array() : Enumerable.Range(0, v.Length).ToArray();
+                for (int t = 0; t + 2 < index.Length; t += 3)
+                {
+                    var p = (xf * v[index[t]] + xf * v[index[t + 1]] + xf * v[index[t + 2]]) / 3;
+                    if (p.Y < 1.2f || p.Y > 3f) continue;
+                    var q = new Vector2(p.X, p.Z) - corner;
+                    if (Math.Abs(q.Dot(front)) > 0.08f) continue;
+                    var n = xf.Basis * nrm[index[t]];
+                    if (new Vector2(n.X, n.Z).Normalized().Dot(front) < 0.9f) continue;
+                    float d = q.Length();
+                    if (d >= bestD) continue;
+                    int i = index[t];
+                    bestD = d;
+                    best = new Look(new Color(c0[i * stride], c0[i * stride + 1], 0, 0), new Vector2(MathF.Floor(uv[i].X) + 0.5f, MathF.Floor(uv[i].Y) + 0.5f), uv2[i], col[i]);
+                }
+            }
+        }
+        return best;
+    }
+
+    /// <summary>
+    /// A bared wall's finish (Codex on #231: it read as a building sliced through, its thin edge and open top): at a front
+    /// corner the 15 cm of party wall the bake left out (it stopped short of the seam with the pulled-down neighbour's
+    /// front, and the corner showed a card's edge with the house's inside behind it) laid in the bared wall's own brick,
+    /// and the front's render turned round the corner as a ragged return, 12 mm proud, 3 to 10 cm wide, broken where it
+    /// was knocked off with the neighbour; over a flat-roofed house's parapet, the coping its fronts already have, in
+    /// blue-stone lengths (the guard stones' stone and shader kind). Returns the facade quads and the coping stones.
+    /// </summary>
+    private static (int Faces, int Stones) Finish(Node3D town, SurfaceTool fin, SurfaceTool cope, BaredWall w)
+    {
+        float L = w.A.DistanceTo(w.B);
+        var u = (w.B - w.A) / L;
+        Vector3 W(float s, float y, float d) { var p = w.A + u * s + w.Out * d; return new Vector3(p.X, y, p.Y); }
+        var out3 = new Vector3(w.Out.X, 0, w.Out.Y);
+        var rng = new Random(w.Seed * 13 + w.Standing * 7 + 5);
+        // (the stretch's measured top: over the eaves by the parapet's 0.6 m, or at them under a roof)
+        float top = WallTop.TryGetValue(w, out var measured) && measured > 1 ? measured : w.StandingHeight;
+        bool parapet = w.Parapet && top > w.StandingHeight + 0.3f;
+        var sum = BrickTone.GetValueOrDefault(w.Standing);
+        var brick = sum.A > 0 ? new Color(sum.R / sum.A, sum.G / sum.A, sum.B / sum.A) : new Color(0.55f, 0.5f, 0.45f);
+        int faces = 0, stones = 0;
+        // a quad on the facade material, wound clockwise as seen from its normal's side (Godot's front face)
+        void Face(Vector3 a, Vector3 b, Vector3 c, Vector3 d, Vector3 n, Func<Vector3, Color> tone, Color custom, Vector2 uv, Vector2 cell)
+        {
+            if ((b - a).Cross(c - a).Dot(n) > 0) (b, d) = (d, b);
+            foreach (var p in new[] { a, b, c, a, c, d })
+            {
+                fin.SetNormal(n); fin.SetColor(tone(p)); fin.SetUV(uv); fin.SetUV2(cell); fin.SetCustom(0, custom); fin.AddVertex(p);
+            }
+            faces++;
+        }
+        // (the bake's own shade up the wall: 0.66 at the foot to 1 at 9 m, build_city.py; the sampled tone is from 1-4 m)
+        Color BrickAt(Vector3 p) { float g = (0.66f + 0.34f * Math.Min(1, p.Y / 9)) / 0.754f; return new Color(brick.R * g, brick.G * g, brick.B * g, BaredWear); }
+        foreach (var (corner, end) in new[] { (w.CornerA, 0), (w.CornerB, 1) })
+        {
+            if (corner is not { } c) continue;
+            float sc = (c.At - w.A).Dot(u), dir = end == 0 ? 1 : -1;
+            // the brick the bake left out, up to the pulled-down front's height (over it the bake's wall runs to the corner)
+            float gapTop = Math.Min(top, w.RazedHeight);
+            Face(W(sc, 0, 0.0015f), W(sc + dir * (SeamSet + 0.02f), 0, 0.0015f), W(sc + dir * (SeamSet + 0.02f), gapTop, 0.0015f), W(sc, gapTop, 0.0015f),
+                out3, BrickAt, new Color(1, 0, 0, 0), WallUv, WallCell ?? Vector2.Zero);
+            // the front's render turned round the corner, from over its plinth to under its cornice
+            if (FrontLook(town, c.At, c.Front) is not { } look) continue;
+            float y0 = 0.6f, y1 = w.StandingHeight - 0.4f, step = 0.18f, ph = (float)rng.NextDouble() * 50;
+            var inward = new Vector3(u.X, 0, u.Y) * dir;
+            var front3 = new Vector3(c.Front.X, 0, c.Front.Y);
+            Color Plaster(Vector3 p) => look.Tone;
+            float Wide(float y) => 0.03f + 0.07f * Noise(new Vector2(y / 0.55f + ph, ph * 0.3f)) * (0.6f + 0.4f * Noise(new Vector2(y / 0.13f, ph)));
+            for (float y = y0; y < y1 - 0.01f; y += step)
+            {
+                float ya = y, yb = Math.Min(y + step, y1);
+                // (knocked off here and there with the neighbour's front)
+                if (Noise(new Vector2(ya / 0.9f + ph * 2, 3.3f)) < 0.2f) continue;
+                float wa = Wide(ya), wb = Wide(yb);
+                Vector3 a0 = W(sc, ya, 0.012f), b0 = W(sc, yb, 0.012f), a1 = W(sc + dir * wa, ya, 0.012f), b1 = W(sc + dir * wb, yb, 0.012f);
+                Face(a0, a1, b1, b0, out3, Plaster, look.Custom, look.Uv, look.Cell);
+                // its broken edge, back to the brick, and its thickness at the corner (on the front's plane)
+                Face(a1, b1, W(sc + dir * wb, yb, 0), W(sc + dir * wa, ya, 0), (inward + out3 * 0.3f).Normalized(), Plaster, look.Custom, look.Uv, look.Cell);
+                Face(a0, b0, W(sc, yb, 0), W(sc, ya, 0), front3, Plaster, look.Custom, look.Uv, look.Cell);
+            }
+        }
+        // the parapet's coping: from flush with the front's coping (60 mm proud of the front) to the stretch's end; under a
+        // low hipped roof's eaves a blue-stone course the same way, its top at the wall's (the wall's open top edge read as
+        // cut). A gabled neighbour's side keeps its gable's own verge.
+        if (w.Parapet)
+        {
+            float bed = parapet ? top : top - CopeT + 0.01f;
+            float s0 = w.CornerA is { } ca ? (ca.At - w.A).Dot(u) - CopeOut : -0.05f;
+            float s1 = w.CornerB is { } cb ? (cb.At - w.A).Dot(u) + CopeOut : L + 0.05f;
+            for (float s = s0; s < s1 - 0.05f;)
+            {
+                float len = Math.Min(0.6f + 0.4f * (float)rng.NextDouble(), s1 - s);
+                if (s1 - s - len < 0.3f) len = s1 - s;
+                CopeStone(cope, W, s + (s > s0 ? CopeJoint / 2 : 0), s + len - (s + len < s1 - 0.01f ? CopeJoint / 2 : 0), bed, rng);
+                stones++;
+                s += len;
+            }
+        }
+        return (faces, stones);
+    }
+
+    /// <summary>
+    /// One coping stone over the parapet, s0 to s1 along the wall: its top inset by the arris, the arris faces, its
+    /// front, back and ends down to its bed and the underside of its overhang; the tooled top weathered pale, the sawn
+    /// faces the stone's darker blue; uv in world metres (the stone picture's 0.91 m repeat).
+    /// </summary>
+    private static void CopeStone(SurfaceTool st, Func<float, float, float, Vector3> W, float s0, float s1, float y0, Random rng)
+    {
+        float tone = 0.82f + 0.14f * (float)rng.NextDouble(), b = CopeArris, y1 = y0 + CopeT + ((float)rng.NextDouble() - 0.5f) * 0.004f, ye = y1 - b;
+        float d0 = -CopeIn, d1 = CopeOut;
+        var off = new Vector2((float)rng.NextDouble(), (float)rng.NextDouble());
+        var origin = W(0, 0, 0);
+        var along = W(1, 0, 0) - origin; var outward = W(0, 0, 1) - origin;
+        void Quad(Vector3 a, Vector3 c1, Vector3 c2, Vector3 d, Vector3 n, float k)
+        {
+            n = n.Normalized();
+            if ((c1 - a).Cross(c2 - a).Dot(n) > 0) (c1, d) = (d, c1);
+            foreach (var p in new[] { a, c1, c2, a, c2, d })
+            {
+                var uv = (Math.Abs(n.Y) > 0.5f ? new Vector2(p.X, p.Z) : Math.Abs(n.X) > Math.Abs(n.Z) ? new Vector2(p.Z, -p.Y) : new Vector2(p.X, -p.Y)) / 0.91f + off;
+                st.SetNormal(n); st.SetUV(uv); st.SetColor(new Color(tone * k * 0.97f, tone * k * 0.99f, tone * k, 1)); st.AddVertex(p);
+            }
+        }
+        Vector3 T(float s, float d) => W(s, y1, d);
+        Vector3 E(float s, float d) => W(s, ye, d);
+        Vector3 B(float s, float d) => W(s, y0, d);
+        Quad(T(s0 + b, d0 + b), T(s1 - b, d0 + b), T(s1 - b, d1 - b), T(s0 + b, d1 - b), Vector3.Up, 0.9f);
+        Quad(T(s0 + b, d1 - b), T(s1 - b, d1 - b), E(s1, d1), E(s0, d1), Vector3.Up + outward, 0.84f);
+        Quad(T(s0 + b, d0 + b), T(s1 - b, d0 + b), E(s1, d0), E(s0, d0), Vector3.Up - outward, 0.84f);
+        Quad(T(s0 + b, d0 + b), T(s0 + b, d1 - b), E(s0, d1), E(s0, d0), Vector3.Up - along, 0.84f);
+        Quad(T(s1 - b, d0 + b), T(s1 - b, d1 - b), E(s1, d1), E(s1, d0), Vector3.Up + along, 0.84f);
+        // (the sawn faces the stone's own darker blue; the underside of the overhang in its own shadow)
+        Quad(E(s0, d1), E(s1, d1), B(s1, d1), B(s0, d1), outward, 0.7f);
+        Quad(E(s0, d0), E(s1, d0), B(s1, d0), B(s0, d0), -outward, 0.64f);
+        Quad(E(s0, d0), E(s0, d1), B(s0, d1), B(s0, d0), -along, 0.66f);
+        Quad(E(s1, d0), E(s1, d1), B(s1, d1), B(s1, d0), along, 0.66f);
+        Quad(B(s0, 0), B(s1, 0), B(s1, d1), B(s0, d1), Vector3.Down, 0.5f);
     }
 
     /// <summary>build_city.py ghost_marks, at runtime: one bared stretch's ghost (decal quads) and anchors (iron).</summary>
@@ -363,7 +598,11 @@ public static class NativeSquareDressing
         // each room's plaster left on the wall (Room, Coat): a coat 20 mm proud of the brick, its edges straight where the
         // floor, the ceiling, the front and back walls and a partition met it, broken where it fell; the town's dirty old
         // render picture (or the ochre plaster's), each room its own limewash or distemper, grimed by its stove and the rain
-        var levels = Enumerable.Range(0, Math.Max(1, w.Storeys) - 1).Select(k => GroundH + k * StoreyH).Where(y => y < hg - 0.5f).Prepend(0f).ToList();
+        // (each pulled-down house its own storeys: its neighbours' floors were never on one line, and on one line they drew
+        // a grid over the wall, Codex on #231)
+        var hr = new Random(w.Seed * 31 + 11);
+        float groundH = GroundH - 0.4f + 0.8f * (float)hr.NextDouble(), storeyH = StoreyH - 0.25f + 0.5f * (float)hr.NextDouble();
+        var levels = Enumerable.Range(0, Math.Max(1, w.Storeys) - 1).Select(k => groundH + k * storeyH).Where(y => y < hg - 0.5f).Prepend(0f).ToList();
         var rooms = new List<Room>();
         for (int f = 0; f < levels.Count; f++)
         {
@@ -385,17 +624,15 @@ public static class NativeSquareDressing
             if (half > 0.6f)
                 rooms.Add(NewRoom(rng, mid - half, mid + half, y0, x => Roof(x) - 0.2f, 0, w.Flue ? fs : float.NaN, true, slope));
         }
-        foreach (var room in rooms)
-        {
-            Coat(plaster, W, room);
-            // its grime: the ghost cell's mottle (a film of specks and scratches) multiplied dark over the coat and the
-            // brick its losses bare, every 1.1 m, each room its own place in it
-            float roomTop = Enumerable.Range(0, 5).Max(k => room.Top(room.X0 + (room.X1 - room.X0) * k / 4f));
-            var o = new Vector2(room.Ph % 1, room.Ph * 0.37f % 1);
-            Quad(st, W(room.X0, room.Y0, CoatT + 0.0016f), W(room.X1, room.Y0, CoatT + 0.0016f), W(room.X1, roomTop, CoatT + 0.0016f), W(room.X0, roomTop, CoatT + 0.0016f),
-                new Vector2(room.X0, room.Y0) / 1.1f + o, new Vector2(room.X1, room.Y0) / 1.1f + o, new Vector2(room.X1, roomTop) / 1.1f + o, new Vector2(room.X0, roomTop) / 1.1f + o, Ghost, MottleTint, 0.85f);
-            quads += 2;
-        }
+        foreach (var room in rooms) Coat(plaster, W, room);
+        // the grime: the ghost cell's mottle (a film of specks and scratches) multiplied dark over the coats and the brick
+        // their losses bare, every 1.1 m, over the whole of the old house's outline (a film a room drew each room's box on
+        // the wall, and the boxes made a grid, Codex on #231)
+        var mo = new Vector2((float)rng.NextDouble(), (float)rng.NextDouble());
+        for (int i = 1; i + 1 < pts.Count; i++)
+            Tri(st, W(pts[0].X, pts[0].Y, CoatT + 0.0016f), W(pts[i].X, pts[i].Y, CoatT + 0.0016f), W(pts[i + 1].X, pts[i + 1].Y, CoatT + 0.0016f),
+                pts[0] / 1.1f + mo, pts[i] / 1.1f + mo, pts[i + 1] / 1.1f + mo, Ghost, MottleTint, 0.85f);
+        quads++;
         // the roof's line: a dark band along the outline's top (the old flashing and the rafters' ends)
         var top = pts.Skip(2).ToList();
         for (int i = 0; i + 1 < top.Count; i++)
@@ -407,16 +644,29 @@ public static class NativeSquareDressing
             quads++;
         }
         // its floors: a dark line where each floor's joists sat in the wall
-        var floors = Enumerable.Range(0, Math.Max(1, w.Storeys) - 1).Select(k => GroundH + k * StoreyH).Where(y => y < hg - 0.5f).ToList();
+        var floors = Enumerable.Range(0, Math.Max(1, w.Storeys) - 1).Select(k => groundH + k * storeyH).Where(y => y < hg - 0.5f).ToList();
         foreach (float y in floors)
         {
-            Quad(st, W(s0 + 0.1f, y - 0.16f, 0.008f), W(s1 - 0.1f, y - 0.16f, 0.008f), W(s1 - 0.1f, y + 0.1f, 0.008f), W(s0 + 0.1f, y + 0.1f, 0.008f),
-                new(0, 0.01f), new((s1 - s0) / 1.5f, 0.01f), new((s1 - s0) / 1.5f, 0.99f), new(0, 0.99f), LineCell, LineTint, 1);
-            quads++;
-            // the joists' pockets along it, 0.4 m apart, each a dark socket where a joist end was pulled out
-            for (float js = s0 + 0.35f; js < s1 - 0.3f; js += 0.4f)
+            // in lengths, as the plaster and the soot under the boards came off: each its own depth and darkness, a gap
+            // now and then where the brick was pointed again
+            for (float x = s0 + 0.05f + 0.25f * (float)rng.NextDouble(); x < s1 - 0.15f;)
             {
-                Quad(st, W(js - 0.06f, y - 0.14f, 0.0085f), W(js + 0.06f, y - 0.14f, 0.0085f), W(js + 0.06f, y + 0.04f, 0.0085f), W(js - 0.06f, y + 0.04f, 0.0085f),
+                float x2 = Math.Min(x + 0.5f + 1.7f * (float)rng.NextDouble(), s1 - 0.08f - 0.1f * (float)rng.NextDouble());
+                float lo = 0.1f + 0.09f * (float)rng.NextDouble(), up = 0.05f + 0.07f * (float)rng.NextDouble(), dy = ((float)rng.NextDouble() - 0.5f) * 0.05f;
+                float k = 0.8f + 1.6f * (float)rng.NextDouble(), u0 = (float)rng.NextDouble() * 4;
+                var tint = new Color(LineTint.R * k, LineTint.G * k, LineTint.B * k);
+                Quad(st, W(x, y + dy - lo, 0.008f), W(x2, y + dy - lo, 0.008f), W(x2, y + dy + up, 0.008f), W(x, y + dy + up, 0.008f),
+                    new(u0, 0.01f), new(u0 + (x2 - x) / 1.5f, 0.01f), new(u0 + (x2 - x) / 1.5f, 0.99f), new(u0, 0.99f), LineCell, tint, 1);
+                quads++;
+                x = x2 + (rng.NextDouble() < 0.4 ? 0.06f + 0.4f * (float)rng.NextDouble() : 0.002f);
+            }
+            // the joists' pockets along it, 0.35-0.5 m apart, each a dark socket where a joist end was pulled out (one in
+            // seven bricked up again)
+            for (float js = s0 + 0.2f + 0.25f * (float)rng.NextDouble(); js < s1 - 0.3f; js += 0.35f + 0.15f * (float)rng.NextDouble())
+            {
+                if (rng.NextDouble() < 0.14) continue;
+                float hw = 0.045f + 0.03f * (float)rng.NextDouble(), jy = ((float)rng.NextDouble() - 0.5f) * 0.03f;
+                Quad(st, W(js - hw, y - 0.14f + jy, 0.0085f), W(js + hw, y - 0.14f + jy, 0.0085f), W(js + hw, y + 0.03f + jy, 0.0085f), W(js - hw, y + 0.03f + jy, 0.0085f),
                     new(0.15f, 0.15f), new(0.85f, 0.15f), new(0.85f, 0.85f), new(0.15f, 0.85f), Blob, SootTint, 1);
                 quads++;
             }
@@ -475,8 +725,10 @@ public static class NativeSquareDressing
         int anchors = 0;
         if (L >= 2.0f)
             foreach (float y in floors)
-                foreach (float s in new[] { s0 + 0.7f, s1 - 0.7f })
+                foreach (float s in new[] { s0 + 0.5f + 0.5f * (float)rng.NextDouble(), s1 - 0.5f - 0.5f * (float)rng.NextDouble() })
                 {
+                    // (one in five pulled out with its beam)
+                    if (rng.NextDouble() < 0.2) continue;
                     Anchor(iron, W, s, y);
                     Quad(st, W(s - 0.09f, y - 0.95f, 0.009f), W(s + 0.09f, y - 0.95f, 0.009f), W(s + 0.09f, y + 0.02f, 0.009f), W(s - 0.09f, y + 0.02f, 0.009f),
                         new(0.01f, 0.01f), new(0.99f, 0.01f), new(0.99f, 0.99f), new(0.01f, 0.99f), Rust, RustTint, 1);
@@ -762,18 +1014,33 @@ public static class NativeSquareDressing
                 var index = arrays[(int)Mesh.ArrayType.Index].VariantType == Variant.Type.PackedInt32Array ? arrays[(int)Mesh.ArrayType.Index].AsInt32Array() : Enumerable.Range(0, v.Length).ToArray();
                 var basis = xf.Basis;
                 var pick = new HashSet<int>(); var other = new HashSet<int>(); var picked = new List<int>();
+                var tones = arrays[(int)Mesh.ArrayType.Color].VariantType == Variant.Type.PackedColorArray ? arrays[(int)Mesh.ArrayType.Color].AsColorArray() : null;
                 for (int t = 0; t + 2 < index.Length; t += 3)
                 {
                     var p = (xf * v[index[t]] + xf * v[index[t + 1]] + xf * v[index[t + 2]]) / 3;
                     var n = (basis * nrm[index[t]]).Normalized();
-                    bool on = near.Any(w =>
+                    var wall = near.FirstOrDefault(w =>
                     {
                         var u = (w.B - w.A).Normalized(); var q = new Vector2(p.X, p.Z) - w.A;
                         float along = q.Dot(u), off = Math.Abs(u.Cross(q));
                         return along > -0.1f && along < w.A.DistanceTo(w.B) + 0.1f && off < 0.25f && p.Y < w.StandingHeight + 0.2f
                             && new Vector2(n.X, n.Z).Dot(w.Out) > 0.9f;
                     });
-                    if (on) picked.Add(t);
+                    bool on = wall != null;
+                    // (the wall's own brick colour, for the corner its party wall stopped short of: Finish)
+                    if (on && tones != null && p.Y > 1 && p.Y < 4)
+                    {
+                        var c = tones[index[t]];
+                        var sum = BrickTone.GetValueOrDefault(wall!.Standing);
+                        BrickTone[wall.Standing] = new Color(sum.R + c.R, sum.G + c.G, sum.B + c.B, sum.A + 1);
+                    }
+                    if (on)
+                    {
+                        // (how high the bared wall's own faces run: a parapet stands 0.6 m over the eaves)
+                        float yTop = Math.Max((xf * v[index[t]]).Y, Math.Max((xf * v[index[t + 1]]).Y, (xf * v[index[t + 2]]).Y));
+                        WallTop[wall!] = Math.Max(WallTop.GetValueOrDefault(wall), yTop);
+                        picked.Add(t);
+                    }
                     for (int k = 0; k < 3; k++) (on ? pick : other).Add(index[t + k]);
                 }
                 if (picked.Count == 0) continue;
@@ -943,7 +1210,8 @@ public static class NativeSquareDressing
                 {
                     float hr = 0.8f + 0.5f * (float)rng.NextDouble();
                     var hole = at + u * (plen / 2 + hr + 0.1f) * (rng.NextDouble() < 0.5 ? -1 : 1) + n * (((float)rng.NextDouble() - 0.5f) * depth * 0.6f);
-                    if (Clear(hole, 0)) lay.Hollows.Add(new Spot($"patch-{lay.Patches.Count}", new[] { hole.X, hole.Y }, hr, 0.85f + 0.15f * (float)rng.NextDouble()));
+                    // (the whole hollow off the trees' pits and the things, not just its middle)
+                    if (Clear(hole, hr)) lay.Hollows.Add(new Spot($"patch-{lay.Patches.Count}", new[] { hole.X, hole.Y }, hr, 0.85f + 0.15f * (float)rng.NextDouble()));
                 }
                 break;
             }
@@ -1035,35 +1303,51 @@ public static class NativeSquareDressing
 
     /// <summary>
     /// The old front's plinth left in the street: blue-stone blocks 0.45-0.95 m long and 0.30-0.36 m wide on the wall's line,
-    /// 1-3 cm proud, a 10 mm worn arris; one in six taken for reuse, one in four broken short, none under a mended patch, a
-    /// tree, bench or thing.
+    /// 4-12 mm proud, 6-10 mm joints, a 10 mm worn arris; the run's two end stones broken short now and then, none under a
+    /// mended patch, a tree, bench or thing. (Codex on #231: with one block in six taken and one in four broken anywhere,
+    /// each stepped back on its own where the pavement still ran, the run read as loose slabs scattered on the setts; now
+    /// the blocks lie joined on one line and the run ends with a whole stone or a broken one.)
     /// </summary>
     private static int Plinth(SurfaceTool st, Strip s, List<Patch> patches, GroundHeight ground)
     {
         var rng = new Random(s.Seed);
         float len = s.A.DistanceTo(s.B);
         var u = (s.B - s.A) / len;
-        int laid = 0;
-        float t = 0;
-        while (t < len - 0.3f)
+        // the blocks' lengths along the run, the last one taking what is left
+        var blocks = new List<(float T, float L)>();
+        for (float t = 0; t < len - 0.3f;)
         {
             float bl = Math.Min(0.45f + 0.5f * (float)rng.NextDouble(), len - t);
-            var mid = s.A + u * (t + bl / 2);
-            // (where the street's pavement still runs along the old front, the plinth lies at its back, inside the plot)
-            float High(Vector2 c) => Math.Max(ground.At(c - u * bl / 2), Math.Max(ground.At(c), ground.At(c + u * bl / 2)));
-            for (float back = 0; back < 1.8f && High(mid) > 0.025f; back += 0.1f) mid += s.In * 0.1f;
-            if (High(mid) > 0.025f) { t += bl; continue; }
-            mid += s.In * 0.12f;
-            bool under = patches.Any(p => Math.Abs((mid - p.At).Dot(p.Along)) < p.Length / 2 + bl / 2 && Math.Abs((mid - p.At).Dot(new Vector2(-p.Along.Y, p.Along.X))) < p.Depth / 2 + 0.2f);
-            if (!under && rng.NextDouble() > 0.18 && Keep.All(k => mid.DistanceTo(k.At) > k.R + bl / 2))
-            {
-                float k = 0.26f + 0.1f * (float)rng.NextDouble();
-                // (one in four broken off short)
-                float keep = rng.NextDouble() < 0.25 ? 0.45f + 0.3f * (float)rng.NextDouble() : 1;
-                Block(st, mid - u * bl * (1 - keep) / 2, u, (bl * keep - 0.008f) / 2, 0.15f + 0.03f * (float)rng.NextDouble(), ground.At(mid) + 0.01f + 0.02f * (float)rng.NextDouble(), 0.01f, new Color(0.9f * k, 0.97f * k, 1.0f * k), rng, 0.002f, 0.02f);
-                laid++;
-            }
+            if (len - t - bl < 0.3f) bl = len - t;
+            blocks.Add((t, bl));
             t += bl;
+        }
+        // (where the street's pavement still runs along the old front, the whole run lies at its back, inside the plot)
+        float High(Vector2 c, float bl) => Math.Max(ground.At(c - u * bl / 2), Math.Max(ground.At(c), ground.At(c + u * bl / 2)));
+        float back = 0;
+        foreach (var (t, bl) in blocks)
+        {
+            var mid = s.A + u * (t + bl / 2);
+            float b = 0;
+            while (b < 1.8f && High(mid + s.In * b, bl) > 0.025f) b += 0.1f;
+            if (b < 1.8f) back = Math.Max(back, b);
+        }
+        int laid = 0;
+        for (int i = 0; i < blocks.Count; i++)
+        {
+            var (t, bl) = blocks[i];
+            var mid = s.A + u * (t + bl / 2) + s.In * (back + 0.12f);
+            if (High(mid, bl) > 0.025f) continue;
+            bool under = patches.Any(p => Math.Abs((mid - p.At).Dot(p.Along)) < p.Length / 2 + bl / 2 && Math.Abs((mid - p.At).Dot(new Vector2(-p.Along.Y, p.Along.X))) < p.Depth / 2 + 0.2f);
+            if (under || !Keep.All(k => mid.DistanceTo(k.At) > k.R + bl / 2)) continue;
+            float k = 0.26f + 0.1f * (float)rng.NextDouble();
+            float joint = 0.006f + 0.004f * (float)rng.NextDouble();
+            // (an end stone broken off short, its broken end toward the run's end)
+            bool endStone = i == 0 || i == blocks.Count - 1;
+            float keep = endStone && rng.NextDouble() < 0.35 ? 0.5f + 0.3f * (float)rng.NextDouble() : 1;
+            var shift = i == 0 ? u * bl * (1 - keep) / 2 : -u * bl * (1 - keep) / 2;
+            Block(st, mid + shift, u, (bl * keep - joint) / 2, 0.15f + 0.03f * (float)rng.NextDouble(), ground.At(mid) + 0.004f + 0.008f * (float)rng.NextDouble(), 0.01f, new Color(0.9f * k, 0.97f * k, 1.0f * k), rng, 0.002f, 0.008f);
+            laid++;
         }
         return laid;
     }

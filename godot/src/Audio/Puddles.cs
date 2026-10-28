@@ -20,11 +20,15 @@ public static class Puddles
         return (a+(b-a)*ux)*(1-uy)+(c+(d-c)*ux)*uy;
     }
     private static double Smooth(double a, double b, double x) { double t = Math.Clamp((x-a)/(b-a),0,1); return t*t*(3-2*t); }
+    // (the shader's pud_turn: a stretch of the noise turned its own way)
+    private static double Turned(double x, double z, double c, double s, double scale, double add) => Value((c*x-s*z)/scale+add,(s*x+c*z)/scale+add);
     public static double At(double x, double z, double level, double scale = 1.1)
     {
-        double pn = Value(x/17,z/17)*.55+Value(x/7.3+31.7,z/7.3+31.7)*.3+Value(x/2.9-12.1,z/2.9-12.1)*.15;
+        // (the shader's pud_warp)
+        double wx = x+(Value(x/3.7+5.3,z/3.7+5.3)-.5)*2.4, wz = z+(Value(x/3.7-9.1,z/3.7-9.1)-.5)*2.4;
+        double pn = Turned(wx,wz,.814,.581,17,0)*.55+Turned(wx,wz,-.333,.943,7.3,31.7)*.3+Turned(wx,wz,-.951,.309,2.9,-12.1)*.15;
         pn = Math.Clamp((pn-.5)*2.4+.5,0,1); double threshold = .97-Math.Clamp(level*scale,0,1)*.22;
         if (pn <= threshold) return 0;
-        return Smooth(threshold,threshold+.018,pn)*Smooth(.46,.56,Value(x/2.1+57.1,z/2.1+57.1))*Smooth(.3,.42,Value(x/4.7-23.9,z/4.7-23.9));
+        return Smooth(threshold,threshold+.018,pn)*Smooth(.46,.56,Turned(wx,wz,.454,-.891,2.1,57.1))*Smooth(.3,.42,Turned(wx,wz,-.6,-.8,4.7,-23.9));
     }
 }

@@ -1,6 +1,7 @@
 """The squares the razing opened, and trees on the wide bare earth (Steve, 2026-10-26: clear the houses hugging the
 churches, the churches free on squares with trees and room to gather; trees on the sandy patches).
-    python squares.py <razed json> <church feet folder> <earth dump> <out squares.json>
+    python squares.py <razed json> <church feet folder> <earth dump> <out squares.json> [<pavement dump>]
+    python squares.py --settle <squares.json> <pavement dump>
 <razed json>: the houses razed round the churches (ids in city_build.json); <church feet folder>: foot-<church>.json,
 each church model's plan (GeoJSON, from its triangles under 4 m); <earth dump>: dump-meshes.gd of city/ground_earth.
 Writes the trees and benches NativeRazedHouses.Dress sets (world/town/squares.json):
@@ -13,6 +14,11 @@ its stone frame, square to the church (at the corner to the nearest house). The 
 - none in St James's churchyard (world/town/churchyard.json "area", scripts/churchyard.py, 2026-10-27) or within 1.2 m of its
   railing: those drawn there are left out after the draw, so every other tree and bench stays where it stood.
 Fixed seed: the same plan every run.
+<pavement dump>: dump-pavements.gd (the old stone and the kerb flags). A pit must lie on the setts: a frame drawn half under
+the old pavements' raised flags, kerbs or a step read as broken edging (Codex on #231, Sint-Jacob east), so each pit tree
+whose frame comes within 0.15 m of a raised top is moved the least way that clears it (at most 3 m; 6 m from the other
+trees, 2.5 m from a standing house, 3.5 m from a church, clear of the churchyard, the benches and the squares' things).
+--settle does only that to an existing squares.json, so every other tree and bench stays where it stood.
 """
 import sys, json, math, pathlib
 import numpy as np, shapely
@@ -29,7 +35,64 @@ def square_to(poly):
     dx, dz = max(sides, key=lambda s: math.hypot(*s))
     return round(math.atan2(-dz, dx) % (math.pi / 2), 3)
 
+PIT, PIT_CLEAR = 0.9, 0.15   # the pit frame's half width (NativeTreePits Outer); its clearance from a raised top
+
+
+def raised_tops(dump):
+    """The old pavements' raised tops (kerb flags, kerbs, steps: upward faces 3-50 cm up), as one plan shape."""
+    R = np.fromfile(pathlib.Path(dump) / 'pavements.f32', np.float32).reshape(-1, 20)
+    P = R[:, :3].reshape(-1, 3, 3).astype(float)
+    n = np.cross(P[:, 1] - P[:, 0], P[:, 2] - P[:, 0]); L = np.linalg.norm(n, axis=1)
+    up = (L > 1e-6) & (np.abs(n[:, 1]) > 0.8 * L) & (P[:, :, 1].min(1) > 0.03) & (P[:, :, 1].max(1) < 0.5)
+    return shapely.union_all(shapely.polygons(P[up][:, :, [0, 2]]).tolist()).buffer(0.002)
+
+
+def frame_of(x, z, yaw):
+    c, s = math.cos(yaw), math.sin(yaw)
+    # (Godot's yaw about +y: a local (lx, lz) lands at (lx c + lz s, -lx s + lz c))
+    return Polygon([(x + lx * c + lz * s, z - lx * s + lz * c) for lx, lz in ((-PIT, -PIT), (PIT, -PIT), (PIT, PIT), (-PIT, PIT))])
+
+
+def settle(sq, raised):
+    """Moves the pit trees whose frame meets a raised top (see the header). Returns the moves."""
+    cb = json.load(open(REPO / 'native-godot/world/data/shared/city_build.json'))
+    standing = shapely.union_all([Polygon(h['fp']).buffer(0) for h in cb['houses'] if not h.get('gone') and len(h.get('fp', [])) >= 3])
+    dressing = json.load(open(REPO / 'native-godot/world/town/square-dressing.json'))
+    churches = shapely.union_all([Polygon(c['outline']).buffer(0) for c in dressing['ground']['churches']])
+    yard_file = REPO / 'native-godot/world/town/churchyard.json'
+    yard = Polygon(json.load(open(yard_file))['area']).buffer(1.2) if yard_file.exists() else Polygon()
+    things = [(Point(t['at']), (max(t['size'][0], t['size'][2]) / 2 if t.get('size') else 0.3) + 0.5) for t in dressing['things'] if not t['kind'].startswith('move:')]
+    things += [(Point(b['x'], b['z']), 1.6) for b in sq['benches']]
+    blocked = standing.buffer(2.5).union(churches.buffer(3.5)).union(yard)
+    moves = []
+    for t in sq['trees']:
+        if 'pit' not in t: continue
+        if frame_of(t['x'], t['z'], t['pit']).distance(raised) >= PIT_CLEAR: continue
+        others = [Point(o['x'], o['z']) for o in sq['trees'] if o is not t]
+        best = None
+        for r in np.arange(0.1, 3.01, 0.1):
+            for a in np.arange(0, 2 * math.pi, math.pi / 18):
+                x, z = t['x'] + r * math.cos(a), t['z'] + r * math.sin(a)
+                q = Point(x, z)
+                if frame_of(x, z, t['pit']).distance(raised) < PIT_CLEAR or blocked.contains(q): continue
+                if any(q.distance(o) < 6.0 for o in others) or any(q.distance(p) < d for p, d in things): continue
+                best = (round(x, 2), round(z, 2)); break
+            if best: break
+        if best is None:
+            moves.append((t['x'], t['z'], None)); continue
+        moves.append((t['x'], t['z'], best))
+        t['x'], t['z'] = best
+    return moves
+
+
 def main():
+    if sys.argv[1] == '--settle':
+        path, dump = sys.argv[2:4]
+        sq = json.load(open(path))
+        for old_x, old_z, new in settle(sq, raised_tops(dump)):
+            print('tree at', old_x, old_z, '->', new if new else 'no clear place within 3 m: left')
+        json.dump(sq, open(path, 'w'), indent=1)
+        return
     razed_j, feet_dir, earth_dir, out = sys.argv[1:5]
     rng = np.random.default_rng(1873)
     cb = json.load(open(REPO / 'native-godot/world/data/shared/city_build.json'))
@@ -83,6 +146,9 @@ def main():
         trees.append(dict(kind=['elm', 'lime', 'plane', 'bare', 'elm'][int(rng.integers(5))], x=round(p.x, 2), z=round(p.y, 2),
                           yaw=round(float(rng.uniform(0, 6.28)), 3), scale=round(float(rng.uniform(0.75, 1.05)), 2)))
     print('earth trees', len(pts))
+    if len(sys.argv) > 5:
+        sq = dict(trees=trees, benches=benches)
+        for old_x, old_z, new in settle(sq, raised_tops(sys.argv[5])): print('tree at', old_x, old_z, '->', new)
     json.dump(dict(note="NativeRazedHouses.Dress: trees (copies of the town's own trees of the kind) and benches on the squares the "
                         "razing opened and on the wide bare earth by the town wall (scripts/paving/squares.py).",
                    trees=trees, benches=benches), open(out, 'w'), indent=1)

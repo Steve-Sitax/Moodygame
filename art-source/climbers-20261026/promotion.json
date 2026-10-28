@@ -1,93 +1,93 @@
 [
   {
     "path": "res://world/town/resources/r003779.res",
-    "sourceHash": "5efe2b1377ca107c25423b01a3b796cc036c6b709cc124074afb0c4c217d2590",
-    "installedHash": "aba3492e828c0005973fe40af1067b95ebfc74f873cc620789e8d2c7e10c89ca",
+    "sourceHash": "aba3492e828c0005973fe40af1067b95ebfc74f873cc620789e8d2c7e10c89ca",
+    "installedHash": "5b6039a7925e41ee30aa509d9340256ad800b423593dedef8fb3ad2af570214b",
     "supportHash": "1423CB4B9A880E9FA291C238E4F09E8B17848C41170714B41FFA90846AA4822A",
-    "triangles": 135614
+    "triangles": 94668
   },
   {
     "path": "res://world/town/resources/r003780.res",
-    "sourceHash": "a1e26531d064c4313f804b4546fd369e5a627a3e02a65bb55f1882daf62ad3fc",
-    "installedHash": "25ca713b14d0a6ade7c37e8c21c3484664fca9b9e7c7e6a05f73c7195b24a21f",
+    "sourceHash": "25ca713b14d0a6ade7c37e8c21c3484664fca9b9e7c7e6a05f73c7195b24a21f",
+    "installedHash": "3d08658cb04319116defbdfa4b601ac935f5cd8fe0c2ba2e5c90845311390324",
     "supportHash": "7183EAA2A7D268468DC2506D04256B279823F266F604CBCF88BCB779A4153B78",
-    "triangles": 53974
+    "triangles": 36864
   },
   {
     "path": "res://world/town/resources/r003781.res",
-    "sourceHash": "89aba330448b62df92e37812805a26ff6742c5237486ccff02884e187dd38bc2",
-    "installedHash": "fb33f828eabe35d34510c16a6c41119050f19cdfcc6caa42861bbcfe0f762146",
+    "sourceHash": "fb33f828eabe35d34510c16a6c41119050f19cdfcc6caa42861bbcfe0f762146",
+    "installedHash": "569c6619c0b6be17514aa126223d92d7b80d78521538ecc7088eff9ef26bc2ab",
     "supportHash": "FF49E2D479CA0AC3FF498BA08D59B31892AE69F513B91AC8641B3DFC519C1986",
-    "triangles": 97944
+    "triangles": 73960
   },
   {
     "path": "res://world/town/resources/r003785.res",
-    "sourceHash": "ca0bcfe48f9771eb49ca3e30d71af10ea71d760a12dd5a741605539a5f46db81",
-    "installedHash": "097ce3730ff6d6ec22acf389e350da65a44ea6111ea9a85347ae12758a742108",
+    "sourceHash": "097ce3730ff6d6ec22acf389e350da65a44ea6111ea9a85347ae12758a742108",
+    "installedHash": "9ab961ae3c9652b1f9a43318562ac8b6cdbe635e4522e8f72ef4add76e95881b",
     "supportHash": "F3007F0FCD20274E8666A14318EB3654658EDB8883ABC5B5FA4D9696572E8368",
-    "triangles": 63148
+    "triangles": 32968
   },
   {
     "path": "res://world/town/resources/r003784.res",
-    "sourceHash": "c24b45bf56e8b1175869749abd2ff325cadf64eac28fae9d6e7d90ebf3e7c651",
-    "installedHash": "e3dede8080275101b4c59460e38ddafb53c26e3326f583ffddbd6f9f3772ef15",
+    "sourceHash": "e3dede8080275101b4c59460e38ddafb53c26e3326f583ffddbd6f9f3772ef15",
+    "installedHash": "12e0559371324ff3809a83158524b3caafd00fd25b23c4b9ebf79c13f467c0d3",
     "supportHash": "AB11174DD3876178543A74DBFF23EC85567D1C2AAD766C74E4648AE2EB296249",
-    "triangles": 52192
+    "triangles": 48128
   },
   {
     "path": "res://world/town/resources/r003783.res",
-    "sourceHash": "ea5aaa7d9984141450344d0eaf0ac676c26e57acd79375febd9ce50a76d8b024",
-    "installedHash": "fd5d9b7adfc38347139f8845a08b2bc2d6b1dc59d864eb8fc0904af52f148c7b",
+    "sourceHash": "fd5d9b7adfc38347139f8845a08b2bc2d6b1dc59d864eb8fc0904af52f148c7b",
+    "installedHash": "c31377a81601f2a32ec95248dd853888beaa2077043219428142d71aaa726e2b",
     "supportHash": "80CF6260564E1FE769F4CFA418543F9846C518DCF679A0F2DA80068B9761CC1F",
-    "triangles": 88002
+    "triangles": 66360
   },
   {
     "path": "res://world/town/resources/r003782.res",
-    "sourceHash": "4f6c82417aec40f3c9b974eed4c0c8f4939e7dd5077f5bfeb2f375f5731f0ea6",
-    "installedHash": "04bb705c2865c67b3a54f4ec3b562da8de7d6950551ad4ccc4e17b47c04faca6",
+    "sourceHash": "04bb705c2865c67b3a54f4ec3b562da8de7d6950551ad4ccc4e17b47c04faca6",
+    "installedHash": "ab4e1191364a2447584ca83c45c2da2adefb99c9b3c0e9a3238f4e0258f82b30",
     "supportHash": "024CBD86C42C9BC71B59D26AF5BF560BA38F1A991ECDF80A188B340491B594C0",
-    "triangles": 68156
+    "triangles": 55172
   },
   {
     "path": "res://world/town/resources/r003778.res",
-    "sourceHash": "24636607972c250deb473b9ea60e33b24bb3fedb1c9408fa2815a31c12ca26d8",
-    "installedHash": "3415d2aa9be563ac8b33e7a352382cd2682abb346d8204bcd0ec1400c581dbee",
+    "sourceHash": "3415d2aa9be563ac8b33e7a352382cd2682abb346d8204bcd0ec1400c581dbee",
+    "installedHash": "26142b99542e8f751594437d4d1f6048e9e04df1bf0741652affe9f47596c581",
     "supportHash": "14266EC27CCAB4DB97EBE51B1571CF1F251A3E9BDBA782B13C7026AE91492766",
-    "triangles": 50944
+    "triangles": 36206
   },
   {
     "path": "res://world/town/resources/r003777.res",
-    "sourceHash": "c202124402e95c3315110668d469d6b48b9396eb8dbda408205cd8dbf69a17db",
-    "installedHash": "436459616c58a0d5b01971747f732d77c0b255e83c257b7c600c22df7f710fc1",
+    "sourceHash": "436459616c58a0d5b01971747f732d77c0b255e83c257b7c600c22df7f710fc1",
+    "installedHash": "3d346aa27b85cebaf696683c76e2ea4d54867a198070e44e700f3ad64b1571ec",
     "supportHash": "4BDDD3D44BAE58DEB352FDFD59FE85DCDC5E4F808E6E88CFDE1C64874BF537E5",
-    "triangles": 109304
+    "triangles": 83376
   },
   {
     "path": "res://world/town/resources/r003773.res",
-    "sourceHash": "67ce070e90f3ace673379607303255f9d0cc0b694456acbbed101fd856220cbd",
-    "installedHash": "35260dde2ffffca29dee4b0138f4ebcff0b139416de8847fb70945743a26ec8c",
+    "sourceHash": "35260dde2ffffca29dee4b0138f4ebcff0b139416de8847fb70945743a26ec8c",
+    "installedHash": "ad8f88b643b1ca51602a2d290d16c36e185b404fa21904801c988888f3cd9c91",
     "supportHash": "85C2287B6144335C26E8FE78AA38888298F0232AC8ECF93B4D10EF93D56F3DA7",
-    "triangles": 58192
+    "triangles": 57040
   },
   {
     "path": "res://world/town/resources/r003774.res",
-    "sourceHash": "7605b50304c4327f53f39b3ca664a83979daf0ce473b97f084259555ae3c4a45",
-    "installedHash": "719ddd47fa513efbfcb7e649911a86792c0a7ee508ee6fda230516b0c5d44498",
+    "sourceHash": "719ddd47fa513efbfcb7e649911a86792c0a7ee508ee6fda230516b0c5d44498",
+    "installedHash": "6232cc9246a4e5ace27f10c1e10deb2d857e2df0fde99e3cc56131a916755222",
     "supportHash": "39487088761E3C6027696D2C20452BFBABAAF43FB1B1B31E258146CA3C515B2D",
-    "triangles": 60618
+    "triangles": 61200
   },
   {
     "path": "res://world/town/resources/r003775.res",
-    "sourceHash": "ba4ada1d87e3ec92d283bd99da57a05da09849d6b362e7286c3270afb6085a7a",
-    "installedHash": "dc0f336243262d0562bf054ea97c8e42ebbb33b814fd768c4632412fef53f999",
+    "sourceHash": "dc0f336243262d0562bf054ea97c8e42ebbb33b814fd768c4632412fef53f999",
+    "installedHash": "3365e430efc11a27774e5d4ce4710a6b88815f78ef2377397624b4433736d2d6",
     "supportHash": "A0BD36AB78504FCDBC10DFE44DA02477CC00A4C93EE43B688960888EBB0C0C29",
-    "triangles": 70318
+    "triangles": 65004
   },
   {
     "path": "res://world/town/resources/r003776.res",
-    "sourceHash": "a812b47c9b027910dd8871829a9fb12fe7ef9824021a6165fc536dffeda34444",
-    "installedHash": "66921c31baac97697ca79e01c5bf90bfde1cbd10164ee9537a96db2f2f2162bf",
+    "sourceHash": "66921c31baac97697ca79e01c5bf90bfde1cbd10164ee9537a96db2f2f2162bf",
+    "installedHash": "90de320a8404de81dbe757710e0695827e6e04b5649cfa247d229c0efd921868",
     "supportHash": "3CF5356352416B5A90510FA8A85DC6B4F5CEDB70B08EBD84103294C9F45A5C36",
-    "triangles": 14960
+    "triangles": 14200
   }
 ]
