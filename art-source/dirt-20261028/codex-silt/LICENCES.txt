@@ -1,0 +1,12 @@
+PROVENANCE
+All delivered material maps and renders were generated from original
+procedural code in generate.py. No external texture, photograph, scan,
+image-generation output or other third-party image source was incorporated.
+No source URLs or CC0 source attributions are required.
+
+The user's mudE.png and mudD.png were viewed only as rejection references;
+no pixels from them are included in the delivered assets.
+
+NumPy, SciPy and Pillow are authoring dependencies, not bundled source art.
+This file records provenance; it does not assign a new licence to the
+user's game, reference screenshots or unrelated project assets.

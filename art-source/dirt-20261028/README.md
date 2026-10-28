@@ -11,7 +11,7 @@ Then: "bump map the mud also", and "if tracks are going through mud, deeper groo
 | Tree pits | `vegetation/INST166` (the quay's and the squares' pits), r004435: a 64 px picture, tinted | plain lit (r001161), no relief | 67 pits (23 quay, 44 squares), 1.6 m each | pit_soil, 2048 px |
 | Planted beds | `place_lijnwaadmarkt/stjacob_yard/court_green_pl_earth`, r001344: 32 px with a bump map | bump (r000557) | 3 beds, 18 m2 | pit_soil (the same pictures) |
 | Liberty tree | `liberty_tree/liberty_tree_earth`, r001367: one colour | untextured lit (r000585) | 1, 4.3 m2 | pit_soil |
-| River and canal mud | `town/tide_mud` (tide_mud r001389, tide_bed r001390): 1024 px sand ripples, 4 m | tide-band relief ground (r001384), parallax | 16,200 + 3,180 m2; at low water a band at the walls' foot shows | wet_mud deepened, 1024 px (pictures and numbers only) |
+| River and canal mud | `town/tide_mud` (tide_mud r001389, tide_bed r001390): 1024 px sand ripples, 4 m | tide-band relief ground (r001384), parallax | 16,200 + 3,180 m2; at low water a band at the walls' foot shows | tidal silt, 2048 px, hex-tiled, water in world space (#252; the deepened wet_mud was rejected) |
 | Back yards | `city/ground_earth`, r000007: 1254 px gravelly earth, parallax depth 0 | its own relief ground kind | 20,400 m2, nearly all closed yards inside the blocks | kept (not seen from where one walks) |
 | Park mud, flower bed | `park_ground_mud` r001156, `park_ground_bed` r001159: a 1024 px photographic mud with its height | relief ground (r000002, r001158), parallax | 151 m2, 22 m2 | kept (already a real mud with height and parallax) |
 | Market mud | `market_mud` r004631, stains laid on the flags | decal (r004626) | Grote Markt, Vismarkt, stalls: 164 m2 | kept (colour only; issue) |
@@ -78,3 +78,41 @@ issue for when such a track exists.
 | `wet_mud_height.png` | `89ff7e9776033b67760f62f6ec690e5cdcb9f1d0cda99b0b914bd13493147438` |
 | `wet_mud_normal.png` | `c72f0c5bf54611fbfcae5b6d7396783aa61276d625884904ce40fc9df74f37f0` |
 | `wet_mud_roughness.png` | `6784116fe50ca4a2a7ced477d1bb7f92b42f27fb3b54b5456e232cdd0bb7db20` |
+
+## Tidal silt on the river mud (#252)
+
+The deepened wet_mud read as dry, dug earth on the foreshore (Codex's review), so main kept the sand ripples
+(4f1d16422). Codex then made a tidal silt for it (`codex-silt/`: its README.txt, LICENCES.txt and generate.py; the
+used maps only): a wet set and a drier set for the band by the quay wall, 2 m tiles, 2048 px, a few millimetres of
+relief. Laid plainly, the wet set's pools repeat every 2 m like a camouflage print (its tiling_4x4 sheet).
+
+- `build_silt.py` writes `maps/silt_wet.png` (the wet silt with its own pools filled from the drier set's ground,
+  toned to the wet silt; gloss in alpha), `maps/silt_dry.png` (the drier silt, AO in, gloss in alpha) and
+  `maps/silt_relief.png` (the drier set's normal x, y and height). `native-godot/scripts/store-dirt.gd --silt` stores
+  them BC7 with mipmaps (sRGB colour; the relief linear).
+- The mud's stored shader (`world/town/resources/r001384.res`, used by `town/tide_mud` alone) gets the silt lines
+  (`Psx.SiltLines`, `scripts/SiltRepair.cs`): one kind changed in place, off unless a material sets `silt`. The maps are
+  laid in world metres and hex-tiled, each hexagon turned and shifted its own way, blended by the higher ground. The
+  water is laid in world space: a film along the river's level now (`silt_level`, set every frame the tide moves) that
+  reaches up in inlets with shelves between, and pools on the flats from a broad noise, both filling the silt's hollows
+  first and growing in the rain; flat, they mirror the river's picture and the lamps. A broad swell, the relief light
+  and the river's picture broken by the silt's slopes give the wet silt its sheen. No parallax: the relief is millimetres.
+- `NativeDirt.Mud` lays it on both surfaces of the mud (the foreshore and the canals' beds; the mesh's vertex colour is
+  evened out by the tint) and drops the sand's pictures. `--keep-old-dirt` still draws the old ripples.
+- The tree pits' soil (the same pass): water stands only in patches, where it rises higher, so the hollows join into a
+  few pools (Codex: scattered metal flecks); the clods are trodden flat in places (Codex: too evenly knobbly).
+
+| File | SHA-256 |
+|---|---|
+| `LICENCES.txt` | `c1ee7a70fa5636a91c613511486d667fa2226856252fa1c0b89673b56b1f411a` |
+| `README.txt` | `be438ff21c9100ac18f83cb3a588b83df1dab1e9b4ff6ced64bbc906a159c3ab` |
+| `generate.py` | `fcc406a68056128ebfeb19c5ae7ad63b0ffa20894c8964cebae2bf69e35e2082` |
+| `tidal_silt_albedo.png` | `698b61644ea0422a82ed25090b8c491bac24fa85fe2c173f03ca1c98b6afd053` |
+| `tidal_silt_drier_albedo.png` | `92f2d59d880a144a1927543679b3738188824be006ab69eab7477243f2c8bf91` |
+| `tidal_silt_drier_ao.png` | `3a6e7d65c94f7082633f8df7ed2a0f998844fed4d5d8fbfc3b471eae43eed5b2` |
+| `tidal_silt_drier_height.png` | `fd301f37871a78645a1aab8b008e6faf6240440dfb18e1630df2510a9aabcccd` |
+| `tidal_silt_drier_normal.png` | `d97f4653b0388eebadbc77d679caf553c67540ecea2560885085cabe470f1b9f` |
+| `tidal_silt_drier_roughness.png` | `c90285764daf5bf1e318b03c833fe9d222fbec113d7ce5a3e3abf6e7e7f6ce94` |
+| `tidal_silt_roughness.png` | `fbee6cfdf3eb63402f259cfb0b568bc036c0a66d1b8ff71c6972fd34f0f51295` |
+| `tidal_silt_water_mask.png` | `06486ae1702826c4afa43d11a991d4e927041c98debf058467a8bad55fb7519c` |
+| `validation.json` | `741d8003308392bd4725a8d6056f04caffed57b27073795af7797179830942ce` |
