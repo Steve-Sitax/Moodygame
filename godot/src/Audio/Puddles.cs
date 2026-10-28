@@ -28,7 +28,9 @@ public static class Puddles
         double wx = x+(Value(x/2.6+5.3,z/2.6+5.3)-.5)*.7+(Value(x/.9+1.7,z/.9+1.7)-.5)*.35, wz = z+(Value(x/2.6-9.1,z/2.6-9.1)-.5)*.7+(Value(x/.9-4.3,z/.9-4.3)-.5)*.35;
         double pn = Value(wx/17,wz/17)*.55+Value(wx/7.3+31.7,wz/7.3+31.7)*.3+Value(wx/2.9-12.1,wz/2.9-12.1)*.15;
         pn = Math.Clamp((pn-.5)*2.4+.5,0,1); double threshold = .97-Math.Clamp(level*scale,0,1)*.22;
-        if (pn <= threshold) return 0;
-        return Smooth(threshold,threshold+.018,pn)*Smooth(.46,.56,Turned(wx,wz,.454,-.891,2.1,57.1))*Smooth(.3,.42,Turned(wx,wz,-.6,-.8,4.7,-23.9));
+        // (the shader's finer edge, #240; not the paving's joints, which only the picture knows)
+        double ed = (Turned(wx,wz,.8,.6,.55,7.7)-.5)*.05+(Turned(wx,wz,-.5,.866,.21,-3.1)-.5)*.025, pe = pn+ed;
+        if (pe <= threshold) return 0;
+        return Smooth(threshold,threshold+.018,pe)*Smooth(.46,.56,Turned(wx,wz,.454,-.891,2.1,57.1)+ed*1.5)*Smooth(.3,.42,Turned(wx,wz,-.6,-.8,4.7,-23.9)+ed*1.5);
     }
 }

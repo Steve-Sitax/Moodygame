@@ -1602,9 +1602,15 @@ void fragment() {
 		float lvl = clamp(psx_puddle * puddles, 0.0, 1.0);
 		// at most about a quarter of the ground is puddle, even in a storm
 		float th = 0.97 - lvl * 0.22;
-		float water = smoothstep(th, th + 0.018, pn);
+		// the edge wanders finer than the noise's cells (on its square grid alone it ran straight from cell to cell: Codex
+		// on #240), and on the paving the water creeps into the joints and dips and leaves the high stones dry
+		float ed = (pud_val(pud_turn(pw, 0.8, 0.6) / 0.55 + 7.7) - 0.5) * 0.05 + (pud_val(pud_turn(pw, -0.5, 0.866) / 0.21 - 3.1) - 0.5) * 0.025;
+		float pe = pn + ed;
+");
+            if (bump) c.Append("		pe += (0.5 - psx_h) * 0.07;\n");
+            c.Append(@"		float water = smoothstep(th, th + 0.018, pe);
 		// broken into puddles a few metres across
-		water *= smoothstep(0.46, 0.56, pud_val(pud_turn(pw, 0.454, -0.891) / 2.1 + 57.1)) * smoothstep(0.3, 0.42, pud_val(pud_turn(pw, -0.6, -0.8) / 4.7 - 23.9));
+		water *= smoothstep(0.46, 0.56, pud_val(pud_turn(pw, 0.454, -0.891) / 2.1 + 57.1) + ed * 1.5) * smoothstep(0.3, 0.42, pud_val(pud_turn(pw, -0.6, -0.8) / 4.7 - 23.9) + ed * 1.5);
 		// the hollows the dirt mask's alpha marks (1 - how deep: the cleared squares, NativeSquareDressing): they fill
 		// first, deeper with the rain, their edge broken by the stones
 		// (read a little off its place, by the same warp: the mask's half-metre texels drew the hollows' edges straight)
@@ -1614,7 +1620,7 @@ void fragment() {
 ");
             if (k.Relief > 0) c.Append("		// stones and pebbles stand out of the water: the shallower the puddle, the more of them\n		water *= 1.0 - smoothstep(0.66 + lvl * 0.2, 0.84 + lvl * 0.2, psx_h) * (1.0 - smoothstep(th + 0.03, th + 0.2, pn));\n");
             c.Append(@"		water = clamp(water, 0.0, 1.0);
-		float damp = max(smoothstep(th - 0.09, th, pn), smoothstep(0.4 - lvl * 0.35, 0.66 - lvl * 0.45, hol));
+		float damp = max(smoothstep(th - 0.09, th, pe), smoothstep(0.4 - lvl * 0.35, 0.66 - lvl * 0.45, hol));
 		float dk = 1.0 - 0.38 * damp * (1.0 - water);
 		k3 *= dk;
 		ad *= dk;

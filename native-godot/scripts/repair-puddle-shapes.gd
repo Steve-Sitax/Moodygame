@@ -6,6 +6,9 @@ extends SceneTree
 # Issue #237: turned as well, the wet stretches themselves moved (the quay's large puddles were gone): the stretches are
 # read unturned again, at a smaller warp (half a metre, in two stretches); only the cuts that break them into puddles
 # stay turned. A stored shader with #231's code gets the same change.
+# Issue #240: the edges still ran straight from one noise cell to the next. The edge wanders by a finer noise (0.55 m and
+# 0.21 m, turned), the cuts by the same, and on the stones (the kinds with a height map: setts, flags) the water creeps
+# into the joints and dips by the stone's height. A stored shader with #237's code gets this too.
 # Run in Forward+ (not headless):
 #   godot --rendering-method forward_plus --path . --script res://scripts/repair-puddle-shapes.gd -- <backup folder> [--apply]
 # Without --apply it only lists the shaders it would change. Originals are copied to the backup folder first and never
@@ -21,24 +24,36 @@ const FUNCS := "// the puddles' ground (Audio/Puddles.cs keeps the same sums): w
 const FUNCS_231 := "// the puddles' ground (Audio/Puddles.cs keeps the same sums): warped by up to 1.2 m, each stretch of the noise turned its own\n// way. On the noise's square grid alone the puddles had straight sides and square corners (Codex on #231).\nvec2 pud_turn(vec2 p, float c, float s) { return vec2(c * p.x - s * p.y, s * p.x + c * p.y); }\nvec2 pud_warp(vec2 p) { return p + (vec2(pud_val(p / 3.7 + 5.3), pud_val(p / 3.7 - 9.1)) - 0.5) * 2.4; }\n"
 const PN_231 := "vec2 pw = pud_warp(pp);\n\t\tfloat pn = pud_val(pud_turn(pw, 0.814, 0.581) / 17.0) * 0.55 + pud_val(pud_turn(pw, -0.333, 0.943) / 7.3 + 31.7) * 0.3 + pud_val(pud_turn(pw, -0.951, 0.309) / 2.9 - 12.1) * 0.15;"
 const HOL_231 := "// (read a little off its place, by the same warp: the mask's half-metre texels drew the hollows' edges straight)\n\t\tfloat hol = 1.0 - texture(psx_dirt, (pp + (pw - pp) * 0.25 - psx_dirt_box.xy) / psx_dirt_box.zw).a;"
+# (#240)
+const OLD_WATER := "float th = 0.97 - lvl * 0.22;\n\t\tfloat water = smoothstep(th, th + 0.018, pn);"
+const NEW_EDGE := "float th = 0.97 - lvl * 0.22;\n\t\t// the edge wanders finer than the noise's cells (on its square grid alone it ran straight from cell to cell: Codex\n\t\t// on #240), and on the paving the water creeps into the joints and dips and leaves the high stones dry\n\t\tfloat ed = (pud_val(pud_turn(pw, 0.8, 0.6) / 0.55 + 7.7) - 0.5) * 0.05 + (pud_val(pud_turn(pw, -0.5, 0.866) / 0.21 - 3.1) - 0.5) * 0.025;\n\t\tfloat pe = pn + ed;\n"
+const NEW_JOINTS := "\t\tpe += (0.5 - psx_h) * 0.07;\n"
+const NEW_WATER := "\t\tfloat water = smoothstep(th, th + 0.018, pe);"
+const CUT_240 := "water *= smoothstep(0.46, 0.56, pud_val(pud_turn(pw, 0.454, -0.891) / 2.1 + 57.1) + ed * 1.5) * smoothstep(0.3, 0.42, pud_val(pud_turn(pw, -0.6, -0.8) / 4.7 - 23.9) + ed * 1.5);"
+const OLD_DAMP := "float damp = max(smoothstep(th - 0.09, th, pn),"
+const NEW_DAMP := "float damp = max(smoothstep(th - 0.09, th, pe),"
 # (a shader that has the change)
-const DONE := "pud_val(p / 0.9 + 1.7)"
+const DONE := "float pe = pn + ed;"
 
 func _initialize(): call_deferred("run")
 
 func repaired(code: String) -> String:
 	var c := code.replace("\r\n", "\n")
+	var was := c
 	# (a kind without the hollows has no HOL_231)
 	if c.contains(FUNCS_231) and c.contains(PN_231):
-		return c.replace(FUNCS_231, FUNCS).replace(PN_231, NEW_PN).replace(HOL_231, NEW_HOL)
-	if not c.contains(OLD_PN) or c.contains("pud_warp"): return ""
-	var at := c.find("float pud_val(vec2 p) {")
-	if at < 0: return ""
-	var close := c.find("\n}\n", at)
-	if close < 0: return ""
-	c = c.substr(0, close + 3) + FUNCS + c.substr(close + 3)
-	c = c.replace(OLD_PN, NEW_PN).replace(OLD_BREAK, NEW_BREAK).replace(OLD_HOL, NEW_HOL)
-	return c
+		c = c.replace(FUNCS_231, FUNCS).replace(PN_231, NEW_PN).replace(HOL_231, NEW_HOL)
+	elif c.contains(OLD_PN) and not c.contains("pud_warp"):
+		var at := c.find("float pud_val(vec2 p) {")
+		if at < 0: return ""
+		var close := c.find("\n}\n", at)
+		if close < 0: return ""
+		c = c.substr(0, close + 3) + FUNCS + c.substr(close + 3)
+		c = c.replace(OLD_PN, NEW_PN).replace(OLD_BREAK, NEW_BREAK).replace(OLD_HOL, NEW_HOL)
+	# #240: the finer edge, and the joints on the kinds whose stones have a height
+	if c.contains("pud_warp") and c.contains(OLD_WATER) and c.contains(NEW_BREAK):
+		c = c.replace(OLD_WATER, NEW_EDGE + (NEW_JOINTS if c.contains("float psx_h = 0.5;") else "") + NEW_WATER).replace(NEW_BREAK, CUT_240).replace(OLD_DAMP, NEW_DAMP)
+	return "" if c == was else c
 
 func materials_of(node: Node, into: Dictionary) -> void:
 	if node is GeometryInstance3D and node.material_override is ShaderMaterial: into[node.material_override] = true
@@ -88,7 +103,7 @@ func run():
 			push_error("save failed: " + file); quit(1); return
 		var back = load(file)
 		var back_code: String = (back.shader.code if back is ShaderMaterial else back.code)
-		if not back_code.contains(DONE) or back_code.contains(PN_231):
+		if not back_code.contains(DONE) or back_code.contains(PN_231) or back_code.contains(OLD_WATER):
 			push_error("reload lacks the change: " + file); quit(1); return
 	print("puddle shapes: ", changed, " shaders ", ("changed" if apply else "to change"), " of ", done.size())
 	quit()

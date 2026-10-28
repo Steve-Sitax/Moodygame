@@ -1233,7 +1233,7 @@ public static class NativeSquareDressing
         // one mesh for each 60 m of the town (a square's stones together: each its own bounds for the visibility range)
         (int, int) Area(Vector2 p) => ((int)MathF.Floor(p.X / 60), (int)MathF.Floor(p.Y / 60));
         var areas = lay.Patches.Select(p => Area(p.At)).Concat(lay.Strips.Select(s => Area((s.A + s.B) / 2))).Distinct().ToList();
-        int stones = 0;
+        int stones = 0, right = 0, wrong = 0;
         foreach (var area in areas)
         {
             var st = Begin();
@@ -1244,6 +1244,7 @@ public static class NativeSquareDressing
             st.SetMaterial(stone);
             var mesh = st.Commit();
             mesh.ResourceName = "square_paving";
+            var (r, w) = MeshWinding.Count(mesh); right += r; wrong += w;
             var node = new MeshInstance3D
             {
                 Name = $"paving_{area.Item1}_{area.Item2}", Mesh = mesh, CastShadow = GeometryInstance3D.ShadowCastingSetting.Off,
@@ -1253,7 +1254,90 @@ public static class NativeSquareDressing
             Holder(town).AddChild(node);
             stones += laid;
         }
+        GD.Print($"square dressing: winding: the paving's stones {right} wound right, {wrong} wrong");
         return stones;
+    }
+
+    /// <summary>
+    /// The old pavements' broken ends on the razed plots (#234: at Sint-Carolus the raised flags ended in angled cuts, a
+    /// wedge of street between two fronts' pieces, a flag end hanging open over nothing, black under it from the street).
+    /// world/town/pavement-mends.json (scripts/paving/pavement_mends.py, from the installed town) closes the gaps under
+    /// 0.8 m between the raised tops with flags (the flags' own material, their courses and height carried on), lays flags
+    /// over two cut pieces that lay one over the other, and faces every open edge with a kerb stone's face down under the
+    /// street, so the pavement ends square and solid where it stops in the open. One mesh for each 60 m of the town, the
+    /// flags' and the kerb's materials (no new shader kind), solid as the pavement is. The razed cut is not changed.
+    /// Returns the flag pieces and the faces laid.
+    /// </summary>
+    private const string MendFile = "res://world/town/pavement-mends.json";
+    private static (int Fills, int Faces) Mend(Node3D town)
+    {
+        if (!Godot.FileAccess.FileExists(MendFile)) return (0, 0);
+        var root = JsonDocument.Parse(Godot.FileAccess.GetFileAsString(MendFile)).RootElement;
+        if (ResourceLoader.Load<Material>(root.GetProperty("flags").GetString()!) is not { } flags || ResourceLoader.Load<Material>(root.GetProperty("kerb").GetString()!) is not { } kerb) return (0, 0);
+        float foot = root.GetProperty("foot").GetSingle();
+        static Vector3 V3(JsonElement e) => new(e[0].GetSingle(), e[1].GetSingle(), e[2].GetSingle());
+        static Color C4(JsonElement e) => new(e[0].GetSingle(), e[1].GetSingle(), e[2].GetSingle(), e[3].GetSingle());
+        (int, int) Area(Vector3 p) => ((int)MathF.Floor(p.X / 60), (int)MathF.Floor(p.Z / 60));
+        var tops = new Dictionary<(int, int), SurfaceTool>();
+        var sides = new Dictionary<(int, int), SurfaceTool>();
+        SurfaceTool For(Dictionary<(int, int), SurfaceTool> set, (int, int) area, bool custom)
+        {
+            if (set.TryGetValue(area, out var st)) return st;
+            st = new SurfaceTool();
+            st.Begin(Mesh.PrimitiveType.Triangles);
+            if (custom) st.SetCustomFormat(0, SurfaceTool.CustomFormat.RgFloat);
+            return set[area] = st;
+        }
+        int fills = 0, faces = 0, right = 0, wrong = 0;
+        foreach (var t in root.GetProperty("tops").EnumerateArray())
+        {
+            var c = t.GetProperty("corners"); var uv = t.GetProperty("uv");
+            var p = new[] { V3(c[0]), V3(c[1]), V3(c[2]) };
+            var u = new[] { new Vector2(uv[0][0].GetSingle(), uv[0][1].GetSingle()), new Vector2(uv[1][0].GetSingle(), uv[1][1].GetSingle()), new Vector2(uv[2][0].GetSingle(), uv[2][1].GetSingle()) };
+            var tg = t.GetProperty("tangent"); var tangent = new Plane(tg[0].GetSingle(), tg[1].GetSingle(), tg[2].GetSingle(), tg[3].GetSingle());
+            var colour = C4(t.GetProperty("colour"));
+            var st = For(tops, Area((p[0] + p[1] + p[2]) / 3), false);
+            // (Godot's front face turns clockwise as seen from above)
+            var order = (p[1] - p[0]).Cross(p[2] - p[0]).Y > 0 ? new[] { 0, 2, 1 } : new[] { 0, 1, 2 };
+            foreach (int k in order) { st.SetNormal(Vector3.Up); st.SetTangent(tangent); st.SetUV(u[k]); st.SetColor(colour); st.AddVertex(p[k]); }
+            fills++;
+        }
+        foreach (var s in root.GetProperty("sides").EnumerateArray())
+        {
+            Vector3 a = V3(s.GetProperty("a")), b = V3(s.GetProperty("b"));
+            var o = s.GetProperty("out"); var n = new Vector3(o[0].GetSingle(), 0, o[1].GetSingle());
+            var colour = C4(s.GetProperty("colour")); var cu = s.GetProperty("custom");
+            var custom = new Color(cu[0].GetSingle(), cu[1].GetSingle(), 0, 0);
+            var st = For(sides, Area((a + b) / 2), true);
+            // the face from the pavement's top to under the street, its picture in metres along and up (the kerbs' own scale)
+            float len = new Vector2(b.X - a.X, b.Z - a.Z).Length(), s0 = a.X * 0.37f + a.Z * 0.61f;
+            var q = new[] { a, b, new Vector3(b.X, foot, b.Z), new Vector3(a.X, foot, a.Z) };
+            var qu = new[] { new Vector2(s0, a.Y), new Vector2(s0 + len, b.Y), new Vector2(s0 + len, foot), new Vector2(s0, foot) };
+            var order = (q[1] - q[0]).Cross(q[2] - q[0]).Dot(n) > 0 ? new[] { 0, 2, 1, 0, 3, 2 } : new[] { 0, 1, 2, 0, 2, 3 };
+            foreach (int k in order) { st.SetNormal(n); st.SetTangent(new Plane(0, -1, 0, 1)); st.SetUV(qu[k] / 3); st.SetCustom(0, custom); st.SetColor(colour); st.AddVertex(q[k]); }
+            faces++;
+        }
+        foreach (var area in tops.Keys.Union(sides.Keys).ToList())
+        {
+            var mesh = new ArrayMesh();
+            if (tops.TryGetValue(area, out var ts)) { ts.Commit(mesh); mesh.SurfaceSetMaterial(mesh.GetSurfaceCount() - 1, flags); }
+            if (sides.TryGetValue(area, out var ss)) { ss.Commit(mesh); mesh.SurfaceSetMaterial(mesh.GetSurfaceCount() - 1, kerb); }
+            mesh.ResourceName = "pavement_mends";
+            var (r, w) = MeshWinding.Count(mesh); right += r; wrong += w;
+            var node = new MeshInstance3D
+            {
+                Name = $"pavement_mends_{area.Item1}_{area.Item2}", Mesh = mesh, CastShadow = GeometryInstance3D.ShadowCastingSetting.Off,
+                VisibilityRangeEnd = 110, VisibilityRangeEndMargin = 12, VisibilityRangeFadeMode = GeometryInstance3D.VisibilityRangeFadeModeEnum.Self,
+            };
+            node.SetMeta(Meta, true);
+            // (solid as the pavement: a closed corner is walked on at its height)
+            var body = new StaticBody3D { Name = "Solid", CollisionLayer = Scheldemist.World.Solid.Layer, CollisionMask = 0 };
+            body.AddChild(new CollisionShape3D { Name = "Shape", Shape = mesh.CreateTrimeshShape() });
+            node.AddChild(body);
+            Holder(town).AddChild(node);
+        }
+        GD.Print($"square dressing: winding: the pavement mends {right} wound right, {wrong} wrong");
+        return (fills, faces);
     }
 
     /// <summary>
@@ -1541,6 +1625,8 @@ public static class NativeSquareDressing
             int stones = Pave(town, lay);
             GD.Print($"square dressing: {lay.Patches.Count} mended patches and {lay.Strips.Count} old fronts paved ({stones} stones), {lay.Hollows.Count} hollows");
         }
+        var (fills, faces) = Mend(town);
+        GD.Print($"square dressing: the old pavements' broken ends mended: {fills} flag pieces laid, {faces} open edges faced");
         AuthorAsset? pump = null;
         Mesh? guard = null; float guardFoot = 0;
         foreach (var t in plan.Things)

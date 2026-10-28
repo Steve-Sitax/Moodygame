@@ -20,7 +20,7 @@ namespace Scheldemist.Native.World;
 /// surface instead of a flat card (<see cref="EarthModel"/>); the weeds, the town's weed copies everywhere (joints, quay
 /// and pits), sparse bent grasses, low rosettes and a dead stem instead of crossed cards (<see cref="WeedModel"/>); the
 /// fallen leaves a new picture (assets/materials/tree-pits-20261028, art-source/tree-pits-20261028); each pit tree a
-/// root collar with its roots running into the earth, in its own bark (<see cref="Roots"/>).
+/// root flare, its trunk swelling into roots that run into the earth, in its own bark (<see cref="Roots"/>).
 /// </summary>
 public static class NativeTreePits
 {
@@ -65,10 +65,11 @@ public static class NativeTreePits
         var frame = Frame();
         var models = new Mesh?[] { frame, EarthModel(parts[1]!.Multimesh.Mesh), null, WeedModel(parts[3]!.Multimesh.Mesh, false), WeedModel(parts[4]!.Multimesh.Mesh, true) };
         for (int p = 0; p < parts.Length; p++) Grow(parts[p]!, more[p], models[p]);
+        GD.Print($"tree pits: winding: {MeshWinding.Say("frame", frame)}; {MeshWinding.Say("earth", models[1], up: true)}");
         // (every pit, the quay's and the squares', in the world: the frame copies' places)
         var pits = Enumerable.Range(0, parts[0]!.Multimesh.InstanceCount).Select(k => (xf[0] * parts[0]!.Multimesh.GetInstanceTransform(k)).Origin).ToList();
         int roots = Roots(town, pits);
-        return $"{more[0].Count} tree pits{(frame == null ? " (the blue-stone frame's material is missing: the bake's frame)" : "")}, {roots} root collars";
+        return $"{more[0].Count} tree pits{(frame == null ? " (the blue-stone frame's material is missing: the bake's frame)" : "")}, {roots} root flares";
     }
 
     /// <summary>Puts a copy set's copies and the new ones in a new set, on another model if one is given.</summary>
@@ -201,9 +202,11 @@ public static class NativeTreePits
     // ------------------------------------------------------------------ the earth
 
     /// <summary>
-    /// The pit's earth (the bake's flat card, 1.6 m square at 6 mm): a 10 cm grid in the card's own material and picture
-    /// place, compacted earth 4-16 mm up in lumps, lower along the frame where the rain runs off the stone, heaped a little
-    /// round the trunk (the root collar). Never under the paving's plane, which runs on under it.
+    /// The pit's earth (the bake's flat card, 1.6 m square at 6 mm): a 5 cm grid in the card's own material and picture
+    /// place, compacted earth 4-16 mm up in lumps, heaped a little round the trunk (the root flare). Codex on #240 (the soil
+    /// smooth, the frame newly laid): clods of 2-6 cm a few millimetres proud, a crumb finer still, and the earth banked
+    /// against the frame's inner faces, swept and washed up to a centimetre or two under the kerbs' tops, ragged along
+    /// them. Never under the paving's plane, which runs on under it.
     /// </summary>
     private static ArrayMesh? EarthModel(Mesh? bake)
     {
@@ -215,13 +218,19 @@ public static class NativeTreePits
         // the card's picture as a plane through its corners (uv = a + bx x + bz z)
         var (a0, bx, bz) = UvPlane(v, uv);
         float h0 = v.Min(p => p.Y), half = v.Max(p => Math.Abs(p.X));
-        const int N = 16;
+        const int N = 32;
+        // (the frame's inner faces: Outer - Width from the middle)
+        const float Inner = Outer - Width;
         float Height(float x, float z)
         {
             float lump = Noise2(x * 7.1f, z * 7.1f) * 0.6f + Noise2(x * 19 + 4, z * 19 - 2) * 0.4f;
-            float edge = Mathf.Clamp((half - Math.Max(Math.Abs(x), Math.Abs(z))) / 0.12f, 0, 1);
+            float clod = MathF.Max(0, Noise2(x * 31 + 7, z * 31 - 5) - 0.45f) * 0.018f + (Noise2(x * 67 - 3, z * 67 + 9) - 0.5f) * 0.005f;
             float r = MathF.Sqrt(x * x + z * z), collar = Mathf.Clamp(1 - r / 0.45f, 0, 1);
-            return h0 - 0.002f + 0.012f * lump * (0.4f + 0.6f * edge) + 0.008f * collar * collar;
+            // banked against the kerbs: up toward their faces over the last 8-14 cm, raggedly
+            float toFrame = Inner - Math.Max(Math.Abs(x), Math.Abs(z)), reach = 0.08f + 0.06f * Noise2(x * 5.3f + 11, z * 5.3f - 7);
+            float bank = Mathf.Clamp(1 - toFrame / reach, 0, 1);
+            // (under the kerbs' 3 cm tops by a centimetre at least)
+            return Math.Min(0.02f + 0.02f * collar, h0 - 0.002f + 0.012f * lump + clod + 0.008f * collar * collar + 0.014f * bank * bank * (0.7f + 0.3f * Noise2(x * 13, z * 13)));
         }
         var st = new SurfaceTool();
         st.Begin(Mesh.PrimitiveType.Triangles);
@@ -360,15 +369,18 @@ public static class NativeTreePits
     // ------------------------------------------------------------------ the roots
 
     /// <summary>
-    /// Each pit tree's root collar (Codex on #222: the trunks ended flat on the earth): five to seven rounded roots, most
-    /// forked, sinking into the earth (<see cref="RootModel"/>), in the tree's own bark (copies at the trees'
-    /// own places, so they turn and scale with each tree; under 2 m the bark's wind leaves them still). A copy set for each
-    /// tree kind's bark; not solid (a few centimetres, stepped over). Returns the collars.
+    /// Each pit tree's root flare (Codex on #222: the trunks ended flat on the earth): the trunk's foot swelling into four
+    /// to six uneven roots, most of the big ones forked, sinking into the earth (<see cref="RootModel"/>), in the tree's
+    /// own bark (copies at the trees' own places, so they turn and scale with each tree; under 2 m the bark's wind leaves
+    /// them still). One flare and a copy set for each tree kind's bark; not solid (a few centimetres, stepped over).
+    /// Returns the flares laid.
     /// </summary>
     private const float RootCell = 30;
     private static int Roots(Node3D town, List<Vector3> pits)
     {
         int made = 0;
+        // (one flare for each bark model: the tree kind's copy sets share it)
+        var flares = new Dictionary<Mesh, ArrayMesh?>();
         var barks = BakedWorld.All(town).OfType<MultiMeshInstance3D>().Where(m => m.Name.ToString().Contains("bark_mm") && m.Multimesh is { InstanceCount: > 0, Mesh: ArrayMesh }).ToList();
         foreach (var bark in barks)
         {
@@ -381,7 +393,13 @@ public static class NativeTreePits
                 var w = xf * t;
                 if (pits.Any(p => new Vector2(p.X - w.Origin.X, p.Z - w.Origin.Z).Length() < 0.35f)) at.Add(t);
             }
-            if (at.Count == 0 || RootModel((ArrayMesh)mm0.Mesh) is not { } model) continue;
+            if (at.Count == 0) continue;
+            if (!flares.TryGetValue(mm0.Mesh, out var model))
+            {
+                flares[mm0.Mesh] = model = RootModel((ArrayMesh)mm0.Mesh);
+                GD.Print($"tree pits: winding: {MeshWinding.Say($"root flare for {mm0.Mesh.ResourcePath}", model, up: true)}");
+            }
+            if (model == null) continue;
             // in sets of 30 m of the town (#237: one set for a whole tree kind, its middle often over 60 m off, was not
             // drawn even beside its trees: a visibility range is measured to a set's middle)
             foreach (var cell in at.GroupBy(t => { var o = (xf * t).Origin; return ((int)MathF.Floor(o.X / RootCell), (int)MathF.Floor(o.Z / RootCell)); }))
@@ -402,113 +420,234 @@ public static class NativeTreePits
     }
 
     /// <summary>
-    /// The root collar for one bark model: the trunk's radius and bark picture read from its own lowest 30 cm. (Codex on
-    /// #237: a straight wedge tapering to a point read as a wooden stake.) Five to seven roots leave the trunk as broad,
-    /// low buttresses 7-12 cm high and 20-30 cm wide at the trunk, their backs low and their sides sloping into the
-    /// earth, each bending its own way; most fork once; each thins and dives into the earth and ends under it, so no root
-    /// has a tip. The bark's grain runs along each root, from the trunk's own picture at its foot.
+    /// The root flare for one bark model: the trunk's foot swelling into its roots as one surface (#239: separate lumps
+    /// laid round the trunk read as stony toes, the front one cut off from the trunk by a dark hollow). The trunk's radius
+    /// round its foot, its bark picture and its colour are read from its own lowest 30 cm. A height field over rings round
+    /// the trunk: the surface starts inside the trunk's foot, 24 cm up, so it leaves the bark without a seam; an all-round
+    /// swell falls steeply away from the trunk; on it four to six roots of uneven size run out (one or two big, the rest
+    /// smaller), each bending its own way, its back rounded and its sides falling into the swell (a smooth union, no crease
+    /// where root meets flare); the bigger ones mostly fork once, unevenly, the branch thinner; each sinks as it goes and
+    /// ends under the earth, so no root has a tip. The bark's own picture goes on down the flare from the trunk's foot (its
+    /// grain along each root), in the bark's own vertex colour (the old roots had none: they drew paler than the trunk),
+    /// darker where the earth splashes it.
     /// </summary>
     private static ArrayMesh? RootModel(ArrayMesh bark)
     {
         var arrays = bark.SurfaceGetArrays(0);
         var v = arrays[(int)Mesh.ArrayType.Vertex].AsVector3Array();
         var uvs = arrays[(int)Mesh.ArrayType.TexUV].VariantType == Variant.Type.PackedVector2Array ? arrays[(int)Mesh.ArrayType.TexUV].AsVector2Array() : null;
+        var cols = arrays[(int)Mesh.ArrayType.Color].VariantType == Variant.Type.PackedColorArray ? arrays[(int)Mesh.ArrayType.Color].AsColorArray() : null;
         var low = Enumerable.Range(0, v.Length).Where(i => v[i].Y < 0.3f).ToList();
         if (low.Count < 3 || uvs == null) return null;
         var centre = low.Aggregate(Vector2.Zero, (s, i) => s + new Vector2(v[i].X, v[i].Z)) / low.Count;
         float radius = (float)low.Average(i => new Vector2(v[i].X, v[i].Z).DistanceTo(centre));
         float u0 = low.Min(i => uvs[i].X), u1 = low.Max(i => uvs[i].X);
-        // the bark picture up the trunk: v = va + vb y (a line through the low corners), so a root's grain goes on from
-        // the trunk's foot as if the bark were unrolled along it
+        // the bark picture up the trunk: v = va + vb y (a line through the low corners)
         double my = low.Average(i => v[i].Y), mv = low.Average(i => uvs[i].Y);
         double sxy = low.Sum(i => (v[i].Y - my) * (uvs[i].Y - mv)), sxx = low.Sum(i => (v[i].Y - my) * (v[i].Y - my));
         float vb = sxx > 1e-6 ? (float)(sxy / sxx) : -1, va = (float)(mv - vb * my);
-        // (metres round the trunk to its picture's width)
-        float uPerM = (u1 - u0) / (MathF.Tau * Math.Max(0.05f, radius));
-        var rng = new Random((int)(radius * 10000) + low.Count);
-        GD.Print($"tree pits: root collar for {bark.ResourceName}{bark.ResourcePath}: trunk radius {radius:0.000} m round ({centre.X:0.00}, {centre.Y:0.00}) from {low.Count} corners, bark u {u0:0.00}-{u1:0.00}, v {va:0.00} + {vb:0.00} y");
-        var st = new SurfaceTool();
-        st.Begin(Mesh.PrimitiveType.Triangles);
-        // the roots' foot under the earth (the pit's earth lies 2-20 mm up), and how far a root may reach from the trunk's
-        // middle (inside the frame's 0.76 m)
-        const float Bed = -0.012f;
-        float reach = Math.Min(0.64f, radius + 0.36f);
-        // one root from p0 heading h0 (radians), its centre line len long, bending by bend; hb its top's height at its
-        // start, wb its width there; returns its centre line (place, heading, top, width at each step)
-        List<(Vector2 P, float H, float T, float W)> Root(Vector2 p0, float h0, float bend, float len, float hb, float wb, float uOff)
-        {
-            const int Along = 12, Round = 9;
-            float ph = (float)rng.NextDouble() * 10, knot = 0.6f + 0.5f * (float)rng.NextDouble();
-            var line = new List<(Vector2 P, float H, float T, float W)>();
-            var beds = new List<float>();
-            var p = p0;
-            for (int i = 0; i <= Along; i++)
+        float Ang(int i) => MathF.Atan2(v[i].Z - centre.Y, v[i].X - centre.X);
+        // and round it: u = u0 + (u1 - u0) times the part of the turn from the trunk's seam (its place and way round found
+        // from the corners), so the flare's picture goes on from the trunk's
+        float seam = 0, way = 1, best = float.MaxValue;
+        for (int k = 0; k < 72; k++)
+            foreach (float w in new[] { 1f, -1f })
             {
-                float t = (float)i / Along;
-                float h = h0 + bend * t + 0.12f * MathF.Sin(t * 5.3f + ph);
-                // the top: high at the trunk, a long low back, under the earth by its end (no tip shows)
-                // (its foot dives as it goes: the end lies well under the earth, thin)
-                float bed = Bed - 0.025f * t * t, top = bed + (hb - Bed) * MathF.Pow(1 - t, 1.25f);
-                top += 0.006f * MathF.Sin(t * 13 * knot + ph) * (1 - t);
-                // broad where it leaves the trunk (the flare), narrowing
-                float w = wb * (1 - 0.8f * t) * (1 + 0.35f * MathF.Pow(1 - t, 3));
-                line.Add((p, h, top, w));
-                beds.Add(bed);
-                p += new Vector2(MathF.Cos(h), MathF.Sin(h)) * (len / Along);
-            }
-            // the round over the root: a low back, its sides sloping gently into the earth (a steep foot read as a stone)
-            Vector3 P(int i, int j, out Vector2 uv)
-            {
-                var (c, h, top, w) = line[i];
-                float th = MathF.PI * j / Round;
-                var side = new Vector2(-MathF.Sin(h), MathF.Cos(h));
-                var q = c + side * (MathF.Cos(th) * w / 2);
-                float bed = beds[i], y = bed + (Math.Max(top, bed + 0.001f) - bed) * MathF.Pow(Math.Max(0, MathF.Sin(th)), 1.5f);
-                float along = len * i / Along, arc = (w + 2 * Math.Max(0, top - bed)) * j / Round;
-                uv = new Vector2(u0 + uOff + arc * uPerM, va + vb * along);
-                return new Vector3(q.X, y, q.Y);
-            }
-            for (int i = 0; i < Along; i++)
-                for (int j = 0; j < Round; j++)
+                float a0 = k * MathF.Tau / 72, err = 0;
+                foreach (int i in low)
                 {
-                    var q = new Vector3[4];
-                    var uv = new Vector2[4];
-                    q[0] = P(i, j, out uv[0]); q[1] = P(i + 1, j, out uv[1]); q[2] = P(i + 1, j + 1, out uv[2]); q[3] = P(i, j + 1, out uv[3]);
-                    // (Godot's front face clockwise as seen from outside: the round's outside is away from its foot line)
-                    var cm = (line[i].P + line[i + 1].P) / 2;
-                    var outward = (q[0] + q[2]) / 2 - new Vector3(cm.X, (beds[i] + beds[i + 1]) / 2, cm.Y);
-                    bool flip = (q[1] - q[0]).Cross(q[2] - q[0]).Dot(outward) > 0;
-                    foreach (int k in flip ? new[] { 0, 2, 1, 0, 3, 2 } : new[] { 0, 1, 2, 0, 2, 3 }) { st.SetUV(uv[k]); st.AddVertex(q[k]); }
+                    float f = ((w * (Ang(i) - a0)) % MathF.Tau + MathF.Tau) % MathF.Tau / MathF.Tau;
+                    float d = Math.Abs(u0 + f * (u1 - u0) - uvs[i].X);
+                    err += Math.Min(d, Math.Abs(u1 - u0) - d);
                 }
+                if (err < best) { best = err; seam = a0; way = w; }
+            }
+        var bark0 = cols == null ? Colors.White : low.Aggregate(new Color(0, 0, 0, 0), (s, i) => s + cols[i]) / low.Count;
+        var rng = new Random((int)(radius * 10000) + low.Count);
+        // the trunk's own surface round its foot: its rings (15 corners at -0.25, 0, 0.25, 0.5 m), each corner's angle and
+        // distance from the middle; a radius at an angle and height between them (the trunk narrows and is lumpy)
+        // (only the trunk's own corners, near its axis: a branch's corners at the same height are not the trunk's; and only
+        // a ring that goes all round, no gap over 70 degrees)
+        float R0(int i) => new Vector2(v[i].X, v[i].Z).DistanceTo(centre);
+        var rings = Enumerable.Range(0, v.Length).Where(i => v[i].Y > -0.4f && v[i].Y < 0.8f && R0(i) > radius * 0.5f && R0(i) < radius * 1.5f).GroupBy(i => MathF.Round(v[i].Y / 0.05f))
+            .Where(g => g.Count() >= 8).Select(g => (Y: (float)g.Average(i => v[i].Y), At: g.Select(i => (A: Ang(i), R: R0(i))).OrderBy(p => p.A).ToArray()))
+            .Where(r => r.At.Zip(r.At.Skip(1), (p, q) => q.A - p.A).Append(r.At[0].A + MathF.Tau - r.At[^1].A).Max() < 1.2f)
+            .OrderBy(r => r.Y).ToArray();
+        float RingR((float Y, (float A, float R)[] At) ring, float th)
+        {
+            var at = ring.At;
+            th = Mathf.Wrap(th, -MathF.PI, MathF.PI);
+            int k = Array.FindIndex(at, p => p.A > th);
+            var (a1, r1) = k < 0 ? (at[0].A + MathF.Tau, at[0].R) : at[k];
+            var (a0, r0) = k <= 0 ? (at[^1].A - (k == 0 ? MathF.Tau : 0), at[^1].R) : at[k - 1];
+            // (the chord between two corners: nearer the middle at its midst)
+            float t = Math.Clamp((th - a0) / Math.Max(1e-4f, a1 - a0), 0, 1), half = (a1 - a0) / 2;
+            return Mathf.Lerp(r0, r1, t) * MathF.Cos(half) / MathF.Cos(Math.Clamp((t - 0.5f) * (a1 - a0), -half, half));
+        }
+        float TrunkR(float th, float y)
+        {
+            if (rings.Length == 0) return radius;
+            int k = Array.FindIndex(rings, r => r.Y >= y);
+            if (k <= 0) return RingR(rings[k < 0 ? ^1 : 0], th);
+            float t = (y - rings[k - 1].Y) / Math.Max(1e-4f, rings[k].Y - rings[k - 1].Y);
+            return Mathf.Lerp(RingR(rings[k - 1], th), RingR(rings[k], th), t);
+        }
+        GD.Print($"tree pits: root flare for {bark.ResourceName}{bark.ResourcePath}: trunk radius {radius:0.000} m round ({centre.X:0.00}, {centre.Y:0.00}) from {low.Count} corners, bark u {u0:0.00}-{u1:0.00} from {seam:0.00} rad ({(way > 0 ? "+" : "-")}, off {best / low.Count:0.000}), v {va:0.00} + {vb:0.00} y, colour {bark0}");
+
+        // the roots' centre lines from the trunk's foot: place, its top's height and its half width at each step
+        const float Bed = -0.03f, Join = 0.2f;
+        // (the trunk's radius where the flare leaves it, round the turn)
+        float JoinR(float th) => Math.Clamp(TrunkR(th, Join), radius * 0.7f, radius * 1.3f);
+        float reach = Math.Min(0.68f, radius + 0.42f);
+        var roots = new List<(Vector2 P, float T, float W)[]>();
+        (Vector2 P, float T, float W)[] Line(Vector2 p0, float h0, float bend, float len, float top, float half, float sink)
+        {
+            const int Steps = 14;
+            float ph = (float)rng.NextDouble() * 10;
+            var line = new (Vector2, float, float)[Steps + 1];
+            var p = p0;
+            for (int i = 0; i <= Steps; i++)
+            {
+                float t = (float)i / Steps;
+                float h = h0 + bend * t * t + 0.1f * MathF.Sin(t * 4.1f + ph);
+                // high where it leaves the flare, a long low back, under the earth by its end (Bed: well under it)
+                float y = Bed + (top - Bed) * MathF.Pow(1 - t, sink) + 0.006f * MathF.Sin(t * 11 + ph) * (1 - t);
+                float w = half * (1 - 0.65f * t) * (1 + 0.6f * MathF.Pow(1 - t, 3));
+                line[i] = (p, y, w);
+                p += new Vector2(MathF.Cos(h), MathF.Sin(h)) * (len / Steps);
+            }
             return line;
         }
-        int roots = 5 + rng.Next(3);
+        int count = 4 + rng.Next(3);
         float turn = (float)(rng.NextDouble() * MathF.Tau);
-        for (int r = 0; r < roots; r++)
+        // (uneven: one or two big roots, the rest smaller, not evenly spaced)
+        int big = rng.Next(count), big2 = rng.NextDouble() < 0.5 ? (big + 2 + rng.Next(count - 3)) % count : -1;
+        for (int r = 0; r < count; r++)
         {
-            float a = turn + r * MathF.Tau / roots + (float)(rng.NextDouble() - 0.5) * 0.5f;
-            // (from just inside the bark, so it rises out of the trunk's foot)
-            var start = centre + new Vector2(MathF.Cos(a), MathF.Sin(a)) * radius * 0.75f;
-            float len = (0.65f + 0.35f * (float)rng.NextDouble()) * (reach - radius * 0.75f);
-            float hb = 0.07f + 0.05f * (float)rng.NextDouble(), wb = 0.15f + 0.08f * (float)rng.NextDouble();
-            // (inside the bark's own place in the picture: the next one over is another tree's)
-            float bend = ((float)rng.NextDouble() - 0.5f) * 0.9f, uOff = (float)rng.NextDouble() * Math.Max(0, u1 - u0 - 0.6f * uPerM - 0.1f);
-            var line = Root(start, a, bend, len, hb, wb, uOff);
-            // a fork: a thinner root from its flank, a third to two thirds out, turned off 25-45 degrees, sinking sooner
-            if (rng.NextDouble() < 0.7)
+            float a = turn + r * MathF.Tau / count + ((float)rng.NextDouble() - 0.5f) * 0.9f;
+            float size = r == big ? 1f : r == big2 ? 0.85f : 0.45f + 0.3f * (float)rng.NextDouble();
+            var start = centre + new Vector2(MathF.Cos(a), MathF.Sin(a)) * JoinR(a) * 0.9f;
+            float len = (0.45f + 0.55f * size) * (reach - radius * 0.9f);
+            float top = 0.05f + 0.11f * size, half = 0.06f + 0.07f * size;
+            float bend = ((float)rng.NextDouble() - 0.5f) * 1.1f;
+            var line = Line(start, a, bend, len, top, half, 1.3f + 0.4f * (float)rng.NextDouble());
+            roots.Add(line);
+            // a fork, a fifth to a half out, turned off 25-55 degrees, thinner and sinking sooner
+            if (rng.NextDouble() < 0.65 && size > 0.5f)
             {
-                int at = 4 + rng.Next(3);
-                var (p, h, top, w) = line[at];
-                float side = rng.NextDouble() < 0.5 ? -1 : 1, rest = len * (1 - at / 10f);
-                Root(p - new Vector2(MathF.Cos(h), MathF.Sin(h)) * 0.03f, h + side * (0.45f + 0.35f * (float)rng.NextDouble()), -side * 0.3f * (float)rng.NextDouble(),
-                    rest * (0.6f + 0.35f * (float)rng.NextDouble()), Math.Max(0.02f, top * 0.85f), w * 0.6f, uOff + 0.1f);
+                int at = 3 + rng.Next(5);
+                var (p, y, w) = line[at];
+                var dir = line[at + 1].P - line[at].P;
+                float h = MathF.Atan2(dir.Y, dir.X), side = rng.NextDouble() < 0.5 ? -1 : 1;
+                float rest = len * (1 - at / 14f);
+                roots.Add(Line(p, h + side * (0.45f + 0.5f * (float)rng.NextDouble()), -side * 0.4f * (float)rng.NextDouble(),
+                    rest * (0.5f + 0.4f * (float)rng.NextDouble()), y, w * (0.55f + 0.15f * (float)rng.NextDouble()), 1.1f));
             }
         }
-        st.Index();
-        st.GenerateNormals();
+        // the height at a point: the swell round the trunk and the roots, smoothly together
+        static float SMax(float a, float b, float k) { float h = Math.Clamp(0.5f + 0.5f * (b - a) / k, 0, 1); return Mathf.Lerp(a, b, h) + k * h * (1 - h); }
+        float Height(Vector2 q, float rho, float rj)
+        {
+            // (inside the trunk's foot: up into it, hidden)
+            if (rho < rj) return Join + (rj - rho) * 2.5f;
+            float h = Bed + (Join - Bed) * MathF.Exp(-(rho - rj) / 0.055f);
+            foreach (var line in roots)
+            {
+                float bestD = float.MaxValue, bt = 0, bw = 0;
+                for (int i = 0; i + 1 < line.Length; i++)
+                {
+                    var (a, ta, wa) = line[i]; var (b, tb, wb) = line[i + 1];
+                    var ab = b - a; float l2 = ab.LengthSquared();
+                    float t = l2 > 1e-9f ? Math.Clamp((q - a).Dot(ab) / l2, 0, 1) : 0;
+                    float d = q.DistanceTo(a + ab * t);
+                    if (d < bestD) { bestD = d; bt = Mathf.Lerp(ta, tb, t); bw = Mathf.Lerp(wa, wb, t); }
+                }
+                if (bestD >= bw) continue;
+                float x = bestD / bw;
+                h = SMax(h, Bed + (bt - Bed) * MathF.Pow(1 - x * x, 1.4f), 0.03f);
+            }
+            // (the bark's own small lumps)
+            return h + 0.004f * (Noise2(q.X * 23 + 3, q.Y * 23) - 0.5f) * Math.Clamp((h - Bed) / 0.05f, 0, 1);
+        }
+        const int Round = 72, Rings = 20;
+        var grid = new Vector3[Round + 1, Rings + 1];
+        // the grain's place down the flare: the trunk's own up to the join, then the surface's length out from it
+        var grain = new float[Round + 1, Rings + 1];
+        for (int i = 0; i <= Round; i++)
+        {
+            float th = seam + way * MathF.Tau * i / Round;
+            var dir = new Vector2(MathF.Cos(th), MathF.Sin(th));
+            float s = 0, joinS = 0, joinY = Join, rj = JoinR(th), rho0 = rj - 0.03f;
+            for (int j = 0; j <= Rings; j++)
+            {
+                float rho = rho0 + (reach - rho0) * MathF.Pow((float)j / Rings, 1.6f);
+                var q = centre + dir * rho;
+                grid[i, j] = new Vector3(q.X, Height(q, rho, rj), q.Y);
+                if (j > 0) s += grid[i, j].DistanceTo(grid[i, j - 1]);
+                if (rho <= rj) { joinS = s; joinY = grid[i, j].Y; }
+                grain[i, j] = rho <= rj ? grid[i, j].Y : joinY - (s - joinS);
+            }
+        }
+        var st = new SurfaceTool();
+        st.Begin(Mesh.PrimitiveType.Triangles);
+        // each corner's normal from the triangles round it (their up sides, by area), so that a corner and its triangles
+        // agree where the surface turns sharply (the join inside the trunk's foot, a lumpy trunk)
+        // a triangle's outside: up, and away from the trunk (a steep one stands nearly upright, where up alone says nothing)
+        Vector3 Out(Vector3 a, Vector3 b, Vector3 c)
+        {
+            var f = (b - a).Cross(c - a);
+            var mid = (a + b + c) / 3;
+            var away = new Vector3(mid.X - centre.X, 0, mid.Z - centre.Y).Normalized();
+            // (a height field's outside is up; only where it stands nearly upright does the way from the trunk decide)
+            if (Math.Abs(f.Y) > 0.2f * f.Length()) return f.Y < 0 ? -f : f;
+            return f.Dot(away) < 0 ? -f : f;
+        }
+        // (a steep triangle facing the trunk's middle lies inside the trunk's foot, where the flare tucks in: not drawn)
+        // (and one standing upright against the trunk's wall, within 2 cm of it: a sliver where the lumpy trunk's foot
+        // turns the rings, hidden by the bark)
+        bool Inside(Vector3 up, Vector3 mid) => up.Y < 0.6f * up.Length() && up.X * (mid.X - centre.X) + up.Z * (mid.Z - centre.Y) < 0
+            || Math.Abs(up.Y) < 0.2f * up.Length() && new Vector2(mid.X - centre.X, mid.Z - centre.Y).Length() < JoinR(MathF.Atan2(mid.Z - centre.Y, mid.X - centre.X)) + 0.02f;
+        var normals = new Vector3[Round, Rings + 1];
+        for (int i = 0; i < Round; i++)
+            for (int j = 0; j < Rings; j++)
+                foreach (var t in new[] { new[] { (i, j), (i + 1, j), (i + 1, j + 1) }, new[] { (i, j), (i + 1, j + 1), (i, j + 1) } })
+                {
+                    Vector3 a = grid[t[0].Item1, t[0].Item2], b = grid[t[1].Item1, t[1].Item2], c = grid[t[2].Item1, t[2].Item2];
+                    var f = Out(a, b, c);
+                    if (Inside(f, (a + b + c) / 3)) continue;
+                    foreach (var (x, y) in t) normals[x % Round, y] += f;
+                }
+        Vector3 Normal(int i, int j) => normals[i, j].LengthSquared() > 1e-16f ? normals[i, j].Normalized() : Vector3.Up;
+        void Corner(int i, int j)
+        {
+            var p = grid[i, j];
+            st.SetNormal(Normal(i % Round, j));
+            st.SetUV(new Vector2(u0 + (u1 - u0) * i / Round, va + vb * grain[i, j]));
+            // the bark's colour, darker where it meets the earth
+            float k = Mathf.Lerp(0.72f, 1, Math.Clamp((p.Y - 0.005f) / 0.07f, 0, 1));
+            st.SetColor(new Color(bark0.R * k, bark0.G * k, bark0.B * k, bark0.A));
+            st.AddVertex(p);
+        }
+        for (int i = 0; i < Round; i++)
+            for (int j = 0; j < Rings; j++)
+            {
+                // (all well under the earth: not drawn)
+                if (Math.Max(Math.Max(grid[i, j].Y, grid[i + 1, j].Y), Math.Max(grid[i, j + 1].Y, grid[i + 1, j + 1].Y)) < -0.004f) continue;
+                var q = new[] { (i, j), (i + 1, j), (i + 1, j + 1), (i, j + 1) };
+                // (Godot's front face clockwise as seen from outside: a height field's outside is up, so each triangle
+                // on its own turns clockwise seen from above; a quad twisted where the trunk's foot is lumpy would have
+                // one of its two the wrong way by a corner's normal)
+                foreach (var t in new[] { new[] { 0, 1, 2 }, new[] { 0, 2, 3 } })
+                {
+                    Vector3 a = grid[q[t[0]].Item1, q[t[0]].Item2], b = grid[q[t[1]].Item1, q[t[1]].Item2], c = grid[q[t[2]].Item1, q[t[2]].Item2];
+                    var up = Out(a, b, c);
+                    if (Inside(up, (a + b + c) / 3)) continue;
+                    foreach (int k in (b - a).Cross(c - a).Dot(up) > 0 ? new[] { t[0], t[2], t[1] } : t) Corner(q[k].Item1, q[k].Item2);
+                }
+            }
         var mesh = st.Commit();
         mesh.SurfaceSetMaterial(0, bark.SurfaceGetMaterial(0));
-        mesh.ResourceName = "tree_root_collar";
+        mesh.ResourceName = "tree_root_flare";
         return mesh;
     }
 
