@@ -10,5 +10,17 @@
   "water_level": 0.0,
   "note": "deepened: ridges, lumps, crust and cracks",
   "hollows_12pct": 0.416
+ },
+ "tidal_silt": {
+  "size": 2048,
+  "tile_m": 2.0,
+  "metres": 0.00732,
+  "wet_tone": [
+   0.7284,
+   0.7233,
+   0.7065
+  ],
+  "wet_fill_roughness": 0.3451,
+  "note": "wet pools filled (the game lays water in world space); relief from the drier set"
  }
 }

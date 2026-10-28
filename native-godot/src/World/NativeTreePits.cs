@@ -240,6 +240,8 @@ public static class NativeTreePits
         {
             float lump = Noise2(x * 7.1f, z * 7.1f) * 0.6f + Noise2(x * 19 + 4, z * 19 - 2) * 0.4f;
             float clod = relief?.Invoke(x, z) ?? MathF.Max(0, Noise2(x * 31 + 7, z * 31 - 5) - 0.45f) * 0.018f + (Noise2(x * 67 - 3, z * 67 + 9) - 0.5f) * 0.005f;
+            // (#252, Codex: not evenly knobbly) trodden and rained flat in places, the clods left proud in others
+            if (relief != null) clod *= 0.3f + 0.7f * Mathf.SmoothStep(0.3f, 0.72f, Noise2(x * 2.4f + 5, z * 2.4f - 3));
             float r = MathF.Sqrt(x * x + z * z), collar = Mathf.Clamp(1 - r / 0.45f, 0, 1);
             // banked against the kerbs: up toward their faces over the last 8-14 cm, raggedly
             float toFrame = Inner - Math.Max(Math.Abs(x), Math.Abs(z)), reach = 0.08f + 0.06f * Noise2(x * 5.3f + 11, z * 5.3f - 7);

@@ -1,0 +1,146 @@
+{
+  "tidal_silt": {
+    "standing_water_percent": 22.298002243041992,
+    "height_min_max_mm": [
+      -1.4034472703933716,
+      3.5420005321502686
+    ],
+    "albedo_range": [
+      35,
+      99
+    ],
+    "roughness_range": [
+      0.05000000074505806,
+      0.39899012446403503
+    ],
+    "flat_water_height_codes": 1,
+    "maps": {
+      "albedo": {
+        "size": [
+          2048,
+          2048
+        ],
+        "mode": "RGB",
+        "boundary_step_mean": 0.43896484375,
+        "interior_step_mean": 0.40757490318657386
+      },
+      "height": {
+        "size": [
+          2048,
+          2048
+        ],
+        "mode": "I;16",
+        "boundary_step_mean": 11.93115234375,
+        "interior_step_mean": 15.359105455392037
+      },
+      "normal": {
+        "size": [
+          2048,
+          2048
+        ],
+        "mode": "RGB",
+        "boundary_step_mean": 0.20133463541666669,
+        "interior_step_mean": 0.2178012665893177
+      },
+      "roughness": {
+        "size": [
+          2048,
+          2048
+        ],
+        "mode": "L",
+        "boundary_step_mean": 0.525390625,
+        "interior_step_mean": 0.41789241878358574
+      },
+      "ao": {
+        "size": [
+          2048,
+          2048
+        ],
+        "mode": "L",
+        "boundary_step_mean": 0.01953125,
+        "interior_step_mean": 0.020904734825354175
+      },
+      "water_mask": {
+        "size": [
+          2048,
+          2048
+        ],
+        "mode": "L",
+        "boundary_step_mean": 1.56396484375,
+        "interior_step_mean": 1.0788737615260138
+      }
+    }
+  },
+  "tidal_silt_drier": {
+    "standing_water_percent": 0.07941722869873047,
+    "height_min_max_mm": [
+      -4.134049415588379,
+      3.5420005321502686
+    ],
+    "albedo_range": [
+      35,
+      99
+    ],
+    "roughness_range": [
+      0.05000000074505806,
+      0.5299999713897705
+    ],
+    "flat_water_height_codes": 1,
+    "maps": {
+      "albedo": {
+        "size": [
+          2048,
+          2048
+        ],
+        "mode": "RGB",
+        "boundary_step_mean": 0.428955078125,
+        "interior_step_mean": 0.4180985528237461
+      },
+      "height": {
+        "size": [
+          2048,
+          2048
+        ],
+        "mode": "I;16",
+        "boundary_step_mean": 19.6611328125,
+        "interior_step_mean": 21.948047304363094
+      },
+      "normal": {
+        "size": [
+          2048,
+          2048
+        ],
+        "mode": "RGB",
+        "boundary_step_mean": 0.32373046875,
+        "interior_step_mean": 0.30715228268502687
+      },
+      "roughness": {
+        "size": [
+          2048,
+          2048
+        ],
+        "mode": "L",
+        "boundary_step_mean": 0.25927734375,
+        "interior_step_mean": 0.2572166394418661
+      },
+      "ao": {
+        "size": [
+          2048,
+          2048
+        ],
+        "mode": "L",
+        "boundary_step_mean": 0.04248046875,
+        "interior_step_mean": 0.03602070102589155
+      },
+      "water_mask": {
+        "size": [
+          2048,
+          2048
+        ],
+        "mode": "L",
+        "boundary_step_mean": 0.083984375,
+        "interior_step_mean": 0.013337448858085004
+      }
+    }
+  }
+}

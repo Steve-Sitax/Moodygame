@@ -31,6 +31,13 @@ reference images were looked at, none were copied). Its maps, scripts, README an
 `art-source/dirt-20261028/codex/`; `art-source/dirt-20261028/build_dirt.py` packs them for the game and deepens the mud.
 Checksums of every source map: `art-source/dirt-20261028/README.md`.
 
+The river mud's tidal silt (`silt_wet`, `silt_dry`, `silt_relief` in the same folder; #252, 2026-10-28) is original
+procedural artwork as well: Codex made the `tidal_silt` and `tidal_silt_drier` sets with its own `generate.py` (NumPy, SciPy,
+Pillow; seed 1873) from noise and geometry only. Its `LICENCES.txt`: no external texture, photograph, scan,
+image-generation output or other third-party image was used; the game's old mud pictures were viewed as rejection
+references only, and no pixels from them are included. Nothing to attribute. The used maps, `generate.py`, README,
+LICENCES and checks are kept in `art-source/dirt-20261028/codex-silt/`; `art-source/dirt-20261028/build_silt.py` packs them.
+
 ## Sound
 
 | Asset | Where in repo | Source | Licence | Checked |

@@ -13,7 +13,7 @@ namespace Scheldemist.Native.World;
 /// the liberty tree (a plain colour). Each keeps its mesh; its picture is laid in metres (`uv_xform` from the mesh's own uv
 /// per metre), one copy of the soil material per bed, the same shader and pictures (no new kind, no new texture).
 /// </summary>
-public static class NativeDirt
+public static partial class NativeDirt
 {
     private const string Soil = "res://assets/materials/dirt-20261028/pit-soil.tres";
     private static readonly string[] Beds = { "place_lijnwaadmarkt_pl_earth", "place_stjacob_yard_pl_earth", "place_court_green_pl_earth", "liberty_tree_earth" };
@@ -35,43 +35,73 @@ public static class NativeDirt
             GD.Print($"dirt: {bed.Name} soil, {perMetre:0.###} uv a metre");
             n++;
         }
-        // (the deepened mud read as dry, dug earth on the foreshore (Codex review, #244): the sand ripples stay until the
-        // reworked wet silt passes; dev: --new-tide-mud shows it)
-        return n + (Scheldemist.Main.I.Flag("new-tide-mud") ? Mud(town) : 0);
+        return n + Mud(town);
     }
 
     /// <summary>
-    /// The river's mud (town/tide_mud: the foreshore under the quay walls and the canals' beds, bared at low water): the
-    /// deepened wet mud (sole prints with pushed-up ridges, smeared lumps, a drying crust, level water pockets) instead of
-    /// the pale sand ripples, in the mud's own shader (its tide band, relief and parallax: only its pictures and numbers).
+    /// The canals' beds (town/tide_mud's tide_bed surface, bared at low water; #252): Codex's tidal silt instead of the pale
+    /// sand ripples, in the mud's own stored shader with its silt lines (Psx.SiltLines, scripts/SiltRepair.cs: no new kind).
+    /// The wet silt and the drier silt higher up, hex-tiled in world metres with each hexagon turned its own way (a 2 m tile
+    /// laid plain repeats like a camouflage print); the water is laid in world space from the river's level now (SiltLevel),
+    /// so the water line breaks into inlets and the pools join up. No parallax: the silt's relief is a few millimetres, the
+    /// lights take it from its normal map. The thin strip at the moat's and the river's walls (the tide_mud surface) keeps
+    /// its ripples: seen from a step away the silt there read blurred and its water sheets hard-edged (Codex, #252), and the
+    /// rule is new dirt only where it is better.
     /// </summary>
     private static int Mud(Node3D town)
     {
         const string Dir = "res://assets/materials/dirt-20261028/";
-        if (!ResourceLoader.Exists(Dir + "wet_mud_dry.res")) return 0;
+        if (!ResourceLoader.Exists(Dir + "silt_wet.res")) return 0;
         var mud = BakedWorld.All(town).OfType<MeshInstance3D>().FirstOrDefault(m => m.Name == "tide_mud" && m.Mesh is ArrayMesh);
         if (mud == null) return 0;
-        float perMetre = UvPerMetre((ArrayMesh)mud.Mesh, Scale(mud));
+        var wet = GD.Load<Texture2D>(Dir + "silt_wet.res");
+        var dry = GD.Load<Texture2D>(Dir + "silt_dry.res");
+        var rel = GD.Load<Texture2D>(Dir + "silt_relief.res");
+        var silts = new System.Collections.Generic.List<ShaderMaterial>();
         for (int s = 0; s < mud.Mesh.GetSurfaceCount(); s++)
         {
-            if (mud.Mesh.SurfaceGetMaterial(s) is not ShaderMaterial old || old.GetShaderParameter("relief_h").VariantType == Variant.Type.Nil) continue;
-            var m = (ShaderMaterial)old.Duplicate();
-            m.SetShaderParameter("tex", GD.Load<Texture2D>(Dir + "wet_mud_dry.res"));
-            m.SetShaderParameter("relief_h", GD.Load<Texture2D>(Dir + "wet_mud_height.res"));
-            m.SetShaderParameter("uv_xform", new Vector4(1 / perMetre, 1 / perMetre, 0, 0));
-            m.SetShaderParameter("relief_tile", 1f);
-            m.SetShaderParameter("relief_depth", MudDepth);
-            m.SetShaderParameter("relief_bump", MudBump);
-            m.SetShaderParameter("relief_dome", 1.5f);
-            // (the mud picture is darker than the sand it replaces, and the mud lies in the walls' shade: lighter, greyer)
-            m.SetShaderParameter("albedo", new Color(2.3f, 2.2f, 2.1f, 1));
-            mud.SetSurfaceOverrideMaterial(s, m);
+            // (the stored shader without the silt lines: the ripples stay)
+            if (mud.Mesh.SurfaceGetMaterial(s) is not ShaderMaterial m || m.Shader?.Code.Contains("uniform float silt ") != true) continue;
+            if (m.ResourceName != CanalBeds) continue;
+            m.SetShaderParameter("tex", wet);
+            m.SetShaderParameter("silt_dry", dry);
+            m.SetShaderParameter("silt_rel", rel);
+            // (the ripples' height goes; the relief light and the parallax are the sand's, not the silt's)
+            m.SetShaderParameter("relief_h", rel);
+            m.SetShaderParameter("relief_depth", 0f);
+            m.SetShaderParameter("silt", 1f);
+            m.SetShaderParameter("silt_tile", 2f);
+            m.SetShaderParameter("silt_bump", SiltBump);
+            m.SetShaderParameter("silt_pools", SiltPools);
+            // (the silt's own wet: no second darkening by the tide band; a dielectric's highlight, a wet sheet's)
+            m.SetShaderParameter("tide_wet", 0f);
+            m.SetShaderParameter("spec_color", new Vector3(0.02f, 0.02f, 0.02f));
+            m.SetShaderParameter("shininess", 48f);
+            m.SetShaderParameter("albedo", BedTint);
+            silts.Add(m);
         }
-        GD.Print($"dirt: tide mud, {perMetre:0.###} uv a metre");
+        if (silts.Count == 0) return 0;
+        mud.AddChild(new SiltLevel { Name = "silt_level", Silts = silts });
+        GD.Print($"dirt: tide mud, tidal silt on the canals' beds ({silts.Count} surface)");
         return 1;
     }
-    // (the deepened mud's height spans 50 mm: maps.json)
-    private const float MudDepth = 0.05f, MudBump = 6f;
+    // (the canals' beds' surface; the mesh's vertex colour tints it green-grey, the silt comes back to its own grey-brown)
+    private const string CanalBeds = "tide_bed";
+    private static readonly Color BedTint = new(1.35f, 1.18f, 1.02f, 1);
+    private const float SiltBump = 1.2f, SiltPools = 0.18f;
+
+    /// <summary>The river's level now for the silt's water line (Tide.River follows the clock or the tide kit's hold).</summary>
+    private sealed partial class SiltLevel : Node
+    {
+        public System.Collections.Generic.List<ShaderMaterial> Silts = new();
+        private float last = float.NaN;
+        public override void _Process(double delta)
+        {
+            if (Tide.River == last) return;
+            last = Tide.River;
+            foreach (var m in Silts) m.SetShaderParameter("silt_level", last);
+        }
+    }
 
     /// <summary>A node's turn and scale in the town (the town is not in the tree yet: its parents' own transforms).</summary>
     private static Basis Scale(Node3D node)

@@ -4,17 +4,18 @@ extends SceneTree
 # gloss), <set>_height.res (S3TC of one channel: BC4). Usage:
 #   godot --headless --path . -s scripts/store-dirt.gd -- <maps folder> <set> [<set> ...]
 #   godot --headless --path . -s scripts/store-dirt.gd -- --materials
+#   godot --headless --path . -s scripts/store-dirt.gd -- --silt <maps folder>   (#252: the river mud's silt_wet, silt_dry, silt_relief)
 # --materials (re)writes the soil materials below: the park's relief ground shader (r000002) with its soil lines on
 # (Psx.SoilLines, scripts/SoilWetRepair.cs), so no new shader kind. Metres and hollows: maps/maps.json.
 const OUT := "res://assets/materials/dirt-20261028"
 
-func store(path: String, out: String, colour: bool) -> void:
+func store(path: String, out: String, colour: bool, srgb := true) -> void:
 	var img := Image.load_from_file(path)
 	if img == null: push_error("cannot read " + path); return
 	if colour: img.convert(Image.FORMAT_RGBA8)
 	else: img.convert(Image.FORMAT_R8)
 	img.generate_mipmaps()
-	var err := img.compress(Image.COMPRESS_BPTC, Image.COMPRESS_SOURCE_SRGB) if colour else img.compress(Image.COMPRESS_S3TC, Image.COMPRESS_SOURCE_GENERIC)
+	var err := img.compress(Image.COMPRESS_BPTC, Image.COMPRESS_SOURCE_SRGB if srgb else Image.COMPRESS_SOURCE_GENERIC) if colour else img.compress(Image.COMPRESS_S3TC, Image.COMPRESS_SOURCE_GENERIC)
 	if err != OK: push_error("cannot compress " + path); return
 	var tex := ImageTexture.create_from_image(img)
 	if ResourceSaver.save(tex, out, ResourceSaver.FLAG_COMPRESS) != OK: push_error("cannot save " + out); return
@@ -66,6 +67,13 @@ func _init() -> void:
 	if args.size() > 0 and args[0] == "--materials":
 		materials(); quit(); return
 	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(OUT))
+	# --silt <maps folder>: the river mud's tidal silt (#252, build_silt.py): silt_wet and silt_dry BC7 sRGB colour with the
+	# gloss in alpha, silt_relief BC7 linear (the normal's x and y, the height, nothing in alpha)
+	if args.size() > 1 and args[0] == "--silt":
+		store(args[1] + "/silt_wet.png", OUT + "/silt_wet.res", true)
+		store(args[1] + "/silt_dry.png", OUT + "/silt_dry.res", true)
+		store(args[1] + "/silt_relief.png", OUT + "/silt_relief.res", true, false)
+		quit(); return
 	for name in args.slice(1):
 		store(args[0] + "/" + name + "_dry.png", OUT + "/" + name + "_dry.res", true)
 		store(args[0] + "/" + name + "_wet.png", OUT + "/" + name + "_wet.res", true)

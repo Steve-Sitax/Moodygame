@@ -1189,8 +1189,10 @@ float psx_h13(vec3 p3) { p3 = fract(p3 * 0.1031); p3 += dot(p3, p3.zyx + 31.32);
         ("\tvec3 n_flat = NORMAL;\n", false,
             "\t// (#244) water stands level in the soil's hollows, rising with the puddles; the clods and ridges stay out of it\n"
             + "\tfloat soil_water = 0.0;\n\tif (soil > 0.0 && soil_pool > 0.0) {\n"
-            + "\t\tfloat soil_lvl = soil_pool * smoothstep(0.36, 0.68, psx_puddle) * (0.45 + 1.1 * pud_val(world.xz * 1.6 + 3.7));\n"
-            + "\t\tsoil_water = (1.0 - smoothstep(soil_lvl - 0.025, soil_lvl, psx_h)) * step(0.002, soil_lvl);\n"
+            + "\t\t// (#252, Codex: not scattered flecks) only in patches; there it stands higher, so the hollows join into a few pools\n"
+            + "\t\tfloat soil_patch = smoothstep(0.46, 0.62, pud_val(world.xz * 1.1 + 3.7));\n"
+            + "\t\tfloat soil_lvl = soil_pool * smoothstep(0.36, 0.68, psx_puddle) * (0.8 + 0.5 * soil_patch) * soil_patch;\n"
+            + "\t\tsoil_water = (1.0 - smoothstep(soil_lvl - 0.04, soil_lvl, psx_h)) * step(0.002, soil_lvl);\n"
             + "\t\tground_dn *= 1.0 - soil_water;\n\t}\n"),
         ("\t\tfloat wet_k = psx_wet * smoothstep(0.15, 0.65, patchy + psx_wet * 0.35);\n", true,
             "\t\twet_k *= 1.0 - soil; // (#244: the soil's wet is its own picture)\n"),
@@ -1216,6 +1218,185 @@ float psx_h13(vec3 p3) { p3 = fract(p3 * 0.1031); p3 += dot(p3, p3.zyx + 31.32);
     {
         code = code.Replace("\r\n", "\n");
         foreach (var (_, _, add) in SoilLines) code = code.Replace(add, "");
+        return code;
+    }
+
+    /// <summary>
+    /// Issue #252: the river's mud (town/tide_mud, the tide band's relief ground: one stored kind, r001384) is a wet tidal
+    /// silt. scripts/SiltRepair.cs puts these lines into that resource at the anchors given (changed in place: no new kind).
+    /// Off unless a material sets `silt`: then the wet silt (`tex`) and the drier silt (`silt_dry`; alpha: their gloss) and
+    /// their relief (`silt_rel`: the normal's x and y, the height) are laid in world metres (`silt_tile`), hex-tiled with
+    /// each hexagon turned and shifted its own way, so no 2 m tile repeats; the drier silt lies highest over the water (by
+    /// the walls' foot), more so the longer the tide left it (TideWetGlsl), its edge broken. The water is laid in world
+    /// space, not by the tile: a film along the water line (`silt_level`, the river now) that reaches up the mud in inlets
+    /// and leaves shelves between them, and pools on the flat that join up, both filling the silt's own hollows first and
+    /// growing in the rain; they are flat, mirror the river's picture and the lamps, and take the rain's rings. Up close a
+    /// fine grain; further off the river's picture in the wet silt's sheen.
+    /// </summary>
+    public static readonly (string Anchor, bool After, string Code)[] SiltLines =
+    {
+        ("uniform float relief_dome = 2.5;\n", true, @"// #252: tidal silt (0: off): the wet and drier silt (alpha: gloss), their relief (silt_rel: normal x, y; height), in
+// world metres, hex-tiled (each hexagon turned and shifted its own way); the water laid in world space
+uniform float silt = 0.0;
+uniform sampler2D silt_dry : source_color, filter_linear_mipmap_anisotropic, repeat_enable, hint_default_white;
+uniform sampler2D silt_rel : filter_linear_mipmap_anisotropic, repeat_enable, hint_default_white;
+uniform float silt_tile = 2.0;
+uniform float silt_bump = 0.3;
+// the river's level now (NativeDirt sets it), how much of the wet flats is pool
+uniform float silt_level = -99.0;
+uniform float silt_pools = 0.2;
+global uniform sampler2D psx_water_mirror : source_color, filter_linear, repeat_disable;
+global uniform mat4 psx_water_mirror_mat;
+global uniform vec4 psx_water_mirror_col0;
+global uniform vec4 psx_water_mirror_col1;
+global uniform vec4 psx_water_mirror_col2;
+global uniform vec4 psx_water_mirror_col3;
+global uniform float psx_water_mirror_on;
+// the hexagons (Mikkelsen's hex tiling): the three around p, their weights
+void silt_grid(vec2 p, out vec3 w, out vec2 v1, out vec2 v2, out vec2 v3) {
+	p *= 3.4641016;
+	vec2 sk = vec2(p.x, -0.57735027 * p.x + 1.15470054 * p.y);
+	vec2 base = floor(sk);
+	vec3 t = vec3(fract(sk), 0.0);
+	t.z = 1.0 - t.x - t.y;
+	float s = step(0.0, -t.z);
+	float s2 = 2.0 * s - 1.0;
+	w = vec3(-t.z * s2, s - t.y * s2, s - t.x * s2);
+	v1 = base + vec2(s, s);
+	v2 = base + vec2(s, 1.0 - s);
+	v3 = base + vec2(1.0 - s, s);
+}
+// one hexagon's sample: its own turn and shift; the relief's slope (dh/du, dh/dv) turned back into the world's frame
+void silt_at(vec2 v, vec2 p, vec2 dx, vec2 dy, out vec4 cw, out vec4 cd, out vec3 rel) {
+	float a = psx_h12(v + vec2(7.13, 3.31)) * 6.2831853;
+	mat2 r = mat2(vec2(cos(a), sin(a)), vec2(-sin(a), cos(a)));
+	vec2 q = r * p + vec2(psx_h12(v * 1.37 + 2.9), psx_h12(v * 0.71 - 4.1));
+	cw = textureGrad(tex, q, r * dx, r * dy);
+	cd = textureGrad(silt_dry, q, r * dx, r * dy);
+	rel = textureGrad(silt_rel, q, r * dx, r * dy).rgb;
+	// (OpenGL normal: its y is the picture's up, the uv's -v)
+	rel.xy = transpose(r) * vec2(1.0 - 2.0 * rel.x, 2.0 * rel.y - 1.0);
+}
+"),
+        ("\tc *= albedo;\n", true, @"	// (#252) the silt: three hexagons' samples, blended by their weights and the higher ground; the drier silt by the wall
+	float silt_h = 0.5, silt_water = 0.0, silt_gloss = 0.0, silt_damp = 0.0, silt_d = 0.0;
+	vec2 silt_sl = vec2(0.0);
+	if (silt > 0.0) {
+		vec2 sp = world.xz / silt_tile;
+		vec2 sdx = dFdx(sp), sdy = dFdy(sp);
+		vec3 sw;
+		vec2 v1, v2, v3;
+		silt_grid(sp, sw, v1, v2, v3);
+		vec4 w1, w2, w3, d1, d2, d3;
+		vec3 r1, r2, r3;
+		silt_at(v1, sp, sdx, sdy, w1, d1, r1);
+		silt_at(v2, sp, sdx, sdy, w2, d2, r2);
+		silt_at(v3, sp, sdx, sdy, w3, d3, r3);
+		vec3 sk = pow(sw, vec3(6.0)) * (vec3(r1.z, r2.z, r3.z) + 0.3);
+		sk /= sk.x + sk.y + sk.z;
+		vec4 cw = w1 * sk.x + w2 * sk.y + w3 * sk.z;
+		vec4 cd = d1 * sk.x + d2 * sk.y + d3 * sk.z;
+		vec3 rl = r1 * sk.x + r2 * sk.y + r3 * sk.z;
+		silt_h = rl.z;
+		// the mud's broad swell (a few metres), so the light is not one flat sheet; and its tone, broken up
+		vec2 wp = world.xz;
+		float big = pud_val(wp / 17.0 + 3.7) * 0.6 + pud_val(wp / 5.3 - 1.9) * 0.4;
+		float e = 0.6;
+		vec2 swell = vec2(pud_val((wp + vec2(e, 0.0)) / 2.3) - pud_val((wp - vec2(e, 0.0)) / 2.3), pud_val((wp + vec2(0.0, e)) / 2.3) - pud_val((wp - vec2(0.0, e)) / 2.3)) * 0.1;
+		float above = world.y - silt_level;
+		float rain_w = clamp(max(psx_wet, (psx_puddle - 0.14) * 1.8), 0.0, 1.0);
+		// the drier band: the mud highest over the water (at the walls' foot) and longest out of it, its edge broken; never at the water
+		float brk = (big - 0.5) * 0.3 + (pud_val(wp / 1.3 + 8.1) - 0.5) * 0.14;
+		silt_d = smoothstep(0.22, 0.55, above + brk) * (0.55 + 0.45 * (1.0 - psx_tide_wet_at(world.y))) * (1.0 - 0.75 * rain_w);
+		// (up close: a fine grain of silt and grit, a few millimetres, and the faint runnels the ebb leaves)
+		float near = 1.0 - smoothstep(3.0, 9.0, len);
+		float grain = (pud_val(wp * 41.0) - 0.5) * 0.6 + (pud_val(wp * 113.0 + 3.3) - 0.5) * 0.4;
+		c.rgb = mix(cw.rgb, cd.rgb, silt_d) * albedo.rgb * (0.9 + 0.2 * big) * (1.0 + grain * 0.12 * near);
+		silt_gloss = mix(cw.a, cd.a, silt_d);
+		silt_gloss = mix(silt_gloss, 0.85, rain_w * 0.6);
+		// the water, in world space: a film along the water line that reaches up the mud in inlets with shelves between,
+		// and pools on the flats that join up; both fill the silt's hollows first and rise in the rain
+		vec2 pw = pud_warp(wp);
+		float hol = (0.5 - silt_h);
+		float reach = 0.11 * smoothstep(0.5, 0.85, pud_val(pw / 4.6 + 11.3)) + 0.03 * (pud_val(pw / 1.1 - 2.3) - 0.4) + 0.025 * rain_w;
+		float film = 1.0 - smoothstep(reach - 0.02, reach + 0.008, above - hol * 0.03);
+		float pn = pud_val(pw / 3.4 + 5.1) * 0.62 + pud_val(pw / 1.25 - 7.9) * 0.38 + hol * 0.16;
+		float th = 0.74 - silt_pools * 0.6 - 0.08 * rain_w + 0.16 * silt_d;
+		// (pools only lie on the flat: not on the slope at the walls' foot)
+		float flat_k = smoothstep(0.985, 0.997, abs(normalize(cross(dFdx(world), dFdy(world))).y));
+		float pool = smoothstep(th, th + 0.035, pn) * step(0.0, above) * flat_k;
+		silt_water = clamp(max(film, pool), 0.0, 1.0) * step(-0.05, above);
+		silt_damp = max(1.0 - smoothstep(reach, reach + 0.06, above), smoothstep(th - 0.07, th, pn) * flat_k) * (1.0 - silt_water);
+		c.rgb *= 1.0 - 0.18 * silt_damp;
+		float far = 1.0 - smoothstep(14.0, 40.0, len);
+		vec2 fine = vec2(pud_val(wp * 41.0 + vec2(0.4, 0.0)) - pud_val(wp * 41.0 - vec2(0.4, 0.0)), pud_val(wp * 41.0 + vec2(0.0, 0.4)) - pud_val(wp * 41.0 - vec2(0.0, 0.4))) * 0.05 * near;
+		silt_sl = (rl.xy / silt_tile * silt_bump * far + swell + fine) * (1.0 - silt_water);
+		// the relief light (one world direction, as the paving's): the silt's forms show in the walls' shade too; darker wet
+		vec3 sn = normalize(vec3(-silt_sl.x * 6.0, 1.0, -silt_sl.y * 6.0));
+		float slit = clamp(dot(sn, vec3(-0.458, 0.815, -0.356)), 0.0, 1.0);
+		c.rgb *= mix(1.0, mix(0.72, 1.12, slit) / 1.046 * (0.84 + 0.32 * silt_h), far) * (1.0 - 0.3 * rain_w);
+	}
+"),
+        ("\t{\n\t\t// relief light from the height map", false, @"	// (#252) the silt's own relief: its normal map's slope in the world, flat under water
+	if (silt > 0.0) {
+		psx_h = silt_h;
+		ground_dn = normalize(vec3(-silt_sl.x, 1.0, -silt_sl.y)) - vec3(0.0, 1.0, 0.0);
+	} else
+"),
+        ("\t\tfloat wet_k = psx_wet * smoothstep(0.15, 0.65, patchy + psx_wet * 0.35);\n", true,
+            "\t\twet_k *= 1.0 - silt; // (#252: the silt's wet is its own)\n"),
+        ("\t// the lamps' glow in the air between the eye and the surface\n", false, @"	if (silt > 0.0) {
+		// (#252) wet silt glistens: the sun's highlight and the sky's sheen at a slant; its water is a still mirror of the
+		// river's picture, flat and dark looking down, with the lamps drawn out in it and the rain's rings
+		float cos_t = clamp(-rd.y, 0.0, 1.0);
+		float fres = 0.02 + 0.98 * pow(1.0 - cos_t, 5.0);
+		vec3 rr = vec3(rd.x, -rd.y, rd.z);
+		spec_k = max(spec_k, mix(silt_gloss * silt_gloss * 0.7, 1.0, silt_water));
+		float sheen = silt_gloss * silt_gloss * (1.0 - silt_water);
+		// the river's picture (World/Mirrors.cs), broken by the silt's own slopes on the wet silt, still in its water
+		vec3 mir = fogc * 0.6;
+		vec2 wob = silt_sl * 0.06;
+		if (psx_rain > 0.001) wob += rain_ripples(world.xz, psx_time, psx_rain) * 0.045 * (1.0 - smoothstep(10.0, 30.0, len)) * silt_water;
+		// (not in a mirror's own picture: that would read the picture being drawn)
+		bool in_mirror = distance(CAMERA_POSITION_WORLD, psx_mir0.xyz) < 0.02 || distance(CAMERA_POSITION_WORLD, psx_mir1.xyz) < 0.02;
+		if (psx_water_mirror_on > 0.5 && !in_mirror) {
+			mat4 mm = psx_mirror_columns > 0.5 ? mat4(psx_water_mirror_col0, psx_water_mirror_col1, psx_water_mirror_col2, psx_water_mirror_col3) : psx_water_mirror_mat;
+			vec4 mr = mm * vec4(world, 1.0);
+			mir = texture(psx_water_mirror, (vec2(mr.x, -mr.y) / mr.w + wob) * 0.5 + 0.5).rgb * 0.9;
+		}
+		// (the river's picture only further off: up close it showed the wrong walls in the silt)
+		float rain_w2 = clamp(max(psx_wet, (psx_puddle - 0.14) * 1.8), 0.0, 1.0);
+		ad += mix(fogc, mir, 0.5 * smoothstep(8.0, 16.0, len)) * fres * 0.9 * sheen * (1.0 + 0.8 * rain_w2);
+		ad += psx_lamp_color.rgb * lamp_streaks(world, rr) * sheen * 0.25;
+		if (silt_water > 0.0) {
+			vec3 refl = psx_water_mirror_on > 0.5 && !in_mirror ? mir : fogc * 0.3;
+			refl += psx_lamp_color.rgb * lamp_streaks(world, rr) * 0.8;
+			if (psx_spill_n > 0) refl += psx_spill_wet(world, rr, 1.0) * 0.05;
+			float f = max(fres, 0.08 + 0.12 * rain_w2);
+			vec3 keep = vec3(1.0 - silt_water) + silt_water * vec3(0.5, 0.47, 0.42) * (1.0 - f);
+			k3 *= keep;
+			ad = ad * keep + refl * (silt_water * f);
+		}
+	}
+"),
+    };
+    /// <summary>The stored code with the silt lines put in at their anchors (each anchor must be there once).</summary>
+    public static string WithSilt(string code)
+    {
+        code = code.Replace("\r\n", "\n");
+        foreach (var (anchor, after, add) in SiltLines)
+        {
+            int i = code.IndexOf(anchor, StringComparison.Ordinal);
+            if (i < 0 || code.IndexOf(anchor, i + 1, StringComparison.Ordinal) >= 0) throw new InvalidOperationException("silt: the anchor is not there once: " + anchor.Trim());
+            code = code.Insert(after ? i + anchor.Length : i, add.Replace("\r\n", "\n"));
+        }
+        return code;
+    }
+    /// <summary>A silt kind's code without its silt lines (the code it had before #252).</summary>
+    public static string WithoutSilt(string code)
+    {
+        code = code.Replace("\r\n", "\n");
+        foreach (var (_, _, add) in SiltLines) code = code.Replace(add.Replace("\r\n", "\n"), "");
         return code;
     }
 
