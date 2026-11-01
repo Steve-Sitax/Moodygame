@@ -331,7 +331,10 @@ public partial class Daylight : Node
     /// <summary>A clear day at its full (#97): how far toward the haze the air goes, how much stronger the sun, how much further the fog, how much more light from the blue sky in the shade.</summary>
     private const float ClearDayHaze = 0.6f, ClearDaySun = 0.6f, ClearDayReach = 0.5f, ClearDaySky = 0.25f;
     /// <summary>How much of the sun on the ground comes back into the shade (paving and walls, about a fifth), and its colour.</summary>
-    private const float SunBounce = 0.35f, SunShadeEase = 0.5f;
+    /// <remarks>(#223) 0.35 left the open shade of a square at 13:00 near black: SunBounceUp is the share of that light
+    /// that reaches a face looking up (the sunlit fronts round a square and across a lane fill the shaded ground's view
+    /// above the horizon; the sky alone gave the shade a quarter of the sunlit ground's light).</remarks>
+    private const float SunBounce = 0.5f, SunBounceUp = 0.8f, SunShadeEase = 0.5f;
     private static readonly Color SunBounceCol = Psx.Hex(0xc9b79c);
     /// <summary>How far from the eye the clear day's sun draws its shadow map (m).</summary>
     private const float SunShadowReach = 40;
@@ -444,9 +447,9 @@ public partial class Daylight : Node
         rs("psx_fog_far", FogFar);
         // (Steve, 2026-10-26: in the sun by day the shade was too dark) Sunlight given back by the sunlit paving and
         // walls: the shade's light from below and the sides grows with the sun on the ground, warm as the stone it
-        // comes off; a little of it from above too (the lit fronts across a street)
+        // comes off; most of it from above too (the lit fronts round a square and across a street, #223)
         var bounce = SunBounceCol * (SunIntensity * Mathf.Clamp(SunDir.Y, 0, 1) * SunBounce * skySeen / MathF.PI);
-        rs("psx_hemi_sky", skyCol * (SkyIntensity * skySeen / MathF.PI) + bounce * 0.45f);
+        rs("psx_hemi_sky", skyCol * (SkyIntensity * skySeen / MathF.PI) + bounce * SunBounceUp);
         rs("psx_hemi_ground", Ground * (SkyIntensity * skySeen / MathF.PI) + bounce);
         var fillNow = skyCol.Lerp(FillWarm, 0.6f) * SkyIntensity;
         var fillBake = SkyCold.Lerp(FillWarm, 0.6f) * bakeSky;

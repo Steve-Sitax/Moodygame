@@ -11,6 +11,7 @@ Bugs and loose ends are tracked as [issues](https://github.com/Steve-Sitax/Moody
 
 ## [Unreleased]
 
+- On a sunny day the shade on squares and in lanes is lighter: more of the sunlight thrown back by the lit fronts and paving reaches the shaded ground, so it reads as daylit shade instead of dusk. Rain, fog, night, the rooms and the vaults under the town look as before.
 - The street cobbles are the size and colour of 1873 porphyry setts now: smaller stones, about a hand by a hand and a half, tight joints of sand instead of wide muddy gaps, flat worn tops instead of swollen glossy domes, and a grey stone that reads in the shade. Missing stones are rarer.
 - Tree trunks keep their bark detail in the shade and after dark: the limes', elms' and bare trees' bark is the grey-brown of a town lime now instead of near black, so its furrows and lichen show on the shaded side of every street and park tree. At night a trunk is as dark as the paving beside it, no longer a black hole.
 - Kerb faces all over town are grey stone again instead of black strips: a kerb standing free of a house no longer takes a house wall's rising damp, only a thin line of street dirt at its foot, so its joints and worn edges show in sun, shade, rain and at night. House fronts, their plinths and door steps keep their damp and grime.
