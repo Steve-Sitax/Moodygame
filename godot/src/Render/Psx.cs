@@ -1168,6 +1168,64 @@ float psx_h13(vec3 p3) { p3 = fract(p3 * 0.1031); p3 += dot(p3, p3.zyx + 31.32);
     public static string WithoutClothSway(string code) => code.Replace(ClothSwayDecl, "").Replace(ClothSwayVertex, "");
 
     /// <summary>
+    /// Issues #245 and #233: the town's stone (r000204: the town blocks' kerbs, door steps, sills, plinths and quoins, one
+    /// stored kind) laid two rising damps on every face under about 1.2 m: the stone trim's own green-black damp and foot
+    /// band (Grime's stone code) and the wall foot's damp, tide line and street muck (FootGlsl, `foot` 1). A 9 to 12 cm kerb
+    /// face lay wholly inside both and drew near black at every hour. Rising damp is a house wall's: it climbs from the
+    /// footing through the masonry. A stone standing free of a house (a kerb, a free step) has no footing wall under it:
+    /// it gets only the street's dirt and splash at its foot. scripts/KerbDampRepair.cs puts these lines into the stored
+    /// code at their anchors (changed in place: no new kind). Free means no house within 0.7 m on either side of the face
+    /// (the sky map's house heights, blue: the pixel holding each point); house fronts, plinths and their trim keep both.
+    /// </summary>
+    public static readonly (string Anchor, bool After, string Code)[] KerbLines =
+    {
+        ("vec3 psx_foot_dirt(vec3 c, float amount, vec3 wp, vec3 n) {\n", false,
+            "// (#245) 1 where a house stands right behind or before a face (its footing wall carries rising damp), 0 for a stone\n"
+            + "// standing free of one (a kerb): the sky map's house height in the pixel 0.7 m off the face, either side\n"
+            + "float psx_house_by(vec3 wp, vec3 n) {\n"
+            + "\tif (psx_sky_on <= 0.0) return 1.0;\n"
+            + "\tvec2 sz = vec2(textureSize(psx_sky_shade, 0));\n"
+            + "\tvec2 o = normalize(n.xz + 1e-5) * 0.7;\n"
+            + "\tvec2 a = (floor((wp.xz + o - psx_sky_box.xy) / psx_sky_box.zw * sz) + 0.5) / sz;\n"
+            + "\tvec2 b = (floor((wp.xz - o - psx_sky_box.xy) / psx_sky_box.zw * sz) + 0.5) / sz;\n"
+            + "\tfloat h = max(textureLod(psx_sky_shade, a, 0.0).b, textureLod(psx_sky_shade, b, 0.0).b) * 30.0;\n"
+            + "\treturn smoothstep(1.5, 2.5, h);\n"
+            + "}\n"),
+        ("\tfloat top = mix(0.55, 1.4, clamp(a, 0.0, 1.0)) + 0.22 * (pud_val(vec2(s / 1.6, 3.1)) - 0.5) + 0.1 * (pud_val(vec2(s / 0.37, 7.7)) - 0.5);\n", true,
+            "\t// (#245) a free stone: no damp, no tide line (the damp's top far above it); the splash stays\n"
+            + "\tfloat bld = psx_house_by(wp, n);\n"
+            + "\ttop = mix(3.0, top, bld);\n"),
+        ("\tfloat muck = 1.0 - smoothstep(0.02, 0.2 + 0.18 * a + 0.12 * pud_val(vec2(s / 0.5, 1.3)), y);\n", true,
+            "\tdamp *= bld;\n"
+            + "\t// (#245) at a free stone's foot only a thin line of the street's dirt, 2 to 5 cm, broken along it (the drain's edge)\n"
+            + "\tmuck = mix((1.0 - smoothstep(0.015, 0.035 + 0.025 * pud_val(vec2(s / 0.4, 2.9)), y)) * 0.75, muck, bld);\n"),
+        ("\t\tc.rgb *= mix(vec3(1.0), vec3(0.34, 0.39, 0.28), g_damp * (0.75 + 0.25 * g_wear));\n", false,
+            "\t\t// (#245) the trim's own damp and foot band only on a house (the wall foot's damp is FootGlsl's, laid after)\n"
+            + "\t\tfloat g_bld = psx_house_by(world, g_n);\n"
+            + "\t\tg_damp *= g_bld;\n"
+            + "\t\tg_vert *= g_bld;\n"),
+    };
+    /// <summary>The stored stone code with the kerb lines put in at their anchors (each anchor must be there once).</summary>
+    public static string WithKerbs(string code)
+    {
+        code = code.Replace("\r\n", "\n");
+        foreach (var (anchor, after, add) in KerbLines)
+        {
+            int i = code.IndexOf(anchor, StringComparison.Ordinal);
+            if (i < 0 || code.IndexOf(anchor, i + 1, StringComparison.Ordinal) >= 0) throw new InvalidOperationException("kerbs: the anchor is not there once: " + anchor.Trim());
+            code = code.Insert(after ? i + anchor.Length : i, add);
+        }
+        return code;
+    }
+    /// <summary>The stone kind's code without the kerb lines (the code it had before #245).</summary>
+    public static string WithoutKerbs(string code)
+    {
+        code = code.Replace("\r\n", "\n");
+        foreach (var (_, _, add) in KerbLines) code = code.Replace(add, "");
+        return code;
+    }
+
+    /// <summary>
     /// Issue #244: the town's bare earth (the tree pits, the planted beds) is a real soil: a 1 m picture with its height
     /// and relief light, wet and dry. It is drawn with the park's relief ground shader (the town's r000002: one
     /// stored kind, older than this generator's ground code), and scripts/SoilWetRepair.cs puts these lines into that
