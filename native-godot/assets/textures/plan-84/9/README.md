@@ -23,3 +23,7 @@ Four-map repeats: `D:/Code/_tmp_verify/K2-textures/tiles/<row>/<set>_3x3.jpg`.
 Maps add surface detail only. Exposed bevels, real laps, connected drainage, underside normals and collision need native review.
 
 The two bark halves now have different measured scan scales. Use `bark_atlas.cell_metres`; never repeat across the half-atlas boundary. Botanical lime and London-plane accuracy remains a review item.
+
+2026-11-01 (#246): `bark_atlas_colour.png`'s fissured half (left) is lifted by `art-source/plan-84/lift_fissured_bark.py`
+(about 2.2 in linear light in the darks, a little greyer): the scan read about 7 % reflectance, a town lime's bark 15 to 20 %.
+The plane's half is unchanged. The installed texture is rebuilt with `scripts/texture-repair.tscn`; the plan's checksum follows.
