@@ -1,46 +1,68 @@
+using System;
 using System.Collections.Generic;
 using Godot;
+using Scheldemist.World;
 
 namespace Scheldemist.Movers;
 
 /// <summary>
-/// A set of straight ropes drawn as lines (hawsers between a tug and its tow, lashings, a bridge's chains, a
-/// crane's fall): the browser's LineSegments with ropeMaterial. Points are given two by two, in the world.
+/// A set of moving ropes of one kind (the hawsers between a tug and her tow, the tows' lashings, the lock's tow
+/// lines, an opening bridge's lifting chains): real tubes of the rope's own thickness (Rope.cs), each from a to b,
+/// hanging `sag` metres at its middle. Given anew every frame by Clear, Add and Commit; the mesh is made again only
+/// when a rope has moved, into the same arrays (no allocation while the count of ropes stays the same).
 /// </summary>
 public partial class RopeLines : MeshInstance3D
 {
-    private readonly ImmediateMesh im = new();
-    private readonly List<Vector3> pts = new();
-    private Material? mat;
-    private bool had;
+    private readonly ArrayMesh mesh = new();
+    private readonly Rope.Tube tube = new();
+    private readonly Rope.Kind kind;
+    private readonly List<(Vector3 A, Vector3 B, float Sag)> ropes = new(), drawn = new();
+    private readonly Vector3[] path = new Vector3[Steps + 1];
+    private float drawnWet = -1;
+    private const int Steps = 10;
+    public int Rebuilds { get; private set; }
 
-    public RopeLines(string name, Material? material)
+    public RopeLines(string name, Rope.Kind kind)
     {
         Name = name;
-        Mesh = im;
-        mat = material;
+        Mesh = mesh;
+        this.kind = kind;
         CastShadow = ShadowCastingSetting.Off;
         // the ropes go where their boats go: no fixed box for the culler
         ExtraCullMargin = 2000;
     }
 
-    public void Clear() => pts.Clear();
+    public void Clear() => ropes.Clear();
 
-    public void Add(Vector3 a, Vector3 b)
-    {
-        pts.Add(a);
-        pts.Add(b);
-    }
+    /// <summary>A rope from a to b; sag: how far its middle hangs below the straight line (0: taut).</summary>
+    public void Add(Vector3 a, Vector3 b, float sag = 0) => ropes.Add((a, b, sag));
 
-    /// <summary>Draw what was added since Clear.</summary>
+    /// <summary>Draw what was added since Clear (nothing is made again when no rope moved a few millimetres).</summary>
     public void Commit()
     {
-        if (pts.Count == 0 && !had) return;
-        im.ClearSurfaces();
-        had = pts.Count > 0;
-        if (!had) return;
-        im.SurfaceBegin(Mesh.PrimitiveType.Lines, mat);
-        foreach (var p in pts) im.SurfaceAddVertex(p);
-        im.SurfaceEnd();
+        float wet = Rope.RainWet;
+        bool same = ropes.Count == drawn.Count && MathF.Abs(wet - drawnWet) < 0.05f;
+        for (int i = 0; same && i < ropes.Count; i++)
+            same = ropes[i].A.DistanceSquaredTo(drawn[i].A) < 1e-5f && ropes[i].B.DistanceSquaredTo(drawn[i].B) < 1e-5f && MathF.Abs(ropes[i].Sag - drawn[i].Sag) < 0.003f;
+        if (same) return;
+        drawn.Clear();
+        drawn.AddRange(ropes);
+        drawnWet = wet;
+        Rebuilds++;
+        tube.Begin();
+        float d = Rope.Diameter(kind), water = kind is Rope.Kind.Hawser or Rope.Kind.Mooring ? Tide.River : float.NaN;
+        int sides = Rope.Sides(kind);
+        var tint = Rope.Tint(kind);
+        foreach (var (a, b, sag) in ropes)
+        {
+            int n = sag > 0.005f ? Steps : 1;
+            for (int k = 0; k <= n; k++)
+            {
+                float f = (float)k / n;
+                path[k] = a.Lerp(b, f) + Vector3.Down * (sag * 4 * f * (1 - f));
+            }
+            tube.Add(path.AsSpan(0, n + 1), d, sides, tint, water, wet);
+        }
+        tube.Commit(mesh, Rope.Material);
     }
 }

@@ -18,7 +18,7 @@ public partial class Railway
     {
         shunter=Humans.Make("carter");keeper=Humans.Make("porter");if(shunter!=null)AddChild(shunter.Root);if(keeper!=null)AddChild(keeper.Root);
         soundAxles=new float[wagons.Count*2];foreach(var c in cranes)craneSounds.Add(c,(new Emitter{Kind="crane",X=c.X,Z=c.Z,Y=6},false,false));
-        harness=new("railway_harness",Boats.I.Rope);AddChild(harness);
+        harness=new("railway_harness",Rope.Kind.Leather);AddChild(harness);
         for(int i=0;i<32;i++)harness.Add(Vector3.Zero,Vector3.Zero);harness.Clear();
     }
     private void UpdateCrew(float dt)

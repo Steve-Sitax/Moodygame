@@ -11,6 +11,8 @@ Bugs and loose ends are tracked as [issues](https://github.com/Steve-Sitax/Moody
 
 ## [Unreleased]
 
+- Ropes are real ropes now. The ships' rigging, the cranes' wire falls, the tugs' hawsers, the lock's tow lines, the tows' lashings and the bridges' chains were drawn as hair-thin lines that looked as thick far off as close by; each is now a laid three-strand rope of its own thickness (a mooring hawser 40 mm, a shroud 20 mm, a ratline 9 mm), so it is thin in the distance and thick in your hand, darker at the water and in the rain. The big ships' mooring lines run on from the eye round the bollard in the same hemp, over the coping's edge to the ship, and every small boat now has a painter from a ring in the coping, with a hitch round it, to her stem or stern. All of them hang as a real line does and go slack as the tide lifts the boat and taut as it falls; a boat you take away takes her lines with her.
+
 - The stone quay walls of the river, the canal and the vlieten have real relief now: each block's worn, rounded edges and its recessed joint catch the sky's light, also in the shade and in the rain, and the blocks no longer repeat every eight metres: each course runs its blocks in its own order with its own tones.
 - The last eight downpipes that ended on the pavement without a drain (by the shop fronts with crates and barrels, and by three door recesses) now pour onto a blue-stone channel stone laid flush in the pavement, its wet groove running to the kerb and the street gutter.
 - The packed earth of the back yards and courts inside the blocks has depth now: its grit, pebbles and small hollows stand out and catch the light, instead of a flat printed surface.

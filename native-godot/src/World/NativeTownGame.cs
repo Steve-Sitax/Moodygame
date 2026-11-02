@@ -281,6 +281,7 @@ public partial class NativeTownGame : Scheldemist.Main
             if(Arg("room-route-audit") is {Length:>0} roomRoutes) _ = Interiors.RoomRouteAudit.Run(this,Paths.Absolute(roomRoutes));
 #endif
             if (DedicatedServer) _ = StartDedicated();
+            if (Arg("rope-proof") is { Length: > 0 } ropeProof) _ = NativeRopeProof.Run(this, Paths.Absolute(ropeProof));
             if (Arg("leftovers-proof") is { Length: > 0 } leftoversProof) _ = NativeLeftoversProof.Run(this, Paths.Absolute(leftoversProof));
             if (Arg("cathedral-proof") is { Length: > 0 } cathedralProof) _ = NativeCathedralProof.Run(this, Paths.Absolute(cathedralProof));
             if (Arg("washing-proof") is { Length: > 0 } washingProof) _ = NativeWashingProof.Run(this, Paths.Absolute(washingProof));

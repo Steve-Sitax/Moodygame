@@ -216,6 +216,19 @@ and reports readiness state on failure. Keep an external bound for the whole run
 visible model roots, retained paintings, exact model hulls, the organist's route, the closed communion gate's original collision
 and an actual walk through the authored east screen gate into the choir, after body/floor clearance sampling. `--cathedral-pick prefix,prefix` limits the rendered camera set.
 
+## Ropes and mooring lines
+
+`--rope-proof <dir>` (`res://town.tscn`, with `--no-ai --no-mainmenu --native-services`, its own `--db`, `--prefs`,
+`--author-root`, port and `SCHELDEMIST_USER_DATA`; `native-godot/src/World/NativeRopeProof.cs`) checks the town's one rope
+(`godot/src/Movers/Rope.cs`) at 13:00 clear: no rope, rigging, hawser or chain is drawn as a line without thickness
+(the lightning's bolt and a furniture's iron wire are listed apart, `notRopeLines`); and, with the river held at low and at
+high water (`Tide.Hold`), every mooring line (the ships' from the bake and the small boats' painters, `ShipLines.cs`) is
+drawn, none hangs into the water, and they hang slacker at high water than at low. `rope-proof.json` lists the line
+sets made into ropes, every mooring line's ends and nose, the rings and bollards. `--rope-shots <file.json>` takes
+pictures from a list of `{name, eye: [x, y, z], look: [x, y, z], hour, weather, tide}` (`tide`: `low`, `high`, `clock`
+or a level; each waits until the drawn water stands there). The frame time at the quay with the most moored ships,
+rigging and painters in view: `--perfcheck <dir> --perf-places "rijnkaai ships"`. Exit 1 on a failed check.
+
 ## Market, work board, warmth, benches and room keepers
 
 `--market-proof <dir>` (with `--no-ai --no-mainmenu --dev`, its own `--db`, `--prefs`, `--author-root`, port and

@@ -34,7 +34,6 @@ public static class NativeStreetFurniture
     private const float Cell = 32f;
     /// <summary>How near the washing shows (the old cards showed from anywhere; past this a line is a few pixels).</summary>
     public const float Near = 90f, PegNear = 28f, RingNear = 36f, Fade = 10f;
-    private const float RopeRadius = 0.005f, RopeLay = 0.088f;
 
     public sealed record Piece(string Kind, string? Cloth, float T, bool Flip, float[] Tint, float[]? At);
     public sealed record Ring(float[] At, float Yaw, float[] Attach);
@@ -136,7 +135,7 @@ public static class NativeStreetFurniture
         }
         // ------------------------------------------------------------ washing: per cell, per model
         var sets = new Dictionary<(int, int, string), List<(Transform3D At, Color Tint)>>();
-        var ropes = new Dictionary<(int, int), SurfaceTool>();
+        var ropes = new Dictionary<(int, int), Scheldemist.Movers.Rope.Tube>();
         void Add((int, int) cell, string model, Transform3D at, Color tint)
         {
             var k = (cell.Item1, cell.Item2, model);
@@ -206,10 +205,11 @@ public static class NativeStreetFurniture
             if (parts.Length == 2 || model == "peg") NativeWashingVisibility.Attach(node);
             holder.AddChild(node);
         }
-        foreach (var ((cx, cz), st) in ropes)
+        foreach (var ((cx, cz), tube) in ropes)
         {
-            st.SetMaterial(ropeMat);
-            var node = new MeshInstance3D { Name = $"washing_{cx}_{cz}_rope", Mesh = st.Commit(), VisibilityRangeEnd = Near, VisibilityRangeEndMargin = Fade,
+            var ropeMesh = new ArrayMesh();
+            tube.Commit(ropeMesh, ropeMat);
+            var node = new MeshInstance3D { Name = $"washing_{cx}_{cz}_rope", Mesh = ropeMesh, VisibilityRangeEnd = Near, VisibilityRangeEndMargin = Fade,
                 VisibilityRangeFadeMode = GeometryInstance3D.VisibilityRangeFadeModeEnum.Self, CastShadow = GeometryInstance3D.ShadowCastingSetting.Off };
             node.SetMeta(Meta, true);
             holder.AddChild(node);
@@ -229,34 +229,15 @@ public static class NativeStreetFurniture
         ["stockings"] = new[] { -0.2f, 0.06f }, ["sheet"] = new[] { -0.62f, 0f, 0.62f }, ["towel"] = new[] { -0.19f, 0.19f },
     };
 
-    /// <summary>The line: a hemp rope swept along its sag, 8 sides, its twist's picture repeating every lay.</summary>
-    private static void Rope(Dictionary<(int, int), SurfaceTool> ropes, (int, int) cell, Func<float, Vector3> at, float span)
+    /// <summary>The line: the town's one hemp rope (Movers/Rope.cs, a washing line's 10 mm) swept along its sag, a point every 35 cm or so.</summary>
+    private static void Rope(Dictionary<(int, int), Scheldemist.Movers.Rope.Tube> ropes, (int, int) cell, Func<float, Vector3> at, float span)
     {
-        if (!ropes.TryGetValue(cell, out var st)) { st = new SurfaceTool(); st.Begin(Mesh.PrimitiveType.Triangles); ropes[cell] = st; }
-        int n = Math.Max(8, (int)(span / 0.35f)), sides = 8;
-        var rings = new Vector3[n + 1][]; var norms = new Vector3[n + 1][]; var along = new float[n + 1];
-        for (int i = 0; i <= n; i++)
-        {
-            float t = i / (float)n; var p = at(t); var d = (at(Math.Min(1, t + 0.01f)) - at(Math.Max(0, t - 0.01f))).Normalized();
-            var side = d.Cross(Vector3.Up).Normalized(); var up = side.Cross(d).Normalized();
-            rings[i] = new Vector3[sides + 1]; norms[i] = new Vector3[sides + 1];
-            for (int j = 0; j <= sides; j++)
-            {
-                float a = MathF.Tau * j / sides; var nrm = side * MathF.Cos(a) + up * MathF.Sin(a);
-                norms[i][j] = nrm; rings[i][j] = p + nrm * RopeRadius;
-            }
-            along[i] = i == 0 ? 0 : along[i - 1] + at(t).DistanceTo(at((i - 1) / (float)n));
-        }
-        void Vtx(int i, int j)
-        {
-            st.SetNormal(norms[i][j]); st.SetUV(new Vector2(along[i] / RopeLay, j / (float)sides)); st.SetColor(Colors.White); st.AddVertex(rings[i][j]);
-        }
-        for (int i = 0; i < n; i++)
-            for (int j = 0; j < sides; j++)
-            {
-                Vtx(i, j); Vtx(i + 1, j); Vtx(i + 1, j + 1);
-                Vtx(i, j); Vtx(i + 1, j + 1); Vtx(i, j + 1);
-            }
+        if (!ropes.TryGetValue(cell, out var tube)) { tube = new Scheldemist.Movers.Rope.Tube(); tube.Begin(); ropes[cell] = tube; }
+        int n = Math.Max(8, (int)(span / 0.35f));
+        var path = new Vector3[n + 1];
+        for (int i = 0; i <= n; i++) path[i] = at(i / (float)n);
+        var kind = Scheldemist.Movers.Rope.Kind.Laundry;
+        tube.Add(path, Scheldemist.Movers.Rope.Diameter(kind), Scheldemist.Movers.Rope.Sides(kind), Scheldemist.Movers.Rope.Tint(kind));
     }
 
     /// <summary>A piece's mesh with the engine's levels of detail (a line's far pieces drop to a fraction of their triangles).</summary>
