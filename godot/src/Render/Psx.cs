@@ -1646,6 +1646,115 @@ global uniform float psx_puddle;
     public static string WithoutWetLeaf(string code) => WithoutLines(code, WetLeafLines);
     public static string WithDecalMud(string code) => WithLines(code, DecalMudLines, "decal mud");
     public static string WithoutDecalMud(string code) => WithoutLines(code, DecalMudLines);
+    /// <summary>
+    /// Issue #249: where the cart tracks cross the street mud (#250: about 1,510 m2 of the 1,886 m2 of rut strips) the ruts
+    /// were the old flat picture of two grey wheel lines. The ruts' stored decal kind (the town's r004014: the rut strips and
+    /// the opening bridges' decks) takes these lines (scripts/RutMudRepair.cs; changed in place, no new kind), off unless a
+    /// material sets `rut_mud` (NativeDirt sets it on the town's rut strips alone, not on the bridges' decks): where the
+    /// dirt mask says mud, each wheel's line (at a quarter and three quarters across the 2.4 m strip: a 1.5 m gauge) is a
+    /// groove 2-7 cm deep and 16 cm wide in a ragged band of mud, wandering several centimetres, a shallower older groove beside it, and the mud the
+    /// wheels pushed up as a low ridge either side. The groove is the street mud's own picture in world metres (Psx.SetMud),
+    /// looked into along the view (its floor further than its rim), its sides lit by the lights and the relief light, its
+    /// floor darker and wetter; in and after the rain water stands in its bottom, rising with the rain, flat and dark with
+    /// the sky's sheen at a slant. Off the mud the old wheel lines stay.
+    /// </summary>
+    public static readonly (string Anchor, bool After, string Code)[] RutMudLines =
+    {
+        ("uniform float bump_scale = 1.0;\n", true, @"// #249: deep ruts where the cart tracks cross the street mud (0: off; NativeDirt sets it on the town's rut strips alone)
+uniform float rut_mud = 0.0;
+global uniform sampler2D psx_mud : source_color, filter_linear_mipmap_anisotropic, repeat_enable;
+global uniform sampler2D psx_mud_wet : source_color, filter_linear_mipmap_anisotropic, repeat_enable;
+global uniform float psx_wet;
+global uniform float psx_puddle;
+// (an exact hash of a whole cell, in integers, and value noise along a line on it)
+float rut_h(float c, float k) {
+	uint n = uint(int(c) + 1048576) * 1597334673u + uint(k) * 3812015801u;
+	n ^= n >> 16u;
+	n *= 2246822519u;
+	n ^= n >> 13u;
+	return float(n) * (1.0 / 4294967295.0);
+}
+float rut_n(float x, float k) {
+	float i = floor(x);
+	float f = x - i;
+	return mix(rut_h(i, k), rut_h(i + 1.0, k), f * f * (3.0 - 2.0 * f));
+}
+// one wheel's groove across it (a: metres from its middle; hw its half width, d its depth): the height and its slope;
+// the mud pushed up beside it a third as high, out to 2.2 half widths (every slope goes to nothing at its edges: no line)
+vec2 rut_groove(float a, float hw, float d) {
+	float x = a / hw;
+	if (abs(x) < 1.0) {
+		float q = 1.0 - x * x;
+		return vec2(-d * q * q, d * 4.0 * x * q / hw);
+	}
+	float y = (abs(x) - 1.0) / 1.2;
+	if (y < 1.0) {
+		float sn = sin(3.14159 * y);
+		return vec2(d * 0.35 * sn * sn, d * 0.35 * 3.14159 * sin(6.28318 * y) / (1.2 * hw) * sign(x));
+	}
+	return vec2(0.0);
+}
+"),
+        ("\tNORMAL = bump_normal(VERTEX, NORMAL, bump_dh(raw_uv, vec2(0.0), VIEWPORT_SIZE.y / 270.0));\n", true, @"	// (#249) the ruts in the mud: each wheel's groove, the older one beside it and the pushed-up mud, in the street mud's
+	// picture, looked into along the view; water in their bottoms in and after the rain
+	if (rut_mud > 0.0) {
+		vec2 vp = world.xz;
+		// how muddy the street is here (the dirt mask's mud, broken up along the track)
+		float s = raw_uv.x * 3.94;
+		float mk = smoothstep(0.22, 0.55, texture(psx_dirt, (vp - psx_dirt_box.xy) / psx_dirt_box.zw).r * (0.5 + 0.9 * rut_n(s * 0.35, 3.0)));
+		float rh = 0.0, rsl = 0.0, cov = 0.0, bot = 0.0;
+		for (int w = 0; w < 2; w++) {
+			float fw = float(w);
+			// (each wheel's line wanders a few centimetres; the older line beside it is shallower)
+			float a = (raw_uv.y - (w == 0 ? 0.185 : 0.815)) * 2.4 + (rut_n(s * 0.45, fw + 1.0) - 0.5) * 0.13 + (rut_n(s * 1.7, fw + 5.0) - 0.5) * 0.035;
+			float d = (0.035 + 0.035 * rut_n(s * 0.3, fw + 9.0)) * (0.55 + 0.45 * rut_n(s * 0.9, fw + 21.0)) * mk;
+			vec2 g1 = rut_groove(a, 0.08, d);
+			vec2 g2 = rut_groove(a - 0.11 * (rut_n(s * 0.2, fw + 13.0) - 0.3), 0.06, d * 0.5);
+			// (the deeper where they meet, blended over a few millimetres: no crease)
+			vec2 g = mix(g2, g1, smoothstep(-0.004, 0.004, g2.x - g1.x));
+			rh += g.x;
+			rsl += g.y;
+			// (the mud of the track round it, its edge ragged)
+			float bw = 0.24 + 0.1 * rut_n(s * 1.3, fw + 17.0) + 0.05 * (rut_n(s * 5.0, fw + 19.0) - 0.5);
+			cov = max(cov, 1.0 - smoothstep(bw - 0.07, bw, abs(a)));
+			if (abs(a) < 0.35) bot = d;
+		}
+		cov *= mk;
+		if (cov > 0.001) {
+			// (the way across the strip in the world, from the screen: the grooves' slope there)
+			float vm = raw_uv.y * 2.4;
+			vec2 ax = dFdx(vp), ay = dFdy(vp);
+			float det = ax.x * ay.y - ax.y * ay.x;
+			vec2 across = abs(det) > 1e-12 ? vec2(ay.y * dFdx(vm) - ax.y * dFdy(vm), ax.x * dFdy(vm) - ay.x * dFdx(vm)) / det : vec2(0.0);
+			across /= max(length(across), 1e-4);
+			// (the sides' light only near the eye: further off a steep side drew a thin dark line, like a rail)
+			float fade = 1.0 - smoothstep(4.0, 14.0, len);
+			float rain_w = clamp(max(psx_wet, (psx_puddle - 0.14) * 1.8), 0.0, 1.0);
+			// water in the bottom: flat, up to 3.5 cm deep with the rain
+			float dd = -rh;
+			float water = step(0.001, rain_w) * smoothstep(-0.003, 0.002, dd - (bot - 0.035 * rain_w)) * step(0.004, dd);
+			vec2 slw = across * rsl * fade * (1.0 - water);
+			vec3 rn = normalize(vec3(-slw.x, 1.0, -slw.y));
+			NORMAL = normalize(mix(NORMAL, (VIEW_MATRIX * vec4(rn, 0.0)).xyz, cov));
+			// the mud's picture, its floor seen further along the view than its rim
+			vec2 muv = (vp + rd.xz * (rh / min(rd.y, -0.25))) * 0.8;
+			vec4 md = texture(psx_mud, muv);
+			vec3 mcol = mix(md.rgb * 1.7, texture(psx_mud_wet, muv).rgb * 1.4, max(rain_w, smoothstep(0.01, 0.05, dd) * 0.6)) * md.a;
+			// (the floor darker, the ridges drier and paler; the relief light on the sides)
+			mcol *= (1.0 - 0.42 * smoothstep(0.0, 0.035, dd) * (1.0 - 0.4 * smoothstep(6.0, 20.0, len))) * (1.0 + 2.0 * max(rh, 0.0));
+			mcol *= mix(1.0, mix(0.5, 1.3, clamp(dot(normalize(vec3(-slw.x * 2.5, 1.0, -slw.y * 2.5)), normalize(vec3(-0.45, 0.8, -0.35))), 0.0, 1.0)) / 1.16, fade);
+			mcol = mix(mcol, mcol * 0.4, water);
+			c.rgb = mix(c.rgb, mcol * albedo.rgb, cov);
+			c.a = mix(c.a, 1.0, cov);
+			// (the water: the sky's sheen at a slant)
+			float fres = 0.04 + 0.96 * pow(1.0 - clamp(-rd.y, 0.0, 1.0), 5.0);
+			ad += fogc * fres * 0.7 * water * cov;
+		}
+	}
+"),
+    };
+    public static string WithRutMud(string code) => WithLines(code, RutMudLines, "rut mud");
+    public static string WithoutRutMud(string code) => WithoutLines(code, RutMudLines);
     /// <summary>The stored code with lines put in at their anchors (each anchor must be there once).</summary>
     public static string WithLines(string code, (string Anchor, bool After, string Code)[] lines, string what)
     {
@@ -1677,11 +1786,15 @@ global uniform float psx_puddle;
     /// and leaves shelves between them, and pools on the flat that join up, both filling the silt's own hollows first and
     /// growing in the rain; they are flat, mirror the river's picture and the lamps, and take the rain's rings. Up close a
     /// fine grain; further off the river's picture in the wet silt's sheen.
-    /// #255: where a material sets `silt_strip` (the sloped strip at the moat's and the river's walls) the silt is darker and
-    /// less glossy (it is fresh off the tide), with worm casts and bubble pits a few centimetres across, shell grit, soft muddy
-    /// ripples in patches and a small swell, all faded by the pixel's size (no shimmer at a low look); its water's edge wanders
-    /// a hand's width; the sky's sheen and the relief light follow only these smooth slopes (the picture's hex seams stay
-    /// quiet). The lines before #255 are SiltLines252 (the repair takes them out first).
+    /// #255: where a material sets `silt_strip` (the sloped strip at the moat's and the river's walls; NativeDirt smooths its
+    /// normals and gives it its length along the wall in UV2) the silt has its own detail near the eye: lumps of three
+    /// sizes, the ebb's runnels down the slope (across by the strip's length, down by the height: no world-angle stripes),
+    /// burrows with a lip and worm casts, shell grit, and now and then a pebble, a crumb of brick or coal or a bit of shell;
+    /// each fades before it is a few pixels across, and every hash of theirs is exact in integers (strip_h: the float hashes
+    /// lost their places far from the world's middle and drew rings). The water's edge wanders in bays and runs up the
+    /// runnels; in the rain they and the burrows run with water. The sheen is the mud's own, weaker at a slant (no
+    /// blue-grey mud from low down). With `silt_strip` 0 (the canals' beds) the lines draw as before #255. The lines before
+    /// #255 are SiltLines252 (the repair takes either set out first).
     /// </summary>
     public static readonly (string Anchor, bool After, string Code)[] SiltLines =
     {
@@ -1695,7 +1808,9 @@ uniform float silt_bump = 0.3;
 // the river's level now (NativeDirt sets it), how much of the wet flats is pool
 uniform float silt_level = -99.0;
 uniform float silt_pools = 0.2;
-// #255: 1 on the sloped strip at the walls' foot: soft ripples, worm casts and pits, shell grit, a broken water line
+// #255: 1 on the sloped strip at the moat's and the river's walls (NativeDirt smooths its normals and puts its length
+// along the wall in UV2.x, in metres, and how far the nearer end of its run is in UV2.y): the ebb's runnels, burrows and
+// worm casts, lumps, shell grit and pebbles, a broken water line
 uniform float silt_strip = 0.0;
 global uniform sampler2D psx_water_mirror : source_color, filter_linear, repeat_disable;
 global uniform mat4 psx_water_mirror_mat;
@@ -1729,11 +1844,26 @@ void silt_at(vec2 v, vec2 p, vec2 dx, vec2 dy, out vec4 cw, out vec4 cd, out vec
 	// (OpenGL normal: its y is the picture's up, the uv's -v)
 	rel.xy = transpose(r) * vec2(1.0 - 2.0 * rel.x, 2.0 * rel.y - 1.0);
 }
+// (#255) an exact hash of a whole cell and a seed, in integers (the float hashes lose their places far from the world's
+// middle: their patterns showed as rings in the strip's detail); and value noise on it
+float strip_h(vec2 c, float k) {
+	uvec2 q = uvec2(ivec2(c) + ivec2(1048576)) * uvec2(1597334673u, 3812015801u) + uvec2(uint(k) * 2654435761u);
+	uint n = (q.x ^ q.y) * 1597334673u;
+	n ^= n >> 16u;
+	n *= 2246822519u;
+	n ^= n >> 13u;
+	return float(n) * (1.0 / 4294967295.0);
+}
+float strip_n(vec2 p, float k) {
+	vec2 i = floor(p);
+	vec2 f = p - i;
+	vec2 u = f * f * (3.0 - 2.0 * f);
+	return mix(mix(strip_h(i, k), strip_h(i + vec2(1.0, 0.0), k), u.x), mix(strip_h(i + vec2(0.0, 1.0), k), strip_h(i + vec2(1.0, 1.0), k), u.x), u.y);
+}
 "),
         ("\tc *= albedo;\n", true, @"	// (#252) the silt: three hexagons' samples, blended by their weights and the higher ground; the drier silt by the wall
 	float silt_h = 0.5, silt_water = 0.0, silt_gloss = 0.0, silt_damp = 0.0, silt_d = 0.0;
 	vec2 silt_sl = vec2(0.0);
-	vec2 silt_ssl = vec2(0.0);
 	if (silt > 0.0) {
 		vec2 sp = world.xz / silt_tile;
 		vec2 sdx = dFdx(sp), sdy = dFdy(sp);
@@ -1760,63 +1890,129 @@ void silt_at(vec2 v, vec2 p, vec2 dx, vec2 dy, out vec4 cw, out vec4 cd, out vec
 		float rain_w = clamp(max(psx_wet, (psx_puddle - 0.14) * 1.8), 0.0, 1.0);
 		// the drier band: the mud highest over the water (at the walls' foot) and longest out of it, its edge broken; never at the water
 		float brk = (big - 0.5) * 0.3 + (pud_val(wp / 1.3 + 8.1) - 0.5) * 0.14;
-		silt_d = smoothstep(0.22, 0.55, above + brk) * (0.55 + 0.45 * (1.0 - psx_tide_wet_at(world.y))) * (1.0 - 0.75 * rain_w) * (1.0 - 0.75 * silt_strip);
+		silt_d = smoothstep(0.22, 0.55, above + brk) * (0.55 + 0.45 * (1.0 - psx_tide_wet_at(world.y))) * (1.0 - 0.75 * rain_w) * (1.0 - 0.45 * silt_strip);
 		// (up close: a fine grain of silt and grit, a few millimetres, and the faint runnels the ebb leaves)
 		float near = 1.0 - smoothstep(3.0, 9.0, len);
-		// (#255) the sloped strip at the walls' foot, up close: worm casts and bubble pits (1 to 3 cm), grit of shell, soft
-		// muddy ripples in patches and the mud's small swell
-		float pit = 0.0, fleck = 0.0, rip = 0.0;
+		// (#255: not on the strip: that grain's hash loses its places far from the world's middle, a pattern of rings)
+		float grain = silt_strip > 0.0 ? 0.0 : (pud_val(wp * 41.0) - 0.5) * 0.6 + (pud_val(wp * 113.0 + 3.3) - 0.5) * 0.4;
+		// (#255) the sloped strip at the walls' foot, each detail gone before it is a few pixels across (no shimmer, no
+		// rings): the mud's lumps; the ebb's runnels down the slope; burrows and worm casts; shell grit; now and then a
+		// pebble, a crumb of brick or coal, a bit of oyster shell. Their slopes are for the lights; water stands in the hollows
+		float st_dark = 1.0, st_gloss = 0.5, st_fill = 0.0, st_wet = 0.0, st_peb = 0.0, st_rill = 0.0, st_fleck = 0.0;
+		vec3 st_pc = vec3(0.0);
 		vec2 strip_sl = vec2(0.0);
 		if (silt_strip > 0.0) {
-			// a pixel's size on the ground: the pits and the grit only where they are a few pixels across
-			float fpw = max(length(dFdx(wp)), length(dFdy(wp)));
-			float small_k = 1.0 - smoothstep(0.0025, 0.007, fpw);
-			vec2 cp = wp * 14.0;
-			vec2 ci = floor(cp);
-			vec2 cf = cp - ci;
-			vec2 cc = vec2(psx_h12(ci + 1.3), psx_h12(ci - 2.9)) * 0.6 + 0.2;
-			float rad = 0.1 + 0.12 * psx_h12(ci + 9.1);
-			float dist = length(cf - cc);
-			float on = step(0.72, psx_h12(ci + 3.7)) * small_k;
-			pit = (1.0 - smoothstep(rad * 0.5, rad, dist)) * on;
-			// (a pit's sides fall in, its rim stands a little proud)
-			float wall_k = smoothstep(rad * 0.25, rad * 0.8, dist) * (1.0 - smoothstep(rad * 0.8, rad * 1.1, dist));
-			float rim_k = smoothstep(rad * 1.1, rad * 1.4, dist) * (1.0 - smoothstep(rad * 1.4, rad * 2.0, dist));
-			strip_sl += (cf - cc) / max(dist, 1e-3) * (wall_k - 0.4 * rim_k) * 0.7 * on;
-			vec2 fp2 = wp * 45.0;
-			vec2 fi = floor(fp2);
-			fleck = (1.0 - smoothstep(0.1, 0.2, length(fp2 - fi - (vec2(psx_h12(fi + 4.4), psx_h12(fi - 7.7)) * 0.6 + 0.2)))) * step(0.96, psx_h12(fi + 0.9)) * small_k;
-			// soft muddy ripples in patches: crests 8 to 12 cm apart and 4 mm high, bending, their way turning slowly over the
-			// strip; the crests drain paler, the troughs keep the wet
-			float ra = (pud_val(wp * 0.21 + 2.2) - 0.5) * 2.4 + 0.6;
-			vec2 rdir = vec2(cos(ra), sin(ra));
-			float rph = dot(wp, rdir) * 62.8 + (pud_val(wp * 1.3 - 3.1) - 0.5) * 9.0 + (pud_val(wp * 4.1 + 8.8) - 0.5) * 2.5;
-			float rmask = smoothstep(0.42, 0.62, pud_val(wp * 0.55 - 9.7)) * (1.0 - smoothstep(0.004, 0.011, fpw));
-			rip = sin(rph) * rmask;
-			strip_sl += rdir * cos(rph) * rmask * 0.25;
-			// the mud's small swell, a hand or two across, so the light breaks on it
-			float sw0 = pud_val(wp * 2.9 + 3.3);
-			strip_sl += vec2(pud_val(wp * 2.9 + vec2(3.42, 3.3)) - sw0, pud_val(wp * 2.9 + vec2(3.3, 3.42)) - sw0) * 0.9 * near;
-			silt_ssl = strip_sl;
+			// (a pixel's size on the ground)
+			float fpw = max(max(length(dFdx(wp)), length(dFdy(wp))), 1e-5);
+			// (for the soft lumps the footprint's mean: at a low look its long side alone would take them all away)
+			float fpm = max(sqrt(length(dFdx(wp)) * length(dFdy(wp))) * 1.5, 1e-5);
+			// the lumps, three sizes (28, 10 and 4 cm across)
+			float lump = 0.0;
+			for (int o = 0; o < 3; o++) {
+				float fq = o == 0 ? 3.5 : (o == 1 ? 10.0 : 26.0);
+				float am = (o == 0 ? 0.012 : (o == 1 ? 0.005 : 0.002)) * (1.0 - smoothstep(0.1, 0.22, fpm * fq));
+				vec2 q = wp * fq;
+				float n0 = strip_n(q, float(o) + 1.0);
+				strip_sl += vec2(strip_n(q + vec2(0.2, 0.0), float(o) + 1.0) - n0, strip_n(q + vec2(0.0, 0.2), float(o) + 1.0) - n0) * (5.0 * fq * am);
+				lump += (n0 - 0.5) * am;
+			}
+			// the runnels: across, by the strip's length along the wall (UV2.x); down, by the height. Each its own width
+			// (3-8 cm), depth (4-16 mm) and start (2-42 cm under the wall's foot), wandering, deeper toward the water, none
+			// at a run's end
+			float rt = UV2.x + (strip_n(vec2(UV2.x * 0.9, world.y * 4.0), 12.0) - 0.5) * 0.18 + (strip_n(vec2(UV2.x * 3.0, world.y * 13.0), 13.0) - 0.5) * 0.045;
+			// (the way across them in the world, from the screen)
+			vec2 ax = dFdx(wp), ay = dFdy(wp);
+			float rdet = ax.x * ay.y - ax.y * ay.x;
+			vec2 rgt = abs(rdet) > 1e-12 ? vec2(ay.y * dFdx(rt) - ax.y * dFdy(rt), ax.x * dFdy(rt) - ay.x * dFdx(rt)) / rdet : vec2(0.0);
+			rgt /= max(1.0, length(rgt));
+			float ki = floor(rt / 0.24);
+			vec2 kc = vec2(ki, 7.0);
+			float lc = rt - (ki + 0.5) * 0.24 - (strip_h(kc, 14.0) - 0.5) * 0.1;
+			float hw = 0.016 + 0.026 * strip_h(kc, 16.0);
+			float r_st = -4.72 - 0.4 * strip_h(kc, 17.0);
+			float dep = (1.0 - smoothstep(r_st - 0.25, r_st, world.y)) * step(strip_h(kc, 15.0), 0.7) * smoothstep(0.15, 0.6, UV2.y);
+			float dm = (0.004 + 0.012 * strip_h(kc, 18.0)) * dep;
+			float rx = clamp(lc / hw, -1.0, 1.0);
+			float rg = (1.0 - rx * rx) * (1.0 - rx * rx);
+			float raa = smoothstep(1.0, 2.5, hw / max(max(abs(dFdx(rt)), abs(dFdy(rt))), 1e-5));
+			st_rill = dep * mix(hw * 1.07 / 0.24, rg, raa);
+			strip_sl += rgt * (dm * 4.0 * rx * (1.0 - rx * rx) / hw) * raa;
+			// burrows (4-8 mm, a lip round them) and worm casts (small heaps), one in a few cells of 6 cm
+			float small_k = 1.0 - smoothstep(0.003, 0.007, fpw);
+			float pit = 0.0, cast = 0.0;
+			if (small_k > 0.0) {
+				vec2 cp = wp * 16.0;
+				vec2 ci = floor(cp);
+				vec2 cf = cp - ci - (vec2(strip_h(ci, 1.0), strip_h(ci, 2.0)) * 0.3 + 0.35);
+				float rad = 0.06 + 0.07 * strip_h(ci, 3.0);
+				float cd = length(cf);
+				vec2 cdir = cf / max(cd, 1e-4);
+				float x = cd / rad;
+				float kind = strip_h(ci, 4.0);
+				if (kind > 0.87) {
+					// (a hole 5 mm deep, its lip 1.5 mm proud)
+					pit = (1.0 - smoothstep(0.8, 1.0, x)) * small_k;
+					float dh = x < 1.0 ? 0.01 * x : (x < 2.0 ? 0.0015 * 3.1416 * cos(3.1416 * (x - 1.0)) : 0.0);
+					strip_sl += cdir * dh * 16.0 / rad * small_k;
+				} else if (kind > 0.74) {
+					// (a heap 4 mm high, twice as wide)
+					float xc = x * 0.5;
+					cast = (1.0 - smoothstep(0.6, 1.0, xc)) * small_k;
+					strip_sl += cdir * (xc < 1.0 ? -0.008 * xc : 0.0) * 8.0 / rad * small_k;
+				}
+			}
+			// shell grit (3-5 mm), pale
+			if (fpw < 0.0022) {
+				vec2 fp = wp * 45.0;
+				vec2 fi = floor(fp);
+				st_fleck = (1.0 - smoothstep(0.1, 0.17, length(fp - fi - (vec2(strip_h(fi, 5.0), strip_h(fi, 6.0)) * 0.5 + 0.25)))) * step(0.95, strip_h(fi, 7.0)) * (1.0 - smoothstep(0.0011, 0.0022, fpw));
+			}
+			// a pebble, a crumb of brick or coal, a bit of oyster shell (1-3 cm) in one cell in fifteen of 22 cm, half sunk
+			{
+				vec2 pp = wp * 4.5;
+				vec2 pc = floor(pp);
+				float pa = strip_h(pc, 10.0) * 6.2831853;
+				mat2 pm = mat2(vec2(cos(pa), sin(pa)), vec2(-sin(pa), cos(pa)));
+				vec2 pf = pm * (pp - pc - (vec2(strip_h(pc, 8.0), strip_h(pc, 9.0)) * 0.4 + 0.3));
+				float prx = 0.05 + 0.08 * strip_h(pc, 11.0);
+				vec2 pr = vec2(prx, prx * (0.55 + 0.4 * strip_h(pc, 12.0)));
+				float px = length(pf / pr);
+				float pmin = pr.y / 4.5;
+				st_peb = step(0.935, strip_h(pc, 13.0)) * (1.0 - smoothstep(1.0 - max(fpw / pmin, 0.08), 1.0, px)) * (1.0 - smoothstep(0.3, 0.7, fpw / pmin));
+				float pk = strip_h(pc, 14.0);
+				st_pc = pk < 0.45 ? vec3(0.17, 0.165, 0.15) : (pk < 0.7 ? vec3(0.27, 0.12, 0.075) : (pk < 0.85 ? vec3(0.035, 0.033, 0.03) : vec3(0.36, 0.35, 0.32)));
+				// (its dome for the lights, four tenths of its width high)
+				float pz = clamp(px, 0.0, 0.95);
+				float pdh = -0.4 * pmin * pz / sqrt(1.0 - pz * pz);
+				strip_sl = mix(strip_sl, transpose(pm) * (pf / (pr * pr) / max(px, 1e-3)) * 4.5 * pdh, st_peb);
+			}
+			// broad patches: wetter and darker, drier and paler (a metre or two)
+			float patch = strip_n(wp * 0.6, 23.0) * 0.65 + strip_n(wp * 1.7, 24.0) * 0.35;
+			st_dark = (0.86 + 0.28 * patch) * (1.0 - 0.32 * st_rill) * (1.0 - 0.4 * pit) * (1.0 + 0.12 * cast) * (1.0 + lump * 14.0);
+			st_gloss = clamp(0.62 - 0.3 * patch + 0.4 * st_rill + 0.35 * pit - 0.18 * cast + lump * 12.0, 0.15, 0.95);
+			// (the river's water runs a little up the runnels and stands in the burrows; in the rain they run with water)
+			st_fill = st_rill * 0.05 + pit * 0.02;
+			st_wet = rain_w * (smoothstep(0.35, 0.8, rg) * dep * raa + pit * 0.8);
 		}
-		// (#255: on the strip the fine grain fades where it is under a few pixels: no shimmer at a low look)
-		float fine_k = 1.0 - silt_strip * smoothstep(0.004, 0.012, max(length(dFdx(wp)), length(dFdy(wp))));
-		float grain = (pud_val(wp * 41.0) - 0.5) * 0.6 + (pud_val(wp * 113.0 + 3.3) - 0.5) * 0.4;
-		c.rgb = mix(cw.rgb, cd.rgb, silt_d) * albedo.rgb * (0.9 + 0.2 * big) * (1.0 + grain * (0.12 + 0.1 * silt_strip) * near * fine_k);
+		c.rgb = mix(cw.rgb, cd.rgb, silt_d) * albedo.rgb * (0.9 + 0.2 * big) * (1.0 + grain * 0.12 * near);
 		silt_gloss = mix(cw.a, cd.a, silt_d);
 		silt_gloss = mix(silt_gloss, 0.85, rain_w * 0.6);
-		// (#255) the pits darker and wetter, the ripples' crests paler, the shell grit pale
-		c.rgb *= (1.0 - 0.3 * pit) * (1.0 + 0.1 * rip);
-		c.rgb = mix(c.rgb, vec3(0.36, 0.34, 0.3) * albedo.rgb, fleck * 0.55 * (1.0 - silt_d * 0.3));
-		silt_gloss = mix(silt_gloss, max(0.6 * pit, 0.42 - 0.25 * rip), silt_strip);
+		if (silt_strip > 0.0) {
+			// (#255) the strip's runnels, burrows and lumps darker or lighter, the grit pale, the pebbles their own colour
+			// and drier; the runnels and burrows wettest
+			c.rgb *= st_dark;
+			c.rgb = mix(c.rgb, vec3(0.36, 0.34, 0.3) * albedo.rgb, st_fleck * 0.6);
+			c.rgb = mix(c.rgb, st_pc, st_peb);
+			silt_gloss = mix(st_gloss, 0.85, rain_w * 0.6) * (1.0 - 0.55 * st_peb * (1.0 - rain_w));
+		}
 		// the water, in world space: a film along the water line that reaches up the mud in inlets with shelves between,
 		// and pools on the flats that join up; both fill the silt's hollows first and rise in the rain
 		vec2 pw = pud_warp(wp);
 		float hol = (0.5 - silt_h);
 		float reach = 0.11 * smoothstep(0.5, 0.85, pud_val(pw / 4.6 + 11.3)) + 0.03 * (pud_val(pw / 1.1 - 2.3) - 0.4) + 0.025 * rain_w;
-		// (#255: on the slope the edge wanders a hand's width, in long and short bays)
-		reach = mix(reach, 0.035 + 0.05 * (pud_val(pw * 1.9 + 4.4) - 0.5) + 0.025 * (pud_val(pw * 5.3 - 1.1) - 0.5) + 0.02 * rain_w, silt_strip);
-		float film = 1.0 - smoothstep(reach - 0.02, reach + 0.008, above - hol * (0.03 + 0.05 * silt_strip));
+		// (#255: on the strip the edge wanders a hand's width, in long and short bays, and runs up the runnels)
+		if (silt_strip > 0.0) reach = 0.035 + 0.06 * (strip_n(wp * 1.7, 21.0) - 0.5) + 0.03 * (strip_n(wp * 5.0, 22.0) - 0.5) + 0.02 * rain_w;
+		float film = max(1.0 - smoothstep(reach - 0.02, reach + 0.008, above - hol * 0.03 - st_fill), st_wet);
 		float pn = pud_val(pw / 3.4 + 5.1) * 0.62 + pud_val(pw / 1.25 - 7.9) * 0.38 + hol * 0.16;
 		float th = 0.74 - silt_pools * 0.6 - 0.08 * rain_w + 0.16 * silt_d;
 		// (pools only lie on the flat: not on the slope at the walls' foot)
@@ -1826,15 +2022,17 @@ void silt_at(vec2 v, vec2 p, vec2 dx, vec2 dy, out vec4 cw, out vec4 cd, out vec
 		silt_damp = max(1.0 - smoothstep(reach, reach + 0.06, above), smoothstep(th - 0.07, th, pn) * flat_k) * (1.0 - silt_water);
 		c.rgb *= 1.0 - 0.18 * silt_damp;
 		float far = 1.0 - smoothstep(14.0, 40.0, len);
-		vec2 fine = vec2(pud_val(wp * 41.0 + vec2(0.4, 0.0)) - pud_val(wp * 41.0 - vec2(0.4, 0.0)), pud_val(wp * 41.0 + vec2(0.0, 0.4)) - pud_val(wp * 41.0 - vec2(0.0, 0.4))) * (0.05 + 0.05 * silt_strip) * near * fine_k;
-		silt_sl = (rl.xy / silt_tile * silt_bump * far + swell + fine + strip_sl) * (1.0 - silt_water);
+		vec2 fine = vec2(pud_val(wp * 41.0 + vec2(0.4, 0.0)) - pud_val(wp * 41.0 - vec2(0.4, 0.0)), pud_val(wp * 41.0 + vec2(0.0, 0.4)) - pud_val(wp * 41.0 - vec2(0.0, 0.4))) * 0.05 * near * (1.0 - silt_strip);
+		silt_sl = (rl.xy / silt_tile * silt_bump * far + swell + fine + strip_sl * far) * (1.0 - silt_water);
 		// the relief light (one world direction, as the paving's): the silt's forms show in the walls' shade too; darker wet
 		vec3 sn = normalize(vec3(-silt_sl.x * 6.0, 1.0, -silt_sl.y * 6.0));
 		float slit = clamp(dot(sn, vec3(-0.458, 0.815, -0.356)), 0.0, 1.0);
 		c.rgb *= mix(1.0, mix(0.72, 1.12, slit) / 1.046 * (0.84 + 0.32 * silt_h), far) * (1.0 - 0.3 * rain_w);
-		// (#255) the strip's own pits, ripples and swell take more of the relief light (smooth: not the picture's tile seams)
-		vec3 ssn = normalize(vec3(-silt_ssl.x * 6.0, 1.0, -silt_ssl.y * 6.0));
-		c.rgb *= mix(1.0, mix(0.7, 1.3, clamp(dot(ssn, vec3(-0.458, 0.815, -0.356)), 0.0, 1.0)) / 1.189, silt_strip * far);
+		// (#255) the strip's own lumps, runnels and burrows take more of the relief light, near the eye
+		if (silt_strip > 0.0) {
+			vec3 ssn = normalize(vec3(-strip_sl.x * 4.0, 1.0, -strip_sl.y * 4.0));
+			c.rgb *= mix(1.0, mix(0.62, 1.2, clamp(dot(ssn, vec3(-0.458, 0.815, -0.356)), 0.0, 1.0)) / 1.093, far * (1.0 - silt_water));
+		}
 	}
 "),
         ("\t{\n\t\t// relief light from the height map", false, @"	// (#252) the silt's own relief: its normal map's slope in the world, flat under water
@@ -1850,8 +2048,6 @@ void silt_at(vec2 v, vec2 p, vec2 dx, vec2 dy, out vec4 cw, out vec4 cd, out vec
 		// river's picture, flat and dark looking down, with the lamps drawn out in it and the rain's rings
 		float cos_t = clamp(-rd.y, 0.0, 1.0);
 		float fres = 0.02 + 0.98 * pow(1.0 - cos_t, 5.0);
-		// (#255: on the strip the sky's sheen follows the mud's small slopes: a face turned to the eye takes less of it)
-		fres *= mix(1.0, clamp(1.0 - 2.5 * dot(silt_ssl, normalize(rd.xz + vec2(1e-4))), 0.15, 2.0), silt_strip);
 		vec3 rr = vec3(rd.x, -rd.y, rd.z);
 		spec_k = max(spec_k, mix(silt_gloss * silt_gloss * 0.7, 1.0, silt_water));
 		float sheen = silt_gloss * silt_gloss * (1.0 - silt_water);
@@ -1868,7 +2064,15 @@ void silt_at(vec2 v, vec2 p, vec2 dx, vec2 dy, out vec4 cw, out vec4 cd, out vec
 		}
 		// (the river's picture only further off: up close it showed the wrong walls in the silt)
 		float rain_w2 = clamp(max(psx_wet, (psx_puddle - 0.14) * 1.8), 0.0, 1.0);
-		ad += mix(fogc, mir, 0.5 * smoothstep(8.0, 16.0, len)) * fres * 0.9 * sheen * (1.0 + 0.8 * rain_w2);
+		// (#255) on the strip the sheen is the mud's own, browner and weaker at a slant (the sky's full grey-blue made the
+		// mud read blue-grey from low down), and a slope turned to the eye takes less of it
+		vec3 sheen_c = mix(fogc, mir, 0.5 * smoothstep(8.0, 16.0, len));
+		float fres_s = fres;
+		if (silt_strip > 0.0) {
+			sheen_c = mix(sheen_c, vec3(dot(sheen_c, vec3(0.3, 0.5, 0.2))) * vec3(1.0, 0.9, 0.74), 0.7);
+			fres_s = min(fres, 0.22) * clamp(1.0 - 2.0 * dot(silt_sl, normalize(rd.xz + vec2(1e-4))), 0.3, 1.8);
+		}
+		ad += sheen_c * fres_s * 0.9 * sheen * (1.0 + 0.8 * rain_w2);
 		ad += psx_lamp_color.rgb * lamp_streaks(world, rr) * sheen * 0.25;
 		if (silt_water > 0.0) {
 			vec3 refl = psx_water_mirror_on > 0.5 && !in_mirror ? mir : fogc * 0.3;

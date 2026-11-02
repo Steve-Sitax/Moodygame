@@ -28,6 +28,7 @@ public static partial class NativeDirt
         {
             Scheldemist.Render.Psx.SetMud(GD.Load<Texture2D>(MudDir + "dry.res"), GD.Load<Texture2D>(MudDir + "wet.res"), GD.Load<Texture2D>(MudDir + "height.res"));
             MarketMud(town);
+            RutMud(town);
         }
         if (!ResourceLoader.Exists(Soil)) return 0;
         var soil = GD.Load<ShaderMaterial>(Soil);
@@ -79,6 +80,27 @@ public static partial class NativeDirt
     /// street mud's picture and relief in their shape (their decal kind's mud lines, Psx.DecalMudLines: off unless
     /// `mud_relief`). One material, shared by every stain; the chalk marks in the same kind stay as they were.
     /// </summary>
+    /// <summary>
+    /// #249: the town's cart-track rut strips (the `ruts` node, 1,886 m2 along the cart roads) take deep grooves where they
+    /// cross the street mud (their decal kind's rut lines, Psx.RutMudLines: off unless `rut_mud`). Their own copy of the
+    /// material: the opening bridges' decks share it and have no mud.
+    /// </summary>
+    private static void RutMud(Node3D town)
+    {
+        int n = 0;
+        foreach (var mi in BakedWorld.All(town).OfType<MeshInstance3D>().Where(m => m.Name.ToString() == "ruts" && m.Mesh != null))
+            for (int s = 0; s < mi.Mesh.GetSurfaceCount(); s++)
+            {
+                if ((mi.GetSurfaceOverrideMaterial(s) ?? mi.Mesh.SurfaceGetMaterial(s)) is not ShaderMaterial old || old.Shader?.Code.Contains("uniform float rut_mud") != true) continue;
+                var m = (ShaderMaterial)old.Duplicate();
+                m.ResourceName = "ruts_mud";
+                m.SetShaderParameter("rut_mud", 1f);
+                mi.SetSurfaceOverrideMaterial(s, m);
+                n++;
+            }
+        GD.Print($"dirt: ruts, deep grooves in the street mud on {n} surface(s)");
+    }
+
     private static void MarketMud(Node3D town)
     {
         var done = new System.Collections.Generic.HashSet<ShaderMaterial>();
@@ -98,9 +120,10 @@ public static partial class NativeDirt
     /// The wet silt and the drier silt higher up, hex-tiled in world metres with each hexagon turned its own way (a 2 m tile
     /// laid plain repeats like a camouflage print); the water is laid in world space from the river's level now (SiltLevel),
     /// so the water line breaks into inlets and the pools join up. No parallax: the silt's relief is a few millimetres, the
-    /// lights take it from its normal map. The thin strip at the moat's and the river's walls (the tide_mud surface) keeps
-    /// its ripples: seen from a step away the silt there read blurred and its water sheets hard-edged (Codex, #252), and the
-    /// rule is new dirt only where it is better.
+    /// lights take it from its normal map. The thin sloped strip at the moat's and the river's walls (the tide_mud surface)
+    /// kept its sand ripples after #252 (the plain silt there read blurred, its water's edge ruled). Since #255 it takes the
+    /// silt with the strip's own detail (silt_strip: lumps, the ebb's runnels, burrows and casts, grit and pebbles, a broken
+    /// water line); its mesh's normals are smoothed and its length along the wall goes into UV2 (StripMesh).
     /// </summary>
     private static int Mud(Node3D town)
     {
@@ -112,11 +135,28 @@ public static partial class NativeDirt
         var dry = GD.Load<Texture2D>(Dir + "silt_dry.res");
         var rel = GD.Load<Texture2D>(Dir + "silt_relief.res");
         var silts = new System.Collections.Generic.List<ShaderMaterial>();
+        var strips = new System.Collections.Generic.List<ShaderMaterial>();
+        int stripSurface = -1;
         for (int s = 0; s < mud.Mesh.GetSurfaceCount(); s++)
         {
-            // (the stored shader without the silt lines: the ripples stay)
+            // (the stored shader without the silt lines: the ripples stay; without the strip's lines the strip keeps them)
             if (mud.Mesh.SurfaceGetMaterial(s) is not ShaderMaterial m || m.Shader?.Code.Contains("uniform float silt ") != true) continue;
-            if (m.ResourceName != CanalBeds) continue;
+            bool strip = m.ResourceName == WallFoot;
+            if (strip && m.Shader.Code.Contains("uniform float silt_strip") != true) continue;
+            if (m.ResourceName != CanalBeds && !strip) continue;
+            if (strip)
+            {
+                stripSurface = s;
+                m.SetShaderParameter("silt_strip", 1f);
+                m.SetShaderParameter("silt_tile", 1.6f);
+                m.SetShaderParameter("albedo", StripTint);
+                strips.Add(m);
+            }
+            else
+            {
+                m.SetShaderParameter("albedo", BedTint);
+                silts.Add(m);
+            }
             m.SetShaderParameter("tex", wet);
             m.SetShaderParameter("silt_dry", dry);
             m.SetShaderParameter("silt_rel", rel);
@@ -124,26 +164,142 @@ public static partial class NativeDirt
             m.SetShaderParameter("relief_h", rel);
             m.SetShaderParameter("relief_depth", 0f);
             m.SetShaderParameter("silt", 1f);
-            m.SetShaderParameter("silt_tile", 2f);
+            if (!strip) m.SetShaderParameter("silt_tile", 2f);
             m.SetShaderParameter("silt_bump", SiltBump);
             m.SetShaderParameter("silt_pools", SiltPools);
             // (the silt's own wet: no second darkening by the tide band; a dielectric's highlight, a wet sheet's)
             m.SetShaderParameter("tide_wet", 0f);
             m.SetShaderParameter("spec_color", new Vector3(0.02f, 0.02f, 0.02f));
             m.SetShaderParameter("shininess", 48f);
-            m.SetShaderParameter("albedo", BedTint);
-            silts.Add(m);
         }
-        if (silts.Count == 0) return 0;
-        mud.AddChild(new SiltLevel { Name = "silt_level", Silts = silts });
+        if (silts.Count + strips.Count == 0) return 0;
+        string runs = stripSurface >= 0 ? StripMesh((ArrayMesh)mud.Mesh, stripSurface) : "";
+        mud.AddChild(new SiltLevel { Name = "silt_level", Silts = silts, Strips = strips });
         // (#256) the silt draws the beds' water itself: the old calm sheet's bright ribbon and the pools' flat sheets go
-        Waters.BedsDrawWater = true;
-        GD.Print($"dirt: tide mud, tidal silt on the canals' beds ({silts.Count} surface)");
+        if (silts.Count > 0) Waters.BedsDrawWater = true;
+        GD.Print($"dirt: tide mud, tidal silt on the canals' beds ({silts.Count} surface) and the walls' foot ({strips.Count} surface{runs})");
         return 1;
+    }
+
+    /// <summary>
+    /// (#255) The walls' foot strip's mesh (2 m triangles in three rows: the wall's foot, the middle, the water's side) had
+    /// a flat normal on each triangle: the light broke at every edge into straight lines across the silt. Its normals are
+    /// smoothed (by area, over the corners at one place), and UV2 gets each corner's length along its run of the wall in
+    /// metres (x; its wall-foot row chained from one end, every corner placed on that line) and how far the nearer end of
+    /// the run is (y): the runnels' measure across the slope. Places and triangles stay as they are; the canals' beds'
+    /// surface is laid again as it was.
+    /// </summary>
+    private static string StripMesh(ArrayMesh mesh, int surface)
+    {
+        var all = new Godot.Collections.Array[mesh.GetSurfaceCount()];
+        var mats = new Material[all.Length];
+        var names = new string[all.Length];
+        for (int s = 0; s < all.Length; s++)
+        {
+            all[s] = mesh.SurfaceGetArrays(s);
+            mats[s] = mesh.SurfaceGetMaterial(s);
+            names[s] = mesh.SurfaceGetName(s);
+        }
+        var a = all[surface];
+        var v = a[(int)Mesh.ArrayType.Vertex].AsVector3Array();
+        var ix = a[(int)Mesh.ArrayType.Index].VariantType == Variant.Type.PackedInt32Array ? a[(int)Mesh.ArrayType.Index].AsInt32Array() : Enumerable.Range(0, v.Length).ToArray();
+        // (the corners at one place, to the millimetre)
+        var weld = new System.Collections.Generic.Dictionary<(long, long, long), int>();
+        var id = new int[v.Length];
+        for (int i = 0; i < v.Length; i++)
+        {
+            var k = ((long)MathF.Round(v[i].X * 1000), (long)MathF.Round(v[i].Y * 1000), (long)MathF.Round(v[i].Z * 1000));
+            if (!weld.TryGetValue(k, out id[i])) weld[k] = id[i] = weld.Count;
+        }
+        int n = weld.Count;
+        var pos = new Vector3[n];
+        for (int i = 0; i < v.Length; i++) pos[id[i]] = v[i];
+        var sum = new Vector3[n];
+        var root = Enumerable.Range(0, n).ToArray();
+        int Find(int x) { while (root[x] != x) x = root[x] = root[root[x]]; return x; }
+        for (int t = 0; t + 2 < ix.Length; t += 3)
+        {
+            int p = id[ix[t]], q = id[ix[t + 1]], r = id[ix[t + 2]];
+            var f = (pos[q] - pos[p]).Cross(pos[r] - pos[p]);
+            if (f.Y < 0) f = -f;
+            sum[p] += f; sum[q] += f; sum[r] += f;
+            root[Find(p)] = Find(q); root[Find(r)] = Find(q);
+        }
+        var normals = new Vector3[v.Length];
+        for (int i = 0; i < v.Length; i++) normals[i] = sum[id[i]].LengthSquared() > 1e-12f ? sum[id[i]].Normalized() : Vector3.Up;
+        // each run of the wall: its wall-foot corners (within 12 cm of its top) chained from one end, nearest first
+        var along = new Vector2[n];
+        int count = 0;
+        foreach (var run in Enumerable.Range(0, n).GroupBy(Find))
+        {
+            var corners = run.ToList();
+            float top = corners.Max(c => pos[c].Y);
+            var foot = corners.Where(c => pos[c].Y > top - 0.12f).Select(c => new Vector2(pos[c].X, pos[c].Z)).ToList();
+            var line = new System.Collections.Generic.List<Vector2>();
+            if (foot.Count >= 2)
+            {
+                var mid = foot.Aggregate(Vector2.Zero, (s, p) => s + p) / foot.Count;
+                var at = foot.OrderByDescending(p => p.DistanceSquaredTo(mid)).First();
+                var left = foot.ToList();
+                while (left.Count > 0)
+                {
+                    var near = left.OrderBy(p => p.DistanceSquaredTo(at)).First();
+                    left.Remove(near);
+                    line.Add(near);
+                    at = near;
+                }
+            }
+            else
+            {
+                // (no wall-foot row: along the run's longest way)
+                var ps = corners.Select(c => new Vector2(pos[c].X, pos[c].Z)).ToList();
+                var p0 = ps.OrderByDescending(p => p.DistanceSquaredTo(ps[0])).First();
+                line.Add(p0);
+                line.Add(ps.OrderByDescending(p => p.DistanceSquaredTo(p0)).First());
+            }
+            var length = new float[line.Count];
+            for (int k = 1; k < line.Count; k++) length[k] = length[k - 1] + line[k].DistanceTo(line[k - 1]);
+            float total = length[^1];
+            // (each run's measure starts at its own offset: the runnels of two runs side by side do not line up)
+            float offset = 37.1f * count++;
+            foreach (int c in corners)
+            {
+                var q = new Vector2(pos[c].X, pos[c].Z);
+                float best = float.MaxValue, u = 0;
+                for (int k = 0; k + 1 < line.Count; k++)
+                {
+                    var d = line[k + 1] - line[k];
+                    float l2 = d.LengthSquared();
+                    float t = l2 > 1e-9f ? Math.Clamp((q - line[k]).Dot(d) / l2, 0, 1) : 0;
+                    float dist = q.DistanceTo(line[k] + d * t);
+                    if (dist < best) { best = dist; u = length[k] + t * MathF.Sqrt(l2); }
+                }
+                along[c] = new Vector2(offset + u, Math.Min(u, total - u));
+            }
+        }
+        var uv2 = new Vector2[v.Length];
+        for (int i = 0; i < v.Length; i++) uv2[i] = along[id[i]];
+        a[(int)Mesh.ArrayType.Normal] = normals;
+        a[(int)Mesh.ArrayType.TexUV2] = uv2;
+        // (tangents for the old normals would be wrong: none, the shader does not read them)
+        a[(int)Mesh.ArrayType.Tangent] = default;
+        mesh.ClearSurfaces();
+        for (int s = 0; s < all.Length; s++)
+        {
+            // (no custom channels on this mesh; no compression: the arrays came out of it already)
+            mesh.AddSurfaceFromArrays(Mesh.PrimitiveType.Triangles, all[s]);
+            mesh.SurfaceSetMaterial(s, mats[s]);
+            mesh.SurfaceSetName(s, names[s]);
+        }
+        return $", {count} runs, normals smoothed";
     }
     // (the canals' beds' surface; the mesh's vertex colour tints it green-grey, the silt comes back to its own grey-brown)
     private const string CanalBeds = "tide_bed";
     private static readonly Color BedTint = new(1.35f, 1.18f, 1.02f, 1);
+    // (#255) the sloped strip at the moat's and the river's walls; its vertex colour is a paler grey-brown, not the beds'
+    // green: the silt's own grey-brown, a little darker than the beds' (fresh off the tide)
+    private const string WallFoot = "tide_mud";
+    private static readonly Color StripTint = new(1.5f, 1.32f, 1.06f, 1);
     private const float SiltBump = 1.2f, SiltPools = 0.18f;
     // (#256) how deep the trickle stands in the canals' bed trench at low water (the trench is 0.22 m deep)
     private const float TrickleDepth = 0.15f;
@@ -152,9 +308,16 @@ public static partial class NativeDirt
     private sealed partial class SiltLevel : Node
     {
         public System.Collections.Generic.List<ShaderMaterial> Silts = new();
-        private float last = float.NaN;
+        // (#255) the walls' foot strip: the moat's and the river's own water, no trickle
+        public System.Collections.Generic.List<ShaderMaterial> Strips = new();
+        private float last = float.NaN, lastRiver = float.NaN;
         public override void _Process(double delta)
         {
+            if (Tide.River != lastRiver)
+            {
+                lastRiver = Tide.River;
+                foreach (var m in Strips) m.SetShaderParameter("silt_level", lastRiver);
+            }
             // (#256: at low water the canals keep a trickle in their bed's trench: the silt's water line holds there, so the
             // trickle is drawn in the silt's own water, its edge broken, instead of the old calm sheet)
             float level = MathF.Max(Tide.River, Waters.TrickleY + TrickleDepth);
