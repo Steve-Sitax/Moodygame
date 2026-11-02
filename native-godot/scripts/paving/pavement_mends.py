@@ -11,6 +11,8 @@ Writes, for the plots of the razed houses only (their outlines and 0.8 m round, 
 - "sides": every edge of the closed pavement that stands open (no face under it): a kerb stone's face from its top
   down under the street, so the pavement ends square and solid wherever it stops in the open.
 NativeSquareDressing.Mend lays them in the flags' and the kerb's own materials. The razed cut is not changed.
+(#199) Joins also take whole strips away: a razed row's old pavement left standing free across a church square (a
+join with cuts and no flags); the strips carried no collision of their own, so walking is unchanged.
 """
 import sys, json, math, pathlib
 import numpy as np, shapely
@@ -108,6 +110,24 @@ def joins():
     out.append(dict(
         name='paulus-north-129',
         cuts=[[along(g_inner, -0.25), x, along(end, 1.2), (129.0, 289.0)]],
+        flags=[], gutter=[]))
+    # (#199) The razed rows' old pavements that now stand free in the open squares: a raised strip with its kerb and gutter
+    # running across the square along fronts that are gone. A repaved 1873 square keeps none: the strip goes whole (the
+    # street's ground lies under it, drawn and solid), and where it met a pavement that stays, that one's end is faced.
+    # Sint-Carolus (Conscienceplein), the west spur: from the church's railing course north and west round the razed
+    # plot's corner (x -131 to -125, z 158 to 167.5), up to 6 m from any wall.
+    out.append(dict(
+        name='carolus-west-spur',
+        cuts=[[(-131.6, 158.0), (-125.2, 157.6), (-124.6, 159.3), (-125.5, 160.3), (-130.3, 160.95), (-131.3, 160.95)],
+              [(-126.3, 159.6), (-124.6, 159.4), (-125.6, 166.2), (-126.0, 167.45), (-127.2, 167.45), (-127.4, 165.9), (-126.4, 160.4)]],
+        flags=[], gutter=[]))
+    # Sint-Paulusplaats, the razed row's back pavement along the church (x 64.5 to 139): a 0.7 m strip, its gutter on the
+    # church's side, swinging out to 4 m from the church where the houses stood further back (x 92 to 112), and its hook
+    # round the church's south-east corner (x 139 to 142.5, z 281.5 to 289.5), which ended there.
+    out.append(dict(
+        name='paulus-church-strip',
+        cuts=[[(64.5, 285.2), (139.0, 285.2), (139.0, 290.3), (64.5, 290.3)],
+              [(138.5, 280.8), (143.2, 280.8), (143.2, 289.9), (138.5, 289.9)]],
         flags=[], gutter=[]))
     return out
 
@@ -285,8 +305,14 @@ def main():
     N = shapely.union_all([U] + fills)
     # the joins' gutters: the gutter stones' course where none lies after the cuts, outside the closed pavement, laid in the
     # kerbs' material at the gutters' height with the nearest gutter stone's picture carried on (its uv, colour and custom)
-    G = shapely.union_all([Polygon(q).buffer(0) for j in JOINS for q in j['gutter']]).difference(lows).difference(N)
-    gutter_new = [g for g in polys(G.buffer(-0.002, join_style='mitre').buffer(0.002, join_style='mitre')) if g.area > 1e-3]
+    # (#199: each of a join's gutter pieces kept apart, so each carries on the one old stone it meets: one picture over the
+    # piece, no seam inside it; the pieces of a corner meet at the corner's joint as two stones do)
+    gutter_new = []
+    for j in JOINS:
+        for q in j['gutter']:
+            G = Polygon(q).buffer(0).difference(lows).difference(N)
+            for prev in gutter_new: G = G.difference(prev)
+            gutter_new += [g for g in polys(G.buffer(-0.002, join_style='mitre').buffer(0.002, join_style='mitre')) if g.area > 1e-3]
     lowi = np.flatnonzero(low & (M == KERB))
     low_mid = P[lowi].mean(1)[:, [0, 2]]
     low_rows = T[lowi].reshape(-1, 20)
@@ -306,21 +332,44 @@ def main():
             except np.linalg.LinAlgError: pass
         return GUTTER_LOW + (GUTTER_HIGH - GUTTER_LOW) * min(1.0, kerbs.distance(q) / GUTTER_WIDTH)
     # (the street's ground under them: its drawn triangles only, in convex pieces held a little in from the gutter's edge)
-    inner = shapely.union_all(gutter_new).buffer(-GROUND_INSET, join_style='mitre') if gutter_new else Polygon()
+    # (#199: the pieces grown together first, so a hairline between two of them is no strip of street left standing in
+    # the joint, drawn over the stones as a pale line)
+    inner = shapely.union_all([g.buffer(0.003, join_style='mitre') for g in gutter_new]).buffer(-0.003 - GROUND_INSET, join_style='mitre') if gutter_new else Polygon()
     ground_cuts = [[[round(float(x), 4), round(float(z), 4)] for x, z in np.array(t.exterior.coords[:3])]
                    for t in polys(shapely.constrained_delaunay_triangles(inner)) if t.area > 1e-5] if not inner.is_empty else []
+    low_corners = low_rows.reshape(-1, 20)
+    def gutter_source(g):
+        """The old gutter stone a new piece carries on: of the stones it touches, the one it meets along the longest edge
+        (else the nearest); its picture runs on over the whole piece."""
+        near_k = np.flatnonzero((np.abs(low_mid[:, 0] - g.centroid.x) < 4) & (np.abs(low_mid[:, 1] - g.centroid.y) < 4))
+        best, best_len = None, 0.0
+        for k in near_k:
+            p = Polygon(low_tris[k][:, [0, 2]])
+            if not p.is_valid or p.area < 1e-7 or p.distance(g) > 0.015: continue
+            touch = p.buffer(0.01).intersection(g.boundary).length
+            if touch > best_len: best, best_len = k, touch
+        if best is None: best = int(np.argmin(((low_mid - np.array(g.centroid.coords[0])) ** 2).sum(1)))
+        return T[lowi[best]]
+    def gutter_colour(x, z, src):
+        """A corner's colour: the old gutter stones' own at the nearest of their corners within 3 cm (so the new stone
+        meets the old one without a step in its tone), else the source stone's."""
+        d = (low_corners[:, 0] - x) ** 2 + (low_corners[:, 2] - z) ** 2
+        k = int(np.argmin(d))
+        row = low_corners[k] if d[k] < 0.03 ** 2 else src.mean(0)
+        return [round(float(v), 4) for v in row[10:14]]
     for g in gutter_new:
+        src = gutter_source(g)
+        A = np.c_[src[:, [0, 2]], np.ones(3)]
+        uv = np.linalg.lstsq(A, src[:, 6:8], rcond=None)[0]
         for t in polys(shapely.constrained_delaunay_triangles(g)):
             c = np.array(t.exterior.coords[:3])
             if Polygon(c).area < 1e-7: continue
-            src = T[lowi[int(np.argmin(((low_mid - c.mean(0)) ** 2).sum(1)))]]
-            A = np.c_[src[:, [0, 2]], np.ones(3)]
-            uv = np.linalg.lstsq(A, src[:, 6:8], rcond=None)[0]
             # (the gutter's fall: 6 mm under the street at the kerb, 9 mm over it a course out, as the old gutters lie)
             ys = [gutter_y(x, z) for x, z in c]
             out_gutters.append(dict(corners=[[round(x, 4), round(y, 4), round(z, 4)] for (x, z), y in zip(c, ys)],
                                     uv=[[round(float(v), 4) for v in np.array([x, z, 1.0]) @ uv] for x, z in c],
                                     tangent=[round(float(v), 4) for v in src[0, 16:20]], colour=[round(float(v), 4) for v in src[0, 10:14]],
+                                    colours=[gutter_colour(x, z, src) for x, z in c],
                                     custom=[round(float(v), 4) for v in src[0, 14:16]]))
     sides = []
     # (a new face takes the look of the nearest of the kerbs' own upright faces: its colour and picture)

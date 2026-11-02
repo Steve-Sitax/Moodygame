@@ -1671,9 +1671,11 @@ public static class NativeSquareDressing
                 var u = new[] { new Vector2(uv[0][0].GetSingle(), uv[0][1].GetSingle()), new Vector2(uv[1][0].GetSingle(), uv[1][1].GetSingle()), new Vector2(uv[2][0].GetSingle(), uv[2][1].GetSingle()) };
                 var tg = t.GetProperty("tangent"); var tangent = new Plane(tg[0].GetSingle(), tg[1].GetSingle(), tg[2].GetSingle(), tg[3].GetSingle());
                 var colour = C4(t.GetProperty("colour")); var custom = new Color(cu[0].GetSingle(), cu[1].GetSingle(), 0, 0);
+                // (#199: each corner its own colour, the old gutter stones' where it meets them: no step in tone at the joint)
+                var colours = t.TryGetProperty("colours", out var cs) ? cs.EnumerateArray().Select(C4).ToArray() : new[] { colour, colour, colour };
                 var st = For(gutters, Area((p[0] + p[1] + p[2]) / 3), true);
                 var order = (p[1] - p[0]).Cross(p[2] - p[0]).Y > 0 ? new[] { 0, 2, 1 } : new[] { 0, 1, 2 };
-                foreach (int k in order) { st.SetNormal(Vector3.Up); st.SetTangent(tangent); st.SetUV(u[k]); st.SetCustom(0, custom); st.SetColor(colour); st.AddVertex(p[k]); }
+                foreach (int k in order) { st.SetNormal(Vector3.Up); st.SetTangent(tangent); st.SetUV(u[k]); st.SetCustom(0, custom); st.SetColor(colours[k]); st.AddVertex(p[k]); }
                 fills++;
             }
         foreach (var s in root.GetProperty("sides").EnumerateArray())
@@ -1743,7 +1745,8 @@ public static class NativeSquareDressing
             if (len - t - sl < 0.35f) sl = len - t;
             float t0 = t, t1 = Math.Min(len, t + sl);
             t = t1;
-            float tone = 1.65f * (0.9f + 0.18f * (float)rng.NextDouble()), r = 0.006f + 0.006f * (float)rng.NextDouble();
+            // (#199: 1.65 read a quarter paler than the old kerbs beside them at 13:00; 1.35 meets them)
+            float tone = 1.35f * (0.9f + 0.18f * (float)rng.NextDouble()), r = 0.006f + 0.006f * (float)rng.NextDouble();
             // (the joint: the stone's end held back from the next, dark between)
             float j0 = t0 > 0 ? t0 + Joint / 2 : t0, j1 = t1 < len ? t1 - Joint / 2 : t1;
             Vector3 At(float s, float y, float inset) { var p = a.Lerp(b, s / len) - n * inset; return new Vector3(p.X, y, p.Z); }
