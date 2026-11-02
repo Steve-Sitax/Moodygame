@@ -41,6 +41,8 @@ Inside inspection repairs (#212), all reusable for the other areas:
 - The old drain mouth behind the keeper landing is bricked up, and an open strip of the east side channel's mouth
   vault is closed.
 
+Follow-ups (#217, #213, #202): the keeper niche meets the gallery with a 3 cm rounded brick arris (`RuienStair.ArrisCut`: the exported lining is trimmed offline by RuienRepair, the native reveal at load, and `ArrisStrip` lays the rounded brick). Native kit bricks are charted before any trim, and `RuienUnfold.Apply(carrySmooth)` carries the frame across smooth edges of sloped faces, so an inclined barrel's crown no longer turns its courses into the level vault (the crown band). `throatFills` in areas.json put hidden brick behind the C1 backing's right extrados. The ambient rain skips drops below the street under the cover map. Down the street grate's ladder Jef turns to face its rungs (`Jef.FaceDuringClimb`).
+
 The town's broad river sheet is excluded beneath the Ruien by a world-space cover texture, including masonry and side galleries. This replaces the old water-level stencil lid, which could be clipped out at particular camera heights. The air volumes clip against sampled scene depth themselves, so the hardware depth test must not discard their enclosing box at the shaft rim. Neither fix adds a shader kind or a real light.
 
 ## Data

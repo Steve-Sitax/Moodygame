@@ -240,10 +240,12 @@ public partial class RuienProof : Node
                 Check(w.Id+" descend action",Interact.I.Press(Key.E));await Until(()=>!j.Climbing,60);
                 await Seconds(1);
                 Check(w.Id+" ladder reaches ledge",j.Grounded&&MathF.Abs(j.Y-w.Bottom.Y)<.2f);
-                // Turn back toward the rungs after stepping away onto the ledge.
+                // He comes down facing the rungs: the climb-up prompt shows without turning round (#202).
                 var aim=w.Bottom+Vector3.Up*1.4f-j.Cam.GlobalPosition;
-                j.Yaw=MathF.Atan2(-aim.X,-aim.Z);j.Pitch=MathF.Atan2(aim.Y,new Vector2(aim.X,aim.Z).Length());
-                await Until(()=>Interact.I.Acts.Any(a=>a.Key==Key.E&&a.Text=="climb up to the street"));
+                float facing=MathF.Abs(Mathf.AngleDifference(j.Yaw,MathF.Atan2(-aim.X,-aim.Z)));
+                Check(w.Id+" faces the ladder at its foot",facing<.35f,$"yaw off by {Mathf.RadToDeg(facing):0} degrees");
+                await Until(()=>Interact.I.Acts.Any(a=>a.Key==Key.E&&a.Text=="climb up to the street"),3);
+                Check(w.Id+" climb-up prompt without turning",Interact.I.Acts.Any(a=>a.Key==Key.E&&a.Text=="climb up to the street"),Interact.I.Text);
                 await Shot(w.Id+"-return-prompt");
                 Check(w.Id+" ascend action",Interact.I.Press(Key.E));await Until(()=>!j.Climbing,60);
                 await Seconds(1);

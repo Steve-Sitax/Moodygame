@@ -109,6 +109,9 @@
    "archBackings": [
     {"from": [-149.5, -2.82, 109.35], "to": [-149.5, -2.82, 110.65], "half": 2.76, "rise": 1.98, "thickness": 0.28}
    ],
+   "throatFills": [
+    {"min": [-146.7, -2.1, 108.6], "max": [-145.5, -0.7, 110.42], "note": "#213: brick behind the gallery face and the hall's south face, past the C1 backing's right extrados: the hollow there let a sliver of sky through"}
+   ],
    "stairSurrounds": ["vleeshuis_hatch"],
    "surfaceRepairPath": [[-146.1, 72], [-146.1, 75], [-149.1, 82.5], [-149.51, 109.3]]
   }

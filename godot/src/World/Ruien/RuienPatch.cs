@@ -95,6 +95,15 @@ public static class RuienPatch
         var p=a[(int)Mesh.ArrayType.Vertex].AsVector3Array();
         var ix=a[(int)Mesh.ArrayType.Index].VariantType==Variant.Type.Nil?Enumerable.Range(0,p.Length).ToArray():a[(int)Mesh.ArrayType.Index].AsInt32Array();
         if(ix.Length==0)ix=Enumerable.Range(0,p.Length).ToArray();
+        // A surface nowhere near the boundary is left exactly as it was (its indexing too).
+        bool any=false;
+        for(int t=0;t+2<ix.Length&&!any;t+=3)
+        {
+            var q0=p[ix[t]];var q1=p[ix[t+1]];var q2=p[ix[t+2]];
+            float f0=air(q0),f1=air(q1),f2=air(q2),l=Math.Max(q0.DistanceTo(q1),Math.Max(q1.DistanceTo(q2),q2.DistanceTo(q0)));
+            any=Math.Min(f0,Math.Min(f1,f2))<3*l && Math.Max(f0,Math.Max(f1,f2))> -3*l;
+        }
+        if(!any)return 0;
         // Every channel as rows of floats, interpolated at the new corners like QuayNotch's cut does.
         var channels=new List<(int k,Variant.Type type,int stride,float[] data)>();
         for(int k=0;k<(int)Mesh.ArrayType.Index;k++)
@@ -131,6 +140,15 @@ public static class RuienPatch
             else{var m=Mid(z,x);Split(z,m,y,depth+1);Split(m,x,y,depth+1);}
         }
         for(int t=0;t+2<ix.Length;t+=3)Split(Row(ix[t]),Row(ix[t+1]),Row(ix[t+2]),0);
+        // Corners that are the same in every channel are shared again (the split works on unshared triangles).
+        var shared=new Dictionary<string,int>();var order=new int[rows.Count];var unique=new List<float[]>();
+        for(int i=0;i<rows.Count;i++)
+        {
+            var bytes=new byte[width*4];Buffer.BlockCopy(rows[i],0,bytes,0,bytes.Length);string key=Convert.ToBase64String(bytes);
+            if(!shared.TryGetValue(key,out int at)){at=unique.Count;shared[key]=at;unique.Add(rows[i]);}
+            order[i]=at;
+        }
+        var corners=order;rows=unique;
         int col=0;
         foreach(var c in channels)
         {
@@ -150,7 +168,7 @@ public static class RuienPatch
                 _=>d.Select(f=>(byte)Math.Clamp(MathF.Round(f),0,255)).ToArray(),
             };
         }
-        a[(int)Mesh.ArrayType.Index]=Enumerable.Range(0,rows.Count).ToArray();
+        a[(int)Mesh.ArrayType.Index]=corners;
         return QuayNotch.CutSurfaceWith(a,Transform3D.Identity,_=>true,new List<Func<Vector3,float>>{air});
     }
 

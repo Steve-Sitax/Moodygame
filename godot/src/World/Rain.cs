@@ -36,6 +36,9 @@ global uniform vec4 psx_lamp_color;
 uniform vec2 wind = vec2(0.9, 0.35);
 uniform float expo = 0.02;
 uniform vec4 room = vec4(1.0, 1.0, 0.0, 0.0);
+// (#217) the Ruien's vault cover in plan (World/Ruien/RuienCover.cs): no drop falls below the street under it
+global uniform sampler2D psx_ruien_cover : filter_linear, repeat_disable;
+global uniform vec4 psx_ruien_box;
 GUSTS
 varying vec3 col;
 varying float alpha;
@@ -92,6 +95,9 @@ void vertex() {
 	}
 	// in a room: no rain in it, only out of the windows (its box in x and z)
 	if (room.z > room.x && head.x > room.x && head.x < room.z && head.z > room.y && head.z < room.w) alpha = 0.0;
+	// under the Ruien's vaults, below the street: no rain there (the vliet outside its outlet keeps it)
+	vec2 cover_uv = (head.xz - psx_ruien_box.xy) / psx_ruien_box.zw;
+	if (min(head.y, tail.y) < -0.05 && all(greaterThanEqual(cover_uv, vec2(0.0))) && all(lessThanEqual(cover_uv, vec2(1.0))) && textureLod(psx_ruien_cover, cover_uv, 0.0).r > 0.5) alpha = 0.0;
 	if (alpha < 0.004) POSITION = vec4(2.0, 2.0, 2.0, 1.0);
 }
 void fragment() {
