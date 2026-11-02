@@ -27,7 +27,7 @@ public partial class CathedralComfort : Node
     private Window paper=null!;
     private LineEdit input=null!;
     private readonly List<string> lines=new();
-    public bool CanType=>!Main.I.Flag("no-ai") && Scheldemist.Menu.AiSheet.Mode!="walk";
+    public bool CanType=>Scheldemist.Menu.AiState.AllowsTyping;
     public ConfessionReply? LastReply {get;private set;}
     public PlacesReply? ChairReply {get;private set;}
     public override void _Ready()

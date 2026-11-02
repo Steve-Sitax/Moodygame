@@ -29,7 +29,7 @@ public partial class FamilyScenes : Node
     private Label veilText = null!;
     private string dream = "", waitingDream = "";
     private double dreamWait;
-    private static bool CanType => !Main.I.Flag("no-ai") && Scheldemist.Menu.AiSheet.Mode != "walk";
+    private static bool CanType => Scheldemist.Menu.AiState.AllowsTyping;
     public override void _Ready()
     {
         I = this;

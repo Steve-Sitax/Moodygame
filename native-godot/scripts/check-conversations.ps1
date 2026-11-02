@@ -1,5 +1,5 @@
 param([Parameter(Mandatory)][string]$Output,[string]$Godot,[int]$Port=8925,[switch]$Multiplayer,[string]$WindowPosition,
-    [ValidateRange(480,1800)][int]$LimitSeconds=480)
+    [ValidateRange(480,1800)][int]$LimitSeconds=480,[string]$AiConfig)
 $ErrorActionPreference='Stop'
 . (Join-Path $PSScriptRoot 'engine-tools.ps1')
 if($Port -lt 8900 -or $Port -gt 65534){throw 'Choose an isolated test port of at least 8900 (the guest uses the next port).'}
@@ -14,7 +14,10 @@ try {
     $env:SCHELDEMIST_USER_DATA=Join-Path $outputPath 'userdata';$env:SCHELDEMIST_TOWN_SEED='1873'
     $arguments=@('--rendering-method','forward_plus','--audio-driver','Dummy','--path',$project,'--log-file',(Join-Path $outputPath 'live.log'),'res://town.tscn','--','--no-ai','--no-mainmenu','--port',$Port.ToString(),'--db',(Join-Path $outputPath 'game.sqlite'),'--prefs',(Join-Path $outputPath 'settings.json'),'--author-root',(Join-Path $outputPath 'layouts'))
     if($WindowPosition){$arguments=@('--position',$WindowPosition)+$arguments}
-    if($Multiplayer){$arguments+=@('--mptest',$outputPath,'--mpconversation')}else{$arguments+=@('--conversation-proof',$outputPath)}
+    # -AiConfig (with -Multiplayer): the host runs with AI on through that settings file (a fake provider), and the guest
+    # checks the AI switch (--mpai). Never point it at a player's own settings.
+    if($AiConfig){if(-not $Multiplayer){throw '-AiConfig needs -Multiplayer.'};$aiSetup=Get-Content -LiteralPath $AiConfig -Raw|ConvertFrom-Json;$aiProviders=@($aiSetup.default.provider)+@($aiSetup.kinds.PSObject.Properties|ForEach-Object {$_.Value.provider});if(@($aiProviders|Where-Object {$_ -and $_ -notin @('openai_compat','ollama','none')}).Count){throw 'A test AI setup may only name a local fake provider (openai_compat, ollama or none), never a real model.'};Copy-Item -LiteralPath $AiConfig -Destination (Join-Path $outputPath 'ai-config.json');$arguments=@($arguments|Where-Object {$_ -ne '--no-ai'})}
+    if($Multiplayer){$arguments+=@('--mptest',$outputPath,'--mpconversation');if($AiConfig){$arguments+='--mpai'}}else{$arguments+=@('--conversation-proof',$outputPath)}
     Invoke-WorkshopEngine -Engine (Resolve-WorkshopGodot $Godot) -Project $project -EngineArguments $arguments -Log (Join-Path $outputPath 'engine.log') -LimitSeconds $LimitSeconds | Out-Null
     $file=if($Multiplayer){'mptest.json'}else{'conversation.json'}
     $result=Get-Content -LiteralPath (Join-Path $outputPath $file) -Raw|ConvertFrom-Json

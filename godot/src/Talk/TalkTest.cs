@@ -56,6 +56,8 @@ public partial class TalkTest : Node
             await Try(() => api.Post<JsonElement>("api/arrival/ashore"));
             GameState.I.Apply(await api.Post<JobsPayload>("api/dev/set", new { hour = 9, minute = 0, weather = "clear", food = 6, warmth = 10, sleep = 10, health = 10 }));
             await Frames(30);
+            // AI audit 2026-11-02: the server's talk answers straight from the API (no window, no distance rule)
+            if (Main.I.Arg("talktest-npc") is { Length: > 0 }) await ApiProbe(api);
             if (ai) await WithModel(api);
             else await NoModel(api);
             ok = steps.All(s => s["ok"] is true);
@@ -296,14 +298,66 @@ public partial class TalkTest : Node
 
     // ------------------------------------------------------------------ the run with a model (two calls)
 
+    /// <summary>AI audit 2026-11-02: open, two typed lines and a quay character, each with its time and the server's flags.</summary>
+    private async Task ApiProbe(Api api)
+    {
+        var rows = new List<object>();
+        // the words as they stream in (talk_partial pushes, 2026-11-02): when the first came, and how many
+        var clock = System.Diagnostics.Stopwatch.StartNew();
+        long firstPartial = -1; int partials = 0;
+        void Partial(PushMsg m) { if (m.Type != "talk_partial") return; partials++; if (firstPartial < 0) firstPartial = clock.ElapsedMilliseconds; }
+        api.OtherPushed += Partial;
+        async Task Ask(string who, string kind, string? text)
+        {
+            clock.Restart(); firstPartial = -1; partials = 0;
+            try
+            {
+                var r = await api.Talk(who, kind, text);
+                rows.Add(new { who, kind, text, ms = clock.ElapsedMilliseconds, firstWordsMs = firstPartial, partials, line = r.NpcLine, free = r.Free, gated = r.Gated, end = r.End, mood = r.Mood, choices = r.Choices });
+            }
+            catch (Exception e) { rows.Add(new { who, kind, text, ms = clock.ElapsedMilliseconds, error = e.Message }); }
+        }
+        string id = Main.I.Arg("talktest-npc");
+        bool live = Main.I.Flag("talktest-live"); // a real model: one typed line each to a resident and Fientje, no more
+        await Ask(id, "open", null);
+        await Ask(id, "free", "Good morning. Any work on the quay today for a strong pair of hands?");
+        await Task.Delay(5500);
+        if (live)
+        {
+            await Ask("fientje", "open", null);
+            await Ask("fientje", "free", "Good morning, Fientje. What news on the Rijnkaai?");
+            await Task.Delay(30000); // the judge lands in the background
+            api.OtherPushed -= Partial;
+            doc["api_probe"] = rows;
+            return;
+        }
+        await Ask(id, "free", "I came from the Kempen last week. Where do the dockers drink after the shift?");
+        await Ask("fientje", "open", null);
+        await Task.Delay(5500);
+        await Ask("fientje", "free", "Good morning, Fientje. What news on the Rijnkaai?");
+        // AI fix 2026-11-02: the other quay people talk again (fix 6)
+        foreach (var (who, words) in new[] { ("sooi", "I'm looking for day work. Can you use me?"), ("peeters", "Good day, widow. How is trade at the chandlery?"), ("tuur", "Could you row me over to Sint-Anna this afternoon?") })
+        {
+            await Ask(who, "open", null);
+            await Task.Delay(5500);
+            await Ask(who, "free", words);
+        }
+        api.OtherPushed -= Partial;
+        doc["api_probe"] = rows;
+        try { doc["ai_calls"] = await api.Get<JsonElement>("api/ai/config"); } catch (ApiException) { }
+    }
+
     private async Task WithModel(Api api)
     {
         var talk = Talk.I!;
-        talk.Open("fientje", "Fientje");
+        // AI audit 2026-11-02: --talktest-npc <id> picks who to talk to (Fientje is not a native resident).
+        string npcId = Main.I.Arg("talktest-npc") is { Length: > 0 } chosen ? chosen : "fientje";
+        var clock = System.Diagnostics.Stopwatch.StartNew();
+        talk.Open(npcId, npcId);
         await Shot("ai_wait");
         bool answered = await Until(() => !talk.Busy, 40);
         await Shot("ai_open");
-        Step("the opening line", answered && talk.Lines.Count > 0, new { reply = talk.LastReply });
+        Step("the opening line", answered && talk.Lines.Count > 0, new { reply = talk.LastReply, ms = clock.ElapsedMilliseconds });
         bool free = talk.LastReply?.Free != false;
         await Key(Godot.Key.T);
         await Frames(4);
@@ -311,13 +365,14 @@ public partial class TalkTest : Node
         talk.DevType(typed);
         await Shot("ai_typing");
         bool typing = talk.Typing;
+        clock.Restart();
         await Key(Godot.Key.Enter);
         await Frames(4);
         await Shot("ai_typed_wait");
         answered = await Until(() => !talk.Busy, 40);
         await Frames(4);
         await Shot("ai_typed_reply");
-        Step("a typed line and its reply", free && typing && answered && talk.Lines.Count >= 3 && talk.LastReply?.Gated == null, new { typed, reply = talk.LastReply, lines = talk.Lines.Select(l => $"{l.Who}: {l.Text}") });
+        Step("a typed line and its reply", free && typing && answered && talk.Lines.Count >= 3 && talk.LastReply?.Gated == null, new { typed, reply = talk.LastReply, ms = clock.ElapsedMilliseconds, can_type = free, lines = talk.Lines.Select(l => $"{l.Who}: {l.Text}") });
         talk.Close();
         doc["ai_after"] = await Try(() => api.Get<JsonElement>("api/ai/config"));
     }

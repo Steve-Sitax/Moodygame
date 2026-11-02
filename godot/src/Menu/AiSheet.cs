@@ -32,6 +32,12 @@ public static class AiSheet
     /// <summary>The sheet is up and drawn from the server's description.</summary>
     public static bool Shown => sheet != null && Dialogs.IsOpen(sheet) && have;
     public static string Mode => have ? S(view, "mode") : "";
+    /// <summary>The model lists are being asked for (the checks wait for it).</summary>
+    public static bool Detecting { get; private set; }
+    /// <summary>The models a provider offers, as shown (the checks): ids in order.</summary>
+    public static List<string> ModelsOf(string provider) => Provider(provider) is { } p ? A(p, "models").Select(m => S(m, "id")).ToList() : new();
+    /// <summary>Whether a provider's list was checked: "checked", "not_checked" or "built_in", and its note.</summary>
+    public static (string State, string Note) CheckOf(string provider) => Provider(provider) is { } p && O(p, "modelCheck") is { } c ? (S(c, "state"), S(c, "note")) : ("", "");
     public static string Status => have && view.TryGetProperty("status", out var s) ? $"{S(s, "title")}. {S(s, "text")}" : "";
 
     private static readonly Dictionary<string, string> Cost = new() { ["plan"] = "on your plan", ["paid"] = "paid per call", ["local"] = "free, on this PC", ["none"] = "nothing" };
@@ -56,10 +62,25 @@ public static class AiSheet
         }
         api.Run(api.AiConfig(), v =>
         {
+            AiState.Update(v);
             if (sheet != s) return;
             view = v;
             have = true;
             Draw();
+            // autodetect (2026-11-02): the host asks its AIs for their model lists; the sheet is drawn again when they answer
+            if (B(v, "host") || !v.TryGetProperty("host", out _))
+            {
+                Detecting = true;
+                var drawn = sheet; // Draw() made a new sheet: the answer belongs to that one
+                api.Run(api.AiModels(), d =>
+                {
+                    Detecting = false;
+                    if (sheet != drawn || sheet == null) return;
+                    view = d;
+                    AiState.Update(d);
+                    Draw();
+                }, _ => Detecting = false);
+            }
         }, e =>
         {
             if (sheet == s) Unreachable(e.Message);
@@ -85,7 +106,8 @@ public static class AiSheet
             view = v;
             have = true;
             msg = done;
-            MainMenu.I?.RefreshAiNote();
+            AiState.Update(v);
+            MainMenu.I?.RefreshNav();
             if (sheet == s) Draw();
         }, e =>
         {
@@ -97,11 +119,11 @@ public static class AiSheet
     private static void Test(string key)
     {
         var api = ServerLink.I?.Api;
-        var s = sheet;
         if (api == null) return;
         var body = key == "all" ? new Dictionary<string, object?> { ["all"] = true } : key == "default" ? new Dictionary<string, object?> { ["choice"] = view.GetProperty("default") } : new Dictionary<string, object?> { ["kind"] = key };
         results[key] = "testing";
         Draw();
+        var s = sheet; // after Draw(): the sheet the answer is drawn on
         api.Run(api.AiTest(body), r =>
         {
             results[key] = A(r, "results").Select(x => x.Clone()).ToList();
@@ -140,7 +162,7 @@ public static class AiSheet
         switch (what)
         {
             case "mode":
-                Put(new Dictionary<string, object?> { ["mode"] = val }, val == "walk" ? "Walk-around mode: no AI is called." : "AI on.");
+                Put(new Dictionary<string, object?> { ["mode"] = val }, val == "walk" ? "AI off: no AI is called; people use written lines." : "AI on.");
                 break;
             case "typed":
                 Put(new Dictionary<string, object?> { ["typedLines"] = val });
@@ -197,11 +219,16 @@ public static class AiSheet
         // .ai-mode: AI on, or walk around
         var modes = new HBoxContainer { MouseFilter = Control.MouseFilterEnum.Ignore };
         modes.AddThemeConstantOverride("separation", Kit.Px(12));
+        // the same switch as the menu's "AI: on/off" item; a test start or a guest can read it, not change it
+        bool locked = B(v, "locked"), guest = v.TryGetProperty("host", out var hostFlag) && hostFlag.ValueKind == JsonValueKind.False;
         modes.AddChild(new InkButton(InkButton.Look.ModeCard, "AI on", () => Press("mode", "ai")) { Sub = "The townspeople answer in their own words; the director plans the day.", On = !walk, WrapWidth = half / Kit.Scale - 28, Name = "mode_ai" });
         modes.AddChild(new InkButton(InkButton.Look.ModeCard, S(walkOpt, "label"), () => Press("mode", "walk")) { Sub = S(walkOpt, "text"), On = walk, WrapWidth = half / Kit.Scale - 28, Name = "mode_walk" });
         body.AddChild(Pad(modes, 6, 8));
+        if (locked || guest) Disable(modes);
         var status = v.GetProperty("status");
-        body.AddChild(Kit.Rich($"[b]{Kit.Esc(S(status, "title"))}.[/b] {Kit.Esc(S(status, "text"))}", 15, Kit.InkSoft));
+        // the short status: AI ready, AI off, No AI login, AI not answering
+        body.AddChild(Kit.Rich($"[b]{Kit.Esc(S(status, "title"))}.[/b] {Kit.Esc(S(status, "text"))}", 15, S(status, "state") is "no_login" or "failing" ? Kit.Rust : Kit.InkSoft));
+        if (guest) body.AddChild(Kit.Rich("The host's game decides the AI for everyone; only the host can change it.", 14, Kit.InkSoft));
         if (msg != "") body.AddChild(Pad(Kit.Text(msg, Fonts.Hand, 15, Kit.Rust, true), 6, 0));
 
         // .ai-kinds: greyed in walk-around mode
@@ -213,6 +240,7 @@ public static class AiSheet
         kinds.AddChild(Kit.Heading("The default"));
         kinds.AddChild(Kit.Row("Every kind of work, unless set below", Kit.Side(ChoiceControls("default", def, false).Append(TestButton("default")).ToArray()), defP is { } dp ? S(dp, "short") : ""));
         Results(kinds, "default");
+        ModelLine(kinds, def);
         kinds.AddChild(Kit.Heading("By kind of work"));
         foreach (var k in A(options, "kinds"))
         {
@@ -220,6 +248,7 @@ public static class AiSheet
             var eff = O(O(v, "effective") ?? default, id);
             kinds.AddChild(Kit.Row(S(k, "label"), Kit.Side(ChoiceControls(id, ChoiceAt(id), true).Append(TestButton(id)).ToArray()), $"{S(k, "what")} Now: {(eff is { } e ? S(e, "label") : "")}."));
             Results(kinds, id);
+            if (ChoiceAt(id) is { } ownChoice) ModelLine(kinds, ownChoice);
         }
 
         // where the player's typed lines go
@@ -251,7 +280,7 @@ public static class AiSheet
         kinds.AddChild(UrlField("openai_url", "openai_compat", "OpenAI-compatible server", "OpenAI, OpenRouter, LM Studio, llama.cpp or vLLM: its address, ending in /v1.", S(c.GetProperty("openai_compat"), "baseUrl")));
         kinds.AddChild(KeyField("openai_compat", "Its key (if it wants one)", c.GetProperty("openai_compat").GetProperty("apiKey")));
         kinds.AddChild(UrlField("ollama_url", "ollama", "Ollama on this PC", "Where Ollama listens.", S(c.GetProperty("ollama"), "baseUrl")));
-        if (walk) Disable(kinds);
+        if (walk || locked || guest) Disable(kinds);
 
         // .ai-guide: how to use it, and each AI in a few lines
         var guide = options.GetProperty("guide");
@@ -389,6 +418,20 @@ public static class AiSheet
             o.Add(new Seg(efforts, effort == "" ? "medium" : effort, val => Put(PatchChoice(key, Choice(cur, model, val))), true) { Name = "effort_" + key });
         }
         return o;
+    }
+
+    /// <summary>Under a choice: the model's friendly name with its id in small type, and whether the list was checked.</summary>
+    private static void ModelLine(VBoxContainer into, JsonElement choice)
+    {
+        string model = S(choice, "model");
+        if (model == "" || Provider(S(choice, "provider")) is not { } prov) return;
+        var known = A(prov, "models").Where(m => S(m, "id") == model).Cast<JsonElement?>().FirstOrDefault();
+        string label = known is { } k ? S(k, "label") : model;
+        string note = O(prov, "modelCheck") is { } c ? S(c, "note") : "";
+        if (Detecting && S(prov, "id") is "anthropic_api" or "openai_compat" or "ollama") note = "asking for the model list...";
+        string small = $"[font_size={Kit.Px(12)}][color=#{Kit.InkSoft.ToHtml(false)}]";
+        string id = label == model ? "" : $"  {small}[code]{Kit.Esc(model)}[/code][/color][/font_size]";
+        into.AddChild(Kit.Rich($"{Kit.Esc(label)}{id}" + (note != "" ? $"  {small}· {Kit.Esc(note)}[/color][/font_size]" : ""), 14, Kit.InkSoft));
     }
 
     /// <summary>ai.ts resultHtml: what a test came to, under its row.</summary>

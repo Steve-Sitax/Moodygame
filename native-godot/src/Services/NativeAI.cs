@@ -17,18 +17,101 @@ public sealed class NativeAI : INativeServiceModule, IDisposable
 {
     private readonly NativeServiceHost host;
     private readonly NativeAiProviders providers;
+    private readonly System.Net.Http.HttpClient modelsHttp = new() { Timeout = Timeout.InfiniteTimeSpan };
+    /// <summary>The model lists each configured AI offers (autodetect, cached in ai-models.json next to the AI setup).</summary>
+    public NativeAiModels Models { get; }
     private readonly CancellationTokenSource closing = new();
     private readonly SemaphoreSlim slots = new(3,3);
     private readonly ConcurrentDictionary<string,SemaphoreSlim> hooks = new();
     public NativeAiConfiguration Settings { get; }
     public readonly Dictionary<string,Func<NativeAiRequest,CancellationToken,Task<NativeAiAnswer>>> Runners = new();
     public int TimeoutMilliseconds { get; set; } = 20000;
+    /// <summary>Typed talk (the player waits with the box open) gets a quarter longer, at most 25 s; the client gives up at 30 s.</summary>
+    public int TypedTimeoutMilliseconds { get; set; } = 25000;
+    /// <summary>A retry starts only with at least this much time left; a retry that cannot finish is not started (fix 4).</summary>
+    public int RetryMinimumMilliseconds { get; set; } = 6000;
     private int testing;
+    /// <summary>The newest outcome per route (provider|model): a failed call with no later success says the AI is not answering.</summary>
+    private readonly ConcurrentDictionary<string,(bool Ok,string Error,DateTime At)> outcomes = new();
+    private static string Key(NativeAiRoute route) => route.Provider+"|"+route.Model;
+    private void Note(NativeAiRoute route,bool ok,string error)
+    {
+        // a schema miss or a slow answer means the model is there; only a failure to reach it counts against readiness
+        if(!ok&&(error.StartsWith("schema:",StringComparison.Ordinal)||error.StartsWith("timeout",StringComparison.Ordinal)||error.StartsWith("call budget",StringComparison.Ordinal)))return;
+        outcomes[Key(route)]=(ok,error,DateTime.UtcNow);
+    }
+    /// <summary>Whether the AI can answer now, for the menu line and the typing box: off, no login, not answering, or ready.</summary>
+    public (string State,string Title,string Text) Readiness()
+    {
+        if(Settings.Locked)return("off","AI off for this run",NativeAiConfiguration.LockedText);
+        if(Settings.Mode=="walk")return("off","AI off","People answer with written lines and you pick from the choices. Turn AI on with the menu's AI item or in AI setup.");
+        if(Settings.Kinds.All(k=>S(Settings.Effective(k),"provider")=="none"))return("off","No AI chosen","Every kind of work is set to the written lines. Pick an AI in Esc, AI setup.");
+        var choice=Settings.ChoiceForHook("resident_talk");
+        if(choice==null)return("ready","AI on, talk written","Conversations use the written lines; the rest of the town uses AI. Change it in Esc, AI setup.");
+        var route=RouteOf("resident_talk",choice)!;
+        if(!Runners.ContainsKey(route.Provider))
+        {
+            if(route.Provider=="claude"&&NativeAiProviders.FindClaude()==null)return("no_login","No AI login","Claude Code is not installed or not found on this PC. Open Esc, AI setup and pick another AI, or install Claude Code and log in.");
+            if(route.Provider=="anthropic"&&S(Settings.Connection("anthropic_api"),"apiKey")=="")return("no_login","No AI login","No Anthropic API key is set. Open Esc, AI setup to enter one.");
+            if(route.Provider=="openai"&&S(Settings.Connection("openai_compat"),"baseUrl")=="")return("no_login","No AI login","No address is set for the OpenAI-compatible AI. Open Esc, AI setup.");
+        }
+        if(outcomes.TryGetValue(Key(route),out var last)&&!last.Ok)
+        {
+            string why=last.Error.Length>140?last.Error[..140]+"...":last.Error;
+            return("failing","AI not answering","The last call failed ("+why+"). People use written lines meanwhile. Open Esc, AI setup and press Test.");
+        }
+        return("ready","AI ready","Default: "+Settings.Label(Settings.Effective("talk"))+".");
+    }
+    /// <summary>A saved model that is no longer offered: its successor from the definitions ("retired"), or, when the
+    /// Anthropic list was checked and no longer has it, the newest model of the same tier there. Null keeps the choice.</summary>
+    private string? Successor(string provider,string model)
+    {
+        if(Settings.Definitions["retired"]?[model] is JsonValue mapped)return mapped.GetValue<string>();
+        if(provider is not ("claude_local" or "anthropic_api")||NativeAiModels.Tier(model)=="")return null;
+        var list=Models.ListFor(provider,new JsonArray(),out var check);
+        if(S(check,"state")!="checked"||list.Any(m=>S(m,"id")==model))return null;
+        return list.OfType<JsonObject>().Where(m=>NativeAiModels.Tier(S(m,"id"))==NativeAiModels.Tier(model)).Select(m=>S(m,"id")).FirstOrDefault();
+    }
+    /// <summary>Notes for the status line: a saved model mapped to its successor, or a newer model of the same tier on offer.</summary>
+    private List<string> ModelNotes(JsonArray providerOptions)
+    {
+        var notes=new List<string>();
+        foreach(var saved in Settings.SavedChoices())
+        {
+            string provider=S(saved,"provider"),model=S(saved,"model");if(model=="")continue;
+            var options=providerOptions.OfType<JsonObject>().FirstOrDefault(p=>S(p,"id")==provider);
+            string Name(string id)=>options?["models"]?.AsArray().OfType<JsonObject>().FirstOrDefault(m=>S(m,"id")==id) is {} known?System.Text.RegularExpressions.Regex.Replace(S(known,"label"),@" \(.*\)$",""):NativeAiModels.Friendly(id);
+            if(Successor(provider,model) is {Length:>0} next){notes.Add($"{Name(model)} is no longer offered; {Name(next)} is used instead.");continue;}
+            string tier=NativeAiModels.Tier(model);if(tier=="")continue;
+            var newer=options?["models"]?.AsArray().OfType<JsonObject>().Select(m=>S(m,"id")).FirstOrDefault(id=>NativeAiModels.Tier(id)==tier&&NativeAiModels.CompareVersion(NativeAiModels.Version(id),NativeAiModels.Version(model))>0);
+            if(newer!=null)notes.Add($"Newer than your {Name(model)}: {Name(newer)}. Pick it in AI setup if you like.");
+        }
+        return notes.Distinct().ToList();
+    }
+    /// <summary>True when the talk hook may call a model: AI on, a provider chosen, and a login or key in place.</summary>
+    public bool CanUse(string hook)=>Settings.ChoiceForHook(hook)!=null&&Readiness().State!="no_login";
+    public JsonObject View()
+    {
+        var view=Settings.View();var (state,title,text)=Readiness();
+        // the model lists as detected (newest first), each with whether it was checked
+        var providerOptions=view["options"]!["providers"]!.AsArray();
+        foreach(var option in providerOptions.OfType<JsonObject>())
+        {
+            if(S(option,"id") is "recommended" or "none")continue;
+            option["models"]=Models.ListFor(S(option,"id"),option["models"]?.AsArray()??new JsonArray(),out var check);option["modelCheck"]=check;
+        }
+        var notes=ModelNotes(providerOptions);view["modelNotes"]=new JsonArray(notes.Select(n=>(JsonNode)JsonValue.Create(n)!).ToArray());
+        if(notes.Count>0)text+=" "+string.Join(" ",notes);
+        view["status"]=new JsonObject{["state"]=state,["title"]=title,["text"]=text};view["locked"]=Settings.Locked;
+        return view;
+    }
     public NativeAI(NativeServiceHost host, string configuration, bool walk = false)
     {
         this.host = host;
         Settings = new NativeAiConfiguration(Path.Combine(host.Context.Options.DataDirectory,"native-ai.json"),configuration,walk);
         providers = new NativeAiProviders(Settings,Path.Combine(Path.GetDirectoryName(Path.GetFullPath(configuration))!,"ai-cwd-native"));
+        Models = new NativeAiModels(Settings,Path.Combine(Path.GetDirectoryName(Path.GetFullPath(configuration))!,walk?"ai-models.test.json":"ai-models.json"),modelsHttp);
+        Settings.Successor = Successor;
         host.Context.Execute("UPDATE ai_call SET error='stopped by game restart' WHERE error='running'");
     }
     private static string S(JsonNode? n,string key) => NativeGoods.S(n,key);
@@ -66,14 +149,15 @@ public sealed class NativeAI : INativeServiceModule, IDisposable
         while (!await host.WithState(_=>!host.Saves.Paused && S(host.Saves.Gate(),"mode")=="open").ConfigureAwait(false)) await Task.Delay(25,stop).ConfigureAwait(false);
         stop.ThrowIfCancellationRequested();
     }
-    public async Task<NativeAiResult> Call(string hook,string system,string prompt,JsonObject schema,int playerId=1,Func<JsonNode?,bool>? validate=null)
+    public async Task<NativeAiResult> Call(string hook,string system,string prompt,JsonObject schema,int playerId=1,Func<JsonNode?,bool>? validate=null,Action<string>? partial=null)
     {
         var choice = Settings.ChoiceForHook(hook);
         if (choice == null) return new(false,null,"no AI (walk-around mode or hand-written for this kind)",0);
         await WaitOpen(closing.Token).ConfigureAwait(false);
         var watch = Stopwatch.StartNew();
         using var limit = CancellationTokenSource.CreateLinkedTokenSource(closing.Token);
-        int timeout = Math.Clamp(TimeoutMilliseconds,1,20000); limit.CancelAfter(timeout);
+        bool typedHook = Settings.Definitions["typedHooks"]!.AsArray().Any(n=>n!.GetValue<string>()==hook);
+        int timeout = typedHook ? Math.Clamp(Math.Min(TypedTimeoutMilliseconds,(int)Math.Min(25000L,Math.Max(TimeoutMilliseconds,1)*5L/4)),1,25000) : Math.Clamp(TimeoutMilliseconds,1,20000); limit.CancelAfter(timeout);
         var lane = hooks.GetOrAdd(hook+":"+playerId,_=>new SemaphoreSlim(1,1));
         bool hasLane=false,hasSlot=false;
         string error="no attempt";
@@ -86,6 +170,7 @@ public sealed class NativeAI : INativeServiceModule, IDisposable
             var route = RouteOf(hook,choice)!;
             for(int attempt=0;attempt<2&&!limit.IsCancellationRequested;attempt++)
             {
+                if(attempt>0&&timeout-watch.ElapsedMilliseconds<Math.Min(RetryMinimumMilliseconds,timeout/2)){error+="; no time left for a retry";break;}
                 long booked = await host.WithState(c=> {
                     var clock=host.Clock.View();int day=NativeCoreClock.Number(clock,"day");
                     int cap=Settings.CallsPerDay;
@@ -94,16 +179,20 @@ public sealed class NativeAI : INativeServiceModule, IDisposable
                     return c.Scalar<long>("SELECT last_insert_rowid()");
                 }).ConfigureAwait(false);
                 if(booked==0)return new(false,null,"call budget for this day used up",watch.ElapsedMilliseconds);
-                var attemptWatch=Stopwatch.StartNew(); NativeAiAnswer? answer=null;bool accepted=false;
+                var attemptWatch=Stopwatch.StartNew(); NativeAiAnswer? answer=null;bool accepted=false;string? fit=null;
                 try
                 {
-                    answer=await Run(new(route,system,prompt,schema),limit.Token).WaitAsync(limit.Token).ConfigureAwait(false);
+                    answer=await Run(new(route,system,prompt,schema,attempt==0?partial:null),limit.Token).WaitAsync(limit.Token).ConfigureAwait(false);
+                    // small misses (a line a little long, a fourth choice, a weight of 0) are trimmed or clamped, not thrown away
+                    var fitted=new List<string>();answer=answer with{Output=NativeAiSchema.Fit(answer.Output,schema,fitted)};
                     accepted=NativeAiSchema.Valid(answer.Output,schema)&&(validate?.Invoke(answer.Output)??true);
-                    if(!accepted)error="schema: the answer did not fit the game's format";
+                    if(accepted&&fitted.Count>0)fit="fitted: "+string.Join(", ",fitted.Distinct().Take(6));
+                    if(!accepted)error="schema: the answer did not fit the game's format"+(answer.Output!=null&&!NativeAiSchema.Valid(answer.Output,schema)?" ("+NativeAiSchema.Why(answer.Output,schema)+")":answer.Output==null?" (no answer)":" (engine check)");
                 }
                 catch(Exception e){error=limit.IsCancellationRequested?$"timeout after {timeout} ms":hook=="confession"?"the private reply could not be written":Settings.Scrub(e.Message);}
                 string? failure=accepted?null:error[..Math.Min(500,error.Length)];
-                await host.WithState(c=>c.Execute("UPDATE ai_call SET ms=$p0,in_tokens=$p1,out_tokens=$p2,cache_read=$p3,ok=$p4,error=$p5 WHERE id=$p6",attemptWatch.ElapsedMilliseconds,answer?.InputTokens,answer?.OutputTokens,answer?.CacheRead,accepted?1:0,failure,booked)).ConfigureAwait(false);
+                Note(route,accepted,failure??"");
+                await host.WithState(c=>c.Execute("UPDATE ai_call SET ms=$p0,in_tokens=$p1,out_tokens=$p2,cache_read=$p3,ok=$p4,error=$p5 WHERE id=$p6",attemptWatch.ElapsedMilliseconds,answer?.InputTokens,answer?.OutputTokens,answer?.CacheRead,accepted?1:0,failure??fit,booked)).ConfigureAwait(false);
                 if(accepted){await WaitOpen(closing.Token).ConfigureAwait(false);return new(true,answer!.Output!.DeepClone(),null,watch.ElapsedMilliseconds);}
                 if(route.Provider=="codex"&&S(choice,"provider")=="recommended"&&!error.StartsWith("schema:",StringComparison.Ordinal))route=DefaultRoute();
             }
@@ -120,10 +209,12 @@ public sealed class NativeAI : INativeServiceModule, IDisposable
         try
         {
             var answer = await Run(new(route,"You write lines for townspeople in Antwerp in the autumn of 1873. Plain English. Answer only the JSON asked for.","A dock porter on the Rijnkaai greets a stranger on a grey morning. Write one short greeting, at most 20 words.",TestSchema),limit.Token).WaitAsync(limit.Token).ConfigureAwait(false);
+            answer = answer with { Output = NativeAiSchema.Fit(answer.Output,TestSchema) };
             if (!NativeAiSchema.Valid(answer.Output,TestSchema)) throw new InvalidOperationException("The answer did not fit the game's format.");
+            Note(route,true,"");
             return new(true,answer.Output,null,watch.ElapsedMilliseconds);
         }
-        catch(Exception e) { return new(false,null,Settings.Scrub(limit.IsCancellationRequested?"No answer within 20 seconds.":e.Message),watch.ElapsedMilliseconds); }
+        catch(Exception e) { string why=Settings.Scrub(limit.IsCancellationRequested?"No answer within 20 seconds.":e.Message); if(!limit.IsCancellationRequested)Note(route,false,why); return new(false,null,why,watch.ElapsedMilliseconds); }
     }
     private async Task<object?> Test(NativeServiceRequest request)
     {
@@ -174,9 +265,14 @@ public sealed class NativeAI : INativeServiceModule, IDisposable
     }
     public void Register(NativeServiceHost service)
     {
-        service.Register("GET","/api/ai/config",_=>Settings.View());
-        service.Register("PUT","/api/ai/config",r=>{if(r.PlayerId!=1)throw new NativeServiceException("Only the host may change the AI settings.",403);return Settings.Patch(r.Body);});
+        service.Register("GET","/api/ai/config",r=>{var view=View();view["host"]=r.PlayerId==1;return view;});
+        service.Register("PUT","/api/ai/config",r=>{if(r.PlayerId!=1)throw new NativeServiceException("Only the host may change the AI settings.",403);if(Settings.Locked)throw new NativeServiceException(NativeAiConfiguration.LockedText,409);Settings.Patch(r.Body);var view=View();view["host"]=true;
+            // every player (a guest too) hears at once whether AI is on: the typing box follows without a restart
+            host.Publish("ai",new JsonObject{["mode"]=view["mode"]!.DeepClone(),["status"]=view["status"]!.DeepClone()});return view;});
         service.RegisterAsync("POST","/api/ai/test",Test);
+        // autodetect: when AI setup opens (the host's game asks the providers, a few seconds at most), and once a day in the background
+        service.RegisterAsync("POST","/api/ai/models",async r=>{if(r.PlayerId==1&&!Settings.Locked)await Models.Detect(closing.Token).ConfigureAwait(false);var view=View();view["host"]=r.PlayerId==1;return view;});
+        _=Task.Run(async()=>{try{await Task.Delay(TimeSpan.FromSeconds(20),closing.Token).ConfigureAwait(false);if(!Settings.Locked&&Settings.Mode=="ai"&&Models.Stale)await Models.Detect(closing.Token).ConfigureAwait(false);}catch(OperationCanceledException){}});
     }
-    public void Dispose(){closing.Cancel();providers.Dispose();}
+    public void Dispose(){closing.Cancel();providers.Dispose();modelsHttp.Dispose();}
 }

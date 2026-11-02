@@ -57,11 +57,10 @@ public partial class MainMenu : Node
     private bool quiet;                // paused without the menu: after the window lost focus
     private string loadedLine = "";    // after a load: the first page says where
     private double sinceSlow;
-    private bool walkMode;
-    private string walkTitle = "", walkText = "";
+    private InkButton aiBtn = null!;
 
     /// <summary>A self-test that works the menus by script (no benchmark, no pause when its window loses focus).</summary>
-    public static bool ScriptedRun => Main.I.Arg("antigoon-size-proof") != "" || Main.I.Arg("conversation-proof") != "" || Main.I.Arg("story-proof") != "" || Main.I.Arg("antigoon-event-proof") != "" || Main.I.Arg("menutest") != "" || Main.I.Arg("devsheettest") != "" || Main.I.Arg("flytest") != "" || Main.I.Arg("native-play-proof") != "" || Main.I.Arg("native-smoke") != "" || Main.I.Arg("native-extras-proof") != "" || Main.I.Arg("native-journey-proof") != "" || Main.I.Arg("native-package-smoke") != "" || Main.I.Arg("dialog-pause-proof") != ""
+    public static bool ScriptedRun => Main.I.Arg("antigoon-size-proof") != "" || Main.I.Arg("conversation-proof") != "" || Main.I.Arg("story-proof") != "" || Main.I.Arg("antigoon-event-proof") != "" || Main.I.Arg("menutest") != "" || Main.I.Arg("aiswitchtest") != "" || Main.I.Arg("devsheettest") != "" || Main.I.Arg("flytest") != "" || Main.I.Arg("native-play-proof") != "" || Main.I.Arg("native-smoke") != "" || Main.I.Arg("native-extras-proof") != "" || Main.I.Arg("native-journey-proof") != "" || Main.I.Arg("native-package-smoke") != "" || Main.I.Arg("dialog-pause-proof") != ""
         // (#184: a picture check must not pause when another window takes the focus: its night views came out dark)
         || Main.I.Arg("stone-corners-proof") != "";
 
@@ -76,7 +75,7 @@ public partial class MainMenu : Node
         string only = main.Arg("only");
         if (only != "" && !only.Split(',').Contains("mainmenu")) return false;
         foreach (string a in OS.GetCmdlineUserArgs())
-            if (a == "--shots" || (a.StartsWith("--") && a.EndsWith("test") && a != "--menutest" && a != "--togethertest" && a != "--devsheettest" && a != "--flytest"))
+            if (a == "--shots" || (a.StartsWith("--") && a.EndsWith("test") && a != "--menutest" && a != "--aiswitchtest" && a != "--togethertest" && a != "--devsheettest" && a != "--flytest"))
                 return false;
         return true;
     }
@@ -128,6 +127,7 @@ public partial class MainMenu : Node
             RefreshAiNote();
             Saves.Refresh();
             ServerLink.I!.Api!.SystemPushed += Saves.OnPush;
+            ServerLink.I!.Api!.OtherPushed += OnAiPush;
         });
         if (!Loading.Busy) OnLoaded();
     }
@@ -140,6 +140,7 @@ public partial class MainMenu : Node
         {
             link.StatusChanged -= OnLink;
             if (link.Api != null && Saves != null) link.Api.SystemPushed -= Saves.OnPush;
+            if (link.Api != null) link.Api.OtherPushed -= OnAiPush;
         }
         if (Dialogs.Host == sheets) Dialogs.Host = null;
         if (IsInstanceValid(host) && !host.IsQueuedForDeletion()) host.QueueFree();
@@ -375,6 +376,9 @@ public partial class MainMenu : Node
         Item(InkButton.Look.MenuItem, "New game", () => Sheets.NewGame(this));
         Item(InkButton.Look.MenuItem, "Settings", () => SettingsSheet.Open("graphics"));
         if (Main.I.MultiplayerAvailable) Item(InkButton.Look.MenuItem, "Together", TogetherSheet.Open);
+        // the one AI switch (Steve, 2026-11-02): on or off at once, saved in the player's own AI setup; the status under it
+        aiBtn = Item(InkButton.Look.MenuItem, AiState.Label, ToggleAi);
+        aiBtn.Name = "ai_switch";
         Item(InkButton.Look.MenuItem, "AI setup", () => AiSheet.Open());
         Item(InkButton.Look.MenuItem, "Controls", () => SettingsSheet.Open("controls"));
         Item(InkButton.Look.MenuItem, "Help", Sheets.Help);
@@ -483,8 +487,11 @@ public partial class MainMenu : Node
         saveBtn.Visible = Entered || afterLoad;
         string walk = Keys.Label("forward");
         hint.Text = loadedLine != "" && !Entered ? loadedLine : Entered ? $"Click, or press {walk}, Space or Enter, to go on." : $"Click, or press {walk}, Space or Enter, to walk.";
-        aiNote.Visible = walkMode;
-        if (walkMode) aiNoteText.Text = $"[b]{Kit.Esc(walkTitle)}.[/b] {Kit.Esc(walkText)}";
+        aiBtn.Label = AiState.Label;
+        aiBtn.Sub = AiState.Known && AiState.Title != "AI off" ? AiState.Title : "";
+        // the note says why AI does not answer and where to fix it; nothing when it is ready
+        aiNote.Visible = AiState.Known && AiState.State != "ready";
+        if (aiNote.Visible) aiNoteText.Text = $"[b]{Kit.Esc(AiState.Title)}.[/b] {Kit.Esc(AiState.Text)}";
         // the server did not come up: the handbill says so (the HUD's own note lies under it)
         if (ServerLink.I?.Error is { Length: > 0 } down)
         {
@@ -510,15 +517,35 @@ public partial class MainMenu : Node
         if (api == null) return;
         api.Run(api.AiConfig(5000), v =>
         {
+            AiState.Update(v);
             if (I != this || !IsInsideTree()) return;
-            walkMode = v.TryGetProperty("mode", out var m) && m.GetString() == "walk";
-            if (v.TryGetProperty("status", out var s))
-            {
-                walkTitle = s.GetProperty("title").GetString() ?? "";
-                walkText = s.GetProperty("text").GetString() ?? "";
-            }
             RefreshNav();
         }, _ => { });
+    }
+
+    /// <summary>The server changed the AI setting (this player or the host): the switch and the note follow at once.</summary>
+    private void OnAiPush(PushMsg m)
+    {
+        if (m.Type != "ai") return;
+        AiState.Update(m.Body);
+        if (I == this && IsInsideTree()) RefreshNav();
+    }
+
+    /// <summary>The menu's AI switch: off or on at once. A guest follows the host; a test start keeps AI off.</summary>
+    public void ToggleAi()
+    {
+        var api = ServerLink.I?.Api;
+        if (api == null || !AiState.Known) return;
+        if (AiState.Locked) { Toast(AiState.Text); return; }
+        if (!AiState.Host) { Toast("The host decides whether the town uses AI."); return; }
+        string next = AiState.On ? "walk" : "ai";
+        api.Run(api.PutAiConfig(new System.Collections.Generic.Dictionary<string, object?> { ["mode"] = next }), v =>
+        {
+            AiState.Update(v);
+            if (I != this || !IsInsideTree()) return;
+            RefreshNav();
+            Toast(next == "walk" ? "AI off: people answer with written lines; pick from the choices." : AiState.State == "ready" ? "AI on: people answer in their own words. Press T in a talk to say it your way." : $"AI on, but: {AiState.Text}");
+        }, e => { if (I == this && IsInsideTree()) Toast($"Not changed: {e.Message}"); });
     }
 
     private void OnDialogs()

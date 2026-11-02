@@ -36,7 +36,7 @@ ai.Settings.Patch(JsonNode.Parse("{\"default\":{\"provider\":\"recommended\"},\"
 Check("public configuration hides the full key",!ai.Settings.View().ToJsonString().Contains("fake-password")&&ai.Settings.Scrub("fake-password")=="[key]");
 var loaded=new NativeAiConfiguration(Path.Combine(root,"native-godot/services/data/native-ai.json"),Path.Combine(output,"settings.json"));Check("configuration saves and cold-loads",loaded.Saved&&loaded.TypedLines=="claude_only");
 int greetingCalls=0;ai.Runners["claude"]=(r,ct)=>{greetingCalls++;return Task.FromResult(new NativeAiAnswer(JsonNode.Parse("{\"line\":\"Good day.\"}")));};ai.Runners["codex"]=ai.Runners["claude"];
-var tested=JsonNode.Parse(await host.Call("POST","/api/ai/test","{\"all\":true}"))!;Check("test-all calls each selected route once",greetingCalls==2&&tested["results"]!.AsArray().Count>=6);
+var tested=JsonNode.Parse(await host.Call("POST","/api/ai/test","{\"all\":true}"))!;Check("test-all calls each selected route once (Opus, Sonnet low for talk lines, Luna)",greetingCalls==3&&tested["results"]!.AsArray().Count>=6);
 Check("typed dialogue preserves Claude-only routing",ai.RouteOf("free_reply",ai.Settings.NormalChoice(JsonNode.Parse("{\"provider\":\"ollama\",\"model\":\"example-model\"}")))!.Provider=="claude");
 var handler=new Capture();using var http=new HttpClient(handler);using var providers=new NativeAiProviders(ai.Settings,output,http);
 handler.Reply="{\"choices\":[{\"message\":{\"content\":\"{\\\"line\\\":\\\"Good day.\\\"}\"}}]}";
@@ -44,11 +44,73 @@ var answer=await providers.Run(new(new("openai","example-model"),"scene","line",
 Check("HTTP adapter sends a schema without tools",answer.Output?["line"]?.GetValue<string>()=="Good day."&&handler.Body?["tools"]==null&&handler.Body?["response_format"]?["json_schema"]?["strict"]?.GetValue<bool>()==true&&handler.HasAuthorization);
 handler.Reply="{\"choices\":[{\"message\":{\"content\":\"{}\",\"tool_calls\":[{}]}}]}";bool refused=false;
 try{await providers.Run(new(new("openai","example-model"),"scene","line",schema),CancellationToken.None);}catch(InvalidOperationException){refused=true;}Check("HTTP model tool use is rejected",refused);
+// fix 3 (2026-11-02): limits told to the model, small misses fitted instead of thrown away, the rest still refused
+var talkSchema=JsonNode.Parse("{\"type\":\"object\",\"properties\":{\"npc_line\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":300},\"mood\":{\"type\":\"string\",\"enum\":[\"warm\",\"cold\"]},\"choices\":{\"type\":\"array\",\"minItems\":3,\"maxItems\":3,\"items\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":100}},\"memory_weight\":{\"type\":\"integer\",\"minimum\":1,\"maximum\":10},\"trust_delta\":{\"type\":\"integer\",\"minimum\":-5,\"maximum\":5}},\"required\":[\"npc_line\",\"mood\",\"choices\",\"memory_weight\",\"trust_delta\"]}")!.AsObject();
+var described=NativeAiSchema.Clean(talkSchema)!;
+Check("the wire schema tells the model each removed limit",described["properties"]!["npc_line"]!["description"]!.GetValue<string>().Contains("300 characters")&&described["properties"]!["choices"]!["description"]!.GetValue<string>().Contains("Exactly 3 items")&&described["properties"]!["trust_delta"]!["description"]!.GetValue<string>().Contains("from -5 to 5")&&described["properties"]!["npc_line"]!["maxLength"]==null);
+string longLine=string.Concat(Enumerable.Repeat("Aye, the herring came in this morning off the Scheldt boats. ",8));
+var fitted=new List<string>();var fit=NativeAiSchema.Fit(JsonNode.Parse("{\"npc_line\":"+System.Text.Json.JsonSerializer.Serialize(longLine)+",\"mood\":\"warm\",\"choices\":[\"a\",\"b\",\"c\",\"d\"],\"memory_weight\":0,\"trust_delta\":9}"),talkSchema,fitted);
+Check("a long line, a fourth choice and numbers out of range are fitted, not lost",NativeAiSchema.Valid(fit,talkSchema)&&fit!["npc_line"]!.GetValue<string>().Length<=300&&longLine.StartsWith(fit["npc_line"]!.GetValue<string>().TrimEnd('.'))&&fit["choices"]!.AsArray().Count==3&&fit["memory_weight"]!.GetValue<long>()==1&&fit["trust_delta"]!.GetValue<long>()==5&&fitted.Count==4);
+Check("a wrong enum, a missing field or two choices still fail",!NativeAiSchema.Valid(NativeAiSchema.Fit(JsonNode.Parse("{\"npc_line\":\"Hm.\",\"mood\":\"furious\",\"choices\":[\"a\",\"b\",\"c\"],\"memory_weight\":2,\"trust_delta\":0}"),talkSchema),talkSchema)&&!NativeAiSchema.Valid(NativeAiSchema.Fit(JsonNode.Parse("{\"npc_line\":\"Hm.\",\"mood\":\"warm\",\"choices\":[\"a\",\"b\"],\"memory_weight\":2,\"trust_delta\":0}"),talkSchema),talkSchema));
+Check("shortening never adds words",NativeAiSchema.Shorten("One two three four five six seven eight nine ten eleven",30) is var cut&&cut.Length<=30&&cut.EndsWith("...")&&"One two three four five six seven eight nine ten eleven".StartsWith(cut[..^3]));
+// fix 4: a retry starts only with time left
+ai.Settings.Patch(JsonNode.Parse("{\"mode\":\"ai\",\"default\":{\"provider\":\"ollama\",\"model\":\"example-model\"},\"callsPerDay\":0}")!.AsObject());
+int slowCalls=0;ai.Runners["ollama"]=async(r,ct)=>{slowCalls++;await Task.Delay(260,ct);return new NativeAiAnswer(JsonNode.Parse("{\"line\":\"No.\",\"money\":1}"));};
+ai.TimeoutMilliseconds=400;ai.RetryMinimumMilliseconds=300;
+var noRetry=await ai.Call("job_board","test","test",schema);Check("no doomed retry when too little time is left",!noRetry.Ok&&slowCalls==1&&noRetry.Error!.Contains("no time left"));
+ai.TimeoutMilliseconds=20000;ai.RetryMinimumMilliseconds=6000;
+// the AI switch: a test start (--no-ai) is locked; the server says whether AI can answer
+string lockedPut="";try{await host.Call("PUT","/api/ai/config","{\"mode\":\"ai\"}");}catch(NativeServiceException e){lockedPut=e.Message;}
+Check("a test start refuses the switch and writes nothing",lockedPut.Contains("started with no AI")&&ai.Readiness().State=="off");
+using var free=new NativeAI(host,Path.Combine(output,"player-ai-config.json"));
+free.Runners["ollama"]=(r,ct)=>Task.FromResult(new NativeAiAnswer(JsonNode.Parse("{\"line\":\"Good day.\"}")));
+free.Settings.Patch(JsonNode.Parse("{\"mode\":\"ai\",\"default\":{\"provider\":\"ollama\",\"model\":\"example-model\"}}")!.AsObject());
+Check("AI on with a working provider: ready, typing allowed",free.Readiness().State=="ready"&&free.CanUse("resident_talk"));
+free.Runners["ollama"]=(r,ct)=>throw new Exception("connection refused");await free.Call("job_board","test","test",schema);
+Check("a provider that cannot be reached: not answering, with the reason",free.Readiness().State=="failing"&&free.Readiness().Text.Contains("connection refused"));
+free.Settings.Patch(JsonNode.Parse("{\"mode\":\"walk\"}")!.AsObject());
+Check("AI off at once: no hook may call",free.Readiness().State=="off"&&!free.CanUse("resident_talk")&&free.Settings.ChoiceForHook("director_think")==null);
+Check("the switch is saved in the player's own AI setup",new NativeAiConfiguration(Path.Combine(root,"native-godot/services/data/native-ai.json"),Path.Combine(output,"player-ai-config.json")).Mode=="walk");
+string? savedPath=Environment.GetEnvironmentVariable("PATH"),savedBin=Environment.GetEnvironmentVariable("SCHELDEMIST_CLAUDE_BIN");
+try{Environment.SetEnvironmentVariable("PATH","");Environment.SetEnvironmentVariable("SCHELDEMIST_CLAUDE_BIN",Path.Combine(output,"missing-claude.exe"));
+ free.Settings.Patch(JsonNode.Parse("{\"mode\":\"ai\",\"default\":{\"provider\":\"claude_local\",\"model\":\"claude-opus-5-5\"}}")!.AsObject());
+ Check("no Claude login on this PC: says so, points to AI setup, no typing",free.Readiness().State=="no_login"&&free.Readiness().Text.Contains("AI setup")&&!free.CanUse("resident_talk"));}
+finally{Environment.SetEnvironmentVariable("PATH",savedPath);Environment.SetEnvironmentVariable("SCHELDEMIST_CLAUDE_BIN",savedBin);}
+// the split talk (2026-11-02): the recommended mix routes the line to Sonnet 5.5 low and the judge to Opus 5.5; a chosen provider wins
+var mix=free.Settings.NormalChoice(JsonNode.Parse("{\"provider\":\"recommended\"}"));
+var lineRoute=free.RouteOf("resident_talk",mix)!;var judgeRoute=free.RouteOf("talk_judge",mix)!;
+Check("recommended: Sonnet 5.5 low writes the line, Opus 5.5 judges",lineRoute.Provider=="claude"&&lineRoute.Model=="claude-sonnet-5-5"&&lineRoute.Effort=="low"&&judgeRoute.Model=="claude-opus-5-5");
+var own=free.Settings.NormalChoice(JsonNode.Parse("{\"provider\":\"claude_local\",\"model\":\"claude-opus-5-5\",\"effort\":\"high\"}"));
+Check("the player's own choice is used for both calls",free.RouteOf("resident_talk",own)!.Model=="claude-opus-5-5"&&free.RouteOf("talk_judge",own)!.Effort=="high");
+Check("the judge reads player text, so it is a typed hook",ai.Settings.Definitions["typedHooks"]!.AsArray().Any(n=>n!.GetValue<string>()=="talk_judge"));
+Check("the stream reader shows the line so far, never the other fields",NativeAiProviders.FieldSoFar("{\"npc_line\":\"Morning, lad. The \\\"Bassin\\\" is",  "npc_line")=="Morning, lad. The \"Bassin\" is"&&NativeAiProviders.FieldSoFar("{\"mood\":\"warm\"","npc_line")=="");
+// model lists (2026-11-02): newest first per tier, friendly names, the key only to its own endpoint, retired models mapped
+Check("friendly names",NativeAiModels.Friendly("claude-sonnet-5-5")=="Claude Sonnet 5.5"&&NativeAiModels.Friendly("claude-haiku-4-5-20251001")=="Claude Haiku 4.5"&&NativeAiModels.Friendly("claude-sonnet-6")=="Claude Sonnet 6"&&NativeAiModels.Friendly("gpt-7-nova")=="gpt-7-nova");
+var ordered=NativeAiModels.Order(new[]{"claude-haiku-4-5","claude-sonnet-5-5","claude-opus-5-5","claude-sonnet-6","claude-fable-5-1","claude-sonnet-5"}.Select(id=>new JsonObject{["id"]=id})).Select(m=>m["id"]!.GetValue<string>()).ToList();
+Check("newest of each tier first, then the older ones",string.Join(",",ordered)=="claude-opus-5-5,claude-sonnet-6,claude-haiku-4-5,claude-fable-5-1,claude-sonnet-5-5,claude-sonnet-5");
+var listHandler=new Capture();using var listHttp=new HttpClient(listHandler);
+using var detect=new NativeAI(host,Path.Combine(output,"detect-ai-config.json"));
+detect.Settings.Patch(JsonNode.Parse("{\"mode\":\"ai\",\"default\":{\"provider\":\"claude_local\",\"model\":\"claude-haiku-4-5-20251001\"},\"connections\":{\"anthropic_api\":{\"apiKey\":\"proof-key-12345678\"},\"openai_compat\":{\"baseUrl\":\"http://127.0.0.1:9\"}}}")!.AsObject());
+var probe=new NativeAiModels(detect.Settings,Path.Combine(output,"ai-models.json"),listHttp){AnthropicModelsUrl="https://anthropic.example/v1/models",Timeout=TimeSpan.FromSeconds(2)};
+listHandler.Reply="{\"data\":[{\"id\":\"claude-opus-5-5\",\"display_name\":\"Claude Opus 5.5\",\"created_at\":\"2026-08-01T00:00:00Z\"},{\"id\":\"claude-sonnet-6\",\"display_name\":\"Claude Sonnet 6\",\"created_at\":\"2026-12-01T00:00:00Z\"},{\"id\":\"claude-sonnet-5-5\",\"display_name\":\"Claude Sonnet 5.5\",\"created_at\":\"2026-08-01T00:00:00Z\"},{\"id\":\"claude-haiku-5-5\",\"display_name\":\"Claude Haiku 5.5\",\"created_at\":\"2026-08-01T00:00:00Z\"}],\"has_more\":false}";
+var found=await probe.Detect();
+var anthropicList=probe.ListFor("anthropic_api",new JsonArray(),out var anthropicCheck);
+Check("the Anthropic list is read, newest Sonnet first among the Sonnets",anthropicCheck["state"]!.GetValue<string>()=="checked"&&anthropicList.Select(m=>m!["id"]!.GetValue<string>()).ToList() is var ids&&ids.IndexOf("claude-sonnet-6")<ids.IndexOf("claude-sonnet-5-5"));
+Check("the key went only to the Anthropic models address and is in no saved file",listHandler.KeyedUrls.Count==1&&listHandler.KeyedUrls.All(u=>u.StartsWith("https://anthropic.example/"))&&!File.ReadAllText(Path.Combine(output,"ai-models.json")).Contains("proof-key"));
+Check("a provider that cannot be reached: model list not checked",found["providers"]!["openai_compat"]!["state"]!.GetValue<string>()=="not_checked");
+var builtIn=detect.Settings.Definitions["options"]!["providers"]!.AsArray().First(p=>p!["id"]!.GetValue<string>()=="claude_local")!["models"]!.AsArray();
+Check("built-in Claude list: Opus 5.5, Sonnet 5.5, Haiku 5.5, Fable 5.1 first",string.Join(",",builtIn.Take(4).Select(m=>m!["id"]!.GetValue<string>()))=="claude-opus-5-5,claude-sonnet-5-5,claude-haiku-5-5,claude-fable-5-1");
+var retiredView=detect.View();
+Check("a saved older model is kept, and the status names the newer one",detect.Settings.Effective("talk")["model"]!.GetValue<string>()=="claude-haiku-4-5-20251001"&&retiredView["status"]!["text"]!.GetValue<string>().Contains("Haiku 5.5"));
+detect.Settings.Patch(JsonNode.Parse("{\"default\":{\"provider\":\"claude_local\",\"model\":\"claude-3-5-sonnet-20241022\"}}")!.AsObject());
+Check("a retired model is mapped to its successor, the saved choice kept, and the status says so",detect.Settings.Effective("talk")["model"]!.GetValue<string>()=="claude-sonnet-5-5"&&JsonNode.Parse(File.ReadAllText(Path.Combine(output,"detect-ai-config.json")))!["default"]!["model"]!.GetValue<string>()=="claude-3-5-sonnet-20241022"&&detect.View()["status"]!["text"]!.GetValue<string>().Contains("no longer offered"));
 File.WriteAllText(Path.Combine(output,"result.json"),System.Text.Json.JsonSerializer.Serialize(new{passed=true,oracleCases=oracle,checks},new System.Text.Json.JsonSerializerOptions{WriteIndented=true}));
 Console.WriteLine($"Native AI: {checks.Count} checks passed, including {oracle} original normalization cases; no live model calls.");
 sealed class Capture:HttpMessageHandler
 {
- public JsonNode? Body;public bool HasAuthorization;public string Reply="{}";
+ public JsonNode? Body;public bool HasAuthorization;public string Reply="{}";public readonly List<string> Urls=new(),KeyedUrls=new();
  protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request,CancellationToken stop)
- {Body=JsonNode.Parse(await request.Content!.ReadAsStringAsync(stop));HasAuthorization=request.Headers.Contains("Authorization");return new HttpResponseMessage(HttpStatusCode.OK){Content=new StringContent(Reply,Encoding.UTF8,"application/json")};}
+ {Urls.Add(request.RequestUri!.ToString());if(request.Headers.Contains("x-api-key")||request.Headers.Contains("Authorization"))KeyedUrls.Add(request.RequestUri!.ToString());
+  if(request.Method==HttpMethod.Get){if(request.RequestUri!.Host!="anthropic.example")throw new HttpRequestException("unreachable");return new HttpResponseMessage(HttpStatusCode.OK){Content=new StringContent(Reply,Encoding.UTF8,"application/json")};}
+  Body=JsonNode.Parse(await request.Content!.ReadAsStringAsync(stop));HasAuthorization=request.Headers.Contains("Authorization");return new HttpResponseMessage(HttpStatusCode.OK){Content=new StringContent(Reply,Encoding.UTF8,"application/json")};}
 }

@@ -12,7 +12,8 @@ using System.Threading.Tasks;
 namespace Scheldemist.Native.Services;
 
 public sealed record NativeAiRoute(string Provider, string Model, string? Effort = null, string? Overruled = null);
-public sealed record NativeAiRequest(NativeAiRoute Route, string System, string Prompt, JsonObject Schema);
+/// <summary>Partial: with the Claude login, the text of the answer's `StreamField` as the model writes it (2026-11-02).</summary>
+public sealed record NativeAiRequest(NativeAiRoute Route, string System, string Prompt, JsonObject Schema, Action<string>? Partial = null, string StreamField = "npc_line");
 public sealed record NativeAiAnswer(JsonNode? Output, int? InputTokens = null, int? OutputTokens = null, int? CacheRead = null);
 
 public sealed class NativeAiProviders : IDisposable
@@ -32,6 +33,7 @@ public sealed class NativeAiProviders : IDisposable
             if (File.Exists(Path.Combine(folder, name))) return Path.Combine(folder, name);
         return null;
     }
+    public static string? FindClaude() => Find(OperatingSystem.IsWindows() ? "claude.exe" : "claude", Environment.GetEnvironmentVariable("SCHELDEMIST_CLAUDE_BIN"));
     public static string? FindCodex()
     {
         string? provided = Find(OperatingSystem.IsWindows() ? "codex.exe" : "codex", Environment.GetEnvironmentVariable("SCHELDEMIST_CODEX_BIN"));
@@ -100,13 +102,53 @@ public sealed class NativeAiProviders : IDisposable
         var output = NativeAiSchema.Parse(S(message,"content"));
         return route.Provider == "openai" ? new(NativeAiSchema.StripNulls(output),Token(reply["usage"]?["prompt_tokens"]),Token(reply["usage"]?["completion_tokens"]),Token(reply["usage"]?["prompt_tokens_details"]?["cached_tokens"])) : new(output,Token(reply["prompt_eval_count"]),Token(reply["eval_count"]));
     }
+    /// <summary>Reads the Claude stream line by line and hands the growing text of the answer's field to Partial; returns all lines.</summary>
+    private static async Task<string> Stream(StreamReader output, NativeAiRequest request, CancellationToken stop)
+    {
+        var all = new StringBuilder(); var json = new StringBuilder(); string shown = "";
+        string? line;
+        while ((line = await output.ReadLineAsync(stop).ConfigureAwait(false)) != null)
+        {
+            all.Append(line).Append('\n');
+            if (!line.Contains("\"stream_event\"", StringComparison.Ordinal)) continue;
+            try
+            {
+                var delta = JsonNode.Parse(line)?["event"]?["delta"];
+                string piece = S(delta, "partial_json") is { Length: > 0 } p ? p : S(delta, "text");
+                if (piece == "") continue;
+                json.Append(piece);
+                string now = FieldSoFar(json.ToString(), request.StreamField);
+                // whole words only, so the box never shows half a word
+                int cut = now.Length; if (!now.EndsWith('.') && !now.EndsWith('!') && !now.EndsWith('?')) { int space = now.LastIndexOf(' '); cut = space < 0 ? 0 : space; }
+                if (cut > shown.Length + 2) { shown = now[..cut]; try { request.Partial!(shown); } catch { } }
+            }
+            catch (System.Text.Json.JsonException) { }
+        }
+        return all.ToString();
+    }
+    /// <summary>The text of a string field in an unfinished JSON object (simple escapes undone), or "".</summary>
+    public static string FieldSoFar(string json, string field)
+    {
+        int at = json.IndexOf("\"" + field + "\"", StringComparison.Ordinal); if (at < 0) return "";
+        int colon = json.IndexOf(':', at + field.Length + 2); if (colon < 0) return "";
+        int open = json.IndexOf('"', colon + 1); if (open < 0) return "";
+        var text = new StringBuilder();
+        for (int i = open + 1; i < json.Length; i++)
+        {
+            char c = json[i];
+            if (c == '"') break;
+            if (c == '\\') { if (i + 1 >= json.Length) break; char e = json[++i]; text.Append(e switch { 'n' => ' ', 't' => ' ', 'u' => ' ', _ => e }); if (e == 'u') i = Math.Min(json.Length - 1, i + 4); continue; }
+            text.Append(c);
+        }
+        return text.ToString();
+    }
     private async Task<NativeAiAnswer> Process(NativeAiRequest request, CancellationToken stop)
     {
         Directory.CreateDirectory(directory);
         string scratch = Path.GetFullPath(Path.Combine(directory, "call-" + Guid.NewGuid().ToString("N")));
         Directory.CreateDirectory(scratch);
         string binary = request.Route.Provider == "codex" ? FindCodex() ?? throw new InvalidOperationException("codex unavailable")
-            : Find(OperatingSystem.IsWindows() ? "claude.exe" : "claude", Environment.GetEnvironmentVariable("SCHELDEMIST_CLAUDE_BIN")) ?? throw new InvalidOperationException("Claude unavailable");
+            : FindClaude() ?? throw new InvalidOperationException("Claude unavailable");
         var start = new ProcessStartInfo(binary) { WorkingDirectory = scratch, UseShellExecute = false, CreateNoWindow = true, WindowStyle = ProcessWindowStyle.Hidden, RedirectStandardInput = true, RedirectStandardOutput = true, RedirectStandardError = true };
         void Add(params string[] args) { foreach (string arg in args) start.ArgumentList.Add(arg); }
         string output = Path.Combine(scratch,"answer.json");
@@ -120,23 +162,32 @@ public sealed class NativeAiProviders : IDisposable
         }
         else
         {
-            Add("--print", "--output-format", "json", "--model", request.Route.Model, "--system-prompt", request.System, "--json-schema", NativeAiSchema.Clean(request.Schema)!.ToJsonString(), "--tools", "", "--mcp-config", "{\"mcpServers\":{}}", "--strict-mcp-config", "--setting-sources", "", "--no-session-persistence", "--max-turns", "3");
+            Add("--print", "--output-format", request.Partial != null ? "stream-json" : "json", "--model", request.Route.Model, "--system-prompt", request.System, "--json-schema", NativeAiSchema.Clean(request.Schema)!.ToJsonString(), "--tools", "", "--mcp-config", "{\"mcpServers\":{}}", "--strict-mcp-config", "--setting-sources", "", "--no-session-persistence", "--max-turns", "3");
             if (request.Route.Effort != null) Add("--effort", request.Route.Effort); else start.Environment["MAX_THINKING_TOKENS"] = "0";
+            if (request.Partial != null) Add("--verbose", "--include-partial-messages");
         }
         try
         {
             using var process = new System.Diagnostics.Process { StartInfo = start };
             process.Start();
             using var killed = stop.Register(() => { try { if (!process.HasExited) process.Kill(true); } catch (InvalidOperationException) { } });
-            var stdout = process.StandardOutput.ReadToEndAsync(stop); var stderr = process.StandardError.ReadToEndAsync(stop);
+            var stdout = request.Partial != null && request.Route.Provider == "claude" ? Stream(process.StandardOutput, request, stop) : process.StandardOutput.ReadToEndAsync(stop); var stderr = process.StandardError.ReadToEndAsync(stop);
             await process.StandardInput.WriteAsync(request.Prompt.AsMemory(),stop).ConfigureAwait(false); process.StandardInput.Close();
             await process.WaitForExitAsync(stop).ConfigureAwait(false);
             string text = await stdout.ConfigureAwait(false), error = await stderr.ConfigureAwait(false);
             if (process.ExitCode != 0) throw new InvalidOperationException(settings.Scrub("AI process exited " + process.ExitCode + ": " + error)[..Math.Min(300, settings.Scrub("AI process exited " + process.ExitCode + ": " + error).Length)]);
             if (request.Route.Provider == "claude")
             {
+                if (request.Partial != null)
+                {
+                    // stream-json: one event a line; the structured answer comes as the StructuredOutput tool, never another
+                    var lines = text.Split('\n').Where(l => l.TrimStart().StartsWith('{')).Select(l => JsonNode.Parse(l)!).ToList();
+                    if (lines.Any(e => e?["message"]?["content"] is JsonArray blocks && blocks.Any(b => S(b,"type") == "tool_use" && S(b,"name") != "StructuredOutput"))) throw new InvalidOperationException("the model used a tool; answer thrown away");
+                    text = new JsonArray(lines.Where(e => S(e,"type") == "result").Select(e => e!.DeepClone()).ToArray()).ToJsonString();
+                    if (text == "[]") throw new InvalidOperationException("Claude gave no result");
+                }
                 var result = JsonNode.Parse(text)!;
-                if (result is JsonArray events && events.Any(e => e?["message"]?["content"] is JsonArray blocks && blocks.Any(b => S(b,"type") == "tool_use"))) throw new InvalidOperationException("the model used a tool; answer thrown away");
+                if (request.Partial == null && result is JsonArray events && events.Any(e => e?["message"]?["content"] is JsonArray blocks && blocks.Any(b => S(b,"type") == "tool_use"))) throw new InvalidOperationException("the model used a tool; answer thrown away");
                 if (result is JsonArray list) result = list.Last(e => S(e,"type") == "result")!;
                 if (S(result,"subtype") != "success" || result["is_error"]?.GetValue<bool>() == true) throw new InvalidOperationException("Claude gave no successful structured result");
                 return new(result["structured_output"]?.DeepClone(),Token(result["usage"]?["input_tokens"]),Token(result["usage"]?["output_tokens"]),Token(result["usage"]?["cache_read_input_tokens"]));

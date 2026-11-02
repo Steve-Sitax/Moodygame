@@ -69,6 +69,8 @@ public static class ApiMenu
     public static Task<JsonElement> PutAiConfig(this Api api, Dictionary<string, object?> patch) => api.Put<JsonElement>("api/ai/config", patch, 15_000);
     /// <summary>Try an AI: {kind}, {choice} or {all: true}. The server gives each 20 s.</summary>
     public static Task<JsonElement> AiTest(this Api api, Dictionary<string, object?> body) => api.Post<JsonElement>("api/ai/test", body, 60_000);
+    /// <summary>Ask the configured AIs which models they offer now (a few seconds at most); the setup comes back with the lists.</summary>
+    public static Task<JsonElement> AiModels(this Api api) => api.Post<JsonElement>("api/ai/models", null, 20_000);
 
     /// <summary>The town's own settings: the biggest event, the town size for a new game.</summary>
     public static Task<JsonElement> Population(this Api api) => api.Get<JsonElement>("api/settings/population");

@@ -38,7 +38,7 @@ public partial class MpTest
             new{name="guest matches host position",pass=observed?.GetProperty("gap").GetSingle()<.35f},
             new{name="second player cannot take ownership",pass=observed?.GetProperty("pinned").GetBoolean()==true},
             new{name="close reaches guest",pass=released?.GetProperty("ok").GetBoolean()==true}};
-        return released?.GetProperty("ok").GetBoolean()==true&&await HostPostedConversation();
+        return released?.GetProperty("ok").GetBoolean()==true&&await HostPostedConversation()&&(!Main.I.Flag("mpai")||await HostAi(s.R.Id));
     }
     private async Task<bool> GuestConversation()
     {
@@ -56,7 +56,7 @@ public partial class MpTest
         bool released=await Until(()=>ConversationHold.I?.Held(id)!=true&&s?.P?.Human.Motion!="talk",20);
         MovingWrite("mp-talk-released.json",new{ok=released,held=ConversationHold.I?.Held(id),motion=s?.P?.Human.Motion,remote=s?.P?.Remote,action=s?.ActionOwner?.GetType().Name,serverDriven=s?.ServerEventDriven,owner=NativeStreet.I?.OwnerOf(id),received=NativeStreet.I?.Received,transmitted=NativeStreet.I?.Transmitted});
         if(!seen||!pinned||!released)return false;
-        return await GuestPostedConversation();
+        return await GuestPostedConversation()&&(!Main.I.Flag("mpai")||await GuestAi());
     }
     private async Task<bool> HostPostedConversation()
     {

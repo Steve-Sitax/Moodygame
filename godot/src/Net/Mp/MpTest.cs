@@ -280,7 +280,7 @@ public partial class MpTest : Node
         foreach (string f in new[] { "mptest-guest.json", "mptest-guest-home.json", "mptest-start.json", "mptest.json", "mp_host.png", "mp_guest.png" }) File.Delete(Path.Combine(dir, f));
         if (Main.I.Flag("mpmoving")) info.ArgumentList.Add("--mpmoving");
         if (Main.I.Flag("mpboat")) { info.ArgumentList.Add("--mpboat"); info.ArgumentList.Insert(0, "--headless"); } // (the guest's side is data and gear: no second window)
-        if(Main.I.Flag("mpconversation")){info.ArgumentList.Insert(0,"--headless");info.ArgumentList.Add("--mpconversation");info.Environment["SCHELDEMIST_USER_DATA"]=Path.Combine(dir,"guest","userdata");}
+        if(Main.I.Flag("mpconversation")){info.ArgumentList.Insert(0,"--headless");info.ArgumentList.Add("--mpconversation");if(Main.I.Flag("mpai"))info.ArgumentList.Add("--mpai");info.Environment["SCHELDEMIST_USER_DATA"]=Path.Combine(dir,"guest","userdata");}
         if (Main.I.Arg("author-root") != "") { info.ArgumentList.Add("--author-root"); info.ArgumentList.Add(Main.I.Flag("mpconversation")?Path.Combine(dir,"guest","layouts"):Main.I.Arg("author-root")); }
         if (OS.GetCmdlineArgs().Contains("--verbose")) info.ArgumentList.Insert(0, "--verbose");
         other = Process.Start(info);
@@ -288,7 +288,7 @@ public partial class MpTest : Node
         if (OperatingSystem.IsWindows()) otherJob = WinJob.KillOnClose(other);
         doc["guest_pid"] = other.Id;
 
-        if (!await Until(() => tg.Roster.Count(r => r.Online) >= 2 && tg.PlayerAt(2) != null, 120)) return Fail($"the guest did not come into the town (roster {tg.Roster.Count}, guest exited {other.HasExited})");
+        if (!await Until(() => tg.Roster.Count(r => r.Online) >= 2 && tg.PlayerAt(2) != null, Main.I.Flag("mpconversation") ? 300 : 120)) return Fail($"the guest did not come into the town (roster {tg.Roster.Count}, guest exited {other.HasExited})");
         doc["roster"] = tg.Roster;
         if(Main.I.Flag("mpconversation"))return await HostConversation();
         // the start both walk from, on the server's clock
