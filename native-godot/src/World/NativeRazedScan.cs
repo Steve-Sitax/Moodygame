@@ -40,6 +40,7 @@ public partial class NativeRazedScan : Node
         for (int i = 0; i < 300; i++) await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
         GD.Print("razed-scan: town ready, scanning");
         Rays(Scheldemist.Main.I.Arg("razed-scan-ray"), file);
+        Point(Scheldemist.Main.I.Arg("razed-scan-point"), file);
         var clock = System.Diagnostics.Stopwatch.StartNew();
         var razed = NativeRazedHouses.Last;
         var boxes = Box is { } only ? only.Select(b => (Outline: new[] { b.Position, b.Position + new Vector2(b.Size.X, 0), b.End, b.Position + new Vector2(0, b.Size.Y) }, Box: b)).ToArray() : razed.Razed.Select(o => (Outline: o, Box: Rect(o))).ToArray();
@@ -143,6 +144,26 @@ public partial class NativeRazedScan : Node
             lines.AddRange(hits.OrderBy(h => h.At).Take(8).Select(h => FormattableString.Invariant($"{one}\t{h.At:0.00} m\t{h.What}")));
         }
         File.WriteAllLines(Path.ChangeExtension(file, null) + "-rays.txt", lines);
+    }
+
+    /// <summary>(dev: --razed-scan-point x,y,z[;...]) every drawn thing in the whole tree whose box holds the point: its path, kind, mesh, layers.</summary>
+    private static void Point(string spec, string file)
+    {
+        if (spec == "") return;
+        var lines = new List<string>();
+        var tree = (SceneTree)Engine.GetMainLoop();
+        foreach (var one in spec.Split(';', StringSplitOptions.RemoveEmptyEntries))
+        {
+            var f = one.Split(',').Select(v => float.Parse(v, System.Globalization.CultureInfo.InvariantCulture)).ToArray();
+            var p = new Vector3(f[0], f[1], f[2]);
+            foreach (var n in BakedWorld.All(tree.Root))
+                if (n is VisualInstance3D vi && (vi.GlobalTransform * vi.GetAabb()).Grow(0.02f).HasPoint(p))
+                {
+                    string what = n is MeshInstance3D mi ? mi.Mesh?.ResourcePath + " " + string.Join(",", Enumerable.Range(0, mi.Mesh?.GetSurfaceCount() ?? 0).Select(s => mi.Mesh!.SurfaceGetMaterial(s)?.ResourceName)) : n.GetClass();
+                    lines.Add(FormattableString.Invariant($"{one}	{n.GetPath()}	{n.GetClass()}	visible {vi.IsVisibleInTree()}	layers {vi.Layers}	{what}"));
+                }
+        }
+        File.WriteAllLines(Path.ChangeExtension(file, null) + "-point.txt", lines);
     }
 
     private static Rect2 Rect(Vector2[] o)

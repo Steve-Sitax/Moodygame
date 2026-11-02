@@ -83,6 +83,9 @@ func run():
 	# the walks' gravel: the park's, its relief halved (compacted, 2 to 5 mm of stone showing, not ridges)
 	var gravel: ShaderMaterial = load(GRAVEL).duplicate()
 	gravel.resource_name = "churchyard_gravel"
+	# (#228: its own compacted gravel, churchyard_gravel.py: the park's relief drew parallel ridges at a low look)
+	gravel.set_shader_parameter("tex", texture(src + "/gravel.png", MATS + "/gravel-texture.res", true))
+	gravel.set_shader_parameter("relief_h", texture(src + "/gravel-height.png", MATS + "/gravel-height-texture.res", false))
 	for p in ["relief_depth", "relief_bump"]:
 		var v = gravel.get_shader_parameter(p)
 		if v != null: gravel.set_shader_parameter(p, v * 0.5)

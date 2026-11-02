@@ -93,7 +93,9 @@ def grid_tris(Q, Nq, UVq):
 
 
 # ---------------------------------------------------------------- rounded block
-def axis_coords(lo, hi, r, step, k=3):
+BAND = 0.045    # the worn margin beside a stone's arris (#228: the rounding alone, 8 to 15 mm, read at 1 m, not at 5)
+
+def axis_coords(lo, hi, r, step, k=3, band=0.0):
     if r <= 1e-5:
         return np.linspace(lo, hi, max(1, int(math.ceil((hi - lo) / step))) + 1)
     th = np.radians(np.linspace(45, 0, k + 1))
@@ -101,6 +103,9 @@ def axis_coords(lo, hi, r, step, k=3):
     n = max(1, int(math.ceil((hi - lo - 2 * r) / step)))
     mid = np.linspace(lo + r, hi - r, n + 1)
     b = hi - r + r * np.tan(th[::-1])
+    # (a line of points at the worn margin's inner edge, so its tone has room to fade over the face)
+    if band > 0 and hi - lo - 2 * r > 4 * band:
+        mid = np.unique(np.concatenate([mid, [lo + r + band, hi - r - band]]))
     return np.concatenate([a[:-1], mid, b[1:]])
 
 STONES = ('stone', 'letters', 'ashlar', 'carved', 'carved_hi')
@@ -121,10 +126,10 @@ def rbox(m, mat, lo, hi, r, step=0.15, R=None, t=(0, 0, 0), taper=None, skip=((1
     ilo, ihi = lo + r, hi - r
     # where a worn arris runs, the grid is finer along it (wear needs points to show)
     step_e = min(step, 0.05) if wear > 0 else step
-    co = [axis_coords(lo[i], hi[i], r, step_e if (hi[i] - lo[i]) < 0.7 else step, k) for i in range(3)]
+    co = [axis_coords(lo[i], hi[i], r, step_e if (hi[i] - lo[i]) < 0.7 else step, k, BAND if wear > 0 else 0.0) for i in range(3)]
     seed = int(abs(hash((round(float(lo.sum()), 4), round(float(hi.sum()), 4), m.seed))) % 100000)
     g = np.random.default_rng(seed)
-    corners = [(np.array([hi[0] if a else lo[0], hi[1] if b else lo[1], hi[2] if c else lo[2]]), g.uniform(0.015, 0.035))
+    corners = [(np.array([hi[0] if a else lo[0], hi[1] if b else lo[1], hi[2] if c else lo[2]]), g.uniform(0.02, 0.045))
                for a in (0, 1) for b in (0, 1) for c in (0, 1) if g.random() < chips]
     if occlude: m.occluder(lo, hi, R, t, shrink=r * 0.8)
     for a in range(3):
@@ -140,6 +145,12 @@ def rbox(m, mat, lo, hi, r, step=0.15, R=None, t=(0, 0, 0), taper=None, skip=((1
             Q = C + max(r, 0.0) * Nn if r > 1e-5 else P.copy()
             # the arris: how far round the rounding the point lies (0 on a face, 1 in the middle of the arris)
             E = np.clip((1 - np.abs(Nn[..., a])) / 0.293, 0, 1) if r > 1e-5 else np.zeros(U.shape)
+            # and the worn margin beside it on the face, fading over BAND, in patches along the arris (half of 1 at most)
+            if wear > 0 and r > 1e-5:
+                du = np.minimum(U - (lo[u] + r), (hi[u] - r) - U); dv = np.minimum(V - (lo[v] + r), (hi[v] - r) - V)
+                edge_d = np.maximum(np.minimum(du, dv), 0)
+                margin = np.clip(1 - edge_d / BAND, 0, 1) ** 1.3 * np.clip((vnoise(P, 7.0, seed + 9) - 0.2) * 1.6, 0, 1)
+                E = np.maximum(E, 0.55 * margin * (np.abs(Nn[..., a]) > 0.98))
             if wear > 0 and r > 1e-5:
                 # the arris worn back unevenly: deepest in patches, along the arris
                 n1 = vnoise(P * np.array([1.0, 1.0, 1.0]), 9.0, seed)

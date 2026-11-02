@@ -1,8 +1,8 @@
 [gd_resource type="ShaderMaterial" format=3]
 
 [ext_resource type="Shader" path="res://world/town/resources/r000002.res" id="1_dj11l"]
-[ext_resource type="Texture2D" path="res://world/town/resources/r001149.res" id="2_0amrp"]
-[ext_resource type="Texture2D" path="res://world/town/resources/r001147.res" id="3_peo3r"]
+[ext_resource type="Texture2D" path="res://assets/materials/churchyard-20261027/gravel-height-texture.res" id="2_0amrp"]
+[ext_resource type="Texture2D" path="res://assets/materials/churchyard-20261027/gravel-texture.res" id="3_peo3r"]
 
 [resource]
 resource_name = "churchyard_gravel"
@@ -19,6 +19,8 @@ shader_parameter/uv_xform = Vector4(1, 1, 0, 0)
 shader_parameter/depth_bias = 0.0
 shader_parameter/vary = 0.8
 shader_parameter/puddles = 1.2
+shader_parameter/soil = null
+shader_parameter/soil_pool = null
 shader_parameter/spec_color = Vector3(0.01032982, 0.01032982, 0.01032982)
 shader_parameter/shininess = 12.0
 shader_parameter/relief_h = ExtResource("2_0amrp")

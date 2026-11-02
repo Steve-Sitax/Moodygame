@@ -11,6 +11,9 @@ Bugs and loose ends are tracked as [issues](https://github.com/Steve-Sitax/Moody
 
 ## [Unreleased]
 
+- Sint-Paulus' north portal has real oak doors: boarded leaves cut to the pointed arch, with forged strap hinges, nail heads, a ring and a lock plate, instead of a flat filled-in arch. The wall round Sint-Jacob has a weathered blue-stone coping instead of a sharp flat top.
+- The bared side walls on the church squares have real depth: the old floors' joist holes are cut into the brick, broken brick ends stick out where the pulled-down houses' walls were bonded in, the old plaster casts its own shadow, and printed bills of October 1873 (a sale of the old houses' materials, building ground, the Red Star Line, the theatre, a lost dog) are pasted by the street.
+- St James's churchyard: the walks are compacted gravel without stripes, the fallen leaves are lime and plane leaves instead of paper scraps, the worn stone edges show from the path, the chapel door's lock plate stands out, and a pale strip that lay on the grass by the chest tomb and the obelisk is gone.
 - On a sunny day the shade on squares and in lanes is lighter: more of the sunlight thrown back by the lit fronts and paving reaches the shaded ground, so it reads as daylit shade instead of dusk. Rain, fog, night, the rooms and the vaults under the town look as before.
 - The street cobbles are the size and colour of 1873 porphyry setts now: smaller stones, about a hand by a hand and a half, tight joints of sand instead of wide muddy gaps, flat worn tops instead of swollen glossy domes, and a grey stone that reads in the shade. Missing stones are rarer.
 - Tree trunks keep their bark detail in the shade and after dark: the limes', elms' and bare trees' bark is the grey-brown of a town lime now instead of near black, so its furrows and lichen show on the shaded side of every street and park tree. At night a trunk is as dark as the paving beside it, no longer a black hole.
