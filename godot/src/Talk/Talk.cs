@@ -49,7 +49,7 @@ public partial class Talk : Node, IDialog
     private bool typing;
     /// <summary>M9: his own words may be typed (false: the server has no AI to read them now; the choices only).</summary>
     private bool freeOk = true;
-    private bool CanType => freeOk && !Main.I.Flag("no-ai") && Scheldemist.Menu.AiSheet.Mode != "walk";
+    private bool CanType => freeOk && Scheldemist.Menu.AiState.AllowsTyping;
     private bool shopping;
     private bool working;
     private string note = "";
@@ -180,7 +180,7 @@ public partial class Talk : Node, IDialog
         OnOpen(id);
         lines.Clear();
         choices = new();
-        freeOk = !Main.I.Flag("no-ai");
+        freeOk = Scheldemist.Menu.AiState.AllowsTyping;
         ended = shopOnly;
         shopping = shopOnly;
         working = false;
@@ -262,7 +262,7 @@ public partial class Talk : Node, IDialog
         busy = false;
         if (npc?.Id != who.Id) return;
         LastReply = r;
-        if (r.Free != null) freeOk = r.Free.Value && !Main.I.Flag("no-ai");
+        if (r.Free != null) freeOk = r.Free.Value;
         if (string.IsNullOrEmpty(r.NpcLine))
         {
             // gated without a line: too fast, too long or empty; M9: no AI to read his own words now

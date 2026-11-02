@@ -44,6 +44,38 @@ var answer=await providers.Run(new(new("openai","example-model"),"scene","line",
 Check("HTTP adapter sends a schema without tools",answer.Output?["line"]?.GetValue<string>()=="Good day."&&handler.Body?["tools"]==null&&handler.Body?["response_format"]?["json_schema"]?["strict"]?.GetValue<bool>()==true&&handler.HasAuthorization);
 handler.Reply="{\"choices\":[{\"message\":{\"content\":\"{}\",\"tool_calls\":[{}]}}]}";bool refused=false;
 try{await providers.Run(new(new("openai","example-model"),"scene","line",schema),CancellationToken.None);}catch(InvalidOperationException){refused=true;}Check("HTTP model tool use is rejected",refused);
+// fix 3 (2026-11-02): limits told to the model, small misses fitted instead of thrown away, the rest still refused
+var talkSchema=JsonNode.Parse("{\"type\":\"object\",\"properties\":{\"npc_line\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":300},\"mood\":{\"type\":\"string\",\"enum\":[\"warm\",\"cold\"]},\"choices\":{\"type\":\"array\",\"minItems\":3,\"maxItems\":3,\"items\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":100}},\"memory_weight\":{\"type\":\"integer\",\"minimum\":1,\"maximum\":10},\"trust_delta\":{\"type\":\"integer\",\"minimum\":-5,\"maximum\":5}},\"required\":[\"npc_line\",\"mood\",\"choices\",\"memory_weight\",\"trust_delta\"]}")!.AsObject();
+var described=NativeAiSchema.Clean(talkSchema)!;
+Check("the wire schema tells the model each removed limit",described["properties"]!["npc_line"]!["description"]!.GetValue<string>().Contains("300 characters")&&described["properties"]!["choices"]!["description"]!.GetValue<string>().Contains("Exactly 3 items")&&described["properties"]!["trust_delta"]!["description"]!.GetValue<string>().Contains("from -5 to 5")&&described["properties"]!["npc_line"]!["maxLength"]==null);
+string longLine=string.Concat(Enumerable.Repeat("Aye, the herring came in this morning off the Scheldt boats. ",8));
+var fitted=new List<string>();var fit=NativeAiSchema.Fit(JsonNode.Parse("{\"npc_line\":"+System.Text.Json.JsonSerializer.Serialize(longLine)+",\"mood\":\"warm\",\"choices\":[\"a\",\"b\",\"c\",\"d\"],\"memory_weight\":0,\"trust_delta\":9}"),talkSchema,fitted);
+Check("a long line, a fourth choice and numbers out of range are fitted, not lost",NativeAiSchema.Valid(fit,talkSchema)&&fit!["npc_line"]!.GetValue<string>().Length<=300&&longLine.StartsWith(fit["npc_line"]!.GetValue<string>().TrimEnd('.'))&&fit["choices"]!.AsArray().Count==3&&fit["memory_weight"]!.GetValue<long>()==1&&fit["trust_delta"]!.GetValue<long>()==5&&fitted.Count==4);
+Check("a wrong enum, a missing field or two choices still fail",!NativeAiSchema.Valid(NativeAiSchema.Fit(JsonNode.Parse("{\"npc_line\":\"Hm.\",\"mood\":\"furious\",\"choices\":[\"a\",\"b\",\"c\"],\"memory_weight\":2,\"trust_delta\":0}"),talkSchema),talkSchema)&&!NativeAiSchema.Valid(NativeAiSchema.Fit(JsonNode.Parse("{\"npc_line\":\"Hm.\",\"mood\":\"warm\",\"choices\":[\"a\",\"b\"],\"memory_weight\":2,\"trust_delta\":0}"),talkSchema),talkSchema));
+Check("shortening never adds words",NativeAiSchema.Shorten("One two three four five six seven eight nine ten eleven",30) is var cut&&cut.Length<=30&&cut.EndsWith("...")&&"One two three four five six seven eight nine ten eleven".StartsWith(cut[..^3]));
+// fix 4: a retry starts only with time left
+ai.Settings.Patch(JsonNode.Parse("{\"mode\":\"ai\",\"default\":{\"provider\":\"ollama\",\"model\":\"example-model\"},\"callsPerDay\":0}")!.AsObject());
+int slowCalls=0;ai.Runners["ollama"]=async(r,ct)=>{slowCalls++;await Task.Delay(260,ct);return new NativeAiAnswer(JsonNode.Parse("{\"line\":\"No.\",\"money\":1}"));};
+ai.TimeoutMilliseconds=400;ai.RetryMinimumMilliseconds=300;
+var noRetry=await ai.Call("job_board","test","test",schema);Check("no doomed retry when too little time is left",!noRetry.Ok&&slowCalls==1&&noRetry.Error!.Contains("no time left"));
+ai.TimeoutMilliseconds=20000;ai.RetryMinimumMilliseconds=6000;
+// the AI switch: a test start (--no-ai) is locked; the server says whether AI can answer
+string lockedPut="";try{await host.Call("PUT","/api/ai/config","{\"mode\":\"ai\"}");}catch(NativeServiceException e){lockedPut=e.Message;}
+Check("a test start refuses the switch and writes nothing",lockedPut.Contains("started with no AI")&&ai.Readiness().State=="off");
+using var free=new NativeAI(host,Path.Combine(output,"player-ai-config.json"));
+free.Runners["ollama"]=(r,ct)=>Task.FromResult(new NativeAiAnswer(JsonNode.Parse("{\"line\":\"Good day.\"}")));
+free.Settings.Patch(JsonNode.Parse("{\"mode\":\"ai\",\"default\":{\"provider\":\"ollama\",\"model\":\"example-model\"}}")!.AsObject());
+Check("AI on with a working provider: ready, typing allowed",free.Readiness().State=="ready"&&free.CanUse("resident_talk"));
+free.Runners["ollama"]=(r,ct)=>throw new Exception("connection refused");await free.Call("job_board","test","test",schema);
+Check("a provider that cannot be reached: not answering, with the reason",free.Readiness().State=="failing"&&free.Readiness().Text.Contains("connection refused"));
+free.Settings.Patch(JsonNode.Parse("{\"mode\":\"walk\"}")!.AsObject());
+Check("AI off at once: no hook may call",free.Readiness().State=="off"&&!free.CanUse("resident_talk")&&free.Settings.ChoiceForHook("director_think")==null);
+Check("the switch is saved in the player's own AI setup",new NativeAiConfiguration(Path.Combine(root,"native-godot/services/data/native-ai.json"),Path.Combine(output,"player-ai-config.json")).Mode=="walk");
+string? savedPath=Environment.GetEnvironmentVariable("PATH"),savedBin=Environment.GetEnvironmentVariable("SCHELDEMIST_CLAUDE_BIN");
+try{Environment.SetEnvironmentVariable("PATH","");Environment.SetEnvironmentVariable("SCHELDEMIST_CLAUDE_BIN",Path.Combine(output,"missing-claude.exe"));
+ free.Settings.Patch(JsonNode.Parse("{\"mode\":\"ai\",\"default\":{\"provider\":\"claude_local\",\"model\":\"claude-opus-5-5\"}}")!.AsObject());
+ Check("no Claude login on this PC: says so, points to AI setup, no typing",free.Readiness().State=="no_login"&&free.Readiness().Text.Contains("AI setup")&&!free.CanUse("resident_talk"));}
+finally{Environment.SetEnvironmentVariable("PATH",savedPath);Environment.SetEnvironmentVariable("SCHELDEMIST_CLAUDE_BIN",savedBin);}
 File.WriteAllText(Path.Combine(output,"result.json"),System.Text.Json.JsonSerializer.Serialize(new{passed=true,oracleCases=oracle,checks},new System.Text.Json.JsonSerializerOptions{WriteIndented=true}));
 Console.WriteLine($"Native AI: {checks.Count} checks passed, including {oracle} original normalization cases; no live model calls.");
 sealed class Capture:HttpMessageHandler

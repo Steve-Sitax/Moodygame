@@ -332,6 +332,15 @@ public partial class MenuTest : Node
     private async Task AiSteps()
     {
         string was = AiSheet.Mode;
+        if (AiState.Locked)
+        {
+            // a test start (--no-ai): the switch is shown but cannot turn AI on, and nothing is written
+            AiSheet.Press("mode", "ai");
+            await Wait(1.0);
+            await Shot("ai-locked");
+            Note("a test start keeps AI off (the server refuses the switch)", new { AiSheet.Mode, AiState.Title }, AiSheet.Mode == "walk" && AiState.State == "off");
+            return;
+        }
         AiSheet.Press("mode", "ai");
         await Until(() => AiSheet.Mode == "ai", 10);
         await Wait(0.3);

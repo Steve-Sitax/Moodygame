@@ -32,6 +32,7 @@ public sealed class NativeAiProviders : IDisposable
             if (File.Exists(Path.Combine(folder, name))) return Path.Combine(folder, name);
         return null;
     }
+    public static string? FindClaude() => Find(OperatingSystem.IsWindows() ? "claude.exe" : "claude", Environment.GetEnvironmentVariable("SCHELDEMIST_CLAUDE_BIN"));
     public static string? FindCodex()
     {
         string? provided = Find(OperatingSystem.IsWindows() ? "codex.exe" : "codex", Environment.GetEnvironmentVariable("SCHELDEMIST_CODEX_BIN"));
@@ -106,7 +107,7 @@ public sealed class NativeAiProviders : IDisposable
         string scratch = Path.GetFullPath(Path.Combine(directory, "call-" + Guid.NewGuid().ToString("N")));
         Directory.CreateDirectory(scratch);
         string binary = request.Route.Provider == "codex" ? FindCodex() ?? throw new InvalidOperationException("codex unavailable")
-            : Find(OperatingSystem.IsWindows() ? "claude.exe" : "claude", Environment.GetEnvironmentVariable("SCHELDEMIST_CLAUDE_BIN")) ?? throw new InvalidOperationException("Claude unavailable");
+            : FindClaude() ?? throw new InvalidOperationException("Claude unavailable");
         var start = new ProcessStartInfo(binary) { WorkingDirectory = scratch, UseShellExecute = false, CreateNoWindow = true, WindowStyle = ProcessWindowStyle.Hidden, RedirectStandardInput = true, RedirectStandardOutput = true, RedirectStandardError = true };
         void Add(params string[] args) { foreach (string arg in args) start.ArgumentList.Add(arg); }
         string output = Path.Combine(scratch,"answer.json");

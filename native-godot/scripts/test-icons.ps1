@@ -50,7 +50,7 @@ if ($Full) {
         if (-not $data.StartsWith($iconDataRoot, [StringComparison]::OrdinalIgnoreCase)) { throw 'Icon test data escaped its requested root.' }
         $saved = $env:PATH; $env:PATH = $strippedPath; $started = $null; $cmdProcess = $null
         try {
-            $cmdProcess = Start-Process cmd -ArgumentList '/c', "`"`"$target`" -DataDirectory `"$data`" -Port $Port`"" -WorkingDirectory (Split-Path $target) -PassThru -WindowStyle Hidden
+            $cmdProcess = Start-Process cmd -ArgumentList '/c', "`"`"$target`" -DataDirectory `"$data`" -Port $Port -NoAI`"" -WorkingDirectory (Split-Path $target) -PassThru -WindowStyle Hidden
             $deadline = (Get-Date).AddSeconds($StartSeconds)
             while ((Get-Date) -lt $deadline -and -not $started -and -not $cmdProcess.HasExited) {
                 Start-Sleep 4

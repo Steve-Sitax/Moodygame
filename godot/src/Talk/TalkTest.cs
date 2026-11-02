@@ -320,6 +320,13 @@ public partial class TalkTest : Node
         await Ask("fientje", "open", null);
         await Task.Delay(5500);
         await Ask("fientje", "free", "Good morning, Fientje. What news on the Rijnkaai?");
+        // AI fix 2026-11-02: the other quay people talk again (fix 6)
+        foreach (var (who, words) in new[] { ("sooi", "I'm looking for day work. Can you use me?"), ("peeters", "Good day, widow. How is trade at the chandlery?"), ("tuur", "Could you row me over to Sint-Anna this afternoon?") })
+        {
+            await Ask(who, "open", null);
+            await Task.Delay(5500);
+            await Ask(who, "free", words);
+        }
         doc["api_probe"] = rows;
         try { doc["ai_calls"] = await api.Get<JsonElement>("api/ai/config"); } catch (ApiException) { }
     }

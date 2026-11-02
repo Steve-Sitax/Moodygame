@@ -32,7 +32,7 @@ public partial class Ideas : Node
     private readonly StandardMaterial3D paper = new() { AlbedoColor = new Color(0.83f, 0.75f, 0.55f), Roughness = 1 };
     private readonly StandardMaterial3D oilcloth = new() { AlbedoColor = new Color(0.21f, 0.15f, 0.1f), Roughness = 1 };
     private Api? Api => ServerLink.I?.Api;
-    private static bool CanWrite => !Main.I.Flag("no-ai") && Scheldemist.Menu.AiSheet.Mode != "walk";
+    private static bool CanWrite => Scheldemist.Menu.AiState.AllowsTyping;
     public override void _Ready()
     {
         I = this;

@@ -89,9 +89,14 @@
             "effort": true
           },
           {
-            "id": "claude-sonnet-5",
-            "label": "Claude Sonnet 5",
+            "id": "claude-sonnet-5-5",
+            "label": "Claude Sonnet 5.5",
             "effort": true
+          },
+          {
+            "id": "claude-haiku-5-5",
+            "label": "Claude Haiku 5.5 (fastest)",
+            "effort": false
           },
           {
             "id": "claude-haiku-4-5-20251001",
@@ -105,7 +110,7 @@
         "effort": true,
         "cost": "plan",
         "help": {
-          "what": "Claude runs through Claude Code on this PC, the same way the game has always worked. Opus 5.5 writes best; Sonnet 5 is close for talk between people; Haiku 4.5 is quick and plainer.",
+          "what": "Claude runs through Claude Code on this PC, the same way the game has always worked. Opus 5.5 writes best; Sonnet 5.5 is close for talk between people; Haiku 5.5 is the quickest.",
           "need": "Claude Code installed and logged in (run `claude` once in a terminal and log in).",
           "cost": "Counts against your Claude plan's limits, not paid per call. A game day makes at most 120 calls.",
           "privacy": "What is sent: the game's own text only (the scene, the made-up townsperson's character and memories, the day's events in the town). Nothing about you or your computer: no name, no files, no paths. It goes to Anthropic."
@@ -126,9 +131,14 @@
             "effort": true
           },
           {
-            "id": "claude-sonnet-5",
-            "label": "Claude Sonnet 5 (cheaper)",
+            "id": "claude-sonnet-5-5",
+            "label": "Claude Sonnet 5.5 (cheaper)",
             "effort": true
+          },
+          {
+            "id": "claude-haiku-5-5",
+            "label": "Claude Haiku 5.5 (cheapest, fastest)",
+            "effort": false
           },
           {
             "id": "claude-haiku-4-5",
@@ -258,7 +268,7 @@
       ]
     },
     "walk": {
-      "label": "Walk around (no AI)",
+      "label": "AI off (written lines)",
       "text": "No AI is used. The town goes about its business by its own routines; conversations, jobs, the paper and events use the game's hand-written lines. Nothing is sent anywhere."
     },
     "typedLines": {
@@ -363,12 +373,12 @@
     },
     "sonnet": {
       "provider": "claude",
-      "model": "claude-sonnet-5",
+      "model": "claude-sonnet-5-5",
       "effort": "medium"
     },
     "haiku": {
       "provider": "claude",
-      "model": "claude-haiku-4-5-20251001"
+      "model": "claude-haiku-5-5"
     },
     "sol": {
       "provider": "codex",

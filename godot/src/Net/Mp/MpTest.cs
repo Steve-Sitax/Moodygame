@@ -280,7 +280,7 @@ public partial class MpTest : Node
         foreach (string f in new[] { "mptest-guest.json", "mptest-guest-home.json", "mptest-start.json", "mptest.json", "mp_host.png", "mp_guest.png" }) File.Delete(Path.Combine(dir, f));
         if (Main.I.Flag("mpmoving")) info.ArgumentList.Add("--mpmoving");
         if (Main.I.Flag("mpboat")) { info.ArgumentList.Add("--mpboat"); info.ArgumentList.Insert(0, "--headless"); } // (the guest's side is data and gear: no second window)
-        if(Main.I.Flag("mpconversation")){info.ArgumentList.Insert(0,"--headless");info.ArgumentList.Add("--mpconversation");info.Environment["SCHELDEMIST_USER_DATA"]=Path.Combine(dir,"guest","userdata");}
+        if(Main.I.Flag("mpconversation")){info.ArgumentList.Insert(0,"--headless");info.ArgumentList.Add("--mpconversation");if(Main.I.Flag("mpai"))info.ArgumentList.Add("--mpai");info.Environment["SCHELDEMIST_USER_DATA"]=Path.Combine(dir,"guest","userdata");}
         if (Main.I.Arg("author-root") != "") { info.ArgumentList.Add("--author-root"); info.ArgumentList.Add(Main.I.Flag("mpconversation")?Path.Combine(dir,"guest","layouts"):Main.I.Arg("author-root")); }
         if (OS.GetCmdlineArgs().Contains("--verbose")) info.ArgumentList.Insert(0, "--verbose");
         other = Process.Start(info);

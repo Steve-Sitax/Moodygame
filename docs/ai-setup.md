@@ -186,8 +186,15 @@ interface TestResult {
 ```
 
 ## The menu (client, drawn by the menu helper)
-- A switch at the top: **AI on** / **Walk around (no AI)** (`PUT { mode }`). In walk mode show `status.title` and
-  `status.text` plainly on the main menu too.
+- A switch at the top: **AI on** / **AI off (written lines)** (`PUT { mode }`), the same switch as the Esc menu's
+  **AI: on / AI: off** item (2026-11-02). It takes effect at once (no restart), is saved in the player's own
+  `ai-config.json` next to the game database, and the server pushes `{type:"ai", mode, status}` to every player.
+- `status` = `{state, title, text}`: `ready` ("AI ready"), `off` ("AI off"), `no_login` ("No AI login": no Claude
+  Code found, no API key or no address; typing is refused) or `failing` ("AI not answering": the last call could not
+  reach the model). The menu shows the note under the item whenever the state is not `ready`.
+- The server, not the client's start flag, decides typing: every talk answer carries `free`. A run started with
+  `--no-ai` (tests) is `locked`: AI stays off, `PUT` answers 409 and nothing is written. A guest sees the host's
+  state with `host: false` and cannot change it.
 - **Default**: provider list (`options.providers`), model (list or typed), effort where `models[].effort`. **Per kind**: "Same as default" or its own choice. A **Test** button per kind and a
   **Test all**.
 - **Connections**: the Anthropic key, the OpenAI-compatible base URL and key, the Ollama address. Show a key as

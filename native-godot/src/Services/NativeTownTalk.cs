@@ -70,6 +70,7 @@ public sealed partial class NativeTownTalk : INativeServiceModule
         double rep = Reputation?.Invoke(player, S(resident, "id")) ?? host.Rumours.ReputationWith(S(resident, "id"), player);
         double temper = N(resident["stats"]?["temper"]), courage = N(resident["stats"]?["courage"]), warmth = N(resident["stats"]?["warmth"]);
         bool late = Hour >= 21 || Hour < 6;
+        bool quay = resident["quay"] != null;
         if (N(resident["age"]) < 13) return rep < -1 ? "afraid" : "amused";
         if (S(resident, "trade") == "thief") return late ? "amused" : "suspicious";
         if (trust <= -3) return temper >= 6 ? "angry" : "cold";
@@ -79,14 +80,14 @@ public sealed partial class NativeTownTalk : INativeServiceModule
         if (late && courage <= 3) return "afraid";
         if (rep >= 1 || trust >= 4) return warmth >= 4 ? "warm" : "neutral";
         if (late && temper >= 6) return "cold";
-        var now = town.Activity(S(resident, "id"));
+        var now = quay ? new Scheldemist.Town.Now("work", "", 0, 0) : town.Activity(S(resident, "id"));
         if (now.Act == "work" && N(resident["stats"]?["greed"]) >= 7) return "cold";
         if (now.Act == "tavern" && warmth >= 5) return "amused";
         return warmth >= 7 ? "warm" : temper >= 8 ? "cold" : "neutral";
     }
     private string Choice(string topic, JsonObject person)
     {
-        var own = ChoiceLabels.Select(callback => callback(topic, person)).FirstOrDefault(text => text != null); if (own != null) return own;
+        var own = person["quay"] != null ? null : ChoiceLabels.Select(callback => callback(topic, person)).FirstOrDefault(text => text != null); if (own != null) return own;
         bool child = N(person["age"]) < 13;
         return topic switch
         {
@@ -101,7 +102,7 @@ public sealed partial class NativeTownTalk : INativeServiceModule
     {
         string[] order = N(person["age"]) < 13 ? new[] { "self", "family", "rumour", "bye" } : S(person, "trade") is "sentry" or "corporal" or "soldier" or "customs" ? new[] { "self", "theft", "rumour", "work", "family", "town", "bye" } : new[] { "work", "rumour", "self", "family", "town", "bye" };
         session.Offered.Clear();
-        foreach (string extra in ChoiceAdditions.SelectMany(callback => callback(player, person)).Where(choice => !session.Used.Contains("extra:" + choice)).Take(2)) session.Offered[extra] = "extra:" + extra;
+        foreach (string extra in (person["quay"] != null ? Enumerable.Empty<string>() : ChoiceAdditions.SelectMany(callback => callback(player, person))).Where(choice => !session.Used.Contains("extra:" + choice)).Take(2)) session.Offered[extra] = "extra:" + extra;
         foreach (string topic in order.Where(t => t != "bye" && !session.Used.Contains(t)).Take(2 - session.Offered.Count).Append("bye")) session.Offered[Choice(topic, person)] = topic;
         var choices = session.Offered.Keys.ToList(); while (choices.Count < 3) choices.Add(Leave);
         return new JsonArray(choices.Select(choice => (JsonNode)JsonValue.Create(choice)!).ToArray());
@@ -141,6 +142,7 @@ public sealed partial class NativeTownTalk : INativeServiceModule
                 return memory == null ? N(person["stats"]?["gossip"]) >= 7 ? "Nothing yet. And I hear everything, so you've done nothing worth telling." : "Nobody talks about you. Nobody knows you yet." : S(memory, "source") == "seen" ? "I saw it myself. " + NativeCoreRumours.ToYou(S(memory, "gist")) + "." : "People say " + NativeCoreRumours.ToYou(S(memory, "gist")) + ".";
             case "family": return Family(person);
             case "self":
+                if (person["quay"] != null) return S(QuayPeople[id], "self");
                 if (N(person["age"]) < 13) return Pick(seed, new[] { "Tag. The big ones always win.", "Hide and seek, round the carts. Don't tell where I hide.", "Chasing. You're it! No, you're too slow." });
                 return S(person, "trade") switch
                 {
@@ -162,7 +164,8 @@ public sealed partial class NativeTownTalk : INativeServiceModule
     {
         string id = request.Param("id");
         var npc = C.One("SELECT id,name,role FROM npc WHERE id=$p0", id) ?? throw new NativeServiceException("nobody by that name here", 404);
-        var person = town.Resident(id);
+        var person = town.Resident(id) ?? (IsQuay(id) && QuayOnDuty(id) ? QuayPerson(id, npc) : null);
+        bool quay = person?["quay"] != null;
         foreach (var callback in FullTalkOverrides) if (callback(request, person ?? npc) is { } own) return own;
         if (person == null)
             return new JsonObject { ["npc_line"] = Posted.GetValueOrDefault(id, "They shrug and turn away."), ["mood"] = "neutral", ["choices"] = new JsonArray("All right. Later, then.", "It won't take long.", "I'll leave you be."), ["end"] = true, ["free"] = Provider != null, ["wares"] = host.Trade.PersonalWares(request.PlayerId,id) };
@@ -176,7 +179,7 @@ public sealed partial class NativeTownTalk : INativeServiceModule
         {
             string? topic = session.Offered.GetValueOrDefault(said);
             if (topic != null) session.Used.Add(topic);
-            foreach (var callback in ReplyOverrides) if (callback(request, person, topic) is { } own) return own;
+            if (!quay) foreach (var callback in ReplyOverrides) if (callback(request, person, topic) is { } own) return own;
             if (topic == null && Provider?.Invoke(request, person) is { } answer) return answer;
             if (topic == null && Provider == null) return new JsonObject { ["gated"] = "AI is off", ["free"] = false };
             end = topic == "bye";
@@ -191,7 +194,7 @@ public sealed partial class NativeTownTalk : INativeServiceModule
                 host.Trade.Remember(request.PlayerId, id, "A new person in town stopped me to talk.", 2);
             }
             int met = C.Scalar<int>("SELECT times_met FROM npc_relationship WHERE npc_id=$p0 AND player_id=$p1", id, request.PlayerId);
-            text = OpeningOverrides.Select(callback => callback(request, person)).FirstOrDefault(value => !string.IsNullOrEmpty(value)) ?? (N(person["age"]) < 13 ? Pick(id + ":" + met, new[] { "What do you want, mister?", "You're not from round here.", "Are you the one from the Kempen?", "We're playing. You can't join, you're too big." }) : Pick($"{id}:{met}:{NativeCoreClock.Number(host.Clock.View(), "day")}:{NativeCoreClock.Number(host.Clock.View(), "hour")}", FitHour(Greetings[Mood(request.PlayerId, person)])));
+            text = quay ? QuayOpening(id, met) : OpeningOverrides.Select(callback => callback(request, person)).FirstOrDefault(value => !string.IsNullOrEmpty(value)) ?? (N(person["age"]) < 13 ? Pick(id + ":" + met, new[] { "What do you want, mister?", "You're not from round here.", "Are you the one from the Kempen?", "We're playing. You can't join, you're too big." }) : Pick($"{id}:{met}:{NativeCoreClock.Number(host.Clock.View(), "day")}:{NativeCoreClock.Number(host.Clock.View(), "hour")}", FitHour(Greetings[Mood(request.PlayerId, person)])));
         }
         var choices = end ? new JsonArray(Leave, Leave, Leave) : Choices(request.PlayerId, person, session);
         if (end) sessions.Remove(key);

@@ -108,6 +108,7 @@ public partial class NativeTownGame : Scheldemist.Main
             var emigrants = new NativeEmigrants(host, actions) { TextFor = profile.Read }; host.AddModule(emigrants); emigrants.AttachTalk(talk);
             events.EmigrantShip = emigrants.Ship;
             var surprises = new NativeSurprises(host, actions, families); host.AddModule(surprises); surprises.AttachTalk(talk);
+            talk.AsyncFullTalk.Add(deeds.TypedPolice);
             talk.FullTalkOverrides.Add((request, _) => deeds.Talk(request));
             talk.OpeningOverrides.Add((request, person) => host.Night.Greeting(request.PlayerId, person));
             talk.ReplyOverrides.Add((request, person, topic) => topic == "self" && NativeCoreNight.AboutSelf(person["id"]!.GetValue<string>()) is { } line ? talk.Line(request, person, line) : null);
@@ -119,7 +120,7 @@ public partial class NativeTownGame : Scheldemist.Main
             var landmarks = new NativeLandmarks(host, town) { TextFor = profile.Read }; host.AddModule(landmarks);
             host.AddModule(new NativeDev());
             var ai = new NativeAI(host, Flag("no-ai") ? Paths.WalkAiSetup : Paths.AiSetup, Flag("no-ai")); host.AddModule(ai);
-            talk.CanUseHook = hook => ai.Settings.ChoiceForHook(hook) != null;
+            talk.CanUseHook = ai.CanUse;
             haggle.CanUseHook = talk.CanUseHook;
             var press = new NativePress(host) { TextFor = profile.Read }; host.AddModule(press);
             var mills = new NativeMills(host); host.AddModule(mills);
@@ -172,6 +173,7 @@ public partial class NativeTownGame : Scheldemist.Main
             host.Interiors.NarrateAsync = Narration; host.Interiors.DailyCallLimit = () => ai.Settings.CallsPerDay;
             routines.NarrateAsync = Narration; events.NarrateAsync = Narration; townLife.NarrateAsync = Narration;
             talk.NarrateAsync = Narration; talk.DailyCallLimit = () => ai.Settings.CallsPerDay;
+            deeds.NarrateAsync = Narration; deeds.DailyCallLimit = () => ai.Settings.CallsPerDay; deeds.CanUseHook = ai.CanUse;
             talk.ApplyAction = (player, npc, proposal) => actions.Apply(player, npc, proposal);
             routines.DailyCallLimit = () => ai.Settings.CallsPerDay;
             events.DailyCallLimit = () => ai.Settings.CallsPerDay; townLife.DailyCallLimit = () => ai.Settings.CallsPerDay;
@@ -181,7 +183,7 @@ public partial class NativeTownGame : Scheldemist.Main
             haggle.NarrateAsync = Narration; haggle.DailyCallLimit = () => ai.Settings.CallsPerDay;
             families.NarrateAsync = Narration; families.DailyCallLimit = () => ai.Settings.CallsPerDay;
             surprises.NarrateAsync = Narration; surprises.DailyCallLimit = () => ai.Settings.CallsPerDay;
-            surprises.CanUseHook = hook => ai.Settings.ChoiceForHook(hook) != null;
+            surprises.CanUseHook = ai.CanUse;
             ideas.NarrateAsync = Narration; ideas.DailyCallLimit = () => ai.Settings.CallsPerDay;
             host.Night.NarrateAsync = Narration; host.Night.DailyCallLimit = () => ai.Settings.CallsPerDay;
             landmarks.NarrateAsync = Narration; landmarks.DailyCallLimit = () => ai.Settings.CallsPerDay;

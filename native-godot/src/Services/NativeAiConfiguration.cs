@@ -14,8 +14,12 @@ public sealed class NativeAiConfiguration
     private JsonObject current;
     private readonly string file;
     public bool Saved { get; private set; }
+    /// <summary>The run was started with --no-ai (tests): AI stays off and nothing is saved, so a test never changes the player's setup.</summary>
+    public bool Locked { get; }
+    public const string LockedText = "This run was started with no AI (a test start). Start the game from the Play icon to use AI.";
     public NativeAiConfiguration(string definitions, string file, bool walk = false)
     {
+        Locked = walk;
         Definitions = JsonNode.Parse(File.ReadAllText(definitions))!.AsObject(); this.file = file;
         current = Definitions["defaults"]!.DeepClone().AsObject();
         if (File.Exists(file))
@@ -147,7 +151,7 @@ public sealed class NativeAiConfiguration
         foreach (string kind in Kinds)
         {
             kinds[kind] = current["kinds"]?[kind]?.DeepClone() ?? JsonValue.Create("default");
-            var choice = Effective(kind); choice["label"] = Mode == "walk" ? "Walk around (no AI)" : Label(choice); effective[kind] = choice;
+            var choice = Effective(kind); choice["label"] = Mode == "walk" ? "AI off (written lines)" : Label(choice); effective[kind] = choice;
         }
         JsonObject Key(JsonNode? key) { string text = key?.GetValue<string>() ?? ""; return new() { ["set"] = text != "", ["last4"] = text == "" ? null : text[^4..] }; }
         var connections = current["connections"]!.DeepClone().AsObject();
@@ -157,6 +161,6 @@ public sealed class NativeAiConfiguration
             ["default"] = current["default"]!.DeepClone(), ["kinds"] = kinds, ["effective"] = effective,
             ["connections"] = connections, ["available"] = new JsonObject { ["claude_local"] = null, ["codex_cli"] = NativeAiProviders.FindCodex() != null },
             ["saved"] = Saved, ["options"] = Definitions["options"]!.DeepClone(),
-            ["status"] = new JsonObject { ["title"] = Mode == "walk" ? "Walk-around mode" : allOff ? "No AI chosen" : "AI on", ["text"] = Mode == "walk" ? Definitions["options"]!["walk"]!["text"]!.DeepClone() : JsonValue.Create(allOff ? "Every kind of work is set to the hand-written lines." : "Default: " + Label(current["default"]!.AsObject()) + ".") } };
+            ["status"] = new JsonObject { ["title"] = Mode == "walk" ? "AI off" : allOff ? "No AI chosen" : "AI on", ["text"] = Mode == "walk" ? Definitions["options"]!["walk"]!["text"]!.DeepClone() : JsonValue.Create(allOff ? "Every kind of work is set to the hand-written lines." : "Default: " + Label(current["default"]!.AsObject()) + ".") } };
     }
 }

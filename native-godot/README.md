@@ -28,8 +28,9 @@ The older `Start Native District Game.cmd` shortcut now opens this same town. Ch
 WASD/Shift/Space move; E interacts, I opens pockets, J the quest book, M the map, P pauses and Esc opens the menu.
 It reads saved workshop layouts, including Steve's lamp, without writing them. `Test Editor Changes In Game.cmd`
 uses the saved district scenes instead of layout files. Save changes in the editor before launching that test.
-Native game saves/settings are separate under `%APPDATA%/ScheldemistWorkshop/native-playtest`; these launchers
-disable AI calls. The surface viewer and workshop remain available separately. See [native service notes](services/README.md)
+Native game saves/settings are separate under `%APPDATA%/ScheldemistWorkshop/native-playtest`. Since 2026-11-02 the
+town launcher starts with AI on: the player's own AI setup (`ai-config.json` in that folder; Esc, the "AI: on/off" item
+and AI setup) decides. `-NoAI` (tests, `test-icons.ps1`) starts a locked walk-around run that writes no AI settings. The surface viewer and workshop remain available separately. See [native service notes](services/README.md)
 for tested rules. Rendered native hosting/guest play, actor authority, a host bus ride and return to local play
 have passed. Dedicated servers also expose the native HTTPS/WebSocket transport.
 In the Godot editor, F5 runs the whole native game. Open a district and press F6 to run its editing scene.
