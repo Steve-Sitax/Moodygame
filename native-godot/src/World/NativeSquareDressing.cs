@@ -1601,6 +1601,10 @@ public static class NativeSquareDressing
     /// over two cut pieces that lay one over the other, and faces every open edge with a kerb stone's face down under the
     /// street, so the pavement ends square and solid where it stops in the open. One mesh for each 60 m of the town, the
     /// flags' and the kerb's materials (no new shader kind), solid as the pavement is. The razed cut is not changed.
+    /// (#247, #242) Where a break was too wide or crooked for that, a join is built anew: its "cuts" (convex plan polygons)
+    /// take the old flags', kerbs' and gutters' triangles there out of the town's blocks first (drawn and solid stand-in
+    /// alike, before collision and the walk map read them), then its flags, faces and "gutters" (gutter stones in the
+    /// kerbs' material and look) are laid as the rest.
     /// Returns the flag pieces and the faces laid.
     /// </summary>
     private const string MendFile = "res://world/town/pavement-mends.json";
@@ -1610,11 +1614,24 @@ public static class NativeSquareDressing
         var root = JsonDocument.Parse(Godot.FileAccess.GetFileAsString(MendFile)).RootElement;
         if (ResourceLoader.Load<Material>(root.GetProperty("flags").GetString()!) is not { } flags || ResourceLoader.Load<Material>(root.GetProperty("kerb").GetString()!) is not { } kerb) return (0, 0);
         float foot = root.GetProperty("foot").GetSingle();
+        if (root.TryGetProperty("cuts", out var cutList) && cutList.GetArrayLength() > 0)
+        {
+            var polygons = cutList.EnumerateArray().Select(c => c.EnumerateArray().Select(q => new Vector2(q[0].GetSingle(), q[1].GetSingle())).ToArray()).ToList();
+            var clock = System.Diagnostics.Stopwatch.StartNew();
+            var (drawn, standIn) = NativePlanCut.Cut(town, polygons, root.GetProperty("cutTop").GetSingle(), m => m.Name.ToString().StartsWith("city_", StringComparison.Ordinal),
+                new HashSet<string> { flags.ResourcePath, kerb.ResourcePath }, true);
+            GD.Print($"square dressing: the pavement joins' cuts took {drawn} drawn and {standIn} solid stand-in triangles from the town's blocks in {clock.ElapsedMilliseconds} ms");
+        }
+        // (the street's ground under a join's new gutter: its setts' relief, drawn pulled toward the eye, showed through the
+        // stones; its drawn triangles go there, what it supports and what collides stays: NativePlanCut, with the pits')
+        if (root.TryGetProperty("groundCuts", out var groundList) && groundList.GetArrayLength() > 0)
+            NativePlanCut.QueueGround(groundList.EnumerateArray().Select(c => c.EnumerateArray().Select(q => new Vector2(q[0].GetSingle(), q[1].GetSingle())).ToArray()));
         static Vector3 V3(JsonElement e) => new(e[0].GetSingle(), e[1].GetSingle(), e[2].GetSingle());
         static Color C4(JsonElement e) => new(e[0].GetSingle(), e[1].GetSingle(), e[2].GetSingle(), e[3].GetSingle());
         (int, int) Area(Vector3 p) => ((int)MathF.Floor(p.X / 60), (int)MathF.Floor(p.Z / 60));
         var tops = new Dictionary<(int, int), SurfaceTool>();
         var sides = new Dictionary<(int, int), SurfaceTool>();
+        var gutters = new Dictionary<(int, int), SurfaceTool>();
         SurfaceTool For(Dictionary<(int, int), SurfaceTool> set, (int, int) area, bool custom)
         {
             if (set.TryGetValue(area, out var st)) return st;
@@ -1637,6 +1654,19 @@ public static class NativeSquareDressing
             foreach (int k in order) { st.SetNormal(Vector3.Up); st.SetTangent(tangent); st.SetUV(u[k]); st.SetColor(colour); st.AddVertex(p[k]); }
             fills++;
         }
+        if (root.TryGetProperty("gutters", out var gutterList))
+            foreach (var t in gutterList.EnumerateArray())
+            {
+                var c = t.GetProperty("corners"); var uv = t.GetProperty("uv"); var cu = t.GetProperty("custom");
+                var p = new[] { V3(c[0]), V3(c[1]), V3(c[2]) };
+                var u = new[] { new Vector2(uv[0][0].GetSingle(), uv[0][1].GetSingle()), new Vector2(uv[1][0].GetSingle(), uv[1][1].GetSingle()), new Vector2(uv[2][0].GetSingle(), uv[2][1].GetSingle()) };
+                var tg = t.GetProperty("tangent"); var tangent = new Plane(tg[0].GetSingle(), tg[1].GetSingle(), tg[2].GetSingle(), tg[3].GetSingle());
+                var colour = C4(t.GetProperty("colour")); var custom = new Color(cu[0].GetSingle(), cu[1].GetSingle(), 0, 0);
+                var st = For(gutters, Area((p[0] + p[1] + p[2]) / 3), true);
+                var order = (p[1] - p[0]).Cross(p[2] - p[0]).Y > 0 ? new[] { 0, 2, 1 } : new[] { 0, 1, 2 };
+                foreach (int k in order) { st.SetNormal(Vector3.Up); st.SetTangent(tangent); st.SetUV(u[k]); st.SetCustom(0, custom); st.SetColor(colour); st.AddVertex(p[k]); }
+                fills++;
+            }
         foreach (var s in root.GetProperty("sides").EnumerateArray())
         {
             Vector3 a = V3(s.GetProperty("a")), b = V3(s.GetProperty("b"));
@@ -1647,11 +1677,12 @@ public static class NativeSquareDressing
             Kerb(st, a, b, n, foot, colour, custom);
             faces++;
         }
-        foreach (var area in tops.Keys.Union(sides.Keys).ToList())
+        foreach (var area in tops.Keys.Union(sides.Keys).Union(gutters.Keys).ToList())
         {
             var mesh = new ArrayMesh();
             if (tops.TryGetValue(area, out var ts)) { ts.Commit(mesh); mesh.SurfaceSetMaterial(mesh.GetSurfaceCount() - 1, flags); }
             if (sides.TryGetValue(area, out var ss)) { ss.Commit(mesh); mesh.SurfaceSetMaterial(mesh.GetSurfaceCount() - 1, kerb); }
+            if (gutters.TryGetValue(area, out var gs)) { gs.Commit(mesh); mesh.SurfaceSetMaterial(mesh.GetSurfaceCount() - 1, kerb); }
             mesh.ResourceName = "pavement_mends";
             var (r, w) = MeshWinding.Count(mesh); right += r; wrong += w;
             var node = new MeshInstance3D

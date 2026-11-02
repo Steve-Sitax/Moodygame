@@ -29,6 +29,9 @@ public static class NativeTreePits
     private const float Earth = 0.8f, Near = 0.5f;
     // (#235) how much darker the fallen leaves and the weeds go when wet
     private const float WetLeaves = 0.38f, WetWeeds = 0.3f;
+    // (#235) how far the pit's earth lies under the paving (10-25 mm): the street's ground is cut away under it
+    // (NativePlanCut, drawn only: what is walked on stays), the earth, its weeds and the roots' ends lowered so far
+    private const float Sink = 0.022f;
     // the pit's soil (#244: assets/materials/dirt-20261028, art-source/dirt-20261028)
     private const string SoilMaterial = "res://assets/materials/dirt-20261028/pit-soil.tres", SoilHeight = "res://assets/materials/dirt-20261028/pit_soil_height.res";
 
@@ -69,6 +72,32 @@ public static class NativeTreePits
         var frame = Frame();
         var models = new Mesh?[] { frame, EarthModel(parts[1]!.Multimesh.Mesh), null, WeedModel(parts[3]!.Multimesh.Mesh, false), WeedModel(parts[4]!.Multimesh.Mesh, true) };
         for (int p = 0; p < parts.Length; p++) Grow(parts[p]!, more[p], models[p]);
+        // (#235) every pit's earth sunk under the paving: the ground drawn under its earth goes (to the middle of the kerbs,
+        // which hide the cut's edge), its weeds go down with the earth (the earth model is made sunk)
+        var frames = Enumerable.Range(0, parts[0]!.Multimesh.InstanceCount).Select(k => xf[0] * parts[0]!.Multimesh.GetInstanceTransform(k)).ToList();
+        if (frames.Select(f => f.Origin).Distinct().Count() > 1)
+        {
+            const float Hole = Outer - Width / 2;
+            NativePlanCut.QueueGround(frames.Select(f => new[] { new Vector3(-Hole, 0, -Hole), new Vector3(Hole, 0, -Hole), new Vector3(Hole, 0, Hole), new Vector3(-Hole, 0, Hole) }
+                .Select(c => { var w = f * c; return new Vector2(w.X, w.Z); }).ToArray()));
+            var backs = frames.Select(f => f.AffineInverse()).ToList();
+            int lowered = 0;
+            // (the weeds only: the fallen leaves' patch runs on over the kerbs and the paving round the pit, and stays on it)
+            foreach (int p in new[] { 3, 4 })
+            {
+                var mm = parts[p]!.Multimesh;
+                var down = xf[p].Basis.Inverse() * new Vector3(0, -Sink, 0);
+                for (int k = 0; k < mm.InstanceCount; k++)
+                {
+                    var t = mm.GetInstanceTransform(k);
+                    var w = (xf[p] * t).Origin;
+                    if (!backs.Any(b => { var l = b * w; return Math.Abs(l.X) < Outer - Width && Math.Abs(l.Z) < Outer - Width; })) continue;
+                    mm.SetInstanceTransform(k, new Transform3D(t.Basis, t.Origin + down));
+                    lowered++;
+                }
+            }
+            GD.Print($"tree pits: the earth of {frames.Count} pits sunk {Sink * 1000:0} mm under the paving, {lowered} weed copies with it");
+        }
         // (#235) the fallen leaves and the weeds go wet in the rain like the soil round them (their kinds' wet lines,
         // Psx.WetLeafLines: off unless wet_dark; the weeds' material is the town's weeds' too)
         foreach (int p in new[] { 2, 3, 4 })
@@ -265,12 +294,14 @@ public static class NativeTreePits
             // banked against the kerbs: up toward their faces over the last 8-14 cm, raggedly
             float toFrame = Inner - Math.Max(Math.Abs(x), Math.Abs(z)), reach = 0.08f + 0.06f * Noise2(x * 5.3f + 11, z * 5.3f - 7);
             float bank = Mathf.Clamp(1 - toFrame / reach, 0, 1);
-            // (under the kerbs' 3 cm tops by a centimetre at least)
-            return Math.Min(0.02f + 0.02f * collar, h0 - 0.002f + 0.012f * lump + clod + 0.008f * collar * collar + 0.014f * bank * bank * (0.7f + 0.3f * Noise2(x * 13, z * 13)));
+            // (under the kerbs' 3 cm tops by a centimetre at least; #235 sunk under the paving, #248 banked up against the
+            // kerbs' inner faces again, swept and washed there)
+            float banked = bank * bank * (0.7f + 0.3f * Noise2(x * 13, z * 13));
+            return Math.Min(0.02f + 0.02f * collar, h0 - 0.002f - Sink + 0.012f * lump + clod + 0.008f * collar * collar + (0.014f + Sink * 0.8f) * banked);
         }
         var st = new SurfaceTool();
         st.Begin(Mesh.PrimitiveType.Triangles);
-        Vector3 P(int i, int j) { float x = -half + 2 * half * i / N, z = -half + 2 * half * j / N; return new Vector3(x, Math.Max(0.002f, Height(x, z)), z); }
+        Vector3 P(int i, int j) { float x = -half + 2 * half * i / N, z = -half + 2 * half * j / N; return new Vector3(x, Math.Max(0.002f - Sink, Height(x, z)), z); }
         for (int i = 0; i < N; i++)
             for (int j = 0; j < N; j++)
             {
@@ -557,7 +588,7 @@ public static class NativeTreePits
         GD.Print($"tree pits: root flare for {bark.ResourceName}{bark.ResourcePath}: trunk radius {radius:0.000} m round ({centre.X:0.00}, {centre.Y:0.00}) from {low.Count} corners, bark u {u0:0.00}-{u1:0.00} from {seam:0.00} rad ({(way > 0 ? "+" : "-")}, off {best / low.Count:0.000}), v {va:0.00} + {vb:0.00} y, colour {bark0}");
 
         // the roots' centre lines from the trunk's foot: place, its top's height and its half width at each step
-        const float Bed = -0.03f, Join = 0.2f;
+        const float Bed = -0.03f - Sink, Join = 0.2f;
         // (the trunk's radius where the flare leaves it, round the turn)
         float JoinR(float th) => Math.Clamp(TrunkR(th, Join), radius * 0.7f, radius * 1.3f);
         float reach = Math.Min(0.72f, radius + 0.46f);
@@ -704,7 +735,7 @@ public static class NativeTreePits
             float f0 = (float)band * i0 / Round;
             st.SetUV(new Vector2(u0 + (u1 - u0) * (f0 - MathF.Floor(f0) + (float)band * (i - i0) / Round), va + vb * grain[i, j]));
             // the bark's colour, darker where it meets the earth
-            float k = Mathf.Lerp(0.72f, 1, Math.Clamp((p.Y - 0.005f) / 0.07f, 0, 1));
+            float k = Mathf.Lerp(0.72f, 1, Math.Clamp((p.Y + Sink - 0.005f) / 0.07f, 0, 1));
             st.SetColor(new Color(bark0.R * k, bark0.G * k, bark0.B * k, bark0.A));
             st.AddVertex(p);
         }
@@ -712,7 +743,7 @@ public static class NativeTreePits
             for (int j = 0; j < Rings; j++)
             {
                 // (all well under the earth: not drawn)
-                if (Math.Max(Math.Max(grid[i, j].Y, grid[i + 1, j].Y), Math.Max(grid[i, j + 1].Y, grid[i + 1, j + 1].Y)) < -0.004f) continue;
+                if (Math.Max(Math.Max(grid[i, j].Y, grid[i + 1, j].Y), Math.Max(grid[i, j + 1].Y, grid[i + 1, j + 1].Y)) < -0.004f - Sink) continue;
                 var q = new[] { (i, j), (i + 1, j), (i + 1, j + 1), (i, j + 1) };
                 int band = Math.Max(Band(i, j + 1), Band(i + 1, j + 1));
                 // (Godot's front face clockwise as seen from outside: a height field's outside is up, so each triangle
