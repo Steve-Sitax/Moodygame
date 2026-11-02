@@ -75,6 +75,8 @@ public static class NativeRopeProof
                 }
                 Tide.Hold(null);
                 facts["tide"] = tides;
+                facts["cost"] = new { meanFrameUs = lines.Frames == 0 ? 0 : lines.ProcessUs / lines.Frames, slowestFrameUs = lines.MaxBuildUs, frames = lines.Frames, rebuilds = lines.Rebuilds };
+                GD.Print($"rope-proof: mooring lines cost {(lines.Frames == 0 ? 0 : lines.ProcessUs / lines.Frames):0.0} us a frame on average, the slowest frame {lines.MaxBuildUs:0} us, over {lines.Frames} frames with {lines.Rebuilds} chunks made again");
                 float lowSag = sags["low"].Average(), highSag = sags["high"].Average();
                 Check(highSag > lowSag + 0.05f, $"the lines hang slacker at high water than at low (mean sag {lowSag:0.00} m at low, {highSag:0.00} m at high)");
             }

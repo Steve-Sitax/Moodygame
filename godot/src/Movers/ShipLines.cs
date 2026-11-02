@@ -223,10 +223,24 @@ public partial class ShipLines : Node
 
     private float CarrierY(int i) => MathF.Max(Tide.LevelAt(carriers[i].X, carriers[i].Z), carriers[i].Floor);
 
+    /// <summary>For checks: the slowest chunk made again (microseconds), the frames' time here in all and the frames counted.</summary>
+    public double MaxBuildUs { get; private set; }
+    public double ProcessUs { get; private set; }
+    public long Frames { get; private set; }
+
     public override void _Process(double delta)
     {
         if (!started) Start();
         if (!ready) return;
+        long t0 = System.Diagnostics.Stopwatch.GetTimestamp();
+        Step();
+        double us = (System.Diagnostics.Stopwatch.GetTimestamp() - t0) * 1e6 / System.Diagnostics.Stopwatch.Frequency;
+        if (drawnWet >= 0 && Frames > 0) MaxBuildUs = Math.Max(MaxBuildUs, us);
+        ProcessUs += us; Frames++;
+    }
+
+    private void Step()
+    {
         bool first = drawnWet < 0;
         float wet = Rope.RainWet;
         if (MathF.Abs(wet - drawnWet) >= 0.05f) { drawnWet = wet; foreach (var ch in chunks) ch.Dirty = true; }
