@@ -73,3 +73,81 @@ Triangles: the yard 462 000 (round 2: 398 000; groundcover 13 000 to 28 000, the
   ct_vault) that need a model rebuild, not a load-time patch.
 - Sint-Carolus' gold strip (#225): the pilaster beside the left apse window (`church_carolus_7` triangles 60709/60713) has the
   same uv density as the wall round it (0.28 a metre both ways); the streaked look is not a stretched uv. Cause open.
+
+# Round 2 · 2 November 2026 (helper C2-church)
+
+## The vaults' webs (#227)
+
+The bake drew every vault web as a height grid over the plan (cells 0.6 to 1.2 m), each cell cut into two triangles on
+one diagonal. Every block of the grid is a groin vault: its height is max(A(z), B(x)), two pointed barrels crossing,
+each profile a run of circle arcs from the piers and walls. The groins run across the cells, so the cells cut their
+corners: the steps and saw teeth along every rib. `native-godot/scripts/vault_webs.py` reads the shells
+(`ChurchShellDump.cs`, `church-shell-dump.tscn`), finds each rectangular block, fits its two profiles (circle arcs,
+residual under 12 mm, else a monotone cubic through the samples; the bake's samples kept exactly), refines them to
+8 degrees or 0.8 m a step and builds every cell cut along its own groin, so the groin is an edge with both sides exact;
+runs of cells on one barrel are merged into strips; where two blocks meet with different breaks every open edge takes
+its neighbour's corners (no crack). Normals from the arcs (smooth along a barrel, sharp at the groin), uv along the
+barrel at the bake's 0.333 a metre. `VaultWebRepair.cs` (`vault-web-repair.tscn`) lays the result into the stored
+meshes; it refuses a surface whose triangle count is not the plan's source.
+
+| Mesh | Before | After |
+|---|---|---|
+| Sint-Jacob `r007002` (gh_vault) | 5 712 | 15 817 |
+| Sint-Paulus `r006899` (gh_vault) | 4 968 | 11 442 |
+| Cathedral `r005901` (ct_vault) | 6 285 | 42 434 |
+| Cathedral `r006056` (ct_vault) | 432 | 3 992 |
+
+To make it again: `godot --headless --path native-godot res://scripts/church-shell-dump.tscn -- --out <dir> --roots
+node-09897,node-09812,node-08900`, then `python scripts/vault_webs.py <dir>/node-09897.txt <plan> Node643/Mesh1617` (and
+`Node626/Mesh1564` for node-09812, `Node451/Mesh1140,Node451/Mesh1178,Node451/Mesh1181` for node-08900), then
+`res://scripts/vault-web-repair.tscn -- --root node-09897 --plan <plan> --record <dir>`.
+
+Note: the church halls' walls and furniture are drawn from `world/interiors/room-*.structure.tscn` and
+`room-*.objects.tscn` (the room meshes listed in a room's ReplacedMeshes are hidden); the vaults are still the rooms'
+own meshes.
+
+## Sint-Carolus' gold strip (#225)
+
+Not a stretched uv on the strip (round 1 was right): two faults together.
+- The relief (bump) pictures of 37 town materials were stored upside down against their colour pictures (the joints
+  of the relief matched the colour's only when flipped: edge correlation 0.71 to 0.99 flipped, -0.26 to 0.69 as
+  stored): all church exteriors, the cathedral's, the Steen's, the Vleeshuis', the town hall's, the park's stone and a
+  few house materials. `ReliefFlipRepair.cs` (`recovery/relief-flip-20261102.json`) turns them.
+- In a low sun the relief a pixel cannot resolve sparkled far off: the sunlit pilaster beside the left apse window read
+  as gold streaks from 25 m. The churches' 13 reliefs have their smaller mip levels flattened toward their mean (1, 1,
+  0.6, 0.35, 0.2, then 0.1): up close the relief is as drawn, far off it no longer sparkles. No shader changed.
+- The parish churches' rounded arrises and narrow faces had their picture squeezed up to 170 times (a bevel's corners
+  took the uv of the two faces it joins): `SqueezedUvRepair.cs` maps 339 000 such triangles again flat at their surface's
+  own scale (geometry unchanged).
+
+## Sint-Paulus' black wedge (#227)
+
+Not a hole and not a normal: the outside aisle roof (`church_stpaul_2`, slate) dips up to 0.44 m into the first aisle
+bay by the transept (x 100.8 to 102.7), under the aisle vault; from the nave its dark underside showed through the
+arcade's arch as a black wedge. `vault_webs.py` takes the exterior dump and holds every web point 5 cm under any outside
+face that cuts into the web by up to 0.6 m (346 corners in that bay); the vault then hides the roof.
+
+## Sint-Jacob's black strips (#227)
+
+The side chapels' flat ceilings carry oak joists (46 `room-st*-source-9906/98xx` fittings at 7.5 m) in the darkest oak
+(`cb_oak_plain`): under the white ceiling they read as black strips. They take the town's carved oak (`cb_oak`, a third
+lighter, the same shader kind).
+
+## Sint-Paulus' north door (#224)
+
+The plain stone back round 1 could not trace is the church hall's own north wall: its outer face (ROOM_stpaul `gh_wash`,
+z 247.56), with the Lady altar's marble back right behind it; the painted door arch (z 248.04) stands inside the hall
+behind that wall. So the doors already hang at the back of the real reveal (brick face 247.14 to the wall 247.56), 2 cm
+off it; only the notes in `NativeChurchRepairs.cs` changed.
+
+## Leftovers of round 1
+
+- The pale strip on the churchyard grass by the chest tomb: two pieces of `pavement-mends.json` (a flag and a kerb face) laid
+  inside the paving plan's keep-out box (the churchyard's south side). `NativeSquareDressing.Mend` now skips the keep-out
+  boxes (a small change in A2-ground's area).
+- Coping corners: the short sides' copings run on into the long ones to their ridge, so the two saddle tops meet in one
+  seam (they stopped 5 mm short, the end bevel standing over the long stone's edge).
+- Bills: 1.55 times larger (0.53 to 0.68 m wide, 0.74 to 1.09 m tall; the lost-dog handbill 1.15 times), the same
+  pictures.
+- Dev: `--whatpick fx,fy;...` in a snap run lists the nearest drawn triangles on that pixel's ray (node, material, triangle,
+  front or back, layers).

@@ -1,0 +1,278 @@
+{
+ "note": "Relief (bump) pictures that the bake stored upside down against their colour pictures (#225): flipped top to bottom by relief-flip-repair.tscn. Found by comparing the joints of each colour picture with its relief (edge correlation 0.71 to 0.99 flipped, -0.26 to 0.69 as stored). The stone shaders read both with the same UV. fadeFar (the churches' stone, #225): the relief's smaller mip levels are flattened toward their mean (1, 1, 0.6, 0.35, 0.2, then 0.1 of the relief), so the relief a pixel cannot resolve far off does not sparkle in a low sun (the gold streak beside Sint-Carolus' left apse window); up close the relief is as drawn.",
+ "reliefs": [
+  {
+   "relief": "res://world/town/resources/r000111.res",
+   "materials": [
+    "material_15"
+   ],
+   "before": "3EB289868299C88EF135045437FBD1077103D5E741B6A6A9545A729C2A601883"
+  },
+  {
+   "relief": "res://world/town/resources/r000136.res",
+   "materials": [
+    "material_19"
+   ],
+   "before": "7CDD441B38F56864C77AC1ADA568CBABE502B9B7BA68EAAC8773FB67915C7705"
+  },
+  {
+   "relief": "res://world/town/resources/r000159.res",
+   "materials": [
+    "material_22"
+   ],
+   "before": "02D967D0F30D43253246C9D7237089D5ADE72BB849AF0A2B4F441D82A3830B69"
+  },
+  {
+   "relief": "res://world/town/resources/r000620.res",
+   "materials": [
+    "wall_canvas"
+   ],
+   "before": "D514FBB0831920DA770C1E612F51E2D208330B051148CB204A7256C3304DF145"
+  },
+  {
+   "relief": "res://world/town/resources/r000943.res",
+   "materials": [
+    "wall_props"
+   ],
+   "before": "7F87C71EC0F3BC16A6B91B5970EEC9697600CCCCF2BCCD1D6DDBD2CC18CA837B"
+  },
+  {
+   "relief": "res://world/town/resources/r000965.res",
+   "materials": [
+    "church_stone"
+   ],
+   "before": "8BD55B03B26E30C2EDA4867192C7EEB545265582EFF19FC4A5E1C1365DA8528B",
+   "fadeFar": true
+  },
+  {
+   "relief": "res://world/town/resources/r000989.res",
+   "materials": [
+    "church_atlas"
+   ],
+   "before": "019E34A9B8FA0CCEB16638523F1537A68711D94A07B7112CCCC27F4509B719EE",
+   "fadeFar": true
+  },
+  {
+   "relief": "res://world/town/resources/r001001.res",
+   "materials": [
+    "carolus_sand"
+   ],
+   "before": "30985F4706219CAD35A89C63F67E2873CE57DABD349D6F2989564A466D4D1C09",
+   "fadeFar": true
+  },
+  {
+   "relief": "res://world/town/resources/r001007.res",
+   "materials": [
+    "carolus_blue"
+   ],
+   "before": "925361976DCBBD9823C81AE8F477213A7A27C4C40998D96E2D5B885A40010579",
+   "fadeFar": true
+  },
+  {
+   "relief": "res://world/town/resources/r001013.res",
+   "materials": [
+    "carolus_art"
+   ],
+   "before": "768DEDC6DF626F30A86F1AB6B49CE6F1291AB4BF335767C3EA3098520CCAE0EA",
+   "fadeFar": true
+  },
+  {
+   "relief": "res://world/town/resources/r001053.res",
+   "materials": [
+    "pj_white"
+   ],
+   "before": "F2C0FFD50F58E5B9FFEB037015A19BFD52245A7CE369FE92C841296DFE2B6182",
+   "fadeFar": true
+  },
+  {
+   "relief": "res://world/town/resources/r001059.res",
+   "materials": [
+    "pj_brabant"
+   ],
+   "before": "E65BC8FA2ADC09800963D70C6CA4F1B2CB8E1C2FDA5F98DE50D650473DA5893A",
+   "fadeFar": true
+  },
+  {
+   "relief": "res://world/town/resources/r001078.res",
+   "materials": [
+    "park_wood"
+   ],
+   "before": "67089E2C24C85529C8EE20A0CD3E33B226B9ED32E0E36228CC42C599B31164E6"
+  },
+  {
+   "relief": "res://world/town/resources/r001088.res",
+   "materials": [
+    "pj_brick"
+   ],
+   "before": "DC16E17418F1904043BD9F4CEFEF40518293FBE8AA5650A9F6E98F556B4CFD10",
+   "fadeFar": true
+  },
+  {
+   "relief": "res://world/town/resources/r001101.res",
+   "materials": [
+    "park_stone"
+   ],
+   "before": "FA90F38F50AB2C69C5F0EAACE160888557E1B65D0D83C7F851450138385F3C56"
+  },
+  {
+   "relief": "res://world/town/resources/r001118.res",
+   "materials": [
+    "park_bank"
+   ],
+   "before": "1A51ABF55E57CDDFAB1C0947AD31857876B652853BBB89675DCADFE7824C0656"
+  },
+  {
+   "relief": "res://world/town/resources/r001124.res",
+   "materials": [
+    "park_rock"
+   ],
+   "before": "8BE4322509606C4E1C994ADEAA45E13F7744D02525F8D7D9C031670B8AD37289"
+  },
+  {
+   "relief": "res://world/town/resources/r001130.res",
+   "materials": [
+    "park_iron_white"
+   ],
+   "before": "089479A74A55BCA522B7FB9498A6C56BA89691C28B3CB1B0F16813A5F0FF2D50"
+  },
+  {
+   "relief": "res://world/town/resources/r001697.res",
+   "materials": [
+    "steen_glass",
+    "steen_glass_lit"
+   ],
+   "before": "0FF94C4BC0CCF3AC34D367BDC995B7A5CF0DC989C3CFFD662DB12FC017FC6F8C"
+  },
+  {
+   "relief": "res://world/town/resources/r001705.res",
+   "materials": [
+    "steen_atlas"
+   ],
+   "before": "EFACAFCE1BFB2EAE63280232F26805FEDEB3D48356E7F542E8828D256286F6AA"
+  },
+  {
+   "relief": "res://world/town/resources/r001711.res",
+   "materials": [
+    "steen_carve"
+   ],
+   "before": "66CC08732103526F4ED195E7B07D6BB5B89E46DA8CDCAF924E7C8B833FC3E6C6"
+  },
+  {
+   "relief": "res://world/town/resources/r001834.res",
+   "materials": [
+    "cath_ashlar"
+   ],
+   "before": "131CB6F87A4FB3D3E1C92DAFDAB3BF948004601EBB6A7CBCC78FF748C60AFE55",
+   "fadeFar": true
+  },
+  {
+   "relief": "res://world/town/resources/r001852.res",
+   "materials": [
+    "cath_atlas"
+   ],
+   "before": "0C121E8261333483C8D12DA236AD28AD633A01376D6C9A60784F1C0CCA4445AF",
+   "fadeFar": true
+  },
+  {
+   "relief": "res://world/town/resources/r001865.res",
+   "materials": [
+    "cath_plinth"
+   ],
+   "before": "FBB0111F33C2AFB2FC7F0DDFBB175C8776319419B3AD34E9C7D4F7F2084A5E45",
+   "fadeFar": true
+  },
+  {
+   "relief": "res://world/town/resources/r001871.res",
+   "materials": [
+    "cath_carved"
+   ],
+   "before": "B49BC3A1F668D76BEE29CA6BB9C72A2E320EBA096D7CD49E9A8EDB7FAE7A6CA0",
+   "fadeFar": true
+  },
+  {
+   "relief": "res://world/town/resources/r001883.res",
+   "materials": [
+    "cath_tymp"
+   ],
+   "before": "8D0144F8CB2E1AF86B75AF8B4360B06AD8EE6E60E05097BB459AB416AF22E857",
+   "fadeFar": true
+  },
+  {
+   "relief": "res://world/town/resources/r001895.res",
+   "materials": [
+    "hs_plaster"
+   ],
+   "before": "3B073D8ED3B074BB34C2090D6C4419C3E5046C1C5D40D6C9396FA2B256A15766"
+  },
+  {
+   "relief": "res://world/town/resources/r001901.res",
+   "materials": [
+    "hs_render"
+   ],
+   "before": "7C26FA6E0BAA433102C6B0FE53956E3AC124061D1FF0348C1BA956CC39573F9B"
+  },
+  {
+   "relief": "res://world/town/resources/r002078.res",
+   "materials": [
+    "vh_sand"
+   ],
+   "before": "66BB87A4B62DC99288F6F643E7827E8591427BB43EE3A6D8058EFB810128E61B"
+  },
+  {
+   "relief": "res://world/town/resources/r002084.res",
+   "materials": [
+    "vh_blue"
+   ],
+   "before": "1F5EEBEC5D9EB7E4476D5AEC4A426EB93E0302FEE37553A3F74E1F6F33CEFB85"
+  },
+  {
+   "relief": "res://world/town/resources/r002090.res",
+   "materials": [
+    "vh_slate"
+   ],
+   "before": "590B0B21A528DEA5F8050CF34DDACEA22D54FFB0E54AC3BE04F649A6D94792A0"
+  },
+  {
+   "relief": "res://world/town/resources/r002096.res",
+   "materials": [
+    "vh_glass"
+   ],
+   "before": "F91B3C16CC8CEC2BAEB0FE798777DAA36167564E7D4699163027629217D33748"
+  },
+  {
+   "relief": "res://world/town/resources/r002104.res",
+   "materials": [
+    "vh_oak"
+   ],
+   "before": "06C39E7C25DD4319266EC4C7C79A16D589F8F45C5AF9E9091F265796BDCF0030"
+  },
+  {
+   "relief": "res://world/town/resources/r002112.res",
+   "materials": [
+    "vh_madonna"
+   ],
+   "before": "8C0D5341FFE18D83F79D92267A9FCBEB4BEA35A62A38F6E642E66A673B5BE21F"
+  },
+  {
+   "relief": "res://world/town/resources/r002118.res",
+   "materials": [
+    "sh_white"
+   ],
+   "before": "EE7C45E10A5CA2F4AD720F1B10043A8BF8519A58A60D5FEA75B20D2963454B7C"
+  },
+  {
+   "relief": "res://world/town/resources/r002124.res",
+   "materials": [
+    "sh_carved"
+   ],
+   "before": "F3BF9350D4CB4D582EBED29C46C25708B9C571320C9E17B00095D217B83F0CB9"
+  },
+  {
+   "relief": "res://world/town/resources/r002130.res",
+   "materials": [
+    "sh_blue"
+   ],
+   "before": "2D9BCC0D4125F38A572DAA1F8624BE3DAEDFE30B1137952973234F4BFEA00CB9"
+  }
+ ]
+}

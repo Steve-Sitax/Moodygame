@@ -1608,9 +1608,13 @@ public static class NativeSquareDressing
     /// Returns the flag pieces and the faces laid.
     /// </summary>
     private const string MendFile = "res://world/town/pavement-mends.json";
-    private static (int Fills, int Faces) Mend(Node3D town)
+    private static (int Fills, int Faces) Mend(Node3D town, float[][]? keepOut = null)
     {
         if (!Godot.FileAccess.FileExists(MendFile)) return (0, 0);
+        // (none in the paving plan's keep-out boxes: the Sint-Jacob churchyard's south side is the churchyard's ground; a
+        // kerb face and a flag laid there lay on its grass by the chest tomb as a pale strip)
+        var keep = (keepOut ?? Array.Empty<float[]>()).Where(b => b.Length == 4).ToArray();
+        bool Kept(Vector3 p) => keep.Any(b => p.X >= b[0] && p.X <= b[2] && p.Z >= b[1] && p.Z <= b[3]);
         var root = JsonDocument.Parse(Godot.FileAccess.GetFileAsString(MendFile)).RootElement;
         if (ResourceLoader.Load<Material>(root.GetProperty("flags").GetString()!) is not { } flags || ResourceLoader.Load<Material>(root.GetProperty("kerb").GetString()!) is not { } kerb) return (0, 0);
         float foot = root.GetProperty("foot").GetSingle();
@@ -1648,6 +1652,7 @@ public static class NativeSquareDressing
             var u = new[] { new Vector2(uv[0][0].GetSingle(), uv[0][1].GetSingle()), new Vector2(uv[1][0].GetSingle(), uv[1][1].GetSingle()), new Vector2(uv[2][0].GetSingle(), uv[2][1].GetSingle()) };
             var tg = t.GetProperty("tangent"); var tangent = new Plane(tg[0].GetSingle(), tg[1].GetSingle(), tg[2].GetSingle(), tg[3].GetSingle());
             var colour = C4(t.GetProperty("colour"));
+            if (Kept((p[0] + p[1] + p[2]) / 3)) continue;
             var st = For(tops, Area((p[0] + p[1] + p[2]) / 3), false);
             // (Godot's front face turns clockwise as seen from above)
             var order = (p[1] - p[0]).Cross(p[2] - p[0]).Y > 0 ? new[] { 0, 2, 1 } : new[] { 0, 1, 2 };
@@ -1673,6 +1678,7 @@ public static class NativeSquareDressing
             var o = s.GetProperty("out"); var n = new Vector3(o[0].GetSingle(), 0, o[1].GetSingle());
             var colour = C4(s.GetProperty("colour")); var cu = s.GetProperty("custom");
             var custom = new Color(cu[0].GetSingle(), cu[1].GetSingle(), 0, 0);
+            if (Kept((a + b) / 2)) continue;
             var st = For(sides, Area((a + b) / 2), true);
             Kerb(st, a, b, n, foot, colour, custom);
             faces++;
@@ -1779,7 +1785,7 @@ public static class NativeSquareDressing
     {
         var holder = Holder(town);
         int placed = 0;
-        var (fills, faces) = Mend(town);
+        var (fills, faces) = Mend(town, plan.Paving?.KeepOut);
         GD.Print($"square dressing: the old pavements' broken ends mended: {fills} flag pieces laid, {faces} open edges faced");
         AuthorAsset? pump = null;
         Mesh? guard = null; float guardFoot = 0;

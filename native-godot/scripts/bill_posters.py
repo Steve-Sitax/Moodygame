@@ -19,34 +19,34 @@ CW, CH = 256, 512
 # (lines: (text, size, bold, colour)); size in pixels of the cell's 256 across; w, h: the bill's size in metres
 INK, RED, BLUE = (24, 22, 20), (150, 30, 24), (30, 40, 90)
 BILLS = [
-    dict(id='sale', w=0.42, h=0.62, paper=(222, 210, 178), lines=[
+    dict(id='sale', w=0.651, h=0.961, paper=(222, 210, 178), lines=[
         ('PUBLIC SALE', 30, True, INK), ('', 8, False, INK),
         ('of the materials of', 15, False, INK), ('the houses pulled down', 15, False, INK), ('round Sint-Jacob', 15, False, INK),
         ('', 8, False, INK), ('BRICKS, BEAMS,', 19, True, INK), ('DOORS & LEAD', 19, True, INK), ('', 8, False, INK),
         ('Monday 3 November 1873', 14, False, INK), ('at ten o\'clock, on the ground', 13, False, INK), ('', 10, False, INK),
         ('By order of the City', 12, False, INK)]),
-    dict(id='ground', w=0.40, h=0.56, paper=(214, 205, 182), lines=[
+    dict(id='ground', w=0.62, h=0.868, paper=(214, 205, 182), lines=[
         ('BUILDING', 30, True, INK), ('GROUND', 30, True, INK), ('TO BE SOLD', 22, True, RED), ('', 10, False, INK),
         ('several plots lately', 14, False, INK), ('cleared beside the church', 14, False, INK), ('', 10, False, INK),
         ('Apply at the Stadhuis,', 14, False, INK), ('office of the City works', 14, False, INK)]),
-    dict(id='redstar', w=0.44, h=0.66, paper=(226, 218, 196), lines=[
+    dict(id='redstar', w=0.682, h=1.023, paper=(226, 218, 196), lines=[
         ('RED STAR LINE', 26, True, RED), ('', 6, False, INK), ('ANTWERP', 22, True, INK), ('to', 14, False, INK), ('NEW YORK', 24, True, INK),
         ('', 10, False, INK), ('by the steamers', 14, False, INK), ('VADERLAND', 18, True, BLUE), ('NEDERLAND', 18, True, BLUE), ('', 10, False, INK),
         ('Steerage and cabin', 14, False, INK), ('Apply at the office,', 13, False, INK), ('Rijnkaai', 15, True, INK)]),
-    dict(id='theatre', w=0.36, h=0.70, paper=(208, 196, 168), lines=[
+    dict(id='theatre', w=0.558, h=1.085, paper=(208, 196, 168), lines=[
         ('THEATRE', 24, True, INK), ('ROYAL', 30, True, RED), ('', 10, False, INK), ('This evening', 15, False, INK), ('at seven o\'clock', 15, False, INK),
         ('', 12, False, INK), ('LA FILLE DE', 18, True, INK), ('MADAME', 22, True, INK), ('ANGOT', 26, True, INK), ('', 10, False, INK),
         ('opera bouffe', 14, False, INK), ('in three acts', 14, False, INK), ('', 12, False, INK), ('Pit 75 centimes', 13, False, INK)]),
-    dict(id='lost', w=0.30, h=0.40, paper=(232, 226, 210), lines=[
+    dict(id='lost', w=0.345, h=0.46, paper=(232, 226, 210), lines=[
         ('LOST', 34, True, INK), ('', 8, False, INK), ('a brown dog with', 15, False, INK), ('a white chest,', 15, False, INK), ('answers to Bello', 15, False, INK),
         ('', 10, False, INK), ('REWARD', 22, True, INK), ('at De Zwarte Kat', 14, False, INK)]),
-    dict(id='notice', w=0.38, h=0.50, paper=(218, 214, 200), lines=[
+    dict(id='notice', w=0.589, h=0.775, paper=(218, 214, 200), lines=[
         ('NOTICE', 30, True, INK), ('', 10, False, INK), ('No bills to be', 16, False, INK), ('posted on this wall', 16, False, INK), ('', 10, False, INK),
         ('Offenders will be', 14, False, INK), ('fined 500 centimes', 14, False, INK), ('', 12, False, INK), ('The Police', 13, False, INK)]),
-    dict(id='wanted', w=0.34, h=0.48, paper=(210, 204, 186), lines=[
+    dict(id='wanted', w=0.527, h=0.744, paper=(210, 204, 186), lines=[
         ('WANTED', 30, True, INK), ('', 8, False, INK), ('Strong labourers', 15, False, INK), ('for the new docks', 15, False, INK), ('', 10, False, INK),
         ('2 francs 50', 18, True, INK), ('a day', 15, False, INK), ('', 10, False, INK), ('Apply at the works', 13, False, INK)]),
-    dict(id='scrap', w=0.40, h=0.58, paper=(196, 186, 160), old=True, lines=[
+    dict(id='scrap', w=0.62, h=0.899, paper=(196, 186, 160), old=True, lines=[
         ('SALE', 34, True, INK), ('', 10, False, INK), ('of furniture', 15, False, INK), ('and bedding', 15, False, INK), ('', 16, False, INK),
         ('Thursday', 15, False, INK), ('at the house', 14, False, INK)]),
 ]
