@@ -1,5 +1,5 @@
 """The church vaults' webs rebuilt smooth (#227: Sint-Paulus' and Sint-Jacob's vaults in steps and teeth, the cathedral's rough).
-    python vault_webs.py <church-shell-dump file> <out.json> <node>[,<node>...]
+    python vault_webs.py <church-shell-dump file> <out.json> <node>[,<node>...] [<exterior dump> <prefix>]
 The bake drew every vault web as a height grid over the plan (cells 0.6 to 1.2 m) and cut each grid cell into two
 triangles on one diagonal. Each block of the grid is a groin vault: its height is max(A(z), B(x)), two pointed barrels
 crossing (A across the nave, B along it; each a run of circle arcs springing from the piers and walls). The groins,
@@ -17,6 +17,9 @@ Here each block is rebuilt from its own two profiles:
   its neighbour that lie on it, so both sides run through the same points: no crack;
 - normals from the arcs' slopes (smooth along each barrel, sharp at the groin); uv along the barrel's axis and its
   arc length at the bake's 0.333 a metre; vertex colour the block's own.
+With an exterior dump and a node prefix (church_stpaul_), no web point rises within 5 cm of an outside face that looks
+down over it (Sint-Paulus' aisle roof dips 0.44 m into the first aisle bay by the transept: from the nave its dark
+underside read as a black wedge under the arcade's arch); there the web follows that face.
 Blocks that are not a full rectangle, not one height a point, or not two crossing barrels (to 15 mm) are left as
 drawn. Writes the triangles to remove (by index) and the new ones in world space for VaultWebRepair.cs.
 """
@@ -358,8 +361,63 @@ def stitch(tris, reach=0.10):
     return out, fanned
 
 
+def ceiling(path, prefix):
+    """The outside faces that look down (roof undersides, eaves) of the nodes named prefix*, as triangles."""
+    tris = []
+    cur = False
+    for line in open(path):
+        f = line.rstrip('\n').split('\t')
+        if f[0] == 'S':
+            cur = f[1].startswith(prefix)
+            continue
+        if not cur:
+            continue
+        p = np.array([[float(x) for x in f[k].split(',')[:3]] for k in (2, 3, 4)])
+        n = np.cross(p[2] - p[0], p[1] - p[0])
+        if np.linalg.norm(n) > 1e-9 and n[1] / np.linalg.norm(n) < -0.3:
+            tris.append(p)
+    return np.array(tris)
+
+
+def clamp_under(made, roof, gap=0.05, reach=0.6):
+    """Hold every web point at least gap under any face of roof that cuts into the web by up to reach."""
+    if len(roof) == 0:
+        return made, 0
+    A, B, C = roof[:, 0, [0, 2]], roof[:, 1, [0, 2]], roof[:, 2, [0, 2]]
+    v0, v1 = B - A, C - A
+    det = v0[:, 0] * v1[:, 1] - v1[:, 0] * v0[:, 1]
+    ok = np.abs(det) > 1e-9
+    lo = np.minimum(np.minimum(roof[:, 0, [0, 2]], roof[:, 1, [0, 2]]), roof[:, 2, [0, 2]])
+    hi = np.maximum(np.maximum(roof[:, 0, [0, 2]], roof[:, 1, [0, 2]]), roof[:, 2, [0, 2]])
+    cache, moved = {}, 0
+    out = []
+    for P, N, UV, rgba in made:
+        P = P.copy()
+        for k in range(3):
+            key = tuple(np.round(P[k], 4))
+            if key not in cache:
+                q = P[k][[0, 2]]
+                cand = ok & np.all(lo <= q + 1e-6, axis=1) & np.all(hi >= q - 1e-6, axis=1)
+                y = None
+                for i in np.where(cand)[0]:
+                    v2 = q - A[i]
+                    u = (v2[0] * v1[i, 1] - v1[i, 0] * v2[1]) / det[i]
+                    w = (v0[i, 0] * v2[1] - v2[0] * v0[i, 1]) / det[i]
+                    if u >= -1e-6 and w >= -1e-6 and u + w <= 1 + 1e-6:
+                        h = roof[i, 0, 1] + u * (roof[i, 1, 1] - roof[i, 0, 1]) + w * (roof[i, 2, 1] - roof[i, 0, 1])
+                        if P[k][1] - reach < h < P[k][1] + gap:
+                            y = h - gap if y is None else min(y, h - gap)
+                cache[key] = y
+            if cache[key] is not None and cache[key] < P[k][1]:
+                P[k][1] = cache[key]
+                moved += 1
+        out.append((P, N, UV, rgba))
+    return out, moved
+
+
 def main():
     src, dst, nodes = sys.argv[1], sys.argv[2], sys.argv[3].split(',')
+    roof = ceiling(sys.argv[4], sys.argv[5]) if len(sys.argv) > 5 else np.zeros((0, 3, 3))
     data = load(src, set(nodes))
     plan = []
     for node in nodes:
@@ -387,6 +445,9 @@ def main():
             report.append(f'rebuilt {tag} -> {len(new)} triangles')
         made, fanned = stitch(made)
         report.append(f'stitched: {fanned} triangles took the corners of a neighbour on their open edges')
+        made, moved = clamp_under(made, roof)
+        if len(roof):
+            report.append(f'held under the outside faces over it: {moved} corners')
         plan.append(dict(node=node, resource=c['res'], surface=c['surface'], material=c['mat'], sourceTriangles=len(P), removed=sorted(removed),
                          triangles=[dict(p=np.round(p, 5).ravel().tolist(), n=np.round(n, 5).ravel().tolist(),
                                          uv=np.round(np.array(uv), 5).ravel().tolist(), c=np.round(col, 4).tolist())

@@ -119,3 +119,35 @@ Not a stretched uv on the strip (round 1 was right): two faults together.
 - The parish churches' rounded arrises and narrow faces had their picture squeezed up to 170 times (a bevel's corners
   took the uv of the two faces it joins): `SqueezedUvRepair.cs` maps 339 000 such triangles again flat at their surface's
   own scale (geometry unchanged).
+
+## Sint-Paulus' black wedge (#227)
+
+Not a hole and not a normal: the outside aisle roof (`church_stpaul_2`, slate) dips up to 0.44 m into the first aisle
+bay by the transept (x 100.8 to 102.7), under the aisle vault; from the nave its dark underside showed through the
+arcade's arch as a black wedge. `vault_webs.py` takes the exterior dump and holds every web point 5 cm under any outside
+face that cuts into the web by up to 0.6 m (346 corners in that bay); the vault then hides the roof.
+
+## Sint-Jacob's black strips (#227)
+
+The side chapels' flat ceilings carry oak joists (46 `room-st*-source-9906/98xx` fittings at 7.5 m) in the darkest oak
+(`cb_oak_plain`): under the white ceiling they read as black strips. They take the town's carved oak (`cb_oak`, a third
+lighter, the same shader kind).
+
+## Sint-Paulus' north door (#224)
+
+The plain stone back round 1 could not trace is the church hall's own north wall: its outer face (ROOM_stpaul `gh_wash`,
+z 247.56), with the Lady altar's marble back right behind it; the painted door arch (z 248.04) stands inside the hall
+behind that wall. So the doors already hang at the back of the real reveal (brick face 247.14 to the wall 247.56), 2 cm
+off it; only the notes in `NativeChurchRepairs.cs` changed.
+
+## Leftovers of round 1
+
+- The pale strip on the churchyard grass by the chest tomb: two pieces of `pavement-mends.json` (a flag and a kerb face) laid
+  inside the paving plan's keep-out box (the churchyard's south side). `NativeSquareDressing.Mend` now skips the keep-out
+  boxes (a small change in A2-ground's area).
+- Coping corners: the short sides' copings run on into the long ones to their ridge, so the two saddle tops meet in one
+  seam (they stopped 5 mm short, the end bevel standing over the long stone's edge).
+- Bills: 1.55 times larger (0.53 to 0.68 m wide, 0.74 to 1.09 m tall; the lost-dog handbill 1.15 times), the same
+  pictures.
+- Dev: `--whatpick fx,fy;...` in a snap run lists the nearest drawn triangles on that pixel's ray (node, material, triangle,
+  front or back, layers).

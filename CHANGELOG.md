@@ -14,6 +14,10 @@ Bugs and loose ends are tracked as [issues](https://github.com/Steve-Sitax/Moody
 - The vaults of Sint-Paulus, Sint-Jacob and the cathedral are smooth stone webs that meet in clean groins under the ribs, instead of stepped slabs with saw teeth along every rib.
 - The stone relief on the churches, the cathedral, the Steen, the Vleeshuis, the town hall and the park's stonework now lines up with the stones you see (it was drawn upside down, so the joints in the light fell between the drawn ones). Far off in a low sun the churches' stone no longer sparkles: the gold streaks beside Sint-Carolus' left apse window are gone.
 - The rounded edges of the churches' mouldings, jambs and pilasters show their stone at its own size, not squeezed into fine streaks.
+- Sint-Paulus: the black wedge under the arcade's arch by the transept is gone (the aisle roof no longer pokes down through the aisle vault).
+- Sint-Jacob and Sint-Paulus: the joists of the side chapels' flat ceilings are lighter oak instead of black strips.
+- The bills on the bared walls are full-size posters (60 to 70 cm wide, a metre tall; the lost-dog handbill stays small), so they read from across the square.
+- St James's churchyard: no more pale kerb strip lying on the grass by the chest tomb; the wall's coping stones meet at the corners.
 
 - At low water the trickle down the middle of a canal and the pools on its bed are no longer a bright white ribbon and flat white patches: they are the same dark, still water as the silt round them, mirroring the walls and the sky, their edges broken into small inlets.
 - The tree pits look wet in the rain: their fallen leaves and the weeds darken and catch a wet sheen like the paving round them, and after rain the water in the pits and the planted beds stands in a few joined pools instead of scattered blue specks (the bed on the Lijnwaadmarkt keeps its pool). The pit kerbs are a weathered grey stone instead of dark blue.

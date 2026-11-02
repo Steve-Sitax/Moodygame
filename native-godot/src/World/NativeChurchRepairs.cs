@@ -7,8 +7,10 @@ namespace Scheldemist.Native.World;
 
 /// <summary>
 /// Repairs to the church models that light and dressing cannot make (#224, #227), at load, beside the baked shells:
-/// - Sint-Paulus' north portal (church_stpaul_4) was a deep stone reveal closed by a flat stone back and a painted arch: a
-///   pair of oak leaves now hangs in the reveal in front of them, vertical boards cut to the pointed arch, three forged strap hinges a leaf with their nails and
+/// - Sint-Paulus' north portal (church_stpaul_4) was a deep stone reveal closed by a flat stone back: the outer face of
+///   the church hall's own north wall (ROOM_stpaul gh_wash, z 247.56, with the Lady altar's marble back behind it; the
+///   painted arch at z 248.04 stands inside the hall, behind that wall). A pair of oak leaves now hangs at the back of
+///   the reveal, against that wall, vertical boards cut to the pointed arch, three forged strap hinges a leaf with their nails and
 ///   pintles, a ring pull, a lock plate and a beaded meeting strip (the town's oak door paint and wall iron: no new kind).
 /// - Sint-Jacob's churchyard wall (church_stjacob_6) stopped in a flat top with two sharp arrises: it takes a blue-stone
 ///   coping, saddle-backed and weathered, 50 mm over each face, in lengths of 0.75-1.1 m with mortar joints and worn
@@ -37,7 +39,8 @@ public static class NativeChurchRepairs
 
     // the painted arch in the north portal (church_stpaul_4, triangles 20-26): 2.8 m wide on the face z 248.04, its sill at
     // y 0.15, springing at 3.52 and its point at 5.60 (a drop arch of seven straight pieces, as the stone reveal round it)
-    // (the leaves hang 0.5 m out from the painted face: a plain stone back stands in the reveal in front of it, 0.4 m out)
+    // (the leaves hang at the back of the reveal, 2 cm off the hall's north wall (its outer face at z 247.56, the stone
+    // back seen from the street); the painted face lies 0.48 m further in, inside the hall behind the Lady altar)
     private static readonly Vector3 DoorAt = new(94.97f, 0.15f, 248.04f - 0.5f);
     private static readonly Vector2[] Arch = { new(1.40f, 3.373f), new(1.227f, 4.236f), new(0.735f, 4.966f), new(0f, 5.45f) };
     // the door's oak (church_door_r's paint: OAK x PAINT_K in repair-shopfronts.py) and the wall iron's colour
@@ -131,14 +134,15 @@ public static class NativeChurchRepairs
 
     // the wall's runs (church_stjacob_6: 0.6 m of blue stone, its flat top at 2.5 m): along x on the south and north sides,
     // along z on the west and east, each (fixed coordinate, from, to); the long sides' copings run past the corners, the short
-    // sides' stop against them
+    // sides' run on into them to their ridge, so the two saddle tops meet in one seam and the short stone's end lies inside
+    // the long one (round 1 stopped them 5 mm short: their end bevel stood over the long stone's edge as a bright line)
     private const float WallTop = 2.5f, WallHalf = 0.297f, Over = 0.05f;
     private static readonly (bool AlongX, float At, float From, float To)[] Runs =
     {
         (true, 332.646f, -134.456f - Over, -112.171f + Over), (true, 332.646f, -100.770f - Over, -55.744f + Over),
         (true, 277.355f, -134.456f - Over, -123.470f + Over), (true, 277.355f, -100.770f - Over, -55.744f + Over),
-        (false, -134.155f, 277.652f + Over + 0.005f, 332.342f - Over - 0.005f),
-        (false, -56.045f, 277.652f + Over + 0.005f, 284.200f + Over), (false, -56.045f, 325.800f - Over, 332.342f - Over - 0.005f),
+        (false, -134.155f, 277.355f, 332.646f),
+        (false, -56.045f, 277.355f, 284.200f + Over), (false, -56.045f, 325.800f - Over, 332.646f),
     };
 
     private static int JacobWallCoping(Node3D holder)

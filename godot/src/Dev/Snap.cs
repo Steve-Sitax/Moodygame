@@ -336,6 +336,39 @@ public partial class Snap : Node
         GD.Print($"snap {name} light: {dl.Hour:0.##} h, {dl.Weather}, fog #{dl.FogColor.LinearToSrgb().ToHtml(false)} {dl.FogNear:0.#}-{dl.FogFar:0.#} m, sky {dl.SkyIntensity:0.###}, sun {dl.SunIntensity:0.###}; the game's clock {Game.GameState.I?.Weekday} (day {Game.GameState.I?.Day}) {Game.GameState.I?.HourF:0.##} h, {Game.GameState.I?.Weather}");
         // (dev: --whatray fx,fy;... lists the drawn meshes whose box the ray through that point of the picture meets,
         // small ones first; fx, fy are 0..1 across and down)
+        // (dev: --whatpick fx,fy;... the nearest drawn triangles on the ray through that point of the picture, every visible
+        // mesh the camera's cull mask sees: node, material, triangle, distance, whether its front faces the eye)
+        if (Main.I.Arg("whatpick") is { Length: > 0 } wp)
+            foreach (var one in wp.Split(';', StringSplitOptions.RemoveEmptyEntries))
+            {
+                var f = one.Split(',').Select(F).ToArray();
+                var cam3 = Main.I.View.GetCamera3D();
+                var px = new Vector2(f[0], f[1]) * Main.I.GetViewport().GetVisibleRect().Size;
+                Vector3 o = cam3.ProjectRayOrigin(px), d = cam3.ProjectRayNormal(px);
+                var hits = new List<(float, string)>();
+                foreach (var nd in BakedWorld.All(Main.I.View))
+                {
+                    if (nd is not MeshInstance3D mi || !mi.IsVisibleInTree() || mi.Mesh is not ArrayMesh am || (mi.Layers & cam3.CullMask) == 0) continue;
+                    var xf = mi.GlobalTransform;
+                    if (!(xf * mi.GetAabb()).Grow(0.05f).IntersectsSegment(o, o + d * 300)) continue;
+                    for (int s = 0; s < am.GetSurfaceCount(); s++)
+                    {
+                        if (am.SurfaceGetPrimitiveType(s) != Mesh.PrimitiveType.Triangles) continue;
+                        var arrays = am.SurfaceGetArrays(s);
+                        var v = arrays[(int)Mesh.ArrayType.Vertex].AsVector3Array();
+                        var ix = arrays[(int)Mesh.ArrayType.Index].VariantType == Variant.Type.PackedInt32Array ? arrays[(int)Mesh.ArrayType.Index].AsInt32Array() : Enumerable.Range(0, v.Length).ToArray();
+                        for (int ti = 0; ti + 2 < ix.Length; ti += 3)
+                        {
+                            Vector3 a = xf * v[ix[ti]], b = xf * v[ix[ti + 1]], c = xf * v[ix[ti + 2]];
+                            if (Geometry3D.RayIntersectsTriangle(o, d, a, b, c).Obj is not Vector3 hit) continue;
+                            var fn = (c - a).Cross(b - a).Normalized();
+                            var mat = mi.GetActiveMaterial(s);
+                            hits.Add((o.DistanceTo(hit), $"{mi.GetPath().ToString().Split('/').TakeLast(3).Aggregate((x, y) => x + "/" + y)} {mat?.ResourceName} {(mat as ShaderMaterial)?.Shader?.ResourcePath} s{s} tri {ti / 3} front {fn.Dot(-d) > 0} layers {mi.Layers} at {hit.X:0.00},{hit.Y:0.00},{hit.Z:0.00}"));
+                        }
+                    }
+                }
+                foreach (var (dist, what) in hits.OrderBy(h => h.Item1).Take(6)) GD.Print($"whatpick {name} {one} {dist:0.00} m {what}");
+            }
         if (Main.I.Arg("whatray") is { Length: > 0 } wr)
             foreach (var one in wr.Split(';', StringSplitOptions.RemoveEmptyEntries))
             {

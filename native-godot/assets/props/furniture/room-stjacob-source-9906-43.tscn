@@ -1,7 +1,7 @@
 [gd_scene format=4]
 
 [ext_resource type="Script" path="res://src/Interiors/FurnitureVisual.cs" id="1_0pkkn"]
-[ext_resource type="Material" path="res://world/town/resources/r006543.res" id="2_0hhwd"]
+[ext_resource type="Material" path="res://world/town/resources/r006555.res" id="2_0hhwd"]
 
 [sub_resource type="ArrayMesh" id="ArrayMesh_p2r3c"]
 _surfaces = [{
