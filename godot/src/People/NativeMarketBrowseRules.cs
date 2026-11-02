@@ -43,11 +43,15 @@ public static class NativeMarketBrowseRules
 }
 public static class NativeMarketCalendar
 {
+    /// <summary>The small markets on the squares the razing opened round Sint-Paulus, Sint-Jacob and Sint-Carolus (#221).</summary>
+    public static readonly string[] SquareMarkets={"sint_paulusplaats","sint_jacobsmarkt","conscienceplein"};
     public static double Share(string place,int day,double hour,double soldOutAt=double.NaN)
     {
         double setup,open,close,gone,rest,late=16.5,lateGone=17.5;int weekday=((day-1)%7+7)%7+1;
         if(place=="vismarkt"){if(weekday==7)return 0;setup=5.5;open=7;close=12.5;gone=14;rest=.35;}
-        else if(place=="grote_markt"){if(weekday is not(3 or 6))return 0;setup=6;open=7.5;close=13;gone=14.5;rest=.3;}else return 0;
+        else if(place=="grote_markt"){if(weekday is not(3 or 6))return 0;setup=6;open=7.5;close=13;gone=14.5;rest=.3;}
+        // (#221) the church squares' small markets, Monday to Saturday (their pitches' hours in native-extras.json)
+        else if(SquareMarkets.Contains(place)){if(weekday==7)return 0;setup=6.5;open=8;close=12.5;gone=13.25;rest=.25;}else return 0;
         double h=(hour%24+24)%24,share=h<setup||h>=lateGone?0:h<open?(h-setup)/(open-setup):h<close?1:h<gone?1-(1-rest)*(h-close)/(gone-close):h<late?rest:rest*(1-(h-late)/(lateGone-late));
         if(double.IsNaN(soldOutAt)||hour<soldOutAt||hour<open)return share;return Math.Min(share,1-(1-rest)*Math.Min(1,(hour-soldOutAt)/.75));
     }

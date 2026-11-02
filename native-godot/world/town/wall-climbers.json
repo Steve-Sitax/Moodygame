@@ -1,0 +1,83 @@
+{
+ "note": "Climbers on big blank house walls (#219), grown by scripts/paving/wall_climbers.py (climbers.py's plants) and built by scripts/build-wall-climbers.gd into assets/models/wall-climbers-20261102; square-dressing.json places each site's mesh (kind mesh:). A site: at [x, z] a point on the wall's foot (its brick face), along and out its ways in plan, lift how far the stems stand off the dumped brick (a bared wall's plaster coats are 20 mm proud of it), plants rooted along it (at: metres from the point; kind 0 or 1 ivy, 2 Virginia creeper red, 3 turning orange; spread: the colony's reach). Chosen by setting and seen in the game first (no door, window, shop front, sign or bill in their reach): party walls the razing bared on the church squares, at their far end from the street.",
+ "sites": [
+  {
+   "id": "jacob-east-bared",
+   "at": [
+    -30.79,
+    288.52
+   ],
+   "along": [
+    -0.998,
+    0.058
+   ],
+   "out": [
+    -0.06,
+    -1
+   ],
+   "lift": 0.03,
+   "plants": [
+    {
+     "at": 6.6,
+     "kind": 0,
+     "width": 3.2,
+     "spread": 1.0
+    },
+    {
+     "at": 9.0,
+     "kind": 2,
+     "width": 2.2,
+     "spread": 0.6
+    }
+   ]
+  },
+  {
+   "id": "conscience-bared",
+   "at": [
+    -92.05,
+    163.99
+   ],
+   "along": [
+    -1,
+    0
+   ],
+   "out": [
+    0,
+    1
+   ],
+   "lift": 0.03,
+   "plants": [
+    {
+     "at": 1.6,
+     "kind": 0,
+     "width": 3.0,
+     "spread": 0.8
+    }
+   ]
+  },
+  {
+   "id": "jacob-northeast-bared",
+   "at": [
+    -42.4,
+    272.53
+   ],
+   "along": [
+    0.934,
+    0.357
+   ],
+   "out": [
+    -0.36,
+    0.93
+   ],
+   "lift": 0.03,
+   "plants": [
+    {
+     "at": 1.8,
+     "kind": 3,
+     "width": 2.6,
+     "spread": 0.7
+    }
+   ]
+  }
+ ]
+}

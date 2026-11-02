@@ -83,7 +83,9 @@ public sealed class NativeTownAssets
             if (kind == "npc") { if (population.Host.Context.One("SELECT 1 FROM npc WHERE id=$p0", S(rule, "id")) != null) { owner = S(rule, "id"); label = S(rule, "label"); } }
             else if (kind != "none") {
                 var trades = A(rule["trades"]).Select(t => t!.GetValue<string>()).ToArray(); double Score(JsonNode r) => Array.IndexOf(trades, S(r, "trade")) * 4 + (S(rule, "place") != "" && S(r["work"], "place") == S(rule, "place") ? 0 : 2) + (used.Contains(S(r, "id")) ? 1 : 0);
-                var r = residents.Where(q => trades.Contains(S(q, "trade")) && N(q?["age"]) >= 16 && N(q?["age"]) < 70 && (S(rule, "sex") == "" || S(q, "sex") == S(rule, "sex"))).OrderBy(q => Score(q!)).FirstOrDefault() ?? residents.FirstOrDefault(q => S(q, "trade") is "sailor" or "docker" or "boatman" && N(q?["age"]) >= 18 && !used.Contains(S(q, "id")));
+                // (#221: not a market-day seller, work.pitch: she is at her stall all morning, and a boat's errand would take her
+                // from it: the church squares' first seller, first by her id, was rowing the Rijnkaai's bumboat at 7:30)
+                var r = residents.Where(q => trades.Contains(S(q, "trade")) && q?["work"]?["pitch"] == null && N(q?["age"]) >= 16 && N(q?["age"]) < 70 && (S(rule, "sex") == "" || S(q, "sex") == S(rule, "sex"))).OrderBy(q => Score(q!)).FirstOrDefault() ?? residents.FirstOrDefault(q => S(q, "trade") is "sailor" or "docker" or "boatman" && N(q?["age"]) >= 18 && !used.Contains(S(q, "id")));
                 if (r != null) { owner = S(r, "id"); if (kind == "service") label = S(rule, "label"); }
             }
             if (owner != null) used.Add(owner);

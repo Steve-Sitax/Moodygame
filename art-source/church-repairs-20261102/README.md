@@ -151,3 +151,55 @@ off it; only the notes in `NativeChurchRepairs.cs` changed.
   pictures.
 - Dev: `--whatpick fx,fy;...` in a snap run lists the nearest drawn triangles on that pixel's ray (node, material, triangle,
   front or back, layers).
+
+# Round 3 · 2 November 2026 (helper C3-squares)
+
+## Life on the church squares (#221)
+
+- **Markets**: three new fields in `services/data/native-extras.json` (`sint_paulusplaats`, `sint_jacobsmarkt`,
+  `conscienceplein`), each with its own pitches like the Grote Markt's: 5, 4 and 2 stalls, sellers `pp_seller_N`,
+  `jm_seller_N`, `cp_seller_N` (NativeTownMarketPopulation: a woman from a house nearby, her handcart, her own dice per
+  market), hours 6:30 set-up, 8 open, 12:30 packing, 13:00 packed, Monday to Saturday (`NativeMarketCalendar`, and the
+  engine refuses a sale outside each market's own hours: `NativeTradeLedger`). Planned with the pitch planner on rows
+  between the square trees (`--market-proof-only pitchplan@<place>`, `pitchspots@<place>`: a stage may now name its
+  market after `@`, so one run plans several), the sellers' and carts' places corrected by `pitchspots`.
+- **Gathering places**: `NativeTownSquaresPopulation` adds the three squares (and `market:<id>`) to the town's places
+  once (new game and old saves: world key `church-squares-v1`; the original town generation and its fixtures are
+  unchanged) and moves the gossip, loitering, Sunday strolls and play of up to 12 neighbours a square, and the morning
+  marketing of up to 10, from a farther old square to the church square.
+- **Events**: a template may list other places (`places` in `native-director.json`): street musicians (Steenplein,
+  Sint-Jacobsmarkt or Conscienceplein) and the market quarrel (Grote Markt or Sint-Jacobsmarkt) are played at one of
+  them by the dice when the engine plans them; their stages, title, notice and rumour name that place. The director's
+  own choice stays. Dev: `--eventtest <dir> --eventonly musicians --eventplace sint_jacobsmarkt`. Not the
+  Sint-Paulusplaats: its strip between the church and the houses opens only at its two ends, and the event check's
+  crowd (from up to 45 m round) was still walking there when it looked (1 of 30 arrived; 10 on the Steenplein).
+
+## The gully sunk (#226)
+
+`NativeGully.cs`, square-dressing kind `gully`: the street's ground (drawn and its solid stand-in) is cut over a square
+0.8 m round the kit's gully grate and laid again in 8 cm cells, each corner taking the cut ground's own uv, colour and
+custom channels at its place (no seam, the ground's material), lowered 40 mm at the grate and rising to the street over
+0.8 m (steepest by the grate). The kit grate (one model everywhere, its gully pot below) sits at the bottom; the ground
+no longer runs under its bars. Collision: the dish's triangles and the grate's top.
+
+## The builder's scaffold (#226)
+
+`scripts/scaffold.py` + `scripts/build-scaffold.gd` → `assets/models/scaffold-20261102/scaffold.tscn` (one model; kind
+`scene:` in square-dressing.json), against the bared wall 210/187 at the Sint-Paulusplaats' west end: three fir
+standards on sole boards 1.3 m out, ledgers at 1.95, 3.75, 5.55 m and a tie at 7.1 m, squared putlogs into putlog holes
+in the brick, boarded second and third lifts (deals butted over a putlog, staggered), two loose boards on the first, a
+guard rail, a long brace and a pole ladder; square lashings of hemp rope at every crossing. Edges: sawn pole ends eased
+12 mm, deals and putlogs chamfered 2 to 3 mm. The town's board wood (barrel-wood.tres) and the rope picture in the same
+material (scaffold-rope.tres: no new kind). 20 252 triangles. Collision: a cylinder a standard, boxes for the sole
+boards, the boarded lifts and the ladder.
+
+## Climbers (#219)
+
+`world/town/wall-climbers.json`, `scripts/paving/wall_climbers.py` (climbers.py's own `grow()`; the faces dumped by
+`scripts/paving/dump-near-any.gd ... city`; no run over a coping: a house's top is its eaves), built by
+`scripts/build-wall-climbers.gd` into `assets/models/wall-climbers-20261102/` (the town wall's climbers material).
+Three bared walls by the squares, at their far end from the street (the bills stay clear): Sint-Jacob's east party
+wall (447/446: ivy and red creeper), the one north-east of it (444/445: creeper turning orange) and the Conscienceplein's
+(899/900: ivy); 31 514 triangles. The stems stand 30 mm off the dumped brick (the coats drawn at load are 20 mm proud).
+Found on the way: the plan's non-street edges are not blank walls (the first three picks had shop fronts and windows):
+choose walls from pictures.
