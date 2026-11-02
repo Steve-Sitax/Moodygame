@@ -116,3 +116,41 @@ relief. Laid plainly, the wet set's pools repeat every 2 m like a camouflage pri
 | `tidal_silt_roughness.png` | `fbee6cfdf3eb63402f259cfb0b568bc036c0a66d1b8ff71c6972fd34f0f51295` |
 | `tidal_silt_water_mask.png` | `06486ae1702826c4afa43d11a991d4e927041c98debf058467a8bad55fb7519c` |
 | `validation.json` | `741d8003308392bd4725a8d6056f04caffed57b27073795af7797179830942ce` |
+
+## Street and market mud (#250, #251)
+
+The paving's mud and dung (the dirt mask's red, `world/town/maps/dirt.png`) and its holes where a stone is gone only
+darkened the colour, and a hole drew near black. The market's mud stains (`market_mud`) were a flat stain.
+
+- The wet_mud set (`maps/wet_mud_*.png`, its deepened relief) is stored again for this:
+  `native-godot/scripts/store-dirt.gd -- <maps folder> wet_mud` writes `wet_mud_dry.res`, `wet_mud_wet.res` and
+  `wet_mud_height.res` (1024 px, BC7 / BC4, mipmapped). `NativeDirt.Lay` sets them as the shared shader pictures
+  `psx_mud`, `psx_mud_wet`, `psx_mud_h` (`Psx.SetMud`).
+- The seven stored setts kinds (relief ground with stone ids: the streets', squares', quay, gate, track and flag setts)
+  take `Psx.MudLines` (`native-godot/scripts/MudReliefRepair.cs`; changed in place, no new kind): where the mask says
+  mud the joints fill, and in patches the mud rises over the stones so only their crowns stand out; every hole where a
+  stone is gone is full of mud, its edge shaded by the stones round it. The mud is the wet_mud picture in world metres
+  (1.25 m, a turned second sample where a slow noise says so), 2 cm of its relief for the lights near the eye and for the
+  relief light everywhere, wetter with the rain, with darker clumps of dung; it is the lowest ground, so puddles gather
+  in it first. The stones in the mud keep a lighter grime than before (0.38 instead of 0.24 of their colour).
+- The market's decal kind (r004626, shared with the chalk marks) takes `Psx.DecalMudLines`, off unless a material sets
+  `mud_relief`: `NativeDirt` sets it on `market_mud`, so the stains show the same mud and relief, soft at their edge.
+- Frame time (snap views at the Paulus lane, the Vismarkt setts and a market stain, two alternating runs each under
+  PERF-LOCK): within run-to-run noise.
+
+## Pit soil water and wet leaves (#257, #235)
+
+- The soil's water (Psx.SoilLines) left lone blue flecks where a patch thinned out, and the Lijnwaadmarkt bed lost its
+  pool. Now the water stands high in a patch or not at all (its edge soft), the patches are broader (0.75 a metre
+  instead of 1.1), and the beds' soil_pool is 0.58 (the pits' 0.42; `NativeDirt.BedPool`).
+  `native-godot/scripts/PitWetRepair.cs` lays the lines again on r000002 as it was before #244 (git 4057c0a58).
+- The pits' fallen leaves (r004441) and weeds (r004447) take Psx.WetLeafLines, off unless `wet_dark`
+  (NativeTreePits: leaves 0.38, weeds 0.3): darker and a wet sheen with the rain and while water lies.
+
+## The canals' trickle and pools at low water (#256)
+
+The old water sheets on the canals' beds (World/Waters.cs: `tide_calm` in the trickle trench, `tide_pools`) drew a
+bright white ribbon and flat polygon pools beside the silt's own water. With the silt laid (`Waters.BedsDrawWater`)
+both sheets stay hidden, and the silt's water line holds at the trickle's level at low water
+(`max(river, Waters.TrickleY + 0.15 m)`, the trench being 0.22 m deep): the trickle and the pools are the silt's own
+water, dark, mirroring and broken at the edge. This also holds in the Vliet's bed.

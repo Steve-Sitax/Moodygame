@@ -28,7 +28,14 @@ public partial class Waters : Node
     private ShaderMaterial? riverMat;
     private float poolY;
     private bool calmOn;
-    private const float CalmTop = -4.75f, TrickleY = -5.05f - 0.22f;
+    private const float CalmTop = -4.75f;
+    /// <summary>The trickle's level in the canals' bed trench at low water (the calm sheet stops there).</summary>
+    public const float TrickleY = -5.05f - 0.22f;
+    /// <summary>
+    /// #256: the canals' beds draw their own water (NativeDirt's tidal silt: the water line, its inlets and the pools in world
+    /// space, held at the trickle's level at low water), so the old calm sheet and the pools' sheets stay hidden.
+    /// </summary>
+    public static bool BedsDrawWater;
     /// <summary>Where the river's sheet lies now (it follows the tide at 0.6 m a second at most).</summary>
     public static float Level => Tide.River;
 
@@ -226,10 +233,10 @@ public partial class Waters : Node
         }
         if (calm != null)
         {
-            calm.Visible = on;
+            calm.Visible = on && !BedsDrawWater;
             calm.GlobalPosition = new Vector3(calm.GlobalPosition.X, MathF.Max(Level, TrickleY), calm.GlobalPosition.Z);
         }
-        if (pools != null) pools.Visible = on && Level < poolY - 0.004f;
+        if (pools != null) pools.Visible = on && !BedsDrawWater && Level < poolY - 0.004f;
         foreach (var s in dock) s.GlobalPosition = new Vector3(s.GlobalPosition.X, Tide.Dock, s.GlobalPosition.Z);
         if (chamber != null)
         {

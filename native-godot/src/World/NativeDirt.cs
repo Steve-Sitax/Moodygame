@@ -16,11 +16,19 @@ namespace Scheldemist.Native.World;
 public static partial class NativeDirt
 {
     private const string Soil = "res://assets/materials/dirt-20261028/pit-soil.tres";
-    private static readonly string[] Beds = { "place_lijnwaadmarkt_pl_earth", "place_stjacob_yard_pl_earth", "place_court_green_pl_earth", "liberty_tree_earth" };
+    private const float BedPool = 0.58f;
+    private static readonly string[] Beds ={ "place_lijnwaadmarkt_pl_earth", "place_stjacob_yard_pl_earth", "place_court_green_pl_earth", "liberty_tree_earth" };
 
     /// <summary>Lays the soil on the beds found; returns how many.</summary>
     public static int Lay(Node3D town)
     {
+        // (#250) the paving's mud (the setts kinds' mud lines, Psx.MudLines): Codex's wet mud, colour, wet colour and height
+        const string MudDir = "res://assets/materials/dirt-20261028/wet_mud_";
+        if (ResourceLoader.Exists(MudDir + "dry.res") && ResourceLoader.Exists(MudDir + "wet.res") && ResourceLoader.Exists(MudDir + "height.res"))
+        {
+            Scheldemist.Render.Psx.SetMud(GD.Load<Texture2D>(MudDir + "dry.res"), GD.Load<Texture2D>(MudDir + "wet.res"), GD.Load<Texture2D>(MudDir + "height.res"));
+            MarketMud(town);
+        }
         if (!ResourceLoader.Exists(Soil)) return 0;
         var soil = GD.Load<ShaderMaterial>(Soil);
         int n = 0;
@@ -31,11 +39,31 @@ public static partial class NativeDirt
             var m = (ShaderMaterial)soil.Duplicate();
             m.ResourceName = "soil_" + bed.Name;
             m.SetShaderParameter("uv_xform", new Vector4(1 / perMetre, 1 / perMetre, 0, 0));
+            // (#257) a bed is wide and flat: after rain its water stands higher than a pit's, so its hollows join into a pool
+            m.SetShaderParameter("soil_pool", BedPool);
             for (int s = 0; s < bed.Mesh.GetSurfaceCount(); s++) bed.SetSurfaceOverrideMaterial(s, m);
             GD.Print($"dirt: {bed.Name} soil, {perMetre:0.###} uv a metre");
             n++;
         }
         return n + Mud(town);
+    }
+
+    /// <summary>
+    /// #251: the market's mud stains (market_mud, on the flags of the Grote Markt, the Vismarkt and round the stalls) take the
+    /// street mud's picture and relief in their shape (their decal kind's mud lines, Psx.DecalMudLines: off unless
+    /// `mud_relief`). One material, shared by every stain; the chalk marks in the same kind stay as they were.
+    /// </summary>
+    private static void MarketMud(Node3D town)
+    {
+        var done = new System.Collections.Generic.HashSet<ShaderMaterial>();
+        foreach (var mi in BakedWorld.All(town).OfType<MeshInstance3D>())
+        {
+            if (mi.Mesh == null) continue;
+            for (int s = 0; s < mi.Mesh.GetSurfaceCount(); s++)
+                if (mi.Mesh.SurfaceGetMaterial(s) is ShaderMaterial m && m.ResourceName == "market_mud" && m.Shader?.Code.Contains("uniform float mud_relief") == true && done.Add(m))
+                    m.SetShaderParameter("mud_relief", 1f);
+        }
+        GD.Print($"dirt: market mud, the street mud's picture and relief in {done.Count} material(s)");
     }
 
     /// <summary>
@@ -82,6 +110,8 @@ public static partial class NativeDirt
         }
         if (silts.Count == 0) return 0;
         mud.AddChild(new SiltLevel { Name = "silt_level", Silts = silts });
+        // (#256) the silt draws the beds' water itself: the old calm sheet's bright ribbon and the pools' flat sheets go
+        Waters.BedsDrawWater = true;
         GD.Print($"dirt: tide mud, tidal silt on the canals' beds ({silts.Count} surface)");
         return 1;
     }
@@ -89,6 +119,8 @@ public static partial class NativeDirt
     private const string CanalBeds = "tide_bed";
     private static readonly Color BedTint = new(1.35f, 1.18f, 1.02f, 1);
     private const float SiltBump = 1.2f, SiltPools = 0.18f;
+    // (#256) how deep the trickle stands in the canals' bed trench at low water (the trench is 0.22 m deep)
+    private const float TrickleDepth = 0.15f;
 
     /// <summary>The river's level now for the silt's water line (Tide.River follows the clock or the tide kit's hold).</summary>
     private sealed partial class SiltLevel : Node
@@ -97,8 +129,11 @@ public static partial class NativeDirt
         private float last = float.NaN;
         public override void _Process(double delta)
         {
-            if (Tide.River == last) return;
-            last = Tide.River;
+            // (#256: at low water the canals keep a trickle in their bed's trench: the silt's water line holds there, so the
+            // trickle is drawn in the silt's own water, its edge broken, instead of the old calm sheet)
+            float level = MathF.Max(Tide.River, Waters.TrickleY + TrickleDepth);
+            if (level == last) return;
+            last = level;
             foreach (var m in Silts) m.SetShaderParameter("silt_level", last);
         }
     }
