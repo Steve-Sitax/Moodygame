@@ -18,29 +18,36 @@ public partial class MpTest
         var steps = new List<object>();
         MovingWrite("mp-ai-1.json", new { npc, mode = AiState.Mode, state = AiState.State });
         var first = await MovingRead("mp-ai-guest-1.json", 60);
-        MainMenu.I!.ToggleAi();
+        await Switch(api, "walk");
         bool off = await Until(() => AiState.Known && !AiState.On, 15);
         MovingWrite("mp-ai-2.json", new { npc, mode = AiState.Mode });
         var second = await MovingRead("mp-ai-guest-2.json", 60);
-        MainMenu.I!.ToggleAi();
+        await Switch(api, "ai");
         bool on = await Until(() => AiState.On, 15);
         MovingWrite("mp-ai-3.json", new { npc, mode = AiState.Mode });
         var third = await MovingRead("mp-ai-guest-3.json", 60);
         bool G(JsonElement? e, string k) => e?.TryGetProperty(k, out var v) == true && v.ValueKind == JsonValueKind.True;
         var checks = new[]
         {
-            new { name = "guest sees the host's AI on and ready", pass = G(first, "seesOn") },
+            new { name = "guest sees the host's AI on and ready", pass = G(first, "sees_on") },
             new { name = "guest may not change the host's AI (403)", pass = G(first, "refused") },
             new { name = "guest may type while the host's AI is on", pass = G(first, "free") },
             new { name = "host switch off takes effect at once", pass = off },
-            new { name = "guest hears AI off without a restart", pass = G(second, "seesOff") },
-            new { name = "guest gets choices only while AI is off", pass = G(second, "noTyping") },
+            new { name = "guest hears AI off without a restart", pass = G(second, "sees_off") },
+            new { name = "guest gets choices only while AI is off", pass = G(second, "no_typing") },
             new { name = "host switch on again", pass = on },
-            new { name = "guest hears AI on again and may type", pass = G(third, "seesOn") && G(third, "free") },
+            new { name = "guest hears AI on again and may type", pass = G(third, "sees_on") && G(third, "free") },
         };
         doc["ai_checks"] = checks;
         doc["ai_guest"] = new[] { first, second, third };
         return checks.All(c => c.pass);
+    }
+
+    /// <summary>The host's switch: the menu item when the menus run, else the same server call it makes.</summary>
+    private static async Task Switch(Api api, string mode)
+    {
+        if (MainMenu.I != null) { MainMenu.I.ToggleAi(); return; }
+        AiState.Update(await api.PutAiConfig(new Dictionary<string, object?> { ["mode"] = mode }));
     }
 
     private async Task<bool> GuestAi()

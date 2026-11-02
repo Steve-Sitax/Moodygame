@@ -95,6 +95,8 @@ public partial class Talk : Node, IDialog
     /// <summary>The words of the answer as they arrive (only to the player who talks); the final answer replaces them.</summary>
     private void OnPartial(PushMsg m)
     {
+        // the host switched AI on or off: the typing box follows at once (a guest too, with or without its menu)
+        if (m.Type == "ai") { Scheldemist.Menu.AiState.Update(m.Body); if (npc != null) { freeOk = freeOk && Scheldemist.Menu.AiState.AllowsTyping; Render(); } return; }
         if (m.Type != "talk_partial" || !busy || npc is not { } who) return;
         if (!m.Body.TryGetProperty("npc", out var n) || n.GetString() != who.Id || !m.Body.TryGetProperty("text", out var t)) return;
         string text = t.GetString() ?? "";
