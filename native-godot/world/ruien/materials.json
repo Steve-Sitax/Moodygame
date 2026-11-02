@@ -42,7 +42,7 @@
  "water": {
   "misc_water": { "murk": [0.03, 0.026, 0.015], "absorb": [2.2, 2.6, 3.4], "scum": 0.35, "drips": 1.0 },
   "Water_film": { "film": 1, "alpha": 0.4, "drips": 0, "scum": 0, "ripple": 0.4 },
-  "Water_drip_ring": { "film": 1, "alpha": 0.3, "drips": 1, "scum": 0, "ripple": 1.0 }
+  "Water_spout": {"film": 1, "alpha": 2.6, "drips": 0, "scum": 0, "ripple": 1.0, "note": "a side drain's pour: the wall film made dense enough to read as falling water"}, "Water_drip_ring": { "film": 1, "alpha": 0.3, "drips": 1, "scum": 0, "ripple": 1.0 }
  },
  "air": {
   "Lamp_flame": { "mode": 2, "color": [1.0, 0.6, 0.25], "strength": 3.0, "lamp": true },

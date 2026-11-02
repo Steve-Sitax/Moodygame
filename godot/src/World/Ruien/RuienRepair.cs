@@ -142,6 +142,7 @@ public static class RuienRepair
                 }
                 if (remove) { changed = true; continue; }
                 if(family=="ruien_calcite")changed|=RuienSurfaceRepair.Calcite(arrays);
+                if(family=="ruien_bluestone")changed|=ClearDarkBake(arrays,path);
                 if(path.Contains("gallery_s"))
                 {
                     // The closed outlets and the drains' flat end cards make way for open bores and throats.
@@ -153,7 +154,8 @@ public static class RuienRepair
                         {
                             var lat=Vector3.Up.Cross(k.Axis).Normalized();
                             changed|=RuienPatch.Drop(arrays,c=>{var d=c-k.Centre;float before=-d.Dot(k.Axis);
-                                return before> -.03f&&before<2.0f&&MathF.Abs(d.Dot(lat))<.62f&&c.Y> -3.42f&&c.Y< -1.68f;})>0;
+                                // The old mouth's header ring reaches 1.2 m out from its axis and up to the crown.
+                                return before> -.06f&&before<2.2f&&MathF.Abs(d.Dot(lat))<1.25f&&c.Y> -3.5f&&c.Y< -1.4f;})>0;
                         }
                     if(family=="ruien_brick_stretcher")
                         foreach(var k in sealedCards)
@@ -181,6 +183,8 @@ public static class RuienRepair
                                 RuienPatch.Append(arrays,RuienPatch.FromArrays(cut));changed=true;
                                 GD.Print($"ruien repair: old drain mouth bricked up in {Path.GetFileName(path)}");
                             }
+                    if(family=="ruien_brick_stretcher")
+                        foreach(var k in sealedCards)changed|=MendSealed(arrays,k);
                     if(arrays[(int)Mesh.ArrayType.Index].AsInt32Array().Length==0){changed=true;continue;}
                 }
                 if(path.Contains("gallery_s"))changed|=RuienSurfaceRepair.Apply(arrays,family,geometry,pipes);
@@ -362,6 +366,85 @@ public static class RuienRepair
     }
 
     private sealed record Card(Vector3 Centre,Vector3 Axis,Vector3[] Ring);
+
+    /// <summary>
+    /// Bluestone whose study bake came out near black (a bake darker than 0.07 linear, mean byte below 70: the hall's
+    /// quoins, plinths and voussoirs, where the study's render saw them buried) drew as black boxes (RU-ruien2, Steve's
+    /// 2nd picture). Such a bake is dropped, so the stone shows its own dressed texture like the copings beside it; the
+    /// bake's occlusion stays.
+    /// </summary>
+    private static bool ClearDarkBake(Godot.Collections.Array a,string path)
+    {
+        if(a[(int)Mesh.ArrayType.Custom0].VariantType!=Variant.Type.PackedByteArray)return false;
+        var bake=a[(int)Mesh.ArrayType.Custom0].AsByteArray();int cleared=0;
+        for(int i=0;i+3<bake.Length;i+=4)
+        {
+            int sum=bake[i]+bake[i+1]+bake[i+2];
+            if(sum==0||sum>=210)continue;
+            bake[i]=bake[i+1]=bake[i+2]=0;cleared++;
+        }
+        if(cleared==0)return false;
+        a[(int)Mesh.ArrayType.Custom0]=bake;
+        GD.Print($"ruien repair: {cleared} near-black bluestone bakes dropped in {Path.GetFileName(path)}");
+        return true;
+    }
+
+    /// <summary>
+    /// The bricked-up first drain's ghost (RU-ruien2, Steve's circular scar right of the keeper niche): the vault face
+    /// round the old mouth kept the study's bake from when the mouth was open, a dark ring of occlusion and soot that
+    /// traced the arch. Inside and just round the plug, the bake and weather masks take the values of the same course
+    /// heights further out on the face, faded over 0.3 m, so the wall reads as one bricked-up surface.
+    /// </summary>
+    private static bool MendSealed(Godot.Collections.Array a,Card k)
+    {
+        var p=a[(int)Mesh.ArrayType.Vertex].AsVector3Array();
+        if(a[(int)Mesh.ArrayType.Custom0].VariantType!=Variant.Type.PackedByteArray)return false;
+        var bake=a[(int)Mesh.ArrayType.Custom0].AsByteArray();if(bake.Length!=p.Length*4)return false;
+        var col=a[(int)Mesh.ArrayType.Color].VariantType==Variant.Type.Nil?null:a[(int)Mesh.ArrayType.Color].AsColorArray();
+        var lat=Vector3.Up.Cross(k.Axis).Normalized();
+        // Outside distance from the plug's outline (its rows: -0.08 to 1.72 m over the invert, egg plus 0.62 m),
+        // and whether the vertex lies on the vault face there.
+        (float edge,bool face,float h) Where(Vector3 v)
+        {
+            var d=v-k.Centre;float along=MathF.Abs(d.Dot(lat)),h=v.Y-RuienDrain.Invert,before=-d.Dot(k.Axis);
+            float half=RuienDrain.EggHalf(Math.Clamp(h,0,1.6f))+.62f;
+            float edge=Math.Max(along-half,Math.Max(h-1.72f,-.08f-h));
+            return(edge,MathF.Abs(before-(4.6f-RuienDrain.Shell(v.Y)))<.3f,h);
+        }
+        // The face's own values by course height, from a band 0.5 to 1.2 m outside the plug.
+        var sum=new Dictionary<int,(double r,double g,double b,double a,Color c,int n)>();
+        for(int i=0;i<p.Length;i++)
+        {
+            var (edge,face,h)=Where(p[i]);
+            if(!face||edge<.5f||edge>1.2f||bake[i*4+3]==0)continue;
+            int band=(int)MathF.Floor(h/.25f);
+            var s=sum.GetValueOrDefault(band);
+            var c=col!=null?col[i]:new Color(0,0,0,0);
+            sum[band]=(s.r+bake[i*4],s.g+bake[i*4+1],s.b+bake[i*4+2],s.a+bake[i*4+3],new Color(s.c.R+c.R,s.c.G+c.G,s.c.B+c.B,s.c.A+c.A),s.n+1);
+        }
+        if(sum.Count==0)return false;
+        int changed=0;
+        for(int i=0;i<p.Length;i++)
+        {
+            var (edge,face,h)=Where(p[i]);
+            if(!face||edge>.45f||bake[i*4+3]==0)continue;
+            int band=(int)MathF.Floor(h/.25f);
+            // The nearest band that has samples (the plug's top rows reach above the sampled face).
+            int use=sum.Keys.OrderBy(b=>Math.Abs(b-band)).First();var s=sum[use];
+            float w=1-Mathf.SmoothStep(.15f,.45f,edge);
+            for(int ch=0;ch<4;ch++)
+            {
+                double mean=ch switch{0=>s.r,1=>s.g,2=>s.b,_=>s.a}/s.n;
+                bake[i*4+ch]=(byte)Math.Clamp(Math.Round(Mathf.Lerp(bake[i*4+ch],(float)mean,w)),ch==3?1:0,255);
+            }
+            if(col!=null)col[i]=col[i].Lerp(new Color(s.c.R/s.n,s.c.G/s.n,s.c.B/s.n,s.c.A/s.n),w);
+            changed++;
+        }
+        a[(int)Mesh.ArrayType.Custom0]=bake;if(col!=null)a[(int)Mesh.ArrayType.Color]=col;
+        if(changed>0)GD.Print($"ruien repair: old drain mouth's ghost evened over {changed} vertices");
+        return changed>0;
+    }
+
 
     /// <summary>The exported drains' flat dark end cards (a fan over the lining's last ring) in one chunk.</summary>
     private static List<Card> DrainCards(ArrayMesh mesh,RuienData.Zone zone,IEnumerable<(float u,int side)> mouths)

@@ -27,8 +27,14 @@ public static class RuienKit
 
     private static readonly Dictionary<string, ArrayMesh?> Pieces = new();
 
-    /// <summary>A converted kit piece (res://world/ruien/kit/&lt;piece&gt;.res) placed at its pivot, turned about y; null if not converted.</summary>
-    public static Node3D? Piece(string piece, Vector3 at, float yawDeg)
+    /// <summary>The kit lamp's lantern top in its piece (lamp_bracket_safety_lamp: the brass cap over the glass).</summary>
+    public static readonly Vector3 LampTop = new(-.277f, -.086f, -.144f);
+
+    /// <summary>
+    /// A converted kit piece (res://world/ruien/kit/&lt;piece&gt;.res) placed at its pivot, turned about y; null if not
+    /// converted. `hook`: the same model without its straight iron bracket (a lamp that hangs from RuienHook).
+    /// </summary>
+    public static Node3D? Piece(string piece, Vector3 at, float yawDeg, bool hook = false)
     {
         if (!Pieces.TryGetValue(piece, out var mesh))
         {
@@ -37,6 +43,13 @@ public static class RuienKit
             if (mesh != null)
                 for (int s = 0; s < mesh.GetSurfaceCount(); s++) mesh.SurfaceSetMaterial(s, RuienMaterials.Get(mesh.SurfaceGetName(s)));
             Pieces[piece] = mesh;
+        }
+        if (hook && mesh != null)
+        {
+            string key = piece + ":hook";
+            if (!Pieces.TryGetValue(key, out var bare))
+                Pieces[key] = bare = RuienHook.Without(mesh, f => f == "ruien_iron", _ => true) ?? mesh;
+            mesh = bare;
         }
         if (mesh == null) return null;
         var n = new Node3D { Name = piece, Position = at, Rotation = new Vector3(0, Mathf.DegToRad(yawDeg), 0) };

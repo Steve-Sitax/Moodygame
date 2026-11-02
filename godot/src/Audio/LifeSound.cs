@@ -57,6 +57,7 @@ public partial class LifeSound : Node
     }
     public string? Interior(Vector3 p)
     {
+        if (Soundscape.RuienBelow(p)) return "ruien";
         if (HomeLife.I != null) foreach (var home in HomeLife.I.Frames.Values)
         { var q = home.Local(p.X,p.Z); if (Math.Abs(p.Y-home.Y)<.6 && Math.Abs(q.X)<home.W/2 && q.Y>0 && q.Y<home.D) return "home"; }
         foreach (var r in counters)

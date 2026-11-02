@@ -156,7 +156,9 @@ public sealed class RuienData
         /// <summary>How far the penstock's door stands raised over its exported rest (m; its travel's top lets one wade under it).</summary>
         public float PenstockRaise;
         /// <summary>Kit pieces placed in the area (shared models: the lamp brackets the export does not carry).</summary>
-        public readonly List<(string piece, Vector3 at, float yaw)> Kit = new();
+        public readonly List<(string piece, Vector3 at, float yaw, bool hook)> Kit = new();
+        /// <summary>Lamps on a curved wall (`lampHooks`): they hang from RuienHook's hook, not the export's straight bracket.</summary>
+        public readonly HashSet<string> LampHooks = new();
         /// <summary>Export keys not drawn (the vliet's own walls and bed: the town draws its vliet).</summary>
         public readonly HashSet<string> SkipKeys = new();
         public string Id = "", Name = "", Export = "";
@@ -221,7 +223,8 @@ public sealed class RuienData
             if (a.TryGetProperty("enabled", out var en) && en.ValueKind == JsonValueKind.False) continue;
             var area = new Area { Id = S(a, "id"), Name = S(a, "name"), Export = S(a, "export"), WaterMin = F(a, "waterMin", -4.6f), WaterRise = F(a, "waterRise", 0.12f) };
             if (a.TryGetProperty("kit", out var kp))
-                foreach (var k in kp.EnumerateArray()) area.Kit.Add((S(k, "piece"), V3(k.GetProperty("at")), F(k, "yaw", 0)));
+                foreach (var k in kp.EnumerateArray()) area.Kit.Add((S(k, "piece"), V3(k.GetProperty("at")), F(k, "yaw", 0), k.TryGetProperty("hook", out var hk) && hk.GetBoolean()));
+            if (a.TryGetProperty("lampHooks", out var lh)) foreach (var k in lh.EnumerateArray()) area.LampHooks.Add(k.GetString()!);
             if (a.TryGetProperty("skipKeys", out var sk)) foreach (var k in sk.EnumerateArray()) area.SkipKeys.Add(k.GetString()!);
             if (a.TryGetProperty("devEntry", out var de)) area.DevEntry = new Vector4(de[0].GetSingle(), de[1].GetSingle(), de[2].GetSingle(), de[3].GetSingle());
             foreach (var z in a.GetProperty("zones").EnumerateArray())

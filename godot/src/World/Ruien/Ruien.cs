@@ -157,8 +157,11 @@ public partial class Ruien : Node
                 }
             drawn.Add(d);
             sources.AddRange(area.Sources);
+            SoundPoints(area, spec[area.Id], pipes);
             GD.Print($"ruien: {area.Id} ({area.Name}) from the {how}: {root.GetChildCount()} parts, {area.Sources.Count} sources, {area.Zones.Count} zones in {Time.GetTicksMsec() - t0} ms");
         }
+        Audio.Soundscape.RuienPoints = soundPoints;
+        Audio.Soundscape.RuienOpenAt = OpenAt;
         // the fixed pool of real lights for what is not Ruien stone (the arms, the body): never more, never fewer
         pool = new OmniLight3D[Data.LampPool];
         for (int i = 0; i < pool.Length; i++)
@@ -167,6 +170,43 @@ public partial class Ruien : Node
             Main.I.View.AddChild(pool[i]);
         }
         Update(0);
+    }
+
+    private readonly List<Audio.Soundscape.RuienPoint> soundPoints = new();
+
+    /// <summary>
+    /// An area's water sounds, each at its own place with its own reach: the side drains' spouts where they meet the
+    /// channel, a drop now and then from each pipe mouth, and the drips the area lists (`drips`: vault joints over the
+    /// water, the niche's seep).
+    /// </summary>
+    private void SoundPoints(RuienData.Area area, JsonElement spec, List<RuienPipe.Spec> pipes)
+    {
+        if (area.Id == "o2" && area.Zones.FirstOrDefault(z => z.Kind == "line") is { } line)
+            foreach (var (u, side) in RuienDrain.Mouths)
+                soundPoints.Add(new() { Kind = "spill", At = RuienDrain.SpoutImpact(line, u, side), Reach = 7, Gain = .6 });
+        foreach (var p in pipes)
+            soundPoints.Add(new() { Kind = "drip", At = p.Front + Vector3.Down * .45f, Reach = 5, Gain = .8, Min = 4, Max = 11 });
+        if (spec.TryGetProperty("drips", out var drips))
+            foreach (var d in drips.EnumerateArray())
+            {
+                var at = d.GetProperty("at");
+                var every = d.TryGetProperty("every", out var e) ? e : default;
+                soundPoints.Add(new()
+                {
+                    Kind = "drip", At = new Vector3(at[0].GetSingle(), at[1].GetSingle(), at[2].GetSingle()),
+                    Reach = d.TryGetProperty("reach", out var r) ? r.GetDouble() : 6, Gain = d.TryGetProperty("gain", out var g) ? g.GetDouble() : 1.2,
+                    Min = every.ValueKind == JsonValueKind.Array ? every[0].GetDouble() : 2.5, Max = every.ValueKind == JsonValueKind.Array ? every[1].GetDouble() : 8,
+                });
+            }
+    }
+
+    /// <summary>For the echo: 1 at an opening to the street (a grate, shaft, hatch, the outlet), 0 nine metres in.</summary>
+    public double OpenAt(Vector3 p)
+    {
+        float best = float.MaxValue;
+        foreach (var s in sources)
+            if (s.Kind != "lamp") best = Math.Min(best, new Vector2(p.X - s.At.X, p.Z - s.At.Z).Length() - Math.Max(s.HalfU, s.HalfV));
+        return 1 - Mathf.SmoothStep(1.5f, 9f, best);
     }
 
     /// <summary>An area's water sheets, beams, mist and lamps' glow (from its data: the markers or the stand-in's).</summary>
@@ -221,8 +261,17 @@ public partial class Ruien : Node
             d.Beams.Add((m, s));
         }
         // the kit pieces the area places (shared models)
-        foreach (var (piece, at, yaw) in area.Kit)
-            if (RuienKit.Piece(piece, at, yaw) is { } pn) root.AddChild(pn);
+        foreach (var (piece, at, yaw, hook) in area.Kit)
+        {
+            if (RuienKit.Piece(piece, at, yaw, hook) is not { } pn) continue;
+            root.AddChild(pn);
+            // On a curved wall the kit lamp hangs from the shared hook, fitted to the brick behind it.
+            if (hook && d.Export != null)
+                RuienHook.Place(root, pn, d.Export.Keys.SelectMany(k => k.Lods[0]).Select(m => m.Mesh).OfType<ArrayMesh>(),
+                    RuienKit.LampTop, piece + "_" + at.X.ToString("0.0"));
+        }
+        // the export's lamps on curved walls: hooks instead of their straight brackets
+        if (d.Export != null) GD.Print($"ruien: {RuienHook.Fit(area, d.Export, root)} lamp hooks fitted in {area.Id}");
         // the street grates over the ladder shafts: on the street, drawn with the town (not with the area); the step
         // irons up a channel wall
         foreach (var w in area.Ways)

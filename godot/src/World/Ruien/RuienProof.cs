@@ -38,6 +38,55 @@ public partial class RuienProof : Node
         await ToSignal(RenderingServer.Singleton, RenderingServer.SignalName.FramePostDraw);
         Main.I.GetViewport().GetTexture().GetImage().SavePng(Path.Combine(output,name + ".png"));
     }
+    /// <summary>
+    /// Camera paths for a review film (run with Godot's --write-movie and --fixed-fps): each segment sets the hour,
+    /// weather, tide and optional inspection fill, then flies the eye through its keys (t s, at, look) with eased
+    /// motion. The log marks each segment's first and last drawn frame (RUIEN_MOVIE), so the film can be cut.
+    /// With "probe" the Ruien water sounds' gains at the ear are logged every half second (RUIEN_SOUND).
+    /// </summary>
+    private async Task Paths(string file)
+    {
+        var j=Jef.I!;if(!j.Fly)j.ToggleFly();j.Frozen=true;j.ClearKeys();
+        var authoredFill=Ruien.I!.Data.Fill;
+        foreach(var seg in JsonDocument.Parse(File.ReadAllText(file)).RootElement.EnumerateArray())
+        {
+            string name=seg.GetProperty("name").GetString()!;
+            await Dev.Kit.I.Light(seg.GetProperty("hour").GetDouble(),seg.GetProperty("weather").GetString()!);
+            await SetTide(seg.GetProperty("tide").GetSingle());
+            Ruien.I!.Data.Fill=seg.TryGetProperty("inspectionFill",out var inspect)?new Color(.55f,.50f,.42f)*inspect.GetSingle():authoredFill;
+            var keys=seg.GetProperty("keys").EnumerateArray().Select(k=>(t:k.GetProperty("t").GetSingle(),
+                at:new Vector3(k.GetProperty("at")[0].GetSingle(),k.GetProperty("at")[1].GetSingle(),k.GetProperty("at")[2].GetSingle()),
+                look:new Vector3(k.GetProperty("look")[0].GetSingle(),k.GetProperty("look")[1].GetSingle(),k.GetProperty("look")[2].GetSingle()))).ToArray();
+            bool probe=seg.TryGetProperty("probe",out var pr)&&pr.GetBoolean();
+            Audio.Soundscape.RuienSolo=seg.TryGetProperty("solo",out var so)?so.GetInt32():-1;
+            var cam=Main.I.Cam;
+            // Jef's place goes with the eye: the sound takes its room (the Ruien's echo, the street's rumble) from him.
+            void Put(Vector3 at,Vector3 look){cam.GlobalPosition=at;cam.Basis=Basis.LookingAt(look-at,Vector3.Up);j.X=at.X;j.Y=at.Y-1.55f;j.Z=at.Z;}
+            Put(keys[0].at,keys[0].look);
+            await Seconds(2.5f);
+            GD.Print($"RUIEN_MOVIE start {name} frame {Engine.GetFramesDrawn()}");
+            float t=0,total=keys[^1].t,nextProbe=0;
+            while(t<=total)
+            {
+                int i=0;while(i<keys.Length-2&&t>keys[i+1].t)i++;
+                var a=keys[i];var b=keys[Math.Min(i+1,keys.Length-1)];
+                float k=b.t>a.t?Mathf.SmoothStep(0,1,Math.Clamp((t-a.t)/(b.t-a.t),0,1)):1;
+                Put(a.at.Lerp(b.at,k),a.look.Lerp(b.look,k));
+                if(probe&&t>=nextProbe&&Audio.Soundscape.I is {} sound)
+                {
+                    nextProbe+=.5f;
+                    foreach(var (kind,at,d,gain) in sound.RuienProbe().Where(p=>p.d<12))
+                        GD.Print($"RUIEN_SOUND {name} t {t:0.00} frame {Engine.GetFramesDrawn()} {kind} ({at.X:0.00},{at.Y:0.00},{at.Z:0.00}) d {d:0.00} gain {gain:0.0000} echo-open {sound.RuienEchoOpen:0.00} room {sound.Interior}");
+                }
+                await ToSignal(GetTree(),SceneTree.SignalName.ProcessFrame);
+                t+=(float)GetProcessDeltaTime();
+            }
+            GD.Print($"RUIEN_MOVIE end {name} frame {Engine.GetFramesDrawn()}");
+        }
+        Audio.Soundscape.RuienSolo=-1;
+        Ruien.I!.Data.Fill=authoredFill;
+    }
+
     private async Task SetTide(float level)
     {
         Tide.Hold(level);ulong end=Time.GetTicksMsec()+12000;
@@ -319,11 +368,22 @@ public partial class RuienProof : Node
                             Check(worker.Name+" clear route at "+name,j.BodyFree(at.X,at.Y+.04f,at.Z),at.ToString());
                         }
                     }
+                    var crewAt=RuienWorkmen.ProofActive?Main.I.View.GetChildren().OfType<Node3D>().Where(n=>n.Name.ToString().Contains("_workman_")).ToDictionary(n=>n,n=>n.GlobalPosition):new();
                     var times=new List<double>();ulong last=Time.GetTicksUsec();
                     for(int frame=0;frame<140;frame++)
                     {
                         await ToSignal(GetTree(),SceneTree.SignalName.ProcessFrame);
                         ulong now=Time.GetTicksUsec();if(frame>50)times.Add((now-last)/1000.0);last=now;
+                        // (the last 40 frames' steps: over the whole sample he may have turned a corner)
+                        if(frame==99)foreach(var w in crewAt.Keys.ToArray())crewAt[w]=w.GlobalPosition;
+                    }
+                    // A walking workman faces the way he walks (a person model faces +Z; RU-ruien2: they walked backwards).
+                    foreach(var (worker,from) in crewAt)
+                    {
+                        var moved=worker.GlobalPosition-from;moved.Y=0;
+                        if(moved.Length()<.08f)continue;
+                        var facing=worker.GlobalBasis.Z;facing.Y=0;
+                        Check(worker.Name+" faces his walk at "+name,facing.Normalized().Dot(moved.Normalized())>.5f,$"facing {facing}, moved {moved}");
                     }
                     times.Sort();double mean=times.Average(),p95=times[(int)(times.Count*.95)];
                     performance.Add(new{name,meanMs=mean,p95Ms=p95,shaders=Render.Psx.ShaderCount});
@@ -333,6 +393,8 @@ public partial class RuienProof : Node
                 Ruien.I!.Data.Fill=authoredFill;
                 File.WriteAllText(Path.Combine(output,"frames.json"),JsonSerializer.Serialize(performance,new JsonSerializerOptions{WriteIndented=true}));
             }
+            string paths=Main.I.Arg("ruien-proof-path");
+            if(paths.Length>0)await Paths(paths);
         }
         catch (Exception e) { Check("exception",false,e.ToString()); }
         File.WriteAllText(Path.Combine(output,"routes.json"),JsonSerializer.Serialize(checks,new JsonSerializerOptions{WriteIndented=true}));
