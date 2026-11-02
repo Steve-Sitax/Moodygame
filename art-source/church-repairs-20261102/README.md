@@ -151,3 +151,35 @@ off it; only the notes in `NativeChurchRepairs.cs` changed.
   pictures.
 - Dev: `--whatpick fx,fy;...` in a snap run lists the nearest drawn triangles on that pixel's ray (node, material, triangle,
   front or back, layers).
+
+# The cathedral towers' openings (#260) · 2 November 2026 (helper T-towers)
+
+Steve's photo of the west front: the towers are not see-through. The shell (the retired bake's `_real_stage` and the
+octagon in build_landmarks.py) cut every tall opening through with a reveal, 1.0 m deep on the square stages and 0.6 m on
+the octagon; the native shell has no stone mullions or transoms in them (the bake's `m.d` detail did not come over).
+`native-godot/src/World/NativeCathedralTowers.cs` fills them at load, from the bake's own numbers (world x = -262 + v,
+z = 145.53 + u; cells `tower_lancets` (17/69, 30, 42, 222 of 128 x 256, springing 0.8) and `openwork` (9, 20, 46, 106 of
+64 x 128, springing 0.76)). `--open-cathedral-towers` leaves them open, as baked.
+
+| Level | Openings | Fill |
+|---|---|---|
+| North tower, stage 1 (18-35.3 m) | 3 faces x 2 lancets (the face to the nave is inside the west bay) | grating |
+| North tower, stage 2 (36-54.8 m) | 4 faces x 2 (the face to the nave over the west roof's eaves, 40.15 m) | grating |
+| North tower, bell stage (55.5-73.3 m) | 4 x 2 | louvres |
+| North octagon (74-93.5 m) | 4 over the clocks, 4 on the diagonals | louvres |
+| South tower, stages 1 and 2 | 3 x 2 and 4 x 2 | grating (the photo: the pale grid at the same height as the north tower's) |
+| Open upper octagon, crowns, south lantern | | open |
+
+- **Grating**: in the reveal 0.61-0.70 m back: a 60 mm flat round the outline (inset from the reveal), upright flats
+  45 x 70 mm about 0.5 m apart, cross flats 45 x 50 mm about 0.68 m apart (the photo's tall panes) 15 mm behind the
+  uprights' faces, 3 mm chamfers on the front arrises. The shutters' kept paint in a pale grey (vertex colours), each flat
+  its own tone, darker toward the sill. Behind it at 0.93 m the tower's wall in the cathedral's ashlar at its own scale
+  (0.3125 a metre), 6 cm into the reveal's sides; small windows 0.40 x 0.72 m low in each light and 0.42 x 0.66 m in the
+  arch head: a 12 mm chamfer, carved-stone reveals 0.13 m deep at their own scale, a sill weathered out, the houses' glass,
+  an iron cross of glazing bars.
+- **Louvres (abat-sons)**: a frame just behind where the mullion would stand (stiles 0.10 m along the outline and over the
+  arch, one in the middle), boards 28 mm thick at 42 degrees reaching 0.30 m back (0.19 m on the octagon), each over the
+  next (no sight line through), cut to the arch at their tops; the shutters' paint in weathered dark oak, each board its
+  own tone, tops bleached, undersides dark. The bake's lead louvres (308 triangles of `landmark_cathedral_3`) are taken
+  out where the new fills stand.
+- 50 580 triangles; six surfaces in five existing materials, no new shader kind, no light, no collision (none in the shell).
