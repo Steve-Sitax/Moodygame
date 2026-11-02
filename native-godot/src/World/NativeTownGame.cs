@@ -73,7 +73,8 @@ public partial class NativeTownGame : Scheldemist.Main
             var profile = new NativeTownProfile(host); host.AddModule(profile);
             host.AddModule(new NativeTownArrival(host));
             var keeperWays=Scheldemist.World.Ruien.RuienData.Load().Areas.SelectMany(a=>a.Ways).Where(w=>w.Kind=="keeper_stair").ToArray();
-            var ruienAccess=new NativeRuienAccess(host,keeperWays.Select(w=>w.Id));
+            // (the entrances' street doors share the hatches' saved state: RuienEntranceDoor)
+            var ruienAccess=new NativeRuienAccess(host,keeperWays.Select(w=>w.Id).Concat(Scheldemist.World.Ruien.RuienEntrance.All.Select(e=>e.DoorId)));
             foreach(var way in keeperWays)
             {
                 var route=new System.Collections.Generic.List<NativeRuienAccess.Point>{new(way.Top.X,way.Top.Y,way.Top.Z-.5f)};

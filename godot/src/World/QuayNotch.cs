@@ -165,6 +165,46 @@ public static class QuayNotch
     }
 
     /// <summary>
+    /// Cut a convex region out of the picked meshes (a Ruien entrance's doorway and the air of its stair,
+    /// docs/ruien-native.md "Entrances"): every face within `box` that `consider` takes loses its part inside all of
+    /// `inside` (world points), in the drawn surfaces and in the collision stand-in faces alike. Returns the triangles
+    /// cut or dropped.
+    /// </summary>
+    public static int CutRegion(Node3D world, Func<MeshInstance3D, bool> pick, Aabb box, Func<(Vector3, Vector3, Vector3), bool> consider, List<Func<Vector3, float>> inside)
+    {
+        int changed = 0;
+        foreach (var node in BakedWorld.All(world))
+        {
+            if (node is not MeshInstance3D { Mesh: ArrayMesh mesh } mi || !pick(mi)) continue;
+            var xf = Transform3D.Identity;
+            for (Node? n = mi; n is Node3D n3; n = n.GetParent()) xf = n3.Transform * xf;
+            if (!(xf * mesh.GetAabb()).Intersects(box)) continue;
+            var cut = new ArrayMesh { ResourceName = mesh.ResourceName };
+            foreach (var key in mesh.GetMetaList()) cut.SetMeta(key, mesh.GetMeta(key));
+            int here = 0;
+            bool Near((Vector3, Vector3, Vector3) tri)
+            {
+                var (a, b, c) = tri;
+                var lo = a.Min(b).Min(c); var hi = a.Max(b).Max(c);
+                return hi.X >= box.Position.X && lo.X <= box.End.X && hi.Y >= box.Position.Y && lo.Y <= box.End.Y && hi.Z >= box.Position.Z && lo.Z <= box.End.Z && consider(tri);
+            }
+            for (int s = 0; s < mesh.GetSurfaceCount(); s++)
+            {
+                var arrays = mesh.SurfaceGetArrays(s);
+                if (mesh.SurfaceGetPrimitiveType(s) == Mesh.PrimitiveType.Triangles)
+                    here += CutSurfaceWith(arrays, xf, Near, inside);
+                cut.AddSurfaceFromArrays(mesh.SurfaceGetPrimitiveType(s), arrays, null, null, mesh.SurfaceGetFormat(s));
+                cut.SurfaceSetMaterial(s, mesh.SurfaceGetMaterial(s));
+            }
+            here += CutStandIn(cut, xf, Near, inside);
+            if (here == 0) continue;
+            mi.Mesh = cut;
+            changed += here;
+        }
+        return changed;
+    }
+
+    /// <summary>
     /// The triangles `consider` picks lose their part inside every `inside` (a convex region: key >= 0 inside each); the
     /// rest of each is kept, new corners mixed in proportion. The arrays are changed in place; the triangles cut.
     /// </summary>

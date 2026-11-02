@@ -175,7 +175,7 @@ public static class RuienSurround
 
     // Oak atlas (texture_sets.json): u is the plank column (2.0 m across the atlas), v runs 5.4 m along the plank. Every
     // face is charted in its own plane: v along the piece's grain, u square to it, both at true size (bevels too).
-    private static void AddOak(Node3D root,List<(ArrayMesh mesh,Transform3D at,Vector3 grain,float column)> pieces,Transform3D open,float side)
+    internal static void AddOak(Node3D root,List<(ArrayMesh mesh,Transform3D at,Vector3 grain,float column)> pieces,Transform3D open,float side,string? name=null)
     {
         var p=new List<Vector3>();var n=new List<Vector3>();var uv=new List<Vector2>();var colour=new List<Color>();
         foreach(var (mesh,at,grain,column) in pieces)
@@ -211,7 +211,7 @@ public static class RuienSurround
         arr[(int)Mesh.ArrayType.TexUV]=uv.ToArray();arr[(int)Mesh.ArrayType.Color]=colour.ToArray();
         var done=new ArrayMesh();done.AddSurfaceFromArrays(Mesh.PrimitiveType.Triangles,arr);done.SurfaceSetMaterial(0,RuienMaterials.Get("ruien_oak"));
         done.SurfaceSetName(0,"ruien_oak");
-        root.AddChild(new MeshInstance3D{Name="hatch_leaf_"+(side>0?"e":"w"),Mesh=done,Layers=Ruien.Layer,CastShadow=GeometryInstance3D.ShadowCastingSetting.Off});
+        root.AddChild(new MeshInstance3D{Name=name??"hatch_leaf_"+(side>0?"e":"w"),Mesh=done,Layers=Ruien.Layer,CastShadow=GeometryInstance3D.ShadowCastingSetting.Off});
         var body=new StaticBody3D{CollisionLayer=Solid.Layer,CollisionMask=0};
         body.AddChild(new CollisionShape3D{Shape=new ConcavePolygonShape3D{Data=done.GetFaces(),BackfaceCollision=true}});root.AddChild(body);
     }

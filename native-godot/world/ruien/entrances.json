@@ -1,0 +1,363 @@
+{
+ "about": "Ways down into the Ruien from the street (docs/ruien-native.md, Entrances). One entry per entrance: the kit (RuienEntrance.cs) builds the door, the stair and the closed landing from it. World metres, +x north, +z east. 'door' is the middle of the doorway on the wall's face at street level, 'out' the face's normal toward the street. Chosen by Steve 2026-11-02 from the RE-entrances survey (its number is 'survey').",
+ "defaults": {
+  "riser": 0.18,
+  "pitchDeg": 35,
+  "topLanding": 1.5,
+  "bottomLanding": 1.5,
+  "lining": 0.28,
+  "spring": 2.25,
+  "vaultRise": 0.32
+ },
+ "entrances": [
+  {
+   "id": "re06_rode_poort",
+   "survey": 6,
+   "name": "Rode Poort gate house door",
+   "host": "gate_house",
+   "door": [
+    223.366,
+    127.455
+   ],
+   "out": [
+    -0.9986,
+    0.0528
+   ],
+   "street": 0.0,
+   "depth": -3.9,
+   "line": "L16",
+   "layout": "I",
+   "flight": "in",
+   "closure": "grille",
+   "closureSide": "right",
+   "wall": 1.2,
+   "width": 1.5,
+   "doorWidth": 1.49,
+   "doorHeight": 2.45,
+   "post": 0.11,
+   "head": "flat",
+   "frame": "oak",
+   "spring": 2.85,
+   "keepAbove": 2.76,
+   "cut": [
+    "gate_rode_poort_"
+   ],
+   "clear": [
+    "gate_rode_poort_7"
+   ],
+   "foliage": [
+    "wall_climbers_",
+    "rampart_plants_",
+    "rampart_leaves_"
+   ],
+   "foliageMaterials": [
+    "park_leaves"
+   ],
+   "note": "Carts pass through the gate passage 4 m away: the door must open inward.; the drawn door is replaced by the kit's oak frame and leaf under the old hood"
+  },
+  {
+   "id": "re07_entrepot",
+   "survey": 7,
+   "name": "Rampart door by the Entrepot",
+   "host": "rampart",
+   "door": [
+    209.939,
+    12.499
+   ],
+   "out": [
+    -0.987,
+    0.161
+   ],
+   "street": 0.0,
+   "depth": -3.6,
+   "line": "L18",
+   "layout": "L",
+   "flight": "right",
+   "closure": "grille",
+   "closureSide": "street",
+   "wall": 0.9,
+   "width": 1.3,
+   "doorWidth": 1.2,
+   "doorHeight": 2.0,
+   "post": 0.08,
+   "head": "arch",
+   "frame": "bluestone",
+   "cut": [
+    "wall_chunk_"
+   ],
+   "foliage": [
+    "wall_climbers_",
+    "rampart_plants_",
+    "rampart_leaves_"
+   ],
+   "note": "nothing else uses this wall"
+  },
+  {
+   "id": "re08_north_hall",
+   "survey": 8,
+   "name": "Rampart door by the north hall",
+   "host": "rampart",
+   "door": [
+    220.671,
+    271.78
+   ],
+   "out": [
+    -0.992,
+    -0.123
+   ],
+   "street": 0.0,
+   "depth": -3.6,
+   "line": "L17",
+   "layout": "L",
+   "flight": "right",
+   "closure": "grille",
+   "closureSide": "street",
+   "wall": 0.9,
+   "width": 1.3,
+   "doorWidth": 1.2,
+   "doorHeight": 2.0,
+   "post": 0.08,
+   "head": "arch",
+   "frame": "bluestone",
+   "cut": [
+    "wall_chunk_"
+   ],
+   "foliage": [
+    "wall_climbers_",
+    "rampart_plants_",
+    "rampart_leaves_"
+   ],
+   "note": "nothing else uses this wall"
+  },
+  {
+   "id": "re09_keizerspoort",
+   "survey": 9,
+   "name": "Rampart door west of the Keizerspoort",
+   "host": "rampart",
+   "door": [
+    37.273,
+    348.617
+   ],
+   "out": [
+    -0.045,
+    -0.999
+   ],
+   "street": 0.0,
+   "depth": -3.6,
+   "line": "L63",
+   "layout": "L",
+   "flight": "right",
+   "closure": "bricked",
+   "closureSide": "street",
+   "wall": 0.9,
+   "width": 1.3,
+   "doorWidth": 1.2,
+   "doorHeight": 2.0,
+   "post": 0.08,
+   "head": "arch",
+   "frame": "bluestone",
+   "cut": [
+    "wall_chunk_"
+   ],
+   "foliage": [
+    "wall_climbers_",
+    "rampart_plants_",
+    "rampart_leaves_"
+   ],
+   "note": "The rampart steps land 2.4 m north of the door: keep their foot clear."
+  },
+  {
+   "id": "re10_kipdorppoort",
+   "survey": 10,
+   "name": "Kipdorppoort gate house door",
+   "host": "gate_house",
+   "door": [
+    -149.699,
+    347.612
+   ],
+   "out": [
+    0.0432,
+    -0.9991
+   ],
+   "street": 0.0,
+   "depth": -3.9,
+   "line": "L22",
+   "layout": "I",
+   "flight": "in",
+   "closure": "bricked",
+   "closureSide": "right",
+   "wall": 1.2,
+   "width": 1.5,
+   "doorWidth": 1.49,
+   "doorHeight": 2.45,
+   "post": 0.11,
+   "head": "flat",
+   "frame": "oak",
+   "spring": 2.85,
+   "keepAbove": 2.76,
+   "cut": [
+    "gate_kipdorppoort_"
+   ],
+   "clear": [
+    "gate_kipdorppoort_7"
+   ],
+   "foliage": [
+    "wall_climbers_",
+    "rampart_plants_",
+    "rampart_leaves_"
+   ],
+   "foliageMaterials": [
+    "park_leaves"
+   ],
+   "note": "Ruien gate F1 Kipdorp flush sluice (7.3 m); The Kipdorppoort passage is 6 m away (carts): the door opens inward.; the drawn door is replaced by the kit's oak frame and leaf under the old hood"
+  },
+  {
+   "id": "re11_werf",
+   "survey": 11,
+   "name": "Rampart door by the Werf",
+   "host": "rampart",
+   "door": [
+    -352.787,
+    56.185
+   ],
+   "out": [
+    0.996,
+    0.085
+   ],
+   "street": 0.0,
+   "depth": -3.6,
+   "line": "L73",
+   "layout": "L",
+   "flight": "right",
+   "closure": "bricked",
+   "closureSide": "street",
+   "wall": 0.9,
+   "width": 1.3,
+   "doorWidth": 1.2,
+   "doorHeight": 2.0,
+   "post": 0.08,
+   "head": "arch",
+   "frame": "bluestone",
+   "cut": [
+    "wall_chunk_"
+   ],
+   "foliage": [
+    "wall_climbers_",
+    "rampart_plants_",
+    "rampart_leaves_"
+   ],
+   "note": "nothing else uses this wall"
+  },
+  {
+   "id": "re12_prison",
+   "survey": 12,
+   "name": "Rampart door behind the prison",
+   "host": "rampart",
+   "door": [
+    -360.455,
+    253.551
+   ],
+   "out": [
+    0.993,
+    -0.116
+   ],
+   "street": 0.0,
+   "depth": -3.9,
+   "line": "L31",
+   "layout": "L",
+   "flight": "right",
+   "closure": "grille",
+   "closureSide": "street",
+   "wall": 0.9,
+   "width": 1.3,
+   "doorWidth": 1.2,
+   "doorHeight": 2.0,
+   "post": 0.08,
+   "head": "arch",
+   "frame": "bluestone",
+   "cut": [
+    "wall_chunk_"
+   ],
+   "foliage": [
+    "wall_climbers_",
+    "rampart_plants_",
+    "rampart_leaves_"
+   ],
+   "note": "nothing else uses this wall"
+  },
+  {
+   "id": "re13_vestrui",
+   "survey": 13,
+   "name": "Rampart door on the Vestrui",
+   "host": "rampart",
+   "door": [
+    -223.35,
+    345.922
+   ],
+   "out": [
+    0.043,
+    -0.999
+   ],
+   "street": 0.0,
+   "depth": -3.9,
+   "line": "L35",
+   "layout": "L",
+   "flight": "right",
+   "closure": "bricked",
+   "closureSide": "street",
+   "wall": 0.9,
+   "width": 1.3,
+   "doorWidth": 1.2,
+   "doorHeight": 2.0,
+   "post": 0.08,
+   "head": "arch",
+   "frame": "bluestone",
+   "cut": [
+    "wall_chunk_"
+   ],
+   "foliage": [
+    "wall_climbers_",
+    "rampart_plants_",
+    "rampart_leaves_"
+   ],
+   "note": "nothing else uses this wall"
+  },
+  {
+   "id": "re14_rode_poort_rui",
+   "survey": 14,
+   "name": "Rampart door on the Rode Poort rui",
+   "host": "rampart",
+   "door": [
+    228.412,
+    194.139
+   ],
+   "out": [
+    -0.999,
+    0.053
+   ],
+   "street": 0.0,
+   "depth": -3.9,
+   "line": "L16",
+   "layout": "L",
+   "flight": "right",
+   "closure": "grille",
+   "closureSide": "street",
+   "wall": 0.9,
+   "width": 1.3,
+   "doorWidth": 1.2,
+   "doorHeight": 2.0,
+   "post": 0.08,
+   "head": "arch",
+   "frame": "bluestone",
+   "cut": [
+    "wall_chunk_"
+   ],
+   "foliage": [
+    "wall_climbers_",
+    "rampart_plants_",
+    "rampart_leaves_"
+   ],
+   "note": "nothing else uses this wall"
+  }
+ ]
+}

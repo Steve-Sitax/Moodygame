@@ -32,6 +32,8 @@ public static class RuienGates
                 int n = QuayNotch.CutFloor(town, hole, -.45f, .30f,w.Round,solidCut:true);
                 notes.Add($"{w.Kind} {w.Id} of {area.Id}: {n} triangles of the street cut over it");
             }
+        // the entrances' doorways, stair wells and the plants before their doors (RuienEntrance)
+        if (Main.I?.Flag("no-ruien-entrances") != true) notes.AddRange(RuienEntrance.Cut(town));
         return notes;
     }
 }

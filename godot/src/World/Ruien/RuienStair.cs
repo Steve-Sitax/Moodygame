@@ -219,18 +219,28 @@ public static class RuienStair
     }
 
     /// <param name="barrel">a vault from <see cref="Vault"/>: its own chart, (around, along) turned so the brick runs along the vault</param>
-    internal static void Add(Node3D root,SurfaceTool tool,string family,bool solid,bool metric=true,Func<Vector3,float>? trim=null,bool barrel=false)
+    /// <param name="colour">the weather colour of every corner (R wet, G lime, B soot, A moss), when not the kit's own</param>
+    /// <param name="bake">a base colour (linear) for every corner, as the export's baked colour (CUSTOM0), the family's pictures giving its grain</param>
+    internal static void Add(Node3D root,SurfaceTool tool,string family,bool solid,bool metric=true,Func<Vector3,float>? trim=null,bool barrel=false,Color? colour=null,Color? bake=null)
     {
-        var mesh=tool.Commit();var a=mesh.SurfaceGetArrays(0);
+        var mesh=tool.Commit();if(mesh.GetSurfaceCount()==0)return; // (a kit piece this model does not have)
+        var a=mesh.SurfaceGetArrays(0);
         var p=a[(int)Mesh.ArrayType.Vertex].AsVector3Array();
         if(metric)
         {
             var tile=RuienTextures.Families()[family[6..]];
             a[(int)Mesh.ArrayType.TexUV]=a[(int)Mesh.ArrayType.TexUV].AsVector2Array().Select(uv=>(barrel?new Vector2(uv.Y,uv.X):uv)/new Vector2(tile.TileU,tile.TileV)).ToArray();
             if(a[(int)Mesh.ArrayType.Color].VariantType==Variant.Type.Nil)
-                a[(int)Mesh.ArrayType.Color]=p.Select(v=>new Color(.32f,.015f,.14f,0)).ToArray();
+                a[(int)Mesh.ArrayType.Color]=p.Select(v=>colour??new Color(.32f,.015f,.14f,0)).ToArray();
             // Separate boxes, vaults and reveals share one unfolded chart: courses continue round every corner.
             if(family.StartsWith("ruien_brick")&&!barrel)RuienUnfold.Apply(a,family,null,0);
+        }
+        if(bake is Color b)
+        {
+            byte B(float v)=>(byte)Math.Clamp(MathF.Round(MathF.Sqrt(Math.Max(v,0))*255),0,255);
+            var bytes=new byte[p.Length*4];
+            for(int i=0;i<p.Length;i++){bytes[i*4]=B(b.R);bytes[i*4+1]=B(b.G);bytes[i*4+2]=B(b.B);bytes[i*4+3]=255;}
+            a[(int)Mesh.ArrayType.Custom0]=bytes;
         }
         // Trimmed after the brick is charted: the cut's split triangles take the chart's courses as they are. Charted
         // after the cut, its T-junctions broke the surface into islands and a vault's crown took courses of its own (#217).

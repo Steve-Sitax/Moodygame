@@ -51,6 +51,8 @@ public partial class Ruien : Node
     }
 
     private readonly List<Drawn> drawn = new();
+    /// <summary>The entrances' doors (plan), for lighting their stairs when the eye is near one.</summary>
+    private readonly List<Vector2> entranceDoors = new();
     private readonly List<RuienData.Source> sources = new();
     private readonly List<(RuienData.Source s, float d)> nearest = new();
     private Image? lightImage;
@@ -91,7 +93,16 @@ public partial class Ruien : Node
         lightTex = ImageTexture.CreateFromImage(lightImage);
         if (!Added.Add("ruien_lights")) RenderingServer.GlobalShaderParameterSet("ruien_lights", lightTex.GetRid());
         else RenderingServer.GlobalShaderParameterAdd("ruien_lights", RenderingServer.GlobalShaderParameterType.Sampler2D, lightTex.GetRid());
-        Cover.Build(Data);
+        // the ways in from the street (entrances.json): their models, their doors' daylight in the light list
+        var entrances = Main.I.Flag("no-ruien-entrances") ? new List<RuienEntrance.Spec>() : RuienEntrance.All.ToList();
+        Cover.Build(Data, entrances);
+        foreach (var e in entrances)
+        {
+            Main.I.View.AddChild(RuienEntrance.Build(e));
+            sources.Add(RuienEntrance.DoorLight(e));
+            entranceDoors.Add(new Vector2(e.Door.X, e.Door.Y));
+        }
+        if (entrances.Count > 0) GD.Print($"ruien: {entrances.Count} entrances from the street");
         var coverTex = Cover.Texture ?? ImageTexture.CreateFromImage(Image.CreateEmpty(1, 1, false, Image.Format.R8));
         if (!Added.Add("ruien_cover")) RenderingServer.GlobalShaderParameterSet("ruien_cover", coverTex.GetRid());
         else RenderingServer.GlobalShaderParameterAdd("ruien_cover", RenderingServer.GlobalShaderParameterType.Sampler2D, coverTex.GetRid());
@@ -352,7 +363,7 @@ public partial class Ruien : Node
     }
 
     /// <summary>How far under a vault a point is: 0 in the open .. 1 inside (the cover map, below the crown).</summary>
-    public float CoverAt(Vector3 p) => Cover.At(p.X, p.Z) * (1 - Mathf.SmoothStep(-0.7f, -0.05f, p.Y));
+    public float CoverAt(Vector3 p) => Math.Max(Cover.At(p.X, p.Z) * (1 - Mathf.SmoothStep(-0.7f, -0.05f, p.Y)), Cover.Closed(p.X, p.Z));
 
     /// <summary>The same footprint and level as the drawn water, including the gate's sloping outflow.</summary>
     public float? WaterAt(float x, float z)
@@ -474,13 +485,13 @@ public partial class Ruien : Node
         c = cold * sky + warm * nightGlow;
         float m = Math.Max(c.R, Math.Max(c.G, c.B));
         if (m > 1e-5f) c /= m;
-        return s.Power * m * RuienHatch.Light(s.Id);
+        return s.Power * m * RuienHatch.Light(s.Id) * RuienEntranceDoor.Light(s.Id);
     }
 
     private void SendLights(Vector3 eye, Daylight day)
     {
         nearest.Clear();
-        bool any = drawn.Any(d => d.Shown);
+        bool any = drawn.Any(d => d.Shown) || entranceDoors.Any(e => new Vector2(eye.X - e.X, eye.Z - e.Y).Length() < 30);
         if (any)
             foreach (var s in sources)
             {
