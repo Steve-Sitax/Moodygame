@@ -11,6 +11,10 @@ Bugs and loose ends are tracked as [issues](https://github.com/Steve-Sitax/Moody
 
 ## [Unreleased]
 
+- The vaults of Sint-Paulus, Sint-Jacob and the cathedral are smooth stone webs that meet in clean groins under the ribs, instead of stepped slabs with saw teeth along every rib.
+- The stone relief on the churches, the cathedral, the Steen, the Vleeshuis, the town hall and the park's stonework now lines up with the stones you see (it was drawn upside down, so the joints in the light fell between the drawn ones). Far off in a low sun the churches' stone no longer sparkles: the gold streaks beside Sint-Carolus' left apse window are gone.
+- The rounded edges of the churches' mouldings, jambs and pilasters show their stone at its own size, not squeezed into fine streaks.
+
 - At low water the trickle down the middle of a canal and the pools on its bed are no longer a bright white ribbon and flat white patches: they are the same dark, still water as the silt round them, mirroring the walls and the sky, their edges broken into small inlets.
 - The tree pits look wet in the rain: their fallen leaves and the weeds darken and catch a wet sheen like the paving round them, and after rain the water in the pits and the planted beds stands in a few joined pools instead of scattered blue specks (the bed on the Lijnwaadmarkt keeps its pool). The pit kerbs are a weathered grey stone instead of dark blue.
 - The mud on the cobbled streets and squares is real mud now, not just a darker stain: where carts and feet churn the street it fills the joints and in places spreads over the stones so only their tops stand out, with boot and hoof prints, lumps and a few clumps of dung you can see in relief, darker and wetter in the rain, and the first place puddles gather. A hole where a cobble is missing is a sunken pocket of mud instead of a black square. The mud trodden round the market stalls on the Grote Markt and the Vismarkt has the same relief.
