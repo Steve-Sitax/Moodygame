@@ -76,6 +76,43 @@ public static class NativeAiSchema
         }
         return true;
     }
+    /// <summary>Diagnostic (AI audit 2026-11-02): the first place an answer breaks the schema, for the ai_call error text.
+    /// Names the path and the rule only; never the answer's own words.</summary>
+    public static string Why(JsonNode? value, JsonObject schema, string path = "$")
+    {
+        if (schema["anyOf"] is JsonArray any && !any.Any(s => Valid(value, s!.AsObject()))) return path + " matches no anyOf branch";
+        if (schema["enum"] is JsonArray choices && !choices.Any(s => JsonNode.DeepEquals(s, value))) return path + " not in enum";
+        if (!Valid(value, new JsonObject { ["type"] = schema["type"]?.DeepClone() })) return path + " wrong type (want " + NativeGoods.S(schema, "type") + ")";
+        if (value is JsonObject obj)
+        {
+            if (schema["required"] is JsonArray required && required.FirstOrDefault(n => !obj.ContainsKey(n!.GetValue<string>())) is { } missing) return path + "." + missing.GetValue<string>() + " missing";
+            if (schema["properties"] is JsonObject props)
+            {
+                if (schema["additionalProperties"]?.GetValueKind() == JsonValueKind.False && obj.FirstOrDefault(p => !props.ContainsKey(p.Key)) is { Key: { } extra }) return path + "." + extra + " not allowed";
+                foreach (var p in obj) if (props[p.Key] is JsonObject child && !Valid(p.Value, child)) return Why(p.Value, child, path + "." + p.Key);
+            }
+        }
+        if (value is JsonArray array)
+        {
+            if (schema["minItems"] != null && array.Count < NativeGoods.Number(schema["minItems"])) return $"{path} has {array.Count} items, minItems {schema["minItems"]}";
+            if (schema["maxItems"] != null && array.Count > NativeGoods.Number(schema["maxItems"])) return $"{path} has {array.Count} items, maxItems {schema["maxItems"]}";
+            if (schema["items"] is JsonObject item) for (int i = 0; i < array.Count; i++) if (!Valid(array[i], item)) return Why(array[i], item, $"{path}[{i}]");
+        }
+        if (value?.GetValueKind() == JsonValueKind.String)
+        {
+            int length = value.GetValue<string>().Length;
+            if (schema["minLength"] != null && length < NativeGoods.Number(schema["minLength"])) return $"{path} length {length} < minLength {schema["minLength"]}";
+            if (schema["maxLength"] != null && length > NativeGoods.Number(schema["maxLength"])) return $"{path} length {length} > maxLength {schema["maxLength"]}";
+            if (schema["pattern"] != null) return path + " pattern";
+        }
+        if (value?.GetValueKind() == JsonValueKind.Number)
+        {
+            double n = NativeGoods.Number(value);
+            if (schema["minimum"] != null && n < NativeGoods.Number(schema["minimum"])) return $"{path} {n} < minimum {schema["minimum"]}";
+            if (schema["maximum"] != null && n > NativeGoods.Number(schema["maximum"])) return $"{path} {n} > maximum {schema["maximum"]}";
+        }
+        return path + " invalid";
+    }
     public static JsonNode Parse(string text)
     {
         text = Regex.Replace(Regex.Replace(text.Trim(), "^```(?:json)?\\s*", "", RegexOptions.IgnoreCase), "\\s*```$", "");

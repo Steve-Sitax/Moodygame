@@ -56,6 +56,8 @@ public partial class TalkTest : Node
             await Try(() => api.Post<JsonElement>("api/arrival/ashore"));
             GameState.I.Apply(await api.Post<JobsPayload>("api/dev/set", new { hour = 9, minute = 0, weather = "clear", food = 6, warmth = 10, sleep = 10, health = 10 }));
             await Frames(30);
+            // AI audit 2026-11-02: the server's talk answers straight from the API (no window, no distance rule)
+            if (Main.I.Arg("talktest-npc") is { Length: > 0 }) await ApiProbe(api);
             if (ai) await WithModel(api);
             else await NoModel(api);
             ok = steps.All(s => s["ok"] is true);
@@ -296,14 +298,43 @@ public partial class TalkTest : Node
 
     // ------------------------------------------------------------------ the run with a model (two calls)
 
+    /// <summary>AI audit 2026-11-02: open, two typed lines and a quay character, each with its time and the server's flags.</summary>
+    private async Task ApiProbe(Api api)
+    {
+        var rows = new List<object>();
+        async Task Ask(string who, string kind, string? text)
+        {
+            var clock = System.Diagnostics.Stopwatch.StartNew();
+            try
+            {
+                var r = await api.Talk(who, kind, text);
+                rows.Add(new { who, kind, text, ms = clock.ElapsedMilliseconds, line = r.NpcLine, free = r.Free, gated = r.Gated, end = r.End, mood = r.Mood, choices = r.Choices });
+            }
+            catch (Exception e) { rows.Add(new { who, kind, text, ms = clock.ElapsedMilliseconds, error = e.Message }); }
+        }
+        string id = Main.I.Arg("talktest-npc");
+        await Ask(id, "open", null);
+        await Ask(id, "free", "Good morning. Any work on the quay today for a strong pair of hands?");
+        await Task.Delay(5500);
+        await Ask(id, "free", "I came from the Kempen last week. Where do the dockers drink after the shift?");
+        await Ask("fientje", "open", null);
+        await Task.Delay(5500);
+        await Ask("fientje", "free", "Good morning, Fientje. What news on the Rijnkaai?");
+        doc["api_probe"] = rows;
+        try { doc["ai_calls"] = await api.Get<JsonElement>("api/ai/config"); } catch (ApiException) { }
+    }
+
     private async Task WithModel(Api api)
     {
         var talk = Talk.I!;
-        talk.Open("fientje", "Fientje");
+        // AI audit 2026-11-02: --talktest-npc <id> picks who to talk to (Fientje is not a native resident).
+        string npcId = Main.I.Arg("talktest-npc") is { Length: > 0 } chosen ? chosen : "fientje";
+        var clock = System.Diagnostics.Stopwatch.StartNew();
+        talk.Open(npcId, npcId);
         await Shot("ai_wait");
         bool answered = await Until(() => !talk.Busy, 40);
         await Shot("ai_open");
-        Step("the opening line", answered && talk.Lines.Count > 0, new { reply = talk.LastReply });
+        Step("the opening line", answered && talk.Lines.Count > 0, new { reply = talk.LastReply, ms = clock.ElapsedMilliseconds });
         bool free = talk.LastReply?.Free != false;
         await Key(Godot.Key.T);
         await Frames(4);
@@ -311,13 +342,14 @@ public partial class TalkTest : Node
         talk.DevType(typed);
         await Shot("ai_typing");
         bool typing = talk.Typing;
+        clock.Restart();
         await Key(Godot.Key.Enter);
         await Frames(4);
         await Shot("ai_typed_wait");
         answered = await Until(() => !talk.Busy, 40);
         await Frames(4);
         await Shot("ai_typed_reply");
-        Step("a typed line and its reply", free && typing && answered && talk.Lines.Count >= 3 && talk.LastReply?.Gated == null, new { typed, reply = talk.LastReply, lines = talk.Lines.Select(l => $"{l.Who}: {l.Text}") });
+        Step("a typed line and its reply", free && typing && answered && talk.Lines.Count >= 3 && talk.LastReply?.Gated == null, new { typed, reply = talk.LastReply, ms = clock.ElapsedMilliseconds, can_type = free, lines = talk.Lines.Select(l => $"{l.Who}: {l.Text}") });
         talk.Close();
         doc["ai_after"] = await Try(() => api.Get<JsonElement>("api/ai/config"));
     }

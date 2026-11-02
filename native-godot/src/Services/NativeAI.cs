@@ -99,7 +99,7 @@ public sealed class NativeAI : INativeServiceModule, IDisposable
                 {
                     answer=await Run(new(route,system,prompt,schema),limit.Token).WaitAsync(limit.Token).ConfigureAwait(false);
                     accepted=NativeAiSchema.Valid(answer.Output,schema)&&(validate?.Invoke(answer.Output)??true);
-                    if(!accepted)error="schema: the answer did not fit the game's format";
+                    if(!accepted)error="schema: the answer did not fit the game's format"+(answer.Output!=null&&!NativeAiSchema.Valid(answer.Output,schema)?" ("+NativeAiSchema.Why(answer.Output,schema)+")":answer.Output==null?" (no answer)":" (engine check)");
                 }
                 catch(Exception e){error=limit.IsCancellationRequested?$"timeout after {timeout} ms":hook=="confession"?"the private reply could not be written":Settings.Scrub(e.Message);}
                 string? failure=accepted?null:error[..Math.Min(500,error.Length)];
