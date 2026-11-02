@@ -302,20 +302,35 @@ public partial class TalkTest : Node
     private async Task ApiProbe(Api api)
     {
         var rows = new List<object>();
+        // the words as they stream in (talk_partial pushes, 2026-11-02): when the first came, and how many
+        var clock = System.Diagnostics.Stopwatch.StartNew();
+        long firstPartial = -1; int partials = 0;
+        void Partial(PushMsg m) { if (m.Type != "talk_partial") return; partials++; if (firstPartial < 0) firstPartial = clock.ElapsedMilliseconds; }
+        api.OtherPushed += Partial;
         async Task Ask(string who, string kind, string? text)
         {
-            var clock = System.Diagnostics.Stopwatch.StartNew();
+            clock.Restart(); firstPartial = -1; partials = 0;
             try
             {
                 var r = await api.Talk(who, kind, text);
-                rows.Add(new { who, kind, text, ms = clock.ElapsedMilliseconds, line = r.NpcLine, free = r.Free, gated = r.Gated, end = r.End, mood = r.Mood, choices = r.Choices });
+                rows.Add(new { who, kind, text, ms = clock.ElapsedMilliseconds, firstWordsMs = firstPartial, partials, line = r.NpcLine, free = r.Free, gated = r.Gated, end = r.End, mood = r.Mood, choices = r.Choices });
             }
             catch (Exception e) { rows.Add(new { who, kind, text, ms = clock.ElapsedMilliseconds, error = e.Message }); }
         }
         string id = Main.I.Arg("talktest-npc");
+        bool live = Main.I.Flag("talktest-live"); // a real model: one typed line each to a resident and Fientje, no more
         await Ask(id, "open", null);
         await Ask(id, "free", "Good morning. Any work on the quay today for a strong pair of hands?");
         await Task.Delay(5500);
+        if (live)
+        {
+            await Ask("fientje", "open", null);
+            await Ask("fientje", "free", "Good morning, Fientje. What news on the Rijnkaai?");
+            await Task.Delay(30000); // the judge lands in the background
+            api.OtherPushed -= Partial;
+            doc["api_probe"] = rows;
+            return;
+        }
         await Ask(id, "free", "I came from the Kempen last week. Where do the dockers drink after the shift?");
         await Ask("fientje", "open", null);
         await Task.Delay(5500);
@@ -327,6 +342,7 @@ public partial class TalkTest : Node
             await Task.Delay(5500);
             await Ask(who, "free", words);
         }
+        api.OtherPushed -= Partial;
         doc["api_probe"] = rows;
         try { doc["ai_calls"] = await api.Get<JsonElement>("api/ai/config"); } catch (ApiException) { }
     }

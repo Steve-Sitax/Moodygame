@@ -173,6 +173,11 @@ public partial class NativeTownGame : Scheldemist.Main
             host.Interiors.NarrateAsync = Narration; host.Interiors.DailyCallLimit = () => ai.Settings.CallsPerDay;
             routines.NarrateAsync = Narration; events.NarrateAsync = Narration; townLife.NarrateAsync = Narration;
             talk.NarrateAsync = Narration; talk.DailyCallLimit = () => ai.Settings.CallsPerDay;
+            talk.NarrateStreamAsync = async (who, hook, request, partial) =>
+            {
+                var result = await ai.Call(hook, request["system"]!.GetValue<string>(), request["prompt"]!.GetValue<string>(), request["schema"]!.AsObject(), who, null, partial).ConfigureAwait(false);
+                return result.Ok ? result.Output?.AsObject() : null;
+            };
             deeds.NarrateAsync = Narration; deeds.DailyCallLimit = () => ai.Settings.CallsPerDay; deeds.CanUseHook = ai.CanUse;
             talk.ApplyAction = (player, npc, proposal) => actions.Apply(player, npc, proposal);
             routines.DailyCallLimit = () => ai.Settings.CallsPerDay;

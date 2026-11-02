@@ -24,7 +24,7 @@
         "id": "talk",
         "label": "Conversations",
         "what": "What people say to Jef: townspeople, named people, the police, haggling, the confessional, clerks, the landlady, hired hands, dice players.",
-        "recommended": "Claude Opus 5.5"
+        "recommended": "Claude Sonnet 5.5 writes what townspeople say, word by word; Claude Opus 5.5 judges trust and memory and writes the rest"
       },
       {
         "id": "director",
@@ -61,7 +61,7 @@
       {
         "id": "recommended",
         "label": "Recommended mix",
-        "short": "Claude Opus 5.5 for most things, GPT Luna for the paper, posters and gossip.",
+        "short": "Claude Opus 5.5 for most things, Claude Sonnet 5.5 for quick answers in talk, GPT Luna for the paper, posters and gossip.",
         "needs": [],
         "models": [],
         "freeModel": false,
@@ -70,12 +70,12 @@
         "effort": false,
         "cost": "plan",
         "help": {
-          "what": "The mix the game was tuned with: Claude Opus 5.5 writes the talk, the jobs and the director; GPT Luna (through Codex) writes the morning paper, wall posters, rumours, dreams, street talk and family news.",
+          "what": "The mix the game was tuned with: Claude Sonnet 5.5 (low effort) writes what townspeople say to you, shown word by word, while Claude Opus 5.5 judges in the background how it changes their trust and memory; Opus also writes the jobs, the director and the rest of the talk; GPT Luna (through Codex) writes the morning paper, wall posters, rumours, dreams, street talk and family news.",
           "need": "Claude Code installed and logged in on this PC. Codex installed and logged in for the GPT Luna parts; without Codex those parts go to Claude too.",
           "cost": "Runs on your Claude and ChatGPT plans, not paid per call. A game day makes at most 120 calls.",
           "privacy": "What is sent: the game's own text only (the scene, the made-up townsperson's character and memories, the day's events in the town). Nothing about you or your computer: no name, no files, no paths."
         },
-        "typedLines": "The mix sends what you type to Claude Opus 5.5 only."
+        "typedLines": "The mix sends what you type to Claude only (Sonnet 5.5 and Opus 5.5), never to GPT."
       },
       {
         "id": "claude_local",
@@ -300,6 +300,7 @@
   },
   "hooks": {
     "talk": [
+      "talk_judge",
       "dialogue",
       "free_reply",
       "resident_talk",
@@ -376,6 +377,11 @@
       "model": "claude-sonnet-5-5",
       "effort": "medium"
     },
+    "sonnet_low": {
+      "provider": "claude",
+      "model": "claude-sonnet-5-5",
+      "effort": "low"
+    },
     "haiku": {
       "provider": "claude",
       "model": "claude-haiku-5-5"
@@ -392,6 +398,8 @@
     }
   },
   "routes": {
+    "resident_talk": "sonnet_low",
+    "talk_judge": "opus",
     "newspaper": "luna",
     "poster": "luna",
     "rumour_twist": "luna",
@@ -400,6 +408,7 @@
     "family_share": "luna"
   },
   "typedHooks": [
+    "talk_judge",
     "dialogue",
     "free_reply",
     "resident_talk",

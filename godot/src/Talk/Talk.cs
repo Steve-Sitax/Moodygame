@@ -32,6 +32,8 @@ public partial class Talk : Node, IDialog
 
     private (string Id, string Name, string? Title)? npc;
     private bool busy;
+    /// <summary>The line as the model writes it (the "talk_partial" push, 2026-11-02): shown while waiting, replaced by the final line.</summary>
+    private string partial = "";
     /// <summary>Bumped on every open, close and request: a reply for an older one is dropped (Jef turned to someone else meanwhile).</summary>
     private int req;
     private bool ended;
@@ -87,11 +89,24 @@ public partial class Talk : Node, IDialog
         input = new LineEdit { MaxLength = 300, PlaceholderText = Placeholder, ContextMenuEnabled = false, CaretBlink = true };
         if (Dialogs.I is { } d) d.Resized += Render;
         ServerLink.I?.WhenUp(LoadWares);
+        ServerLink.I?.WhenUp(() => ServerLink.I!.Api!.OtherPushed += OnPartial);
+    }
+
+    /// <summary>The words of the answer as they arrive (only to the player who talks); the final answer replaces them.</summary>
+    private void OnPartial(PushMsg m)
+    {
+        if (m.Type != "talk_partial" || !busy || npc is not { } who) return;
+        if (!m.Body.TryGetProperty("npc", out var n) || n.GetString() != who.Id || !m.Body.TryGetProperty("text", out var t)) return;
+        string text = t.GetString() ?? "";
+        if (text.Length <= partial.Length) return;
+        partial = text;
+        Render();
     }
 
     public override void _ExitTree()
     {
         if (Dialogs.I is { } d) d.Resized -= Render;
+        if (ServerLink.I?.Api is { } api) api.OtherPushed -= OnPartial;
         // Kept between papers, the typing box can be outside every tree when the game ends.
         if (GodotObject.IsInstanceValid(input) && input.GetParent() == null) input.Free();
         if (I == this) I = null;
@@ -244,6 +259,7 @@ public partial class Talk : Node, IDialog
     {
         if (npc is not { } who || busy) return;
         busy = true;
+        partial = "";
         int my = ++req;
         if (text != null) lines.Add(new Said("You", text));
         choices = new();
@@ -260,6 +276,7 @@ public partial class Talk : Node, IDialog
         }
         if (my != req) return; // walked away or turned to someone else meanwhile
         busy = false;
+        partial = "";
         if (npc?.Id != who.Id) return;
         LastReply = r;
         if (r.Free != null) freeOk = r.Free.Value;
@@ -441,7 +458,7 @@ public partial class Talk : Node, IDialog
             sh.Text($"[b]{Css.Esc(l.Who)}:[/b] {Css.Esc(l.Text)}", Face.Print, you ? 14 : 16, you ? 0.7f : 1, 1.45f, 4, 0, mid);
             if (!string.IsNullOrEmpty(l.Note)) sh.Text($"[i]{Css.Esc(l.Note)}[/i]", Face.Print, 14, 0.7f, 1.45f, 1, 0, mid);
         }
-        if (busy) sh.Text($"{Css.Esc(who.Name)} …", Face.Print, 16, 0.6f, 1.45f, 4, 0, mid);
+        if (busy) sh.Text(partial != "" ? $"[b]{Css.Esc(who.Name)}:[/b] {Css.Esc(partial)} …" : $"{Css.Esc(who.Name)} …", Face.Print, 16, partial != "" ? 0.85f : 0.6f, 1.45f, 4, 0, mid);
 
         var jobs = JobsOf(who.Id);
         var stock = Stock;

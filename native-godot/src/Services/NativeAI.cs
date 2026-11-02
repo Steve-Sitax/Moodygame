@@ -109,7 +109,7 @@ public sealed class NativeAI : INativeServiceModule, IDisposable
         while (!await host.WithState(_=>!host.Saves.Paused && S(host.Saves.Gate(),"mode")=="open").ConfigureAwait(false)) await Task.Delay(25,stop).ConfigureAwait(false);
         stop.ThrowIfCancellationRequested();
     }
-    public async Task<NativeAiResult> Call(string hook,string system,string prompt,JsonObject schema,int playerId=1,Func<JsonNode?,bool>? validate=null)
+    public async Task<NativeAiResult> Call(string hook,string system,string prompt,JsonObject schema,int playerId=1,Func<JsonNode?,bool>? validate=null,Action<string>? partial=null)
     {
         var choice = Settings.ChoiceForHook(hook);
         if (choice == null) return new(false,null,"no AI (walk-around mode or hand-written for this kind)",0);
@@ -142,7 +142,7 @@ public sealed class NativeAI : INativeServiceModule, IDisposable
                 var attemptWatch=Stopwatch.StartNew(); NativeAiAnswer? answer=null;bool accepted=false;string? fit=null;
                 try
                 {
-                    answer=await Run(new(route,system,prompt,schema),limit.Token).WaitAsync(limit.Token).ConfigureAwait(false);
+                    answer=await Run(new(route,system,prompt,schema,attempt==0?partial:null),limit.Token).WaitAsync(limit.Token).ConfigureAwait(false);
                     // small misses (a line a little long, a fourth choice, a weight of 0) are trimmed or clamped, not thrown away
                     var fitted=new List<string>();answer=answer with{Output=NativeAiSchema.Fit(answer.Output,schema,fitted)};
                     accepted=NativeAiSchema.Valid(answer.Output,schema)&&(validate?.Invoke(answer.Output)??true);

@@ -36,7 +36,7 @@ ai.Settings.Patch(JsonNode.Parse("{\"default\":{\"provider\":\"recommended\"},\"
 Check("public configuration hides the full key",!ai.Settings.View().ToJsonString().Contains("fake-password")&&ai.Settings.Scrub("fake-password")=="[key]");
 var loaded=new NativeAiConfiguration(Path.Combine(root,"native-godot/services/data/native-ai.json"),Path.Combine(output,"settings.json"));Check("configuration saves and cold-loads",loaded.Saved&&loaded.TypedLines=="claude_only");
 int greetingCalls=0;ai.Runners["claude"]=(r,ct)=>{greetingCalls++;return Task.FromResult(new NativeAiAnswer(JsonNode.Parse("{\"line\":\"Good day.\"}")));};ai.Runners["codex"]=ai.Runners["claude"];
-var tested=JsonNode.Parse(await host.Call("POST","/api/ai/test","{\"all\":true}"))!;Check("test-all calls each selected route once",greetingCalls==2&&tested["results"]!.AsArray().Count>=6);
+var tested=JsonNode.Parse(await host.Call("POST","/api/ai/test","{\"all\":true}"))!;Check("test-all calls each selected route once (Opus, Sonnet low for talk lines, Luna)",greetingCalls==3&&tested["results"]!.AsArray().Count>=6);
 Check("typed dialogue preserves Claude-only routing",ai.RouteOf("free_reply",ai.Settings.NormalChoice(JsonNode.Parse("{\"provider\":\"ollama\",\"model\":\"example-model\"}")))!.Provider=="claude");
 var handler=new Capture();using var http=new HttpClient(handler);using var providers=new NativeAiProviders(ai.Settings,output,http);
 handler.Reply="{\"choices\":[{\"message\":{\"content\":\"{\\\"line\\\":\\\"Good day.\\\"}\"}}]}";
@@ -76,6 +76,14 @@ try{Environment.SetEnvironmentVariable("PATH","");Environment.SetEnvironmentVari
  free.Settings.Patch(JsonNode.Parse("{\"mode\":\"ai\",\"default\":{\"provider\":\"claude_local\",\"model\":\"claude-opus-5-5\"}}")!.AsObject());
  Check("no Claude login on this PC: says so, points to AI setup, no typing",free.Readiness().State=="no_login"&&free.Readiness().Text.Contains("AI setup")&&!free.CanUse("resident_talk"));}
 finally{Environment.SetEnvironmentVariable("PATH",savedPath);Environment.SetEnvironmentVariable("SCHELDEMIST_CLAUDE_BIN",savedBin);}
+// the split talk (2026-11-02): the recommended mix routes the line to Sonnet 5.5 low and the judge to Opus 5.5; a chosen provider wins
+var mix=free.Settings.NormalChoice(JsonNode.Parse("{\"provider\":\"recommended\"}"));
+var lineRoute=free.RouteOf("resident_talk",mix)!;var judgeRoute=free.RouteOf("talk_judge",mix)!;
+Check("recommended: Sonnet 5.5 low writes the line, Opus 5.5 judges",lineRoute.Provider=="claude"&&lineRoute.Model=="claude-sonnet-5-5"&&lineRoute.Effort=="low"&&judgeRoute.Model=="claude-opus-5-5");
+var own=free.Settings.NormalChoice(JsonNode.Parse("{\"provider\":\"claude_local\",\"model\":\"claude-opus-5-5\",\"effort\":\"high\"}"));
+Check("the player's own choice is used for both calls",free.RouteOf("resident_talk",own)!.Model=="claude-opus-5-5"&&free.RouteOf("talk_judge",own)!.Effort=="high");
+Check("the judge reads player text, so it is a typed hook",ai.Settings.Definitions["typedHooks"]!.AsArray().Any(n=>n!.GetValue<string>()=="talk_judge"));
+Check("the stream reader shows the line so far, never the other fields",NativeAiProviders.FieldSoFar("{\"npc_line\":\"Morning, lad. The \\\"Bassin\\\" is",  "npc_line")=="Morning, lad. The \"Bassin\" is"&&NativeAiProviders.FieldSoFar("{\"mood\":\"warm\"","npc_line")=="");
 File.WriteAllText(Path.Combine(output,"result.json"),System.Text.Json.JsonSerializer.Serialize(new{passed=true,oracleCases=oracle,checks},new System.Text.Json.JsonSerializerOptions{WriteIndented=true}));
 Console.WriteLine($"Native AI: {checks.Count} checks passed, including {oracle} original normalization cases; no live model calls.");
 sealed class Capture:HttpMessageHandler
