@@ -12,6 +12,7 @@ using Scheldemist.Render;
 // `soil`, so the park and the churchyard draw as before. Run in Forward+ (not headless):
 //   godot --rendering-method forward_plus --path . res://scripts/soil-wet-repair.tscn -- --backup <folder> [--find]
 // --find only checks the anchors. The original is copied to --backup first and never overwritten.
+// (#257: when the lines change, scripts/PitWetRepair.cs lays them again on the code before #244, git 4057c0a58.)
 public partial class SoilWetRepair : Node
 {
     const string ShaderPath = "res://world/town/resources/r000002.res";

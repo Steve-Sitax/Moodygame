@@ -1266,9 +1266,11 @@ float psx_h13(vec3 p3) { p3 = fract(p3 * 0.1031); p3 += dot(p3, p3.zyx + 31.32);
             "\t// (#244) water stands level in the soil's hollows, rising with the puddles; the clods and ridges stay out of it\n"
             + "\tfloat soil_water = 0.0;\n\tif (soil > 0.0 && soil_pool > 0.0) {\n"
             + "\t\t// (#252, Codex: not scattered flecks) only in patches; there it stands higher, so the hollows join into a few pools\n"
-            + "\t\tfloat soil_patch = smoothstep(0.46, 0.62, pud_val(world.xz * 1.1 + 3.7));\n"
-            + "\t\tfloat soil_lvl = soil_pool * smoothstep(0.36, 0.68, psx_puddle) * (0.8 + 0.5 * soil_patch) * soil_patch;\n"
-            + "\t\tsoil_water = (1.0 - smoothstep(soil_lvl - 0.04, soil_lvl, psx_h)) * step(0.002, soil_lvl);\n"
+            + "\t\t// (#257: no lone flecks where a patch thins out: the water stands high in a patch or not at all, its edge soft;\n"
+            + "\t\t// broader patches, so a bed keeps a joined pool)\n"
+            + "\t\tfloat soil_patch = smoothstep(0.53, 0.66, pud_val(world.xz * 0.75 + 3.7));\n"
+            + "\t\tfloat soil_lvl = soil_pool * smoothstep(0.36, 0.68, psx_puddle) * (0.85 + 0.45 * soil_patch);\n"
+            + "\t\tsoil_water = (1.0 - smoothstep(soil_lvl - 0.04, soil_lvl, psx_h)) * step(0.002, soil_lvl) * smoothstep(0.0, 0.35, soil_patch);\n"
             + "\t\tground_dn *= 1.0 - soil_water;\n\t}\n"),
         ("\t\tfloat wet_k = psx_wet * smoothstep(0.15, 0.65, patchy + psx_wet * 0.35);\n", true,
             "\t\twet_k *= 1.0 - soil; // (#244: the soil's wet is its own picture)\n"),
@@ -1423,6 +1425,29 @@ global uniform float psx_puddle;
 	}
 "),
     };
+    /// <summary>
+    /// Issue #235: the tree pits' fallen leaves and weeds stayed dry in the rain while the paving and the soil round them went
+    /// wet. Their two stored cut-out kinds (the town's r004441, the leaves alone; r004447, the weeds, the pit's straw and the
+    /// posters) take these lines (scripts/PitWetRepair.cs; changed in place, no new kind), off unless a material sets
+    /// `wet_dark`: darker with the rain and as long as water lies, and a wet sheen of the sky at a slant.
+    /// </summary>
+    public static readonly (string Anchor, bool After, string Code)[] WetLeafLines =
+    {
+        ("uniform float alpha_cut = 0.5;\n", true, @"// #235: wet in the rain (0: off): how much darker wet, and a wet sheen
+uniform float wet_dark = 0.0;
+global uniform float psx_wet;
+global uniform float psx_puddle;
+"),
+        ("\tif (c.a < alpha_cut) discard;\n", true, @"	// (#235) wet with the rain and as long as water lies: darker, a sheen of the sky at a slant
+	if (wet_dark > 0.0) {
+		float leaf_w = clamp(max(psx_wet, (psx_puddle - 0.14) * 1.8), 0.0, 1.0) * wet_dark;
+		c.rgb *= 1.0 - leaf_w;
+		ad += fogc * (0.04 + pow(1.0 - clamp(-rd.y, 0.0, 1.0), 5.0)) * 0.5 * leaf_w;
+	}
+"),
+    };
+    public static string WithWetLeaf(string code) => WithLines(code, WetLeafLines, "wet leaf");
+    public static string WithoutWetLeaf(string code) => WithoutLines(code, WetLeafLines);
     public static string WithDecalMud(string code) => WithLines(code, DecalMudLines, "decal mud");
     public static string WithoutDecalMud(string code) => WithoutLines(code, DecalMudLines);
     /// <summary>The stored code with lines put in at their anchors (each anchor must be there once).</summary>

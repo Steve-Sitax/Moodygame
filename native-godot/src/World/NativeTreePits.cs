@@ -27,6 +27,8 @@ public static class NativeTreePits
     private static readonly string[] Parts = { "vegetation/INST167_x_mm", "vegetation/INST166_x_mm", "vegetation/INST168_x_mm", "vegetation/INST169_x_mm", "vegetation/INST170_x_mm" };
     // the earth's half width (a weed inside it is the pit's), and how near a pit's earth and leaves lie to its frame
     private const float Earth = 0.8f, Near = 0.5f;
+    // (#235) how much darker the fallen leaves and the weeds go when wet
+    private const float WetLeaves = 0.38f, WetWeeds = 0.3f;
     // the pit's soil (#244: assets/materials/dirt-20261028, art-source/dirt-20261028)
     private const string SoilMaterial = "res://assets/materials/dirt-20261028/pit-soil.tres", SoilHeight = "res://assets/materials/dirt-20261028/pit_soil_height.res";
 
@@ -67,6 +69,13 @@ public static class NativeTreePits
         var frame = Frame();
         var models = new Mesh?[] { frame, EarthModel(parts[1]!.Multimesh.Mesh), null, WeedModel(parts[3]!.Multimesh.Mesh, false), WeedModel(parts[4]!.Multimesh.Mesh, true) };
         for (int p = 0; p < parts.Length; p++) Grow(parts[p]!, more[p], models[p]);
+        // (#235) the fallen leaves and the weeds go wet in the rain like the soil round them (their kinds' wet lines,
+        // Psx.WetLeafLines: off unless wet_dark; the weeds' material is the town's weeds' too)
+        foreach (int p in new[] { 2, 3, 4 })
+            if (parts[p]!.Multimesh.Mesh is { } wetMesh)
+                for (int s = 0; s < wetMesh.GetSurfaceCount(); s++)
+                    if (wetMesh.SurfaceGetMaterial(s) is ShaderMaterial wm && wm.Shader?.Code.Contains("uniform float wet_dark") == true)
+                        wm.SetShaderParameter("wet_dark", p == 2 ? WetLeaves : WetWeeds);
         GD.Print($"tree pits: winding: {MeshWinding.Say("frame", frame)}; {MeshWinding.Say("earth", models[1], up: true)}");
         // (every pit, the quay's and the squares', in the world: the frame copies' places)
         var pits = Enumerable.Range(0, parts[0]!.Multimesh.InstanceCount).Select(k => (xf[0] * parts[0]!.Multimesh.GetInstanceTransform(k)).Origin).ToList();
@@ -109,6 +118,8 @@ public static class NativeTreePits
     private const float Outer = 0.9f, Width = 0.14f, Top = 0.03f, Foot = -0.03f, Arris = 0.008f, Joint = 0.005f;
     // the stone picture's repeat (the guard stones': 0.91 m)
     private const float Tile = 0.91f;
+    // the pit kerbs' tint over the stone picture (the guard stones': 0.74, 0.78, 0.84)
+    private static readonly Color PitStoneTint = new(0.98f, 0.98f, 0.98f, 1);
 
     private static ArrayMesh? Frame()
     {
@@ -149,6 +160,14 @@ public static class NativeTreePits
             }
         st.GenerateTangents();
         var mesh = st.Commit();
+        // (the leftover of #223/#245: on the guard stones' blue tint the pit kerbs read dark blue in the light the streets
+        // have now; weathered blue stone is a mid grey with a faint blue. Their own copy of the material, the same shader.)
+        if (stone.Duplicate() is ShaderMaterial pitStone)
+        {
+            pitStone.ResourceName = "tree_pit_stone";
+            pitStone.SetShaderParameter("albedo", PitStoneTint);
+            stone = pitStone;
+        }
         mesh.SurfaceSetMaterial(0, stone);
         mesh.ResourceName = "tree_pit_frame";
         return mesh;

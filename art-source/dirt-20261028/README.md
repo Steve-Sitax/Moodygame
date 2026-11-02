@@ -137,3 +137,12 @@ darkened the colour, and a hole drew near black. The market's mud stains (`marke
   `mud_relief`: `NativeDirt` sets it on `market_mud`, so the stains show the same mud and relief, soft at their edge.
 - Frame time (snap views at the Paulus lane, the Vismarkt setts and a market stain, two alternating runs each under
   PERF-LOCK): within run-to-run noise.
+
+## Pit soil water and wet leaves (#257, #235)
+
+- The soil's water (Psx.SoilLines) left lone blue flecks where a patch thinned out, and the Lijnwaadmarkt bed lost its
+  pool. Now the water stands high in a patch or not at all (its edge soft), the patches are broader (0.75 a metre
+  instead of 1.1), and the beds' soil_pool is 0.58 (the pits' 0.42; `NativeDirt.BedPool`).
+  `native-godot/scripts/PitWetRepair.cs` lays the lines again on r000002 as it was before #244 (git 4057c0a58).
+- The pits' fallen leaves (r004441) and weeds (r004447) take Psx.WetLeafLines, off unless `wet_dark`
+  (NativeTreePits: leaves 0.38, weeds 0.3): darker and a wet sheen with the rain and while water lies.

@@ -16,7 +16,8 @@ namespace Scheldemist.Native.World;
 public static partial class NativeDirt
 {
     private const string Soil = "res://assets/materials/dirt-20261028/pit-soil.tres";
-    private static readonly string[] Beds = { "place_lijnwaadmarkt_pl_earth", "place_stjacob_yard_pl_earth", "place_court_green_pl_earth", "liberty_tree_earth" };
+    private const float BedPool = 0.58f;
+    private static readonly string[] Beds ={ "place_lijnwaadmarkt_pl_earth", "place_stjacob_yard_pl_earth", "place_court_green_pl_earth", "liberty_tree_earth" };
 
     /// <summary>Lays the soil on the beds found; returns how many.</summary>
     public static int Lay(Node3D town)
@@ -38,6 +39,8 @@ public static partial class NativeDirt
             var m = (ShaderMaterial)soil.Duplicate();
             m.ResourceName = "soil_" + bed.Name;
             m.SetShaderParameter("uv_xform", new Vector4(1 / perMetre, 1 / perMetre, 0, 0));
+            // (#257) a bed is wide and flat: after rain its water stands higher than a pit's, so its hollows join into a pool
+            m.SetShaderParameter("soil_pool", BedPool);
             for (int s = 0; s < bed.Mesh.GetSurfaceCount(); s++) bed.SetSurfaceOverrideMaterial(s, m);
             GD.Print($"dirt: {bed.Name} soil, {perMetre:0.###} uv a metre");
             n++;
