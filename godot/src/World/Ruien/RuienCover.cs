@@ -7,12 +7,15 @@ namespace Scheldemist.World.Ruien;
 /// <summary>
 /// Vault coverage shared by underground lighting and world-space exclusion of the town water sheets.
 /// It follows the clear interior plus masonry thickness, independent of camera height and tide.
+/// Red: a vault overhead (open above the street, so the shafts' tops and the street keep the sky). Green: a closed way
+/// in from the street (an entrance's stair and landing behind its door, RuienEntrance), covered at every height.
 /// </summary>
 public sealed class RuienCover
 {
     private const float Px = 0.5f;
     public Vector4 Box { get; private set; }
     private float[] map = Array.Empty<float>();
+    private float[] closed = Array.Empty<float>();
     private int w, h;
     public ImageTexture? Texture { get; private set; }
 
@@ -29,17 +32,26 @@ public sealed class RuienCover
         return c;
     }
 
-    public void Build(RuienData data)
+    public void Build(RuienData data, IReadOnlyList<RuienEntrance.Spec>? entrances = null)
     {
-        if (data.Areas.Count == 0) return;
-        var box = data.Areas[0].Box;
-        foreach (var a in data.Areas) box = box.Merge(a.Box);
-        box = box.Grow(4);
+        entrances ??= Array.Empty<RuienEntrance.Spec>();
+        if (data.Areas.Count == 0 && entrances.Count == 0) return;
+        Aabb? merged = null;
+        foreach (var a in data.Areas) merged = merged is { } m ? m.Merge(a.Box) : a.Box;
+        foreach (var e in entrances)
+            foreach (var (frame, lo, hi) in RuienEntrance.Footprint(e))
+                foreach (var c in new[] { new Vector3(lo.X, 0, lo.Y), new Vector3(hi.X, 0, lo.Y), new Vector3(lo.X, 0, hi.Y), new Vector3(hi.X, 0, hi.Y) })
+                {
+                    var p = frame * c;
+                    merged = merged is { } m ? m.Expand(p) : new Aabb(p, Vector3.Zero);
+                }
+        var box = merged!.Value.Grow(4);
         w = (int)MathF.Ceiling(box.Size.X / Px);
         h = (int)MathF.Ceiling(box.Size.Z / Px);
         Box = new Vector4(box.Position.X, box.Position.Z, w * Px, h * Px);
         map = new float[w * h];
-        var bytes = new byte[w * h];
+        closed = new float[w * h];
+        var bytes = new byte[w * h * 2];
         foreach (var a in data.Areas)
             foreach (var z in a.Zones)
             {
@@ -55,9 +67,38 @@ public sealed class RuienCover
                         if (c > map[j * w + i]) map[j * w + i] = c;
                     }
             }
-        for (int k = 0; k < map.Length; k++) bytes[k] = (byte)Math.Clamp(MathF.Round(map[k] * 255), 0, 255);
+        // The entrances: their footprints (in their frames' x and z), soft over a quarter metre at the edge. Under them
+        // red too: below the street the stair is under cover like a vault (rain, the water sheets).
+        foreach (var e in entrances)
+            foreach (var (frame, lo, hi) in RuienEntrance.Footprint(e))
+            {
+                var inv = frame.AffineInverse();
+                var r = new Rect2(); bool first = true;
+                foreach (var c in new[] { new Vector3(lo.X, 0, lo.Y), new Vector3(hi.X, 0, lo.Y), new Vector3(lo.X, 0, hi.Y), new Vector3(hi.X, 0, hi.Y) })
+                {
+                    var p = frame * c; var q = new Vector2(p.X, p.Z);
+                    r = first ? new Rect2(q, Vector2.Zero) : r.Expand(q); first = false;
+                }
+                r = r.Grow(1);
+                int i0 = Math.Max(0, (int)((r.Position.X - Box.X) / Px)), i1 = Math.Min(w - 1, (int)((r.End.X - Box.X) / Px) + 1);
+                int j0 = Math.Max(0, (int)((r.Position.Y - Box.Y) / Px)), j1 = Math.Min(h - 1, (int)((r.End.Y - Box.Y) / Px) + 1);
+                for (int j = j0; j <= j1; j++)
+                    for (int i = i0; i <= i1; i++)
+                    {
+                        var p = inv * new Vector3(Box.X + (i + 0.5f) * Px, frame.Origin.Y, Box.Y + (j + 0.5f) * Px);
+                        float inside = Math.Min(Math.Min(p.X - lo.X, hi.X - p.X), Math.Min(p.Z - lo.Y, hi.Y - p.Z));
+                        float c = Mathf.SmoothStep(-0.25f, 0.25f, inside);
+                        if (c > closed[j * w + i]) closed[j * w + i] = c;
+                        if (c > map[j * w + i]) map[j * w + i] = c;
+                    }
+            }
+        for (int k = 0; k < map.Length; k++)
+        {
+            bytes[2 * k] = (byte)Math.Clamp(MathF.Round(map[k] * 255), 0, 255);
+            bytes[2 * k + 1] = (byte)Math.Clamp(MathF.Round(closed[k] * 255), 0, 255);
+        }
         // (x across the picture, z down it: the shaders' uv is (x - x0, z - z0) / size)
-        var im = Image.CreateFromData(w, h, false, Image.Format.R8, bytes);
+        var im = Image.CreateFromData(w, h, false, Image.Format.Rg8, bytes);
         Texture = ImageTexture.CreateFromImage(im);
     }
 
@@ -69,7 +110,11 @@ public sealed class RuienCover
     }
 
     /// <summary>The cover at a point of the plan (0 outside every area), as the shaders read it.</summary>
-    public float At(float x, float z)
+    public float At(float x, float z) => Sample(map, x, z);
+    /// <summary>A closed way in (an entrance) at a point of the plan: covered whatever the height.</summary>
+    public float Closed(float x, float z) => Sample(closed, x, z);
+
+    private float Sample(float[] map, float x, float z)
     {
         if (map.Length == 0) return 0;
         float fx = (x - Box.X) / Px - 0.5f, fz = (z - Box.Y) / Px - 0.5f;

@@ -108,7 +108,7 @@ Conversion (headless, once per export; it writes under `res://world/ruien` and q
   openings (outlet, grates, shafts, hatches) whose light is the day's sky, cold, or at night a trace of street glow.
   No Godot light lights the stone, so the network can have any number of lamps. A fixed pool of 4 OmniLights
   (`LampPool`) follows the nearest lamps for the player's arms and body only (their cull mask).
-- **Cover**: `ruien_cover` is a top-down map of the zones (1 under a vault). Covered surfaces take no sky, no sun, no
+- **Cover**: `ruien_cover` is a top-down map of the zones (red: 1 under a vault; green: a closed way in, see Entrances). Covered surfaces take no sky, no sun, no
   street spill; the eye's cover is `Daylight.Below`, which brings in the underground air (fog, no lamp glow, sky light
   and sun on people and loose things off, the eye's adaptation as exposure).
 - **The river**: the town's broad sheet changes height with the tide. Its existing water shader discards fragments
@@ -160,3 +160,67 @@ for inspection, not proof of an autonomous underground route.
   head), the export's treads are walked.
 - **Kit pieces** (`export/kit`, converted one by one with `--ruien-kit <kit> --pieces a,b`) are shared meshes placed
   by an area's `kit` list (O2 adds a second safety lamp on its bracket where the study lit v5 with a lantern).
+
+## Entrances
+
+Ways down from the street, built before the network they will join (Steve chose 25 from the RE-entrances survey,
+2026-11-02; the first nine are built). Each entrance is a street door in a wall that is already there, one straight
+bluestone flight down to the level of its Ruien line, and a small landing that ends at a locked iron grille or a
+bricked-up arch ("closed for works") where the Ruien join later. Nothing leads nowhere and there is nothing to fall
+into. Code: `RuienEntrance.cs` (data, frames, town cuts, model), `RuienEntranceDoor.cs` (the door and the closure's
+prompt). Data: `native-godot/world/ruien/entrances.json`.
+
+**One entry is one entrance.** The kit builds everything from it, so a stair is moved, turned or deepened by editing
+the entry. Fields (defaults in the file's `defaults`):
+
+| Field | Meaning |
+|---|---|
+| `id`, `name`, `survey` | Permanent id (the door's saved state is `entrance_<id>`), a name, the survey's number. |
+| `host` | `rampart` (a door into the bank behind the rampart's inner wall) or `gate_house` (a gate house's drawn door). |
+| `door`, `out`, `street` | The doorway's middle on the wall's face (x, z), the face's normal to the street, street level. |
+| `depth`, `line` | Landing level: gallery ledge -3.6, rui walkway -3.9; the Ruien line it will join. |
+| `layout`, `flight` | `L`: door in the tunnel's side, the tunnel along the wall (`flight` `right` or `left` as seen from the street). `I`: door in its end, the tunnel straight in. |
+| `closure`, `closureSide` | `grille` (a locked gate before a 1 m niche closed by new brick) or `bricked` (fresh brick in the arch); `street` (L), `right`/`left` (I), `back` or `end`. |
+| `wall`, `width` | The host wall's thickness (the reveal), the tunnel's clear width (1.3 m; 1.5 m in gate houses). |
+| `doorWidth`, `doorHeight`, `post`, `head`, `frame` | The opening in the wall, the leaf's clear height, the oak posts, `arch` (brick ring and iron fanlight) or `flat` (oak lintel), the surround (`bluestone` jambs or the gate house's `oak` frame). |
+| `riser`, `pitchDeg`, `topLanding`, `bottomLanding`, `lining`, `spring`, `vaultRise` | Steps of at most 18 cm at 35 degrees (about 5.1 m for 3.6 m), 1.5 m landings, 28 cm brick lining, the barrel vault's springing over the treads and its rise. |
+| `cut`, `clear`, `foliage`, `foliageMaterials`, `keepAbove` | Town meshes the doorway is cut through; a gate house's drawn door dropped below `keepAbove` (its hood stays); plants and climbers removed before the door (whole leaves; the `vegetation` group's copies are folded away). |
+
+**What the kit makes.** Bluestone flags on a lime bed for the landings and one solid block a step for the flight (as
+the O2 keeper stair), brick lining walls with their courses run round every corner (`RuienUnfold`), one barrel vault
+over landing, flight and landing (level, inclined, level), iron handrails on posts, the reveal through the host wall
+with its arch ring, an oak frame and a ledged and braced oak leaf on strap hinges (one model, sized by the entry) that
+opens inward, a wrought-iron fanlight over an arched door, a bluestone sill, and the closure. Everything is solid where
+it looks solid: the leaf's collision turns with it, the grille has a slab of collision in its plane.
+
+**The town gives way at load** (`RuienEntrance.Cut`, from `RuienGates.Cut`, before collision reads the meshes): the
+doorway through the named wall meshes (drawn faces and collision stand-ins, `QuayNotch.CutRegion`), the floor under
+the wall and every hidden face in the tunnel's air, the plants and climbers before the door, and a gate house's drawn
+door. `--no-ruien-entrances` leaves the town whole and builds nothing (before pictures).
+
+**Light and air.** No Godot light. The open door is an opening in the Ruien's light list (`entrance_<id>_door`,
+daylight in by day, a trace of street glow at night, a little through an arched door's fanlight when shut); deeper
+down it is dark and Jef's own lantern lights the way (a carried lantern burns below the street whatever the hour:
+`LanternPool` takes `Ruien.Below` as dark). No rain falls round an eye inside an entrance (`RuienEntrance.Shelter`, the
+rain's room box). The cover map has a second channel (green): a closed way in,
+covered at every height, so the stair inside the bank takes no sky or sun even above street level, and the eye there
+takes the underground air. The masonry, water and air kinds read it in `ruien_covered` (code changed in place, no new
+kind).
+
+**The door** opens and shuts with E from the street or the top landing (not while Jef stands in its swing). Its state
+is the world's: the hatches' service (`api/ruien/hatches/entrance_<id>`, `NativeRuienAccess`) keeps it in saves and
+shares it. At the landing E at the closure says why the way on is shut.
+
+**Adding an entrance** (the next rounds: gateways, house side doors, small stair-houses):
+
+1. Copy an entry of the same kind and give it a new permanent `id`. Put `door` on the wall's face (measure the face: a
+   ray from the street at 0.3 m and 2.2 m height), `out` the face's normal, `depth` from its line's class.
+2. Choose `layout`/`flight` so the tunnel stays inside the host (the bank is 7 m thick; a gate house about 12 m deep)
+   and clear of passages, stairs and other ways down. `L` needs about 8.7 m along the wall at 3.6 m depth, `I` about
+   9.9 m straight in.
+3. Name the host's wall meshes in `cut` (and a drawn door in `clear`), the plants in `foliage`.
+4. A new host kind (a house side door, a stair-house) is a new `host` value: the frame, opening and surround choices
+   are in `Kit.DoorWall`; everything below the door is shared.
+5. Check it: `--ruien-proof <dir> --ruien-proof-entrances [--ruien-proof-entrance-ids id]` walks Jef from the street
+   through the door to the landing and back (E prompts, depth, room for his body every 20 cm, the closure holds, the
+   door shuts and stays solid, saved state); review cameras take `"doorsOpen": true`.

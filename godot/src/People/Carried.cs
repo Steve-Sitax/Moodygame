@@ -420,7 +420,8 @@ public sealed class LanternPool
     public void Update(double dt, Vector3 eye, double hour)
     {
         t += dt;
-        float dark = (float)DarkAt(hour);
+        // (under the street, in the Ruien or down an entrance's stair, a lantern lights the way whatever the hour)
+        float dark = Math.Max((float)DarkAt(hour), World.Ruien.Ruien.I?.Below ?? 0);
         // the nearest burning ones want a light
         var want = nearest;
         want.Clear();

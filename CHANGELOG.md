@@ -11,6 +11,7 @@ Bugs and loose ends are tracked as [issues](https://github.com/Steve-Sitax/Moody
 
 ## [Unreleased]
 
+- Nine doors lead down from the street towards the Ruien: seven new doors in the inner wall of the town rampart and the two old side doors of the Rode Poort and Kipdorppoort gate houses. Open one with E and take the lined bluestone stair down to a small landing, about four metres under the street; the way on is shut for now behind a locked iron gate or fresh brickwork, closed for works. Below the street a carried lantern now lights your way by day too.
 - The Ruien sound like a vault now: your steps and every sound underground ring on in a long brick echo, wettest deep in a gallery and drier near a hatch or grate; the street above is only a dull rumble. Drops fall from the vault joints into the channel, from the pipe mouths and in the keeper's niche, each heard only within a few metres of where it falls.
 - The three side drains in the Vlietrui pour into the channel: from each grated gutter a sheet of water spouts over the coping and falls into the channel, widening as it breaks up, and you hear it splash within about seven metres.
 - The street hatch over the stair down into the Vleeshuis hall has proper oak leaves: two ledged and braced cellar leaves of 42 mm planks standing open on their hinge pins, with forged strap hinges and a lifting ring, instead of two thick, mossy timber slabs like kerbs.

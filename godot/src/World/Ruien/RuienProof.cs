@@ -109,7 +109,7 @@ public partial class RuienProof : Node
     {
         var space=Main.I.View.FindWorld3D().DirectSpaceState;
         string meshes=Path.Combine(output,"kit-meshes");Directory.CreateDirectory(meshes);int meshIndex=0;
-        foreach(var root in Main.I.View.GetChildren().OfType<Node3D>().Where(n=>new[]{"keeper_stair_","surround_","grate_","round_grate_"}.Any(prefix=>n.Name.ToString().StartsWith(prefix))))
+        foreach(var root in Main.I.View.GetChildren().OfType<Node3D>().Where(n=>new[]{"keeper_stair_","surround_","grate_","round_grate_","entrance_"}.Any(prefix=>n.Name.ToString().StartsWith(prefix))))
         foreach(var mi in BakedWorld.All(root).OfType<MeshInstance3D>())
             ResourceSaver.Save(mi.Mesh,Path.Combine(meshes,$"mesh_{meshIndex++}.res"));
         RuienUv.Audit(meshes,Path.Combine(output,"kit-uv.json"));
@@ -157,6 +157,120 @@ public partial class RuienProof : Node
             Check("keeper brick crown and walls below street",top<-.14f,$"highest brick {top}");
         }
     }
+    private static float YawTo(Vector3 d)=>MathF.Atan2(-d.X,-d.Z);
+    private async Task WalkFor(Vector3 target,float seconds)
+    {
+        var j=Jef.I!;ulong until=Time.GetTicksMsec()+(ulong)(seconds*1000);
+        while(Time.GetTicksMsec()<until)
+        {
+            var d=new Vector2(target.X-j.X,target.Z-j.Z);if(d.Length()<.05f)break;
+            j.Yaw=MathF.Atan2(-d.X,-d.Y);j.SetKey(Key.W,true);await ToSignal(GetTree(),SceneTree.SignalName.PhysicsFrame);
+        }
+        j.ClearKeys();await Seconds(.3f);
+    }
+    /// <summary>
+    /// Each street entrance (RuienEntrance): from the street E opens the door, Jef walks in, down the whole flight to the
+    /// landing, the closure answers E and holds him, and he walks back up and out and shuts the door. The way is checked
+    /// for room for his body every 20 cm. `--ruien-proof-entrance-ids a,b` takes some of them.
+    /// </summary>
+    private async Task Entrances()
+    {
+        var j=Jef.I!;var space=GetViewport().World3D.DirectSpaceState;
+        string only=Main.I.Arg("ruien-proof-entrance-ids");
+        bool saved=false;
+        foreach(var e in RuienEntrance.All.Where(e=>only.Length==0||only.Split(',').Contains(e.Id)))
+        {
+            if(!RuienEntranceDoor.All.TryGetValue(e.Id,out var door)){Check(e.Id+" door built",false);continue;}
+            var r=e.Route.Select(p=>e.World(p)).ToArray();
+            float yawIn=YawTo(e.World(Vector3.Zero)-r[0]);
+            Player.Arms.I!.ProofLantern=false;
+            j.Place(r[0].X,r[0].Z,yawIn,0,e.Street);await Seconds(1.5f);
+            j.Place(r[0].X,r[0].Z,yawIn,0,e.Street);await Seconds(1.5f);
+            await Until(()=>door.Known,10);
+            Check(e.Id+" door state known",door.Known);
+            if(door.Target){door.Set(false);await Until(()=>!door.Target&&door.Open<.001f);}
+            Check(e.Id+" street before the door",j.Grounded&&MathF.Abs(j.Y-e.Street)<.1f,$"{j.X},{j.Y},{j.Z}");
+            bool Blocked(Vector3 a,Vector3 b)=>space.IntersectRay(PhysicsRayQueryParameters3D.Create(a,b,Solid.Layer)).Count>0;
+            Check(e.Id+" shut door is solid",Blocked(e.World(new Vector3(0,1,.4f)),e.World(new Vector3(0,1,e.LeafFace-.25f))));
+            j.Pitch=0;await Seconds(.4f);
+            await Shot(e.Id+"-1-street-shut");
+            var open=Interact.I.Acts.FirstOrDefault(a=>a.Key==Key.E&&a.Text=="open the door");
+            Check(e.Id+" E open offered",open!=null,Interact.I.Text);
+            if(open!=null)Check(e.Id+" E open accepted",Interact.I.Press(Key.E));
+            await Until(()=>door.Open>.999f,10);
+            Check(e.Id+" door swung open inward",door.Open>.99f&&door.Target,$"open={door.Open}");
+            Check(e.Id+" open doorway clear",!Blocked(e.World(new Vector3(0,1,.4f)),e.World(new Vector3(0,1,-e.Wall+.05f))));
+            await Seconds(.5f);
+            await Shot(e.Id+"-2-door-open");
+            // room for his body all the way (floor found under each point, then the body there)
+            var gaps=new List<string>();
+            for(int k=1;k+1<r.Length;k++)
+            {
+                int n=Math.Max(1,(int)(r[k].DistanceTo(r[k+1])/.2f));
+                for(int i=0;i<=n;i++)
+                {
+                    var p=r[k].Lerp(r[k+1],(float)i/n);
+                    var hit=space.IntersectRay(PhysicsRayQueryParameters3D.Create(p+Vector3.Up*1.0f,p+Vector3.Down*1.2f,Solid.Layer));
+                    if(hit.Count==0){gaps.Add($"no floor {p}");continue;}
+                    var f=hit["position"].AsVector3();
+                    if(!j.BodyFree(f.X,f.Y+.05f,f.Z))gaps.Add($"no room {f}");
+                }
+            }
+            Check(e.Id+" room for a body on the whole way",gaps.Count==0,string.Join(";",gaps.Take(6)));
+            Player.Arms.I!.ProofLantern=true;
+            await WalkTo(new Vector2(r[1].X,r[1].Z),e.Id+" through the doorway");
+            await WalkTo(new Vector2(r[2].X,r[2].Z),e.Id+" top landing");
+            await WalkTo(new Vector2(r[3].X,r[3].Z),e.Id+" head of the flight");
+            var half=(r[3]+r[4])/2;
+            await WalkTo(new Vector2(half.X,half.Z),e.Id+" halfway down");
+            j.Pitch=-.3f;await Seconds(.4f);await Shot(e.Id+"-3-halfway");j.Pitch=0;
+            await WalkTo(new Vector2(r[4].X,r[4].Z),e.Id+" foot of the flight");
+            await WalkTo(new Vector2(r[5].X,r[5].Z),e.Id+" bottom landing");
+            Check(e.Id+" landing at its depth",j.Grounded&&MathF.Abs(j.Y-e.Depth)<.12f,$"feet {j.Y}, depth {e.Depth}");
+            var front=RuienEntrance.ClosureFront(e,.75f);var c0=RuienEntrance.ClosureFront(e,0);
+            await WalkTo(new Vector2(front.X,front.Z),e.Id+" before the closure");
+            j.Yaw=YawTo(c0-front);j.Pitch=-.05f;await Seconds(.6f);
+            var cl=Interact.I.Acts.FirstOrDefault(a=>a.Key==Key.E&&(a.Text=="try the iron gate"||a.Text=="look at the new brickwork"));
+            Check(e.Id+" closure answers E",cl!=null,Interact.I.Text);
+            if(cl!=null)Check(e.Id+" closure E accepted",Interact.I.Press(Key.E));
+            await Shot(e.Id+"-4-landing-closure");
+            // the closure holds: walk at it for two seconds
+            var beyond=RuienEntrance.ClosureFront(e,-.9f);
+            await WalkFor(beyond,2);
+            var wallIn=e.Local.Basis*(e.ClosureWall.Basis.Z);
+            float past=(new Vector3(j.X,0,j.Z)-new Vector3(c0.X,0,c0.Z)).Dot(new Vector3(wallIn.X,0,wallIn.Z).Normalized());
+            Check(e.Id+" closure holds",past< -Jef.Radius+.12f,$"{past:0.00} m past the wall's face");
+            j.ClearKeys();
+            await WalkTo(new Vector2(r[5].X,r[5].Z),e.Id+" back on the landing");
+            await WalkTo(new Vector2(r[4].X,r[4].Z),e.Id+" back at the foot");
+            await WalkTo(new Vector2(r[3].X,r[3].Z),e.Id+" up the whole flight");
+            Check(e.Id+" climbed back to the street's level",j.Grounded&&MathF.Abs(j.Y-e.Street)<.12f,$"feet {j.Y}");
+            await WalkTo(new Vector2(r[2].X,r[2].Z),e.Id+" back on the top landing");
+            await WalkTo(new Vector2(r[1].X,r[1].Z),e.Id+" back in the doorway");
+            await WalkTo(new Vector2(r[0].X,r[0].Z),e.Id+" back on the street");
+            Player.Arms.I!.ProofLantern=false;
+            j.Yaw=yawIn;j.Pitch=0;await Seconds(.5f);
+            var shut=Interact.I.Acts.FirstOrDefault(a=>a.Key==Key.E&&a.Text=="close the door");
+            Check(e.Id+" E close offered",shut!=null,Interact.I.Text);
+            if(shut!=null)Check(e.Id+" E close accepted",Interact.I.Press(Key.E));
+            await Until(()=>door.Open<.001f,10);
+            Check(e.Id+" door shut again",door.Open<.01f&&!door.Target,$"open={door.Open}");
+            Check(e.Id+" shut again and solid",Blocked(e.World(new Vector3(0,1,.4f)),e.World(new Vector3(0,1,e.LeafFace-.25f))));
+            if(!saved&&Scheldemist.Net.ServerLink.I?.Api is {} api)
+            {
+                // the door's state is the world's: saved and loaded with the game
+                saved=true;
+                door.Set(true);await Until(()=>door.Target&&door.Open>.999f);
+                await api.Post<JsonElement>("api/save",new{slot="slot1",label="Ruien entrance door"});
+                door.Set(false);await Until(()=>!door.Target&&door.Open<.001f);
+                await api.Post<JsonElement>("api/load",new{slot="slot1"});
+                await Until(()=>door.Target&&door.Open>.999f);
+                Check(e.Id+" saved open door comes back open",door.Target&&door.Open>.999f);
+                door.Set(false);await Until(()=>!door.Target&&door.Open<.001f);
+                Check(e.Id+" and shuts again",!door.Target&&door.Open<.001f);
+            }
+        }
+    }
     public override async void _Ready()
     {
         output = Main.I.Arg("ruien-proof");
@@ -176,7 +290,9 @@ public partial class RuienProof : Node
             j.Drive=null;
             if(Main.I.Flag("ruien-proof-surrounds"))Surrounds();
             bool access=Main.I.Flag("ruien-proof-access");
-            if(!Main.I.Flag("ruien-proof-views-only"))
+            bool entrances=Main.I.Flag("ruien-proof-entrances");
+            if(entrances)await Entrances();
+            if(!Main.I.Flag("ruien-proof-views-only")&&!entrances)
             {
             if(!Main.I.Flag("ruien-proof-stairs"))
             {
@@ -340,6 +456,12 @@ public partial class RuienProof : Node
                     if(v.TryGetProperty("crew",out var crewState))RuienWorkmen.ProofActive=crewState.GetBoolean();
                     await Dev.Kit.I.Light(v.GetProperty("hour").GetDouble(),v.GetProperty("weather").GetString()!);
                     await SetTide(v.GetProperty("tide").GetSingle());
+                    if(v.TryGetProperty("doorsOpen",out var doorsState))
+                        foreach(var door in RuienEntranceDoor.All.Values)
+                        {
+                            bool open=doorsState.GetBoolean();await Until(()=>door.Known);
+                            door.Set(open);await Until(()=>door.Target==open&&MathF.Abs(door.Open-(open?1:0))<.001f);
+                        }
                     if(v.TryGetProperty("hatchOpen",out var hatchState))
                         foreach(var hatch in RuienHatch.All.Values)
                         {

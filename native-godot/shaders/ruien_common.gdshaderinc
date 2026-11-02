@@ -40,11 +40,13 @@ float ruien_noise3(vec3 p) {
 		mix(mix(ruien_h13(i + vec3(0, 0, 1)), ruien_h13(i + vec3(1, 0, 1)), f.x), mix(ruien_h13(i + vec3(0, 1, 1)), ruien_h13(i + vec3(1, 1, 1)), f.x), f.y), f.z);
 }
 
-// 1 under a vault (no sky, no sun, no street lamp), 0 in the open; the shafts' tops and the outlet's mouth between
+// 1 under a vault (no sky, no sun, no street lamp), 0 in the open; the shafts' tops and the outlet's mouth between.
+// Green: a closed way in from the street (an entrance's stair behind its door): covered at every height.
 float ruien_covered(vec3 wp) {
 	vec2 uv = (wp.xz - ruien_cover_box.xy) / ruien_cover_box.zw;
 	if (uv.x < 0.0 || uv.y < 0.0 || uv.x > 1.0 || uv.y > 1.0) return 0.0;
-	return textureLod(ruien_cover, uv, 0.0).r * (1.0 - smoothstep(-0.7, -0.05, wp.y));
+	vec2 c = textureLod(ruien_cover, uv, 0.0).rg;
+	return max(c.r * (1.0 - smoothstep(-0.7, -0.05, wp.y)), c.g);
 }
 
 // an opening's axes: u across, v along (a level opening: x and z)

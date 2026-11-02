@@ -178,8 +178,9 @@ void fragment() {
         // (the great storm: harder, about twice the gale's wind)
         mat.SetShaderParameter("wind", day.Wind * (1 + 0.9f * day.Storm));
         if (day.Storm > 0) Air.Gusts.Send(mat);
-        // no rain round the eye under a roof: the room's box (World/Rooms.cs)
-        var box = Rooms.I?.Around(Main.I.View.GetCamera3D()?.GlobalPosition ?? Vector3.Zero);
+        // no rain round the eye under a roof: the room's box (World/Rooms.cs), or the stair of a Ruien entrance it is in
+        var eye = Main.I.View.GetCamera3D()?.GlobalPosition ?? Vector3.Zero;
+        var box = Rooms.I?.Around(eye) ?? (Ruien.Ruien.I != null ? Ruien.RuienEntrance.Shelter(eye) : null);
         mat.SetShaderParameter("room", box is { } bx ? new Vector4(bx.Position.X, bx.Position.Z, bx.End.X, bx.End.Z) : new Vector4(1, 1, 0, 0));
     }
 }
