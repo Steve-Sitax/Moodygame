@@ -202,6 +202,16 @@ public partial class NativeTown : BakedWorld
             Report["churchRepairDoors"] = repairDoors; Report["churchRepairCopings"] = repairCopings;
             GD.Print($"church repairs: {repairDoors} door, {repairCopings} coping stones");
         }
+        // #260: the cathedral towers' tall openings filled as the real towers' are: gratings with a stone wall and small windows
+        // behind on the lower stages, oak louvre boards on the bell stage and the clock octagon (dev: --open-cathedral-towers
+        // leaves them open, as baked)
+        if (!Scheldemist.Main.I.Flag("open-cathedral-towers"))
+        {
+            var towers = NativeCathedralTowers.Install(town);
+            Report["cathedralTowerGratings"] = towers.Gratings; Report["cathedralTowerLouvres"] = towers.Louvres;
+            Report["cathedralTowerLeadRemoved"] = towers.LeadRemoved; Report["cathedralTowerTriangles"] = towers.Triangles;
+            GD.Print($"cathedral towers: {towers.Gratings} gratings, {towers.Louvres} louvred openings, {towers.LeadRemoved} lead louvre triangles out, {towers.Triangles} triangles");
+        }
         // #244: the planted beds' and the liberty tree's bare earth in the tree pits' soil (dev: --keep-old-dirt leaves them)
         if (Scheldemist.Main.I?.Flag("keep-old-dirt") != true) Report["dirtBeds"] = NativeDirt.Lay(town);
         // #218: the last eight bare downpipe feet get a blue-stone channel stone to the kerb (dev: --no-pipe-ends leaves them bare)
@@ -346,6 +356,7 @@ public partial class NativeTown : BakedWorld
         Solid.Leave.Add(n => n.HasMeta(NativeStreetFurniture.Meta));
         Solid.Leave.Add(n => n.HasMeta(NativeSquareDressing.Meta));
         Solid.Leave.Add(n => n.HasMeta(NativeChurchRepairs.Meta));
+        Solid.Leave.Add(n => n.HasMeta(NativeCathedralTowers.Meta));
         Report["benches"] = NativeBenches.Index(town);
         BuildLights();
     }
