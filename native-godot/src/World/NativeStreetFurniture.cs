@@ -186,7 +186,8 @@ public static class NativeStreetFurniture
             }
             poles++;
         }
-        var ropeMat = ((MeshInstance3D)pack.Roots["rope_sample"]).Mesh.SurfaceGetMaterial(0);
+        // (the washing lines are the town's one rope, Movers/Rope.cs: the laundry pack's hemp, never thinner than half a pixel)
+        var ropeMat = Scheldemist.Movers.Rope.Material ?? ((MeshInstance3D)pack.Roots["rope_sample"]).Mesh.SurfaceGetMaterial(0);
         foreach (var ((cx, cz, model), list) in sets.OrderBy(s => s.Key.Item1).ThenBy(s => s.Key.Item2).ThenBy(s => s.Key.Item3))
         {
             string[] parts = model.Split('/');

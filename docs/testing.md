@@ -220,7 +220,7 @@ and an actual walk through the authored east screen gate into the choir, after b
 
 `--rope-proof <dir>` (`res://town.tscn`, with `--no-ai --no-mainmenu --native-services`, its own `--db`, `--prefs`,
 `--author-root`, port and `SCHELDEMIST_USER_DATA`; `native-godot/src/World/NativeRopeProof.cs`) checks the town's one rope
-(`godot/src/Movers/Rope.cs`) at 13:00 clear: no rope, rigging, hawser or chain is drawn as a line without thickness
+(`godot/src/Movers/Rope.cs`; its shader kind, `Psx.Kind.Rope`, widens a far rope to half a pixel and lets it cover only its thickness's share of the samples) at 13:00 clear: no rope, rigging, hawser or chain is drawn as a line without thickness
 (the lightning's bolt and a furniture's iron wire are listed apart, `notRopeLines`); and, with the river held at low and at
 high water (`Tide.Hold`), every mooring line (the ships' from the bake and the small boats' painters, `ShipLines.cs`) is
 drawn, none hangs into the water, and they hang slacker at high water than at low. `rope-proof.json` lists the line

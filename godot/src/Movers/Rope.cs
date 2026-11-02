@@ -50,7 +50,10 @@ public static class Rope
 
     private static Material? material;
     private static bool sought;
-    /// <summary>The hemp material every rope shares (the washing line's: same look, same shader kind).</summary>
+    /// <summary>
+    /// The hemp material every rope shares: the washing line's (its picture, colour and bump), in its shader kind with
+    /// the Rope switch (Render/Psx.cs): never thinner than half a pixel, a far rope a faint line.
+    /// </summary>
     public static Material? Material
     {
         get
@@ -58,8 +61,14 @@ public static class Rope
             if (sought) return material;
             sought = true;
             if (Scheldemist.Models.ModelLibrary.Get("laundry", new Scheldemist.Models.ModelLibrary.Look(TwoSided: true, VertexColor: true)) is { } pack
-                && pack.Roots.TryGetValue("rope_sample", out var n) && n is MeshInstance3D { Mesh: not null } mi)
-                material = mi.Mesh.SurfaceGetMaterial(0);
+                && pack.Roots.TryGetValue("rope_sample", out var n) && n is MeshInstance3D { Mesh: not null } mi
+                && mi.Mesh.SurfaceGetMaterial(0) is ShaderMaterial hemp && Scheldemist.Render.Psx.KindOf(hemp.Shader) is { } kind)
+            {
+                var m = (ShaderMaterial)hemp.Duplicate();
+                m.Shader = Scheldemist.Render.Psx.ShaderOf(kind with { Rope = true });
+                m.ResourceName = "rope";
+                material = m;
+            }
             if (material == null) GD.PrintErr("rope: the laundry pack's rope_sample material is missing");
             return material;
         }
@@ -85,11 +94,11 @@ public static class Rope
     public sealed class Tube
     {
         private Vector3[] pos = new Vector3[256], nor = new Vector3[256];
-        private Vector2[] uv = new Vector2[256];
+        private Vector2[] uv = new Vector2[256], uv2 = new Vector2[256];
         private Color[] col = new Color[256];
         private int[] idx = new int[768];
         private Vector3[] outPos = Array.Empty<Vector3>(), outNor = Array.Empty<Vector3>();
-        private Vector2[] outUv = Array.Empty<Vector2>();
+        private Vector2[] outUv = Array.Empty<Vector2>(), outUv2 = Array.Empty<Vector2>();
         private Color[] outCol = Array.Empty<Color>();
         private int[] outIdx = Array.Empty<int>();
         private readonly Godot.Collections.Array arrays = new();
@@ -108,7 +117,7 @@ public static class Rope
             if (Verts + verts > pos.Length)
             {
                 int n = Math.Max(pos.Length * 2, Verts + verts);
-                Array.Resize(ref pos, n); Array.Resize(ref nor, n); Array.Resize(ref uv, n); Array.Resize(ref col, n);
+                Array.Resize(ref pos, n); Array.Resize(ref nor, n); Array.Resize(ref uv, n); Array.Resize(ref uv2, n); Array.Resize(ref col, n);
             }
             if (Indices + indices > idx.Length) Array.Resize(ref idx, Math.Max(idx.Length * 2, Indices + indices));
         }
@@ -150,7 +159,8 @@ public static class Rope
                     float a = MathF.Tau * s / sides;
                     var nrm = side * MathF.Cos(a) + b * MathF.Sin(a);
                     int vi = Verts + p * ring + s;
-                    pos[vi] = path[p] + nrm * r; nor[vi] = nrm; uv[vi] = new Vector2(u, (float)s / sides); col[vi] = c;
+                    // (uv2: the radius, and 1 for a side the Rope shader may widen to half a pixel far off)
+                    pos[vi] = path[p] + nrm * r; nor[vi] = nrm; uv[vi] = new Vector2(u, (float)s / sides); uv2[vi] = new Vector2(r, 1); col[vi] = c;
                 }
             }
             for (int p = 0; p < n - 1; p++)
@@ -171,11 +181,11 @@ public static class Rope
         {
             var o = outward.LengthSquared() < 1e-12f ? Vector3.Up : outward.Normalized();
             int c0 = Verts;
-            pos[c0] = at; nor[c0] = o; uv[c0] = new Vector2(0, 0.5f); col[c0] = col[rim];
+            pos[c0] = at; nor[c0] = o; uv[c0] = new Vector2(0, 0.5f); uv2[c0] = Vector2.Zero; col[c0] = col[rim];
             for (int s = 0; s < ring; s++)
             {
                 int vi = c0 + 1 + s;
-                pos[vi] = pos[rim + s]; nor[vi] = o; uv[vi] = new Vector2((pos[rim + s] - at).Length() / r * 0.1f, (float)s / sides); col[vi] = col[rim + s];
+                pos[vi] = pos[rim + s]; nor[vi] = o; uv[vi] = new Vector2((pos[rim + s] - at).Length() / r * 0.1f, (float)s / sides); uv2[vi] = Vector2.Zero; col[vi] = col[rim + s];
             }
             // wound so its face looks out along `o` (the end's two directions give opposite windings)
             bool flip = (pos[c0 + 2] - pos[c0 + 1]).Cross(pos[c0 + 1] - at).Dot(o) > 0;
@@ -194,13 +204,14 @@ public static class Rope
         {
             mesh.ClearSurfaces();
             if (Verts == 0) return;
-            if (outPos.Length != Verts) { outPos = new Vector3[Verts]; outNor = new Vector3[Verts]; outUv = new Vector2[Verts]; outCol = new Color[Verts]; }
+            if (outPos.Length != Verts) { outPos = new Vector3[Verts]; outNor = new Vector3[Verts]; outUv = new Vector2[Verts]; outUv2 = new Vector2[Verts]; outCol = new Color[Verts]; }
             if (outIdx.Length != Indices) outIdx = new int[Indices];
-            Array.Copy(pos, outPos, Verts); Array.Copy(nor, outNor, Verts); Array.Copy(uv, outUv, Verts); Array.Copy(col, outCol, Verts);
+            Array.Copy(pos, outPos, Verts); Array.Copy(nor, outNor, Verts); Array.Copy(uv, outUv, Verts); Array.Copy(uv2, outUv2, Verts); Array.Copy(col, outCol, Verts);
             Array.Copy(idx, outIdx, Indices);
             arrays[(int)Mesh.ArrayType.Vertex] = outPos;
             arrays[(int)Mesh.ArrayType.Normal] = outNor;
             arrays[(int)Mesh.ArrayType.TexUV] = outUv;
+            arrays[(int)Mesh.ArrayType.TexUV2] = outUv2;
             arrays[(int)Mesh.ArrayType.Color] = outCol;
             arrays[(int)Mesh.ArrayType.Index] = outIdx;
             mesh.AddSurfaceFromArrays(Mesh.PrimitiveType.Triangles, arrays, noBlends, noLods);
