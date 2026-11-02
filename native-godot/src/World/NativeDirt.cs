@@ -45,7 +45,33 @@ public static partial class NativeDirt
             GD.Print($"dirt: {bed.Name} soil, {perMetre:0.###} uv a metre");
             n++;
         }
-        return n + Mud(town);
+        return n + Yards(town) + Mud(town);
+    }
+
+    /// <summary>
+    /// #254: the back yards' bare earth (city/ground_earth, 20,400 m2: the courts inside the blocks, 14,100 m2 of them
+    /// walked in, with their pumps, barrels and weeds) was flat: its relief kind had its height map (r000006, 4 m a repeat)
+    /// but a depth of 0 and a bump of 0.25. Its own picture stays (Codex's yard dirt was tried and read blurrier than its
+    /// crisp grit); its pebbles and hollows get real depth (parallax, <see cref="YardDepth"/>) and the relief light
+    /// (<see cref="YardBump"/>). A uniform of its kind changed, no new kind. Returns 1 if laid.
+    /// </summary>
+    private const float YardDepth = 0.025f, YardBump = 3.5f;
+    private static int Yards(Node3D town)
+    {
+        int n = 0;
+        foreach (var yard in BakedWorld.All(town).OfType<MeshInstance3D>().Where(m => m.Name.ToString() == "ground_earth" && m.Mesh is ArrayMesh))
+            for (int s = 0; s < yard.Mesh.GetSurfaceCount(); s++)
+            {
+                if ((yard.GetSurfaceOverrideMaterial(s) ?? yard.Mesh.SurfaceGetMaterial(s)) is not ShaderMaterial old || old.GetShaderParameter("relief_h").Obj == null) continue;
+                var m = (ShaderMaterial)old.Duplicate();
+                m.ResourceName = "yard_earth";
+                m.SetShaderParameter("relief_depth", YardDepth);
+                m.SetShaderParameter("relief_bump", YardBump);
+                yard.SetSurfaceOverrideMaterial(s, m);
+                GD.Print($"dirt: {yard.Name} yard earth, relief {YardDepth * 1000:0} mm, bump {YardBump}");
+                n++;
+            }
+        return n;
     }
 
     /// <summary>

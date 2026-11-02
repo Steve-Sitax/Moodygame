@@ -11,6 +11,7 @@ Bugs and loose ends are tracked as [issues](https://github.com/Steve-Sitax/Moody
 
 ## [Unreleased]
 
+- The packed earth of the back yards and courts inside the blocks has depth now: its grit, pebbles and small hollows stand out and catch the light, instead of a flat printed surface.
 - In St James's churchyard the bare earth round each gravestone's foot is real soil now: a low, settled mound of damp earth with clods, darker against the stone and ragged where the grass grows into it, instead of a flat pale band.
 - The earth in the tree pits lies a couple of centimetres below the paving now, as a real pit does, banked up against the stone kerbs at its edge; the roots go down into it with it.
 - The pavements left by the pulled-down houses meet properly at their corners: at Sint-Carolus the two fronts' raised flags now turn one clean corner with one kerb and one gutter, instead of a stray cut piece of pavement in the street, black wedges and gutter stones running into a gap. At Sint-Paulus the kerb that stood out and doubled over two metres is one straight kerb with one gutter, and an odd wedge of flags on the north side is gone, so that pavement ends square.
