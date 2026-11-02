@@ -11,6 +11,7 @@ Bugs and loose ends are tracked as [issues](https://github.com/Steve-Sitax/Moody
 
 ## [Unreleased]
 
+- The roots at the foot of the trees in the street pits carry the trunk's own bark at its true size, running out along each root, instead of a pale smeared streak on the swell at the trunk's foot.
 - At low water the mud at the foot of the river's and the moat's walls is wet tidal silt instead of pale sand ripples: little runnels drain down it to the water, it is pitted with burrows and worm casts, with shell grit and the odd pebble, crumb of brick or bit of oyster shell, and its water's edge wanders and runs up the runnels; in the rain the runnels and burrows fill with water. Seen close or from low down it no longer shows rings or straight lines.
 - Where the cart tracks cross the muddy streets the wheels have cut real ruts: two grooves a few centimetres deep with the mud pushed up beside them, wandering a little, darker and wetter in the bottom, and in and after the rain water stands in them.
 - The stone quay walls of the river, the canal and the vlieten have real relief now: each block's worn, rounded edges and its recessed joint catch the sky's light, also in the shade and in the rain, and the blocks no longer repeat every eight metres: each course runs its blocks in its own order with its own tones.
