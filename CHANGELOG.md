@@ -11,6 +11,7 @@ Bugs and loose ends are tracked as [issues](https://github.com/Steve-Sitax/Moody
 
 ## [Unreleased]
 
+- River water no longer shows where there is no water. Before, the river's surface lay under the whole town, so at high water it showed in the Poesje and home cellars, in light wells, in the Ruien and in the hatch stair down to the Vleeshuis hall, and in two low spots in the park. Now it is drawn only in the river, the canal, the vliet, the moat, the Petit Bassin and the lock. The thin gaps where a wall meets the ground stay dark.
 - The Ruien sound like a vault now: your steps and every sound underground ring on in a long brick echo, wettest deep in a gallery and drier near a hatch or grate; the street above is only a dull rumble. Drops fall from the vault joints into the channel, from the pipe mouths and in the keeper's niche, each heard only within a few metres of where it falls.
 - The three side drains in the Vlietrui pour into the channel: from each grated gutter a sheet of water spouts over the coping and falls into the channel, widening as it breaks up, and you hear it splash within about seven metres.
 - The street hatch over the stair down into the Vleeshuis hall has proper oak leaves: two ledged and braced cellar leaves of 42 mm planks standing open on their hinge pins, with forged strap hinges and a lifting ring, instead of two thick, mossy timber slabs like kerbs.
