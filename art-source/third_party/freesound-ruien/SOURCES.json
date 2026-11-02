@@ -8,7 +8,7 @@
     "url": "https://cdn.freesound.org/previews/381/381418_3530854-hq.ogg",
     "file": "381418-hq.ogg",
     "sha256": "a4d97db6031c0652d6e8018688de23ed96327acbb6512c1cd4dd1d0abf74ae12",
-    "licence_evidence": "381418-page.html: licence 'Creative Commons 0', link https://creativecommons.org/publicdomain/zero/1.0/",
+    "licence_evidence": "item page checked 2026-11-02 (saved copy kept outside git: the page embeds a third-party map token): licence 'Creative Commons 0', link https://creativecommons.org/publicdomain/zero/1.0/",
     "used_as": "native-godot/world/data/public/audio/freesound/ruien-spill-381418-loop.ogg: mono, 6-36 s, 2 s equal-power loop seam, peak 0.86"
   },
   {
@@ -20,7 +20,7 @@
     "url": "https://cdn.freesound.org/previews/402/402929_270868-hq.ogg",
     "file": "402929-hq.ogg",
     "sha256": "6a82f34a05b46a247f3f5bc1d6b5aa6e13fb1b190d469bca3d367fd8b0b61f9d",
-    "licence_evidence": "402929-page.html: licence 'Creative Commons 0', link https://creativecommons.org/publicdomain/zero/1.0/",
+    "licence_evidence": "item page checked 2026-11-02 (saved copy kept outside git: the page embeds a third-party map token): licence 'Creative Commons 0', link https://creativecommons.org/publicdomain/zero/1.0/",
     "used_as": "native-godot/world/data/public/audio/freesound/ruien-drips-402929.ogg: mono, 0-140 s, peak 0.86; single drops cut at run time (Samples.RuienDripSpans)"
   }
 ]
