@@ -125,6 +125,20 @@ alongside came out slower on a busier machine, so no fair difference is claimed.
 - Night views from inside the yard by the gate render a wall in the snap tool (camera placement), so the lantern was checked
   from the street (gate_n) and by day.
 
+## Round 3 · 2 November 2026 (#228)
+
+See `../church-repairs-20261102/README.md` for the whole pass. In the yard:
+
+- The walks' own compacted gravel (`scripts/churchyard_gravel.py`, `gravel-texture.res`, `gravel-height-texture.res`): no
+  more parallel ridges at a low look.
+- Single leaves are limes' and planes' in their own outlines, curled and folded, with a pale midrib and a stalk (`fallen_leaf`).
+- A 45 mm worn margin beside every stone arris (`churchyard_kit.BAND`) and larger corner chips, so the wear reads at walking
+  distance; the chapel door's lock plate stands proud and rubbed bright.
+- `soil_collar` walked only half of a stone's outline and closed it with a diagonal: a pale 2 m strip lay on the grass by the
+  chest tomb and the obelisk. It now walks all four sides.
+- Open from round 2: the soil at the stones' feet (#253, the ground's own pass), the stair-vault landing's sun patch at 10:00
+  (true to the sun), and mourners or a sexton visiting (no visit kind for a churchyard yet).
+
 ## Not yet
 
 - Mourners or a sexton visiting the yard: the native places and routes have no visit kind for a churchyard yet.

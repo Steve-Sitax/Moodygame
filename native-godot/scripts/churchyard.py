@@ -256,8 +256,9 @@ def soil_collar(gc, cx, cz, hx, hz, yaw, rng, width=(0.04, 0.16), rise=0.012):
     n = 64
     R = rot_y(yaw)
     t = np.linspace(0, 1, n, endpoint=False)
-    # the footprint's outline, walked round
-    per = 2 * (hx + hz); s_ = t * per
+    # the footprint's outline, walked round (all four sides: half of it and a diagonal back across the stone's foot made
+    # a pale 2 m strip on the grass by the chest tomb and the obelisk)
+    per = 4 * (hx + hz); s_ = t * per
     pts = []
     for d in s_:
         if d < 2 * hx: p = (-hx + d, hz)
@@ -317,23 +318,68 @@ def leaf_drift(gc, a, b, depth, side, rng, seed):
     # gaps: where the clump thins to nothing the grass shows
     thick = K.vnoise(Pt.mean(1) * np.array([1, 0, 1]), 2.2, seed + 6) > 0.38
     gc.add('stone', Pt[thick], Nt[thick], Ut[thick], C=C[thick])
-    # single leaves, 40 to 100 mm, overlapping on the drift and a few blown out of it onto the grass
+    # single leaves overlapping on the drift and a few blown out of it onto the grass: the square's limes and planes (#228:
+    # the four-cornered pieces read as paper scraps)
     g = np.random.default_rng(seed)
-    n = int(L * 70)
+    n = int(L * 45)
     for i in range(n):
         u = g.random(); v = g.random() ** 1.6 * (1.8 if g.random() < 0.15 else 1.0)
         base = a + d * u * L + side * v * depth * 0.9
-        ln = g.uniform(0.04, 0.10); wd = ln * g.uniform(0.45, 0.7); ang = g.uniform(0, math.pi)
-        ca, sa = math.cos(ang), math.sin(ang)
-        tip = np.array([ca, sa]) * ln / 2; wing = np.array([-sa, ca]) * wd / 2
-        y0 = 0.05 + (0.022 * (1 - min(v, 1.0)) if v < 1 else 0.0) + g.uniform(0.0, 0.006)
-        q = [base - tip, base + wing * 0.9 - tip * 0.1, base + tip, base - wing * 0.9 - tip * 0.1]
-        P4 = np.array([[p[0], y0 + g.uniform(-0.003, 0.006), p[1]] for p in q])
-        tri = np.array([P4[[0, 1, 2]], P4[[0, 2, 3]]])
-        N = np.zeros_like(tri); N[..., 1] = 1
+        y0 = 0.05 + (0.022 * (1 - min(v, 1.0)) if v < 1 else 0.0) + g.uniform(0.0, 0.004)
         col = [LEAF_YELLOW, LEAF_BROWN, LEAF_DARK, LEAF_BROWN][g.integers(0, 4)] * g.uniform(0.8, 1.15)
-        C = np.concatenate([np.broadcast_to(np.clip(col, 0, 1), tri.shape[:2] + (3,)), np.ones(tri.shape[:2] + (1,))], -1)
-        gc.add('stone', tri, N, tri[..., [0, 2]] / K.STONE_UV, C=C)
+        fallen_leaf(gc, base, y0, col, g)
+
+
+def fallen_leaf(gc, at, y0, col, g):
+    """One fallen leaf on the ground (world x z `at`, its blade at height y0): a lime's (heart-shaped, the base notched and
+    a little lopsided, the edge finely toothed, 50 to 90 mm) or, one in three, a plane's (five pointed lobes, 90 to 140 mm);
+    curled as it dried: the edge lifted 2 to 7 mm, the blade folded along its midrib; a stalk 20 to 40 mm; the midrib and
+    veins paler, the edge darker and browner. A fan of 18 to 30 corners round the blade's middle."""
+    plane = g.random() < 0.33
+    ln = g.uniform(0.09, 0.14) if plane else g.uniform(0.05, 0.09)
+    k = 20 if plane else 14
+    th = np.linspace(0, 2 * math.pi, k, endpoint=False)
+    if plane:
+        lobes = np.abs(np.cos(2.5 * (th - math.pi))) ** 0.7
+        r = 0.5 * ln * (0.42 + 0.58 * lobes) * (1 - 0.35 * np.clip(np.cos(th - math.pi), 0, 1) ** 4)
+    else:
+        lop = g.uniform(-0.12, 0.12)
+        r = 0.5 * ln * (0.62 + 0.38 * np.cos(th)) ** 0.55 * (1 - 0.55 * np.exp(-((th - math.pi) / 0.32) ** 2)) * (1 + lop * np.sin(th))
+        r *= 1 + 0.035 * (np.arange(k) % 2)                    # (the teeth)
+    shift = 0.08 * ln if not plane else 0.0                         # (the blade's middle ahead of the stalk's join)
+    lx = np.cos(th) * r + shift; lz = np.sin(th) * r
+    ang = g.uniform(0, 2 * math.pi); ca, sa = math.cos(ang), math.sin(ang)
+    curl = g.uniform(0.002, 0.007); fold = g.uniform(-0.004, 0.006)
+    def W(x, z, y):
+        return np.array([at[0] + ca * x - sa * z, y0 + y, at[1] + sa * x + ca * z])
+    rim = [W(lx[i], lz[i], curl * (r[i] / (0.5 * ln)) ** 2 + fold * abs(math.sin(th[i]))) for i in range(k)]
+    mid = W(shift, 0.0, 0.0)
+    tris, cols = [], []
+    cmid = np.clip(col * 1.12, 0, 1); cedge = np.clip(col * np.array([0.82, 0.74, 0.66]), 0, 1)
+    for i in range(k):
+        j = (i + 1) % k
+        tris.append([mid, rim[i], rim[j]]); cols.append([cmid, cedge, cedge])
+    # the midrib and two pairs of veins: a pale line from the stalk to the tip, a hair over the blade
+    for vt in ((math.pi, 0.0),) if not plane else ((math.pi, 0.0), (math.pi, 1.26), (math.pi, -1.26)):
+        a0 = np.array([math.cos(vt[0]) * 0.32 * ln * 0.3 + shift, math.sin(vt[0]) * 0.0])
+        t1 = vt[1]
+        rr = float(np.interp(t1 % (2 * math.pi), th, r)) * 0.9
+        a1 = np.array([math.cos(t1) * rr + shift, math.sin(t1) * rr])
+        dv = a1 - a0; nv = np.array([-dv[1], dv[0]]) / (np.linalg.norm(dv) + 1e-9) * 0.0012
+        lift = 0.0006 + max(0.0, fold) * 0.3
+        q = [W(*(a0 + nv), lift), W(*(a1 + nv), lift + curl * 0.6), W(*(a1 - nv), lift + curl * 0.6), W(*(a0 - nv), lift)]
+        cv = np.clip(col * 1.28 + 0.03, 0, 1)
+        tris += [[q[0], q[1], q[2]], [q[0], q[2], q[3]]]; cols += [[cv] * 3, [cv] * 3]
+    # the stalk, from the blade's base out behind it
+    sl = g.uniform(0.02, 0.04); base = np.array([-(0.5 * ln if plane else 0.5 * ln * 0.2) + shift * 0.3, 0.0])
+    s1 = base + np.array([-sl, g.uniform(-0.008, 0.008)]); w_ = np.array([0, 0.0011])
+    q = [W(*(base + w_), 0.001), W(*(s1 + w_), 0.004), W(*(s1 - w_), 0.004), W(*(base - w_), 0.001)]
+    cs = np.clip(col * 0.9, 0, 1)
+    tris += [[q[0], q[1], q[2]], [q[0], q[2], q[3]]]; cols += [[cs] * 3, [cs] * 3]
+    T = np.array(tris); Cc = np.array(cols)
+    Nn = np.zeros_like(T); Nn[..., 1] = 1
+    C = np.concatenate([Cc, np.ones(Cc.shape[:2] + (1,))], -1)
+    gc.add('stone', T, Nn, T[..., [0, 2]] / K.STONE_UV, C=C)
 
 
 def wreath(m, centre, tilt_axis, tilt, R0, seed, faded=False, broken=0.0):
@@ -535,12 +581,12 @@ def iron_door(m, x0, x1, y0, y1, z, seed, hinge=-1):
         rbox(m, 'iron', (hx - sgn * 0.06 - 0.02, yy - 0.065, z + 0.006), (hx - sgn * 0.06 + 0.02, yy - 0.05, z + 0.03), 0.003, step=0.05, k=1)
     # the lock plate and its keyhole cover, the drop ring above
     lx = x1 - 0.12 if hinge < 0 else x0 + 0.12; ly = (y0 + y1) / 2
-    rbox(m, 'iron', (lx - 0.05, ly - 0.10, z + 0.012), (lx + 0.05, ly + 0.08, z + 0.024), 0.004, step=0.05, k=1)
+    rbox(m, 'iron', (lx - 0.055, ly - 0.105, z + 0.012), (lx + 0.055, ly + 0.085, z + 0.032), 0.004, step=0.05, k=1)
     for dx in (-0.035, 0.035):
         for dy in (-0.085, 0.065):
-            lathe(m, 'iron', [(0.0, 0.0), (0.007, 0.0), (0.006, 0.003), (0.0, 0.006)], seg=6, R=K.rot_x(math.pi / 2), t=(lx + dx, ly + dy, z + 0.023))
-    lathe(m, 'iron', [(0.0, 0.0), (0.016, 0.0), (0.016, 0.006), (0.0, 0.007)], seg=10, R=K.rot_x(math.pi / 2), t=(lx, ly - 0.035, z + 0.023))
-    rbox(m, 'iron', (lx - 0.012, ly - 0.085, z + 0.024), (lx + 0.012, ly - 0.035, z + 0.029), 0.003, step=0.03, k=1)
+            lathe(m, 'iron', [(0.0, 0.0), (0.007, 0.0), (0.006, 0.003), (0.0, 0.006)], seg=6, R=K.rot_x(math.pi / 2), t=(lx + dx, ly + dy, z + 0.031))
+    lathe(m, 'iron', [(0.0, 0.0), (0.016, 0.0), (0.016, 0.006), (0.0, 0.007)], seg=10, R=K.rot_x(math.pi / 2), t=(lx, ly - 0.035, z + 0.031))
+    rbox(m, 'iron', (lx - 0.012, ly - 0.085, z + 0.032), (lx + 0.012, ly - 0.035, z + 0.037), 0.003, step=0.03, k=1)
     lathe(m, 'iron', [(0.0, 0.0), (0.018, 0.0), (0.016, 0.012), (0.0, 0.016)], seg=10, R=K.rot_x(math.pi / 2), t=(lx, ly + 0.11, z + 0.006))
     torus(m, 'iron', 0.055, 0.008, seg=18, sides=7, R=K.rot_x(math.pi / 2) @ K.rot_x(0.12), t=(lx, ly + 0.05, z + 0.034))
 
@@ -594,7 +640,7 @@ def vault_chapel(rects):
     wreath(m, (1.40, 0.055, 0.15), 'z', 0.10, 0.15, 1771, faded=True, broken=0.35)
     stone_tint(m, 1.0, 1.0, top=2.3)
     # the door's ring and lock plate rubbed by hands; its straps' tops washed
-    iron_tint(m, '2A2C2B', 0.7, polish=lambda P, N: np.maximum((np.abs(P[..., 0] - 0.32) < 0.08) * (np.abs(P[..., 1] - 1.24) < 0.14) * 0.85,
+    iron_tint(m, '2A2C2B', 0.7, polish=lambda P, N: np.maximum((np.abs(P[..., 0] - 0.32) < 0.07) * (np.abs(P[..., 1] - 1.24) < 0.12) * (P[..., 2] > 1.452) * 1.25,
                                                          (np.abs(P[..., 0]) < 0.50) * (P[..., 1] > 0.39) * (P[..., 1] < 1.99) * (P[..., 2] > 1.4285) * (P[..., 2] < 1.48) * 0.62))
     m.box((-1.25, 0, -1.56), (1.25, 3.4, 1.56)); m.box((-0.86, 0, 1.56), (0.86, 0.38, 2.16))
     return m
@@ -958,6 +1004,8 @@ WREATH_STRAW = bright_col('7A6A48'); RIBBON = bright_col('39332F')
 def main():
     out = pathlib.Path(sys.argv[1]); out.mkdir(parents=True, exist_ok=True)
     rects = build_atlas(out)
+    import churchyard_gravel
+    churchyard_gravel.make(out)
     g = np.random.default_rng(1873)
     items = []   # (model, x, z, yaw, far, label)
     models = {}

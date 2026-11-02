@@ -117,3 +117,9 @@ walls before it. Route audit 0 hits. Proofs: ideas (50), homes/night (96), court
 pass. Shader inventory: PASS, baseline matched, no new kind. Load: the dressing takes 0.6-1.1 s. Frame rate: other
 sessions were rendering at the same time, so before and after were run side by side under the same load (12 views
 each): 12.2 fps before, 22.6 fps after: no cost to see (noisy). Desktop icons: 7 PASS.
+
+## Round 3 (2 November 2026): depth on the bared walls, bills
+
+The joists' sockets are cut into the brick, broken brick ends stand where the old fronts and backs were bonded in, the
+coats cast their shadows, and bills of October 1873 are pasted by the street (#236, #226). See
+`../church-repairs-20261102/README.md`.
