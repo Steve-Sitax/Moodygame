@@ -110,6 +110,8 @@ public static partial class NativeDirt
         }
         if (silts.Count == 0) return 0;
         mud.AddChild(new SiltLevel { Name = "silt_level", Silts = silts });
+        // (#256) the silt draws the beds' water itself: the old calm sheet's bright ribbon and the pools' flat sheets go
+        Waters.BedsDrawWater = true;
         GD.Print($"dirt: tide mud, tidal silt on the canals' beds ({silts.Count} surface)");
         return 1;
     }
@@ -117,6 +119,8 @@ public static partial class NativeDirt
     private const string CanalBeds = "tide_bed";
     private static readonly Color BedTint = new(1.35f, 1.18f, 1.02f, 1);
     private const float SiltBump = 1.2f, SiltPools = 0.18f;
+    // (#256) how deep the trickle stands in the canals' bed trench at low water (the trench is 0.22 m deep)
+    private const float TrickleDepth = 0.15f;
 
     /// <summary>The river's level now for the silt's water line (Tide.River follows the clock or the tide kit's hold).</summary>
     private sealed partial class SiltLevel : Node
@@ -125,8 +129,11 @@ public static partial class NativeDirt
         private float last = float.NaN;
         public override void _Process(double delta)
         {
-            if (Tide.River == last) return;
-            last = Tide.River;
+            // (#256: at low water the canals keep a trickle in their bed's trench: the silt's water line holds there, so the
+            // trickle is drawn in the silt's own water, its edge broken, instead of the old calm sheet)
+            float level = MathF.Max(Tide.River, Waters.TrickleY + TrickleDepth);
+            if (level == last) return;
+            last = level;
             foreach (var m in Silts) m.SetShaderParameter("silt_level", last);
         }
     }

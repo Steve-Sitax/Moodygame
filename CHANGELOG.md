@@ -11,6 +11,7 @@ Bugs and loose ends are tracked as [issues](https://github.com/Steve-Sitax/Moody
 
 ## [Unreleased]
 
+- At low water the trickle down the middle of a canal and the pools on its bed are no longer a bright white ribbon and flat white patches: they are the same dark, still water as the silt round them, mirroring the walls and the sky, their edges broken into small inlets.
 - The tree pits look wet in the rain: their fallen leaves and the weeds darken and catch a wet sheen like the paving round them, and after rain the water in the pits and the planted beds stands in a few joined pools instead of scattered blue specks (the bed on the Lijnwaadmarkt keeps its pool). The pit kerbs are a weathered grey stone instead of dark blue.
 - The mud on the cobbled streets and squares is real mud now, not just a darker stain: where carts and feet churn the street it fills the joints and in places spreads over the stones so only their tops stand out, with boot and hoof prints, lumps and a few clumps of dung you can see in relief, darker and wetter in the rain, and the first place puddles gather. A hole where a cobble is missing is a sunken pocket of mud instead of a black square. The mud trodden round the market stalls on the Grote Markt and the Vismarkt has the same relief.
 - On a sunny day the shade on squares and in lanes is lighter: more of the sunlight thrown back by the lit fronts and paving reaches the shaded ground, so it reads as daylit shade instead of dusk. Rain, fog, night, the rooms and the vaults under the town look as before.

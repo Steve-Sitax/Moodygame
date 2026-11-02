@@ -146,3 +146,11 @@ darkened the colour, and a hole drew near black. The market's mud stains (`marke
   `native-godot/scripts/PitWetRepair.cs` lays the lines again on r000002 as it was before #244 (git 4057c0a58).
 - The pits' fallen leaves (r004441) and weeds (r004447) take Psx.WetLeafLines, off unless `wet_dark`
   (NativeTreePits: leaves 0.38, weeds 0.3): darker and a wet sheen with the rain and while water lies.
+
+## The canals' trickle and pools at low water (#256)
+
+The old water sheets on the canals' beds (World/Waters.cs: `tide_calm` in the trickle trench, `tide_pools`) drew a
+bright white ribbon and flat polygon pools beside the silt's own water. With the silt laid (`Waters.BedsDrawWater`)
+both sheets stay hidden, and the silt's water line holds at the trickle's level at low water
+(`max(river, Waters.TrickleY + 0.15 m)`, the trench being 0.22 m deep): the trickle and the pools are the silt's own
+water, dark, mirroring and broken at the edge. This also holds in the Vliet's bed.
