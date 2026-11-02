@@ -294,6 +294,10 @@ public static class NativeSquareDressing
     public static (int Walls, int Bricked, int Decals, int Anchors) Walls(Node3D town, List<BaredWall> walls)
     {
         if (walls.Count == 0) return (0, 0, 0, 0);
+        // (dev: --bared-list prints each bared wall: its ends, outward way and heights)
+        if (Scheldemist.Main.I.Flag("bared-list"))
+            foreach (var w in walls)
+                GD.Print($"bared wall {w.Standing}/{w.Razed}: A {w.A.X:0.00},{w.A.Y:0.00} B {w.B.X:0.00},{w.B.Y:0.00} out {w.Out.X:0.00},{w.Out.Y:0.00} len {(w.B - w.A).Length():0.0} standing {w.StandingHeight:0.0} razed {w.RazedHeight:0.0} storeys {w.Storeys} flue {w.Flue}");
         int bricked = Brick(town, walls);
         var decal = ResourceLoader.Load<Material>(GrimeDecalMaterial);
         var iron = ResourceLoader.Load<Material>(IronMaterial);
@@ -1804,6 +1808,45 @@ public static class NativeSquareDressing
                     o.SetMeta(Meta, true);
                     holder.AddChild(o); placed++;
                     break;
+                case "scene":
+                {
+                    // a model scene of its own with its own collision (the builder's scaffold, #226: one model everywhere it stands)
+                    if (ResourceLoader.Load<PackedScene>(t.Kind[6..]) is not { } scene) { GD.Print($"square dressing: {t.Id}: no scene {t.Kind[6..]}"); break; }
+                    var made = scene.Instantiate<Node3D>();
+                    made.Name = "scene_" + t.Id.Replace('-', '_');
+                    made.Position = at + Vector3.Up * t.Lift;
+                    made.Rotation = new Vector3(0, Mathf.DegToRad(t.Yaw), 0);
+                    made.SetMeta(Meta, true);
+                    foreach (var n in BakedWorld.All(made)) n.SetMeta(Meta, true);
+                    foreach (var gi in BakedWorld.All(made).OfType<GeometryInstance3D>())
+                    {
+                        gi.VisibilityRangeEnd = 160; gi.VisibilityRangeEndMargin = 15; gi.VisibilityRangeFadeMode = GeometryInstance3D.VisibilityRangeFadeModeEnum.Self;
+                    }
+                    foreach (var sb in BakedWorld.All(made).OfType<StaticBody3D>()) { sb.CollisionLayer = Scheldemist.World.Solid.Layer; sb.CollisionMask = 0; }
+                    holder.AddChild(made); placed++;
+                    break;
+                }
+                case "mesh":
+                {
+                    // a stored mesh laid in the world as it is (the climbers grown on blank walls, #219: no collision)
+                    if (ResourceLoader.Load<Mesh>(t.Kind[5..]) is not { } m) { GD.Print($"square dressing: {t.Id}: no mesh {t.Kind[5..]}"); break; }
+                    var mi = new MeshInstance3D { Name = "wall_climbers_" + t.Id.Replace('-', '_'), Mesh = m, VisibilityRangeEnd = 130, VisibilityRangeEndMargin = 15, VisibilityRangeFadeMode = GeometryInstance3D.VisibilityRangeFadeModeEnum.Self };
+                    mi.SetMeta(Meta, true);
+                    holder.AddChild(mi); placed++;
+                    break;
+                }
+                case "gully":
+                {
+                    // (#226) the kit's gully grate sunk into the paving, the setts dished down to it (NativeGully)
+                    var grate = ResourceLoader.Load<AuthorAsset>($"{KitDir}/gutter-grate.tres");
+                    if (grate == null) { GD.Print($"square dressing: {t.Id}: no kit gully grate"); break; }
+                    var (level, _) = NativeGully.Sink(town, holder, t.Id, new Vector2(t.At[0], t.At[1]), t.Yaw);
+                    if (level == null) break;
+                    var g = new AuthoredObject { Name = "kit_" + t.Id.Replace('-', '_'), ObjectId = t.Id, Asset = grate, Position = new Vector3(t.At[0], level.Value - NativeGully.Dip + t.Lift, t.At[1]), Rotation = new Vector3(0, Mathf.DegToRad(t.Yaw), 0) };
+                    g.SetMeta(Meta, true);
+                    holder.AddChild(g); placed++;
+                    break;
+                }
                 case "move":
                     // (the bake's own loose things moved, by their node paths after "move:", as far as at says: the barrels
                     // set on the Paulus north threshold go to the cart's delivery)
@@ -1894,7 +1937,7 @@ public static class NativeSquareDressing
             string[] k = t.Kind.Split(':');
             switch (k[0])
             {
-                case "pump": case "kit": case "guard": case "move": continue;
+                case "pump": case "kit": case "gully": case "scene": case "mesh": case "guard": case "move": continue;
                 case "handcart":
                 {
                     var props = ModelLibrary.Get("props", new ModelLibrary.Look(TwoSided: true));

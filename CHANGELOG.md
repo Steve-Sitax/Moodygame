@@ -11,6 +11,11 @@ Bugs and loose ends are tracked as [issues](https://github.com/Steve-Sitax/Moody
 
 ## [Unreleased]
 
+- The three church squares the razing opened have their own small markets, Monday to Saturday mornings: five stalls on the Sint-Paulusplaats, four on the Sint-Jacobsmarkt and two on the Conscienceplein. Each stall has its own seller from a house nearby, who pushes her handcart over, sets the stall up from about half past six, sells from 8 to half past 12 and packs it away again.
+- Neighbours who live nearer a church square than their old haunt now meet there: their gossip, an afternoon's loitering, the Sunday stroll, the children's play, and for some their morning's shopping at its stalls. Street musicians and quarrels at the market can now also happen on the church squares.
+- The gully by the pump on the Sint-Paulusplaats is sunk into the street: the setts slope down to its grate over the last stride, and you can see down through the bars into the gully pot.
+- A builder's scaffold stands against the bared house wall at the west end of the Sint-Paulusplaats: fir poles on sole boards, ledgers, putlogs set into holes in the brick, boarded lifts, a guard rail, a long brace and a ladder, all lashed with rope.
+- Ivy and Virginia creeper in its autumn red now climb three of the bared house walls by the church squares (two by Sint-Jacob, one on the Conscienceplein), grown from the wall's foot like the plants on the town wall.
 - The packed earth of the back yards and courts inside the blocks has depth now: its grit, pebbles and small hollows stand out and catch the light, instead of a flat printed surface.
 - In St James's churchyard the bare earth round each gravestone's foot is real soil now: a low, settled mound of damp earth with clods, darker against the stone and ragged where the grass grows into it, instead of a flat pale band.
 - The earth in the tree pits lies a couple of centimetres below the paving now, as a real pit does, banked up against the stone kerbs at its edge; the roots go down into it with it.

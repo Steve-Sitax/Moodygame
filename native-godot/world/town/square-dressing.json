@@ -1,5 +1,5 @@
 {
- "note": "The squares the razing opened, made to read as 1873 (Steve 2026-10-27; art-source/square-mood-20261027). NativeSquareDressing.cs reads it. ground: the dirt mask redrawn on the cut plots (base mud, grime at standing walls' feet within wallReach m, pathWear on the swept paths, mud spots); churches: their plans (art-source/church-squares-20261027/foot-*.json, simplified 0.25 m). things: kind pump (the street kit's), guard (the town's guard stone), handcart[:load], bricks, rubble, or pack:model; at [x, z], yaw in degrees, size [x, y, z] the solid box (none: not solid). paving: the old fronts of the cut houses (their outline's free edges); on a front, patchChance of a torn-out step's trench, repaved flush (at most maxPatches by each church), half with a hollow beside it where the fill settled; hollows: more (at, radius, mud = how deep, 0-1), filled first when it rains. A thing's lift raises it off the street (a kit object level with it). keepOut: boxes (x0, z0, x1, z1) the paving leaves alone (the Sint-Jacob churchyard's south side, another piece of work).",
+ "note": "The squares the razing opened, made to read as 1873 (Steve 2026-10-27; art-source/square-mood-20261027). NativeSquareDressing.cs reads it. ground: the dirt mask redrawn on the cut plots (base mud, grime at standing walls' feet within wallReach m, pathWear on the swept paths, mud spots); churches: their plans (art-source/church-squares-20261027/foot-*.json, simplified 0.25 m). things: kind pump (the street kit's), kit:name (a street kit object), gully (the kit's gully sunk, the setts dished to it: NativeGully), scene:path (a model scene with its own collision: the builder's scaffold), mesh:path (a stored mesh laid as it is: the climbers of wall-climbers.json), guard (the town's guard stone), handcart[:load], bricks, rubble, or pack:model; at [x, z], yaw in degrees, size [x, y, z] the solid box (none: not solid). paving: the old fronts of the cut houses (their outline's free edges); on a front, patchChance of a torn-out step's trench, repaved flush (at most maxPatches by each church), half with a hollow beside it where the fill settled; hollows: more (at, radius, mud = how deep, 0-1), filled first when it rains. A thing's lift raises it off the street (a kit object level with it). keepOut: boxes (x0, z0, x1, z1) the paving leaves alone (the Sint-Jacob churchyard's south side, another piece of work).",
  "ground": {
   "base": 0.2,
   "wallGrime": 0.62,
@@ -586,8 +586,44 @@
    "yaw": 90
   },
   {
+   "id": "climbers-jacob-east-bared",
+   "kind": "mesh:res://assets/models/wall-climbers-20261102/jacob-east-bared.res",
+   "at": [
+    -30.79,
+    288.52
+   ],
+   "yaw": 0
+  },
+  {
+   "id": "climbers-conscience-bared",
+   "kind": "mesh:res://assets/models/wall-climbers-20261102/conscience-bared.res",
+   "at": [
+    -92.05,
+    163.99
+   ],
+   "yaw": 0
+  },
+  {
+   "id": "climbers-jacob-northeast-bared",
+   "kind": "mesh:res://assets/models/wall-climbers-20261102/jacob-northeast-bared.res",
+   "at": [
+    -42.4,
+    272.53
+   ],
+   "yaw": 0
+  },
+  {
+   "id": "square-paulus-scaffold",
+   "kind": "scene:res://assets/models/scaffold-20261102/scaffold.tscn",
+   "at": [
+    65.28,
+    298.39
+   ],
+   "yaw": 90
+  },
+  {
    "id": "square-paulus-gully",
-   "kind": "kit:gutter-grate",
+   "kind": "gully",
    "at": [
     112.25,
     297.0

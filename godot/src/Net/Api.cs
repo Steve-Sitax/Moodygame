@@ -344,7 +344,7 @@ public sealed partial class Api : IDisposable
     /// <summary>Townspeople who act, street conversations, the director's events (api.ts ActionsPayload).</summary>
     public Task<ActionsPayload> Actions() => Get<ActionsPayload>("api/actions");
     public Task<EventsReply> Events() => Get<EventsReply>("api/events");
-    public Task<DirectorReply> DevEvent(string template) => Post<DirectorReply>("api/dev/director", new { template });
+    public Task<DirectorReply> DevEvent(string template, string place = "") => Post<DirectorReply>("api/dev/director", new { template, place });
     public Task<JsonElement> FamilyMenace(int id, string how, string? text = null)
         => Post<JsonElement>($"api/families/menace/{id}" + (text == null ? "" : "/talk"), text == null ? new { how } : (object)new { text }, TalkTimeoutMs);
     public Task<ActionProposalReply> DevAction(string npc, string kind, string target = "", int minutes = 30, string reason = "")
