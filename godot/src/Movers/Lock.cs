@@ -143,7 +143,7 @@ public partial class Lock : Node
             if (c is MeshInstance3D mi) mi.Visible = false; // the bake's chains and tow lines: drawn here now
         bridge = new DrawBridge(group, BridgeLeaves, "lock_bridge");
         riverBuoys = Mv.Kids(group, "lock_buoys").SelectMany(b => Mv.Kids(b, "lock_buoy")).ToArray();
-        lines = new RopeLines("lock_tow_lines", Boats.I.Rope);
+        lines = new RopeLines("lock_tow_lines", Rope.Kind.Hawser);
         group.AddChild(lines);
 
         // the gates, in the order the browser made them: the river pair (west leaf, east leaf), the dock pair
@@ -280,10 +280,8 @@ public partial class Lock : Node
             float la = (float)(t.Lens[i] / 2 - 1.5), lb = (float)(t.Lens[i + 1] / 2 - 0.5);
             var a = new Vector3(a0.Position.X - MathF.Sin(ta) * la, a0.Position.Y + 1.3f, a0.Position.Z - MathF.Cos(ta) * la);
             var c = new Vector3(b0.Position.X + MathF.Sin(wa) * lb, b0.Position.Y + 1.1f, b0.Position.Z + MathF.Cos(wa) * lb);
-            var m = a.Lerp(c, 0.5f);
-            m.Y = Math.Min(a.Y, c.Y) - 0.7f;
-            lines.Add(a, m);
-            lines.Add(m, c);
+            // (the line hangs to 0.7 m under its lower end at its middle)
+            lines.Add(a, c, (a.Y + c.Y) / 2 - (Math.Min(a.Y, c.Y) - 0.7f));
         }
         lines.Commit();
     }

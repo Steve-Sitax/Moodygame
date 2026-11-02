@@ -215,6 +215,8 @@ public partial class Checks : Node
             // (#198: inside, in the nave by the pulpit, the aisles' confessionals and altars in view; `--perf-places "cathedral nave"`)
             "cathedral nave" => new Vector2(-262, 184),
             "rijnkaai" => new Vector2(20, 20),
+            // (the quay with the most moored ships and rigging in view, their mooring lines and the small boats': `--perf-places "rijnkaai ships"`)
+            "rijnkaai ships" => new Vector2(-28, 2),
             "vismarkt" => new Vector2(-118, 30),
             "handschoenmarkt" when Town.Data!.Places.TryGetValue("handschoenmarkt", out var p) => new Vector2((float)p.X, (float)p.Z),
             _ => TownMap.I?.NamedPlace(name) ?? throw new InvalidOperationException("no named perf place " + name)

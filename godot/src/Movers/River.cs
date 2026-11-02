@@ -106,7 +106,7 @@ public partial class River : Node
         // the bake's line sets (the hawsers, the lashings) are drawn by this part now
         foreach (var c in group.GetChildren())
             if (c is MeshInstance3D mi) mi.Visible = false;
-        hawsers = new RopeLines("hawsers", Boats.I.Rope);
+        hawsers = new RopeLines("hawsers", Rope.Kind.Hawser);
         group.AddChild(hawsers);
 
         // the frozen ships: those of the tows at the liner go to the anchorage, the rest into the pool
@@ -255,9 +255,10 @@ public partial class River : Node
                 if (k == 0) continue;
                 Node3D a = m.Parts[k - 1].Boat.Outer, b = p.Boat.Outer;
                 float la = (float)(m.Parts[k - 1].Len / 2 - 1.2), lb = (float)(p.Len / 2 - 0.5);
-                hawsers.Add(
-                    new Vector3(a.Position.X - MathF.Sin(a.Rotation.Y) * la, a.Position.Y + 1.3f, a.Position.Z - MathF.Cos(a.Rotation.Y) * la),
-                    new Vector3(b.Position.X + MathF.Sin(b.Rotation.Y) * lb, b.Position.Y + 1.1f, b.Position.Z + MathF.Cos(b.Rotation.Y) * lb));
+                var ha = new Vector3(a.Position.X - MathF.Sin(a.Rotation.Y) * la, a.Position.Y + 1.3f, a.Position.Z - MathF.Cos(a.Rotation.Y) * la);
+                var hb = new Vector3(b.Position.X + MathF.Sin(b.Rotation.Y) * lb, b.Position.Y + 1.1f, b.Position.Z + MathF.Cos(b.Rotation.Y) * lb);
+                // (a towing hawser under way hangs a little: some 3% of its span at the middle)
+                hawsers.Add(ha, hb, ha.DistanceTo(hb) * 0.03f);
             }
         }
         hawsers.Commit();

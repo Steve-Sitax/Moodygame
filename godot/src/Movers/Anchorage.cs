@@ -88,7 +88,7 @@ public sealed partial class Anchorage
         pts = new (double, double)[N + 1];
         for (int i = 0; i <= N; i++) pts[i] = curve.PointAt(i / (double)N);
         stops = new[] { SAt(StopA.X, StopA.Z), SAt(StopQ.X, StopQ.Z) };
-        lash = new RopeLines("anchorage_lashings", Boats.I.Rope);
+        lash = new RopeLines("anchorage_lashings", Rope.Kind.Mooring);
         group.AddChild(lash);
 
         Boats.Float? Next(string kind)

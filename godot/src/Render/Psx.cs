@@ -41,10 +41,14 @@ public static class Psx
     /// 5 the falling leaves (World/Trees.cs). NameCell: N, an instanced name plate whose MultiMesh custom data (x the
     /// column, y the row, from the top) picks its cell in an N x N names atlas (`tex`; docs/rendering.md, the switches).
     /// TideWet: the wet band the tide leaves on walls and mud (`tide_wet` how dark, the shared psx_tide_wet: TideWetNow).
+    /// Rope: a rope's tube (Movers/Rope.cs, UV2 = its radius and 1 on its sides) is never drawn thinner than half a
+    /// pixel: far off it is widened to that in the vertex stage and covers its share of the pixel's samples (alpha to
+    /// coverage, the view's 4x MSAA), so a far rope is a faint line, never a thick dark one; close by it is its own size
+    /// (Steve's one-time approval of 2026-11-02 for this one kind).
     /// </summary>
     public record struct Kind(bool Unlit, bool Blend, bool Scissor, bool TwoSided, bool DepthWrite, bool Snap, int Atlas, bool VertexColor, bool Add, bool Fog,
         int Relief = 0, bool Parallax = false, bool Detile = false, bool Ground = false, bool Wall = false, bool Slabs = false, bool Far = false, int Water = 0, bool Indoor = false,
-        int Grime = 0, bool Bump = false, bool Decal = false, int Tree = 0, int NameCell = 0, bool TideWet = false);
+        int Grime = 0, bool Bump = false, bool Decal = false, int Tree = 0, int NameCell = 0, bool TideWet = false, bool Rope = false);
 
     private static readonly Dictionary<Kind, Shader> Shaders = new();
     private static readonly Dictionary<Shader, Kind> Kinds = new();
@@ -1155,6 +1159,23 @@ float psx_h13(vec3 p3) { p3 = fract(p3 * 0.1031); p3 += dot(p3, p3.zyx + 31.32);
     /// for bare weathered wood): in rain the paint darkens, a little more where it faces the sky, and gives back a thin sheen
     /// of the sky at a glancing view. scripts/WoodWetRepair.cs writes this kind's code into the resource, so it stays one kind.
     /// </summary>
+    /// <summary>The Rope switch's vertex code: a rope's side is pushed out along its normal to half a pixel at its depth
+    /// (not in a mirror's small picture), and its share of that width kept for the coverage.</summary>
+    private const string RopeWidthVertex = @"	rope_cov = 1.0;
+	if (UV2.y > 0.5) {
+		float rope_ms = length(MODEL_MATRIX[0].xyz);
+		vec3 rope_v = (MODELVIEW_MATRIX * vec4(VERTEX, 1.0)).xyz;
+		// one pixel's width at this depth, in metres
+		float rope_px = 2.0 * max(-rope_v.z, 0.05) / (PROJECTION_MATRIX[1][1] * VIEWPORT_SIZE.y);
+		bool rope_mirror = distance(CAMERA_POSITION_WORLD, psx_mir0.xyz) < 0.02 || distance(CAMERA_POSITION_WORLD, psx_mir1.xyz) < 0.02;
+		float rope_r = UV2.x * rope_ms, rope_min = rope_mirror ? 0.0 : 0.25 * rope_px;
+		if (rope_r < rope_min) {
+			VERTEX += NORMAL * ((rope_min - rope_r) / max(rope_ms, 1e-4));
+			rope_cov = rope_r / rope_min;
+		}
+	}
+";
+
     public static bool WetPaint(Kind k) => k == new Kind(false, false, false, true, k.DepthWrite, true, 0, true, false, true, Bump: true);
     public const string WetPaintDecl = "// #193: painted wood gets wet: 0 stays dry (stone vaults indoors), 1 painted wood, more for bare weathered wood\nuniform float wet_paint = 0.0;\nglobal uniform float psx_wet;\n";
     public const string WetPaintColour = "\t// (#193) wet paint is darker, a little more where it faces the sky\n\tfloat paint_wet = clamp(psx_wet, 0.0, 1.0) * wet_paint;\n\tvec3 wet_nw = normalize((INV_VIEW_MATRIX * vec4(NORMAL, 0.0)).xyz);\n\tc.rgb *= 1.0 - paint_wet * (0.4 + 0.1 * clamp(wet_nw.y, 0.0, 1.0));\n";
@@ -2341,6 +2362,7 @@ void silt_at(vec2 v, vec2 p, vec2 dx, vec2 dy, out vec4 cw, out vec4 cd, out vec
         if (k.Add) modes.Add("blend_add");
         else if (k.Blend) modes.Add("blend_mix");
         if (k.Blend || k.Add) modes.Add(k.DepthWrite ? "depth_draw_always" : "depth_draw_never");
+        if (k.Rope) modes.Add("alpha_to_coverage");
         var c = new StringBuilder();
         c.Append("shader_type spatial;\nrender_mode ").Append(string.Join(", ", modes)).Append(";\n");
         c.Append(HashGlsl);
@@ -2380,6 +2402,7 @@ varying vec3 world;
         if (k.Indoor && lit) c.Append("instance uniform vec3 room_sky = vec3(0.3);\ninstance uniform vec3 room_ground = vec3(0.1);\ninstance uniform vec3 room_ambient = vec3(0.0);\n");
         if (k.Atlas > 0) c.Append("varying vec2 cell;\n");
         if (k.NameCell > 0) c.Append("varying vec2 name_cell;\n");
+        if (k.Rope) c.Append("varying float rope_cov;\n");
         if (k.TideWet) c.Append(TideWetGlsl);
         if (k.Ground) c.Append("uniform float vary = 0.0;\nuniform float puddles = 0.0;\n// the wet stone's highlight (three's Phong: specular and shininess; 0 when it never gets wet)\nuniform vec3 spec_color = vec3(0.0);\nuniform float shininess = 12.0;\nvarying float spec_k;\n");
         if (k.Wall) c.Append("uniform float foot = 0.0;\nuniform float foot_wear = 0.0;\nuniform float mottle = 0.0;\n");
@@ -2424,6 +2447,7 @@ void vertex() {
             if (k.Tree == 5) c.Append(FallGlsl);
             else if (k.Tree > 0) c.Append(TreeSway(k.Tree % 2 == 0, k.Tree > 2));
             if (WetPaint(k)) c.Append(ClothSwayVertex);
+            if (k.Rope) c.Append(RopeWidthVertex);
             c.Append("	vec4 view = MODELVIEW_MATRIX * vec4(VERTEX, 1.0);\n");
         }
         c.Append(@"	fog_depth = -view.z;
@@ -2859,6 +2883,8 @@ void fragment() {
         if (!k.Fog) c.Append("	fog_k = 0.0;\n	halo = vec3(0.0);\n");
         if (k.Blend || k.Add) c.Append("	ALPHA = c.a;\n");
         if (k.Water > 0) c.Append("	ALPHA = 1.0;\n");
+        // (a widened far rope covers only its own thickness's share of the samples; still drawn with the solid world)
+        if (k.Rope) c.Append("	ALPHA = rope_cov;\n	ALPHA_SCISSOR_THRESHOLD = 0.004;\n");
         if (lit)
             c.Append(@"	ALBEDO = c.rgb * k3;
 	EMISSION = (emission * texture(emission_tex, uv).rgb * mix(vec3(1.0), psx_fill.rgb * COLOR.rgb, fill) + c.rgb * (sky + spilt)) * k3 + ad + halo;

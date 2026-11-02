@@ -191,6 +191,10 @@ public partial class Boats : Node
         }
         FillMissingCaps();
         MooringRopes();
+        // every other line set of rigging in the town (the frozen ships', the cranes' falls, the lock gates' chains) as
+        // ropes; again once everything has been placed (a part that copies a ship after this frame gets the ropes too)
+        Movers.Rope.ConvertAll(Mv.Town);
+        Callable.From(() => GD.Print($"ropes: {Movers.Rope.ConvertAll(Mv.Town)} more line sets made into ropes, {Movers.Rope.Converted} in all")).CallDeferred();
         GD.Print($"boats: {floats.Count} single vessels, {rows.Count} rows of moored and small boats ({MooredBoats} boats), models in the bake: {string.Join(", ", templates.Keys.OrderBy(k => k))}");
         if (MoversTest.On) Probes();
     }
@@ -301,8 +305,9 @@ public partial class Boats : Node
                     arr[(int)Mesh.ArrayType.Vertex] = pts;
                     var lines = new ArrayMesh();
                     lines.AddSurfaceFromArrays(Mesh.PrimitiveType.Lines, arr);
-                    lines.SurfaceSetMaterial(0, Rope);
-                    inner.AddChild(new MeshInstance3D { Name = kind + "_rigging", Mesh = lines });
+                    // (the rig's lines as ropes of their own thickness: Rope.cs)
+                    if (Movers.Rope.FromLines(lines, 1, Movers.Rope.RiggingKinds(kind + "_rigging")) is { } tubes)
+                        inner.AddChild(new MeshInstance3D { Name = kind + "_rigging", Mesh = tubes, CastShadow = GeometryInstance3D.ShadowCastingSetting.Off });
                 }
             }
             catch (System.Text.Json.JsonException) { /* no rigging then */ }
@@ -412,24 +417,8 @@ public partial class Boats : Node
                 }
     }
 
-    private Material? rope;
-    private bool ropeSought;
-    /// <summary>The ropes' material (rigging, hawsers, chains): the one the baked ships' rigging is drawn with.</summary>
-    public Material? Rope
-    {
-        get
-        {
-            if (ropeSought) return rope;
-            ropeSought = true;
-            foreach (var n in BakedWorld.All(Mv.Town))
-                if (n is MeshInstance3D { Mesh: not null, Visible: true } r && r.Name.ToString().Contains("rigging") && r.Mesh.GetSurfaceCount() > 0 && r.Mesh.SurfaceGetMaterial(0) is ShaderMaterial sm)
-                {
-                    rope = sm;
-                    break;
-                }
-            return rope;
-        }
-    }
+    /// <summary>The ropes' material (rigging, hawsers, chains, mooring lines): the one hemp rope of the town (Rope.cs).</summary>
+    public Material? Rope => Movers.Rope.Material;
 
     private static readonly Regex RowName = new("^INST\\d+_(.+?)(moored|small)_mm$", RegexOptions.Compiled);
 
@@ -510,8 +499,11 @@ public partial class Boats : Node
             string kind = lines.Name.ToString().Split("_moored_rigging")[0];
             var row = byKey.Values.FirstOrDefault(r => r.Kind == kind);
             if (row == null || rope == null) continue;
-            var mm = new MultiMesh { TransformFormat = MultiMesh.TransformFormatEnum.Transform3D, Mesh = lines.Mesh, InstanceCount = row.N };
-            var mmi = new MultiMeshInstance3D { Name = kind + "_moored_rigging_mm", Multimesh = mm, MaterialOverride = rope };
+            // (the lines as ropes of their own thickness, one mesh for every boat of the row: Rope.cs)
+            var tubes = Movers.Rope.FromLines(lines.Mesh, 1, Movers.Rope.RiggingKinds(kind + "_moored_rigging"));
+            if (tubes == null) continue;
+            var mm = new MultiMesh { TransformFormat = MultiMesh.TransformFormatEnum.Transform3D, Mesh = tubes, InstanceCount = row.N };
+            var mmi = new MultiMeshInstance3D { Name = kind + "_moored_rigging_mm", Multimesh = mm, CastShadow = GeometryInstance3D.ShadowCastingSetting.Off };
             group.AddChild(mmi);
             lines.Visible = false;
             row.Meshes.Add((mm, Transform3D.Identity, new float[row.N * 12]));
@@ -615,6 +607,7 @@ public partial class Boats : Node
             Write(r, t);
         }
         if (tideChanged) RopesFollowTide();
+        Movers.Rope.RainOnStatics();
         MoverCost.End("boats");
     }
 

@@ -9,124 +9,108 @@ namespace Scheldemist.Movers;
 public partial class Boats
 {
     /// <summary>
-    /// Issue 87: the small boats' mooring ropes are one baked mesh ("mooring_ropes"), each rope a few pieces from the
-    /// coping down to her rail. A boat moved off a ladder (MooredRespace) takes her ropes with her, along the wall;
-    /// the ropes of a boat taken off her mooring go. Each piece belongs to the boat whose length it lies nearest. Made
-    /// once at load, into a mesh of its own: the shared baked mesh is not touched. #182: the boat's end of each rope
-    /// rises and falls with her on the tide (RopesFollowTide); the end on the coping stays where it is made fast.
+    /// The small boats' painters (issues 87, #182). The bake drew them as one mesh ("mooring_ropes", hidden here); now
+    /// each small boat at her mooring has a painter from her stem or stern, whichever is nearer, to the nearest ring in
+    /// the coping (within 5.5 m), and a stern line from her other end to a second ring when one lies on that side. A
+    /// boat moved off a ladder (MooredRespace) ties up where she lies; one taken away at load has none. The rope itself
+    /// (real thickness, a hitch round the ring, over the coping's nose, hanging and following her on the tide) is drawn
+    /// by ShipLines with the ships' lines; her end is on her stem head, at her measured hull's height there.
     /// </summary>
     private void MooringRopes()
     {
-        if (Mv.Top("mooring_ropes") is not MeshInstance3D ropes || ropes.Mesh == null) return;
-        var boats = new List<(Vector2 At, Vector2 Axis, float Half, Vector3 Shift, bool Gone)>();
+        if (Mv.Top("mooring_ropes") is MeshInstance3D baked) baked.Visible = false;
+        var rings = new List<Vector3>();
+        foreach (var n in BakedWorld.All(Mv.Town))
+            if (n is MultiMeshInstance3D { Multimesh: { } mm } r && n.Name.ToString().Contains("mooringrings"))
+                for (int i = 0; i < mm.InstanceCount; i++) rings.Add(r.GlobalTransform * mm.GetInstanceTransform(i).Origin);
         var owners = new List<(Row Row, int I)>();
+        int painters = 0, none = 0;
         foreach (var row in rows)
         {
             var d = Dims(row.Kind);
             if (d.Length >= 9) continue;
+            var hull = HullOf(row.Kind);
             for (int i = 0; i < row.N; i++)
             {
                 var (bx, bz) = MooredRespace.Origin(row.X[i], row.Z[i]);
-                var (dx, dz) = MooredRespace.At(bx, bz);
-                // her ropes go with her along the wall; brought in against the wall (across it), they no longer reach and go
-                var axis = new Vector2(MathF.Sin(row.Yaw[i]), MathF.Cos(row.Yaw[i])); var shift = new Vector2(dx, dz); float along = shift.Dot(axis);
-                bool across = (shift - axis * along).Length() > 0.5f;
-                boats.Add((new Vector2(bx, bz), axis, d.Length / 2, new Vector3(axis.X * along, 0, axis.Y * along), MooredRespace.Removed(bx, bz) || across));
+                if (row.Gone[i] || MooredRespace.Removed(bx, bz)) continue;
                 owners.Add((row, i));
-            }
-        }
-        var xf = ropes.GlobalTransform;
-        var inv = xf.AffineInverse();
-        var mesh = new ArrayMesh();
-        int moved = 0, dropped = 0;
-        for (int s = 0; s < ropes.Mesh.GetSurfaceCount(); s++)
-        {
-            var arrays = ropes.Mesh.SurfaceGetArrays(s);
-            var v = arrays[(int)Mesh.ArrayType.Vertex].AsVector3Array();
-            var idx = arrays[(int)Mesh.ArrayType.Index].VariantType == Variant.Type.Nil ? Enumerable.Range(0, v.Length).ToArray() : arrays[(int)Mesh.ArrayType.Index].AsInt32Array();
-            // the pieces: triangles joined by a vertex, or by vertices at one place (a tube's seam)
-            var parent = Enumerable.Range(0, v.Length).ToArray();
-            int Find(int a) { while (parent[a] != a) a = parent[a] = parent[parent[a]]; return a; }
-            for (int i = 0; i + 2 < idx.Length; i += 3) { parent[Find(idx[i + 1])] = Find(idx[i]); parent[Find(idx[i + 2])] = Find(idx[i]); }
-            var place = new Dictionary<(int, int, int), int>();
-            for (int i = 0; i < v.Length; i++) { var k = ((int)MathF.Round(v[i].X * 200), (int)MathF.Round(v[i].Y * 200), (int)MathF.Round(v[i].Z * 200)); if (place.TryGetValue(k, out int o)) parent[Find(i)] = Find(o); else place[k] = i; }
-            var gone = new bool[v.Length];
-            var owner = new int[v.Length];
-            Array.Fill(owner, -1);
-            foreach (var piece in Enumerable.Range(0, v.Length).GroupBy(Find))
-            {
-                var mid = Vector3.Zero; int n = 0;
-                foreach (int i in piece) { mid += xf * v[i]; n++; }
-                mid /= n;
-                var c = new Vector2(mid.X, mid.Z);
-                int best = -1; float bd = 4;
-                for (int b = 0; b < boats.Count; b++)
+                var at = new Vector2(row.X[i], row.Z[i]);
+                var axis = new Vector2(MathF.Sin(row.Yaw[i]), MathF.Cos(row.Yaw[i]));
+                var near = rings.Where(g => new Vector2(g.X, g.Z).DistanceTo(at) < 5.5f).OrderBy(g => new Vector2(g.X, g.Z).DistanceTo(at)).ToList();
+                if (near.Count == 0) { none++; continue; }
+                var first = near[0];
+                float firstSide = MathF.Sign((new Vector2(first.X, first.Z) - at).Dot(axis));
+                var tied = new List<(Vector3 Ring, float End)> { (first, firstSide == 0 ? 1 : firstSide) };
+                // a second ring at her other end, at least two metres from the first
+                foreach (var g in near.Skip(1))
                 {
-                    var off = c - boats[b].At; float along = Math.Clamp(off.Dot(boats[b].Axis), -boats[b].Half, boats[b].Half);
-                    float dist = (off - boats[b].Axis * along).Length();
-                    if (dist < bd) { bd = dist; best = b; }
+                    float side = MathF.Sign((new Vector2(g.X, g.Z) - at).Dot(axis));
+                    if (side != 0 && side != tied[0].End && new Vector2(g.X, g.Z).DistanceTo(new Vector2(first.X, first.Z)) > 2f) { tied.Add((g, side)); break; }
                 }
-                if (best < 0) continue;
-                foreach (int i in piece) owner[i] = best;
-                if (boats[best].Gone) { foreach (int i in piece) gone[i] = true; dropped++; }
-                else if (boats[best].Shift != Vector3.Zero) { var local = inv.Basis * boats[best].Shift; foreach (int i in piece) v[i] += local; moved++; }
+                var (row0, i0) = (row, i);
+                foreach (var (ring, end) in tied)
+                {
+                    // across the boat from the ring to her middle: the way to the quay's nose; the ring lies on her other side
+                    var localX = new Vector2(axis.Y, -axis.X);
+                    var across = localX;
+                    if ((at - new Vector2(ring.X, ring.Z)).Dot(across) < 0) across = -across;
+                    var (stem, stemY, rail, railY) = StemHead(hull, d, end, -MathF.Sign(across.Dot(localX)));
+                    Vector3 World(Vector2 l, float y) { var w = at + axis * l.Y + localX * l.X; return new Vector3(w.X, y, w.Y); }
+                    // the painter comes over her gunwale on the quay's side by the stem and is made fast round the stem head
+                    ShipLines.AddSmall(ring, new Vector3(across.X, 0, across.Y), World(rail, railY), World(stem, stemY), row.X[i], row.Z[i], row.Floor[i],
+                        () => !row0.Gone[i0] && !playerHidden.Contains((row0, i0)) && (row0.Node == null || row0.Node.IsVisibleInTree()));
+                    painters++;
+                }
             }
-            var keep = new List<int>(idx.Length);
-            for (int i = 0; i + 2 < idx.Length; i += 3) if (!gone[idx[i]] && !gone[idx[i + 1]] && !gone[idx[i + 2]]) { keep.Add(idx[i]); keep.Add(idx[i + 1]); keep.Add(idx[i + 2]); }
-            if (keep.Count == 0) continue;
-            arrays[(int)Mesh.ArrayType.Vertex] = v;
-            arrays[(int)Mesh.ArrayType.Index] = keep.ToArray();
-            mesh.AddSurfaceFromArrays(Mesh.PrimitiveType.Triangles, arrays);
-            mesh.SurfaceSetMaterial(mesh.GetSurfaceCount() - 1, ropes.Mesh.SurfaceGetMaterial(s));
-            ropeSurfaces.Add(new RopeSurface { Arrays = arrays, Base = (Vector3[])v.Clone(), Owner = owner, Weight = new float[v.Length], Material = ropes.Mesh.SurfaceGetMaterial(s) });
         }
-        // each boat's ropes run from the coping (their highest point, made fast) down to her rail (their lowest, on her)
-        var top = new float[boats.Count]; var low = new float[boats.Count];
-        Array.Fill(top, float.NegativeInfinity); Array.Fill(low, float.PositiveInfinity);
-        foreach (var rs in ropeSurfaces)
-            for (int i = 0; i < rs.Base.Length; i++)
-                if (rs.Owner[i] >= 0) { float y = (xf * rs.Base[i]).Y; top[rs.Owner[i]] = MathF.Max(top[rs.Owner[i]], y); low[rs.Owner[i]] = MathF.Min(low[rs.Owner[i]], y); }
-        foreach (var rs in ropeSurfaces)
-            for (int i = 0; i < rs.Base.Length; i++)
-            {
-                int b = rs.Owner[i];
-                rs.Weight[i] = b < 0 || top[b] - low[b] < 0.2f ? 0 : Math.Clamp((top[b] - (xf * rs.Base[i]).Y) / (top[b] - low[b]), 0, 1);
-            }
         ropeOwners = owners.ToArray();
         ropeRise = new float[owners.Count];
         Array.Fill(ropeRise, float.NaN);
-        ropeMesh = mesh; ropeNode = ropes;
-        ropes.Mesh = mesh;
-        // the tide lifts and lowers the boats' ends some 5 m: the drawn box must hold that
-        var box = mesh.GetAabb(); ropes.CustomAabb = new Aabb(box.Position + new Vector3(0, -5, 0), box.Size + new Vector3(0, 10, 0));
         RopesFollowTide();
-        GD.Print($"boats: mooring ropes of the small boats moved off the ladders: {moved} pieces moved, {dropped} gone with their boats (issue 87); {owners.Count} boats' ropes follow the tide (#182)");
+        GD.Print($"boats: {painters} painters of {owners.Count} small boats at their moorings from {rings.Count} rings ({none} with no ring in reach) drawn as rope that follows the tide (#182)");
     }
 
-    private sealed class RopeSurface
+    /// <summary>
+    /// A small boat's stem head (end +1) or stern post (-1), and her gunwale on one side (+1: her +x) a little in from it:
+    /// their places in her frame (x across, y along) and heights over her waterline, from her measured hull.
+    /// </summary>
+    private static (Vector2 Stem, float StemY, Vector2 Rail, float RailY) StemHead(HullMap? hull, (float Length, float Beam, float Height) d, float end, float side)
     {
-        public Godot.Collections.Array Arrays = null!;
-        public Vector3[] Base = null!;
-        public int[] Owner = null!;
-        public float[] Weight = null!;
-        public Material? Material;
+        var plain = (new Vector2(0, end * (d.Length / 2 - 0.3f)), 0.45f, new Vector2(side * (d.Beam / 2 - 0.15f), end * (d.Length / 2 - 0.6f)), 0.42f);
+        if (hull == null) return plain;
+        int cx = (int)((0 - hull.MinX) / HullMap.Cell);
+        // the last column on her centre line at that end, then 25 cm in: the stem head's top
+        int zEnd = -1;
+        if (end > 0) { for (int z = hull.Nz - 1; z >= 0; z--) if (hull.Has(cx, z)) { zEnd = z; break; } }
+        else { for (int z = 0; z < hull.Nz; z++) if (hull.Has(cx, z)) { zEnd = z; break; } }
+        if (zEnd < 0) return plain;
+        int zIn = Math.Clamp(zEnd - (int)MathF.Round(end * 0.25f / HullMap.Cell), 0, hull.Nz - 1);
+        float top = float.NegativeInfinity;
+        for (int x = cx - 1; x <= cx + 1; x++) if (hull.Has(x, zIn)) top = MathF.Max(top, hull.Hi[zIn * hull.Nx + x]);
+        if (!float.IsFinite(top)) top = 0.45f;
+        var stem = new Vector2(0, hull.MinZ + (zIn + 0.5f) * HullMap.Cell);
+        // the gunwale 60 cm in from the stem: her outermost column on that side, its top
+        int zG = Math.Clamp(zEnd - (int)MathF.Round(end * 0.6f / HullMap.Cell), 0, hull.Nz - 1), xG = -1;
+        if (side > 0) { for (int x = hull.Nx - 1; x >= 0; x--) if (hull.Has(x, zG)) { xG = x; break; } }
+        else { for (int x = 0; x < hull.Nx; x++) if (hull.Has(x, zG)) { xG = x; break; } }
+        if (xG < 0) return (stem, top + 0.02f, plain.Item3, top);
+        var rail = new Vector2(hull.MinX + (xG + 0.5f) * HullMap.Cell - side * 0.06f, hull.MinZ + (zG + 0.5f) * HullMap.Cell);
+        return (stem, top + 0.02f, rail, hull.Hi[zG * hull.Nx + xG] + 0.02f);
     }
-    private readonly List<RopeSurface> ropeSurfaces = new();
+
     private (Row Row, int I)[] ropeOwners = Array.Empty<(Row, int)>();
     private float[] ropeRise = Array.Empty<float>();
-    private ArrayMesh? ropeMesh;
-    private MeshInstance3D? ropeNode;
     /// <summary>For checks: how far each moored small boat's rope end has been moved with the tide from where the bake drew it.</summary>
     public IReadOnlyList<float> RopeRise => ropeRise;
     public int RopeRebuilds { get; private set; }
 
     /// <summary>
-    /// #182: every small boat's rope end follows her height on the water (or on the mud), not her bob: rebuilt when one of
-    /// them has moved a centimetre, which the tide does a few times a minute.
+    /// #182: how far every small boat's rope end has risen or fallen with her height on the water (or on the mud) from
+    /// where the bake drew it: the painters themselves are drawn by ShipLines from the same height.
     /// </summary>
     private void RopesFollowTide()
     {
-        if (ropeMesh == null || ropeNode == null || !IsInstanceValid(ropeNode)) return;
         bool changed = false;
         for (int b = 0; b < ropeOwners.Length; b++)
         {
@@ -134,17 +118,6 @@ public partial class Boats
             float rise = MathF.Max(Tide.LevelAt(row.X[i], row.Z[i]), row.Floor[i]) - row.BakeY[i];
             if (float.IsNaN(ropeRise[b]) || MathF.Abs(rise - ropeRise[b]) >= 0.01f) { ropeRise[b] = rise; changed = true; }
         }
-        if (!changed) return;
-        RopeRebuilds++;
-        var up = ropeNode.GlobalTransform.AffineInverse().Basis * Vector3.Up;
-        ropeMesh.ClearSurfaces();
-        foreach (var rs in ropeSurfaces)
-        {
-            var v = new Vector3[rs.Base.Length];
-            for (int i = 0; i < v.Length; i++) v[i] = rs.Owner[i] < 0 ? rs.Base[i] : rs.Base[i] + up * (ropeRise[rs.Owner[i]] * rs.Weight[i]);
-            rs.Arrays[(int)Mesh.ArrayType.Vertex] = v;
-            ropeMesh.AddSurfaceFromArrays(Mesh.PrimitiveType.Triangles, rs.Arrays);
-            if (rs.Material != null) ropeMesh.SurfaceSetMaterial(ropeMesh.GetSurfaceCount() - 1, rs.Material);
-        }
+        if (changed) RopeRebuilds++;
     }
 }
