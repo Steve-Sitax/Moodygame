@@ -130,6 +130,18 @@ public static class Psx
     public static bool BumpOff => Off.Contains("bump");
     private static Vector4? skyBox;
     private static ImageTexture? skyShade, dirt, spill, shore, foul, waves, waterTint;
+    private static ImageTexture? mudStandIn, mudHeightStandIn;
+    private static readonly List<Texture2D> mudPictures = new();
+    /// <summary>#250: the street mud's pictures for the setts kinds' mud lines (MudLines): colour (alpha its shading), wet colour, height.</summary>
+    public static void SetMud(Texture2D colour, Texture2D wet, Texture2D height)
+    {
+        EnsureGlobals();
+        mudPictures.Clear();
+        mudPictures.AddRange(new[] { colour, wet, height });
+        RenderingServer.GlobalShaderParameterSet("psx_mud", colour.GetRid());
+        RenderingServer.GlobalShaderParameterSet("psx_mud_wet", wet.GetRid());
+        RenderingServer.GlobalShaderParameterSet("psx_mud_h", height.GetRid());
+    }
     /// <summary>The houses' sky shade is loaded (psx_sky_on 1); Daylight eases it in bright sun.</summary>
     public static bool SkyShadeOn { get; private set; }
     private static Image? spillImage;
@@ -149,6 +161,12 @@ public static class Psx
         RenderingServer.GlobalShaderParameterAdd("psx_sky_shade", RenderingServer.GlobalShaderParameterType.Sampler2D, skyShade.GetRid());
         RenderingServer.GlobalShaderParameterAdd("psx_dirt", RenderingServer.GlobalShaderParameterType.Sampler2D, dirt.GetRid());
         RenderingServer.GlobalShaderParameterAdd("psx_spill", RenderingServer.GlobalShaderParameterType.Sampler2D, spill.GetRid());
+        // (#250: the street mud's pictures, SetMud; a plain brown until they are in)
+        mudStandIn = Flat(new Color(0.3f, 0.23f, 0.16f));
+        mudHeightStandIn = Flat(new Color(0.5f, 0.5f, 0.5f));
+        RenderingServer.GlobalShaderParameterAdd("psx_mud", RenderingServer.GlobalShaderParameterType.Sampler2D, mudStandIn.GetRid());
+        RenderingServer.GlobalShaderParameterAdd("psx_mud_wet", RenderingServer.GlobalShaderParameterType.Sampler2D, mudStandIn.GetRid());
+        RenderingServer.GlobalShaderParameterAdd("psx_mud_h", RenderingServer.GlobalShaderParameterType.Sampler2D, mudHeightStandIn.GetRid());
         // (until theirs are in: no wall anywhere near, clean water everywhere)
         shore = Flat(Colors.White);
         foul = Flat(Colors.Black);
@@ -1276,6 +1294,154 @@ float psx_h13(vec3 p3) { p3 = fract(p3 * 0.1031); p3 += dot(p3, p3.zyx + 31.32);
     {
         code = code.Replace("\r\n", "\n");
         foreach (var (_, _, add) in SoilLines) code = code.Replace(add, "");
+        return code;
+    }
+
+    /// <summary>
+    /// Issue #250: the paving's mud and dung (the dirt mask's red: world/town/maps/dirt.png) and its muddy holes (a stone
+    /// gone, stone_ms) were colour only: the stones darkened, a hole a near-black patch. The town's stored setts kinds (the
+    /// relief ground with stone ids: the streets' and squares' setts) take these lines at their anchors
+    /// (scripts/MudReliefRepair.cs; changed in place, no new kind). Mud fills the joints where the mask says mud, and in
+    /// patches it rises over the stones, only their crowns standing out; a hole where a stone is gone is full of it
+    /// everywhere. The mud is Codex's wet mud (assets/materials/dirt-20261028/wet_mud_*, the globals psx_mud, psx_mud_wet and
+    /// psx_mud_h: SetMud) laid in world metres, its prints and pockets 2 cm deep for the lights near the eye and for the
+    /// relief light everywhere, with darker clumps of dung; it is the lowest ground, so the puddles gather in it first, and it
+    /// goes wet with the rain. The stones in the mud keep a lighter grime (the mud itself is drawn now).
+    /// </summary>
+    public static readonly (string Anchor, bool After, string Code)[] MudLines =
+    {
+        ("void fragment() {\n", false, @"// #250: the street mud's pictures (Codex's wet mud, assets/materials/dirt-20261028: colour with its shading in alpha,
+// the wet colour, the height over 5 cm), laid in world metres (Psx.SetMud; plain until they are in)
+global uniform sampler2D psx_mud : source_color, filter_linear_mipmap_anisotropic, repeat_enable;
+global uniform sampler2D psx_mud_wet : source_color, filter_linear_mipmap_anisotropic, repeat_enable;
+global uniform sampler2D psx_mud_h : filter_linear_mipmap, repeat_enable;
+"),
+        ("\tfloat psx_h = 0.5; // how high the stone is here; the puddles leave the tops dry\n", true,
+            "\tfloat mud_k = 0.0; // (#250) how muddy the street is here (the dirt mask's red)\n"),
+        ("\t\ttone *= mix(vec3(1.0), vec3(0.24, 0.19, 0.13), clamp(grime, 0.0, 1.0));\n", true,
+            "\t\tmud_k = clamp(grime, 0.0, 1.0);\n\t\t// (#250: the mud itself is drawn; the stones in it keep a lighter grime)\n\t\ttone *= mix(vec3(1.0), vec3(1.6, 1.68, 1.8), mud_k);\n"),
+        ("\t\tc.rgb *= st;\n", false, @"		// (#250) the mud: in the joints where the mask says mud, over the stones in patches (their crowns stand out), and
+		// in every hole where a stone is gone; its own brown, lumps and prints the lights see, the lowest ground for the water
+		float mud_cover = 0.0;
+		{
+			vec2 mp = world.xz;
+			vec3 msid = textureGrad(stone_id, uv, rel_g.xy, rel_g.zw).rgb;
+			float mhole = msid.g > 0.5 ? stone_ms(stone_r(uv, msid), wear).x : 0.0;
+			float mpatch = smoothstep(0.42, 0.75, pud_val(mp / 1.7 + 4.7));
+			float mlvl = mud_k * (0.12 + 0.6 * mpatch);
+			// the mud's picture in world metres (1.25 m), and where a slow noise says so the same turned 37 degrees and
+			// scaled (no grid of repeats)
+			vec2 muv = mp * 0.8;
+			vec2 muv2 = pud_turn(mp, 0.8, 0.6) * 0.67 + vec2(0.31, 0.57);
+			float mdm = smoothstep(0.35, 0.65, pud_val(mp / 5.0 + 2.0));
+			float mh = mix(texture(psx_mud_h, muv).r, texture(psx_mud_h, muv2).r, mdm);
+			float msurf = mlvl + (mh - 0.5) * 0.16;
+			mud_cover = max(mhole, (1.0 - smoothstep(msurf - 0.05, msurf + 0.03, h_c)) * step(0.001, mlvl));
+			mud_cover = mix(mud_cover, max(mhole, mud_k * (0.15 + 0.6 * mpatch)), far_s);
+			if (mud_cover > 0.001) {
+				// its slope (2 cm of relief: a thin layer between the stones): the lights see it near the eye, the relief
+				// light everywhere
+				float me = 1.5 / 1024.0;
+				vec2 mg1 = vec2(texture(psx_mud_h, muv + vec2(me, 0.0)).r - texture(psx_mud_h, muv - vec2(me, 0.0)).r, texture(psx_mud_h, muv + vec2(0.0, me)).r - texture(psx_mud_h, muv - vec2(0.0, me)).r) * 0.8;
+				vec2 mg2 = vec2(texture(psx_mud_h, muv2 + vec2(me, 0.0)).r - texture(psx_mud_h, muv2 - vec2(me, 0.0)).r, texture(psx_mud_h, muv2 + vec2(0.0, me)).r - texture(psx_mud_h, muv2 - vec2(0.0, me)).r) * 0.67;
+				mg2 = vec2(0.8 * mg2.x + 0.6 * mg2.y, -0.6 * mg2.x + 0.8 * mg2.y);
+				vec2 mg = mix(mg1, mg2, mdm) * (0.02 / (2.0 * me));
+				ground_dn = mix(ground_dn, (normalize(vec3(-mg.x, 1.0, -mg.y)) - vec3(0.0, 1.0, 0.0)) * (1.0 - far_t), mud_cover);
+				float mlit = clamp(dot(normalize(vec3(-mg.x * 2.5, 1.0, -mg.y * 2.5)), normalize(vec3(-0.45, 0.8, -0.35))), 0.0, 1.0);
+				vec4 md = mix(texture(psx_mud, muv), texture(psx_mud, muv2), mdm);
+				vec3 mw = mix(texture(psx_mud_wet, muv).rgb, texture(psx_mud_wet, muv2).rgb, mdm);
+				// wetter with the rain and as long as water lies
+				float mwet = clamp(max(psx_wet, (psx_puddle - 0.14) * 1.8), 0.0, 1.0);
+				// (Codex's wet mud is darker than this street mud, which dries between the showers: 2x, still darker than the stone)
+				vec3 mcol = mix(md.rgb * 2.0, mw * 1.6, mwet) * md.a * mix(1.0, mix(0.62, 1.15, mlit), 1.0 - far_t);
+				// dung in a few clumps, darker and greener
+				mcol = mix(mcol, vec3(0.052, 0.046, 0.024), smoothstep(0.86, 0.92, pud_val(mp * 2.6 + 11.3)) * mud_k * 0.85);
+				// a hole's mud lies a few centimetres down: the stones round it shade its edge (the stone's own dome, which
+				// falls to its edge, tells how near the edge it is)
+				float mrim = smoothstep(0.08, 0.6, textureGrad(relief_h, uv, rel_g.xy, rel_g.zw).r);
+				mcol *= mix(1.0, 0.3 + 0.55 * mrim, mhole);
+				c.rgb = mix(c.rgb, mcol, mud_cover);
+				psx_h = mix(psx_h, clamp(msurf, 0.04, 0.6), mud_cover);
+			}
+		}
+		st = mix(st, vec3(1.0), mud_cover);
+"),
+    };
+    /// <summary>The stored code with the mud lines put in at their anchors (each anchor must be there once).</summary>
+    public static string WithMud(string code)
+    {
+        code = code.Replace("\r\n", "\n");
+        foreach (var (anchor, after, add) in MudLines)
+        {
+            int i = code.IndexOf(anchor, StringComparison.Ordinal);
+            if (i < 0 || code.IndexOf(anchor, i + 1, StringComparison.Ordinal) >= 0) throw new InvalidOperationException("mud: the anchor is not there once: " + anchor.Trim());
+            code = code.Insert(after ? i + anchor.Length : i, add.Replace("\r\n", "\n"));
+        }
+        return code;
+    }
+    /// <summary>A setts kind's code without its mud lines (the code it had before #250).</summary>
+    public static string WithoutMud(string code)
+    {
+        code = code.Replace("\r\n", "\n");
+        foreach (var (_, _, add) in MudLines) code = code.Replace(add.Replace("\r\n", "\n"), "");
+        return code;
+    }
+
+    /// <summary>
+    /// Issue #251: the market's mud stains (`market_mud`, laid on the flags of the Grote Markt, the Vismarkt and round the
+    /// stalls) were a flat colour. Their stored decal kind (the town's r004626, which the chalk marks share) takes these lines
+    /// (scripts/MudReliefRepair.cs; changed in place, no new kind), off unless a material sets `mud_relief`: then the stain's
+    /// shape (its alpha) is filled with the street mud's picture (MudLines' pictures, in world metres), wetter in the rain,
+    /// and its lumps tilt the normal the lights see and shade it near the eye.
+    /// </summary>
+    public static readonly (string Anchor, bool After, string Code)[] DecalMudLines =
+    {
+        ("uniform float bump_scale = 1.0;\n", true, @"// #251: the market's mud stains (0: off; the chalk marks share this kind): the wet mud's picture and relief in the stain
+uniform float mud_relief = 0.0;
+global uniform sampler2D psx_mud : source_color, filter_linear_mipmap_anisotropic, repeat_enable;
+global uniform sampler2D psx_mud_wet : source_color, filter_linear_mipmap_anisotropic, repeat_enable;
+global uniform sampler2D psx_mud_h : filter_linear_mipmap, repeat_enable;
+global uniform float psx_wet;
+global uniform float psx_puddle;
+"),
+        ("\tNORMAL = bump_normal(VERTEX, NORMAL, bump_dh(raw_uv, vec2(0.0), VIEWPORT_SIZE.y / 270.0));\n", true, @"	// (#251) the mud stain: the wet mud's picture in world metres in the stain's shape, wetter with the rain and as long
+	// as water lies; its lumps (3 cm) tilt the normal the lights see and shade it, near the eye
+	if (mud_relief > 0.0) {
+		vec2 muv = world.xz * 0.8;
+		float me = 1.5 / 1024.0;
+		vec2 mg = vec2(texture(psx_mud_h, muv + vec2(me, 0.0)).r - texture(psx_mud_h, muv - vec2(me, 0.0)).r, texture(psx_mud_h, muv + vec2(0.0, me)).r - texture(psx_mud_h, muv - vec2(0.0, me)).r) * 0.8 * (0.03 / (2.0 * me));
+		float mfade = 1.0 - smoothstep(10.0, 25.0, len);
+		NORMAL = normalize(NORMAL + (VIEW_MATRIX * vec4((normalize(vec3(-mg.x, 1.0, -mg.y)) - vec3(0.0, 1.0, 0.0)) * mfade * mud_relief, 0.0)).xyz);
+		vec4 md = texture(psx_mud, muv);
+		float mwet = clamp(max(psx_wet, (psx_puddle - 0.14) * 1.8), 0.0, 1.0);
+		vec3 mcol = mix(md.rgb * 1.7, texture(psx_mud_wet, muv).rgb * 1.4, mwet) * md.a;
+		float mlit = clamp(dot(normalize(vec3(-mg.x * 1.5, 1.0, -mg.y * 1.5)), normalize(vec3(-0.45, 0.8, -0.35))), 0.0, 1.0);
+		mcol *= mix(1.0, mix(0.72, 1.12, mlit), mfade);
+		c.rgb = mix(c.rgb, mcol * albedo.rgb, mud_relief);
+		// (thin and soft at the stain's edge: no hard line where the alpha is cut)
+		c.a *= mix(1.0, smoothstep(alpha_cut, min(alpha_cut + 0.3, 1.0), c.a), mud_relief);
+	}
+"),
+    };
+    public static string WithDecalMud(string code) => WithLines(code, DecalMudLines, "decal mud");
+    public static string WithoutDecalMud(string code) => WithoutLines(code, DecalMudLines);
+    /// <summary>The stored code with lines put in at their anchors (each anchor must be there once).</summary>
+    public static string WithLines(string code, (string Anchor, bool After, string Code)[] lines, string what)
+    {
+        code = code.Replace("\r\n", "\n");
+        foreach (var (anchor, after, add) in lines)
+        {
+            int i = code.IndexOf(anchor, StringComparison.Ordinal);
+            if (i < 0 || code.IndexOf(anchor, i + 1, StringComparison.Ordinal) >= 0) throw new InvalidOperationException(what + ": the anchor is not there once: " + anchor.Trim());
+            code = code.Insert(after ? i + anchor.Length : i, add.Replace("\r\n", "\n"));
+        }
+        return code;
+    }
+    /// <summary>The code without those lines.</summary>
+    public static string WithoutLines(string code, (string Anchor, bool After, string Code)[] lines)
+    {
+        code = code.Replace("\r\n", "\n");
+        foreach (var (_, _, add) in lines) code = code.Replace(add.Replace("\r\n", "\n"), "");
         return code;
     }
 

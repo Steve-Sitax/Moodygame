@@ -11,6 +11,7 @@ Bugs and loose ends are tracked as [issues](https://github.com/Steve-Sitax/Moody
 
 ## [Unreleased]
 
+- The mud on the cobbled streets and squares is real mud now, not just a darker stain: where carts and feet churn the street it fills the joints and in places spreads over the stones so only their tops stand out, with boot and hoof prints, lumps and a few clumps of dung you can see in relief, darker and wetter in the rain, and the first place puddles gather. A hole where a cobble is missing is a sunken pocket of mud instead of a black square. The mud trodden round the market stalls on the Grote Markt and the Vismarkt has the same relief.
 - On a sunny day the shade on squares and in lanes is lighter: more of the sunlight thrown back by the lit fronts and paving reaches the shaded ground, so it reads as daylit shade instead of dusk. Rain, fog, night, the rooms and the vaults under the town look as before.
 - The street cobbles are the size and colour of 1873 porphyry setts now: smaller stones, about a hand by a hand and a half, tight joints of sand instead of wide muddy gaps, flat worn tops instead of swollen glossy domes, and a grey stone that reads in the shade. Missing stones are rarer.
 - Tree trunks keep their bark detail in the shade and after dark: the limes', elms' and bare trees' bark is the grey-brown of a town lime now instead of near black, so its furrows and lichen show on the shaded side of every street and park tree. At night a trunk is as dark as the paving beside it, no longer a black hole.

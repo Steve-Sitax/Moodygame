@@ -21,6 +21,13 @@ public static partial class NativeDirt
     /// <summary>Lays the soil on the beds found; returns how many.</summary>
     public static int Lay(Node3D town)
     {
+        // (#250) the paving's mud (the setts kinds' mud lines, Psx.MudLines): Codex's wet mud, colour, wet colour and height
+        const string MudDir = "res://assets/materials/dirt-20261028/wet_mud_";
+        if (ResourceLoader.Exists(MudDir + "dry.res") && ResourceLoader.Exists(MudDir + "wet.res") && ResourceLoader.Exists(MudDir + "height.res"))
+        {
+            Scheldemist.Render.Psx.SetMud(GD.Load<Texture2D>(MudDir + "dry.res"), GD.Load<Texture2D>(MudDir + "wet.res"), GD.Load<Texture2D>(MudDir + "height.res"));
+            MarketMud(town);
+        }
         if (!ResourceLoader.Exists(Soil)) return 0;
         var soil = GD.Load<ShaderMaterial>(Soil);
         int n = 0;
@@ -36,6 +43,24 @@ public static partial class NativeDirt
             n++;
         }
         return n + Mud(town);
+    }
+
+    /// <summary>
+    /// #251: the market's mud stains (market_mud, on the flags of the Grote Markt, the Vismarkt and round the stalls) take the
+    /// street mud's picture and relief in their shape (their decal kind's mud lines, Psx.DecalMudLines: off unless
+    /// `mud_relief`). One material, shared by every stain; the chalk marks in the same kind stay as they were.
+    /// </summary>
+    private static void MarketMud(Node3D town)
+    {
+        var done = new System.Collections.Generic.HashSet<ShaderMaterial>();
+        foreach (var mi in BakedWorld.All(town).OfType<MeshInstance3D>())
+        {
+            if (mi.Mesh == null) continue;
+            for (int s = 0; s < mi.Mesh.GetSurfaceCount(); s++)
+                if (mi.Mesh.SurfaceGetMaterial(s) is ShaderMaterial m && m.ResourceName == "market_mud" && m.Shader?.Code.Contains("uniform float mud_relief") == true && done.Add(m))
+                    m.SetShaderParameter("mud_relief", 1f);
+        }
+        GD.Print($"dirt: market mud, the street mud's picture and relief in {done.Count} material(s)");
     }
 
     /// <summary>
