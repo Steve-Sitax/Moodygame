@@ -96,8 +96,139 @@ public static class RuienSurround
                         new Transform3D(Basis.Identity,new Vector3(pivot+side*.19f,.073f,localZ+dz)));
             }
             RuienStair.Add(root,hinges,"ruien_iron",true);
+            Leaves(root,w,h,half);
         }
         return root;
+    }
+
+    /// <summary>The hall hatch's leaves stand open at this angle (as A1's lids); 42 mm oak sits on the 15 mm seat.</summary>
+    public const float LeafOpenDeg=85,LeafThick=.042f;
+
+    /// <summary>
+    /// The hall hatch's two oak leaves, standing open on the cap's hinge pins (they replace the export's 15 cm thick,
+    /// 57 cm high slabs): four 42 mm planks with 3 mm eased arrises and 3 mm joints, three ledges and two braces on the
+    /// underside (to the stair when open), forged strap hinges with knuckles round the pins and dome-headed bolts on
+    /// the top face (to the street), and a lifting ring's plate. Collision follows the drawn leaf.
+    /// </summary>
+    private static void Leaves(Node3D root,RuienData.Way w,Rect2 h,float half)
+    {
+        float length=w.Hole.Size.Y-.03f,width=half-.04f-.006f,zc=w.Hole.GetCenter().Y-h.GetCenter().Y;
+        var oakMat=RuienMaterials.Get("ruien_oak");var ironMat=RuienMaterials.Get("ruien_iron");
+        float[] pins={w.Hole.Position.Y+.18f-h.GetCenter().Y,zc,w.Hole.End.Y-.18f-h.GetCenter().Y};
+        foreach(float side in new[]{-1f,1f})
+        {
+            // Leaf frame: x across from the pin towards the opening's centre, y the top face's normal, z along the hatch.
+            var oak=new List<(ArrayMesh mesh,Transform3D at,Vector3 grain,float column)>();
+            var iron=new SurfaceTool();iron.Begin(Mesh.PrimitiveType.Triangles);
+            const int planks=4;const float gap=.003f,knuckle=.034f;
+            float pw=(width-knuckle-gap*(planks-1))/planks;
+            // Each piece of oak keeps its grain (planks along the hatch, ledges across it) and its own column of the atlas.
+            void Oak(Vector3 lo,Vector3 hi,Vector3 grain,float column)=>oak.Add((BevelMesh.Box(hi-lo,.003f,oakMat),new Transform3D(Basis.Identity,(lo+hi)/2),grain,column));
+            for(int k=0;k<planks;k++)
+            {
+                float x0=knuckle+k*(pw+gap);
+                Oak(new Vector3(x0,-LeafThick/2,zc-length/2),new Vector3(x0+pw,LeafThick/2,zc+length/2),Vector3.Back,k*.27f);
+            }
+            // Ledges across the underside, clear of the knuckles and the free edge.
+            foreach(float z in new[]{zc-length/2+.22f,zc,zc+length/2-.22f})
+                Oak(new Vector3(knuckle+.05f,-LeafThick/2-.026f,z-.055f),new Vector3(width-.035f,-LeafThick/2+.001f,z+.055f),Vector3.Right,1.2f+z*.1f);
+            for(int i=0;i<2;i++)
+            {
+                // Braces climb from a ledge at the hinge side to the next ledge at the free side.
+                float z0=zc-length/2+.22f+i*(length/2-.22f),z1=z0+(length/2-.22f);
+                var a=new Vector3(knuckle+.09f,-LeafThick/2-.012f,z0+.07f);var b=new Vector3(width-.08f,-LeafThick/2-.012f,z1-.07f);
+                var d=b-a;var basis=new Basis(Vector3.Up,MathF.Atan2(d.X,d.Z));
+                oak.Add((BevelMesh.Box(new Vector3(.085f,.022f,d.Length()),.003f,oakMat),new Transform3D(basis,(a+b)/2),d.Normalized(),1.6f+i*.13f));
+            }
+            // Strap hinges: a knuckle round each pin, the strap across the top face, a diamond end, dome-headed bolts.
+            foreach(float z in pins)
+            {
+                var knob=new SurfaceTool();knob.CreateFrom(new CylinderMesh{TopRadius=knuckle,BottomRadius=knuckle,Height=.09f,RadialSegments=24},0);knob.Deindex();
+                iron.AppendFrom(knob.Commit(),0,new Transform3D(new Basis(Vector3.Right,Mathf.Pi/2),new Vector3(0,0,z)));
+                float strap=width*.78f;
+                iron.AppendFrom(BevelMesh.Box(new Vector3(strap,.007f,.05f),.002f,ironMat),0,new Transform3D(Basis.Identity,new Vector3(strap/2,LeafThick/2+.0035f,z)));
+                iron.AppendFrom(BevelMesh.Box(new Vector3(.05f,.007f,.05f),.002f,ironMat),0,
+                    new Transform3D(new Basis(Vector3.Up,Mathf.Pi/4),new Vector3(strap,LeafThick/2+.0035f,z)));
+                for(float x=.09f;x<strap-.02f;x+=.13f)
+                {
+                    var head=new SurfaceTool();head.CreateFrom(new SphereMesh{Radius=.011f,Height=.011f,RadialSegments=12,Rings=4,IsHemisphere=true},0);head.Deindex();
+                    iron.AppendFrom(head.Commit(),0,new Transform3D(Basis.Identity,new Vector3(x,LeafThick/2+.007f,z)));
+                }
+            }
+            // A lifting ring's plate and bail near the free edge, to pull the leaf shut from the stair.
+            iron.AppendFrom(BevelMesh.Box(new Vector3(.07f,.008f,.07f),.002f,ironMat),0,new Transform3D(Basis.Identity,new Vector3(width-.07f,LeafThick/2+.004f,zc)));
+            iron.AppendFrom(BevelMesh.Box(new Vector3(.012f,.012f,.11f),.003f,ironMat),0,new Transform3D(Basis.Identity,new Vector3(width-.07f,LeafThick/2+.014f,zc)));
+            // Open: the free edge lifted over the pin. Mirror the east leaf so its x runs towards the centre too.
+            var mirror=side>0?new Basis(Vector3.Up,Mathf.Pi):Basis.Identity;
+            var lift=new Basis(Vector3.Back,-side*Mathf.DegToRad(LeafOpenDeg));
+            var open=new Transform3D(lift*mirror,new Vector3(side*(half-.04f),.026f,0));
+            if(side>0)open*=new Transform3D(Basis.Identity,new Vector3(0,0,-2*zc));
+            AddOak(root,oak,open,side);
+            var im=iron.Commit();var ia=im.SurfaceGetArrays(0);
+            var ip=ia[(int)Mesh.ArrayType.Vertex].AsVector3Array();var inn=ia[(int)Mesh.ArrayType.Normal].AsVector3Array();
+            for(int i=0;i<ip.Length;i++){ip[i]=open*ip[i];inn[i]=(open.Basis*inn[i]).Normalized();}
+            ia[(int)Mesh.ArrayType.Vertex]=ip;ia[(int)Mesh.ArrayType.Normal]=inn;
+            var it=new SurfaceTool();it.CreateFromArrays(ia);
+            RuienStair.Add(root,it,"ruien_iron",true);
+        }
+    }
+
+    // Oak atlas (texture_sets.json): u is the plank column (2.0 m across the atlas), v runs 5.4 m along the plank. Every
+    // face is charted in its own plane: v along the piece's grain, u square to it, both at true size (bevels too).
+    private static void AddOak(Node3D root,List<(ArrayMesh mesh,Transform3D at,Vector3 grain,float column)> pieces,Transform3D open,float side)
+    {
+        var p=new List<Vector3>();var n=new List<Vector3>();var uv=new List<Vector2>();var colour=new List<Color>();
+        foreach(var (mesh,at,grain,column) in pieces)
+        {
+            var a=mesh.SurfaceGetArrays(0);
+            var pv=a[(int)Mesh.ArrayType.Vertex].AsVector3Array();var nv=a[(int)Mesh.ArrayType.Normal].AsVector3Array();
+            var ix=a[(int)Mesh.ArrayType.Index].VariantType==Variant.Type.Nil?Enumerable.Range(0,pv.Length).ToArray():a[(int)Mesh.ArrayType.Index].AsInt32Array();
+            if(ix.Length==0)ix=Enumerable.Range(0,pv.Length).ToArray();
+            float offset=column+(side>0?.9f:0);
+            for(int t=0;t+2<ix.Length;t+=3)
+            {
+                var q=new[]{at*pv[ix[t]],at*pv[ix[t+1]],at*pv[ix[t+2]]};
+                var fn=(q[1]-q[0]).Cross(q[2]-q[0]);
+                if(fn.LengthSquared()<1e-14f)continue;
+                fn=fn.Normalized();if(fn.Dot(at.Basis*(nv[ix[t]]+nv[ix[t+1]]+nv[ix[t+2]]))<0)fn=-fn;
+                var g=grain-fn*fn.Dot(grain);
+                if(g.LengthSquared()<.09f)g=Vector3.Up-fn*fn.Dot(Vector3.Up);
+                if(g.LengthSquared()<.09f)g=Vector3.Right-fn*fn.Dot(Vector3.Right);
+                g=g.Normalized();var across=fn.Cross(g);
+                for(int k=0;k<3;k++)
+                {
+                    p.Add(q[k]);n.Add((at.Basis*nv[ix[t+k]]).Normalized());
+                    uv.Add(new Vector2(offset+q[k].Dot(across)/2f,q[k].Dot(g)/5.4f));
+                    // Damp towards the hinge foot, a little grime on the underside; no moss on a working leaf.
+                    float foot=1-Math.Clamp(q[k].X/.25f,0,1);
+                    colour.Add(new Color(.08f+.25f*foot,0,.10f+(q[k].Y<0?.08f:0),0));
+                }
+            }
+        }
+        for(int i=0;i<p.Count;i++){p[i]=open*p[i];n[i]=(open.Basis*n[i]).Normalized();}
+        var arr=new Godot.Collections.Array();arr.Resize((int)Mesh.ArrayType.Max);
+        arr[(int)Mesh.ArrayType.Vertex]=p.ToArray();arr[(int)Mesh.ArrayType.Normal]=n.ToArray();
+        arr[(int)Mesh.ArrayType.TexUV]=uv.ToArray();arr[(int)Mesh.ArrayType.Color]=colour.ToArray();
+        var done=new ArrayMesh();done.AddSurfaceFromArrays(Mesh.PrimitiveType.Triangles,arr);done.SurfaceSetMaterial(0,RuienMaterials.Get("ruien_oak"));
+        done.SurfaceSetName(0,"ruien_oak");
+        root.AddChild(new MeshInstance3D{Name="hatch_leaf_"+(side>0?"e":"w"),Mesh=done,Layers=Ruien.Layer,CastShadow=GeometryInstance3D.ShadowCastingSetting.Off});
+        var body=new StaticBody3D{CollisionLayer=Solid.Layer,CollisionMask=0};
+        body.AddChild(new CollisionShape3D{Shape=new ConcavePolygonShape3D{Data=done.GetFaces(),BackfaceCollision=true}});root.AddChild(body);
+    }
+
+    /// <summary>The export's own hall hatch leaves (oak above the street beside the stair's opening), dropped for Leaves.
+    /// `family` null: collision, where the leaves are found by place alone.</summary>
+    public static bool DropExportLeaves(Godot.Collections.Array arrays,RuienData.Area area,string? family)
+    {
+        if(family!=null&&!family.Contains("oak"))return false;
+        bool changed=false;
+        foreach(var w in area.Ways.Where(w=>w.Kind=="stair"))
+        {
+            var f=Footprint(w).Grow(.12f);
+            changed|=RuienPatch.Drop(arrays,c=>c.Y>.005f&&c.Y<.65f&&f.HasPoint(new Vector2(c.X,c.Z))
+                &&(family!=null||MathF.Abs(c.X-w.Hole.Position.X)<.14f||MathF.Abs(c.X-w.Hole.End.X)<.14f))>0;
+        }
+        return changed;
     }
 
     // Round each corner of the cross section with true circular arcs, including the concave rebate.

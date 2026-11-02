@@ -57,9 +57,10 @@ public sealed class RuienArea
                         {
                             var arrays=mesh.SurfaceGetArrays(s);
                             string family=mesh.SurfaceGetName(s);
-                            // Keep the hall's authored open wooden leaves and continuous handrail.
-                            // Only their masonry lining is replaced by the new cap.
+                            // Keep the hall's continuous handrail; only the masonry lining is replaced by the new cap.
                             if(family.Contains("brick")||family.Contains("bluestone"))RuienSurround.Trim(arrays,area);
+                            // The export's thick hall leaves give way to RuienSurround.Leaves; the handrail stays.
+                            RuienSurround.DropExportLeaves(arrays,area,family);
                             if(arrays[(int)Mesh.ArrayType.Index].AsInt32Array().Length==0)continue;
                             repaired.AddSurfaceFromArrays(Mesh.PrimitiveType.Triangles,arrays,null,null,mesh.SurfaceGetFormat(s)&~Mesh.ArrayFormat.FlagCompressAttributes);
                             repaired.SurfaceSetName(repaired.GetSurfaceCount()-1,mesh.SurfaceGetName(s));
@@ -87,7 +88,9 @@ public sealed class RuienArea
         {
             var arrays=new Godot.Collections.Array();arrays.Resize((int)Mesh.ArrayType.Max);
             arrays[(int)Mesh.ArrayType.Vertex]=a.Shape.Data;
-            if(RuienSurround.Trim(arrays,area))
+            bool trimmed=RuienSurround.Trim(arrays,area);
+            trimmed|=RuienSurround.DropExportLeaves(arrays,area,null);
+            if(trimmed)
             {
                 var p=arrays[(int)Mesh.ArrayType.Vertex].AsVector3Array();var ix=arrays[(int)Mesh.ArrayType.Index].AsInt32Array();
                 a.Shape=new ConcavePolygonShape3D{Data=ix.Select(i=>p[i]).ToArray(),BackfaceCollision=true};

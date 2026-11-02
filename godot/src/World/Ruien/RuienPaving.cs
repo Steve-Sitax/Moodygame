@@ -60,7 +60,9 @@ public static class RuienPaving
         for(int i=0;i+1<line.points.Length;i++)
         {
             var a=line.points[i];var b=line.points[i+1];var ab=b-a;float len=ab.Length();if(len<1e-5f)continue;
-            float t=Math.Clamp((q-a).Dot(ab)/(len*len),0,1);var c=a+ab*t;float d=q.DistanceSquaredTo(c);
+            // Past the line's ends the rows run straight on (the throat and the gate seam), not smeared at one u.
+            float t=Math.Clamp((q-a).Dot(ab)/(len*len),i==0?-4f:0,i+2==line.points.Length?4f:1);var c=a+ab*t;
+            float d=q.DistanceSquaredTo(a+ab*Math.Clamp(t,0,1));
             if(d<bestD){bestD=d;along=line.cum[i]+t*len;var nn=new Vector2(ab.Y,-ab.X)/len;across=(q-c).Dot(nn);}
         }
         return new Vector2(across+centre,along);

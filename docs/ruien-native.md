@@ -45,6 +45,38 @@ Follow-ups (#217, #213, #202): the keeper niche meets the gallery with a 3 cm ro
 
 The town's broad river sheet is excluded beneath the Ruien by a world-space cover texture, including masonry and side galleries. This replaces the old water-level stencil lid, which could be clipped out at particular camera heights. The air volumes clip against sampled scene depth themselves, so the hardware depth test must not discard their enclosing box at the shaft rim. Neither fix adds a shader kind or a real light.
 
+Street entrance, lamps and wall repairs (RU-ruien2, 2026-11-02): the hall hatch's leaves are native
+(`RuienSurround.Leaves`): two ledged and braced oak leaves of four 42 mm planks with 3 mm eased arrises and joints,
+standing open at 85 degrees on the cap's hinge pins, forged strap hinges with knuckles and dome-headed bolts, and a
+lifting ring; collision follows the leaves. The export's 15 cm thick leaves and their collision are dropped at load
+(`DropExportLeaves`); the handrail stays. Lamps listed in `lampHooks` (and kit pieces with `"hook": true`) hang from
+`RuienHook`: an 18 mm round bar leaded 50 mm into the brick, a 75 mm plate laid on the wall's own normal with two
+dome-headed bolts and a lead collar, a level arm with a knobbed upturn and a ring; the lantern hangs plumb under it.
+The export's straight bracket, its collision and the kit's iron bracket go; a lantern the curved wall comes closer to
+than 0.22 m at the arm or 0.12 m at the glass moves out with its light (the side gallery NE lamp sat in the wall).
+Flat hall walls keep the straight bracket. The keeper landing stops 4 cm past the jamb line. The setts' chart runs on
+straight past its line's ends (the hall throat had a smeared strip). `RuienRepair.MendSealed` evens the bake and
+masks round the bricked-up first drain mouth (the ghost ring right of the niche) and drops its leftover header ring;
+`ClearDarkBake` drops bluestone bakes darker than 0.07 linear (the hall's near-black quoins and plinths). In the niche
+the flight's side wall ends where the near jamb starts (they shared a face) and a brick lintel at the landing
+ceiling's free edge closes the slot under the niche's sloping vault (no lower than that edge: the headroom stays). The keeper crew face the way they walk.
+
+
+## Sound
+
+The Ruien are a room of the soundscape ("ruien" in `Soundscape.Halls`, `RuienSound.cs`): a 3.4 s brick echo, the
+street at 0.14 gain under a 300 Hz lowpass. `Ruien.OpenAt` dries the echo towards an opening (1 within 1.5 m of a
+grate, shaft, hatch or the outlet, 0 nine metres in): the decay shortens by up to 45 percent and the send by up to 55.
+Steps underground are room sounds, so they ring too. Placed water sounds (`Soundscape.RuienPoints`, built by
+`Ruien.SoundPoints`), each at its own place with its own reach (3D distance, so the street above does not hear them):
+a spout's pour where it meets the channel (`ruien-spill-381418-loop.ogg`, reach 7 m), a drop now and then from each
+pipe mouth (reach 5 m) and from the area's `drips` (vault joints over the channel, the niche's seep; reach 5-6 m, an
+interval each), cut from `ruien-drips-402929.ogg`. The game reads recordings from the data pack: new files reach it when
+`prepare-native-package.ps1` rebuilds the pack (with the fingerprint); until then `--audio <source audio folder>` plays them. The side drains' spouts (`RuienDrain.Spout`) are a falling sheet
+of the existing wall film (water kind): lip speed 0.62 m/s from the gutter's end, widening as it breaks up, running
+on under the water at its lowest level. `--ruien-proof-path <json>` flies the camera along keyed paths for a review
+film (with `--write-movie` and `--fixed-fps`); `solo` and `probe` measure one source's reach.
+
 ## Data
 
 | File | What |

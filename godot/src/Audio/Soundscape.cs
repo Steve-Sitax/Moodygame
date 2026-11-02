@@ -478,6 +478,8 @@ public partial class Soundscape : Godot.Node
         ["vault"] = new[] { 1.6, 3, 0.36, 380, 0.3 },
         ["museum"] = new[] { 2.2, 2.8, 0.4, 420, 0.32 },
         ["store"] = new[] { 1.7, 3, 0.3, 460, 0.35 },
+        // the Ruien: long brick barrel vaults over water; the street above only a dull rumble (RuienSound)
+        ["ruien"] = new[] { 3.4, 2.4, 0.62, 300, 0.14 },
     };
 
     /// <summary>
@@ -890,6 +892,7 @@ public partial class Soundscape : Godot.Node
             return;
         }
         listenerPos = at;
+        RuienWater();
 
         // water sits on the nearest quay edge; over the water (pier, deck, pontoon) all round you
         double px = listenerPos.X, pz = listenerPos.Z;

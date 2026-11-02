@@ -126,6 +126,7 @@ public partial class Soundscape
 
     private string? BakedInterior(Vector3 p)
     {
+        if (RuienBelow(p)) return "ruien";
         foreach (var room in rooms)
         {
             Vector3 local = room.inverse * p;
@@ -141,6 +142,9 @@ public partial class Soundscape
         if (roof.Contains("steen")) return "museum";
         return null;
     }
+
+    /// <summary>Jef under a Ruien vault (the cover map, below the street).</summary>
+    public static bool RuienBelow(Vector3 p) => Scheldemist.World.Ruien.Ruien.I is { } r && IsInstanceValid(r) && r.CoverAt(p + Vector3.Up * 1.5f) > 0.5f;
 
     private void Unwire()
     {
@@ -178,6 +182,7 @@ public partial class Soundscape
             var p = new Vector3(walking.X, walking.Y, walking.Z);
             SetInterior(InteriorAt != null ? InteriorAt(p) : BakedInterior(p));
         }
+        RuienEcho();
         if (TempestNow != null)
         {
             var storm = TempestNow();

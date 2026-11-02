@@ -160,6 +160,52 @@ public static class RuienDrain
         root.AddChild(new MeshInstance3D{Mesh=done,Layers=Ruien.Layer,CastShadow=GeometryInstance3D.ShadowCastingSetting.Off});
     }
 
+    // The spillway: the gutter's water leaves its lip (across 1.42, the coping's channel face) and falls free into the
+    // channel. Lip speed and the fall give a parabola; the sheet widens and thickens as it breaks up, and runs on under
+    // the water at its lowest level. Drawn with the existing wall film (water kind), no new shader kind.
+    private const float LipAcross=1.42f,LipY=-3.735f,LipSpeed=.62f,SpoutEnd=-4.72f;
+    private static float SpoutTime=>MathF.Sqrt(2*(LipY-SpoutEnd)/9.81f);
+
+    /// <summary>Where a drain's spout meets the channel water at its lowest level (for its splash's sound).</summary>
+    public static Vector3 SpoutImpact(RuienData.Zone zone,float u,int side)
+    {
+        var(c,t)=zone.Frame(u);var n=new Vector2(t.Y,-t.X)*side;
+        float across=LipAcross-LipSpeed*MathF.Sqrt(2*(LipY+4.6f)/9.81f);
+        return new Vector3(c.X+n.X*across,-4.6f,c.Y+n.Y*across);
+    }
+
+    private static void Spout(SurfaceTool water,Func<float,float,float,Vector3> P)
+    {
+        const int stations=16,around=10;float T=SpoutTime;
+        var rings=new List<Vector3[]>();var normals=new List<Vector3[]>();
+        for(int i=0;i<=stations;i++)
+        {
+            float k=(float)i/stations,time=T*k;
+            float across=LipAcross-LipSpeed*time,y=LipY-4.905f*time*time;
+            // Tangent and its normal in the falling plane (across, y); the sheet's width lies along the gutter.
+            var tan=new Vector2(-LipSpeed,-9.81f*time).Normalized();var perp=new Vector2(-tan.Y,tan.X);
+            float w=.075f+.055f*k,th=.02f+.022f*k;
+            var ring=new Vector3[around];var nr=new Vector3[around];
+            for(int j=0;j<around;j++)
+            {
+                float phi=Mathf.Tau*j/around;
+                // A slightly wobbling edge: the sheet is never a perfect tube.
+                float wob=1+.12f*k*MathF.Sin(phi*3+k*9);
+                float al=MathF.Cos(phi)*w/2*wob;var off=perp*MathF.Sin(phi)*th/2;
+                ring[j]=P(al,y+off.Y,across+off.X);
+                var centre=P(0,y,across);var axisPt=P(MathF.Cos(phi),y+perp.Y*MathF.Sin(phi)*(th/w),across+perp.X*MathF.Sin(phi)*(th/w));
+                nr[j]=(axisPt-centre).Normalized();
+            }
+            rings.Add(ring);normals.Add(nr);
+        }
+        for(int i=0;i<stations;i++)for(int j=0;j<around;j++)
+        {
+            int jn=(j+1)%around;
+            foreach(var(r,q) in new[]{(i,j),(i+1,j),(i+1,jn),(i,j),(i+1,jn),(i,jn)})
+            {water.SetNormal(normals[r][q]);water.SetUV(new Vector2((float)q/around,(float)r/stations));water.AddVertex(rings[r][q]);}
+        }
+    }
+
     public static Node3D Build(RuienData.Zone zone,float u,int side)
     {
         var(c,t)=zone.Frame(u);var n=new Vector2(t.Y,-t.X)*side;
@@ -183,11 +229,14 @@ public static class RuienDrain
         // Wet flow stays below the bars. The visible drop connects sill, gutter and channel water.
         Box(water,0,-3.747f,2.24f,new Vector3(.085f,.013f,1.58f),.004f);
         Box(water,0,-3.61f,2.87f,new Vector3(.025f,.27f,.018f),.006f);
-        Box(water,0,-4.17f,1.44f,new Vector3(.022f,.86f,.018f),.006f);
         RuienStair.Add(root,stone,"ruien_bluestone",true);RuienStair.Add(root,iron,"ruien_iron",true);
         Headers(root,P);
         var flow=water.Commit();flow.SurfaceSetMaterial(0,RuienMaterials.Get("ruien_misc_Water_film"));
         root.AddChild(new MeshInstance3D{Mesh=flow,Layers=Ruien.Layer,CastShadow=GeometryInstance3D.ShadowCastingSetting.Off});
+        // The spout: the same water kind, a denser film (materials.json Water_spout).
+        var spout=new SurfaceTool();spout.Begin(Mesh.PrimitiveType.Triangles);Spout(spout,P);
+        var jet=spout.Commit();jet.SurfaceSetMaterial(0,RuienMaterials.Get("ruien_misc_Water_spout"));
+        root.AddChild(new MeshInstance3D{Name="spout",Mesh=jet,Layers=Ruien.Layer,CastShadow=GeometryInstance3D.ShadowCastingSetting.Off});
         return root;
     }
 }

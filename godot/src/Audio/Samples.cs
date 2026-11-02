@@ -60,6 +60,9 @@ public static class Samples
         ["windInside"] = B + "wind-inside-1714-loop.ogg",
         // the gulls (soundscape.ts loadGulls)
         ["gulls"] = B + "gulls-harbor-2573-mono.ogg",
+        // the Ruien: a side drain pouring into the channel (loop), and drops in a cave (cut into single drops below)
+        ["ruienSpill"] = F + "ruien-spill-381418-loop.ogg",
+        ["ruienDrips"] = F + "ruien-drips-402929.ogg",
     };
 
     /// <summary>The thunderclaps, sorted by how they sound: `near` rise fast and carry some highs; `far` are low rolls.</summary>
@@ -91,6 +94,8 @@ public static class Samples
         ("puddleSteps", 5.4, 0.38, 1.06), ("puddleSteps", 6.2, 0.42, 0.99), ("puddleSteps", 7.06, 0.5, 0.3), ("puddleSteps", 8.0, 0.34, 0.63),
         ("puddleSteps", 9.26, 0.36, 1.05),
     };
+    /// <summary>Single drops in the Ruien drip recording: start s, length s, gain to an even level (each peak about -24 dBFS).</summary>
+    public static readonly (double from, double len, double level)[] RuienDripSpans = { (4.62, 0.9, 1.08), (6.55, 0.9, 0.79), (14.55, 0.9, 1.11), (17.42, 0.9, 1.36), (20.88, 0.9, 0.93), (22.31, 0.9, 0.79), (38.29, 0.9, 1.84), (46.95, 0.9, 1.78), (62.87, 0.9, 1.64), (70.07, 0.9, 0.78), (72.64, 0.9, 0.4), (74.26, 0.9, 0.35), (77.48, 0.9, 1.55), (80.69, 0.9, 1.3), (82.15, 0.9, 1.82), (91.62, 0.9, 1.91), (103.58, 0.9, 1.76), (107.96, 0.9, 0.35), (128.81, 0.9, 0.38), (129.93, 0.9, 0.38), (137.9, 0.9, 0.43) };
     /// <summary>Carillon: the short phrase for the half hour (the whole tune is the voorslag before the hour).</summary>
     public const double CarillonShort = 10.5;
     /// <summary>Spans (s) of the tug recording: one toot each.</summary>

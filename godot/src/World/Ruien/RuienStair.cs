@@ -138,13 +138,20 @@ public static class RuienStair
             Box(stone,new Vector3(0,top-height/2,(i+.5f)*going),new Vector3(width,height,going+.006f),.010f+.002f*MathF.Sin(i*1.7f));
         }
         float landing=length+.6f,exit=w.LandingPath[1].X-w.Top.X;
-        Box(stone,new Vector3(exit/2,-drop-.12f,landing),new Vector3(exit+width,.24f,1.2f),.012f);
-        RuienPaving.Rectangle(paving,new Transform3D(Basis.Identity,new Vector3(exit/2,-drop,landing)),exit+width-.06f,1.194f,w.Top);
+        // The landing ends 4 cm past the jamb line, under the rounded arris: the gallery's own walk setts carry on from
+        // there. Laid out to exit + width/2 it doubled the walk's setts and its square corners stood out over the curved
+        // coping (RU-ruien2, Steve's 7th picture).
+        float x0=-width/2,x1=exit+.04f;
+        Box(stone,new Vector3((x0+x1)/2,-drop-.12f,landing),new Vector3(x1-x0,.24f,1.2f),.012f);
+        RuienPaving.Rectangle(paving,new Transform3D(Basis.Identity,new Vector3((x0+x1)/2,-drop,landing)),x1-x0-.035f,1.194f,w.Top);
         // Bonded retaining walls outside the flight. Lower east wall opens into the side-entry landing.
         foreach(float side in new[]{-1f,1f})
         {
             float wallTop=RuienSurround.Bottom-.015f,wallBase=-drop-.16f;
-            Box(brick,new Vector3(side*(width/2+.14f),(wallBase+wallTop)/2,length/2),new Vector3(.28f,wallTop-wallBase,length),.009f);
+            // On the niche's side the near jamb takes the wall's last 28 cm: ended there, the two no longer share
+            // their face at the corner (it flickered, RU-ruien2 Steve's 9th picture).
+            float run=side*exit>0?length-.28f:length;
+            Box(brick,new Vector3(side*(width/2+.14f),(wallBase+wallTop)/2,run/2),new Vector3(.28f,wallTop-wallBase,run),.009f);
             var tilt=new Basis(Vector3.Right,MathF.Atan2(drop,length));
             // The closed lids leave a flush quay: handrails begin below their underside, not above the paving.
             float railStart=MathF.Ceiling(1.05f/rise)*going,railMid=(railStart+length)/2;
@@ -164,6 +171,10 @@ public static class RuienStair
         // and left a slot open behind the gallery vault. It rises behind the wall to meet the flight.
         float level=exit-1.25f;
         Vault(vault,new Vector3(-width/2,spring+1.10f,landing),new Vector3(level,spring,landing),Vector3.Back,.60f,.60f,.24f);
+        // Where the niche opens off the landing, its sloping vault springs above the landing ceiling's free edge for the
+        // first 0.3 m and left a slot open between them (RU-ruien2, Steve's 9th picture). A brick lintel at that edge's
+        // height closes it; it is no lower than the edge already walked under, so the headroom stays.
+        Box(brick,new Vector3(width/2+.13f,-drop+1.965f,landing),new Vector3(.30f,.17f,1.2f),.008f);
         Vault(vault,new Vector3(level,spring,landing),new Vector3(exit+(flush==null?0:.3f),spring,landing),Vector3.Back,.60f,.60f,.24f);
         // Leave the full flight-width opening in the near jamb: the stair turns here into the niche.
         Box(brick,new Vector3((exit+width/2)/2,-drop+1.35f,landing-.74f),new Vector3(exit-width/2,2.7f,.28f),.010f);

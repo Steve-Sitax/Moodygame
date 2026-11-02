@@ -18,7 +18,7 @@
     {"id": "hall_south_e", "wall": [-144.5, 112], "out": [0, 1], "ledge": [-144.5, 111.3], "bottom": -5.85, "top": -3.6}
    ],
    "kit": [
-    {"piece": "lamp_bracket_safety_lamp", "at": [-146.434, -2.12, 84.118], "yaw": 25.32, "note": "a second lamp on the north wall over the pipe end, across the channel from the south wall the study lit with a lantern of its own (v5)"},
+    {"piece": "lamp_bracket_safety_lamp", "at": [-146.434, -2.12, 84.118], "yaw": 25.32, "hook": true, "note": "a second lamp on the north wall over the pipe end, across the channel from the south wall the study lit with a lantern of its own (v5)"},
     {"piece": "drain_headers", "at": [0, 0, 0], "yaw": 0},
     {"piece": "lamp_bracket_safety_lamp", "at": [-153.45, -1.4, 80.8], "yaw": -90}
    ],
@@ -113,6 +113,20 @@
     {"min": [-146.7, -2.1, 108.6], "max": [-145.5, -0.7, 110.42], "note": "#213: brick behind the gallery face and the hall's south face, past the C1 backing's right extrados: the hollow there let a sliver of sky through"}
    ],
    "stairSurrounds": ["vleeshuis_hatch"],
+   "drips": [
+    {"at": [-149.25, -4.58, 91.4], "every": [2.5, 7], "note": "vault joint over the gallery channel"},
+    {"at": [-149.35, -4.58, 99.6], "every": [3, 9]},
+    {"at": [-149.5, -4.58, 108.2], "every": [2, 6], "note": "the wettest joint, under the street gutter"},
+    {"at": [-147.4, -4.58, 79.2], "every": [3.5, 10]},
+    {"at": [-151.6, -3.56, 81.1], "every": [4, 12], "gain": 0.9, "reach": 5, "note": "the keeper niche's seep onto the landing setts"},
+    {"at": [-154.2, -4.58, 116.6], "every": [3, 8], "note": "hall bay joints"},
+    {"at": [-145.8, -4.58, 123.9], "every": [2.5, 7]},
+    {"at": [-150.4, -4.58, 131.3], "every": [3.5, 10]},
+    {"at": [-143.1, -4.58, 142.6], "every": [3, 9], "note": "side channels"},
+    {"at": [-137.6, -4.58, 113.7], "every": [3, 9]},
+    {"at": [-164.2, -4.58, 127.7], "every": [3, 9]}
+   ],
+   "lampHooks": ["gallery_lamp_light", "gal_lamp_far1_light", "gal_lamp_far2_light", "sidegal_lamp_e_light", "sidegal_lamp_ne_light"],
    "surfaceRepairPath": [[-146.1, 72], [-146.1, 75], [-149.1, 82.5], [-149.51, 109.3]]
   }
  ]

@@ -51,8 +51,13 @@ public partial class RuienWorkmen : Node
         {
             worker.T=Math.Min(1,worker.T+dt/.5f);var p=worker.From.Lerp(worker.To,worker.T);
             var direction=worker.To-worker.From;
+            // A person model faces +Z (as the town's walkers): turn it to the way it walks, easing round (RU-ruien2:
+            // the crew walked backwards).
             if(new Vector2(direction.X,direction.Z).LengthSquared()>.0001f)
-                worker.Human.Root.Rotation=new Vector3(0,MathF.Atan2(-direction.X,-direction.Z),0);
+            {
+                float want=MathF.Atan2(direction.X,direction.Z),yaw=worker.Human.Root.Rotation.Y;
+                worker.Human.Root.Rotation=new Vector3(0,Mathf.LerpAngle(yaw,want,Math.Min(1,dt*10)),0);
+            }
             // Snap the interpolated feet to the actual treads, so ascent never follows an invisible ramp.
             var query=PhysicsRayQueryParameters3D.Create(p+Vector3.Up*.24f,p-Vector3.Up*.25f,Solid.Layer);
             var hit=Main.I.View.FindWorld3D().DirectSpaceState.IntersectRay(query);
