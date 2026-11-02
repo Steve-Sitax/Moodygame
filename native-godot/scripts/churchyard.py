@@ -251,9 +251,13 @@ def shield(m, centre, right, up, w, h, charge, depth=0.012):
         bar(-w * 0.42, h * 0.44, w * 0.38, -h * 0.40, h * 0.10); bar(w * 0.42, h * 0.44, -w * 0.38, -h * 0.40, h * 0.10)
 
 
-def soil_collar(gc, cx, cz, hx, hz, yaw, rng, width=(0.04, 0.16), rise=0.012):
-    """Bare damp soil round a stone's foot where the grass will not grow: a ragged band, a little silt on it (world space)."""
-    n = 64
+def soil_collar(gc, cx, cz, hx, hz, yaw, rng, width=(0.04, 0.19), rise=0.022):
+    """Bare damp soil round a stone's foot where the grass will not grow (world space). #253: it was a flat band in the
+    stone's vertex colour; now the pits' soil (pit-soil.tres: its picture, wet and dry, at 1 m, the same kind) as a settled
+    low mound: heaped 1 to 2 cm against the stone where the grave was filled and the rain splashes it, falling to just under
+    the grass's 32 to 48 mm bumps at its ragged outer edge, with clods and a crumb of real relief (a few mm) and darker at
+    the foot where it stays damp."""
+    n, rows = 128, 6
     R = rot_y(yaw)
     t = np.linspace(0, 1, n, endpoint=False)
     # the footprint's outline, walked round (all four sides: half of it and a diagonal back across the stone's foot made
@@ -269,21 +273,35 @@ def soil_collar(gc, cx, cz, hx, hz, yaw, rng, width=(0.04, 0.16), rise=0.012):
     pts = np.array(pts)
     nrm = np.sign(pts) * (np.abs(pts) >= np.array([hx, hz]) - 1e-6)
     nrm = nrm / np.maximum(np.linalg.norm(nrm, axis=1, keepdims=True), 1e-6)
-    wd = width[0] + (width[1] - width[0]) * K.vnoise(np.stack([pts[:, 0] * 3, np.zeros(n), pts[:, 1] * 3], 1) + cx, 1.0, 7)
-    inner = pts - nrm * 0.01
-    outer = pts + nrm * wd[:, None]
+    # (ragged: a slow wander and a quick one, where the grass has crept in or the rain washed it out)
+    q = np.stack([pts[:, 0] * 3, np.zeros(n), pts[:, 1] * 3], 1) + cx
+    wd = width[0] + (width[1] - width[0]) * (0.6 * K.vnoise(q, 1.0, 7) + 0.4 * K.vnoise(q, 3.2, 8))
+    # the grid: n round the stone, rows from 1 cm under its foot out to the ragged edge
+    f = np.linspace(0, 1, rows + 1)
+    G = pts[:, None, :] + nrm[:, None, :] * (-0.01 + (wd[:, None] + 0.01) * f[None, :])[..., None]
+    W = (np.stack([G[..., 0], np.zeros(G.shape[:2]), G[..., 1]], -1) @ R.T) + np.array([cx, 0.0, cz])
+    heap = rise * (0.7 + 0.6 * K.vnoise(W, 2.2, 11))                       # how high it is heaped against the stone, here
+    prof = (1 - f[None, :]) ** 1.6                                         # settled: steep at the stone, a long low tail
+    clod = 0.012 * (K.vnoise(W, 28.0, 13) - 0.5) + 0.005 * (K.vnoise(W, 70.0, 17) - 0.5)
+    Y = 0.034 + heap * prof + clod * (1 - 0.6 * f[None, :])
+    # (the outer edge just under the grass: the grass grows over it raggedly)
+    Y[:, -1] = np.minimum(Y[:, -1], 0.035)
+    W[..., 1] = Y
+    # normals from the grid (round the ring and out across it), up
+    du = np.roll(W, -1, 0) - np.roll(W, 1, 0)
+    dv = np.concatenate([W[:, 1:2] - W[:, 0:1], W[:, 2:] - W[:, :-2], W[:, -1:] - W[:, -2:-1]], 1)
+    Nm = np.cross(dv, du); Nm *= np.where(Nm[..., 1:2] < 0, -1.0, 1.0); Nm /= np.linalg.norm(Nm, axis=-1, keepdims=True)
+    # damp and darker at the foot, lighter where it dries at the edge (a colour over the soil's own picture)
+    k = (0.86 + 0.14 * f[None, :] ** 0.7) * (0.93 + 0.07 * K.vnoise(W, 6.0, 19))
+    Cw = np.concatenate([k[..., None] * np.array([1.0, 0.98, 0.95]), np.ones(k.shape + (1,))], -1)
+    tris, norms, cols = [], [], []
     for i in range(n):
         j = (i + 1) % n
-        quad = [inner[i], outer[i], outer[j], inner[j]]
-        P3 = np.array([[q[0], 0.0, q[1]] for q in quad]) @ R.T + np.array([cx, 0.0, cz])
-        # (the outer edge just under the grass's 32 to 48 mm bumps: the grass grows over it raggedly)
-        P3[:, 1] = [rise + 0.038, 0.035, 0.035, rise + 0.038]
-        tri = np.array([P3[[0, 1, 2]], P3[[0, 2, 3]]])
-        N = np.zeros_like(tri); N[..., 1] = 1
-        col = np.array([[SOIL_DARK, SOIL, SOIL], [SOIL_DARK, SOIL, SOIL_DARK]])
-        mix = 0.5 + 0.5 * K.vnoise(tri, 9.0, 3)[..., None]
-        C = np.concatenate([col * (0.85 + 0.3 * mix), np.ones(tri.shape[:2] + (1,))], -1)
-        gc.add('stone', tri, N, tri[..., [0, 2]] / K.STONE_UV, C=C)
+        for r in range(rows):
+            for q in (((i, r), (j, r), (j, r + 1)), ((i, r), (j, r + 1), (i, r + 1))):
+                tris.append([W[a, b] for a, b in q]); norms.append([Nm[a, b] for a, b in q]); cols.append([Cw[a, b] for a, b in q])
+    tri = np.array(tris)
+    gc.add('soil', tri, np.array(norms), tri[..., [0, 2]], C=np.array(cols))
 
 
 def leaf_drift(gc, a, b, depth, side, rng, seed):

@@ -14,6 +14,8 @@ const MATS := "res://assets/materials/churchyard-20261027"
 const MODELS := "res://assets/models/churchyard"
 const STONE := "res://assets/materials/guard-stones-20261026/guard-stone.tres"
 const IRON := "res://assets/materials/barrels-20261026/barrel-iron.tres"
+# (#253) the bare soil at the stones' feet: the tree pits' soil, its picture wet and dry at 1 m (the same kind)
+const SOIL := "res://assets/materials/dirt-20261028/pit-soil.tres"
 const GRASS := "res://world/town/resources/r000030.res"
 const GRAVEL := "res://world/town/resources/r001150.res"
 const PLINTH := "res://assets/materials/environment-20261013/plinth-texture.res"
@@ -91,7 +93,8 @@ func run():
 		if v != null: gravel.set_shader_parameter(p, v * 0.5)
 	if ResourceSaver.save(gravel, MATS + "/churchyard-gravel.tres") != OK: push_error("could not save the gravel material")
 	var mats := {"stone": load(MATS + "/churchyard-stone.tres"), "letters": load(MATS + "/churchyard-letters.tres"), "ashlar": load(MATS + "/churchyard-ashlar.tres"),
-		"carved": load(MATS + "/churchyard-stone.tres"), "carved_hi": load(MATS + "/churchyard-stone.tres"), "iron": load(MATS + "/churchyard-iron.tres"), "bright": load(MATS + "/churchyard-bright.tres"), "grass": load(GRASS), "gravel": load(MATS + "/churchyard-gravel.tres")}
+		"carved": load(MATS + "/churchyard-stone.tres"), "carved_hi": load(MATS + "/churchyard-stone.tres"), "iron": load(MATS + "/churchyard-iron.tres"), "bright": load(MATS + "/churchyard-bright.tres"), "grass": load(GRASS), "gravel": load(MATS + "/churchyard-gravel.tres"),
+		"soil": load(SOIL)}
 	var kit = JSON.parse_string(FileAccess.get_file_as_string(src + "/models.json"))
 	for name in kit:
 		var m := mesh_of(src, kit[name], mats, not name in ["ground", "enclosure", "groundcover"])
