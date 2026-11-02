@@ -772,6 +772,14 @@ public partial class Jef : Node, Mantle.IWorld
         climb.Ladder = e;
     }
 
+    /// <summary>Turn to `yaw` over the first part of the climb under way (down a ladder: to face its rungs).</summary>
+    public void FaceDuringClimb(float yaw)
+    {
+        if (climb == null) return;
+        climb.Face = yaw;
+        climb.Yaw0 = Yaw;
+    }
+
     /// <summary>Up a quay ladder from the mud at its foot (the swimmer's way up is the same, StartClimb).</summary>
     public void ClimbUp(Exit e)
     {

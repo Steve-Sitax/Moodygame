@@ -1,5 +1,13 @@
 # Work log
 
+## Ruien follow-ups and the vliet water, 2026-11-01 (#217 #213 #202 #201 #210 #218)
+
+Branch t3/ruien-environment-fixes. Keeper niche: 3 cm rounded brick arris (one cut for the exported lining, offline, and the native reveal; only the four lining pieces next to the niche change), the niche vaults keep their own barrel chart (no crown band), the landing setts reach the jambs; no rain below the street under the vault cover. Hidden brick behind the C1 backing closes the hall-throat sliver (leak scan 4 -> 0 and 48 -> 0 px, 121 cameras). Jef faces the street-grate ladder at its foot. Foul water (vlieten, canal) mirrors with water's own Fresnel and a darker murk; the quay walls carry a tide band and broken tone (stored shaders r001377, r001104, r000047 changed in place, material r000052 sets quay_band).
+
+Checks: build 0 errors; Ruien route proof 287/287; access rules 9/9; shaders PASS (41 programs, 152 kinds, 0 problems, no new light). Evidence: `_tmp_verify/run-2026-11-01/D-ruien/RESULT.md`.
+
+#210 timing (PERF-LOCK, ddb78706 vs this branch, A/B/A/B, perf-views, sample 0 dropped): another helper's Godot ran during three of the four captures, so the medians (gate 20.8-33.3, gallery 15.9-27.8, hall 13.2-20.5 ms) are contended and show no regression or gain; #210 stays open. #218 not started (each of the 8 feet needs its own step or kerb drain design).
+
 ## Ruien O2 inside faults, 2026-10-20 (#212)
 
 Fixed the 13 inside-inspection faults: unfolded brick courses on every brick surface, open B2 drain throats with native header rings, cast-iron pipe outfalls with bores and floor stains, A1 lid undersides and hinge straps, D1 brick collar, side-channel water and bricked-up ends, dock jamb fillers, a metric setts chart at bends and varied vault weathering. Extra sky leaks at the old keeper-side drain and the side-channel mouths are closed.

@@ -62,6 +62,7 @@ public static class RuienRepair
                         collar["outer"]!.GetValue<float>(),collar["rim"]!.GetValue<float>(),at[1]!.GetValue<float>()+.2f));
                 }
         var stairs=layout.Ways.Where(w=>w.Kind=="keeper_stair").ToArray();
+        var lining=layout.Zones.FirstOrDefault(z=>z.Kind=="line");
         var pipes=RuienPipe.Read(areaConfig);var backed=new HashSet<(int,bool)>();
         var pavedFaces=new List<Vector3>();
         foreach (string path in Directory.GetFiles(source, "mesh_*.res"))
@@ -93,7 +94,11 @@ public static class RuienRepair
                 }
                 if(path.Contains("gallery_s0") || path.Contains("gallery_s1"))
                     foreach(var stair in stairs)
+                    {
                         changed |= QuayNotch.CutSurfaceWith(arrays,Transform3D.Identity,_=>true,RuienStair.Cut(stair))>0;
+                        // The mouth's corner gives way to the native rounded arris (#217).
+                        if(RuienStair.ArrisCut(stair,lining) is { } arris)changed |= RuienPatch.Trim(arrays,arris,.025f)>0;
+                    }
                 if (path.Contains("gallery_s0"))
                 {
                     var p = arrays[(int)Mesh.ArrayType.Vertex].AsVector3Array();
@@ -279,7 +284,11 @@ public static class RuienRepair
             for(int j=0;j<3;j++) faces[i+j]=Splay(faces[i+j]);
         }
         var ca=new Godot.Collections.Array(); ca.Resize((int)Mesh.ArrayType.Max); ca[(int)Mesh.ArrayType.Vertex]=faces;
-        foreach(var stair in stairs) QuayNotch.CutSurfaceWith(ca,Transform3D.Identity,_=>true,RuienStair.Cut(stair));
+        foreach(var stair in stairs)
+        {
+            QuayNotch.CutSurfaceWith(ca,Transform3D.Identity,_=>true,RuienStair.Cut(stair));
+            if(RuienStair.ArrisCut(stair,lining) is { } arris)RuienPatch.Trim(ca,arris,.02f);
+        }
         foreach(var(u,side) in RuienDrain.Mouths)QuayNotch.CutSurfaceWith(ca,Transform3D.Identity,_=>true,RuienDrain.GutterCut(geometry,u,side));
         // The original collision boxed the entire hall's south wall, including its visible gallery mouth.
         QuayNotch.CutSurfaceWith(ca,Transform3D.Identity,_=>true,new(){p=>p.X+152.5f,p=>-146.5f-p.X,p=>p.Z-109.9f,p=>110.6f-p.Z,p=>p.Y+6.15f,p=>-.95f-p.Y});

@@ -68,6 +68,8 @@ public static class RuienUnfold
         static Vector3 Carry(Vector3 b,Vector3 from,Vector3 to,Vector3 edge)
         {
             // Rotate about the shared edge by the fold angle: an unfolding, also across 90-degree returns.
+            // (a collapsed edge left by a cut has no axis: keep the frame)
+            if(edge.LengthSquared()<1e-10f)return b;
             var axis=edge.Normalized();
             float angle=MathF.Atan2(from.Cross(to).Dot(axis),from.Dot(to));
             return b.Rotated(axis,angle);

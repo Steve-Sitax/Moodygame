@@ -1280,6 +1280,65 @@ float psx_h13(vec3 p3) { p3 = fract(p3 * 0.1031); p3 += dot(p3, p3.zyx + 31.32);
     }
 
     /// <summary>
+    /// (#201) The quay wall's own record of the tide, off unless a material sets `quay_band` (the town's quay_wall, r000052):
+    /// the brick's repeat broken by slow blotches of tone in world space, paler dried brick above high water, a ragged dark
+    /// high-water line, slime and wet dark brick below it in streaks, and a fringe of weed at the foot. Heights from Tide.cs
+    /// (mean high water -0.65, low water -4.95). Put into the stored quay wall shader (r000047) by scripts/QuayBandRepair.cs.
+    /// </summary>
+    public static readonly (string Anchor, bool After, string Code)[] QuayBandLines =
+    {
+        ("float psx_tide_wet_at(float y) {", false, @"// (#201) the quay wall's tide band and its broken repeat (Psx.QuayBandLines)
+uniform float quay_band = 0.0;
+float qb_h3(vec3 p) {
+	p = fract(p * 0.3183099 + 0.1);
+	p *= 17.0;
+	return fract(p.x * p.y * p.z * (p.x + p.y + p.z));
+}
+float qb_val3(vec3 x) {
+	vec3 i = floor(x);
+	vec3 f = fract(x);
+	f = f * f * (3.0 - 2.0 * f);
+	return mix(mix(mix(qb_h3(i), qb_h3(i + vec3(1.0, 0.0, 0.0)), f.x), mix(qb_h3(i + vec3(0.0, 1.0, 0.0)), qb_h3(i + vec3(1.0, 1.0, 0.0)), f.x), f.y),
+		mix(mix(qb_h3(i + vec3(0.0, 0.0, 1.0)), qb_h3(i + vec3(1.0, 0.0, 1.0)), f.x), mix(qb_h3(i + vec3(0.0, 1.0, 1.0)), qb_h3(i + vec3(1.0, 1.0, 1.0)), f.x), f.y), f.z);
+}
+"),
+        ("	c.rgb *= 1.0 - tide_wet * psx_tide_wet_at(world.y); // (the tide's wet band: darker stone and mud)\n", true, @"	if (quay_band > 0.0) {
+		// (#201) the wall's own record of the tide, by height; ragged, never a ruled line
+		float qn = qb_val3(world * vec3(0.55, 0.9, 0.55)) * 0.65 + qb_val3(world * vec3(1.9, 2.6, 1.9) + 3.1) * 0.35;
+		// the repeat broken: slow blotches of tone across the courses
+		float mot = qb_val3(world * 0.37 + 11.3) * 0.6 + qb_val3(world * 1.3 - 4.7) * 0.4;
+		c.rgb *= mix(1.0, mix(0.72, 1.22, mot), quay_band);
+		// above high water: dried paler, greyed by salt
+		float dry = smoothstep(-0.6, 0.0, world.y + (qn - 0.5) * 0.25);
+		c.rgb = mix(c.rgb, mix(c.rgb, vec3(dot(c.rgb, vec3(0.333))), 0.35) * 1.3, dry * quay_band);
+		// the high-water line, where the scum dries
+		float hw_line = smoothstep(0.1, 0.0, abs(world.y + 0.66 + (qn - 0.5) * 0.16));
+		c.rgb *= 1.0 - 0.45 * hw_line * quay_band;
+		float streak = qb_val3(vec3(world.x * 3.1, world.y * 0.35, world.z * 3.1));
+		// just under high water a band of green weed slime, wet and dark brown-black brick below it, in streaks
+		float green = smoothstep(-0.6, -0.85, world.y + (qn - 0.5) * 0.3) * smoothstep(-2.2, -1.2, world.y + (qn - 0.5) * 0.5);
+		c.rgb = mix(c.rgb, c.rgb * vec3(0.5, 0.78, 0.36) + vec3(0.008, 0.02, 0.004), green * mix(0.55, 0.9, streak) * quay_band);
+		float slime = smoothstep(-1.2, -2.3, world.y + (qn - 0.5) * 0.5) * mix(0.7, 1.0, streak);
+		c.rgb = mix(c.rgb, c.rgb * vec3(0.36, 0.37, 0.28) + vec3(0.008, 0.009, 0.004), clamp(slime * 0.85, 0.0, 1.0) * quay_band);
+		// a fringe of weed at the low-water foot
+		float weed = smoothstep(-3.9, -4.6, world.y + (qn - 0.5) * 0.6 + (streak - 0.5) * 0.4);
+		c.rgb = mix(c.rgb, vec3(0.05, 0.07, 0.03) * (0.7 + 0.6 * qn), weed * 0.8 * quay_band);
+	}
+"),
+    };
+    public static string WithQuayBand(string code)
+    {
+        code = code.Replace("\r\n", "\n");
+        foreach (var (anchor, after, add) in QuayBandLines)
+        {
+            int i = code.IndexOf(anchor, StringComparison.Ordinal);
+            if (i < 0 || code.IndexOf(anchor, i + 1, StringComparison.Ordinal) >= 0) throw new InvalidOperationException("quay band: the anchor is not there once: " + anchor.Trim());
+            code = code.Insert(after ? i + anchor.Length : i, add.Replace("\r\n", "\n"));
+        }
+        return code;
+    }
+
+    /// <summary>
     /// Issue #252: the river's mud (town/tide_mud, the tide band's relief ground: one stored kind, r001384) is a wet tidal
     /// silt. scripts/SiltRepair.cs puts these lines into that resource at the anchors given (changed in place: no new kind).
     /// Off unless a material sets `silt`: then the wet silt (`tex`) and the drier silt (`silt_dry`; alpha: their gloss) and
@@ -1455,6 +1514,60 @@ void silt_at(vec2 v, vec2 p, vec2 dx, vec2 dy, out vec4 cw, out vec4 cd, out vec
     {
         code = code.Replace("\r\n", "\n");
         foreach (var (_, _, add) in SiltLines) code = code.Replace(add.Replace("\r\n", "\n"), "");
+        return code;
+    }
+
+    /// <summary>
+    /// (#201) The water kinds' murk: in foul water (the vlieten, the canal) the mirror follows water's own Fresnel and the
+    /// murk is darker. Replacements in the generated code (ShaderOf) and in the two stored water shaders (scripts/MurkRepair.cs:
+    /// r001377, the river's; r001104, the calm sheets' and pools'); each old text must be there once.
+    /// </summary>
+    public static readonly (string Old, string New)[] MurkLines =
+    {
+        (@"		float cos_v = max(dot(rn, -rd), 0.0);
+		if (psx_water_mirror_on > 0.5) {",
+         @"		float cos_v = max(dot(rn, -rd), 0.0);
+		// (#201) the vlieten and the canal were open sewers: their murky water gives back the sky only at a glancing look
+		// (water's own Fresnel, 2 % straight down), not the bright milky picture of open water
+		float foul = texture(psx_foul, (world.xz - psx_foul_box.xy) / psx_foul_box.zw).r;
+		float murk_f = 0.02 + 0.98 * pow(1.0 - cos_v, 5.0);
+		if (psx_water_mirror_on > 0.5) {"),
+        (@"			f = clamp(f * (1.0 - clamp((psx_sea - 3.6) / 2.0, 0.0, 1.0)), 0.0, 0.9);
+			k3 *= 1.0 - f;
+			ad = ad * (1.0 - f) + mc * 0.92 * f;",
+         @"			f = clamp(f * (1.0 - clamp((psx_sea - 3.6) / 2.0, 0.0, 1.0)), 0.0, 0.9);
+			f = mix(f, murk_f, foul);
+			k3 *= 1.0 - f;
+			ad = ad * (1.0 - f) + mc * mix(vec3(0.92), vec3(0.8, 0.76, 0.64), foul) * f;"),
+        (@"			float t = clamp(pow(1.0 - cos_v, 4.0) * 0.8, 0.0, 0.75);
+			k3 *= 1.0 - t;
+			ad = ad * (1.0 - t) + fogc * 1.08 * t;
+		}
+		float foul = texture(psx_foul, (world.xz - psx_foul_box.xy) / psx_foul_box.zw).r;
+		if (foul > 0.01) {",
+         @"			float t = mix(clamp(pow(1.0 - cos_v, 4.0) * 0.8, 0.0, 0.75), murk_f * 0.8, foul);
+			k3 *= 1.0 - t;
+			ad = ad * (1.0 - t) + fogc * 1.08 * t;
+		}
+		if (foul > 0.01) {"),
+        (@"			float t = foul * 0.45;
+			k3 *= 1.0 - t;
+			ad = ad * (1.0 - t) + fogc * vec3(0.3, 0.28, 0.22) * t;",
+         @"			// (#201: the murk itself darker, about linear 0.03 under a grey day's sky; it follows the light)
+			float t = foul * 0.45;
+			k3 *= 1.0 - t;
+			ad = ad * (1.0 - t) + fogc * vec3(0.11, 0.095, 0.055) * t;"),
+    };
+    public static string WithMurk(string code)
+    {
+        code = code.Replace("\r\n", "\n");
+        foreach (var (old, add) in MurkLines)
+        {
+            string o = old.Replace("\r\n", "\n");
+            int i = code.IndexOf(o, StringComparison.Ordinal);
+            if (i < 0 || code.IndexOf(o, i + 1, StringComparison.Ordinal) >= 0) throw new InvalidOperationException("murk: the old text is not there once: " + o.Trim());
+            code = code.Remove(i, o.Length).Insert(i, add.Replace("\r\n", "\n"));
+        }
         return code;
     }
 
@@ -2030,7 +2143,7 @@ void light() {
 	FOG = vec4(fogc + halo, fog_k);
 }
 ");
-        s = new Shader { Code = c.ToString() };
+        s = new Shader { Code = k.Water > 0 ? WithMurk(c.ToString()) : c.ToString() };
         Shaders[k] = s;
         Kinds[s] = k;
         return s;

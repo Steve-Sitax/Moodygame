@@ -123,6 +123,8 @@ public partial class RuienWays : Node
             (stand, 0.5f),
         };
         j.ClimbTo(keys, null, null, Vector3.Zero, default, 1);
+        // Down the rungs facing them, so at the foot he still faces the ladder and its climb-up prompt (#202).
+        j.FaceDuringClimb(MathF.Atan2(-(w.Bottom.X - stand.X), -(w.Bottom.Z - stand.Z)));
     }
 
     private static void Up(RuienData.Way w, Vector2 off, Vector3 stand)

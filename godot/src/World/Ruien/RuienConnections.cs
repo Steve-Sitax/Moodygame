@@ -73,6 +73,14 @@ public static class RuienConnections
                     backing.GetProperty("half").GetSingle(),backing.GetProperty("rise").GetSingle(),backing.GetProperty("thickness").GetSingle());
                 RuienStair.Add(root,mortar,"ruien_brick_header",true);
             }
+        // Hidden fills: solid brick in a hollow of the lining's masonry, wholly behind its visible faces (#213).
+        if(spec.TryGetProperty("throatFills",out var fills))
+            foreach(var fill in fills.EnumerateArray())
+            {
+                Vector3 V(JsonElement v)=>new(v[0].GetSingle(),v[1].GetSingle(),v[2].GetSingle());
+                var lo=V(fill.GetProperty("min"));var hi=V(fill.GetProperty("max"));
+                Box(brick,(lo+hi)/2,hi-lo,.01f);
+            }
         var solid=new List<Vector3>();
         foreach(var (s,family,used) in new[]{(stone,"ruien_bluestone",hasStone),(iron,"ruien_iron",hasIron),(paving,"ruien_setts",hasPaving),(brick,"ruien_brick_stretcher",hasBrick)})
         {
