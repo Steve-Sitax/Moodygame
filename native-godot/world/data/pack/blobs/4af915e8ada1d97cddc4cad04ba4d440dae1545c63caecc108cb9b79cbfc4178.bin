@@ -24,7 +24,7 @@
         "id": "talk",
         "label": "Conversations",
         "what": "What people say to Jef: townspeople, named people, the police, haggling, the confessional, clerks, the landlady, hired hands, dice players.",
-        "recommended": "Claude Opus 5.5"
+        "recommended": "Claude Sonnet 5.5 writes what townspeople say, word by word; Claude Opus 5.5 judges trust and memory and writes the rest"
       },
       {
         "id": "director",
@@ -61,7 +61,7 @@
       {
         "id": "recommended",
         "label": "Recommended mix",
-        "short": "Claude Opus 5.5 for most things, GPT Luna for the paper, posters and gossip.",
+        "short": "Claude Opus 5.5 for most things, Claude Sonnet 5.5 for quick answers in talk, GPT Luna for the paper, posters and gossip.",
         "needs": [],
         "models": [],
         "freeModel": false,
@@ -70,12 +70,12 @@
         "effort": false,
         "cost": "plan",
         "help": {
-          "what": "The mix the game was tuned with: Claude Opus 5.5 writes the talk, the jobs and the director; GPT Luna (through Codex) writes the morning paper, wall posters, rumours, dreams, street talk and family news.",
+          "what": "The mix the game was tuned with: Claude Sonnet 5.5 (low effort) writes what townspeople say to you, shown word by word, while Claude Opus 5.5 judges in the background how it changes their trust and memory; Opus also writes the jobs, the director and the rest of the talk; GPT Luna (through Codex) writes the morning paper, wall posters, rumours, dreams, street talk and family news.",
           "need": "Claude Code installed and logged in on this PC. Codex installed and logged in for the GPT Luna parts; without Codex those parts go to Claude too.",
           "cost": "Runs on your Claude and ChatGPT plans, not paid per call. A game day makes at most 120 calls.",
           "privacy": "What is sent: the game's own text only (the scene, the made-up townsperson's character and memories, the day's events in the town). Nothing about you or your computer: no name, no files, no paths."
         },
-        "typedLines": "The mix sends what you type to Claude Opus 5.5 only."
+        "typedLines": "The mix sends what you type to Claude only (Sonnet 5.5 and Opus 5.5), never to GPT."
       },
       {
         "id": "claude_local",
@@ -89,13 +89,28 @@
             "effort": true
           },
           {
+            "id": "claude-sonnet-5-5",
+            "label": "Claude Sonnet 5.5 (fast, close to Opus)",
+            "effort": true
+          },
+          {
+            "id": "claude-haiku-5-5",
+            "label": "Claude Haiku 5.5 (fastest)",
+            "effort": true
+          },
+          {
+            "id": "claude-fable-5-1",
+            "label": "Claude Fable 5.1 (most capable, slower)",
+            "effort": true
+          },
+          {
             "id": "claude-sonnet-5",
-            "label": "Claude Sonnet 5",
+            "label": "Claude Sonnet 5 (older)",
             "effort": true
           },
           {
             "id": "claude-haiku-4-5-20251001",
-            "label": "Claude Haiku 4.5 (fast, plainer)",
+            "label": "Claude Haiku 4.5 (older)",
             "effort": false
           }
         ],
@@ -105,7 +120,7 @@
         "effort": true,
         "cost": "plan",
         "help": {
-          "what": "Claude runs through Claude Code on this PC, the same way the game has always worked. Opus 5.5 writes best; Sonnet 5 is close for talk between people; Haiku 4.5 is quick and plainer.",
+          "what": "Claude runs through Claude Code on this PC, the same way the game has always worked. Opus 5.5 writes best; Sonnet 5.5 is close for talk between people and quicker; Haiku 5.5 is the quickest; Fable 5.1 is the most capable and the slowest.",
           "need": "Claude Code installed and logged in (run `claude` once in a terminal and log in).",
           "cost": "Counts against your Claude plan's limits, not paid per call. A game day makes at most 120 calls.",
           "privacy": "What is sent: the game's own text only (the scene, the made-up townsperson's character and memories, the day's events in the town). Nothing about you or your computer: no name, no files, no paths. It goes to Anthropic."
@@ -126,13 +141,28 @@
             "effort": true
           },
           {
+            "id": "claude-sonnet-5-5",
+            "label": "Claude Sonnet 5.5 (cheaper, fast)",
+            "effort": true
+          },
+          {
+            "id": "claude-haiku-5-5",
+            "label": "Claude Haiku 5.5 (cheapest)",
+            "effort": true
+          },
+          {
+            "id": "claude-fable-5-1",
+            "label": "Claude Fable 5.1 (most capable, costs most)",
+            "effort": true
+          },
+          {
             "id": "claude-sonnet-5",
-            "label": "Claude Sonnet 5 (cheaper)",
+            "label": "Claude Sonnet 5 (older)",
             "effort": true
           },
           {
             "id": "claude-haiku-4-5",
-            "label": "Claude Haiku 4.5 (cheapest, plainer)",
+            "label": "Claude Haiku 4.5 (older)",
             "effort": false
           }
         ],
@@ -189,7 +219,7 @@
         ],
         "models": [],
         "freeModel": true,
-        "modelHint": "for example gpt-5-mini, or the name LM Studio shows",
+        "modelHint": "the list fills itself from your server; or type the name it shows",
         "defaultModel": null,
         "effort": true,
         "cost": "paid",
@@ -258,7 +288,7 @@
       ]
     },
     "walk": {
-      "label": "Walk around (no AI)",
+      "label": "AI off (written lines)",
       "text": "No AI is used. The town goes about its business by its own routines; conversations, jobs, the paper and events use the game's hand-written lines. Nothing is sent anywhere."
     },
     "typedLines": {
@@ -290,6 +320,7 @@
   },
   "hooks": {
     "talk": [
+      "talk_judge",
       "dialogue",
       "free_reply",
       "resident_talk",
@@ -363,12 +394,17 @@
     },
     "sonnet": {
       "provider": "claude",
-      "model": "claude-sonnet-5",
+      "model": "claude-sonnet-5-5",
       "effort": "medium"
+    },
+    "sonnet_low": {
+      "provider": "claude",
+      "model": "claude-sonnet-5-5",
+      "effort": "low"
     },
     "haiku": {
       "provider": "claude",
-      "model": "claude-haiku-4-5-20251001"
+      "model": "claude-haiku-5-5"
     },
     "sol": {
       "provider": "codex",
@@ -382,6 +418,8 @@
     }
   },
   "routes": {
+    "resident_talk": "sonnet_low",
+    "talk_judge": "opus",
     "newspaper": "luna",
     "poster": "luna",
     "rumour_twist": "luna",
@@ -390,6 +428,7 @@
     "family_share": "luna"
   },
   "typedHooks": [
+    "talk_judge",
     "dialogue",
     "free_reply",
     "resident_talk",
@@ -1431,5 +1470,16 @@
         }
       }
     }
-  ]
+  ],
+  "retired": {
+    "claude-3-opus-20240229": "claude-opus-5-5",
+    "claude-3-sonnet-20240229": "claude-sonnet-5-5",
+    "claude-3-5-sonnet-20240620": "claude-sonnet-5-5",
+    "claude-3-5-sonnet-20241022": "claude-sonnet-5-5",
+    "claude-3-5-sonnet-latest": "claude-sonnet-5-5",
+    "claude-3-haiku-20240307": "claude-haiku-5-5",
+    "claude-3-5-haiku-20241022": "claude-haiku-5-5",
+    "claude-3-5-haiku-latest": "claude-haiku-5-5",
+    "claude-2.1": "claude-sonnet-5-5"
+  }
 }
