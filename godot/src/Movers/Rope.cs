@@ -93,6 +93,9 @@ public static class Rope
         private Color[] outCol = Array.Empty<Color>();
         private int[] outIdx = Array.Empty<int>();
         private readonly Godot.Collections.Array arrays = new();
+        // (passed every time: left out, Godot's binding makes a new empty array and dictionary for them on each call)
+        private static readonly Godot.Collections.Array<Godot.Collections.Array> noBlends = new();
+        private static readonly Godot.Collections.Dictionary noLods = new();
         public int Verts { get; private set; }
         public int Indices { get; private set; }
 
@@ -200,7 +203,7 @@ public static class Rope
             arrays[(int)Mesh.ArrayType.TexUV] = outUv;
             arrays[(int)Mesh.ArrayType.Color] = outCol;
             arrays[(int)Mesh.ArrayType.Index] = outIdx;
-            mesh.AddSurfaceFromArrays(Mesh.PrimitiveType.Triangles, arrays);
+            mesh.AddSurfaceFromArrays(Mesh.PrimitiveType.Triangles, arrays, noBlends, noLods);
             if (mat != null) mesh.SurfaceSetMaterial(0, mat);
         }
 

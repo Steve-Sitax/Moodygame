@@ -190,7 +190,8 @@ public partial class ShipLines : Node
             carriers.Add(boat);
             int li = lines.Count;
             lines.Add(l);
-            var cell = ((int)MathF.Floor(l.A.X / 40), (int)MathF.Floor(l.A.Z / 40));
+            // (one mesh per 60 m of quay: few draws, and a chunk is made again in a fraction of a millisecond)
+            var cell = ((int)MathF.Floor(l.A.X / 60), (int)MathF.Floor(l.A.Z / 60));
             if (!smallChunks.TryGetValue(cell, out var ch))
             {
                 smallChunks[cell] = ch = new Chunk();
@@ -227,13 +228,16 @@ public partial class ShipLines : Node
     public double MaxBuildUs { get; private set; }
     public double ProcessUs { get; private set; }
     public long Frames { get; private set; }
+    /// <summary>For checks: the managed bytes allocated here in all.</summary>
+    public long Bytes { get; private set; }
 
     public override void _Process(double delta)
     {
         if (!started) Start();
         if (!ready) return;
-        long t0 = System.Diagnostics.Stopwatch.GetTimestamp();
+        long t0 = System.Diagnostics.Stopwatch.GetTimestamp(), b0 = GC.GetAllocatedBytesForCurrentThread();
         Step();
+        Bytes += GC.GetAllocatedBytesForCurrentThread() - b0;
         double us = (System.Diagnostics.Stopwatch.GetTimestamp() - t0) * 1e6 / System.Diagnostics.Stopwatch.Frequency;
         if (drawnWet >= 0 && Frames > 0) MaxBuildUs = Math.Max(MaxBuildUs, us);
         ProcessUs += us; Frames++;
