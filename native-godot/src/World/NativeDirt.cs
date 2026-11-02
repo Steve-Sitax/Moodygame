@@ -98,9 +98,10 @@ public static partial class NativeDirt
     /// The wet silt and the drier silt higher up, hex-tiled in world metres with each hexagon turned its own way (a 2 m tile
     /// laid plain repeats like a camouflage print); the water is laid in world space from the river's level now (SiltLevel),
     /// so the water line breaks into inlets and the pools join up. No parallax: the silt's relief is a few millimetres, the
-    /// lights take it from its normal map. The thin strip at the moat's and the river's walls (the tide_mud surface) keeps
-    /// its ripples: seen from a step away the silt there read blurred and its water sheets hard-edged (Codex, #252), and the
-    /// rule is new dirt only where it is better.
+    /// lights take it from its normal map. The thin sloped strip at the moat's and the river's walls (the tide_mud surface)
+    /// had kept its sand ripples (#252: the silt there read blurred and its water's edge ruled); since #255 it takes the silt
+    /// too, with the strip's own detail (silt_strip): the ebb's runnels down the slope, worm casts and pits, shell grit, a
+    /// finer 1.4 m laying, and a water's edge that wanders and runs up the runnels.
     /// </summary>
     private static int Mud(Node3D town)
     {
@@ -112,11 +113,13 @@ public static partial class NativeDirt
         var dry = GD.Load<Texture2D>(Dir + "silt_dry.res");
         var rel = GD.Load<Texture2D>(Dir + "silt_relief.res");
         var silts = new System.Collections.Generic.List<ShaderMaterial>();
+        var strips = new System.Collections.Generic.List<ShaderMaterial>();
         for (int s = 0; s < mud.Mesh.GetSurfaceCount(); s++)
         {
             // (the stored shader without the silt lines: the ripples stay)
             if (mud.Mesh.SurfaceGetMaterial(s) is not ShaderMaterial m || m.Shader?.Code.Contains("uniform float silt ") != true) continue;
-            if (m.ResourceName != CanalBeds) continue;
+            bool strip = m.ResourceName == WallFoot;
+            if (m.ResourceName != CanalBeds && !strip) continue;
             m.SetShaderParameter("tex", wet);
             m.SetShaderParameter("silt_dry", dry);
             m.SetShaderParameter("silt_rel", rel);
@@ -124,26 +127,31 @@ public static partial class NativeDirt
             m.SetShaderParameter("relief_h", rel);
             m.SetShaderParameter("relief_depth", 0f);
             m.SetShaderParameter("silt", 1f);
-            m.SetShaderParameter("silt_tile", 2f);
-            m.SetShaderParameter("silt_bump", SiltBump);
+            m.SetShaderParameter("silt_tile", strip ? 1.4f : 2f);
+            m.SetShaderParameter("silt_strip", strip ? 1f : 0f);
+            m.SetShaderParameter("silt_bump", strip ? SiltBump * 2.2f : SiltBump);
             m.SetShaderParameter("silt_pools", SiltPools);
             // (the silt's own wet: no second darkening by the tide band; a dielectric's highlight, a wet sheet's)
             m.SetShaderParameter("tide_wet", 0f);
             m.SetShaderParameter("spec_color", new Vector3(0.02f, 0.02f, 0.02f));
             m.SetShaderParameter("shininess", 48f);
-            m.SetShaderParameter("albedo", BedTint);
-            silts.Add(m);
+            m.SetShaderParameter("albedo", strip ? StripTint : BedTint);
+            (strip ? strips : silts).Add(m);
         }
-        if (silts.Count == 0) return 0;
-        mud.AddChild(new SiltLevel { Name = "silt_level", Silts = silts });
+        if (silts.Count + strips.Count == 0) return 0;
+        mud.AddChild(new SiltLevel { Name = "silt_level", Silts = silts, Strips = strips });
         // (#256) the silt draws the beds' water itself: the old calm sheet's bright ribbon and the pools' flat sheets go
         Waters.BedsDrawWater = true;
-        GD.Print($"dirt: tide mud, tidal silt on the canals' beds ({silts.Count} surface)");
+        GD.Print($"dirt: tide mud, tidal silt on the canals' beds and the walls' foot ({silts.Count + strips.Count} surfaces)");
         return 1;
     }
     // (the canals' beds' surface; the mesh's vertex colour tints it green-grey, the silt comes back to its own grey-brown)
     private const string CanalBeds = "tide_bed";
+    // (#255) the sloped strip at the moat's and the river's walls
+    private const string WallFoot = "tide_mud";
     private static readonly Color BedTint = new(1.35f, 1.18f, 1.02f, 1);
+    // (#255) the walls' foot strip has no green vertex tint to undo: darker, the wet silt's own grey-brown
+    private static readonly Color StripTint = new(0.66f, 0.58f, 0.47f, 1);
     private const float SiltBump = 1.2f, SiltPools = 0.18f;
     // (#256) how deep the trickle stands in the canals' bed trench at low water (the trench is 0.22 m deep)
     private const float TrickleDepth = 0.15f;
@@ -152,11 +160,19 @@ public static partial class NativeDirt
     private sealed partial class SiltLevel : Node
     {
         public System.Collections.Generic.List<ShaderMaterial> Silts = new();
+        // (#255) the walls' foot strip: the moat's and the river's own water, no trickle
+        public System.Collections.Generic.List<ShaderMaterial> Strips = new();
+        private float lastRiver = float.NaN;
         private float last = float.NaN;
         public override void _Process(double delta)
         {
             // (#256: at low water the canals keep a trickle in their bed's trench: the silt's water line holds there, so the
             // trickle is drawn in the silt's own water, its edge broken, instead of the old calm sheet)
+            if (Tide.River != lastRiver)
+            {
+                lastRiver = Tide.River;
+                foreach (var m in Strips) m.SetShaderParameter("silt_level", lastRiver);
+            }
             float level = MathF.Max(Tide.River, Waters.TrickleY + TrickleDepth);
             if (level == last) return;
             last = level;
