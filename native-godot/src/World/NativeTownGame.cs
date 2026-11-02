@@ -190,8 +190,9 @@ public partial class NativeTownGame : Scheldemist.Main
             host.Night.EndCallsFor = prefix => { actions.EndCallsFor(prefix); };
             // Navigation and people are initialized before the backend is exposed. Replanning edited lamps
             // and fresh-world lifecycle registration need no scene-node calls or render-thread blocking.
-            // (#150: the Vismarkt's market-day sellers and their carts, added after the original fresh town)
-            await Task.Run(() => host.WithState(_ => { host.AddModule(populationLifecycle); host.AddModule(new NativeTownMarketPopulation(population, populationLifecycle.Transport)); return true; }));
+            // (#150: the Vismarkt's market-day sellers and their carts, added after the original fresh town; #221: the church
+            // squares as places, their neighbours meeting there, before their markets' sellers)
+            await Task.Run(() => host.WithState(_ => { host.AddModule(populationLifecycle); host.AddModule(new NativeTownSquaresPopulation(population)); host.AddModule(new NativeTownMarketPopulation(population, populationLifecycle.Transport)); return true; }));
             // A population rebuild clears prison and park state. Initialize their schedules afterwards,
             // before any client can request the town or start planning its routes (#203).
             host.AddModule(prison); host.AddModule(park);

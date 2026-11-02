@@ -14,7 +14,8 @@ using Scheldemist.World;
 
 namespace Scheldemist.Dev;
 
-/// <summary>--eventtest dir: real dev routes, each engine stage photographed, lifecycle and steady-frame checks.</summary>
+/// <summary>--eventtest dir: real dev routes, each engine stage photographed, lifecycle and steady-frame checks
+/// (`--eventonly musicians --eventplace sint_jacobsmarkt`: a template with other places played at that one, #221).</summary>
 [GamePart(980)]
 public partial class EventTest : Node
 {
@@ -110,7 +111,7 @@ public partial class EventTest : Node
                 await api.Post<JobsPayload>("api/dev/set", new { day, hour = 13, minute = 30, weather = "clear", food = 10, warmth = 10, sleep = 10, health = 10 });
                 town.SetClock(day, 13.5); town.ClockRuns = false; Daylight.I!.SetTime(13.5f); Daylight.I.SetWeather("clear"); Daylight.I.Settle();
                 // No long calendar jump: later kinds reuse the same dev day after the previous event finished.
-                var plan = await api.DevEvent(kind); Check(plan.Ok, "engine refused the event: " + plan.Why); if (!plan.Ok) continue;
+                var plan = await api.DevEvent(kind, Main.I.Arg("eventplace")); Check(plan.Ok, "engine refused the event: " + plan.Why); if (!plan.Ok) continue;
                 int soundBefore = Events.I!.SoundStarts, cueBefore = Events.I.CueStarts;
                 int galeBefore=Audio.LifeSound.I?.GaleStarts??0;
                 await Advance(api, 2);

@@ -68,7 +68,9 @@ public sealed class NativeTownMarketPopulation : INativeServiceModule
     {
         var people = new JsonArray();
         // (the Vismarkt's dice as before #192, so its sellers stay who they were)
-        var k = new NativeTownRoleSeed(population, seed ^ (place == "vismarkt" ? 0x5f1a7e15u : 0x6b2c9d31u), "market", town);
+        // (#221: the church squares' markets each their own dice; the two old markets keep theirs)
+        uint own = place switch { "vismarkt" => 0x5f1a7e15u, "grote_markt" => 0x6b2c9d31u, _ => 0x6b2c9d31u ^ (uint)place.Aggregate(17, (h, ch) => unchecked(h * 31 + ch)) };
+        var k = new NativeTownRoleSeed(population, seed ^ own, "market", town);
         int n = 0;
         foreach (var pitch in A(rules["list"]))
         {

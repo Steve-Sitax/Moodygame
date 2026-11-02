@@ -63,15 +63,18 @@ public sealed partial class NativeTradeLedger : INativeServiceModule
     /// <summary>A market-day seller (#150) sells only in the market's hours (the vismarkt field's pitches) and while her post has stock.</summary>
     private string? PitchRefusal(string npc)
     {
-        var r=actions.Resident(npc);if(r?["work"]?["pitch"]==null)return null;pitchHours??=NativeTownMarketPopulation.Pitches(C.Options.DataDirectory)??new JsonObject();
+        var r=actions.Resident(npc);if(r?["work"]?["pitch"]==null)return null;
+        // (#221: each market its own pitches' hours, the church squares' open later than the Vismarkt)
+        string market=S(r["work"],"place");pitchHours??=NativeTownMarketPopulation.Markets(C.Options.DataDirectory).ToDictionary(m=>m.Place,m=>m.Rules);
+        var hours=pitchHours.GetValueOrDefault(market)??pitchHours.GetValueOrDefault("vismarkt")??new JsonObject();
         int day=(int)N(host.Clock.View(),"day");double hour=Hour;
         if(day%7==0)return "There is no market on a Sunday.";
-        if(hour<N(pitchHours,"open"))return $"Not open yet. I am still setting up; the market opens at {(int)N(pitchHours,"open")} o'clock.";
-        if(hour>=N(pitchHours,"close"))return "We are packing up. Come back tomorrow morning.";
+        if(hour<N(hours,"open"))return $"Not open yet. I am still setting up; the market opens at {(int)N(hours,"open")} o'clock.";
+        if(hour>=N(hours,"close"))return "We are packing up. Come back tomorrow morning.";
         if(SellerPost(npc)is {} post&&N(Ledger()["stock"],S(post,"id"),N(post,"start"))<1)return S(post,"good")=="fish"?"Sold out. The boats bring more at dawn.":"Sold out for today.";
         return null;
     }
-    private JsonObject? pitchHours;
+    private Dictionary<string,JsonObject>? pitchHours;
     public void Register(NativeServiceHost service)
     {
         var refuse=host.Trade.RefusePurchase;host.Trade.RefusePurchase=(player,npc)=>refuse?.Invoke(player,npc)??PitchRefusal(npc);

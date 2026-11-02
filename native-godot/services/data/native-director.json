@@ -325,6 +325,7 @@
       "id": "musicians",
       "title": "Street musicians",
       "place": "steenplein",
+      "places": ["steenplein", "sint_jacobsmarkt", "conscienceplein"],
       "stages": [
         {
           "place": "steenplein",
@@ -707,6 +708,7 @@
       "id": "quarrel",
       "title": "A quarrel at the market",
       "place": "grote_markt",
+      "places": ["grote_markt", "sint_jacobsmarkt"],
       "stages": [
         {
           "place": "grote_markt",
