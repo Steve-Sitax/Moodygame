@@ -13,6 +13,7 @@ Bugs and loose ends are tracked as [issues](https://github.com/Steve-Sitax/Moody
 
 - The stone quay walls of the river, the canal and the vlieten have real relief now: each block's worn, rounded edges and its recessed joint catch the sky's light, also in the shade and in the rain, and the blocks no longer repeat every eight metres: each course runs its blocks in its own order with its own tones.
 - The strip of mud at the foot of the moat's and the river's walls is wet tidal silt now instead of pale sand ripples: dark brown and wet, with soft ripples in patches, small worm holes and pits, flecks of shell, and a water's edge that wanders in small bays instead of running straight.
+- The last eight downpipes that ended on the pavement without a drain (by the shop fronts with crates and barrels, and by three door recesses) now pour onto a blue-stone channel stone laid flush in the pavement, its wet groove running to the kerb and the street gutter.
 - The packed earth of the back yards and courts inside the blocks has depth now: its grit, pebbles and small hollows stand out and catch the light, instead of a flat printed surface.
 - In St James's churchyard the bare earth round each gravestone's foot is real soil now: a low, settled mound of damp earth with clods, darker against the stone and ragged where the grass grows into it, instead of a flat pale band.
 - The earth in the tree pits lies a couple of centimetres below the paving now, as a real pit does, banked up against the stone kerbs at its edge; the roots go down into it with it.
