@@ -1,5 +1,5 @@
 {
-  "version": "native-pack-3c075304bea37a7a923671d6c9bf73a8f912de6cb981feb22fa95bc3f5928a38",
+  "version": "native-pack-6ef63d850e4e69ae67375a913d8ff64533c2248904a41adeae92599594a5ffcc",
   "files": [
     "shared/city.json",
     "shared/city_build.json",
@@ -285,6 +285,8 @@
     "public/models/ferry_sack_sockets.json",
     "public/models/lively_sack_sockets.json",
     "public/models/people_sockets.json",
-    "public/models/stalls_sack_sockets.json"
+    "public/models/stalls_sack_sockets.json",
+    "public/audio/freesound/ruien-drips-402929.ogg",
+    "public/audio/freesound/ruien-spill-381418-loop.ogg"
   ]
 }

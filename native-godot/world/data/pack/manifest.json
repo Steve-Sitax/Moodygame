@@ -1,6 +1,6 @@
 {
   "format": 2,
-  "version": "native-pack-3c075304bea37a7a923671d6c9bf73a8f912de6cb981feb22fa95bc3f5928a38",
+  "version": "native-pack-6ef63d850e4e69ae67375a913d8ff64533c2248904a41adeae92599594a5ffcc",
   "files": [
     {
       "file": "maps/dirt.json",
@@ -295,6 +295,18 @@
       "blob": "blobs/bf9fc30b09a79210321cd45109c73981d5e89f765b735b0f43ae4f7667d2676d.bin",
       "sha256": "bf9fc30b09a79210321cd45109c73981d5e89f765b735b0f43ae4f7667d2676d",
       "bytes": 244725
+    },
+    {
+      "file": "public/audio/freesound/ruien-drips-402929.ogg",
+      "blob": "blobs/473276beedee933c512c151915a214b8d98b1025030c4c503c82a9c92a4be01c.bin",
+      "sha256": "473276beedee933c512c151915a214b8d98b1025030c4c503c82a9c92a4be01c",
+      "bytes": 1401864
+    },
+    {
+      "file": "public/audio/freesound/ruien-spill-381418-loop.ogg",
+      "blob": "blobs/bf493de9f1c444179ceec4e0ce41436e596403d56eb7106e14f75d608c9dd194.bin",
+      "sha256": "bf493de9f1c444179ceec4e0ce41436e596403d56eb7106e14f75d608c9dd194",
+      "bytes": 351092
     },
     {
       "file": "public/audio/freesound/ship-bell-353233.ogg",
