@@ -134,6 +134,15 @@ public static class Psx
     public static bool BumpOff => Off.Contains("bump");
     private static Vector4? skyBox;
     private static ImageTexture? skyShade, dirt, spill, shore, foul, waves, waterTint;
+    private static Texture2D? waterMap;
+    /// <summary>#269: the river's sheet is drawn only where this map (World/WaterMap.cs) says, within its box (world x z w h).</summary>
+    public static void SetWaterMap(Texture2D map, Vector4 box)
+    {
+        EnsureGlobals();
+        waterMap = map;
+        RenderingServer.GlobalShaderParameterSet("psx_water_map", map.GetRid());
+        RenderingServer.GlobalShaderParameterSet("psx_water_box", box);
+    }
     private static ImageTexture? mudStandIn, mudHeightStandIn;
     private static readonly List<Texture2D> mudPictures = new();
     /// <summary>#250: the street mud's pictures for the setts kinds' mud lines (MudLines): colour (alpha its shading), wet colour, height.</summary>
@@ -177,6 +186,10 @@ public static class Psx
         // World-space exclusion survives looking above/below the river and the near plane.
         RenderingServer.GlobalShaderParameterAdd("psx_ruien_cover", RenderingServer.GlobalShaderParameterType.Sampler2D, foul.GetRid());
         RenderingServer.GlobalShaderParameterAdd("psx_ruien_box", RenderingServer.GlobalShaderParameterType.Vec4, new Vector4(0,0,1,1));
+        // #269: where the river's sheet is drawn (World/WaterMap.cs); until it is in, everywhere
+        waterMap = Flat(Colors.White);
+        RenderingServer.GlobalShaderParameterAdd("psx_water_map", RenderingServer.GlobalShaderParameterType.Sampler2D, waterMap.GetRid());
+        RenderingServer.GlobalShaderParameterAdd("psx_water_box", RenderingServer.GlobalShaderParameterType.Vec4, new Vector4(0, 0, 1, 1));
         RenderingServer.GlobalShaderParameterAdd("psx_shore", RenderingServer.GlobalShaderParameterType.Sampler2D, shore.GetRid());
         RenderingServer.GlobalShaderParameterAdd("psx_foul", RenderingServer.GlobalShaderParameterType.Sampler2D, foul.GetRid());
         RenderingServer.GlobalShaderParameterAdd("psx_water_mirror", RenderingServer.GlobalShaderParameterType.Sampler2D, foul.GetRid());
@@ -895,6 +908,9 @@ vec3 psx_waves(vec2 p, float t) {
 }
 // 1: the river's sheet, which runs under the Petit Bassin and the lock: not drawn there (their water has its own level)
 uniform float river = 0.0;
+// #269: where the river's sheet is drawn (World/WaterMap.cs): the town's water outlines, a margin under the quay walls
+global uniform sampler2D psx_water_map : filter_linear, repeat_disable;
+global uniform vec4 psx_water_box;
 varying float wave_h;
 varying float spec_k;
 // mirror image of a lamp on the water: only the sharp core, no wide wash
@@ -2317,6 +2333,38 @@ void silt_at(vec2 v, vec2 p, vec2 dx, vec2 dy, out vec4 cw, out vec4 cd, out vec
 			k3 *= 1.0 - t;
 			ad = ad * (1.0 - t) + fogc * vec3(0.11, 0.095, 0.055) * t;"),
     };
+    /// <summary>
+    /// (#269) The river's sheet only over the town's water: the water map's globals and its discard, after the `river`
+    /// switch and after the canal's discard. In the generated code (WaterGlsl, the water branch) and in the stored river
+    /// shader (scripts/WaterMapRepair.cs: r001377, the town's river sheet); each old text must be there once.
+    /// </summary>
+    public static readonly (string Old, string New)[] WaterMapLines =
+    {
+        ("uniform float river = 0.0;\n", "uniform float river = 0.0;\n"
+            + "// #269: where the river's sheet is drawn (World/WaterMap.cs): the town's water outlines, a margin under the quay walls\n"
+            + "global uniform sampler2D psx_water_map : filter_linear, repeat_disable;\n"
+            + "global uniform vec4 psx_water_box;\n"),
+        ("\t\tif (river > 1.5 && in_canal(world.xz)) discard;\n", "\t\tif (river > 1.5 && in_canal(world.xz)) discard;\n"
+            + "\t\t// #269: the river's sheet only over the town's water (World/WaterMap.cs), never under a cellar, a light well or a stair\n"
+            + "\t\tif (river > 0.5) {\n"
+            + "\t\t\tvec2 water_uv = (world.xz - psx_water_box.xy) / psx_water_box.zw;\n"
+            + "\t\t\tif (all(greaterThanEqual(water_uv, vec2(0.0))) && all(lessThanEqual(water_uv, vec2(1.0))) && textureLod(psx_water_map, water_uv, 0.0).r < 0.5) discard;\n"
+            + "\t\t}\n"),
+    };
+    /// <summary>A water kind's code with the water map (WaterMapLines), unchanged if it has it already.</summary>
+    public static string WithWaterMap(string code)
+    {
+        code = code.Replace("\r\n", "\n");
+        if (code.Contains("psx_water_map")) return code;
+        foreach (var (old, add) in WaterMapLines)
+        {
+            int i = code.IndexOf(old, StringComparison.Ordinal);
+            if (i < 0 || code.IndexOf(old, i + 1, StringComparison.Ordinal) >= 0) throw new InvalidOperationException("water map: the old text is not there once: " + old.Trim());
+            code = code.Remove(i, old.Length).Insert(i, add);
+        }
+        return code;
+    }
+
     public static string WithMurk(string code)
     {
         code = code.Replace("\r\n", "\n");
@@ -2548,6 +2596,11 @@ void fragment() {
 	{
 		if (river > 0.5 && in_basin(world.xz)) discard;
 		if (river > 1.5 && in_canal(world.xz)) discard;
+		// #269: the river's sheet only over the town's water (World/WaterMap.cs), never under a cellar, a light well or a stair
+		if (river > 0.5) {
+			vec2 water_uv = (world.xz - psx_water_box.xy) / psx_water_box.zw;
+			if (all(greaterThanEqual(water_uv, vec2(0.0))) && all(lessThanEqual(water_uv, vec2(1.0))) && textureLod(psx_water_map, water_uv, 0.0).r < 0.5) discard;
+		}
 		// far off, the ripples melt into one dark tone (no shimmer at the fog line)
 		vec2 wxz = world.xz;
 		c.rgb = mix(albedo.rgb * vec3(0.045, 0.062, 0.05), c.rgb, 1.0 - smoothstep(10.0, 70.0, len));

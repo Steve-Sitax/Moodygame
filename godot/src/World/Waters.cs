@@ -19,6 +19,14 @@ public partial class Waters : Node
 {
     private const float Size = 1200, Tile = 4;
     private MeshInstance3D? river;
+    /// <summary>
+    /// #269: the backstop, a plain black sheet 10 m down that goes with the eye. The river's sheet is no longer drawn
+    /// under the land (World/WaterMap.cs), so the hairline gaps between the ground and the walls, which it used to fill
+    /// with dark water, would show the sky; the backstop fills them with black. It lies below every cellar, light well,
+    /// stair and Ruien floor, and the water (drawn opaque) and the beds cover it wherever there is water.
+    /// </summary>
+    private MeshInstance3D? backstop;
+    public const float BackstopY = -10;
     private readonly List<MeshInstance3D> dock = new();
     private MeshInstance3D? chamber;
     // D1: the canal's and the vliet's low water (the browser's world/tidemud.ts): a calm sheet over the beds at the
@@ -46,6 +54,8 @@ public partial class Waters : Node
     {
         ProcessPriority = 45;
         rippleTest = Main.I.Flag("ripple-test");
+        // #269: the river's sheet only over the town's water (World/WaterMap.cs)
+        WaterMap.Build();
         foreach (var n in BakedWorld.All(Main.I.World))
         {
             if (n is not MeshInstance3D mi || mi.Mesh == null || mi.Mesh.GetSurfaceCount() == 0) continue;
@@ -70,6 +80,13 @@ public partial class Waters : Node
                 plane.CustomAabb = new Aabb(new Vector3(-Size / 2, -3, -Size / 2), new Vector3(Size, 6, Size));
                 river = new MeshInstance3D { Name = "river_sheet", Mesh = plane, CastShadow = GeometryInstance3D.ShadowCastingSetting.Off };
                 Main.I.View.AddChild(river);
+                // #269: the backstop (a plain black psx material, the kind of Goods.Plain: no kind of its own)
+                var back = new ShaderMaterial { Shader = Psx.ShaderOf(new Psx.Kind(Unlit: false, Blend: false, Scissor: false, TwoSided: false, DepthWrite: true, Snap: true, Atlas: 0, VertexColor: false, Add: false, Fog: true)) };
+                back.SetShaderParameter("albedo", new Color(0, 0, 0));
+                back.SetShaderParameter("affine", 0.0);
+                var backPlane = new PlaneMesh { Size = new Vector2(Size, Size), SubdivideWidth = 15, SubdivideDepth = 15, Material = back };
+                backstop = new MeshInstance3D { Name = "river_backstop", Mesh = backPlane, CastShadow = GeometryInstance3D.ShadowCastingSetting.Off };
+                Main.I.View.AddChild(backstop);
             }
             else if (mi.GlobalPosition.Z < 40) chamber = mi;
             else dock.Add(mi);
@@ -218,6 +235,7 @@ public partial class Waters : Node
         {
             var p = cam.GlobalPosition;
             river.GlobalPosition = new Vector3(MathF.Round(p.X / Tile) * Tile, Tide.River, MathF.Round(p.Z / Tile) * Tile);
+            if (backstop != null) backstop.GlobalPosition = new Vector3(river.GlobalPosition.X, BackstopY, river.GlobalPosition.Z);
         }
         // the tide's wet band on the walls and the mud (Psx.TideWetGlsl): the last high water by the game clock
         Psx.TideWetNow(Movers.MoverClock.Hours);

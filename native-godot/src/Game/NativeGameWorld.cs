@@ -144,6 +144,9 @@ public partial class NativeGameWorld : BakedWorld
         var river = ResourceLoader.Load<ShaderMaterial>(Visuals + "/river.res");
         var sheet = new MeshInstance3D { Name = "native_river_template", Position = new Vector3(0, Tide.River, 0), Mesh = new PlaneMesh { Size = new Vector2(1200, 1200), Material = river } };
         sheet.SetMeta("native_collision", true); // A water surface is never a solid floor.
+        // #269: only the template of the river's sheet (Waters.cs draws its own, limited by World/WaterMap.cs) and the far
+        // river's bounds (WaterSheets.cs); never drawn itself, so it cannot show under a cellar or a stair
+        sheet.Visible = false;
         AddChild(sheet);
         BuildLights();
         Report["objects"] = AuthoredCount;

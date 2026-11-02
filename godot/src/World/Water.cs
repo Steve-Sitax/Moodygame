@@ -42,6 +42,16 @@ public static class Water
         }
     }
 
+    /// <summary>The outlines (x, z pairs), read once: World/WaterMap.cs draws the river's sheet only inside them.</summary>
+    public static IReadOnlyList<float[]> Outlines
+    {
+        get
+        {
+            if (!loaded) Load();
+            return Rings;
+        }
+    }
+
     /// <summary>
     /// The town's map ends at z = -80 on the river side; the river's drawn sheet goes on beyond it to the anchorage and the
     /// far shore. #182: that far river is water too (Jef fell in out there and was put back where he last stood), as far as
