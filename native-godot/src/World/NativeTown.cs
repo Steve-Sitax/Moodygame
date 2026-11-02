@@ -194,6 +194,14 @@ public partial class NativeTown : BakedWorld
             Report["churchyardItems"] = churchyard.Items; Report["churchyardBoxes"] = churchyard.Boxes;
             Report["churchyardRailTriangles"] = churchyard.RailTriangles; Report["churchyardGroundCut"] = churchyard.GroundTriangles; Report["churchyardStreetCleared"] = churchyard.Cleared;
         }
+        // #224 #227: the churches' model faults dressing cannot hide: Sint-Paulus' flat north door, Sint-Jacob's sharp wall top
+        // (dev: --no-church-repairs leaves them as baked)
+        if (!Scheldemist.Main.I.Flag("no-church-repairs"))
+        {
+            var (repairDoors, repairCopings) = NativeChurchRepairs.Install(town);
+            Report["churchRepairDoors"] = repairDoors; Report["churchRepairCopings"] = repairCopings;
+            GD.Print($"church repairs: {repairDoors} door, {repairCopings} coping stones");
+        }
         // #244: the planted beds' and the liberty tree's bare earth in the tree pits' soil (dev: --keep-old-dirt leaves them)
         if (Scheldemist.Main.I?.Flag("keep-old-dirt") != true) Report["dirtBeds"] = NativeDirt.Lay(town);
         // (the street's ground drawn under the joins' new gutters and the pits' sunken earth, in one pass: NativePlanCut)
@@ -335,6 +343,7 @@ public partial class NativeTown : BakedWorld
         Solid.Leave.Add(n => n.HasMeta(NativeBenches.SwapMeta));
         Solid.Leave.Add(n => n.HasMeta(NativeStreetFurniture.Meta));
         Solid.Leave.Add(n => n.HasMeta(NativeSquareDressing.Meta));
+        Solid.Leave.Add(n => n.HasMeta(NativeChurchRepairs.Meta));
         Report["benches"] = NativeBenches.Index(town);
         BuildLights();
     }

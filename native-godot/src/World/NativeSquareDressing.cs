@@ -308,12 +308,14 @@ public static class NativeSquareDressing
             var st = new SurfaceTool(); st.Begin(Mesh.PrimitiveType.Triangles);
             var ir = new SurfaceTool(); ir.Begin(Mesh.PrimitiveType.Triangles);
             var pl = Begin();
+            var tooth = Begin();
+            var bills = new SurfaceTool(); bills.Begin(Mesh.PrimitiveType.Triangles);
             var fin = Begin();
             var cope = new SurfaceTool(); cope.Begin(Mesh.PrimitiveType.Triangles);
-            int q0 = 0, a0 = 0, f0 = 0, c0 = 0;
+            int q0 = 0, a0 = 0, f0 = 0, c0 = 0; billCount = 0;
             foreach (var w in area)
             {
-                var (q, a) = GhostMarks(st, ir, pl, w);
+                var (q, a) = GhostMarks(st, ir, pl, tooth, bills, w);
                 q0 += q; a0 += a;
                 var (f, c) = Finish(town, fin, cope, w);
                 f0 += f; c0 += c;
@@ -344,9 +346,23 @@ public static class NativeSquareDressing
                     VisibilityRangeEnd = 160, VisibilityRangeEndMargin = 20, VisibilityRangeFadeMode = GeometryInstance3D.VisibilityRangeFadeModeEnum.Self,
                 });
                 var coat = Commit(pl, ResourceLoader.Load<Material>(FacadeMaterial), "plaster_" + tag, normals: false);
-                coat.CastShadow = GeometryInstance3D.ShadowCastingSetting.Off;
+                // (its 20 mm edge casts its own shadow on the brick in the sun: the coat stands proud, #236)
                 coat.VisibilityRangeEnd = 160; coat.VisibilityRangeEndMargin = 20; coat.VisibilityRangeFadeMode = GeometryInstance3D.VisibilityRangeFadeModeEnum.Self;
                 holder.AddChild(coat);
+                // the broken brick ends where the house's front and back walls were bonded in (#236)
+                var ends = Commit(tooth, ResourceLoader.Load<Material>(FacadeMaterial), "brick_ends_" + tag);
+                ends.VisibilityRangeEnd = 110; ends.VisibilityRangeEndMargin = 15; ends.VisibilityRangeFadeMode = GeometryInstance3D.VisibilityRangeFadeModeEnum.Self;
+                holder.AddChild(ends);
+                // the bills pasted on the bared brick and plaster by the street (#226)
+                if (billCount > 0 && ResourceLoader.Load<Material>(BillsMaterial) is { } paper)
+                {
+                    bills.SetMaterial(paper);
+                    holder.AddChild(new MeshInstance3D
+                    {
+                        Name = "bills_" + tag, Mesh = bills.Commit(), CastShadow = GeometryInstance3D.ShadowCastingSetting.Off,
+                        VisibilityRangeEnd = 80, VisibilityRangeEndMargin = 10, VisibilityRangeFadeMode = GeometryInstance3D.VisibilityRangeFadeModeEnum.Self,
+                    });
+                }
             }
             if (a0 > 0)
             {
@@ -361,6 +377,7 @@ public static class NativeSquareDressing
             quads += q0; anchors += a0;
         }
         foreach (var n in holder.GetChildren()) ((Node)n).SetMeta(Meta, true);
+        GD.Print($"square dressing: joist sockets {walls.Sum(w => Sockets(w).Count)}, cut into the brick {SocketCut.Values.Sum(c => c.Count)}");
         return (walls.Count, bricked, quads, anchors);
     }
 
@@ -546,8 +563,143 @@ public static class NativeSquareDressing
         Quad(B(s0, 0), B(s1, 0), B(s1, d1), B(s0, d1), Vector3.Down, 0.5f);
     }
 
+    // ------------------------------------------------------------------ the bills (#226)
+
+    private const string BillsMaterial = "res://assets/materials/bill-posters-20261102/bills.tres";
+    private const string BillsFile = "res://assets/materials/bill-posters-20261102/bills.json";
+    private sealed record Bill(string Id, float W, float H, float U0, float V0, float U1, float V1);
+    private static Bill[]? billSheet;
+    private static int billCount;
+
+    /// <summary>
+    /// Bills of October 1873 (scripts/bill_posters.py: a sale of the razed houses' materials, building ground, the Red Star
+    /// Line, the theatre, a lost dog, a police notice, labourers wanted, an old sale's scrap) pasted by the street end of a
+    /// bared wall, 0.9 to 2.4 m up, two to four together, overlapping a little and a hair off square; each its own torn edge
+    /// (a ragged outline, a corner or a strip torn away). On the brick 3 mm proud; on a coat that held, on the coat.
+    /// </summary>
+    private static void Bills(SurfaceTool st, Func<float, float, float, Vector3> W, BaredWall w, List<Room> rooms, float L)
+    {
+        billSheet ??= System.Text.Json.JsonSerializer.Deserialize<Bill[]>(Godot.FileAccess.GetFileAsString(BillsFile), new JsonSerializerOptions { PropertyNameCaseInsensitive = true }) ?? Array.Empty<Bill>();
+        if (billSheet.Length == 0 || L < 2.5f) return;
+        var rng = new Random(w.Seed * 17 + w.Standing * 3 + 41);
+        // (not every wall: one in four is left bare)
+        if (rng.NextDouble() < 0.25) return;
+        // the street end: the one at the standing house's front corner, else A
+        bool atB = w.CornerB is not null && w.CornerA is null;
+        float start = 0.35f + 0.6f * (float)rng.NextDouble();
+        int count = 2 + rng.Next(3);
+        float s = start;
+        var used = new List<(float S0, float S1, float Y0, float Y1)>();
+        for (int i = 0; i < count && s < Math.Min(L - 0.4f, 3.6f); i++)
+        {
+            var b = billSheet[rng.Next(billSheet.Length)];
+            float k = 0.9f + 0.2f * (float)rng.NextDouble(), bw = b.W * k, bh = b.H * k;
+            float y0 = 0.95f + 0.75f * (float)rng.NextDouble();
+            float sa = atB ? L - s - bw : s;
+            // on the coat or on the brick, never across a coat's broken edge
+            var corners = new[] { new Vector2(sa, y0), new Vector2(sa + bw, y0), new Vector2(sa + bw, y0 + bh), new Vector2(sa, y0 + bh), new Vector2(sa + bw / 2, y0 + bh / 2) };
+            float Coat(Vector2 p) => rooms.Count == 0 ? -1 : rooms.Max(r => r.Field(p));
+            var f = corners.Select(Coat).ToArray();
+            float d;
+            if (f.All(v => v > 0.02f)) d = CoatT + 0.002f;
+            else if (f.All(v => v < -0.02f)) d = 0.003f;
+            else { s += 0.25f; continue; }
+            d += used.Count(u => u.S0 < sa + bw && u.S1 > sa && u.Y0 < y0 + bh && u.Y1 > y0) * 0.0015f;
+            used.Add((sa, sa + bw, y0, y0 + bh));
+            BillQuad(st, W, b, sa, y0, bw, bh, d, ((float)rng.NextDouble() - 0.5f) * 0.05f, rng);
+            billCount++;
+            // (the next overlapping this one a little, or a hand's width on)
+            s += bw * (0.55f + 0.6f * (float)rng.NextDouble());
+        }
+    }
+
+    /// <summary>One bill: a torn outline round its rectangle (fanned from its middle), turned a hair, its picture's cell.</summary>
+    private static void BillQuad(SurfaceTool st, Func<float, float, float, Vector3> W, Bill b, float s0, float y0, float bw, float bh, float d, float turn, Random rng)
+    {
+        var c = new Vector2(s0 + bw / 2, y0 + bh / 2);
+        float cs = MathF.Cos(turn), sn = MathF.Sin(turn);
+        // the outline: points every 3 cm round the rectangle, each nibbled in a little; one stretch torn away deeper
+        var pts = new List<Vector2>();
+        int per = 0;
+        float tearAt = (float)rng.NextDouble() * 4, tearLen = 0.25f + 0.5f * (float)rng.NextDouble(), tearDepth = rng.NextDouble() < 0.6 ? 0.04f + 0.14f * (float)rng.NextDouble() : 0;
+        var corners = new[] { new Vector2(-bw / 2, -bh / 2), new Vector2(bw / 2, -bh / 2), new Vector2(bw / 2, bh / 2), new Vector2(-bw / 2, bh / 2) };
+        for (int e = 0; e < 4; e++)
+        {
+            var a = corners[e]; var z = corners[(e + 1) % 4];
+            int n = Math.Max(2, (int)(a.DistanceTo(z) / 0.03f));
+            for (int i = 0; i < n; i++, per++)
+            {
+                float t = i / (float)n;
+                var p = a.Lerp(z, t);
+                float along = e + t;
+                float bite = 0.002f + 0.006f * (float)rng.NextDouble();
+                float tear = MathF.Max(0, 1 - MathF.Abs(along - tearAt) / tearLen);
+                bite += tearDepth * MathF.Pow(tear, 0.7f) * (0.7f + 0.3f * (float)rng.NextDouble());
+                // (pulled in toward the middle, never past it)
+                var inward = -p.Normalized();
+                pts.Add(p + inward * Math.Min(bite, p.Length() * 0.6f));
+            }
+        }
+        Vector2 Uv(Vector2 q) => new(Mathf.Lerp(b.U0, b.U1, (q.X + bw / 2) / bw), Mathf.Lerp(b.V1, b.V0, (q.Y + bh / 2) / bh));
+        Vector3 At(Vector2 q) { var r = new Vector2(q.X * cs - q.Y * sn, q.X * sn + q.Y * cs) + c; return W(r.X, r.Y, d); }
+        var n3 = (W(0, 0, 1) - W(0, 0, 0)).Normalized();
+        // (a bill's paper tone: the picture carries its age; pasted ones a shade darker at the foot, where the rain splashes)
+        Color Tone(Vector2 q) { float k = 0.92f - 0.12f * Math.Clamp(-(q.Y + bh / 2 - 0.15f) / 0.15f, 0, 1); return new Color(k, k, k * 0.98f); }
+        void V(Vector2 q) { st.SetNormal(n3); st.SetColor(Tone(q)); st.SetUV(Uv(q)); st.AddVertex(At(q)); }
+        for (int i = 0; i < pts.Count; i++)
+        {
+            var p = pts[i]; var q = pts[(i + 1) % pts.Count];
+            // (clockwise as seen from the street: Godot's front face; the shader draws both sides)
+            var a3 = At(Vector2.Zero); var b3 = At(p); var c3 = At(q);
+            if ((b3 - a3).Cross(c3 - a3).Dot(n3) > 0) { V(Vector2.Zero); V(q); V(p); } else { V(Vector2.Zero); V(p); V(q); }
+        }
+    }
+
+    // ------------------------------------------------------------------ the joists' sockets (#236, #226)
+
+    /// <summary>A joist's socket in a bared wall: s along the wall from A, y up (metres); Floor the floor line it served.</summary>
+    private sealed record Socket(float Floor, float S0, float S1, float Y0, float Y1);
+    // (the sockets cut into the brick by Brick, a wall's set; GhostMarks draws the others)
+    private static readonly Dictionary<BaredWall, HashSet<Socket>> SocketCut = new();
+    private static readonly Dictionary<BaredWall, List<Socket>> SocketsOf = new();
+    // how deep a socket goes into the brick: half a brick, the joist's bearing
+    private const float SocketDepth = 0.11f;
+
+    /// <summary>The pulled-down house's eaves on this wall and its floor lines (as GhostMarks draws them: its own storeys).</summary>
+    private static (float Hg, List<float> Floors) Storeys(BaredWall w)
+    {
+        float cap = w.StandingHeight - 0.35f, hg = Math.Min(w.RazedHeight, cap);
+        var hr = new Random(w.Seed * 31 + 11);
+        float groundH = GroundH - 0.4f + 0.8f * (float)hr.NextDouble(), storeyH = StoreyH - 0.25f + 0.5f * (float)hr.NextDouble();
+        return (hg, Enumerable.Range(0, Math.Max(1, w.Storeys) - 1).Select(k => groundH + k * storeyH).Where(y => y < hg - 0.5f).ToList());
+    }
+
+    /// <summary>
+    /// The joists' sockets along each floor line, 0.35-0.5 m apart: 80 to 130 mm wide and 210 to 240 mm high, the joist's
+    /// end under the boards (one in seven bricked up again: none there).
+    /// </summary>
+    private static List<Socket> Sockets(BaredWall w)
+    {
+        if (SocketsOf.TryGetValue(w, out var had)) return had;
+        var list = new List<Socket>();
+        float L = w.A.DistanceTo(w.B);
+        var (hg, floors) = Storeys(w);
+        if (hg >= 2.5f)
+        {
+            var rng = new Random(w.Seed * 13 + 5 + w.Standing);
+            foreach (float y in floors)
+                for (float js = 0.2f + 0.25f * (float)rng.NextDouble(); js < L - 0.3f; js += 0.35f + 0.15f * (float)rng.NextDouble())
+                {
+                    float hw = 0.04f + 0.025f * (float)rng.NextDouble(), jy = ((float)rng.NextDouble() - 0.5f) * 0.03f, hh = 0.21f + 0.03f * (float)rng.NextDouble();
+                    if (rng.NextDouble() < 0.14) continue;
+                    list.Add(new Socket(y, js - hw, js + hw, y - 0.01f - hh + jy, y - 0.01f + jy));
+                }
+        }
+        return SocketsOf[w] = list;
+    }
+
     /// <summary>build_city.py ghost_marks, at runtime: one bared stretch's ghost (decal quads) and anchors (iron).</summary>
-    private static (int Quads, int Anchors) GhostMarks(SurfaceTool st, SurfaceTool iron, SurfaceTool plaster, BaredWall w)
+    private static (int Quads, int Anchors) GhostMarks(SurfaceTool st, SurfaceTool iron, SurfaceTool plaster, SurfaceTool tooth, SurfaceTool bills, BaredWall w)
     {
         float L = w.A.DistanceTo(w.B);
         var u = (w.B - w.A) / L;
@@ -558,6 +710,7 @@ public static class NativeSquareDressing
         if (hg < 2.5f) return (0, 0);
         float s0 = 0, s1 = L, mid = L / 2;
         int quads = 0;
+        var cut = SocketCut.TryGetValue(w, out var had) ? had : new HashSet<Socket>();
         // the outline: up to its eaves, and its gable over them (cut off under this house's own top)
         var pts = new List<Vector2> { new(s0, 0.2f), new(s1, 0.2f), new(s1, hg) };
         if (w.Rise > 0.3f)
@@ -609,6 +762,8 @@ public static class NativeSquareDressing
                 rooms.Add(NewRoom(rng, mid - half, mid + half, y0, x => Roof(x) - 0.2f, 0, w.Flue ? fs : float.NaN, true, slope));
         }
         foreach (var room in rooms) Coat(plaster, W, room);
+        // the bills: a few pasted by the street end of most bared walls, on the brick or on a coat that held (#226)
+        Bills(bills, W, w, rooms, L);
         // the grime: the ghost cell's mottle (a film of specks and scratches) multiplied dark over the coats and the brick
         // their losses bare, every 1.1 m, over the whole of the old house's outline (a film a room drew each room's box on
         // the wall, and the boxes made a grid, Codex on #231)
@@ -632,27 +787,60 @@ public static class NativeSquareDressing
         foreach (float y in floors)
         {
             // in lengths, as the plaster and the soot under the boards came off: each its own depth and darkness, a gap
-            // now and then where the brick was pointed again
+            // now and then where the brick was pointed again (the film stops at each socket cut into the brick: over the hole
+            // it would hang in the air)
+            var holes = cut.Where(k => k.Floor == y).ToList();
             for (float x = s0 + 0.05f + 0.25f * (float)rng.NextDouble(); x < s1 - 0.15f;)
             {
                 float x2 = Math.Min(x + 0.5f + 1.7f * (float)rng.NextDouble(), s1 - 0.08f - 0.1f * (float)rng.NextDouble());
                 float lo = 0.1f + 0.09f * (float)rng.NextDouble(), up = 0.05f + 0.07f * (float)rng.NextDouble(), dy = ((float)rng.NextDouble() - 0.5f) * 0.05f;
                 float k = 0.8f + 1.6f * (float)rng.NextDouble(), u0 = (float)rng.NextDouble() * 4;
                 var tint = new Color(LineTint.R * k, LineTint.G * k, LineTint.B * k);
-                Quad(st, W(x, y + dy - lo, 0.008f), W(x2, y + dy - lo, 0.008f), W(x2, y + dy + up, 0.008f), W(x, y + dy + up, 0.008f),
-                    new(u0, 0.01f), new(u0 + (x2 - x) / 1.5f, 0.01f), new(u0 + (x2 - x) / 1.5f, 0.99f), new(u0, 0.99f), LineCell, tint, 1);
-                quads++;
+                float a = x;
+                foreach (var h in holes.Where(h => h.S1 > x && h.S0 < x2).OrderBy(h => h.S0).Append(new Socket(y, x2, x2, 0, 0)))
+                {
+                    float b = Math.Min(h.S0, x2);
+                    if (b - a > 0.02f)
+                    {
+                        Quad(st, W(a, y + dy - lo, 0.008f), W(b, y + dy - lo, 0.008f), W(b, y + dy + up, 0.008f), W(a, y + dy + up, 0.008f),
+                            new(u0 + (a - x) / 1.5f, 0.01f), new(u0 + (b - x) / 1.5f, 0.01f), new(u0 + (b - x) / 1.5f, 0.99f), new(u0 + (a - x) / 1.5f, 0.99f), LineCell, tint, 1);
+                        quads++;
+                    }
+                    a = Math.Max(a, h.S1);
+                }
                 x = x2 + (rng.NextDouble() < 0.4 ? 0.06f + 0.4f * (float)rng.NextDouble() : 0.002f);
             }
-            // the joists' pockets along it, 0.35-0.5 m apart, each a dark socket where a joist end was pulled out (one in
-            // seven bricked up again)
-            for (float js = s0 + 0.2f + 0.25f * (float)rng.NextDouble(); js < s1 - 0.3f; js += 0.35f + 0.15f * (float)rng.NextDouble())
+            // the joists' pockets along it: cut into the brick where the wall's own faces cover them (Brick, CutSockets),
+            // else a dark socket drawn on it
+            foreach (var k in Sockets(w).Where(k => k.Floor == y && !cut.Contains(k)))
             {
-                if (rng.NextDouble() < 0.14) continue;
-                float hw = 0.045f + 0.03f * (float)rng.NextDouble(), jy = ((float)rng.NextDouble() - 0.5f) * 0.03f;
-                Quad(st, W(js - hw, y - 0.14f + jy, 0.0085f), W(js + hw, y - 0.14f + jy, 0.0085f), W(js + hw, y + 0.03f + jy, 0.0085f), W(js - hw, y + 0.03f + jy, 0.0085f),
+                Quad(st, W(k.S0, k.Y0, 0.0085f), W(k.S1, k.Y0, 0.0085f), W(k.S1, k.Y1, 0.0085f), W(k.S0, k.Y1, 0.0085f),
                     new(0.15f, 0.15f), new(0.85f, 0.15f), new(0.85f, 0.85f), new(0.15f, 0.85f), Blob, SootTint, 1);
                 quads++;
+            }
+        }
+        // the brick ends: where the house's front and back walls were bonded into this one, every other course held a brick
+        // or two of theirs; pulled down, the courses broke off ragged, the ends standing 15 to 100 mm proud
+        foreach (int end in new[] { 0, 1 })
+        {
+            float edge = end == 0 ? s0 : s1, dir = end == 0 ? 1 : -1;
+            float topHere = Roof(edge + dir * 0.15f) - 0.08f;
+            int course = 0;
+            for (float y = 0.24f + 0.075f * (float)rng.NextDouble(); y < topHere; y += 0.075f, course++)
+            {
+                if (course % 2 == 1) continue;
+                for (float s = 0.03f; s < 0.33f; s += 0.11f)
+                {
+                    // (most broke off flush with the wall; the rest stand out unevenly, sooted and dirty like the wall)
+                    if (rng.NextDouble() < 0.62) continue;
+                    float proud = 0.012f + 0.06f * MathF.Pow((float)rng.NextDouble(), 1.6f);
+                    var at = W(edge + dir * (s + 0.05f), y, proud - 0.11f);
+                    float yaw = MathF.Atan2(-w.Out.Y, w.Out.X) + ((float)rng.NextDouble() - 0.5f) * 0.12f;
+                    var tone = rng.NextDouble() < 0.2 ? new Color(Crusted.R * 0.7f, Crusted.G * 0.7f, Crusted.B * 0.7f, 0.45f) : FiredOf(rng, 0.45f + 0.1f * (float)rng.NextDouble());
+                    if (rng.NextDouble() >= 0.2) tone = new Color(tone.R * 0.62f, tone.G * 0.6f, tone.B * 0.6f, tone.A);
+                    // (a broken end: a lump of brick and mortar now and then)
+                    Brick(tooth, at, yaw, ((float)rng.NextDouble() - 0.5f) * 0.1f, tone, 0.97f + 0.06f * (float)rng.NextDouble(), rng.NextDouble() < 0.22);
+                }
             }
         }
         // its chimney breast: a band of brick blackened by the smoke where the breast stood, the flue's soot up its middle,
@@ -711,8 +899,9 @@ public static class NativeSquareDressing
             foreach (float y in floors)
                 foreach (float s in new[] { s0 + 0.5f + 0.5f * (float)rng.NextDouble(), s1 - 0.5f - 0.5f * (float)rng.NextDouble() })
                 {
-                    // (one in five pulled out with its beam)
+                    // (one in five pulled out with its beam; none over a socket cut into the brick)
                     if (rng.NextDouble() < 0.2) continue;
+                    if (cut.Any(k => k.Floor == y && k.S0 - 0.06f < s && k.S1 + 0.06f > s)) continue;
                     Anchor(iron, W, s, y);
                     Quad(st, W(s - 0.09f, y - 0.95f, 0.009f), W(s + 0.09f, y - 0.95f, 0.009f), W(s + 0.09f, y + 0.02f, 0.009f), W(s - 0.09f, y + 0.02f, 0.009f),
                         new(0.01f, 0.01f), new(0.99f, 0.01f), new(0.99f, 0.99f), new(0.01f, 0.99f), Rust, RustTint, 1);
@@ -997,7 +1186,7 @@ public static class NativeSquareDressing
                 if (stride < 2) continue;
                 var index = arrays[(int)Mesh.ArrayType.Index].VariantType == Variant.Type.PackedInt32Array ? arrays[(int)Mesh.ArrayType.Index].AsInt32Array() : Enumerable.Range(0, v.Length).ToArray();
                 var basis = xf.Basis;
-                var pick = new HashSet<int>(); var other = new HashSet<int>(); var picked = new List<int>();
+                var pick = new HashSet<int>(); var other = new HashSet<int>(); var picked = new List<int>(); var wallOf = new Dictionary<int, BaredWall>();
                 var tones = arrays[(int)Mesh.ArrayType.Color].VariantType == Variant.Type.PackedColorArray ? arrays[(int)Mesh.ArrayType.Color].AsColorArray() : null;
                 for (int t = 0; t + 2 < index.Length; t += 3)
                 {
@@ -1023,7 +1212,7 @@ public static class NativeSquareDressing
                         // (how high the bared wall's own faces run: a parapet stands 0.6 m over the eaves)
                         float yTop = Math.Max((xf * v[index[t]]).Y, Math.Max((xf * v[index[t + 1]]).Y, (xf * v[index[t + 2]]).Y));
                         WallTop[wall!] = Math.Max(WallTop.GetValueOrDefault(wall), yTop);
-                        picked.Add(t);
+                        picked.Add(t); wallOf[t] = wall;
                     }
                     for (int k = 0; k < 3; k++) (on ? pick : other).Add(index[t + k]);
                 }
@@ -1077,6 +1266,8 @@ public static class NativeSquareDressing
                     WallUv = new Vector2(MathF.Floor(uv.X) + 0.5f, MathF.Floor(uv.Y) + 0.5f);
                 }
                 arrays[(int)Mesh.ArrayType.Custom0] = c0;
+                // (#236, #226: the joists' sockets cut into the brick, with their sides and back)
+                CutSockets(arrays, picked, wallOf, xf);
                 redone[hit] = arrays;
                 changed += picked.Count;
             }
@@ -1092,6 +1283,204 @@ public static class NativeSquareDressing
         }
         return changed;
     }
+
+    /// <summary>
+    /// Cuts the joists' sockets (Sockets) into a bared wall's own triangles: each socket the surface's wall faces cover whole
+    /// is taken out of them (a triangle over it split into the convex pieces round it, every attribute carried over by its
+    /// place in the triangle) and lined with its sides and back, 110 mm into the brick, darker toward the back (the joist's
+    /// old seat in its dust). Sockets only partly covered (over a window, a seam or another mesh) are left to GhostMarks.
+    /// </summary>
+    private static void CutSockets(Godot.Collections.Array arrays, List<int> picked, Dictionary<int, BaredWall> wallOf, Transform3D xf)
+    {
+        var index = arrays[(int)Mesh.ArrayType.Index].AsInt32Array();
+        var v = arrays[(int)Mesh.ArrayType.Vertex].AsVector3Array();
+        int n0 = v.Length;
+        // the wall's frame for a corner: (s along it, y), and how far out of the line it stands
+        static Vector2 Sy(BaredWall w, Vector3 p) { var u = (w.B - w.A).Normalized(); return new Vector2((new Vector2(p.X, p.Z) - w.A).Dot(u), p.Y); }
+        static float Dout(BaredWall w, Vector3 p) => (new Vector2(p.X, p.Z) - w.A).Dot(w.Out);
+        var todo = new Dictionary<BaredWall, List<Socket>>();
+        foreach (var group in picked.GroupBy(t => wallOf[t]))
+        {
+            var w = group.Key;
+            var done = SocketCut.TryGetValue(w, out var d) ? d : null;
+            var tris = group.Select(t => (T: t, P: new[] { Sy(w, xf * v[index[t]]), Sy(w, xf * v[index[t + 1]]), Sy(w, xf * v[index[t + 2]]) })).ToList();
+            foreach (var k in Sockets(w))
+            {
+                if (done?.Contains(k) == true) continue;
+                float area = (k.S1 - k.S0) * (k.Y1 - k.Y0), covered = 0;
+                foreach (var (_, P) in tris)
+                {
+                    if (P.Max(q => q.X) < k.S0 || P.Min(q => q.X) > k.S1 || P.Max(q => q.Y) < k.Y0 || P.Min(q => q.Y) > k.Y1) continue;
+                    var c = ClipBox(P.ToList(), k.S0, k.S1, k.Y0, k.Y1);
+                    covered += PolyArea(c);
+                }
+                if (covered > area * 0.995f) (todo.TryGetValue(w, out var l) ? l : todo[w] = new()).Add(k);
+            }
+        }
+        if (todo.Count == 0) return;
+        // the arrays as lists, to grow
+        var lists = new object?[arrays.Count]; var stride = new int[arrays.Count];
+        for (int a = 0; a < arrays.Count; a++)
+        {
+            if (a == (int)Mesh.ArrayType.Index) continue;
+            var src = arrays[a];
+            switch (src.VariantType)
+            {
+                case Variant.Type.PackedVector3Array: lists[a] = src.AsVector3Array().ToList(); break;
+                case Variant.Type.PackedVector2Array: lists[a] = src.AsVector2Array().ToList(); break;
+                case Variant.Type.PackedColorArray: lists[a] = src.AsColorArray().ToList(); break;
+                case Variant.Type.PackedFloat32Array: { var l = src.AsFloat32Array().ToList(); stride[a] = l.Count / n0; lists[a] = l; break; }
+                case Variant.Type.PackedInt32Array: { var l = src.AsInt32Array().ToList(); stride[a] = l.Count / n0; lists[a] = l; break; }
+                case Variant.Type.PackedByteArray: { var l = src.AsByteArray().ToList(); stride[a] = l.Count / n0; lists[a] = l; break; }
+            }
+        }
+        var inv = xf.AffineInverse();
+        int count = n0;
+        // a new vertex: the corners' attributes by weight (the heaviest corner's for whole numbers), then the place, normal,
+        // colour and tangent given
+        int Add(int ia, int ib, int ic, Vector3 wt, Vector3? world = null, Vector3? normal = null, float? shade = null, Vector3? tangent = null)
+        {
+            int near = wt.X >= wt.Y && wt.X >= wt.Z ? ia : wt.Y >= wt.Z ? ib : ic;
+            for (int a = 0; a < lists.Length; a++)
+            {
+                switch (lists[a])
+                {
+                    case List<Vector3> l3:
+                        var p3 = l3[ia] * wt.X + l3[ib] * wt.Y + l3[ic] * wt.Z;
+                        if (a == (int)Mesh.ArrayType.Vertex && world is { } wp) p3 = inv * wp;
+                        if (a == (int)Mesh.ArrayType.Normal) p3 = normal is { } nn ? (inv.Basis * nn).Normalized() : p3.Normalized();
+                        l3.Add(p3); break;
+                    case List<Vector2> l2: l2.Add(l2[ia] * wt.X + l2[ib] * wt.Y + l2[ic] * wt.Z); break;
+                    case List<Color> lc:
+                        var cc = lc[ia] * wt.X + lc[ib] * wt.Y + lc[ic] * wt.Z;
+                        if (shade is { } sh) cc = new Color(cc.R * sh, cc.G * sh, cc.B * sh, cc.A);
+                        lc.Add(cc); break;
+                    case List<float> lf:
+                        {
+                            int k = stride[a];
+                            for (int j = 0; j < k; j++) lf.Add(lf[ia * k + j] * wt.X + lf[ib * k + j] * wt.Y + lf[ic * k + j] * wt.Z);
+                            if (a == (int)Mesh.ArrayType.Tangent && k == 4 && tangent is { } tg) { var tl = (inv.Basis * tg).Normalized(); lf[^4] = tl.X; lf[^3] = tl.Y; lf[^2] = tl.Z; lf[^1] = 1; }
+                            break;
+                        }
+                    case List<int> li: { int k = stride[a]; for (int j = 0; j < k; j++) li.Add(li[near * k + j]); break; }
+                    case List<byte> lb: { int k = stride[a]; for (int j = 0; j < k; j++) lb.Add(lb[near * k + j]); break; }
+                }
+            }
+            return count++;
+        }
+        var keep = new List<int>(index.Length);
+        var gone = new HashSet<int>();
+        var extra = new List<int>();
+        foreach (int t in picked)
+        {
+            var w = wallOf[t];
+            if (!todo.TryGetValue(w, out var holes)) continue;
+            int ia = index[t], ib = index[t + 1], ic = index[t + 2];
+            Vector3 A = xf * v[ia], B = xf * v[ib], C = xf * v[ic];
+            Vector2 a = Sy(w, A), b = Sy(w, B), c = Sy(w, C);
+            var over = holes.Where(k => Math.Max(a.X, Math.Max(b.X, c.X)) > k.S0 && Math.Min(a.X, Math.Min(b.X, c.X)) < k.S1 && Math.Max(a.Y, Math.Max(b.Y, c.Y)) > k.Y0 && Math.Min(a.Y, Math.Min(b.Y, c.Y)) < k.Y1).ToList();
+            if (over.Count == 0) continue;
+            gone.Add(t);
+            float sign = Cross(b - a, c - a);
+            var pieces = new List<List<Vector2>> { new() { a, b, c } };
+            foreach (var k in over)
+            {
+                var next = new List<List<Vector2>>();
+                foreach (var poly in pieces)
+                {
+                    next.Add(ClipHalf(poly, new Vector2(0, 1), k.Y0));                                      // under it
+                    next.Add(ClipHalf(poly, new Vector2(0, -1), -k.Y1));                                    // over it
+                    next.Add(ClipHalf(ClipBand(poly, k.Y0, k.Y1), new Vector2(1, 0), k.S0));                // beside it
+                    next.Add(ClipHalf(ClipBand(poly, k.Y0, k.Y1), new Vector2(-1, 0), -k.S1));
+                }
+                pieces = next.Where(q => q.Count >= 3 && PolyArea(q) > 1e-7f).ToList();
+            }
+            Vector3 Bary(Vector2 p)
+            {
+                float den = Cross(b - a, c - a);
+                float wb = Cross(p - a, c - a) / den, wc = Cross(b - a, p - a) / den;
+                return new Vector3(1 - wb - wc, wb, wc);
+            }
+            foreach (var poly in pieces)
+            {
+                var ids = poly.Select(q => Add(ia, ib, ic, Bary(q))).ToArray();
+                for (int i = 1; i + 1 < poly.Count; i++)
+                {
+                    bool same = Math.Sign(Cross(poly[i] - poly[0], poly[i + 1] - poly[0])) == Math.Sign(sign);
+                    extra.Add(ids[0]); extra.Add(same ? ids[i] : ids[i + 1]); extra.Add(same ? ids[i + 1] : ids[i]);
+                }
+            }
+            // each socket this triangle holds the middle of is lined once, in this triangle's attributes and plane
+            foreach (var k in over)
+            {
+                var mid = new Vector2((k.S0 + k.S1) / 2, (k.Y0 + k.Y1) / 2);
+                var bm = Bary(mid);
+                if (bm.X < -1e-4f || bm.Y < -1e-4f || bm.Z < -1e-4f) continue;
+                if (SocketCut.TryGetValue(w, out var cutSet) && cutSet.Contains(k)) continue;
+                (SocketCut.TryGetValue(w, out var cs) ? cs : SocketCut[w] = new()).Add(k);
+                var u = (w.B - w.A).Normalized(); var u3 = new Vector3(u.X, 0, u.Y); var o3 = new Vector3(w.Out.X, 0, w.Out.Y);
+                float face = Dout(w, A) * bm.X + Dout(w, B) * bm.Y + Dout(w, C) * bm.Z;
+                Vector3 P(float sx, float y, float d) { var q = w.A + u * sx + w.Out * d; return new Vector3(q.X, y, q.Y); }
+                // (the back a little smaller and off true: a hole knocked, not cut)
+                var rng = new Random((int)(k.S0 * 1000) ^ w.Seed);
+                float j0 = 0.008f * (float)rng.NextDouble(), j1 = 0.008f * (float)rng.NextDouble(), j2 = 0.01f * (float)rng.NextDouble(), j3 = 0.006f * (float)rng.NextDouble();
+                var rim = new[] { new Vector2(k.S0, k.Y0), new Vector2(k.S1, k.Y0), new Vector2(k.S1, k.Y1), new Vector2(k.S0, k.Y1) };
+                var back = new[] { new Vector2(k.S0 + j0, k.Y0 + j3), new Vector2(k.S1 - j1, k.Y0 + j3), new Vector2(k.S1 - j1, k.Y1 - j2), new Vector2(k.S0 + j0, k.Y1 - j2) };
+                float db = face - SocketDepth;
+                // sides: bottom (its floor, up), right (looking back along -u), top (down), left (along +u)
+                var normals = new[] { Vector3.Up, -u3, Vector3.Down, u3 };
+                void Face(Vector3 p0, Vector3 p1, Vector3 p2, Vector3 p3, Vector2 s0, Vector2 s1, Vector2 s2, Vector2 s3, float k0, float k1, Vector3 n)
+                {
+                    var tg = Math.Abs(n.Y) > 0.5f ? u3 : Vector3.Up.Cross(n).Normalized();
+                    Vector3 Bc(Vector2 q) { var b3 = Bary(q); b3 = new Vector3(Math.Max(0, b3.X), Math.Max(0, b3.Y), Math.Max(0, b3.Z)); return b3 / Math.Max(1e-6f, b3.X + b3.Y + b3.Z); }
+                    int i0 = Add(ia, ib, ic, Bc(s0), p0, n, k0, tg), i1 = Add(ia, ib, ic, Bc(s1), p1, n, k0, tg), i2 = Add(ia, ib, ic, Bc(s2), p2, n, k1, tg), i3 = Add(ia, ib, ic, Bc(s3), p3, n, k1, tg);
+                    // (Godot's front face winds clockwise as seen from its normal's side)
+                    bool flip = (p1 - p0).Cross(p2 - p0).Dot(n) > 0;
+                    if (flip) { extra.AddRange(new[] { i0, i2, i1, i0, i3, i2 }); } else { extra.AddRange(new[] { i0, i1, i2, i0, i2, i3 }); }
+                }
+                for (int e = 0; e < 4; e++)
+                {
+                    var r0 = rim[e]; var r1 = rim[(e + 1) % 4]; var b0 = back[e]; var b1 = back[(e + 1) % 4];
+                    // (the floor of the socket holds the dust of the joist's end: lighter than its roof)
+                    float lit = e == 0 ? 0.42f : e == 2 ? 0.2f : 0.3f;
+                    Face(P(r0.X, r0.Y, face), P(r1.X, r1.Y, face), P(b1.X, b1.Y, db), P(b0.X, b0.Y, db), r0, r1, b1, b0, lit, lit * 0.45f, normals[e]);
+                }
+                Face(P(back[0].X, back[0].Y, db), P(back[1].X, back[1].Y, db), P(back[2].X, back[2].Y, db), P(back[3].X, back[3].Y, db), back[0], back[1], back[2], back[3], 0.13f, 0.13f, o3);
+            }
+        }
+        for (int t = 0; t + 2 < index.Length; t += 3)
+            if (!gone.Contains(t)) { keep.Add(index[t]); keep.Add(index[t + 1]); keep.Add(index[t + 2]); }
+        keep.AddRange(extra);
+        for (int a = 0; a < lists.Length; a++)
+            switch (lists[a])
+            {
+                case List<Vector3> l3: arrays[a] = l3.ToArray(); break;
+                case List<Vector2> l2: arrays[a] = l2.ToArray(); break;
+                case List<Color> lc: arrays[a] = lc.ToArray(); break;
+                case List<float> lf: arrays[a] = lf.ToArray(); break;
+                case List<int> li: arrays[a] = li.ToArray(); break;
+                case List<byte> lb: arrays[a] = lb.ToArray(); break;
+            }
+        arrays[(int)Mesh.ArrayType.Index] = keep.ToArray();
+    }
+
+    private static float Cross(Vector2 a, Vector2 b) => a.X * b.Y - a.Y * b.X;
+    private static float PolyArea(List<Vector2> p) { float s = 0; for (int i = 0; i < p.Count; i++) s += Cross(p[i], p[(i + 1) % p.Count]); return Math.Abs(s) / 2; }
+    /// <summary>A convex polygon's part where n . p &lt;= c (Sutherland-Hodgman against one line).</summary>
+    private static List<Vector2> ClipHalf(List<Vector2> poly, Vector2 n, float c)
+    {
+        var o = new List<Vector2>();
+        for (int i = 0; i < poly.Count; i++)
+        {
+            var p = poly[i]; var q = poly[(i + 1) % poly.Count];
+            float dp = n.Dot(p) - c, dq = n.Dot(q) - c;
+            if (dp <= 0) o.Add(p);
+            if ((dp < 0 && dq > 0) || (dp > 0 && dq < 0)) o.Add(p + (q - p) * (dp / (dp - dq)));
+        }
+        return o;
+    }
+    private static List<Vector2> ClipBand(List<Vector2> poly, float y0, float y1) => ClipHalf(ClipHalf(poly, new Vector2(0, -1), -y0), new Vector2(0, 1), y1);
+    private static List<Vector2> ClipBox(List<Vector2> poly, float x0, float x1, float y0, float y1) => ClipHalf(ClipHalf(ClipBand(poly, y0, y1), new Vector2(-1, 0), -x0), new Vector2(1, 0), x1);
 
     // ------------------------------------------------------------------ the paving
 
