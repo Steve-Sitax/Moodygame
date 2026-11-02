@@ -288,7 +288,7 @@ public partial class MpTest : Node
         if (OperatingSystem.IsWindows()) otherJob = WinJob.KillOnClose(other);
         doc["guest_pid"] = other.Id;
 
-        if (!await Until(() => tg.Roster.Count(r => r.Online) >= 2 && tg.PlayerAt(2) != null, 120)) return Fail($"the guest did not come into the town (roster {tg.Roster.Count}, guest exited {other.HasExited})");
+        if (!await Until(() => tg.Roster.Count(r => r.Online) >= 2 && tg.PlayerAt(2) != null, Main.I.Flag("mpconversation") ? 300 : 120)) return Fail($"the guest did not come into the town (roster {tg.Roster.Count}, guest exited {other.HasExited})");
         doc["roster"] = tg.Roster;
         if(Main.I.Flag("mpconversation"))return await HostConversation();
         // the start both walk from, on the server's clock

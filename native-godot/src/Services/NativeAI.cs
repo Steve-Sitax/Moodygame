@@ -17,6 +17,9 @@ public sealed class NativeAI : INativeServiceModule, IDisposable
 {
     private readonly NativeServiceHost host;
     private readonly NativeAiProviders providers;
+    private readonly System.Net.Http.HttpClient modelsHttp = new() { Timeout = Timeout.InfiniteTimeSpan };
+    /// <summary>The model lists each configured AI offers (autodetect, cached in ai-models.json next to the AI setup).</summary>
+    public NativeAiModels Models { get; }
     private readonly CancellationTokenSource closing = new();
     private readonly SemaphoreSlim slots = new(3,3);
     private readonly ConcurrentDictionary<string,SemaphoreSlim> hooks = new();
@@ -59,11 +62,46 @@ public sealed class NativeAI : INativeServiceModule, IDisposable
         }
         return("ready","AI ready","Default: "+Settings.Label(Settings.Effective("talk"))+".");
     }
+    /// <summary>A saved model that is no longer offered: its successor from the definitions ("retired"), or, when the
+    /// Anthropic list was checked and no longer has it, the newest model of the same tier there. Null keeps the choice.</summary>
+    private string? Successor(string provider,string model)
+    {
+        if(Settings.Definitions["retired"]?[model] is JsonValue mapped)return mapped.GetValue<string>();
+        if(provider is not ("claude_local" or "anthropic_api")||NativeAiModels.Tier(model)=="")return null;
+        var list=Models.ListFor(provider,new JsonArray(),out var check);
+        if(S(check,"state")!="checked"||list.Any(m=>S(m,"id")==model))return null;
+        return list.OfType<JsonObject>().Where(m=>NativeAiModels.Tier(S(m,"id"))==NativeAiModels.Tier(model)).Select(m=>S(m,"id")).FirstOrDefault();
+    }
+    /// <summary>Notes for the status line: a saved model mapped to its successor, or a newer model of the same tier on offer.</summary>
+    private List<string> ModelNotes(JsonArray providerOptions)
+    {
+        var notes=new List<string>();
+        foreach(var saved in Settings.SavedChoices())
+        {
+            string provider=S(saved,"provider"),model=S(saved,"model");if(model=="")continue;
+            var options=providerOptions.OfType<JsonObject>().FirstOrDefault(p=>S(p,"id")==provider);
+            string Name(string id)=>options?["models"]?.AsArray().OfType<JsonObject>().FirstOrDefault(m=>S(m,"id")==id) is {} known?System.Text.RegularExpressions.Regex.Replace(S(known,"label"),@" \(.*\)$",""):NativeAiModels.Friendly(id);
+            if(Successor(provider,model) is {Length:>0} next){notes.Add($"{Name(model)} is no longer offered; {Name(next)} is used instead.");continue;}
+            string tier=NativeAiModels.Tier(model);if(tier=="")continue;
+            var newer=options?["models"]?.AsArray().OfType<JsonObject>().Select(m=>S(m,"id")).FirstOrDefault(id=>NativeAiModels.Tier(id)==tier&&NativeAiModels.CompareVersion(NativeAiModels.Version(id),NativeAiModels.Version(model))>0);
+            if(newer!=null)notes.Add($"Newer than your {Name(model)}: {Name(newer)}. Pick it in AI setup if you like.");
+        }
+        return notes.Distinct().ToList();
+    }
     /// <summary>True when the talk hook may call a model: AI on, a provider chosen, and a login or key in place.</summary>
     public bool CanUse(string hook)=>Settings.ChoiceForHook(hook)!=null&&Readiness().State!="no_login";
     public JsonObject View()
     {
         var view=Settings.View();var (state,title,text)=Readiness();
+        // the model lists as detected (newest first), each with whether it was checked
+        var providerOptions=view["options"]!["providers"]!.AsArray();
+        foreach(var option in providerOptions.OfType<JsonObject>())
+        {
+            if(S(option,"id") is "recommended" or "none")continue;
+            option["models"]=Models.ListFor(S(option,"id"),option["models"]?.AsArray()??new JsonArray(),out var check);option["modelCheck"]=check;
+        }
+        var notes=ModelNotes(providerOptions);view["modelNotes"]=new JsonArray(notes.Select(n=>(JsonNode)JsonValue.Create(n)!).ToArray());
+        if(notes.Count>0)text+=" "+string.Join(" ",notes);
         view["status"]=new JsonObject{["state"]=state,["title"]=title,["text"]=text};view["locked"]=Settings.Locked;
         return view;
     }
@@ -72,6 +110,8 @@ public sealed class NativeAI : INativeServiceModule, IDisposable
         this.host = host;
         Settings = new NativeAiConfiguration(Path.Combine(host.Context.Options.DataDirectory,"native-ai.json"),configuration,walk);
         providers = new NativeAiProviders(Settings,Path.Combine(Path.GetDirectoryName(Path.GetFullPath(configuration))!,"ai-cwd-native"));
+        Models = new NativeAiModels(Settings,Path.Combine(Path.GetDirectoryName(Path.GetFullPath(configuration))!,walk?"ai-models.test.json":"ai-models.json"),modelsHttp);
+        Settings.Successor = Successor;
         host.Context.Execute("UPDATE ai_call SET error='stopped by game restart' WHERE error='running'");
     }
     private static string S(JsonNode? n,string key) => NativeGoods.S(n,key);
@@ -230,6 +270,9 @@ public sealed class NativeAI : INativeServiceModule, IDisposable
             // every player (a guest too) hears at once whether AI is on: the typing box follows without a restart
             host.Publish("ai",new JsonObject{["mode"]=view["mode"]!.DeepClone(),["status"]=view["status"]!.DeepClone()});return view;});
         service.RegisterAsync("POST","/api/ai/test",Test);
+        // autodetect: when AI setup opens (the host's game asks the providers, a few seconds at most), and once a day in the background
+        service.RegisterAsync("POST","/api/ai/models",async r=>{if(r.PlayerId==1&&!Settings.Locked)await Models.Detect(closing.Token).ConfigureAwait(false);var view=View();view["host"]=r.PlayerId==1;return view;});
+        _=Task.Run(async()=>{try{await Task.Delay(TimeSpan.FromSeconds(20),closing.Token).ConfigureAwait(false);if(!Settings.Locked&&Settings.Mode=="ai"&&Models.Stale)await Models.Detect(closing.Token).ConfigureAwait(false);}catch(OperationCanceledException){}});
     }
-    public void Dispose(){closing.Cancel();providers.Dispose();}
+    public void Dispose(){closing.Cancel();providers.Dispose();modelsHttp.Dispose();}
 }

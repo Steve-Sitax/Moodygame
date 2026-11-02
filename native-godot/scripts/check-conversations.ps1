@@ -16,7 +16,7 @@ try {
     if($WindowPosition){$arguments=@('--position',$WindowPosition)+$arguments}
     # -AiConfig (with -Multiplayer): the host runs with AI on through that settings file (a fake provider), and the guest
     # checks the AI switch (--mpai). Never point it at a player's own settings.
-    if($AiConfig){if(-not $Multiplayer){throw '-AiConfig needs -Multiplayer.'};Copy-Item -LiteralPath $AiConfig -Destination (Join-Path $outputPath 'mp-host.ai-config.json');$arguments=@($arguments|Where-Object {$_ -ne '--no-ai'})}
+    if($AiConfig){if(-not $Multiplayer){throw '-AiConfig needs -Multiplayer.'};$aiSetup=Get-Content -LiteralPath $AiConfig -Raw|ConvertFrom-Json;$aiProviders=@($aiSetup.default.provider)+@($aiSetup.kinds.PSObject.Properties|ForEach-Object {$_.Value.provider});if(@($aiProviders|Where-Object {$_ -and $_ -notin @('openai_compat','ollama','none')}).Count){throw 'A test AI setup may only name a local fake provider (openai_compat, ollama or none), never a real model.'};Copy-Item -LiteralPath $AiConfig -Destination (Join-Path $outputPath 'ai-config.json');$arguments=@($arguments|Where-Object {$_ -ne '--no-ai'})}
     if($Multiplayer){$arguments+=@('--mptest',$outputPath,'--mpconversation');if($AiConfig){$arguments+='--mpai'}}else{$arguments+=@('--conversation-proof',$outputPath)}
     Invoke-WorkshopEngine -Engine (Resolve-WorkshopGodot $Godot) -Project $project -EngineArguments $arguments -Log (Join-Path $outputPath 'engine.log') -LimitSeconds $LimitSeconds | Out-Null
     $file=if($Multiplayer){'mptest.json'}else{'conversation.json'}

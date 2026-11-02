@@ -52,7 +52,8 @@ public sealed class NativeAiConfiguration
         string? defaultModel = Definitions["options"]!["providers"]!.AsArray().First(p => S(p, "id") == provider)!["defaultModel"]?.GetValue<string>();
         if (model == "") model = defaultModel ?? throw new NativeServiceException("name a model for " + provider);
         var normal = new JsonObject { ["provider"] = provider, ["model"] = model };
-        if (provider == "ollama" || provider is "claude_local" or "anthropic_api" && model.Contains("haiku", StringComparison.OrdinalIgnoreCase)) return normal;
+        // Haiku 4.5 and older take no effort; Haiku 5.5 does (2026-11-02)
+        if (provider == "ollama" || provider is "claude_local" or "anthropic_api" && (model.Contains("haiku-4", StringComparison.OrdinalIgnoreCase) || model.StartsWith("claude-3", StringComparison.OrdinalIgnoreCase))) return normal;
         if (provider is "claude_local" or "anthropic_api" or "codex_cli") normal["effort"] = effort == "" ? "medium" : effort;
         else if (effort != "") normal["effort"] = effort;
         return normal;
@@ -116,11 +117,18 @@ public sealed class NativeAiConfiguration
         current = next;
     }
     public JsonObject Patch(JsonObject patch) { Apply(patch, true); return View(); }
+    /// <summary>A retired model's successor (provider, model -> new model), from the definitions and the detected lists; null keeps it.</summary>
+    public Func<string, string, string?>? Successor;
+    /// <summary>The choice that runs: the saved one, with a retired model mapped to its current successor (the file keeps the saved one).</summary>
     public JsonObject Effective(string kind)
     {
         var value = current["kinds"]?[kind];
-        return (value is JsonObject choice ? choice : current["default"]!).DeepClone().AsObject();
+        var choice = (value is JsonObject own ? own : current["default"]!).DeepClone().AsObject();
+        if (S(choice, "model") is { Length: > 0 } model && Successor?.Invoke(S(choice, "provider"), model) is { Length: > 0 } next && next != model) { choice["model"] = next; choice["replaces"] = model; }
+        return choice;
     }
+    /// <summary>The saved choices (the default and each kind's own), as stored.</summary>
+    public IEnumerable<JsonObject> SavedChoices() => new[] { current["default"] as JsonObject }.Concat(Kinds.Select(k => current["kinds"]?[k] as JsonObject)).Where(c => c != null).Cast<JsonObject>();
     public JsonObject? ChoiceForHook(string hook)
     {
         if (Mode == "walk") return null;

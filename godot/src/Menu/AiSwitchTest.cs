@@ -81,6 +81,7 @@ public partial class AiSwitchTest : Node
         Note("the town and its server are up", ServerLink.I?.Server?.Url, up);
         var api = ServerLink.I!.Api!;
         AiState.Update(await api.AiConfig());
+        if (expect.StartsWith("models", StringComparison.Ordinal)) { await Models(menu, expect == "models"); return; }
         Note($"the start shows: {expect}", new { AiState.Mode, AiState.State, AiState.Title, AiState.Text, AiState.Locked }, AiState.State == expect && AiState.Mode == (expect == "off" ? "walk" : "ai") && !AiState.Locked);
         await Shot("title-menu");
         // walk in, then the Esc menu in play
@@ -146,6 +147,36 @@ public partial class AiSwitchTest : Node
         string saved = File.Exists(file) ? (JsonDocument.Parse(File.ReadAllText(file)).RootElement.TryGetProperty("mode", out var m) ? m.GetString() ?? "" : "") : "";
         Note("the switch is saved in this run's own AI setup file", new { file = Path.GetFileName(file), saved }, saved == AiState.Mode);
     }
+
+    /// <summary>--aiswitch-expect models / models_down: AI setup asks the providers for their model lists when it opens.
+    /// "models": the fake server lists a made-up newer model (gpt-7-nova) and it comes first; "models_down": the server is
+    /// not there, the list says "model list not checked" and the built-in list stays.</summary>
+    private async Task Models(MainMenu menu, bool up)
+    {
+        menu.Start();
+        await Wait(1.5);
+        menu.ShowMenu(true);
+        AiSheet.Open();
+        bool shown = await Until(() => AiSheet.Shown, 10);
+        bool asked = await Until(() => !AiSheet.Detecting, 20);
+        await Wait(0.8);
+        var openai = AiSheet.ModelsOf("openai_compat");
+        var (state, note) = AiSheet.CheckOf("openai_compat");
+        var claude = AiSheet.ModelsOf("claude_local");
+        var (claudeState, claudeNote) = AiSheet.CheckOf("claude_local");
+        if (up) Note("the newest model the server lists comes first, a non-chat model is left out", new { openai, state, note }, shown && asked && state == "checked" && openai.FirstOrDefault() == "gpt-7-nova" && !openai.Contains("text-embedding-5"));
+        else Note("server not there: model list not checked, the built-in list stays", new { openai, state, note }, shown && asked && state == "not_checked" && note.Contains("not checked"));
+        Note("the Claude login keeps the built-in current list, newest first", new { claude, claudeState, claudeNote }, claude.Take(4).SequenceEqual(new[] { "claude-opus-5-5", "claude-sonnet-5-5", "claude-haiku-5-5", "claude-fable-5-1" }));
+        var view = await ServerLink.I!.Api!.AiConfig();
+        string status = view.GetProperty("status").GetProperty("text").GetString() ?? "";
+        Note("a saved older Claude model is kept and the status names the newer one", status, status.Contains("Haiku 4.5") && status.Contains("Haiku 5.5"));
+        await Shot($"ai-setup-{(up ? "models-checked" : "models-not-checked")}");
+        // the press row, with its own (older) model: friendly name and id
+        if (AiSheetScroll() is { } scroll) { scroll.ScrollVertical = (int)(scroll.GetVScrollBar().MaxValue * 0.35); await Wait(0.5); await Shot($"ai-setup-{(up ? "models-checked" : "models-not-checked")}-kinds"); }
+        Dialogs.CloseAll();
+    }
+
+    private static ScrollContainer? AiSheetScroll() => Dialogs.Top is Sheet sheet ? sheet.Scroll : null;
 
     private static Node? Find(Node root, string name)
     {

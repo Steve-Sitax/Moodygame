@@ -32,6 +32,12 @@ public static class AiSheet
     /// <summary>The sheet is up and drawn from the server's description.</summary>
     public static bool Shown => sheet != null && Dialogs.IsOpen(sheet) && have;
     public static string Mode => have ? S(view, "mode") : "";
+    /// <summary>The model lists are being asked for (the checks wait for it).</summary>
+    public static bool Detecting { get; private set; }
+    /// <summary>The models a provider offers, as shown (the checks): ids in order.</summary>
+    public static List<string> ModelsOf(string provider) => Provider(provider) is { } p ? A(p, "models").Select(m => S(m, "id")).ToList() : new();
+    /// <summary>Whether a provider's list was checked: "checked", "not_checked" or "built_in", and its note.</summary>
+    public static (string State, string Note) CheckOf(string provider) => Provider(provider) is { } p && O(p, "modelCheck") is { } c ? (S(c, "state"), S(c, "note")) : ("", "");
     public static string Status => have && view.TryGetProperty("status", out var s) ? $"{S(s, "title")}. {S(s, "text")}" : "";
 
     private static readonly Dictionary<string, string> Cost = new() { ["plan"] = "on your plan", ["paid"] = "paid per call", ["local"] = "free, on this PC", ["none"] = "nothing" };
@@ -61,6 +67,20 @@ public static class AiSheet
             view = v;
             have = true;
             Draw();
+            // autodetect (2026-11-02): the host asks its AIs for their model lists; the sheet is drawn again when they answer
+            if (B(v, "host") || !v.TryGetProperty("host", out _))
+            {
+                Detecting = true;
+                var drawn = sheet; // Draw() made a new sheet: the answer belongs to that one
+                api.Run(api.AiModels(), d =>
+                {
+                    Detecting = false;
+                    if (sheet != drawn || sheet == null) return;
+                    view = d;
+                    AiState.Update(d);
+                    Draw();
+                }, _ => Detecting = false);
+            }
         }, e =>
         {
             if (sheet == s) Unreachable(e.Message);
@@ -99,11 +119,11 @@ public static class AiSheet
     private static void Test(string key)
     {
         var api = ServerLink.I?.Api;
-        var s = sheet;
         if (api == null) return;
         var body = key == "all" ? new Dictionary<string, object?> { ["all"] = true } : key == "default" ? new Dictionary<string, object?> { ["choice"] = view.GetProperty("default") } : new Dictionary<string, object?> { ["kind"] = key };
         results[key] = "testing";
         Draw();
+        var s = sheet; // after Draw(): the sheet the answer is drawn on
         api.Run(api.AiTest(body), r =>
         {
             results[key] = A(r, "results").Select(x => x.Clone()).ToList();
@@ -220,6 +240,7 @@ public static class AiSheet
         kinds.AddChild(Kit.Heading("The default"));
         kinds.AddChild(Kit.Row("Every kind of work, unless set below", Kit.Side(ChoiceControls("default", def, false).Append(TestButton("default")).ToArray()), defP is { } dp ? S(dp, "short") : ""));
         Results(kinds, "default");
+        ModelLine(kinds, def);
         kinds.AddChild(Kit.Heading("By kind of work"));
         foreach (var k in A(options, "kinds"))
         {
@@ -227,6 +248,7 @@ public static class AiSheet
             var eff = O(O(v, "effective") ?? default, id);
             kinds.AddChild(Kit.Row(S(k, "label"), Kit.Side(ChoiceControls(id, ChoiceAt(id), true).Append(TestButton(id)).ToArray()), $"{S(k, "what")} Now: {(eff is { } e ? S(e, "label") : "")}."));
             Results(kinds, id);
+            if (ChoiceAt(id) is { } ownChoice) ModelLine(kinds, ownChoice);
         }
 
         // where the player's typed lines go
@@ -396,6 +418,20 @@ public static class AiSheet
             o.Add(new Seg(efforts, effort == "" ? "medium" : effort, val => Put(PatchChoice(key, Choice(cur, model, val))), true) { Name = "effort_" + key });
         }
         return o;
+    }
+
+    /// <summary>Under a choice: the model's friendly name with its id in small type, and whether the list was checked.</summary>
+    private static void ModelLine(VBoxContainer into, JsonElement choice)
+    {
+        string model = S(choice, "model");
+        if (model == "" || Provider(S(choice, "provider")) is not { } prov) return;
+        var known = A(prov, "models").Where(m => S(m, "id") == model).Cast<JsonElement?>().FirstOrDefault();
+        string label = known is { } k ? S(k, "label") : model;
+        string note = O(prov, "modelCheck") is { } c ? S(c, "note") : "";
+        if (Detecting && S(prov, "id") is "anthropic_api" or "openai_compat" or "ollama") note = "asking for the model list...";
+        string small = $"[font_size={Kit.Px(12)}][color=#{Kit.InkSoft.ToHtml(false)}]";
+        string id = label == model ? "" : $"  {small}[code]{Kit.Esc(model)}[/code][/color][/font_size]";
+        into.AddChild(Kit.Rich($"{Kit.Esc(label)}{id}" + (note != "" ? $"  {small}· {Kit.Esc(note)}[/color][/font_size]" : ""), 14, Kit.InkSoft));
     }
 
     /// <summary>ai.ts resultHtml: what a test came to, under its row.</summary>

@@ -84,11 +84,33 @@ var own=free.Settings.NormalChoice(JsonNode.Parse("{\"provider\":\"claude_local\
 Check("the player's own choice is used for both calls",free.RouteOf("resident_talk",own)!.Model=="claude-opus-5-5"&&free.RouteOf("talk_judge",own)!.Effort=="high");
 Check("the judge reads player text, so it is a typed hook",ai.Settings.Definitions["typedHooks"]!.AsArray().Any(n=>n!.GetValue<string>()=="talk_judge"));
 Check("the stream reader shows the line so far, never the other fields",NativeAiProviders.FieldSoFar("{\"npc_line\":\"Morning, lad. The \\\"Bassin\\\" is",  "npc_line")=="Morning, lad. The \"Bassin\" is"&&NativeAiProviders.FieldSoFar("{\"mood\":\"warm\"","npc_line")=="");
+// model lists (2026-11-02): newest first per tier, friendly names, the key only to its own endpoint, retired models mapped
+Check("friendly names",NativeAiModels.Friendly("claude-sonnet-5-5")=="Claude Sonnet 5.5"&&NativeAiModels.Friendly("claude-haiku-4-5-20251001")=="Claude Haiku 4.5"&&NativeAiModels.Friendly("claude-sonnet-6")=="Claude Sonnet 6"&&NativeAiModels.Friendly("gpt-7-nova")=="gpt-7-nova");
+var ordered=NativeAiModels.Order(new[]{"claude-haiku-4-5","claude-sonnet-5-5","claude-opus-5-5","claude-sonnet-6","claude-fable-5-1","claude-sonnet-5"}.Select(id=>new JsonObject{["id"]=id})).Select(m=>m["id"]!.GetValue<string>()).ToList();
+Check("newest of each tier first, then the older ones",string.Join(",",ordered)=="claude-opus-5-5,claude-sonnet-6,claude-haiku-4-5,claude-fable-5-1,claude-sonnet-5-5,claude-sonnet-5");
+var listHandler=new Capture();using var listHttp=new HttpClient(listHandler);
+using var detect=new NativeAI(host,Path.Combine(output,"detect-ai-config.json"));
+detect.Settings.Patch(JsonNode.Parse("{\"mode\":\"ai\",\"default\":{\"provider\":\"claude_local\",\"model\":\"claude-haiku-4-5-20251001\"},\"connections\":{\"anthropic_api\":{\"apiKey\":\"proof-key-12345678\"},\"openai_compat\":{\"baseUrl\":\"http://127.0.0.1:9\"}}}")!.AsObject());
+var probe=new NativeAiModels(detect.Settings,Path.Combine(output,"ai-models.json"),listHttp){AnthropicModelsUrl="https://anthropic.example/v1/models",Timeout=TimeSpan.FromSeconds(2)};
+listHandler.Reply="{\"data\":[{\"id\":\"claude-opus-5-5\",\"display_name\":\"Claude Opus 5.5\",\"created_at\":\"2026-08-01T00:00:00Z\"},{\"id\":\"claude-sonnet-6\",\"display_name\":\"Claude Sonnet 6\",\"created_at\":\"2026-12-01T00:00:00Z\"},{\"id\":\"claude-sonnet-5-5\",\"display_name\":\"Claude Sonnet 5.5\",\"created_at\":\"2026-08-01T00:00:00Z\"},{\"id\":\"claude-haiku-5-5\",\"display_name\":\"Claude Haiku 5.5\",\"created_at\":\"2026-08-01T00:00:00Z\"}],\"has_more\":false}";
+var found=await probe.Detect();
+var anthropicList=probe.ListFor("anthropic_api",new JsonArray(),out var anthropicCheck);
+Check("the Anthropic list is read, newest Sonnet first among the Sonnets",anthropicCheck["state"]!.GetValue<string>()=="checked"&&anthropicList.Select(m=>m!["id"]!.GetValue<string>()).ToList() is var ids&&ids.IndexOf("claude-sonnet-6")<ids.IndexOf("claude-sonnet-5-5"));
+Check("the key went only to the Anthropic models address and is in no saved file",listHandler.KeyedUrls.Count==1&&listHandler.KeyedUrls.All(u=>u.StartsWith("https://anthropic.example/"))&&!File.ReadAllText(Path.Combine(output,"ai-models.json")).Contains("proof-key"));
+Check("a provider that cannot be reached: model list not checked",found["providers"]!["openai_compat"]!["state"]!.GetValue<string>()=="not_checked");
+var builtIn=detect.Settings.Definitions["options"]!["providers"]!.AsArray().First(p=>p!["id"]!.GetValue<string>()=="claude_local")!["models"]!.AsArray();
+Check("built-in Claude list: Opus 5.5, Sonnet 5.5, Haiku 5.5, Fable 5.1 first",string.Join(",",builtIn.Take(4).Select(m=>m!["id"]!.GetValue<string>()))=="claude-opus-5-5,claude-sonnet-5-5,claude-haiku-5-5,claude-fable-5-1");
+var retiredView=detect.View();
+Check("a saved older model is kept, and the status names the newer one",detect.Settings.Effective("talk")["model"]!.GetValue<string>()=="claude-haiku-4-5-20251001"&&retiredView["status"]!["text"]!.GetValue<string>().Contains("Haiku 5.5"));
+detect.Settings.Patch(JsonNode.Parse("{\"default\":{\"provider\":\"claude_local\",\"model\":\"claude-3-5-sonnet-20241022\"}}")!.AsObject());
+Check("a retired model is mapped to its successor, the saved choice kept, and the status says so",detect.Settings.Effective("talk")["model"]!.GetValue<string>()=="claude-sonnet-5-5"&&JsonNode.Parse(File.ReadAllText(Path.Combine(output,"detect-ai-config.json")))!["default"]!["model"]!.GetValue<string>()=="claude-3-5-sonnet-20241022"&&detect.View()["status"]!["text"]!.GetValue<string>().Contains("no longer offered"));
 File.WriteAllText(Path.Combine(output,"result.json"),System.Text.Json.JsonSerializer.Serialize(new{passed=true,oracleCases=oracle,checks},new System.Text.Json.JsonSerializerOptions{WriteIndented=true}));
 Console.WriteLine($"Native AI: {checks.Count} checks passed, including {oracle} original normalization cases; no live model calls.");
 sealed class Capture:HttpMessageHandler
 {
- public JsonNode? Body;public bool HasAuthorization;public string Reply="{}";
+ public JsonNode? Body;public bool HasAuthorization;public string Reply="{}";public readonly List<string> Urls=new(),KeyedUrls=new();
  protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request,CancellationToken stop)
- {Body=JsonNode.Parse(await request.Content!.ReadAsStringAsync(stop));HasAuthorization=request.Headers.Contains("Authorization");return new HttpResponseMessage(HttpStatusCode.OK){Content=new StringContent(Reply,Encoding.UTF8,"application/json")};}
+ {Urls.Add(request.RequestUri!.ToString());if(request.Headers.Contains("x-api-key")||request.Headers.Contains("Authorization"))KeyedUrls.Add(request.RequestUri!.ToString());
+  if(request.Method==HttpMethod.Get){if(request.RequestUri!.Host!="anthropic.example")throw new HttpRequestException("unreachable");return new HttpResponseMessage(HttpStatusCode.OK){Content=new StringContent(Reply,Encoding.UTF8,"application/json")};}
+  Body=JsonNode.Parse(await request.Content!.ReadAsStringAsync(stop));HasAuthorization=request.Headers.Contains("Authorization");return new HttpResponseMessage(HttpStatusCode.OK){Content=new StringContent(Reply,Encoding.UTF8,"application/json")};}
 }
