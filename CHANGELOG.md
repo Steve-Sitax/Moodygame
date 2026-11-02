@@ -11,6 +11,7 @@ Bugs and loose ends are tracked as [issues](https://github.com/Steve-Sitax/Moody
 
 ## [Unreleased]
 
+- The earth in the tree pits lies a couple of centimetres below the paving now, as a real pit does, banked up against the stone kerbs at its edge; the roots go down into it with it.
 - The pavements left by the pulled-down houses meet properly at their corners: at Sint-Carolus the two fronts' raised flags now turn one clean corner with one kerb and one gutter, instead of a stray cut piece of pavement in the street, black wedges and gutter stones running into a gap. At Sint-Paulus the kerb that stood out and doubled over two metres is one straight kerb with one gutter, and an odd wedge of flags on the north side is gone, so that pavement ends square.
 - At low water the trickle down the middle of a canal and the pools on its bed are no longer a bright white ribbon and flat white patches: they are the same dark, still water as the silt round them, mirroring the walls and the sky, their edges broken into small inlets.
 - The tree pits look wet in the rain: their fallen leaves and the weeds darken and catch a wet sheen like the paving round them, and after rain the water in the pits and the planted beds stands in a few joined pools instead of scattered blue specks (the bed on the Lijnwaadmarkt keeps its pool). The pit kerbs are a weathered grey stone instead of dark blue.
