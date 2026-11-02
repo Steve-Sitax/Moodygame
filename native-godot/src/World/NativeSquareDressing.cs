@@ -1212,6 +1212,10 @@ public static class NativeSquareDressing
     /// over two cut pieces that lay one over the other, and faces every open edge with a kerb stone's face down under the
     /// street, so the pavement ends square and solid where it stops in the open. One mesh for each 60 m of the town, the
     /// flags' and the kerb's materials (no new shader kind), solid as the pavement is. The razed cut is not changed.
+    /// (#247, #242) Where a break was too wide or crooked for that, a join is built anew: its "cuts" (convex plan polygons)
+    /// take the old flags', kerbs' and gutters' triangles there out of the town's blocks first (drawn and solid stand-in
+    /// alike, before collision and the walk map read them), then its flags, faces and "gutters" (gutter stones in the
+    /// kerbs' material and look) are laid as the rest.
     /// Returns the flag pieces and the faces laid.
     /// </summary>
     private const string MendFile = "res://world/town/pavement-mends.json";
@@ -1221,11 +1225,28 @@ public static class NativeSquareDressing
         var root = JsonDocument.Parse(Godot.FileAccess.GetFileAsString(MendFile)).RootElement;
         if (ResourceLoader.Load<Material>(root.GetProperty("flags").GetString()!) is not { } flags || ResourceLoader.Load<Material>(root.GetProperty("kerb").GetString()!) is not { } kerb) return (0, 0);
         float foot = root.GetProperty("foot").GetSingle();
+        if (root.TryGetProperty("cuts", out var cutList) && cutList.GetArrayLength() > 0)
+        {
+            var polygons = cutList.EnumerateArray().Select(c => c.EnumerateArray().Select(q => new Vector2(q[0].GetSingle(), q[1].GetSingle())).ToArray()).ToList();
+            var clock = System.Diagnostics.Stopwatch.StartNew();
+            var (drawn, standIn) = CutJoins(town, polygons, root.GetProperty("cutTop").GetSingle(), new HashSet<string> { flags.ResourcePath, kerb.ResourcePath });
+            GD.Print($"square dressing: the pavement joins' cuts took {drawn} drawn and {standIn} solid stand-in triangles from the town's blocks in {clock.ElapsedMilliseconds} ms");
+        }
+        // (the street's ground under a join's new gutter: its setts' relief, drawn pulled toward the eye, showed through the
+        // stones; its drawn triangles go there, what it supports and what collides stays)
+        if (root.TryGetProperty("groundCuts", out var groundList) && groundList.GetArrayLength() > 0)
+        {
+            var polygons = groundList.EnumerateArray().Select(c => c.EnumerateArray().Select(q => new Vector2(q[0].GetSingle(), q[1].GetSingle())).ToArray()).ToList();
+            var clock = System.Diagnostics.Stopwatch.StartNew();
+            int groundCut = CutGround(town, polygons);
+            GD.Print($"square dressing: the street's ground drawn under the joins' gutters: {groundCut} triangles cut in {clock.ElapsedMilliseconds} ms");
+        }
         static Vector3 V3(JsonElement e) => new(e[0].GetSingle(), e[1].GetSingle(), e[2].GetSingle());
         static Color C4(JsonElement e) => new(e[0].GetSingle(), e[1].GetSingle(), e[2].GetSingle(), e[3].GetSingle());
         (int, int) Area(Vector3 p) => ((int)MathF.Floor(p.X / 60), (int)MathF.Floor(p.Z / 60));
         var tops = new Dictionary<(int, int), SurfaceTool>();
         var sides = new Dictionary<(int, int), SurfaceTool>();
+        var gutters = new Dictionary<(int, int), SurfaceTool>();
         SurfaceTool For(Dictionary<(int, int), SurfaceTool> set, (int, int) area, bool custom)
         {
             if (set.TryGetValue(area, out var st)) return st;
@@ -1248,6 +1269,19 @@ public static class NativeSquareDressing
             foreach (int k in order) { st.SetNormal(Vector3.Up); st.SetTangent(tangent); st.SetUV(u[k]); st.SetColor(colour); st.AddVertex(p[k]); }
             fills++;
         }
+        if (root.TryGetProperty("gutters", out var gutterList))
+            foreach (var t in gutterList.EnumerateArray())
+            {
+                var c = t.GetProperty("corners"); var uv = t.GetProperty("uv"); var cu = t.GetProperty("custom");
+                var p = new[] { V3(c[0]), V3(c[1]), V3(c[2]) };
+                var u = new[] { new Vector2(uv[0][0].GetSingle(), uv[0][1].GetSingle()), new Vector2(uv[1][0].GetSingle(), uv[1][1].GetSingle()), new Vector2(uv[2][0].GetSingle(), uv[2][1].GetSingle()) };
+                var tg = t.GetProperty("tangent"); var tangent = new Plane(tg[0].GetSingle(), tg[1].GetSingle(), tg[2].GetSingle(), tg[3].GetSingle());
+                var colour = C4(t.GetProperty("colour")); var custom = new Color(cu[0].GetSingle(), cu[1].GetSingle(), 0, 0);
+                var st = For(gutters, Area((p[0] + p[1] + p[2]) / 3), true);
+                var order = (p[1] - p[0]).Cross(p[2] - p[0]).Y > 0 ? new[] { 0, 2, 1 } : new[] { 0, 1, 2 };
+                foreach (int k in order) { st.SetNormal(Vector3.Up); st.SetTangent(tangent); st.SetUV(u[k]); st.SetCustom(0, custom); st.SetColor(colour); st.AddVertex(p[k]); }
+                fills++;
+            }
         foreach (var s in root.GetProperty("sides").EnumerateArray())
         {
             Vector3 a = V3(s.GetProperty("a")), b = V3(s.GetProperty("b"));
@@ -1258,11 +1292,12 @@ public static class NativeSquareDressing
             Kerb(st, a, b, n, foot, colour, custom);
             faces++;
         }
-        foreach (var area in tops.Keys.Union(sides.Keys).ToList())
+        foreach (var area in tops.Keys.Union(sides.Keys).Union(gutters.Keys).ToList())
         {
             var mesh = new ArrayMesh();
             if (tops.TryGetValue(area, out var ts)) { ts.Commit(mesh); mesh.SurfaceSetMaterial(mesh.GetSurfaceCount() - 1, flags); }
             if (sides.TryGetValue(area, out var ss)) { ss.Commit(mesh); mesh.SurfaceSetMaterial(mesh.GetSurfaceCount() - 1, kerb); }
+            if (gutters.TryGetValue(area, out var gs)) { gs.Commit(mesh); mesh.SurfaceSetMaterial(mesh.GetSurfaceCount() - 1, kerb); }
             mesh.ResourceName = "pavement_mends";
             var (r, w) = MeshWinding.Count(mesh); right += r; wrong += w;
             var node = new MeshInstance3D
@@ -1279,6 +1314,241 @@ public static class NativeSquareDressing
         }
         GD.Print($"square dressing: winding: the pavement mends {right} wound right, {wrong} wrong");
         return (fills, faces);
+    }
+
+    /// <summary>
+    /// The joins' cuts (scripts/paving/pavement_mends.py cuts the dumped town the same way): in every block mesh (city_*),
+    /// each triangle of the flags' or the kerbs' surfaces wholly under <paramref name="top"/> that reaches into a convex
+    /// plan polygon keeps only its parts outside it (Sutherland-Hodgman, one edge's outer half-plane inside the edges
+    /// before it; a point on an edge is outside; every attribute carried with the corners' weights). The solid stand-in
+    /// faces under that height lose the same parts, so collision and the walk map agree with what is drawn. Returns the
+    /// drawn and the stand-in triangles cut.
+    /// </summary>
+    private static (int Drawn, int StandIn) CutJoins(Node3D town, List<Vector2[]> polygons, float top, HashSet<string> materials) =>
+        Cut(town, polygons, top, m => m.Name.ToString().StartsWith("city_", StringComparison.Ordinal), materials, true);
+
+    /// <summary>The street's ground (ground_*) drawn under the joins' gutters cut away, its solid stand-in kept.</summary>
+    private static int CutGround(Node3D town, List<Vector2[]> polygons) =>
+        Cut(town, polygons, 0.05f, m => m.Name.ToString().StartsWith("ground_", StringComparison.Ordinal), null, false).Drawn;
+
+    private static (int Drawn, int StandIn) Cut(Node3D town, List<Vector2[]> polygons, float top, Func<MeshInstance3D, bool> which, HashSet<string>? materials, bool standIns)
+    {
+        // (each polygon turned counter-clockwise in x, z: inside is left of every edge)
+        polygons = polygons.Select(p =>
+        {
+            float a = 0;
+            for (int i = 0; i < p.Length; i++) { var q = p[(i + p.Length - 1) % p.Length]; a += q.X * p[i].Y - p[i].X * q.Y; }
+            return a < 0 ? p.Reverse().ToArray() : p;
+        }).ToList();
+        var boxes = polygons.Select(p => new Rect2(p[0], Vector2.Zero)).ToList();
+        for (int i = 0; i < polygons.Count; i++) foreach (var q in polygons[i]) boxes[i] = boxes[i].Expand(q);
+        int drawn = 0, standIn = 0;
+        foreach (var mesh in BakedWorld.All(town).OfType<MeshInstance3D>().Where(m => m.Mesh is ArrayMesh && which(m)).ToList())
+        {
+            var xf = WorldOf(mesh);
+            var aabb = xf * mesh.GetAabb();
+            var plan = new Rect2(aabb.Position.X, aabb.Position.Z, aabb.Size.X, aabb.Size.Z);
+            var nearIds = Enumerable.Range(0, polygons.Count).Where(i => boxes[i].Intersects(plan)).ToList();
+            if (nearIds.Count == 0) continue;
+            var near = nearIds.Select(i => polygons[i]).ToList();
+            var reach = boxes[nearIds[0]];
+            foreach (int i in nearIds) reach = reach.Merge(boxes[i]);
+            var source = (ArrayMesh)mesh.Mesh;
+            // (first only the surfaces that may be cut, and only whether a triangle's box reaches a polygon's: a mesh nothing
+            // of which is cut is left as it is)
+            var arrays = new Godot.Collections.Array?[source.GetSurfaceCount()];
+            bool any = false;
+            for (int s = 0; s < source.GetSurfaceCount(); s++)
+            {
+                var material = mesh.GetActiveMaterial(s);
+                if (source.SurfaceGetPrimitiveType(s) != Mesh.PrimitiveType.Triangles || materials != null && (material == null || !materials.Contains(material.ResourcePath))) continue;
+                arrays[s] = source.SurfaceGetArrays(s);
+                if (Reaches(arrays[s]!, xf, reach, top)) any = true; else arrays[s] = null;
+            }
+            Vector3[]? faces = standIns && source.HasMeta("native_solid_stand_in") ? source.GetMeta("native_solid_stand_in").AsVector3Array() : null;
+            bool facesReach = false;
+            if (faces != null)
+                for (int i = 0; i + 2 < faces.Length && !facesReach; i += 3)
+                    facesReach = TriangleReaches(xf * faces[i], xf * faces[i + 1], xf * faces[i + 2], reach, top);
+            if (!any && !facesReach) continue;
+            var rebuilt = new ArrayMesh { ResourceName = source.ResourceName };
+            foreach (var key in source.GetMetaList()) rebuilt.SetMeta(key, source.GetMeta(key));
+            int before = drawn;
+            for (int s = 0; s < source.GetSurfaceCount(); s++)
+            {
+                var surface = arrays[s] ?? source.SurfaceGetArrays(s);
+                if (arrays[s] != null) drawn += CutSurface(surface, xf, near, reach, top);
+                rebuilt.AddSurfaceFromArrays(source.SurfaceGetPrimitiveType(s), surface, null, null, source.SurfaceGetFormat(s));
+                rebuilt.SurfaceSetMaterial(s, source.SurfaceGetMaterial(s));
+                rebuilt.SurfaceSetName(s, source.SurfaceGetName(s));
+            }
+            bool facesCut = false;
+            if (faces != null && facesReach)
+            {
+                var inv = xf.AffineInverse();
+                var kept = new List<Vector3>(faces.Length);
+                for (int i = 0; i + 2 < faces.Length; i += 3)
+                {
+                    if (!TriangleReaches(xf * faces[i], xf * faces[i + 1], xf * faces[i + 2], reach, top)) { kept.Add(faces[i]); kept.Add(faces[i + 1]); kept.Add(faces[i + 2]); continue; }
+                    var tri = new[] { new Corner3(xf * faces[i], 1, 0, 0), new Corner3(xf * faces[i + 1], 0, 1, 0), new Corner3(xf * faces[i + 2], 0, 0, 1) };
+                    var pieces = Outside(tri, near, top);
+                    if (pieces == null) { kept.Add(faces[i]); kept.Add(faces[i + 1]); kept.Add(faces[i + 2]); continue; }
+                    foreach (var piece in pieces) foreach (var k in piece) kept.Add(inv * k.W);
+                    standIn++; facesCut = true;
+                }
+                if (facesCut) rebuilt.SetMeta("native_solid_stand_in", kept.ToArray());
+            }
+            if (drawn > before || facesCut) mesh.Mesh = rebuilt;
+        }
+        return (drawn, standIn);
+    }
+
+    private readonly record struct Corner3(Vector3 W, float A, float B, float C);
+
+    /// <summary>Whether a triangle (world corners) is wholly under the top and its plan box reaches into the box.</summary>
+    private static bool TriangleReaches(Vector3 a, Vector3 b, Vector3 c, Rect2 box, float top) =>
+        a.Y <= top && b.Y <= top && c.Y <= top
+        && Math.Max(a.X, Math.Max(b.X, c.X)) > box.Position.X && Math.Min(a.X, Math.Min(b.X, c.X)) < box.End.X
+        && Math.Max(a.Z, Math.Max(b.Z, c.Z)) > box.Position.Y && Math.Min(a.Z, Math.Min(b.Z, c.Z)) < box.End.Y;
+
+    /// <summary>Whether any of a surface's triangles may be cut (its box reaches the polygons' box).</summary>
+    private static bool Reaches(Godot.Collections.Array arrays, Transform3D xf, Rect2 box, float top)
+    {
+        var v = arrays[(int)Mesh.ArrayType.Vertex].AsVector3Array();
+        var indexVariant = arrays[(int)Mesh.ArrayType.Index];
+        var index = indexVariant.VariantType == Variant.Type.PackedInt32Array ? indexVariant.AsInt32Array() : null;
+        int n = index is { Length: > 0 } ? index.Length : v.Length;
+        for (int t = 0; t + 2 < n; t += 3)
+        {
+            int i0 = index is { Length: > 0 } ? index[t] : t, i1 = index is { Length: > 0 } ? index[t + 1] : t + 1, i2 = index is { Length: > 0 } ? index[t + 2] : t + 2;
+            if (TriangleReaches(xf * v[i0], xf * v[i1], xf * v[i2], box, top)) return true;
+        }
+        return false;
+    }
+
+    /// <summary>The parts of a triangle outside every polygon, as weight triangles; null when it stands above the top or no
+    /// part of it lies in any (keep it whole).</summary>
+    private static List<Corner3[]>? Outside(Corner3[] tri, List<Vector2[]> polygons, float top)
+    {
+        if (Math.Max(tri[0].W.Y, Math.Max(tri[1].W.Y, tri[2].W.Y)) > top) return null;
+        var pieces = new List<Corner3[]> { tri };
+        bool any = false;
+        foreach (var poly in polygons)
+        {
+            var next = new List<Corner3[]>();
+            foreach (var piece in pieces)
+            {
+                var outside = OutsideOne(piece, poly);
+                if (outside == null) next.Add(piece); else { next.AddRange(outside); any = true; }
+            }
+            pieces = next;
+        }
+        return any ? pieces : null;
+    }
+
+    private const float CutEps = 1e-7f;
+
+    private static List<Corner3[]>? OutsideOne(Corner3[] tri, Vector2[] poly)
+    {
+        float x0 = poly.Min(p => p.X), x1 = poly.Max(p => p.X), z0 = poly.Min(p => p.Y), z1 = poly.Max(p => p.Y);
+        if (tri.Max(c => c.W.X) <= x0 || tri.Min(c => c.W.X) >= x1 || tri.Max(c => c.W.Z) <= z0 || tri.Min(c => c.W.Z) >= z1) return null;
+        float Side(int k, Vector3 p)
+        {
+            Vector2 a = poly[k], b = poly[(k + 1) % poly.Length];
+            return (b.X - a.X) * (p.Z - a.Y) - (b.Y - a.Y) * (p.X - a.X) - CutEps;
+        }
+        static List<Corner3> Clip(List<Corner3> rows, Func<Vector3, float> f)
+        {
+            var output = new List<Corner3>(rows.Count + 2);
+            for (int i = 0; i < rows.Count; i++)
+            {
+                var p = rows[i]; var q = rows[(i + 1) % rows.Count];
+                float sp = f(p.W), sq = f(q.W);
+                if (sp >= 0) output.Add(p);
+                if ((sp >= 0) != (sq >= 0))
+                {
+                    float t = sp / (sp - sq);
+                    output.Add(new Corner3(p.W.Lerp(q.W, t), Mathf.Lerp(p.A, q.A, t), Mathf.Lerp(p.B, q.B, t), Mathf.Lerp(p.C, q.C, t)));
+                }
+            }
+            return output;
+        }
+        static float Area(Corner3 a, Corner3 b, Corner3 c) => 0.5f * (b.W - a.W).Cross(c.W - a.W).Length();
+        var rest = tri.ToList(); var pieces = new List<Corner3[]>();
+        for (int k = 0; k < poly.Length; k++)
+        {
+            int edge = k;
+            var part = Clip(rest, p => -Side(edge, p) - 2 * CutEps);
+            for (int i = 1; i + 1 < part.Count; i++)
+                if (Area(part[0], part[i], part[i + 1]) > 1e-10f) pieces.Add(new[] { part[0], part[i], part[i + 1] });
+            rest = Clip(rest, p => Side(edge, p));
+            if (rest.Count < 3) return null;
+        }
+        float inside = 0;
+        for (int i = 1; i + 1 < rest.Count; i++) inside += Area(rest[0], rest[i], rest[i + 1]);
+        return inside > 1e-9f ? pieces : null;
+    }
+
+    /// <summary>One surface's triangles cut (its arrays changed in place, every per-vertex attribute carried); returns how many.</summary>
+    private static int CutSurface(Godot.Collections.Array arrays, Transform3D xf, List<Vector2[]> polygons, Rect2 reach, float top)
+    {
+        if (arrays[(int)Mesh.ArrayType.Bones].VariantType != Variant.Type.Nil) return 0;
+        var v = arrays[(int)Mesh.ArrayType.Vertex].AsVector3Array();
+        if (v.Length == 0) return 0;
+        var indexVariant = arrays[(int)Mesh.ArrayType.Index];
+        var index = indexVariant.VariantType == Variant.Type.PackedInt32Array && indexVariant.AsInt32Array().Length > 0 ? indexVariant.AsInt32Array() : Enumerable.Range(0, v.Length).ToArray();
+        var colours = arrays[(int)Mesh.ArrayType.Color].VariantType == Variant.Type.Nil ? null : new List<Color>(arrays[(int)Mesh.ArrayType.Color].AsColorArray());
+        var normals = arrays[(int)Mesh.ArrayType.Normal].VariantType == Variant.Type.Nil ? null : new List<Vector3>(arrays[(int)Mesh.ArrayType.Normal].AsVector3Array());
+        var uv = arrays[(int)Mesh.ArrayType.TexUV].VariantType == Variant.Type.Nil ? null : new List<Vector2>(arrays[(int)Mesh.ArrayType.TexUV].AsVector2Array());
+        var uv2 = arrays[(int)Mesh.ArrayType.TexUV2].VariantType == Variant.Type.Nil ? null : new List<Vector2>(arrays[(int)Mesh.ArrayType.TexUV2].AsVector2Array());
+        // (the tangents and the custom channels: their values per vertex, carried with the weights; bytes stay bytes)
+        var floats = new Dictionary<int, (List<float> Data, int Stride)>();
+        var bytes = new Dictionary<int, (List<byte> Data, int Stride)>();
+        foreach (var t in new[] { Mesh.ArrayType.Tangent, Mesh.ArrayType.Custom0, Mesh.ArrayType.Custom1, Mesh.ArrayType.Custom2, Mesh.ArrayType.Custom3 })
+        {
+            var a = arrays[(int)t];
+            if (a.VariantType == Variant.Type.PackedFloat32Array) { var f = a.AsFloat32Array(); floats[(int)t] = (new List<float>(f), f.Length / v.Length); }
+            else if (a.VariantType == Variant.Type.PackedByteArray) { var b = a.AsByteArray(); bytes[(int)t] = (new List<byte>(b), b.Length / v.Length); }
+        }
+        var vs = new List<Vector3>(v);
+        var kept = new List<int>(index.Length);
+        int cut = 0;
+        for (int t = 0; t + 2 < index.Length; t += 3)
+        {
+            int i0 = index[t], i1 = index[t + 1], i2 = index[t + 2];
+            Vector3 w0 = xf * v[i0], w1 = xf * v[i1], w2 = xf * v[i2];
+            if (!TriangleReaches(w0, w1, w2, reach, top)) { kept.Add(i0); kept.Add(i1); kept.Add(i2); continue; }
+            var tri = new[] { new Corner3(w0, 1, 0, 0), new Corner3(w1, 0, 1, 0), new Corner3(w2, 0, 0, 1) };
+            var pieces = Outside(tri, polygons, top);
+            if (pieces == null) { kept.Add(i0); kept.Add(i1); kept.Add(i2); continue; }
+            cut++;
+            // (a piece keeps its corners' order, so it turns as the triangle did)
+            foreach (var piece in pieces)
+                foreach (var k in piece)
+                {
+                    kept.Add(vs.Count);
+                    vs.Add(v[i0] * k.A + v[i1] * k.B + v[i2] * k.C);
+                    if (normals != null) normals.Add((normals[i0] * k.A + normals[i1] * k.B + normals[i2] * k.C).Normalized());
+                    if (colours != null) colours.Add(colours[i0] * k.A + colours[i1] * k.B + colours[i2] * k.C);
+                    if (uv != null) uv.Add(uv[i0] * k.A + uv[i1] * k.B + uv[i2] * k.C);
+                    if (uv2 != null) uv2.Add(uv2[i0] * k.A + uv2[i1] * k.B + uv2[i2] * k.C);
+                    foreach (var (data, stride) in floats.Values)
+                        for (int j = 0; j < stride; j++) data.Add(data[i0 * stride + j] * k.A + data[i1 * stride + j] * k.B + data[i2 * stride + j] * k.C);
+                    foreach (var (data, stride) in bytes.Values)
+                        for (int j = 0; j < stride; j++) data.Add((byte)Math.Clamp(Math.Round(data[i0 * stride + j] * k.A + data[i1 * stride + j] * k.B + data[i2 * stride + j] * k.C), 0, 255));
+                }
+        }
+        if (cut == 0) return 0;
+        if (kept.Count == 0) { kept.Add(0); kept.Add(0); kept.Add(0); }
+        arrays[(int)Mesh.ArrayType.Vertex] = vs.ToArray();
+        if (normals != null) arrays[(int)Mesh.ArrayType.Normal] = normals.ToArray();
+        if (colours != null) arrays[(int)Mesh.ArrayType.Color] = colours.ToArray();
+        if (uv != null) arrays[(int)Mesh.ArrayType.TexUV] = uv.ToArray();
+        if (uv2 != null) arrays[(int)Mesh.ArrayType.TexUV2] = uv2.ToArray();
+        foreach (var (t, (data, _)) in floats) arrays[t] = data.ToArray();
+        foreach (var (t, (data, _)) in bytes) arrays[t] = data.ToArray();
+        arrays[(int)Mesh.ArrayType.Index] = kept.ToArray();
+        return cut;
     }
 
     /// <summary>
