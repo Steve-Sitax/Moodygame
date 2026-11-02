@@ -30,6 +30,7 @@ public partial class Snap : Node
     private readonly List<double> times = new();
     private readonly List<Node3D> hidden = new();
     private const int Wait = 50, Timed = 90;
+    private const float SnapClock = 600f;
     private bool settle;
     private int settled;
 
@@ -287,12 +288,15 @@ public partial class Snap : Node
         {
             frame = 0;
             times.Clear();
+            Main.SnapTime = SnapClock;
             return;
         }
         ulong now = Time.GetTicksUsec();
         if (!Main.I.Flag("snap-no-timing") && frame > Wait) times.Add((now - last) / 1000.0);
         last = now;
         frame++;
+        // (#255: the shaders' clock counts this view's frames from a fixed start, so the waves stand the same in every run)
+        Main.SnapTime = SnapClock + frame / 60f;
         if (views[view][0].StartsWith("lantern") && People.LanternPool.I?.NearestLit(Main.I.Cam.GlobalPosition) is { } lamp)
         {
             var cam = Main.I.Cam;

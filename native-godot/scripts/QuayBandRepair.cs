@@ -10,6 +10,7 @@ using Scheldemist.Render;
 // place, no new kind; off unless a material sets `quay_band`), and the quay_wall material (r000052) sets quay_band 1.
 // Run in Forward+ (not headless):
 //   godot --rendering-method forward_plus --path . res://scripts/quay-band-repair.tscn -- --backup <folder> [--find]
+// The second pass (#201: the blocks shuffled at their joints, their arrises and joints) takes the first pass's lines out first.
 // --find only checks the anchors. The originals are copied to --backup first and never overwritten.
 public partial class QuayBandRepair : Node
 {
@@ -41,7 +42,7 @@ public partial class QuayBandRepair : Node
         int bi = Array.IndexOf(args, "--backup"); string backup = bi >= 0 ? args[bi + 1] : find ? "" : throw new ArgumentException("--backup");
         var shader = ResourceLoader.Load<Shader>(ShaderPath, null, ResourceLoader.CacheMode.Ignore);
         string old = N(shader.Code);
-        if (old.Contains("quay_band")) GD.Print("quay band: the shader has the lines already");
+        if (old.Contains("qb_shuffle")) GD.Print("quay band: the shader has the second pass's lines already");
         else
         {
             string code = Psx.WithQuayBand(old);

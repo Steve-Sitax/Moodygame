@@ -204,6 +204,8 @@ public partial class NativeTown : BakedWorld
         }
         // #244: the planted beds' and the liberty tree's bare earth in the tree pits' soil (dev: --keep-old-dirt leaves them)
         if (Scheldemist.Main.I?.Flag("keep-old-dirt") != true) Report["dirtBeds"] = NativeDirt.Lay(town);
+        // #218: the last eight bare downpipe feet get a blue-stone channel stone to the kerb (dev: --no-pipe-ends leaves them bare)
+        if (Scheldemist.Main.I?.Flag("no-pipe-ends") != true) Report["pipeEnds"] = NativePipeEnds.Lay(town);
         // (the street's ground drawn under the joins' new gutters and the pits' sunken earth, in one pass: NativePlanCut)
         Report["groundPlanCut"] = NativePlanCut.CutQueuedGround(town);
         // The bake's plain benches give way to the new bench models, turned and placed as they stood (#165).

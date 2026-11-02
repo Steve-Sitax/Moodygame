@@ -10,6 +10,7 @@ using Scheldemist.Render;
 // being generated again: one kind, changed in place, no new kind. The lines are off unless a material sets `silt`.
 // Run in Forward+ (not headless):
 //   godot --rendering-method forward_plus --path . res://scripts/silt-repair.tscn -- --backup <folder> [--find]
+// #255 adds the sloped strip's detail (silt_strip); the repair takes the earlier silt lines out first.
 // --find only checks the anchors. The original is copied to --backup first and never overwritten.
 public partial class SiltRepair : Node
 {
@@ -29,9 +30,11 @@ public partial class SiltRepair : Node
         var args = OS.GetCmdlineUserArgs();
         var shader = ResourceLoader.Load<Shader>(ShaderPath, null, ResourceLoader.CacheMode.Ignore);
         string old = N(shader.Code);
-        if (Psx.WithoutSilt(old) != old) { GD.Print("silt: the resource has the silt lines already"); return; }
-        string code = Psx.WithSilt(old);
-        if (Psx.WithoutSilt(code) != old) throw new InvalidOperationException("The silt lines do not come out again cleanly.");
+        if (old.Contains("uniform float silt_strip")) { GD.Print("silt: the resource has the strip's silt lines already"); return; }
+        // (#255: an earlier set of silt lines comes out first)
+        string bare = Psx.WithoutSilt(old);
+        string code = Psx.WithSilt(bare);
+        if (Psx.WithoutSilt(code) != bare) throw new InvalidOperationException("The silt lines do not come out again cleanly.");
         GD.Print($"silt: {Psx.SiltLines.Length} places found, {code.Length - old.Length} characters to add");
         if (args.Contains("--find")) return;
         int bi = Array.IndexOf(args, "--backup"); string backup = bi >= 0 ? args[bi + 1] : throw new ArgumentException("--backup");

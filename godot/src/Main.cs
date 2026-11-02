@@ -27,6 +27,9 @@ public partial class Main : Node
 
     /// <summary>The running game, for its parts (src/GamePart.cs).</summary>
     public static Main I { get; private set; } = null!;
+    /// <summary>(#255) A snap run's own clock for the shaders (the waves, the rain's rings): the same at the same frame of a
+    /// view in every run, so before and after pictures of a water's edge line up. Null: the real clock.</summary>
+    public static float? SnapTime;
     /// <summary>The viewport the world is drawn in: 3D nodes go under it.</summary>
     public SubViewport View => view;
     public BakedWorld World => world;
@@ -231,7 +234,7 @@ public partial class Main : Node
 
     public override void _Process(double delta)
     {
-        Render.UniformUpdates.Global("psx_time", Time.GetTicksMsec() / 1000f);
+        Render.UniformUpdates.Global("psx_time", SnapTime ?? Time.GetTicksMsec() / 1000f);
         if (shots == "" || cam == null) return;
         if (Cam != cam) cam.Current = true; // the pictures are taken from the free camera
         ulong now = Time.GetTicksUsec();

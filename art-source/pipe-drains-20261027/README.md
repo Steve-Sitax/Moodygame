@@ -9,3 +9,12 @@ Appended to the iron surface of the pipe's block mesh (Solid skips it; plates an
 
 56 laid (every one has flat iron at its foot afterwards). Left (`report.json`): 8 whose houses are razed (the church
 squares; their pipes go with them), 5 over steps, 3 where no street ground was found along the wall's normal.
+
+## The last eight (2 November 2026, #218)
+
+The five "over a step" feet were not over steps: the tops pipe_drains.py found there were crates and barrels standing on
+the pavement by the shop fronts. All eight stand on a raised pavement one flag wide (12 cm), three of them beside a door's
+recess, which is why no kerb was found along the wall's normal. `NativePipeEnds` lays one model at each at load: a
+blue-stone channel stone flush in the flags from the wall's foot to the kerb's face (0.37-0.65 m), its groove falling to
+the street gutter; the flags and kerb under it are cut (NativePlanCut, drawn and solid). Ground heights and kerb distances
+were measured on a dump of the drawn town (scripts/paving/dump-near.gd) and are in the code. Dev: `--no-pipe-ends`.
