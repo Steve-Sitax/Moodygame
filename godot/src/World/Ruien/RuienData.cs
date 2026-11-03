@@ -30,7 +30,17 @@ public sealed class RuienData
     }
 
     /// <summary>A gallery class's section (network.json classes: G the giant gallery, M a rui).</summary>
-    public sealed record Section(float Width, float Bed, float Crown, float Channel, float Ledge, float LedgeY, float Spring);
+    public sealed record Section(float Width, float Bed, float Crown, float Channel, float Ledge, float LedgeY, float Spring, int WalkwaySide = 0, float Water = -4.6f)
+    {
+        public bool HasWalk(int side) => WalkwaySide == 0 || WalkwaySide == side;
+        public float ChannelLow => WalkwaySide == 0 ? -Channel/2 : -Width/2 + (HasWalk(-1) ? Ledge : 0);
+        public float ChannelHigh => WalkwaySide == 0 ? Channel/2 : Width/2 - (HasWalk(1) ? Ledge : 0);
+        /// <summary>Offset from the original kit datum; adding zero preserves its serialized G output.</summary>
+        public float WalkOffset => LedgeY - (-3.6f);
+        public float Edge(int side) => side > 0 ? ChannelHigh : -ChannelLow;
+        // Round metre dimensions before division so the original 2.2 m G rise keeps identical floats.
+        public float Shell(float y) => y <= Spring ? Width/2 : Width/2*MathF.Sqrt(Math.Max(0,1-MathF.Pow((y-Spring)/MathF.Round(Crown-Spring,6),2)));
+    }
 
     /// <summary>
     /// A covered stretch: a line (a gallery: its centre line, sampled every half metre, and its section) or a room
@@ -165,7 +175,7 @@ public sealed class RuienData
     /// <summary>A way between the street and an area: a ladder up a grate's shaft, or a stair under a hatch.</summary>
     public sealed class Way
     {
-        public string Id = "", Kind = "ladder";
+        public string Id = "", Kind = "ladder", Zone = "";
         public Vector3 Bottom, Top;
         /// <summary>The street's hole over it (x0, z0, size).</summary>
         public Rect2 Hole;
@@ -197,6 +207,8 @@ public sealed class RuienData
         public readonly List<Drain> Drains = new();
         /// <summary>The line zone with this id, or null.</summary>
         public Zone? Line(string id) => Zones.FirstOrDefault(z => z.Kind == "line" && z.Id == id);
+        public Zone? StairZone(Way way) => way.Zone.Length == 0 ? Zones.FirstOrDefault(z=>z.Kind=="line")
+            : Line(way.Zone) ?? throw new InvalidOperationException($"ruien: stair {way.Id}: unknown line zone {way.Zone}");
         public readonly List<Gate> Gates = new();
         public readonly List<Source> Sources = new();
         public readonly List<MistBox> Mist = new();
@@ -237,7 +249,7 @@ public sealed class RuienData
             var v = c.Value;
             float bed = F(v, "bed", -6.1f), crown = F(v, "crown", bed + F(v, "bedToCrown", 5.2f)), w = F(v, "innerWidth", 6);
             float ledgeY = bed + F(v, "ledgeAboveBed", 2.5f);
-            d.Classes[c.Name] = new Section(w, bed, crown, F(v, "channelWidth", w * 0.5f), F(v, "ledgeWidth", 1.5f), ledgeY, ledgeY + 0.5f);
+            d.Classes[c.Name] = new Section(w, bed, crown, F(v, "channelWidth", w * 0.5f), F(v, "ledgeWidth", 1.5f), ledgeY, F(v,"spring",ledgeY + 0.5f), (int)F(v,"walkwaySide",0), F(v,"water",-4.6f));
         }
         var lines = net.GetProperty("lines").EnumerateArray().ToDictionary(l => l.GetProperty("id").GetString()!, l => l);
         var rooms = net.GetProperty("rooms").EnumerateArray().ToDictionary(r => r.GetProperty("id").GetString()!, r => r);
@@ -263,7 +275,11 @@ public sealed class RuienData
             if (a.TryGetProperty("devEntry", out var de)) area.DevEntry = new Vector4(de[0].GetSingle(), de[1].GetSingle(), de[2].GetSingle(), de[3].GetSingle());
             foreach (var z in a.GetProperty("zones").EnumerateArray())
             {
-                var cls = d.Classes.GetValueOrDefault(S(z, "cls", "G")) ?? d.Classes.Values.First();
+                var cls = d.Classes.GetValueOrDefault(S(z, "cls", z.TryGetProperty("line",out var lineId) && lines.TryGetValue(lineId.GetString()!,out var lineSpec)?S(lineSpec,"cls","G"):"G")) ?? d.Classes.Values.First();
+                cls = cls with { LedgeY=F(z,"walk",cls.LedgeY), Spring=F(z,"spring",cls.Spring), Water=F(z,"water",F(a,"waterMin",cls.Water)),
+                    Channel=F(z,"channelWidth",cls.Channel), WalkwaySide=(int)F(z,"walkwaySide",cls.WalkwaySide) };
+                if(z.TryGetProperty("channelWidth",out _)) cls=cls with { Ledge=(cls.Width-cls.Channel)/(cls.WalkwaySide==0?2:1) };
+                if(cls.WalkwaySide is < -1 or > 1)throw new InvalidOperationException("walkwaySide must be -1, 0 (both), or 1");
                 var zone = new Zone { Id = S(z, "id"), S = cls, Wall = F(z, "wall", 0.6f), FadeStart = F(z, "fadeStart", 0), FadeEnd = F(z, "fadeEnd", 0) };
                 if (z.TryGetProperty("rect", out var rc) || (z.TryGetProperty("room", out var rm) && rooms.TryGetValue(rm.GetString()!, out var room) && room.TryGetProperty("rect", out rc)))
                 {
@@ -337,8 +353,9 @@ public sealed class RuienData
                         float u = 7 + k * spacing / 2;
                         if(a.TryGetProperty("channelLadderOffsets",out var offsets) && k<offsets.GetArrayLength())u+=offsets[k].GetSingle();
                         var (centre, tangent) = zone.Frame(u);
-                        var side = new Vector2(tangent.Y, -tangent.X) * (k % 2 == 0 ? -1 : 1);
-                        var wall = centre + side * zone.S.Channel / 2;
+                        int sign=zone.S.WalkwaySide==0?(k % 2 == 0 ? -1 : 1):zone.S.WalkwaySide;
+                        var side = new Vector2(tangent.Y, -tangent.X) * sign;
+                        var wall = centre + side * zone.S.Edge(sign);
                         var outw = -side;
                         var ledge = wall + side * 0.4f;
                         area.Ways.Add(new Way { Id = zone.Id + "_escape_" + k, Kind = "rungs", Wall = wall, Out = outw,
@@ -352,7 +369,9 @@ public sealed class RuienData
                     var wall = V2(r.GetProperty("wall"));
                     var outw = V2(r.GetProperty("out")).Normalized();
                     var ledge = V2(r.GetProperty("ledge"));
-                    float bot = F(r, "bottom", -6.1f), top = F(r, "top", -3.6f);
+                    var section=(r.TryGetProperty("zone",out var rz)?area.Line(rz.GetString()!) ?? throw new InvalidOperationException("Unknown rung zone")
+                        :area.Zones.OrderByDescending(z=>z.Inside(wall,out _)).FirstOrDefault())?.S ?? d.Classes["G"];
+                    float bot = F(r, "bottom", section.Bed), top = F(r, "top", section.LedgeY);
                     area.Ways.Add(new Way { Id = S(r, "id"), Kind = "rungs", Wall = wall, Out = outw, Irons = !(r.TryGetProperty("irons", out var ir) && ir.ValueKind == JsonValueKind.False), Bottom = new Vector3(wall.X + outw.X * 0.55f, bot, wall.Y + outw.Y * 0.55f), Top = new Vector3(ledge.X, top, ledge.Y) });
                 }
             if (own.TryGetProperty("movers", out var mvs) && mvs.ValueKind == JsonValueKind.Array)
@@ -369,7 +388,7 @@ public sealed class RuienData
                 foreach (var l in sts.EnumerateArray())
                 {
                     var h = l.GetProperty("hatch");
-                    area.Ways.Add(new Way { Id = S(l, "id"), Kind = "stair", Bottom = V3(l.GetProperty("bottom")), Top = V3(l.GetProperty("top")), Hole = new Rect2(h[0].GetSingle(), h[2].GetSingle(), h[1].GetSingle() - h[0].GetSingle(), h[3].GetSingle() - h[2].GetSingle()) });
+                    area.Ways.Add(new Way { Id = S(l, "id"), Kind = "stair", Zone=S(l,"zone"), Bottom = V3(l.GetProperty("bottom")), Top = V3(l.GetProperty("top")), Hole = new Rect2(h[0].GetSingle(), h[2].GetSingle(), h[1].GetSingle() - h[0].GetSingle(), h[3].GetSingle() - h[2].GetSingle()) });
                 }
             if(a.TryGetProperty("grates",out var grates))
                 foreach(var gr in grates.EnumerateArray())
@@ -381,11 +400,13 @@ public sealed class RuienData
                 foreach (var s in ks.EnumerateArray())
                 {
                     var h=s.GetProperty("hole");
-                    area.Ways.Add(new Way { Id=S(s,"id"), Kind="keeper_stair", Top=V3(s.GetProperty("top")), Bottom=V3(s.GetProperty("bottom")),
+                    area.Ways.Add(new Way { Id=S(s,"id"), Kind="keeper_stair", Zone=S(s,"zone"), Top=V3(s.GetProperty("top")), Bottom=V3(s.GetProperty("bottom")),
                         LightSource=S(s,"lightSource"),
                         Hole=new Rect2(h[0].GetSingle(),h[1].GetSingle(),h[2].GetSingle(),h[3].GetSingle()),
                         LandingPath=s.TryGetProperty("landingPath",out var lp)?lp.EnumerateArray().Select(V2).ToArray():Array.Empty<Vector2>() });
                 }
+            foreach(var stair in area.Ways.Where(w=>w.Kind=="keeper_stair")) area.StairZone(stair);
+            if(!a.TryGetProperty("waterMin",out _)) area.WaterMin=area.Zones.FirstOrDefault()?.S.Water ?? area.WaterMin;
             area.Drains.AddRange(ReadDrains(a, "drains", id => area.Line(id) != null));
             area.Box = BoxOf(area);
             d.Areas.Add(area);

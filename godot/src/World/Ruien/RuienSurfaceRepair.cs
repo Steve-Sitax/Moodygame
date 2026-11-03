@@ -102,8 +102,8 @@ public static class RuienSurfaceRepair
                 float Across(Vector3 p)=>(new Vector2(p.X,p.Z)-centre).Dot(normal);
                 var outline=new List<Vector2>();
                 float W(float h)=>h>=1.1f?MathF.Sqrt(Math.Max(0,.25f-(h-1.1f)*(h-1.1f))):.5f*MathF.Pow(Math.Max(0,1-MathF.Pow((1.1f-h)/1.1f,2)),.425f);
-                for(int k=0;k<=40;k++){float h=k*1.6f/40;outline.Add(new(W(h),h-3.35f));}
-                for(int k=39;k>0;k--){float h=k*1.6f/40;outline.Add(new(-W(h),h-3.35f));}
+                for(int k=0;k<=40;k++){float h=k*1.6f/40;outline.Add(new(W(h),h-3.35f+zone.S.WalkOffset));}
+                for(int k=39;k>0;k--){float h=k*1.6f/40;outline.Add(new(-W(h),h-3.35f+zone.S.WalkOffset));}
                 // Remove the host behind the unchanged headers too: their mortar bed must be visible in the joints.
                 var inner=outline.ToArray();
                 for(int k=0;k<outline.Count;k++)
@@ -111,7 +111,7 @@ public static class RuienSurfaceRepair
                     var tangent2=(inner[(k+1)%inner.Length]-inner[(k+inner.Length-1)%inner.Length]).Normalized();
                     outline[k]+=new Vector2(tangent2.Y,-tangent2.X)*.202f;
                 }
-                var planes=new List<Func<Vector3,float>>{p=>Across(p)-1.75f,p=>4.8f-Across(p)};
+                var planes=new List<Func<Vector3,float>>{p=>Across(p)-(1.75f+(zone.S.Width/2-3f)),p=>4.8f+(zone.S.Width/2-3f)-Across(p)};
                 for(int k=0;k<outline.Count;k++)
                 {
                     var a=outline[k];var b=outline[(k+1)%outline.Count];var d=b-a;
@@ -145,14 +145,15 @@ public static class RuienSurfaceRepair
                 var wall=RuienPipe.Wall(pipe);var lat=Vector3.Up.Cross(pipe.Axis).Normalized();
                 var p=vertices[i];var d=p-wall;
                 float along=d.Dot(lat),depth=d.Dot(pipe.Axis),fall=wall.Y-RuienPipe.Outer-p.Y;
-                bool floor=p.Y> -3.64f && p.Y< -3.54f;
+                float dy=pipe.Walk-(-3.6f);
+                bool floor=p.Y> -3.64f+dy && p.Y< -3.54f+dy;
                 // The coping's arris and face below the walk carry the run-off on into the channel.
-                bool coping=!floor&&p.Y> -3.95f&&p.Y<= -3.54f&&depth< -1.3f;
-                if(fall< -.02f || depth>.2f || depth< -1.8f)continue;
+                bool coping=!floor&&p.Y> -3.95f+dy&&p.Y<= -3.54f+dy&&depth< -(pipe.Ledge-.2f);
+                if(fall< -.02f || depth>.2f || depth< -(pipe.Ledge+.3f))continue;
                 if(!floor&&!coping&&depth< -.25f)continue;
                 float wiggle=.015f*MathF.Sin(p.Y*32+wall.Z)+.02f*MathF.Sin(depth*7.3f);
                 // A narrow streak down the wall; on the walk it fans out towards the channel.
-                float spread=Math.Clamp(-depth/1.5f,0,1);
+                float spread=Math.Clamp(-depth/pipe.Ledge,0,1);
                 float width=floor||coping?.10f+.36f*spread:.11f+.03f*fall;
                 float mask=Math.Clamp(1-MathF.Abs(along-wiggle)/width,0,1);
                 mask=MathF.Pow(mask,floor||coping?.45f:.7f)*(floor||coping?1-.3f*spread:1);

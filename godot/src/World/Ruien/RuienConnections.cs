@@ -51,9 +51,12 @@ public static class RuienConnections
         if(spec.TryGetProperty("stairSurrounds",out var surrounds))
             foreach(var id in surrounds.EnumerateArray())
             {
-                var way=area.Ways.Single(w=>w.Id==id.GetString());var h=way.Hole;
+                var way=area.Ways.Single(w=>w.Id==(id.ValueKind==JsonValueKind.String?id.GetString():id.GetProperty("id").GetString()));var h=way.Hole;
                 // A relocated flight exposes the side formerly against the hall wall. Close and support it.
-                const int steps=19;const float going=.27f,bed=-5.85f;
+                var section=area.StairZone(way)?.S ?? area.Zones[0].S;
+                int steps=id.ValueKind==JsonValueKind.Object && id.TryGetProperty("steps",out var st)?st.GetInt32():(int)MathF.Round((way.Top.Y-.18f-way.Bottom.Y)/.18f);
+                float going=id.ValueKind==JsonValueKind.Object && id.TryGetProperty("going",out var go)?go.GetSingle():.27f;
+                float bed=section.Bed+.25f;
                 float rise=(way.Top.Y-.18f-way.Bottom.Y)/steps;
                 for(int i=0;i<steps;i++)
                 {

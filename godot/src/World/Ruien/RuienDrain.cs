@@ -14,7 +14,8 @@ public static class RuienDrain
         var(c,t)=zone.Frame(u);var n=new Vector2(t.Y,-t.X)*side;
         float A(Vector3 p)=>(new Vector2(p.X,p.Z)-c).Dot(t);
         float S(Vector3 p)=>(new Vector2(p.X,p.Z)-c).Dot(n);
-        return new(){p=>A(p)+.17f,p=>.17f-A(p),p=>S(p)-1.43f,p=>3.10f-S(p),p=>p.Y+3.82f,p=>-3.3f-p.Y};
+        float dy=zone.S.WalkOffset, edge=zone.S.Edge(side), outer=zone.S.Width/2;
+        return new(){p=>A(p)+.17f,p=>.17f-A(p),p=>S(p)-(1.43f+(edge-1.5f)),p=>3.10f+(outer-3f)-S(p),p=>p.Y+3.82f-dy,p=>-3.3f+dy-p.Y};
     }
     /// <summary>
     /// The drain's continuing throat behind an exported lining's end ring: straight on, a quarter bend in plan and a
@@ -76,14 +77,12 @@ public static class RuienDrain
     /// <summary>Half width of the 1.0 x 1.6 m egg mouth at height h above its invert (narrow end down).</summary>
     public static float EggHalf(float h)=>h>=1.1f?MathF.Sqrt(Math.Max(0,.25f-(h-1.1f)*(h-1.1f))):.5f*MathF.Pow(Math.Max(0,1-MathF.Pow((1.1f-h)/1.1f,2)),.425f);
     public const float Invert=-3.35f;
-    /// <summary>The giant gallery's inside face: upright to the springing, then its basket vault (across, at height y).</summary>
-    public static float Shell(float y)=>y<= -3.1f?3f:3f*MathF.Sqrt(Math.Max(0,1-MathF.Pow((y+3.1f)/2.2f,2)));
 
     /// <summary>
     /// The mouth's rowlock ring: radial headers set 15 mm proud and 31 cm deep, following the leaning vault face,
     /// with wedge-shaped joints opening outward onto a continuous lime mortar bed.
     /// </summary>
-    private static void Headers(Node3D root,Func<float,float,float,Vector3> P)
+    private static void Headers(Node3D root,Func<float,float,float,Vector3> P,RuienData.Section section)
     {
         // Egg outline (along, y), closed, by arc length.
         var outline=new List<Vector2>();
@@ -99,7 +98,7 @@ public static class RuienDrain
         }
         var eggCentre=new Vector2(0,Invert+.8f);
         Vector2 Out(float a){var d=At(a+.01f)-At(a-.01f);var nrm=new Vector2(d.Y,-d.X).Normalized();return nrm.Dot(At(a)-eggCentre)<0?-nrm:nrm;}
-        Vector3 F(Vector2 q,float depth)=>P(q.X,q.Y,Shell(q.Y)+depth);
+        Vector3 F(Vector2 q,float depth)=>P(q.X,q.Y,section.Shell(q.Y+section.WalkOffset)+depth);
         var st=new SurfaceTool();st.Begin(Mesh.PrimitiveType.Triangles);st.SetCustomFormat(0,SurfaceTool.CustomFormat.Rgba8Unorm);
         var bed=new SurfaceTool();bed.Begin(Mesh.PrimitiveType.Triangles);
         // Two rowlock rings of headers on edge, the outer with more bricks, so the wedge joints stay narrow.
@@ -169,13 +168,13 @@ public static class RuienDrain
     public static Vector3 SpoutImpact(RuienData.Zone zone,float u,int side)
     {
         var(c,t)=zone.Frame(u);var n=new Vector2(t.Y,-t.X)*side;
-        float across=LipAcross-LipSpeed*MathF.Sqrt(2*(LipY+4.6f)/9.81f);
-        return new Vector3(c.X+n.X*across,-4.6f,c.Y+n.Y*across);
+        float across=LipAcross+(zone.S.Edge(side)-1.5f)-LipSpeed*MathF.Sqrt(2*Math.Max(0,LipY+zone.S.WalkOffset-zone.S.Water)/9.81f);
+        return new Vector3(c.X+n.X*across,zone.S.Water,c.Y+n.Y*across);
     }
 
-    private static void Spout(SurfaceTool water,Func<float,float,float,Vector3> P)
+    private static void Spout(SurfaceTool water,Func<float,float,float,Vector3> P,RuienData.Section section)
     {
-        const int stations=16,around=10;float T=SpoutTime;
+        const int stations=16,around=10;float T=section.WalkOffset==0 && section.Water== -4.6f ? SpoutTime : MathF.Sqrt(2*Math.Max(0,LipY+section.WalkOffset-(section.Water-.12f))/9.81f);
         var rings=new List<Vector3[]>();var normals=new List<Vector3[]>();
         for(int i=0;i<=stations;i++)
         {
@@ -208,7 +207,11 @@ public static class RuienDrain
     public static Node3D Build(RuienData.Zone zone,float u,int side)
     {
         var(c,t)=zone.Frame(u);var n=new Vector2(t.Y,-t.X)*side;
-        Vector3 P(float along,float y,float across)=>new(c.X+t.X*along+n.X*across,y,c.Y+t.Y*along+n.Y*across);
+        if(!zone.S.HasWalk(side))throw new InvalidOperationException("A grated drain crossing needs a walkway on its side");
+        float dy=zone.S.WalkOffset,edge=zone.S.Edge(side);
+        float Across(float a)=>zone.S.WalkwaySide==0 && zone.S.Width==6 ? a : edge+(a-1.5f)/1.5f*zone.S.Ledge;
+        Vector3 World(float along,float y,float across)=>new(c.X+t.X*along+n.X*across,y,c.Y+t.Y*along+n.Y*across);
+        Vector3 P(float along,float y,float across)=>World(along,y+dy,Across(across));
         var basis=new Basis(new Vector3(t.X,0,t.Y),Vector3.Up,new Vector3(-t.Y,0,t.X));
         var root=new Node3D{Name=$"drain_B2_{u}_{side}"};
         var stone=new SurfaceTool();var iron=new SurfaceTool();var water=new SurfaceTool();
@@ -218,22 +221,22 @@ public static class RuienDrain
         // Thick sill with a central runnel, and a lined trough recessed below the walking surface.
         foreach(float sign in new[]{-1f,1f})Box(stone,sign*.30f,-3.40f,2.97f,new Vector3(.48f,.18f,.37f),.011f);
         Box(stone,0,-3.50f,2.97f,new Vector3(1.13f,.10f,.37f),.008f);
-        Box(stone,0,-3.80f,2.23f,new Vector3(.34f,.10f,1.62f),.007f);
+        Box(stone,0,-3.80f,2.23f,new Vector3(.34f,.10f,zone.S.Ledge+.12f),.007f);
         foreach(float sign in new[]{-1f,1f})
         {
-            Box(stone,sign*.18f,-3.69f,2.23f,new Vector3(.08f,.22f,1.62f),.007f);
-            Box(iron,sign*.15f,-3.597f,2.23f,new Vector3(.026f,.045f,1.62f),.002f);
+            Box(stone,sign*.18f,-3.69f,2.23f,new Vector3(.08f,.22f,zone.S.Ledge+.12f),.007f);
+            Box(iron,sign*.15f,-3.597f,2.23f,new Vector3(.026f,.045f,zone.S.Ledge+.12f),.002f);
         }
         for(float s=1.46f;s<3.04f;s+=.075f)Box(iron,0,-3.597f,s,new Vector3(.31f,.045f,.021f),.002f);
         // Wet flow stays below the bars. The visible drop connects sill, gutter and channel water.
-        Box(water,0,-3.747f,2.24f,new Vector3(.085f,.013f,1.58f),.004f);
+        Box(water,0,-3.747f,2.24f,new Vector3(.085f,.013f,zone.S.Ledge+.08f),.004f);
         Box(water,0,-3.61f,2.87f,new Vector3(.025f,.27f,.018f),.006f);
         RuienStair.Add(root,stone,"ruien_bluestone",true);RuienStair.Add(root,iron,"ruien_iron",true);
-        Headers(root,P);
+        Headers(root,(a,y,s)=>World(a,y+dy,s),zone.S);
         var flow=water.Commit();flow.SurfaceSetMaterial(0,RuienMaterials.Get("ruien_misc_Water_film"));
         root.AddChild(new MeshInstance3D{Mesh=flow,Layers=Ruien.Layer,CastShadow=GeometryInstance3D.ShadowCastingSetting.Off});
         // The spout: the same water kind, a denser film (materials.json Water_spout).
-        var spout=new SurfaceTool();spout.Begin(Mesh.PrimitiveType.Triangles);Spout(spout,P);
+        var spout=new SurfaceTool();spout.Begin(Mesh.PrimitiveType.Triangles);Spout(spout,(a,y,s)=>World(a,y+dy,s+(edge-1.5f)),zone.S);
         var jet=spout.Commit();jet.SurfaceSetMaterial(0,RuienMaterials.Get("ruien_misc_Water_spout"));
         root.AddChild(new MeshInstance3D{Name="spout",Mesh=jet,Layers=Ruien.Layer,CastShadow=GeometryInstance3D.ShadowCastingSetting.Off});
         return root;
