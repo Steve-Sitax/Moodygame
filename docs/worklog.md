@@ -16,7 +16,10 @@ L105 from the corrected #274 export converts and repairs outside the installed w
 lie at -3.899955..-3.884000, on the -3.9 walk with 16 mm relief. Thirty headless fixtures pass, including
 both walkway sides, generated pipe film and drain spout heights, and the second-zone keeper arris.
 Build: zero errors, 27 existing warnings. Evidence: D:/Code/Proofs/ruien-272-1b/.
-Render review is pending the serialized town-art slot; no overall environment acceptance is claimed.
+Render review remains open: the first serialized run stopped on missing local imports. The headless cache
+rebuild passed, but the retry could not acquire the busy render lock within the hour-long wait window.
+Partial-startup exceptions in FerryArrival and SmallLife are recorded in [#281](https://github.com/Steve-Sitax/Moodygame/issues/281).
+No overall environment acceptance is claimed.
 No installed area meshes, authored placements, Blender scripts, packages or fingerprint were changed.
 
 ## Ruien repair for any area, 2026-11-03 (#272 stage 1a)
