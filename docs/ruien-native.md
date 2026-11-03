@@ -122,6 +122,16 @@ A native review can use `--ruien-areas <absolute JSON>` to replace the area list
 area-list schema, set its area's `export` to the external resource folder, `waterMin` to the section's water,
 and its line zone to the stretch's path/class. `--ruien-always` forces visibility; it is a flag, not a folder argument.
 Isolate `SCHELDEMIST_USER_DATA`, `--db`, `--prefs`, `--author-root` and `--port` for this run as for other proofs.
+Convert both LODs with `--lods 0,1` (the default is LOD0 only). `--ruien-proof-walks <json>` walks Jef on a stretch:
+`walk` entries go through waypoints and must stay grounded at the walk level (`y`, `tol`); `push` entries hold W
+along `dir` and must stay on the walkway (`blocked`: the rail holds) or leave it (a ladder gap).
+
+Every class M stretch carries R2 and R3 (Steve, #272, 2026-11-03), built in the generator (`kit/rail.py`,
+`kit/drain_crossing.py`, numbers in `kit/fittings.json`): the iron edge rail on the walkway's water edge, with
+collision as one slab per run broken only at ladder gaps, and at each plan side drain on the walkway side the
+covered crossing (egg mouth in two rowlock rings, notched bluestone sill, flush grate over the recessed gutter, pour
+into the channel); on the far wall the drain opens just above the water. The export cuts the vault and walk for
+them, so no native repair is needed. `check_fittings.py` checks the built `.blend`.
 
 Section classes carry `spring`, `water`, `channelWidth` and `walkwaySide` (0 = both, +1/-1 = one side of the
 path normal `(tangent.z, -tangent.x)`). A zone can override these and `walk`. M matches the kit: spring -2.7,
