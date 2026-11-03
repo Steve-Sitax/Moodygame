@@ -2,7 +2,7 @@
 # render a check picture, and export it with the same pipeline as O2 (baked relief, masks, LODs, GLB).
 # Run: blender --background --factory-startup --python scripts/build_stretch.py -- --route L105 --out export/stretches/L105
 #      [--walkway 1|-1] [--walkways L79=1,L105=-1] [--start auto|tee|through|junction|open|cap] [--end ...]
-#      [--clip a,b] [--lods 0,1] [--no-export] [--no-render]
+#      [--clip a,b] [--lods 0,1] [--no-export] [--no-render] [--no-fittings]
 # 'auto' (default) finds the end from the plan: 'tee' where a rui ends in a gallery's side (kit/meet.py), 'through'
 # where the same section runs on, else 'open'. A gallery always cuts the openings of the ruien that end in its side.
 # --clip a,b keeps only the route between a and b metres along it (proof pieces); a clipped end is 'open'.
@@ -93,9 +93,40 @@ coll = U.coll('STRETCH_' + RID)
 rend = U.coll('RENDER_ONLY')
 cLc = U.coll('lights_check', rend); cLm = U.coll('lights_mood', rend); cF = U.coll('fog', rend); cC = U.coll('cameras', rend)
 WX.DEPOSITS.clear(); WX.RUNOFF_PTS.clear()
+# R2 rail and R3 drain crossings (kit/rail.py, kit/drain_crossing.py; numbers in kit/fittings.json)
+from kit import fitlib as FL, rail as KR, drain_crossing as KD
+FIT = FL.data(cls) if '--no-fittings' not in argv else {}
+sec0 = section_of(RID)
+path0 = KS.RoutePath(pts, r=sec0.W * 1.2)
+shafts0 = [float(np.clip(path0.u_near(gx, gz)[0], 1.2, path0.length - 0.8)) for (gx, gz) in grates if path0.u_near(gx, gz)[1] < 4.0]
+# junction zones along this route, as sweep.build_stretch keeps them clear (kit/meet.py)
+zones0 = [t.keep_out() for t in TEES if getattr(t, 'bpath', None) is not None and t.branch_id == RID] +          [t.host_zone(path0)[1] for t in TEES if t.branch_id != RID and path0.u_near(*t.O)[1] < 0.3]
+drains = KD.find(routes, path0, sec0, shafts0, FIT['drainCrossing'], log=log, zones=zones0) if FIT.get('drainCrossing') else []
+# a plan lamp never hangs on a drain's header rings: move it along the wall
+for i, (lx, lz) in enumerate(lamps):
+    lu, _ = path0.u_near(lx, lz)
+    for d in drains:
+        if d['side'] == sec0.sides[0] and abs(lu - d['u']) < 1.0:
+            nu = float(np.clip(d['u'] + (1.0 if lu >= d['u'] else -1.0), 0.5, path0.length - 0.5))
+            q = path0.world(np.array(nu), np.array(0.0), np.array(0.0))
+            lamps[i] = (float(q[0]), float(q[2])); log('lamp at u %.1f moved to %.1f, clear of a drain' % (lu, nu))
 log('ends', START, END, 'tees', [(t.branch_id, t.which, t.host_ids) for t in TEES])
 objs, info, g, sec = KS.build_stretch(RID, pts, cls, mats, coll, grates=grates, lamps=lamps, start=START, end=END,
                                       walkway_side=WALKWAYS[RID], tees=TEES)
+cFitCol = U.coll('FITTINGS_COLLISION'); cFitCol.hide_render = True
+fit_proxies = []
+if drains:
+    o_, p_ = KD.build(g, sec, mats, coll, drains, FIT['drainCrossing'], np.random.default_rng(KS.seed_of(RID, 71)), cFitCol, log=log)
+    fit_proxies += p_
+    for d in drains:
+        info['placements'].append(dict(piece='drain_' + d['kind'], u=d['u'], side=d['side'], pos=d['pos'], plan=d['plan']))
+if FIT.get('rail'):
+    # at a tee the rail runs on to its dressed end post 0.4 m before the ring face (keep_out pads 1 m beyond it)
+    rail_zones = [((t.L - float(t.q_wall(0.0)) - 0.05, t.L + 1.0) if t.which == 'end' else (-1.0, float(t.q_wall(0.0)) + 0.05))
+                  for t in TEES if getattr(t, 'bpath', None) is not None and t.branch_id == RID] +                  [t.host_zone(g.path)[1] for t in TEES if t.branch_id != RID and g.path.u_near(*t.O)[1] < 0.3]
+    o_, p_ = KR.build(g, sec, mats, coll, info, drains, FIT['rail'], np.random.default_rng(KS.seed_of(RID, 73)), cFitCol, log=log,
+                      ends=(START, END), zones=rail_zones)
+    fit_proxies += p_
 rng = np.random.default_rng(KS.seed_of(RID, 99))
 WX.build_runoff(mats, coll, rng)
 log('halo hosts', WX.apply_halo(rng))
@@ -154,7 +185,8 @@ if '--no-export' not in argv:
         baked = EG.build_lod(lod, stretch_objs, hide_coll=coll, section=sec)
         EG.export_chunks(baked, keyfn, lambda k: RID, lod, OUT, 'ruien_%s_' % RID, manifest)
     cc = U.coll('EXPORT_COL')
-    cobs = EG.collision(cc, stretch_objs)
+    # thin ironwork, header bricks and stains carry no collision; the rail and the grate collide as their proxies
+    cobs = EG.collision(cc, [o for o in stretch_objs if o.get('ruien_collision', True)]) + fit_proxies
     cp = os.path.join(OUT, 'ruien_%s_collision.glb' % RID)
     EG.gltf_export(cp, cobs)
     manifest['files'][os.path.basename(cp)] = dict(sha256=EG.sha(cp), bytes=os.path.getsize(cp))

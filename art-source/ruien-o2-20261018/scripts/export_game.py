@@ -207,8 +207,9 @@ def mean_edge(md):
     nxt[ends] = md.ps
     return float(np.mean(np.linalg.norm(a - md.V[md.lv[nxt]], axis=1)))
 
-def level_for(md, target, lod):
-    e = mean_edge(md)
+def level_for(md, target, lod, edge=None):
+    # edge: a source's own grid spacing (kit/fitlib.boolean_cut keeps it: a cut adds short edges to the mean)
+    e = mean_edge(md) if edge is None else edge
     return int(np.clip(math.floor(math.log2(max(e / target, 1.0)) + 0.5) - lod, 0, 4))
 
 def seam_edges(md, face_class):
@@ -382,7 +383,7 @@ def build_lod(lod, objs, hide_coll=None, section=None):
                 part = md.subset(cls == c_)
                 if not len(part.pt):
                     continue
-                lvl = level_for(part, NEAR_T if c_ == 0 else FAR_T, lod)
+                lvl = level_for(part, NEAR_T if c_ == 0 else FAR_T, lod, o.get('ruien_level_edge'))
                 sp = subdivide(part, lvl, work)
                 sp.pa['__fade'] = seam_fade(sp.V, segs).reshape(-1, 1).astype(np.float32) if segs else np.ones((len(sp.V), 1), np.float32)
                 groups.setdefault(mat, []).append(sp)

@@ -1,5 +1,29 @@
 # Work log
 
+## Rui rail and drain crossing kit, 2026-11-03 (#272, R2 and R3)
+
+Branch t3/ruien-rail-drain-kit. Steve chose R2 (iron edge rail) as the standard rui walkway and R3 (covered side-drain
+crossing) where a plan side drain enters. New kit files `kit/rail.py`, `kit/drain_crossing.py`, `kit/fitlib.py`,
+`kit/fittings.json`, placed by `build_stretch.py` (`--no-fittings` leaves them out). Rail: round posts in cast shoes
+bolted to the coping's channel face (0.8 m kept clear), two rails through knuckles on the bend's offset line, dressed
+ball-topped end posts at mouths and shaft-ladder gaps, escape irons in each gap, rust stains under every shoe, one
+collision slab per run; it runs on to a `through` seam and stops clear of junction zones. Drains: the plan's
+`sideDrains` are matched to the route; the walkway side gets the egg mouth (two rowlock rings 15 mm proud on a lime
+bed with a skirt), a lined barrel bending towards the drain's run, a notched bluestone sill, a rebated kerb with a
+flush cast grate and a grate collision plate, trickle, pour and stains; the far wall gets the mouth just above the
+water. The vault and walk are cut by exact boolean (UVs and masks kept; `export_game.level_for` takes the host's own
+grid spacing via `ruien_level_edge`, so a cut does not drop the vault's relief level; O2 unaffected); the coping is
+re-laid round the sill. `RuienProof` gains `--ruien-proof-walks`.
+
+Proof L105 (one walkway-side crossing at u 14.2 in the second bend, one far-wall mouth, one shaft): headless checks
+12/12 (L37 walkway -1 22/22, L91 13/13, L79 with a tee end 8/8; main's stretch, end and meet checks pass); native external intake (`--ruien-areas`, `--ruien-always`,
+`--no-ruien-entrances`, isolated data, ports 19761-19774, render lock) 72/72: walks through both bends and over the
+grate stay level (feet -3.900 to -3.887), the rail holds at 7 places, the ladder gap lets Jef into the channel.
+LOD0 588k -> 752k triangles, collision 81k -> 102k. Matched A/B with `--profile-parts` (base, fit, base, fit): draw
+calls +1-3 %; fit-1 means 11.1-21.3 ms against base 12.1-21.0 ms; fit-2 doubled its CPU process time half way
+(outside load), so no frame cost shows beyond noise. Evidence: `D:/Code/Proofs/ruien-272-rail/` (ab-*, run2,
+review*, fitcheck-*.json). Leftovers: header bricks in one flat colour (#289); escape irons have no native climb way yet (#290). Not installed in the game.
+
 ## Ruien junction openings, 2026-11-03 (#272 stage 1d, #276)
 
 Branch t3/ruien-gallery-junctions. New `kit/meet.py`: a rui ending in a gallery's side (tee) cuts the gallery's shell,

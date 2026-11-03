@@ -110,6 +110,53 @@ public partial class RuienProof : Node
         j.ClearKeys();await Seconds(.3f);
         Check(name,new Vector2(j.X,j.Z).DistanceTo(target)<.22f && (afloat?j.Swimming:j.Grounded && !j.Swimming),$"{j.X},{j.Y},{j.Z}: {j.LastShove}");
     }
+    /// <summary>
+    /// Walk tests from a JSON list. "walk": from a point on the walkway through waypoints, grounded at the walk
+    /// level (y, tolerance tol) at each, never swimming. "push": hold W along dir for some seconds; with blocked
+    /// true Jef must stay on the walkway (the rail holds him), with blocked false he must leave it (a ladder gap).
+    /// </summary>
+    private async Task Walks(string file)
+    {
+        var j=Jef.I!;if(j.Fly)j.ToggleFly();j.Frozen=false;j.ClearKeys();
+        await SetTide(-4.95f);
+        foreach(var w in JsonDocument.Parse(File.ReadAllText(file)).RootElement.EnumerateArray())
+        {
+            string name=w.GetProperty("name").GetString()!;string kind=w.GetProperty("kind").GetString()!;
+            var from=new Vector2(w.GetProperty("from")[0].GetSingle(),w.GetProperty("from")[1].GetSingle());
+            float y=w.GetProperty("y").GetSingle(),tol=w.TryGetProperty("tol",out var t)?t.GetSingle():.08f;
+            if(kind=="walk")
+            {
+                var pts=w.GetProperty("path").EnumerateArray().Select(p=>new Vector2(p[0].GetSingle(),p[1].GetSingle())).ToArray();
+                var d0=pts[0]-from;j.Place(from.X,from.Y,MathF.Atan2(-d0.X,-d0.Y),near:y+.05f);await Seconds(1);
+                Check(name+" starts on the walkway",j.Grounded&&!j.Swimming&&MathF.Abs(j.Y-y)<tol,$"{j.X},{j.Y},{j.Z}");
+                float low=j.Y,high=j.Y;int i=0;
+                foreach(var p in pts)
+                {
+                    ulong until=Time.GetTicksMsec()+20000;
+                    while(new Vector2(j.X,j.Z).DistanceTo(p)>.12f&&Time.GetTicksMsec()<until&&!j.Swimming)
+                    {
+                        var d=p-new Vector2(j.X,j.Z);j.Yaw=MathF.Atan2(-d.X,-d.Y);j.SetKey(Key.W,true);
+                        await ToSignal(GetTree(),SceneTree.SignalName.PhysicsFrame);
+                        if(j.Grounded){low=MathF.Min(low,j.Y);high=MathF.Max(high,j.Y);}
+                    }
+                    j.ClearKeys();await Seconds(.2f);
+                    Check($"{name} waypoint {i++}",new Vector2(j.X,j.Z).DistanceTo(p)<.22f&&j.Grounded&&!j.Swimming&&MathF.Abs(j.Y-y)<tol,$"{j.X},{j.Y},{j.Z}: {j.LastShove}");
+                }
+                Check(name+" stays level",high-low<tol*2,$"feet {low:0.000} to {high:0.000}");
+                await Shot("walk-"+name);
+            }
+            else
+            {
+                var dir=new Vector2(w.GetProperty("dir")[0].GetSingle(),w.GetProperty("dir")[1].GetSingle()).Normalized();
+                bool blocked=w.GetProperty("blocked").GetBoolean();float secs=w.TryGetProperty("seconds",out var sv)?sv.GetSingle():2.5f;
+                j.Place(from.X,from.Y,MathF.Atan2(-dir.X,-dir.Y),near:y+.05f);await Seconds(1);
+                var start=new Vector2(j.X,j.Z);j.SetKey(Key.W,true);await Seconds(secs);j.ClearKeys();await Seconds(1);
+                float moved=(new Vector2(j.X,j.Z)-start).Dot(dir);
+                bool onWalk=j.Grounded&&!j.Swimming&&MathF.Abs(j.Y-y)<tol;
+                Check(name,blocked?onWalk&&moved<.45f:(j.Swimming||j.Y<y-.3f),$"moved {moved:0.00} m, feet {j.Y:0.00}, swimming {j.Swimming}");
+            }
+        }
+    }
     private void Surrounds()
     {
         var space=Main.I.View.FindWorld3D().DirectSpaceState;
@@ -460,6 +507,9 @@ public partial class RuienProof : Node
             await WalkTo(new Vector2(hallStair.Top.X,139.2f),"hall stair exits onto open street");
             Check("hall street exit clear",j.BodyFree(hallStair.Top.X,.05f,139.2f));
             }
+            // Optional walk tests on a stretch (`--ruien-proof-walks <json>`): rail, bends, grates and ladder gaps.
+            string walks=Main.I.Arg("ruien-proof-walks");
+            if(walks.Length>0)await Walks(walks);
             // Optional review cameras after physics assertions, without restarting the whole native town.
             using var lease=await Dev.PerformanceLease.Acquire("Ruien proof");
             string views=Main.I.Arg("ruien-proof-views");
