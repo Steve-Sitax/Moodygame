@@ -40,7 +40,9 @@ O2 (vliet sluice, giant gallery, Vleeshuis hall) is the first use. All scripts r
 
 | Script | What | Parameters |
 |---|---|---|
-| `scripts/build_stretch.py` | Builds one route of the network with `kit/sweep.py`, renders a check and a mood picture, exports GLBs (LOD0, LOD1) and a manifest. | `--route <id>` (from ruien-routes.json), `--out <dir>`, `--walkway 1/-1` (rui walkway side), `--start` and `--end` (`junction`, `open`, `cap`), `--lods 0,1`, `--no-render`, `--no-export` |
+| `scripts/build_stretch.py` | Builds one route of the network with `kit/sweep.py`, renders a check and a mood picture, exports GLBs (LOD0, LOD1) and a manifest. | `--route <id>` (from ruien-routes.json), `--out <dir>`, `--walkway 1/-1` (rui walkway side), `--walkways L79=1,...` (the other ruien at its tees), `--start` and `--end` (`auto` from the plan: `tee`, `reducer`, `through`, else `open`; or `junction`, `open`, `cap`), `--clip a,b` (metres along the route, proof pieces), `--lods 0,1`, `--no-render`, `--no-export` |
+| `scripts/kit/meet.py` | `Tee`: a rui (M) ends in the side of a giant gallery (G). `Throat`: a G ends where an M begins (up to 15 degrees off line). Both builds make the same object from the plan (`find_tees`, `find_throats`); the gallery cuts itself, the rui builds the meeting pieces. | node, gallery direction, sections, rui path and end |
+| `scripts/kit/throat.py` | `annulus` (end wall round a smaller opening), `throat`, `side_gallery`: moved from `build.py`, which passes O2's sizes (mesh-identical). | sizes, profile, rays |
 | `scripts/kit/sweep.py` | `build_stretch(route_id, pts, cls, ...)`: the section sweep along any polyline, bends filleted (radius 1.2 x width by default). | class `G` (giant: 6 m, ledges both sides at -3.6, bed -6.1, basket vault, crown -0.9, water -4.6) or `M` (rui: 3.6 m, one 0.8 m walkway at -3.9, bed -4.9, semicircular vault, crown -0.9, water -4.4); grates and lamps from the route data within 4 m; ends |
 | `kit/sweep.py: Section` | Section numbers, wall and vault curves, profile. | add a class here for a new section |
 | `kit/sweep.py: grate_shaft` | Parametric grate shaft for any section: vault hole, brick shaft to the street, cast-iron grate, step irons, ladder down to the walkway or ledge. | route u, offset s, street level |
@@ -82,7 +84,7 @@ the game cuts its own quay wall along `markers.outlet` (opening and dressing out
 ## How to build another stretch
 
 ```
-"$BL" --background --factory-startup --python scripts/build_stretch.py -- --route L90 --out export/stretches/L90 --start junction --end junction
+"$BL" --background --factory-startup --python scripts/build_stretch.py -- --route L90 --out export/stretches/L90
 ```
 
 This writes `export/stretches/L90/`: `L90.blend` (editable), `L90_check.jpg`, `L90_mood.jpg`,
@@ -93,6 +95,29 @@ profile alone leaves a triangular opening below the fan centre (#274). Void-card
 base beneath the bed stay sharp as hidden mating surfaces. `check_stretch_ends.py` checks end coverage
 for both classes, both rui walkway sides and all end kinds. Mask heights follow `Section`; O2 retains its original defaults.
 `check_stretch_export.py` checks G and both M walkway sides in headless Blender without textures or a render.
+`check_meet.py` checks a tee and a throat on synthetic routes for both walkway sides: closed ring, walk risers, the
+giant's steps and head room, water and film.
+
+### Where galleries meet (#272 stage 1d)
+
+- **Tee** (rui into a gallery side). The gallery cuts its shell round the opening and its ledge paving, coping and
+  channel wall across the rui's channel. The rui ends its barrel inside a brick ring of two header rowlocks (0.28 m
+  thick, 0.24 m deep, face 2 cm proud of the gallery face, soffit 5 cm inside the barrel, 18 mm worn arrises; thinner
+  over the crown, where the vaults are nearly level). Its far wall runs on through the ledge as a culvert with dressed
+  bluestone return copings (1 cm proud: seam stones where the directions meet), bluestone quoins at the mouth, a
+  bluestone sill at the rui bed (-4.9) with its nose 6 cm proud, and a step at -5.5 on the gallery bed for Antigoon.
+  The walkway climbs a bluestone step (-3.75) and threshold (-3.59) onto the gallery ledge. The rui water starts at the
+  sill lip and a film carries it 0.2 m down into the gallery water. No bridge crosses the mouth: Antigoon passes
+  upright, and the gallery ledge beyond the mouth ends on its return coping (a crossing is Steve's choice).
+- **Throat** (gallery ends, rui begins). The end wall stands square to the rui; the gallery runs on 0.6 m and is cut
+  at its plane (exact u knots on the channel walls). The rui builds the same ring on the flat wall, the step and
+  threshold from the walkway-side ledge, a dressed end coping where its walkway overhangs the gallery channel, the face
+  where the far ledge stops, the quoins, sill, giant's step and film; the gallery builds the wall round the ring and
+  the wall below the sill.
+- Routes that run on (`through`) meet on a shared bed and without relief bake within 0.3 m of the seam plane
+  (`export_game.SEAMS`), so separately built routes close without a crack. Coping joints are packed with silt and the
+  channel faces run 6 cm up behind the coping; the parametric grate's lining is one closed ring in an exact vault cut
+  and open-end cards stand 2 cm past the end, 15 cm larger than the section (#276).
 For an external native intake and review, see `docs/ruien-native.md` (`--out`, `--ruien-areas`). For a hall:
 `kit/hall_gen.build_hall(room, mats, coll, rng, mouths=[('z0', 1)])` (see `work/test_hall_gen.py`, which built C3).
 
@@ -101,8 +126,10 @@ Proof: `export/stretches/L105/` is the Kipdorprui (L105, 21.7 m, two bends of 4.
 
 ## Known limits
 
-- Junctions are simple: a junction end is an arch ring and a dark card; the opening into the other gallery is not cut
-  yet. Junction rooms (blue patches) should use `hall_gen` with rui depth once its section heights are parameters.
+- Tees need a G host straight within about 3 m of the node and a rui within 25 degrees of square; throats a rui within
+  15 degrees of the gallery's line. Other meetings (two galleries meeting at an angle, ruien meeting each other, the
+  junction rooms) end `open` until the junction rooms are built: they should use `hall_gen` with rui depth once its
+  section heights are parameters (Steve is choosing the room design).
 - The hall generator and the gate end take their sizes through `spec` (module values), so build one hall or gate per
   Blender run (or reload `rlib.hall`).
 - The native network matches the kit's rui: one 0.8 m walkway, 2.8 m channel and semicircular spring at -2.7 m.

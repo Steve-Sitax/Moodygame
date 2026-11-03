@@ -117,6 +117,16 @@ def lime_from_seeps(u, v, vc, seeps, Lup=0.15, Ldown=1.1, wu=0.22):
         out += st * along * np.exp(-0.5 * (du / wid) ** 2)
     return np.clip(out, 0, 1)
 
+def merge_knots(a, knots, step):
+    """Sorted samples a with the knots inside its range added; samples closer than 0.3 steps to a knot go."""
+    k = np.asarray(knots, np.float64)
+    k = k[(k > a[0] + 1e-6) & (k < a[-1] - 1e-6)]
+    if not len(k):
+        return a
+    inner = a[1:-1]
+    far = np.min(np.abs(inner[:, None] - k[None]), 1) > 0.3 * step
+    return np.unique(np.r_[a[0], inner[far], k, a[-1]])
+
 class Gallery:
     """Builds one gallery. Features (holes, drains) are passed in as lists."""
     def __init__(self, name, keys, mats, coll_, u0=0.0, u1=None, du=0.2, dv=0.09, seed=0, bend_a=3.2, profile=None, hw=W2):
@@ -144,7 +154,8 @@ class Gallery:
         self.objects = []
 
     # -------------------------------------------------------------- shell
-    def build_shell(self, shell_u0=None):
+    def build_shell(self, shell_u0=None, u_knots=None, v_knots=None):
+        """u_knots / v_knots (optional, kit stretches): extra grid lines, so a hole can be cut exactly."""
         s_p, y_p, v_p, vtot = self.profile(self.dv)
         self.vtot = vtot
         vc = vtot / 2
@@ -152,6 +163,11 @@ class Gallery:
         uu = np.arange(ua, self.u1 + 1e-6, self.du)
         if uu[-1] < self.u1 - 1e-6:
             uu = np.r_[uu, self.u1]
+        if u_knots is not None and len(u_knots):
+            uu = merge_knots(uu, u_knots, self.du)
+        if v_knots is not None and len(v_knots):
+            v_n = merge_knots(v_p, v_knots, self.dv)
+            s_p, y_p, v_p = np.interp(v_n, v_p, s_p), np.interp(v_n, v_p, y_p), v_n
         Uu, Vv = np.meshgrid(uu, v_p, indexing='ij')
         S = np.broadcast_to(s_p, Uu.shape)
         Y = np.broadcast_to(y_p, Uu.shape)

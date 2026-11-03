@@ -71,69 +71,21 @@ GF.rings(g, mats, cG, rng)
 log('main gallery')
 
 # ------------------------------------------------------------------ throats, end walls and side galleries
+# The pieces live in the kit (kit/throat.py); O2 passes its own sizes.
+from kit import throat as KT
+importlib.reload(KT)
 def annulus(name, path, u, hm, face_sign, c):
     """Brick end wall of a 6 m gallery round a smaller throat arch."""
-    th = np.linspace(np.pi, 0, 90)
-    rad = np.linspace(0, 1, 9)
-    W2 = spec.GAL_W / 2
-    a_in, b_in = hm, H.MOUTH_CROWN - H.MOUTH_SPRING
-    a_out, b_out = W2 + 0.04, spec.GAL_RISE + 0.04
-    pts = np.zeros((len(th), len(rad), 2))
-    for i, t in enumerate(th):
-        d = np.array([np.cos(t), np.sin(t)])
-        # ray from the springing centre to each ellipse
-        k_in = 1 / np.sqrt((d[0] / a_in) ** 2 + (d[1] / b_in) ** 2)
-        k_out = 1 / np.sqrt((d[0] / a_out) ** 2 + (d[1] / b_out) ** 2)
-        for j, r in enumerate(rad):
-            k = k_in + (k_out - k_in) * r
-            pts[i, j] = (d[0] * k, H.MOUTH_SPRING + d[1] * k)
-    S_, Y_ = pts[..., 0], pts[..., 1]
-    P = path.world(np.full(S_.shape, u), S_, Y_)
-    UV = np.stack([S_, Y_], -1)
-    A = np.zeros((*P.shape[:2], 4), np.float32); B = np.zeros((*P.shape[:2], 4), np.float32); B[..., 3] = 1
-    A[..., 1] = 0.25; A[..., 0] = 0.3 * U.smoothstep(-2.5, -1.2, Y_)
-    px, pz, tx, tz, nx, nz = path.frame(np.array(u))
-    want = P[45, 4] + face_sign * np.array([float(tx), 0, float(tz)])
-    obs = [U.grid_mesh(name, P, UV, attrs={'wxA': A, 'wxB': B}, flip=G.orient_check(P, want), coll_=c, mat=mats['brick_vault'])]
-    # lower strips between the throat jambs and the gallery walls, ledge top to springing
-    for side in (-1, 1):
-        ss = side * np.linspace(hm, W2 + 0.04, 6)
-        yy = np.linspace(spec.LEDGE_Y - 0.05, H.MOUTH_SPRING, 8)
-        Ss, Yy = np.meshgrid(ss, yy, indexing='ij')
-        P = path.world(np.full(Ss.shape, u), Ss, Yy)
-        A = np.zeros((*P.shape[:2], 4), np.float32); B = np.zeros((*P.shape[:2], 4), np.float32); B[..., 3] = 1
-        A[..., 2] = 0.4; A[..., 3] = 0.4
-        want = P[2, 3] + face_sign * np.array([float(tx), 0, float(tz)])
-        obs.append(U.grid_mesh(name + '_jamb', P, np.stack([Ss, Yy], -1), attrs={'wxA': A, 'wxB': B}, flip=G.orient_check(P, want), coll_=c, mat=mats['brick_vault']))
-    for o in obs:
-        U.add_adaptive(o)
-    return obs
+    return KT.annulus(name, path, u, hm, face_sign, c, mats, H.MOUTH_SPRING, H.MOUTH_CROWN, spec.GAL_W / 2, spec.GAL_RISE, spec.LEDGE_Y)
 
 def throat(name, mouth, origin_xz, out_dir, c):
     tc, hm, a, b = H.mouth_geom(mouth)
-    k0 = np.array(origin_xz, float)
-    k1 = k0 + np.array(out_dir, float) * spec.HALL_WALL_T
-    tg = G.Gallery(name, [tuple(k0), tuple(k1)], mats, c, u0=0.0, seed=hash(name) % 1000, profile=H.mouth_profile_fn(hm), hw=hm, du=0.1)
-    tg.build_shell()
-    tg.build_lower()
-    tg.build_coping()
-    return tg, hm
+    return KT.throat(name, hm, H.mouth_profile_fn(hm), origin_xz, out_dir, spec.HALL_WALL_T, mats, c, hash(name) % 1000)
 
 def side_gallery(name, start_xz, dir_xz, length, hm, c):
-    k0 = np.array(start_xz, float)
-    k1 = k0 + np.array(dir_xz, float) * length
-    sg = G.Gallery(name, [tuple(k0), tuple(k1)], mats, c, u0=0.0, seed=hash(name) % 1000)
-    sg.seeps = [(rng.uniform(0.5, length), sg.profile(0.06)[3] / 2 + rng.normal(0, 0.9), rng.uniform(0.3, 0.9)) for _ in range(8)]
-    sg.build_shell()
-    sg.build_lower()
-    sg.build_coping()
-    annulus(name + '_endwall', sg.path, 0.0, hm, +1, c)
-    # far end: dark cap, lost in fog
-    W2 = spec.GAL_W / 2
-    Pc = sg.path.world(np.full((2, 2), length), np.array([[-W2 - 0.1, -W2 - 0.1], [W2 + 0.1, W2 + 0.1]]), np.array([[spec.FLOOR_Y - 0.2, spec.CROWN_Y + 0.2], [spec.FLOOR_Y - 0.2, spec.CROWN_Y + 0.2]]))
-    U.grid_mesh(name + '_void', Pc, np.zeros((2, 2, 2)), coll_=c, mat=mats['soot_black'], smooth=False)
-    GF.straws(sg, straw_meshes, drop, c, rng) if hasattr(sg, 'seeps') else None
-    return sg
+    return KT.side_gallery(name, start_xz, dir_xz, length, hm, mats, c, rng, hash(name) % 1000,
+                           lambda p: annulus(name + '_endwall', p, 0.0, hm, +1, c), spec.FLOOR_Y, spec.CROWN_Y, spec.GAL_W / 2,
+                           straws=lambda sg: GF.straws(sg, straw_meshes, drop, c, rng))
 
 hall_mouth = H.mouth_geom('main')
 annulus('gal_endwall', g.path, g.path.length, hall_mouth[1], -1, cG)

@@ -340,6 +340,17 @@ def setup_render():
         if bpy.data.collections.get(cn):
             bpy.data.collections[cn].hide_render = True
 
+SEAMS = []   # stretches: (game point, game unit tangent) where the next route runs on; set by build_stretch.py
+def seam_plane_fade(V, width=0.3):
+    """No relief bake within width of a seam plane, so two routes built apart meet without a crack."""
+    if not SEAMS:
+        return np.ones(len(V))
+    Vg = b2g(V); f = np.ones(len(V))
+    for p, t in SEAMS:
+        d = np.abs((Vg[:, [0, 2]] - np.asarray(p)[[0, 2]]) @ np.asarray(t)[[0, 2]])
+        f = np.minimum(f, U.smoothstep(0.0, width, d))
+    return f
+
 def build_lod(lod, objs, hide_coll=None, section=None):
     near_y = NEAR_Y if section is None else section.ledge_y + 2.0
     water_y = spec.WATER_Y if section is None else section.water
@@ -395,7 +406,7 @@ def build_lod(lod, objs, hide_coll=None, section=None):
         hb = bake_vc(ob, 'EMIT', 1, [bake_material(src, 'H')])
         h = (hb[:, 0] - 0.5) / 4.0
         nrm = vertex_normals(ob)
-        V = md.V + nrm * (h * md.pa['__fade'][:, 0])[:, None]
+        V = md.V + nrm * (h * md.pa['__fade'][:, 0] * seam_plane_fade(md.V))[:, None]
         ob.data.vertices.foreach_set('co', V.astype(np.float32).ravel()); ob.data.update()
         md.V = V
         if kind_of_mat(mat) == 'masonry':
@@ -717,6 +728,8 @@ def collision(coll, sources=None):
         for src in sources:
             if kind_of(src) == "water" or src.name.endswith("_void") or src.name.startswith("runoff_"):
                 continue
+            if any(sl.material and sl.material.name.startswith('Water_film') for sl in src.material_slots):
+                continue  # a tee's overflow film is water, not a surface to stand on
             md = MD.from_object(src)
             md.uv = {}; md.pa = {}
             md.mats = []; md.pm[:] = 0
@@ -915,7 +928,8 @@ def stretch_markers(sources, path, section, info):
         out['ladders'].append(dict(name=name, bottom=point(u, s + side * (0.33 - 0.14), section.ledge_y),
             top=point(u, s, 0.0), grate_size_m=[0.66, 0.66]))
     lo, hi = section.channel_edges()
-    uu = np.linspace(0, path.length, int(path.length / 0.25) + 2)
+    w0, w1 = info.get('water_u', (0.0, path.length))   # a tee's branch water starts at its sill lip
+    uu = np.linspace(w0, w1, int((w1 - w0) / 0.25) + 2)
     mid = path.world(uu, np.full_like(uu, (lo + hi) / 2), np.full_like(uu, section.water))
     out['water'].append(dict(name=info['route'], height=section.water, centre_line=mid[:, [0, 2]].tolist(), width=hi-lo))
     # Short boxes follow bends instead of filling the route's entire bounding rectangle.
