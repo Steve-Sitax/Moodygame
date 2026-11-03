@@ -1,5 +1,19 @@
 # Work log
 
+## Ruien end-card holes, 2026-11-03 (#274)
+
+The apparent grey sheets in both L105 directions were outside scenery seen through triangular holes in
+`kit/sweep.py:end_piece`: a fan used the open wall/vault profile without closing the channel below its centre.
+Hiding only the exported soot surfaces exposed the complete arch; water and mist stayed enabled.
+The generator now closes the perimeter below the bed for open/junction cards and solid caps.
+All 1,080 coverage rays pass for G, M left/right, both ends and all three end kinds; the old GLB misses
+four of six diagnostic rays, the rebuilt GLB covers all six. Both LODs retain every non-card triangle exactly;
+collision arrays are identical. O2 build/export code, installed resources, areas and fingerprint are unchanged.
+Thirteen native views remove the large triangles in both directions, day/rain/night and low angles.
+Low shaft inspection still shows narrow light leaks (#276); #274 stays open pending clean visual acceptance.
+Native build passes with 27 existing warnings; both Blender contract suites pass.
+Evidence: `D:/Code/Proofs/ruien-274/` (before, no-soot-ready/shots, after/shots, rays logs, geometry-exact.txt).
+
 ## Ruien stretch intake, stage 1c, 2026-11-03 (#272)
 
 Generic stretch collision, route keys, markers and empty movers now accompany both LODs; mask heights use the

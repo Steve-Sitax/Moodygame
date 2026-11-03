@@ -339,6 +339,10 @@ def end_piece(path, sec, u, kind, which, mats, coll):
     'junction': a header-brick arch ring where the route opens into a bigger gallery or room."""
     obs = []
     s_p, y_p, v_p, vt = sec.profile(0.2)
+    # The shell profile is open between its unequal feet. An end fan needs a
+    # closed perimeter down to the bed, or it leaves a triangular view outside.
+    s_p = np.r_[s_p, sec.hw, -sec.hw]
+    y_p = np.r_[y_p, sec.bed - 0.3, sec.bed - 0.3]
     if kind == 'cap':
         n = len(s_p)
         rings = np.linspace(1, 0, 6)
@@ -350,7 +354,7 @@ def end_piece(path, sec, u, kind, which, mats, coll):
         A[..., 2] = 0.4
         inside = path.world(np.array(u + (-0.5 if which == 'end' else 0.5)), np.array(0.0), np.array(cy))
         o = U.grid_mesh('%s_cap' % which, Pp, np.stack([np.broadcast_to(s_p[:, None], Pp.shape[:2]), Pp[..., 1]], -1), attrs={'wxA': A, 'wxB': B},
-                        flip=G.orient_check(Pp, inside), coll_=coll, mat=mats['brick_channel'])
+                        flip=G.orient_check(Pp, inside), closed_u=True, coll_=coll, mat=mats['brick_channel'])
         U.add_adaptive(o); obs.append(o)
     else:
         n = len(s_p)
@@ -358,7 +362,7 @@ def end_piece(path, sec, u, kind, which, mats, coll):
         cy = (sec.bed + sec.crown) / 2
         P1 = path.world(np.full(n, u + (0.3 if which == 'end' else -0.3)), s_p * 0.0, np.full(n, cy))
         Pp = np.stack([P0, P1], 1)
-        obs.append(U.grid_mesh('%s_void' % which, Pp, np.zeros((n, 2, 2)), coll_=coll, mat=mats['soot_black'], smooth=False))
+        obs.append(U.grid_mesh('%s_void' % which, Pp, np.zeros((n, 2, 2)), closed_u=True, coll_=coll, mat=mats['soot_black'], smooth=False))
         if kind == 'junction':
             th = np.linspace(np.pi, 0, 2000)
             es, ey = (sec.hw + 0.05) * np.cos(th), sec.spring + (sec.rise + 0.05) * np.sin(th)
