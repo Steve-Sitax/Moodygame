@@ -370,6 +370,10 @@ def build_lod(lod, objs, hide_coll=None, section=None):
         if k == 'static':
             statics.append(md); continue
         mat = md.mats[0]
+        # ruien_keep_mesh (kit/arch_rim.py): an exact solid with metric charts on narrow rounded faces; it is baked
+        # (colour, masks, AO) but not subdivided or decimated, its relief stays in the maps. Unflagged sources: unchanged.
+        keep = bool(o.get('ruien_keep_mesh'))
+        gkey = (mat,) if keep else mat
         if k == 'masonry':
             r = md.pa.pop('rnd', None)
             r = r[:, 0] if r is not None else np.zeros(len(md.V))
@@ -383,10 +387,10 @@ def build_lod(lod, objs, hide_coll=None, section=None):
                 part = md.subset(cls == c_)
                 if not len(part.pt):
                     continue
-                lvl = level_for(part, NEAR_T if c_ == 0 else FAR_T, lod, o.get('ruien_level_edge'))
+                lvl = 0 if keep else level_for(part, NEAR_T if c_ == 0 else FAR_T, lod, o.get('ruien_level_edge'))
                 sp = subdivide(part, lvl, work)
                 sp.pa['__fade'] = seam_fade(sp.V, segs).reshape(-1, 1).astype(np.float32) if segs else np.ones((len(sp.V), 1), np.float32)
-                groups.setdefault(mat, []).append(sp)
+                groups.setdefault(gkey, []).append(sp)
         else:
             sp = subdivide(md, level_for(md, SILT_T if k == 'silt' else CALC_T, lod), work)
             sp.pa['__fade'] = np.ones((len(sp.V), 1), np.float32)
@@ -400,7 +404,9 @@ def build_lod(lod, objs, hide_coll=None, section=None):
     # hide the sources: bakes and AO see the export geometry only
     hide_coll.hide_render = True
     baked = []
-    for mat, lst in groups.items():
+    for gkey, lst in groups.items():
+        keep = isinstance(gkey, tuple)
+        mat = gkey[0] if keep else gkey
         md = MD.merge(lst)
         ob = md.to_object('__grp_' + mat, work)
         src = bpy.data.materials[mat]
@@ -422,7 +428,7 @@ def build_lod(lod, objs, hide_coll=None, section=None):
             wet = np.clip((water_y + 0.6 - y) / 0.6, 0, 1)
             md.pa['Col'] = np.stack([np.maximum(wet, 0.6 if mat.startswith('Silt') else 0.2), np.full(len(V), 0.9 if mat.startswith('Calc') else 0.0),
                                      np.full(len(V), 0.2), np.zeros(len(V))], -1).astype(np.float32)
-        r_ = DECIM_RELIEF.get(lod, 1.0)
+        r_ = 1.0 if keep else DECIM_RELIEF.get(lod, 1.0)
         if r_ < 1.0:
             n0 = md.tris
             me_old = ob.data; bpy.data.objects.remove(ob); bpy.data.meshes.remove(me_old)
@@ -480,7 +486,10 @@ def kind_of_mat(m):
 
 # ===================================================================== export materials and UVs
 FAM_TEX = json.load(open(os.path.join(TEXD, 'texture_sets.json')))
+OWN_CHART = '_rim'   # kit/arch_rim.py: a brick material copy whose family keeps its own charts in the game (RuienTextures.OwnChart)
 def fam_of(mat):
+    if mat.endswith(OWN_CHART) and mat.startswith('Brick_'):
+        return fam_of(mat[:-len(OWN_CHART)]) + OWN_CHART
     if mat in BOND or mat.startswith('Brick_') and mat != 'Brick_loose':
         return 'brick_' + BOND.get(mat, 'flemish')
     if mat.startswith('Bluestone'):
@@ -526,7 +535,8 @@ def export_material(fam_or_misc):
     out = nt.nodes.new('ShaderNodeOutputMaterial')
     b = nt.nodes.new('ShaderNodeBsdfPrincipled')
     nt.links.new(b.outputs[0], out.inputs['Surface'])
-    fam = fam_or_misc if fam_or_misc in FAM_TEX else ('oak' if fam_or_misc == 'oak_debris' else None)
+    base = fam_or_misc[:-len(OWN_CHART)] if fam_or_misc.endswith(OWN_CHART) else fam_or_misc
+    fam = base if base in FAM_TEX else ('oak' if fam_or_misc == 'oak_debris' else None)
     if fam:
         uvn = nt.nodes.new('ShaderNodeUVMap'); uvn.uv_map = 'UVMap'
         def tex(suffix, data):
@@ -582,7 +592,7 @@ def finalize_uv_mats(mat, md):
         uv0 = uv0 + rl * np.array([17.31, 9.13])
         uv = uv0 / np.array([tw, th])
         famf = np.full(len(md.pt), 0)
-        fams = ['brick_' + BOND.get(mat, 'flemish'), 'sandstone', 'bluestone']
+        fams = [fam, 'sandstone', 'bluestone']
         sand = np.add.reduceat(md.pa['__sand'][md.lv, 0], md.ps) / md.pt
         stone = np.add.reduceat(md.pa['__stone'][md.lv, 0], md.ps) / md.pt
         famf[sand > 0.5] = 1; famf[stone > 0.5] = 2

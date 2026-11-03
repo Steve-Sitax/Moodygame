@@ -14,7 +14,7 @@ public static class RuienUv
     public static bool Repair(Godot.Collections.Array arrays,string family,bool continuous=false,bool localPhase=false)
     {
         var families=RuienTextures.Families();
-        if(!families.TryGetValue(family.StartsWith("ruien_")?family[6..]:family,out var f))return false;
+        if(!families.TryGetValue(RuienTextures.Key(family),out var f))return false;
         var p=arrays[(int)Mesh.ArrayType.Vertex].AsVector3Array();var uv=arrays[(int)Mesh.ArrayType.TexUV].AsVector2Array();
         var ix=arrays[(int)Mesh.ArrayType.Index].AsInt32Array();if(uv.Length!=p.Length)return false;
         if(ix.Length==0)ix=Enumerable.Range(0,p.Length).ToArray();
@@ -88,7 +88,7 @@ public static class RuienUv
     public static int UnfoldFlanks(Godot.Collections.Array arrays,string family)
     {
         var families=RuienTextures.Families();
-        if(!families.TryGetValue(family.StartsWith("ruien_")?family[6..]:family,out var f))return 0;
+        if(!families.TryGetValue(RuienTextures.Key(family),out var f))return 0;
         var p=arrays[(int)Mesh.ArrayType.Vertex].AsVector3Array();var uv=arrays[(int)Mesh.ArrayType.TexUV].AsVector2Array();
         var ix=arrays[(int)Mesh.ArrayType.Index].AsInt32Array();if(uv.Length!=p.Length)return 0;
         if(ix.Length==0)ix=Enumerable.Range(0,p.Length).ToArray();
@@ -213,7 +213,7 @@ public static class RuienUv
             var mesh=ResourceLoader.Load<ArrayMesh>(file);
             for(int s=0;s<mesh.GetSurfaceCount();s++)
             {
-                string name=mesh.SurfaceGetName(s),key=name.StartsWith("ruien_")?name[6..]:name;
+                string name=mesh.SurfaceGetName(s),key=RuienTextures.Key(name);
                 // (a stair-house's shell: the town's pictures at their own tiles, RuienStairHouse)
                 Vector2 tile;if(families.TryGetValue(key,out var family))tile=new Vector2(family.TileU,family.TileV);else if(RuienStairHouse.Tile(name) is Vector2 own)tile=own;else continue;
                 var a=mesh.SurfaceGetArrays(s);var v=a[(int)Mesh.ArrayType.Vertex].AsVector3Array();

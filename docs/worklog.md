@@ -1,5 +1,33 @@
 # Work log
 
+## Ruien arch rim, 2026-11-03 (#272, #289, ring part of #285)
+
+Branch t3/ruien-arch-rim. Steve's design for the side-drain mouth: no rings of loose bricks, but one rim a little out
+of the wall with the brick arch in its texture, rounded corners, and a step one brick deep behind it. New reusable
+piece `kit/arch_rim.py` (`rim(name, outline, host, mat, coll, width, step, depth, proud, back, arris, ...)`, KIT.md
+"Arch rim"): one closed solid round the clear outline, face 23 cm wide and 3 cm proud, 10 mm arrises, an 11 cm reveal
+step one brick (11 cm) deep, header-bond charts laid radially (texture courses round the arch, header heads outwards)
+at true size, wall masks, its own brick phase, no collision. The outward directions are taken on the host face, so a
+rim on a gallery vault (tee) or in a bend (route u is not metric there: `RouteWall`) is not sheared. Used by the R3
+crossing (rim on the widened bluestone sill), the far-wall mouth (rim on a new notched bluestone sill with a 5 cm
+nose; the egg invert is too tight for a brick chart), and the tee and throat rings of `kit/meet.py` (clear opening as
+built, rim 6 cm larger, full width over the crown; the gallery cuts its shell round the rim exactly, `Tee.host_cutter`). The loose `Brick_loose` header
+bricks are gone (#289). `export_game.build_lod`: sources flagged `ruien_keep_mesh` are baked but not subdivided,
+displaced or decimated (edge-collapse decimation had skewed a third of the rim's charts); no O2 object is flagged.
+`check_fittings.py` checks one rim per mouth, no loose headers, rim charts.
+
+Proof (D:/Code/Proofs/ruien-272-arch): O2 build.py before/after 3765 objects, 0 differing; 0 flagged objects in the O2
+blend. check_meet PASS (tee, throat, both walkway sides, Antigoon head room); check_fittings L105 15/15.
+Rim UV metric in Blender (RuienUv limits): drain rims 0 m2, throat rim 0 m2, tee rim 0.55 m2 of 11.5 (a narrow band
+over the crown, mostly its hidden back and outer side). Native RuienUv audit after the intake (with #285's repair, which
+fixes those triangles): 0 m2 stretched in every family of all six areas, the rims (`ruien_brick_header_rim`) included. Cost: drain rim 7.3k triangles (LOD0 = LOD1),
+tee and throat rims 15.5k and 16.1k; L105 LOD0 752k -> 724k. Native external intake of L105, L79+L48/L92 and L59/L60
+(isolated data, ports 19781-19785, render lock): 85/85 view and walk checks (the walks over the grate stay level),
+tee rerun 10/10; the first tee run showed sky through two cut cells over the crown, fixed by the exact cut. Final run
+on the rebased branch 85/85. Shots: D:/Code/Proofs/ruien-272-arch/final (all), run1, run3-tee. L105 has no plan lamp at the crossing, so its midday,
+rain and night views are dark; the inspection light shows the rim. The rim exports as family `brick_header_rim`, which the game draws as
+`brick_header` but does not re-chart at import (`RuienTextures.OwnChart`; #285 now unfolds every generated brick family).
+
 ## Generated Ruien UVs and rui surfaces, 2026-11-03 (#285, #291)
 
 `RuienImport` now unfolds generated brick families across each LOD's exported objects, returns triangles to

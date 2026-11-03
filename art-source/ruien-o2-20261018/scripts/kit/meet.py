@@ -1,22 +1,27 @@
 # Ruien kit: where a rui (class M) ends in the side of a giant gallery (class G), a "tee".
 # Both stretches are built separately and each builds a Tee from the same route data, so the cut in the
 # host and the pieces of the branch meet exactly. The host cuts its shell, ledge paving, coping and channel
-# wall; the branch trims its own shell and lower parts and builds the meeting pieces: a proud brick arch ring
-# with rounded arrises, the cross-ledge culvert with its dressed bluestone edges, the two walkway steps up to
+# wall; the branch trims its own shell and lower parts and builds the meeting pieces: the arch rim (kit/arch_rim.py:
+# a proud brick band with rounded arrises and a one-brick reveal), the cross-ledge culvert with its dressed bluestone edges, the two walkway steps up to
 # the gallery ledge, the bluestone sill and the giant's step down to the gallery bed, and the overflow film.
 # Frame: q along the branch from the node (the host centre line) into the branch, l = the branch path's
 # lateral s (so the walkway side keeps its sign), y up. The branch must be straight for q_wall + 1.5 m.
+import zlib
 import numpy as np
 from rlib import util as U
-from rlib.chosen import solid
+from . import arch_rim as AR
 
 class Tee:
-    P = 0.05      # ring intrados stands this far inside the barrel
-    T = 0.28      # ring thickness (two rowlock rings of headers)
-    T_TOP = 0.10  # thinner over the crown, where the host vault is nearly level and a full ring would fan out
-    D = 0.24      # ring depth along the branch
-    PF = 0.02     # ring face stands this far proud of the host face
-    ARRIS = 0.018 # worn brick arris radius
+    P = 0.05      # the clear opening (the rim's reveal) stands this far inside the barrel
+    STEP = AR.STEP          # the rim (kit/arch_rim.py): reveal step, face width, reveal depth, proud, arris
+    WIDTH = AR.WIDTH
+    DEPTH = AR.DEPTH
+    T = STEP + WIDTH        # the rim's whole thickness out from the clear opening (the host cuts follow it)
+    T_TOP = T     # full width over the crown too: the rim is measured on the host face (arch_rim.surface_normals), so it
+                  # no longer fans out where the host vault is nearly level (the old ring thinned to 0.10 there)
+    D = AR.BACK   # rim depth along the branch
+    PF = AR.PROUD # rim face stands this far proud of the host face
+    ARRIS = AR.ARRIS
     RING_LOW_WALK = -3.75   # ring legs stand on the walkway step and on the far return coping
     RING_LOW_FAR = -3.59
     SILL_TOP_OFF = 0.0      # sill top = branch bed
@@ -173,7 +178,8 @@ class Tee:
         def hole(cu, cs, cy):
             q, l, y, sh = self._host_local(hpath, cu, cs, cy)
             near = self.sigma * sh > 0.12     # by the crown the ring's face passes under the host vault
-            return near & (self.ring_r(l, y) < 0.5 * self.T_at(self.ny_at(l, y))) & (y > self.hsec.ledge_y - 0.2)
+            # cells well inside the opening only: host_cutter makes the edge under the rim's face exactly
+            return near & (self.ring_r(l, y) < -0.12) & (y > self.hsec.ledge_y - 0.2)
         return hole
 
     def gap_l(self):
@@ -242,47 +248,52 @@ class Tee:
         y[-1] = self.RING_LOW_WALK if np.sign(s[-1]) == self.ws else self.RING_LOW_FAR
         return s - self.P * ns, y - self.P * ny, ns, ny
 
+    def _rim_dirs(self):
+        if not hasattr(self, '_rs'):
+            li, yi, ns, ny = self.ring_samples()
+            Q = AR.resample(np.stack([li, yi], -1), AR.ROW, False)
+            self._rs = (Q,) + AR.surface_normals(Q, AR.normals(Q, False), _RimHost(self), False)
+        return self._rs
+
+    def host_cutter(self, hpath):
+        """Closed prism along the branch through the host face: the clear outline pushed out by half the rim's width on
+        the host face (under its face), its legs carried down to the ledge; the host shell is cut with it exactly."""
+        Q, D, sc = self._rim_dirs()
+        O = Q + D * (0.5 * self.T)
+        yb = self.hsec.ledge_y - 0.2
+        P2 = np.vstack([[O[0, 0], yb], O, [O[-1, 0], yb]])
+        q_f = self.q_host(P2[:, 0], np.maximum(P2[:, 1], yb + 0.01))
+        q0, q1 = float(np.min(q_f)) - 0.3, float(self.q_wall(0.0)) + 0.6
+        k = len(P2)
+        A = self.world(np.full(k, q0), P2[:, 0], P2[:, 1]); B = self.world(np.full(k, q1), P2[:, 0], P2[:, 1])
+        V = np.vstack([A, B])
+        F = [[i, (i + 1) % k, k + (i + 1) % k, k + i] for i in range(k)] + [list(range(k))[::-1], [k + i for i in range(k)]]
+        return V, F
+
+    def rim_scale(self, l, y):
+        """The rim's section-plane scale at (l, y) (kit/arch_rim.surface_normals: where the host vault lies oblique,
+        a metre on the host face is less than a metre in the branch section), from the nearest clear-outline point.
+        The host cuts its hole with it, so the hole stays under the rim's face."""
+        Q, D, sc = self._rim_dirs()
+        l, y = np.broadcast_arrays(np.asarray(l, float), np.asarray(y, float))
+        P = np.stack([l.ravel(), y.ravel()], -1); out = np.empty(len(P))
+        for a in range(0, len(P), 4096):
+            d = np.sum((P[a:a + 4096, None, :] - Q[None]) ** 2, -1)
+            out[a:a + 4096] = sc[np.argmin(d, 1)]
+        return out.reshape(l.shape)
+
     def ring(self, name, mats, coll):
-        """One closed swept brick ring round the opening: its face follows the host face, 2 cm proud, its
-        soffit 5 cm inside the barrel, its back 24 cm in; every exposed arris is rounded."""
+        """The arch rim round the opening (kit/arch_rim.py): its face follows the host face, PF proud, its reveal
+        steps one header back to the clear opening (P inside the barrel), its back D in; thinner over the crown."""
         li, yi, ns, ny = self.ring_samples()
-        R = np.linspace(0, 1, 15)      # dense: the face follows the host vault and its turn over the crown
-        Ti = self.T_at(ny)
-        n = len(li)
-        F = np.zeros((n, len(R), 3)); B = np.zeros_like(F)
-        for j, r in enumerate(R):
-            l = li + r * Ti * ns; y = yi + r * Ti * ny
-            qf = self.ring_front_q(l, y)
-            F[:, j] = self.world(qf, l, y) - self.PF * self.host_normal(y)
-            B[:, j] = self.world(qf + self.D, l, y)
-        loop = [F[:, j] for j in range(len(R))] + [B[:, j] for j in range(len(R) - 1, -1, -1)]
-        m = len(loop)
-        Pts = np.stack(loop, 1)                     # (n, m, 3)
-        along = np.r_[np.zeros((1, m)), np.cumsum(np.linalg.norm(np.diff(Pts, axis=0), axis=2), axis=0)]
-        across = np.c_[np.zeros(n), np.cumsum(np.linalg.norm(np.diff(Pts, axis=1), axis=2), axis=1)]
-        V = Pts.reshape(-1, 3)
-        faces, uv = [], []
-        for i in range(n - 1):
-            for j in range(m - 1):
-                f = [i * m + j, (i + 1) * m + j, (i + 1) * m + j + 1, i * m + j + 1]
-                faces.append(f)
-                uv += [(along[i, j], across[i, j]), (along[i + 1, j], across[i + 1, j]), (along[i + 1, j + 1], across[i + 1, j + 1]), (along[i, j + 1], across[i, j + 1])]
-            # closing strip of the loop (back intrados -> front intrados: the soffit)
-            j = m - 1
-            f = [i * m + j, (i + 1) * m + j, (i + 1) * m, i * m]
-            faces.append(f)
-            d0 = np.linalg.norm(Pts[i, 0] - Pts[i, j]); d1 = np.linalg.norm(Pts[i + 1, 0] - Pts[i + 1, j])
-            uv += [(along[i, j], across[i, j]), (along[i + 1, j], across[i + 1, j]), (along[i + 1, 0], across[i + 1, j] + d1), (along[i, 0], across[i, j] + d0)]
-        # end caps: a metric chart in the cap's own plane
-        for i, rev in ((0, True), (n - 1, False)):
-            js = list(range(m))[::-1] if rev else list(range(m))
-            faces.append([i * m + j for j in js])
-            e1 = Pts[i, len(R) - 1] - Pts[i, 0]; e1 /= np.linalg.norm(e1)
-            e2 = Pts[i, m - 1] - Pts[i, 0]; e2 -= e1 * np.dot(e2, e1); e2 /= np.linalg.norm(e2)
-            uv += [(float(np.dot(Pts[i, j] - Pts[i, 0], e1)), float(np.dot(Pts[i, j] - Pts[i, 0], e2))) for j in js]
-        ob = solid('%s_tee_ring' % name, V, faces, np.array(uv), mats['brick_rib'], coll, self.ARRIS)
-        U.add_adaptive(ob)
-        return ob
+        sc = self.T_at(ny) / self.T
+        b = self.bsec
+        def masks(P, M):
+            M['wxA'][:, 1] += 0.3                                             # soot and grime, as the walls
+            M['wxA'][:, 2] += 0.45 * U.smoothstep(b.ledge_y + 0.5, b.ledge_y - 0.1, P[:, 1])   # slime by the walk
+        return AR.rim('%s_tee_ring' % name, np.stack([li, yi], -1), _RimHost(self), mats['brick_rib'], coll,
+                      width=self.WIDTH * sc, step=self.STEP * sc, depth=self.DEPTH, proud=self.PF, back=self.D,
+                      arris=self.ARRIS, masks=masks, seed=zlib.crc32(name.encode()))
 
     def block(self, name, q0, q1, l0, l1, y0, y1, mat, coll, rng, r=0.01, wear=0.0, chips=(3, 7)):
         """A stone whose 8 corners lie on the tee frame; q and l may be functions of the other coordinate."""
@@ -370,6 +381,16 @@ class Tee:
         return U.grid_mesh('%s_tee_spill' % name, P, P[..., [0, 2]], flip=G.orient_check(P, up), coll_=coll, mat=mats['water_film'], smooth=True)
 
 
+class _RimHost:
+    """arch_rim host for a tee or throat: (l, y) in the branch section, t along the branch from the host face
+    (q_host), proud faces offset along the host normal (a gallery's curved side; a throat's flat end wall)."""
+    def __init__(self, t):
+        self.t = t
+    def point(self, l, y, t):
+        l, y, t = np.broadcast_arrays(np.asarray(l, float), np.asarray(y, float), np.asarray(t, float))
+        qf = self.t.ring_front_q(l, y)
+        return self.t.world(qf + np.maximum(t, 0.0), l, y) + np.minimum(t, 0.0)[..., None] * self.t.host_normal(y)
+
 # ------------------------------------------------------------------ finding tees in the route plan
 def _seg_dist(p, a, b):
     ab = b - a
@@ -439,6 +460,7 @@ class Throat(Tee):
     overflow film. The gallery builds the wall round the ring and the wall below the sill, and ends its shell,
     ledges, coping, channel walls, silt and water at the wall plane (its route runs on EXTEND m to be cut there)."""
     T_TOP = Tee.T
+    host_cutter = None      # the end wall is built round the ring (build_host), not cut
     EXTEND = 0.6
     RING_LOW_FAR = -3.85    # the far leg runs down into the ledge end: no return coping here to stand on
 

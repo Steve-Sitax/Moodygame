@@ -174,6 +174,12 @@ def build_stretch(route_id, pts, cls, mats, coll, grates=(), lamps=(), start='ju
         if d < 4.0 and clear(u, 0.5):
             g.lamps.append(tuple(path.world(np.array(u), np.array(sec.sides[0] * sec.wall_s_at_y(-2.3) * 0.98), np.array(-2.3))))
     obs = [g.build_shell(u_knots=u_knots or None, v_knots=v_knots or None)]
+    for t in as_host:
+        # a tee's exact cut round its arch rim (the grid holes only take the cells well inside the opening)
+        if getattr(t, 'host_cutter', None) is not None:
+            from kit import fitlib as FL
+            V_, F_ = t.host_cutter(path)
+            FL.boolean_cut(obs[0], V_, F_, coll)
     seams = [u for u, k in ((0.0, start), (path.length, end)) if k == 'through']
     info['seams'] = [dict(pos=[float(v) for v in path.world(np.array(u), np.array(0.0), np.array(0.0))], tangent=[float(v) for v in np.array(path.frame(np.array(u))[2:4])]) for u in seams]
     obs += build_lower(g, sec, mats, coll, rng, as_branch, as_host, seams)

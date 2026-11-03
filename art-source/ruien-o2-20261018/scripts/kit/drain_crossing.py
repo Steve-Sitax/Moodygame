@@ -1,14 +1,16 @@
 # R3, the covered side-drain crossing (Steve, #272, 2026-11-03), and the plain drain mouth on the far wall.
 # Where a plan side drain (ruien-routes.json sideDrains, 1.0 x 1.6 m egg) meets a rui on its walkway side,
-# the egg drain comes through the wall in two rowlock header rings on a lime mortar bed; its water runs in a
+# the egg drain comes through the wall inside an arch rim (kit/arch_rim.py: one proud brick band with a one-brick
+# reveal, standing on the sill); its water runs in a
 # recessed gutter across the walkway, under a flush cast-iron grate in a notched bluestone sill, and spills
 # over the lip into the channel. The host vault and the walkway are cut with the pieces' own outlines
 # (exact boolean), the coping is re-laid round the sill; nothing is laid over an uncut surface.
-# On the far wall the same egg mouth opens just above the water and spills straight into the channel.
+# On the far wall the same egg mouth opens just above the water: its rim stands on a notched bluestone sill (the
+# egg's tight invert would stretch a brick chart), and the water spills over the sill's lip into the channel.
 import numpy as np
 import bpy
 from rlib import util as U, gallery as G, wax as WX
-from . import fitlib as FL
+from . import fitlib as FL, arch_rim as AR
 
 # ------------------------------------------------------------------ plan matching
 def find(routes, path, sec, shafts_u, cfg, log=print, zones=()):
@@ -104,9 +106,13 @@ def barrel_line(cfg, bend):
         pts.append(pts[-1] + tans[-1] * (c / 5)); tans.append(tans[-1])
     return np.array(pts), np.array(tans)
 
-def lining(name, fr, egg, y_inv, cfg, bend, mats, coll):
-    """The egg barrel's brick lining from the wall face round its bend to a sealed, dark end."""
+def lining(name, fr, egg, y_inv, cfg, bend, mats, coll, start=0.0):
+    """The egg barrel's brick lining from `start` behind the wall face (the arch rim's back) round its bend to a
+    sealed, dark end."""
     C, T = barrel_line(cfg, bend)
+    if start > 0:
+        keep = np.r_[0, np.nonzero(-C[:, 1] > start + 0.03)[0]]
+        C, T = C[keep], T[keep]
     Q = egg.Q[::8]
     k = len(Q)
     X = np.stack([-T[:, 1], T[:, 0]], -1)          # horizontal across the barrel
@@ -119,7 +125,7 @@ def lining(name, fr, egg, y_inv, cfg, bend, mats, coll):
         dd = C[i, 1] + X[i, 1] * Q[:, 0]
         y = y_inv + Q[:, 1]
         if i == 0:
-            dd = fr.d_face(y) + 0.003               # the lip meets the cut face; the headers cover it
+            dd = fr.d_face(y) - start + (0.003 if start == 0 else 0.0)   # starts inside the rim's back (or on the face)
         P[i] = fr.W(du, y, dd)
         UV[i, :, 0] = along[i]; UV[i, :, 1] = arc
     h = np.broadcast_to(Q[:, 1], (m, k))
@@ -144,71 +150,52 @@ def lining(name, fr, egg, y_inv, cfg, bend, mats, coll):
         me.flip_normals()
     return [ob, end], C
 
-def headers(name, fr, egg, y_inv, mats, coll, rng, floor_y=None, rings=2):
-    """Rowlock header rings (bricks on edge, radial), 15 mm proud of the face, on a flush mortar bed with a skirt."""
-    obs = []
-    def F_(q, depth):
-        y = y_inv + q[..., 1]
-        return fr.W(q[..., 0], y, fr.d_face(y) - depth)
-    for ring in range(rings):
-        r0 = 0.004 + ring * 0.114
-        count = int(round((egg.total + 2 * np.pi * (r0 + 0.054)) / 0.069))
-        for k in range(count):
-            a0, a1 = egg.total * k / count, egg.total * (k + 1) / count
-            am = 0.5 * (a0 + a1)
-            q, o = egg.at(am)
-            ymid = y_inv + q[1] + o[1] * (r0 + 0.054)
-            if floor_y is not None and ymid + 0.06 < floor_y:
-                continue                                      # wholly under the walkway or sill
-            qa, _ = egg.at(am - 0.01); qb, _ = egg.at(am + 0.01)
-            et = F_(qb, 0) - F_(qa, 0); et /= np.linalg.norm(et)
-            er = F_(q + o * 0.01, 0) - F_(q, 0); er /= np.linalg.norm(er)
-            into = F_(q, 0.01) - F_(q, 0)
-            ed = np.cross(et, er); ed /= np.linalg.norm(ed)
-            if np.dot(ed, into) < 0:
-                ed = -ed
-            er = np.cross(ed, et)
-            if np.dot(er, F_(q + o * 0.01, 0) - F_(q, 0)) < 0:
-                er = -er
-            pa, oa = egg.at(a0); pb, ob_ = egg.at(a1)
-            width = np.linalg.norm(F_(pa + oa * r0, 0) - F_(pb + ob_ * r0, 0)) - 0.005
-            size = 0.106 - 0.006 * ((k * 5) % 3)
-            depth = 0.22
-            centre = F_(q + o * (r0 + 0.054), 0) + ed * (depth / 2 - 0.015)
-            b = FL.basis_box('%s_header' % name, centre, et, er, ed, (width, size, depth), mats['brick_loose'], coll,
-                             r=0.005, res=0.035, chips=int(rng.integers(0, 3)), seed=int(rng.integers(1e6)), chip_size=(0.006, 0.016))
-            b['ruien_collision'] = False
-            obs.append(b)
-    # mortar bed flush with the face, and a skirt back into the wall that closes the cut
-    mortar = bpy.data.materials.get('Mortar_header')
-    if mortar is None:
-        from rlib.mats import simple
-        mortar = simple('Mortar_header', (0.15, 0.14, 0.115, 1), rough=0.95)
-    seg = 220
-    a = np.linspace(0, egg.total, seg, endpoint=False)
-    q, o = egg.at(a)
-    rout = 0.004 + rings * 0.114 + 0.004
-    egg_c = fr.W(0.0, y_inv + egg.h * 0.55, 0.0)
-    for part, cols in (('mortar', [(-0.004, 0.004), (rout, 0.004)]), ('mortar_skirt', [(rout, 0.004), (rout, 0.16)])):
-        P = np.stack([F_(q + o * r, np.full(seg, dp)) for (r, dp) in cols], 1)
-        UVm = np.stack([np.broadcast_to(a[:, None], (seg, 2)), np.broadcast_to(np.array([r for r, _ in cols]) + np.array([dp for _, dp in cols]), (seg, 2))], -1)
-        keep = None
-        if floor_y is not None:
-            ym = y_inv + q[:, 1]
-            keep = ((ym > floor_y - 0.05) | (np.roll(ym, -1) > floor_y - 0.05))[:, None]
-        mb = U.grid_mesh('%s_%s' % (name, part), P, UVm, closed_u=True, keep=keep, coll_=coll, mat=mortar, smooth=False)
-        me = mb.data
-        # the bed faces the channel; the skirt faces away from the mouth, towards the cut edge of the host
-        votes = 0.0
-        for p in me.polygons:
-            c = np.array(p.center); nn = np.array(p.normal)
-            want = U.g2b(-fr.into()) if part == 'mortar' else c - U.g2b(egg_c)
-            votes += np.sign(np.dot(nn, want))
-        if votes < 0:
-            me.flip_normals()
-        U.remove_loose(mb)
-        obs.append(mb)
-    return obs, rout
+def rim_cfg(cfg):
+    w, st, dp, pr = cfg['rim']
+    return dict(width=w, step=st, depth=dp, proud=pr)
+
+def egg_above(egg, y_rel):
+    """The egg's clear outline above height y_rel over the invert, from one foot over the crown to the other foot."""
+    Q = egg.Q
+    hw = float(G.egg_hw(y_rel, egg.h, egg.w))
+    top = Q[Q[:, 1] > y_rel + 1e-4]
+    i0 = int(np.argmax(Q[:, 1] > y_rel + 1e-4))
+    seq = np.roll(Q, -i0, 0); seq = seq[: len(top)]
+    return np.vstack([[hw, y_rel], seq, [-hw, y_rel]])
+
+def drain_rim(name, mf, egg, y_inv, foot_rel, cfg, mats, coll, masks, seed):
+    """The arch rim round an egg mouth (mf: the metric wall frame, arch_rim.RouteWall), standing at foot_rel over the
+    invert; returns the rim, its outer half width at the feet (the sill under it is wider) and the clear outline."""
+    rc = rim_cfg(cfg)
+    Q = egg_above(egg, foot_rel)
+    ob = AR.rim(name + '_rim', np.stack([Q[:, 0], y_inv + Q[:, 1]], -1), mf, mats['brick_rib'], coll,
+                masks=masks, seed=seed, **rc)
+    return ob, float(G.egg_hw(foot_rel, egg.h, egg.w)) + rc['step'] + rc['width'], Q
+
+def rim_cut(fr, y_inv, Q, rc, sill_half, y_bottom):
+    """Closed outline (du, y - y_inv) of the host cut: the rim's outer edge less 6 mm, then out along the feet to the
+    sill and down below it."""
+    O = AR.outer_outline(Q, rc['step'] + rc['width'] - 0.006, False)
+    y_f = Q[0, 1]
+    xs = sill_half - 0.006
+    return np.vstack([[[xs, y_bottom], [xs, y_f]], O, [[-xs, y_f], [-xs, y_bottom]]])[::-1]
+
+def far_sill_profile(egg, foot_rel, half, bottom_rel):
+    """The far mouth's sill: a bluestone block under the rim's feet with the egg's invert notched out of its top."""
+    Q = egg.Q
+    above = np.nonzero(Q[:, 1] > foot_rel)[0]
+    i0 = int(above[-1]) + 1                               # Q is ccw from the invert: the low run starts down the left side
+    loop = np.roll(Q, -i0, 0)[: len(Q) - len(above)]
+    hw = float(G.egg_hw(foot_rel, egg.h, egg.w))
+    notch = np.vstack([[-hw, foot_rel], loop, [hw, foot_rel]])
+    notch = notch[np.r_[True, np.linalg.norm(np.diff(notch, axis=0), axis=1) > 0.004]]
+    outer = np.array([[half, foot_rel], [half, bottom_rel], [-half, bottom_rel], [-half, foot_rel]])
+    P = np.vstack([notch, outer])
+    R = [0.0] * len(P)
+    R[0] = R[len(notch) - 1] = 0.008                      # the notch lips: worn
+    R[len(notch)] = R[-1] = 0.009                         # the outer top arrises
+    R[len(notch) + 1] = R[len(notch) + 2] = 0.004
+    return FL.resample_closed(FL.fillet_polygon(P, R, n=4), 0.04)
 
 def sill_profile(cfg, top, bottom, floor, rebate):
     W, n = cfg['sillHalf'], cfg['notch'] / 2
@@ -317,6 +304,7 @@ def build(g, sec, mats, coll, items, cfg, rng, col_coll, log=print):
     for k, it in enumerate(items):
         u, side = it['u'], it['side']
         fr = FL.Frame(path, sec, u, side)
+        mf = AR.RouteWall(fr)        # true metres along the wall: the rim, its cut, the lining and the far sill
         nm = '%s_drain_%d' % (g.name, k)
         crossing = it['kind'] == 'crossing'
         y_inv = (sec.ledge_y - cfg['invertBelowWalk']) if crossing else (sec.water + cfg['farInvertAboveWater'])
@@ -337,19 +325,25 @@ def build(g, sec, mats, coll, items, cfg, rng, col_coll, log=print):
             M['wxA'][:, 3] += 0.4 * g_ * (y < y_inv + 0.3)
         if shell is not None:
             FL.edit_masks(shell, host_fn)
-        # ---- cut the host vault with the ring's outer outline
-        hdr_out = 0.004 + cfg['rings'] * 0.114 + 0.004
-        ring_out = egg.Q + egg.N * (hdr_out - 0.006)
-        ring_out = ring_out[::4]
+        def rim_fn(P, M, host_fn=host_fn):
+            M['wxA'][:, 1] += 0.3                              # the same soot and grime as the wall round it
+            host_fn(P, M)
+        # ---- the arch rim, standing on the sill: a crossing's sill is the walk's lip stone, the far mouth gets its own
+        rc = rim_cfg(cfg)
+        foot_rel = (top - 0.006 - y_inv) if crossing else cfg['farSill'][0]
+        rim, rim_half, Qc = drain_rim(nm, mf, egg, y_inv, foot_rel, cfg, mats, coll, rim_fn, seed=int(rng.integers(1 << 30)))
+        obs.append(rim)
+        sill_half = rim_half + 0.03                            # metres along the wall
+        sill_half_u = float(np.max(np.abs(mf.du(np.array([-sill_half, sill_half]), np.zeros(2)))))   # in route u (the crossing's stones)
+        sill_bottom = (walk_y - 0.1 - y_inv) if crossing else -cfg['farSill'][1]
+        # ---- cut the host vault with the rim's outer outline and the sill under it
         if shell is not None:
-            V, F = FL.prism(ring_out, fr, y_inv, -0.4, 0.35)
+            V, F = FL.prism(rim_cut(mf, y_inv, Qc, rc, sill_half, sill_bottom + 0.006), mf, y_inv, -0.4, 0.35)
             FL.boolean_cut(shell, V, F, coll)
-        part, C = lining(nm + '_lining', fr, egg, y_inv, cfg, it['bend'], mats, coll)
+        part, C = lining(nm + '_lining', mf, egg, y_inv, cfg, it['bend'], mats, coll, start=AR.BACK)
         obs += part
-        hb, rout = headers(nm, fr, egg, y_inv, mats, coll, rng, floor_y=walk_y if crossing else None, rings=cfg['rings'])
-        obs += hb
         # trickle along the invert into the light
-        inv = [fr.W(C[i, 0], y_inv + 0.006, C[i, 1]) for i in range(len(C) - 2, -1, -1)]
+        inv = [mf.W(C[i, 0], y_inv + 0.006, C[i, 1]) for i in range(len(C) - 2, -1, -1)]
         wf = water_mat(mats, 'Water_film')
         if crossing:
             floor = y_inv + 0.004
@@ -365,8 +359,11 @@ def build(g, sec, mats, coll, items, cfg, rng, col_coll, log=print):
                 FL.edit_masks(walk, walk_fn)
                 V, F = FL.box_cutter(fr, -W - 0.003, W + 0.003, walk_y - 0.12, walk_y + 0.12, -0.25, sec.ledge_w + 0.12)
                 FL.boolean_cut(walk, V, F, coll)
+                # the wall-side sill carries the rim's feet: it is as wide as the rim
+                V, F = FL.box_cutter(fr, -sill_half_u - 0.003, sill_half_u + 0.003, walk_y - 0.12, walk_y + 0.12, -0.25, 0.061)
+                FL.boolean_cut(walk, V, F, coll)
             obs += relay_coping(g, sec, side, u - W - 0.004, u + W + 0.004, mats, coll)
-            prA = sill_profile(cfg, top, y_inv - 0.08, floor, False)
+            prA = sill_profile(dict(cfg, sillHalf=sill_half_u), top, y_inv - 0.08, floor, False)
             prB = sill_profile(cfg, top, walk_y - 0.25, floor, True)
             sA = FL.notched_stone(nm + '_sill', fr, prA, -0.40, 0.058, mats['bluestone'], coll, r_end=(0.006, 0.006), wear=0.003, seed=k * 7 + 1)
             sB = FL.notched_stone(nm + '_kerb', fr, prB, 0.062, lip_d, mats['bluestone'], coll, r_end=(0.006, 0.006), wear=0.004, seed=k * 7 + 2)
@@ -400,10 +397,16 @@ def build(g, sec, mats, coll, items, cfg, rng, col_coll, log=print):
                     M['wxC'][:, 2] += 0.6 * gg
                 FL.edit_masks(wf_, face_fn)
         else:
-            lip = fr.W(0.0, y_inv + 0.006, fr.d_face(y_inv) + 0.01)
-            obs.append(FL.no_collision([U.tube(nm + '_trickle', np.array(inv + [lip]), 0.045, n=8, coll_=coll, mat=wf, flat=0.12)])[0])
-            obs.append(FL.no_collision([spill(nm + '_spout', fr, y_inv + 0.004, fr.d_face(y_inv) + 0.012, sec.water, 0.03, mats, coll, v=0.35)])[0])
-            ys = np.arange(y_inv - rout + 0.05, sec.water - 0.05, -0.02)
+            # the far sill: bluestone under the rim's feet, the egg's invert notched into it, its nose proud of the wall
+            nose = cfg['farSill'][2]
+            pr = far_sill_profile(egg, foot_rel, sill_half, sill_bottom)
+            pr = np.stack([pr[:, 0], y_inv + pr[:, 1]], -1)
+            obs.append(FL.notched_stone(nm + '_sill', mf, pr, -(AR.BACK + 0.08), nose, mats['bluestone'], coll, r_end=(0.0, 0.008),
+                                        wear=0.0, seed=k * 7 + 3))
+            lip = mf.W(0.0, y_inv + 0.006, nose + 0.004)
+            obs.append(FL.no_collision([U.tube(nm + '_trickle', np.array(inv + [mf.W(0.0, y_inv + 0.006, 0.0), lip]), 0.045, n=8, coll_=coll, mat=wf, flat=0.12)])[0])
+            obs.append(FL.no_collision([spill(nm + '_spout', fr, y_inv + 0.004, nose + 0.006, sec.water, 0.03, mats, coll, v=0.35)])[0])
+            ys = np.arange(y_inv + sill_bottom - 0.02, sec.water - 0.05, -0.02)
             if len(ys) > 3:
                 nrm = -fr.into()
                 P = np.array([fr.W(0.012 * np.sin(y * 9), y, 0.0) for y in ys])
