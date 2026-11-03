@@ -248,10 +248,13 @@ public static class RuienEntrance
             int wall = s.Cut.Length == 0 ? 0 : QuayNotch.CutRegion(town, mi => s.Cut.Any(c => mi.Name.ToString().StartsWith(c, StringComparison.Ordinal)), Box(s, new Vector3(-o.H - .1f, 0, -s.Wall - .2f), new Vector3(o.H + .1f, o.Top + .1f, .2f)), _ => true, door);
             // 2. the floor under the wall inside the doorway and everything in the tunnel's air (the bank's and the house's
             //    hidden faces): every mesh.
-            int air = 0;
-            air += QuayNotch.CutRegion(town, _ => true, Box(s, new Vector3(-o.H, -.45f, -s.Wall - .01f), new Vector3(o.H, .05f, -.01f)), _ => true, Planes(s.Local, new Vector3(-o.H, -.45f, -s.Wall - .01f), new Vector3(o.H, .05f, -.01f)));
+            var airRegions = new List<QuayNotch.Region>();
+            var floorLo = new Vector3(-o.H, -.45f, -s.Wall - .01f);
+            var floorHi = new Vector3(o.H, .05f, -.01f);
+            airRegions.Add(new QuayNotch.Region(Box(s, floorLo, floorHi), Planes(s.Local, floorLo, floorHi)));
             foreach (var (lo, hi, frame) in AirBoxes(s))
-                air += QuayNotch.CutRegion(town, _ => true, BoxOf(s.Local * frame, lo, hi), _ => true, Planes(s.Local * frame, lo, hi));
+                airRegions.Add(new QuayNotch.Region(BoxOf(s.Local * frame, lo, hi), Planes(s.Local * frame, lo, hi)));
+            int air = QuayNotch.CutRegions(town, _ => true, _ => true, airRegions);
             // 3. plants and climbers before the door: whole leaves go, none is clipped straight.
             var corridor = new Aabb(new Vector3(-o.H - .55f, -.2f, -.6f), new Vector3(2 * o.H + 1.1f, o.Top + 1.1f, 2.3f));
             int leaves = Drop(town, mi => s.Foliage.Any(c => mi.Name.ToString().StartsWith(c, StringComparison.Ordinal)), s.FoliageMaterials, inv, corridor);

@@ -170,7 +170,13 @@ public static class QuayNotch
     /// `inside` (world points), in the drawn surfaces and in the collision stand-in faces alike. Returns the triangles
     /// cut or dropped.
     /// </summary>
+    public sealed record Region(Aabb Box, List<Func<Vector3, float>> Inside);
+
     public static int CutRegion(Node3D world, Func<MeshInstance3D, bool> pick, Aabb box, Func<(Vector3, Vector3, Vector3), bool> consider, List<Func<Vector3, float>> inside)
+        => CutRegions(world, pick, consider, new[] { new Region(box, inside) });
+
+    /// <summary>Visit each mesh once for consecutive regions; reuse arrays across misses and preserve cut order.</summary>
+    public static int CutRegions(Node3D world, Func<MeshInstance3D, bool> pick, Func<(Vector3, Vector3, Vector3), bool> consider, IReadOnlyList<Region> regions)
     {
         int changed = 0;
         foreach (var node in BakedWorld.All(world))
@@ -178,28 +184,47 @@ public static class QuayNotch
             if (node is not MeshInstance3D { Mesh: ArrayMesh mesh } mi || !pick(mi)) continue;
             var xf = Transform3D.Identity;
             for (Node? n = mi; n is Node3D n3; n = n.GetParent()) xf = n3.Transform * xf;
-            if (!(xf * mesh.GetAabb()).Intersects(box)) continue;
-            var cut = new ArrayMesh { ResourceName = mesh.ResourceName };
-            foreach (var key in mesh.GetMetaList()) cut.SetMeta(key, mesh.GetMeta(key));
-            int here = 0;
-            bool Near((Vector3, Vector3, Vector3) tri)
+            var bounds = xf * mesh.GetAabb();
+            if (!regions.Any(r => bounds.Intersects(r.Box))) continue;
+            Godot.Collections.Array[]? surfaces = null;
+            using var standIn = new ArrayMesh();
+            if (mesh.HasMeta("native_solid_stand_in")) standIn.SetMeta("native_solid_stand_in", mesh.GetMeta("native_solid_stand_in"));
+            foreach (var region in regions)
             {
-                var (a, b, c) = tri;
-                var lo = a.Min(b).Min(c); var hi = a.Max(b).Max(c);
-                return hi.X >= box.Position.X && lo.X <= box.End.X && hi.Y >= box.Position.Y && lo.Y <= box.End.Y && hi.Z >= box.Position.Z && lo.Z <= box.End.Z && consider(tri);
+                var box = region.Box;
+                if (!(xf * mesh.GetAabb()).Intersects(box)) continue;
+                if (surfaces == null)
+                {
+                    surfaces = new Godot.Collections.Array[mesh.GetSurfaceCount()];
+                    for (int s = 0; s < surfaces.Length; s++) surfaces[s] = mesh.SurfaceGetArrays(s);
+                }
+                bool Near((Vector3, Vector3, Vector3) tri)
+                {
+                    var (a, b, c) = tri;
+                    var lo = a.Min(b).Min(c); var hi = a.Max(b).Max(c);
+                    return hi.X >= box.Position.X && lo.X <= box.End.X && hi.Y >= box.Position.Y && lo.Y <= box.End.Y && hi.Z >= box.Position.Z && lo.Z <= box.End.Z && consider(tri);
+                }
+                int here = 0;
+                for (int s = 0; s < surfaces.Length; s++)
+                    if (mesh.SurfaceGetPrimitiveType(s) == Mesh.PrimitiveType.Triangles)
+                        here += CutSurfaceWith(surfaces[s], xf, Near, region.Inside);
+                // Collision-only changes must also produce a replacement resource.
+                here += CutStandIn(standIn, xf, Near, region.Inside);
+                if (here == 0) continue;
+                var cut = new ArrayMesh { ResourceName = mesh.ResourceName };
+                foreach (var key in mesh.GetMetaList()) cut.SetMeta(key, mesh.GetMeta(key));
+                if (standIn.HasMeta("native_solid_stand_in")) cut.SetMeta("native_solid_stand_in", standIn.GetMeta("native_solid_stand_in"));
+                for (int s = 0; s < surfaces.Length; s++)
+                {
+                    cut.AddSurfaceFromArrays(mesh.SurfaceGetPrimitiveType(s), surfaces[s], null, null, mesh.SurfaceGetFormat(s));
+                    cut.SurfaceSetMaterial(s, mesh.SurfaceGetMaterial(s));
+                }
+                mi.Mesh = mesh = cut;
+                changed += here;
+                // Keep Godot's packing/rounding after an actual cut, as in sequential CutRegion calls.
+                // Keeping unquantized intermediate vertices can change later cuts at coplanar boundaries.
+                surfaces = null;
             }
-            for (int s = 0; s < mesh.GetSurfaceCount(); s++)
-            {
-                var arrays = mesh.SurfaceGetArrays(s);
-                if (mesh.SurfaceGetPrimitiveType(s) == Mesh.PrimitiveType.Triangles)
-                    here += CutSurfaceWith(arrays, xf, Near, inside);
-                cut.AddSurfaceFromArrays(mesh.SurfaceGetPrimitiveType(s), arrays, null, null, mesh.SurfaceGetFormat(s));
-                cut.SurfaceSetMaterial(s, mesh.SurfaceGetMaterial(s));
-            }
-            here += CutStandIn(cut, xf, Near, inside);
-            if (here == 0) continue;
-            mi.Mesh = cut;
-            changed += here;
         }
         return changed;
     }
@@ -234,6 +259,24 @@ public static class QuayNotch
         var indexV = arrays[(int)Mesh.ArrayType.Index];
         var index = indexV.VariantType == Variant.Type.Nil ? Enumerable.Range(0, positions.Length).ToArray() : indexV.AsInt32Array();
         if (positions.Length == 0 || index.Length < 3) return 0;
+        // Entrance stair cuts are small volumes in large town meshes. Classify with positions only:
+        // most surfaces miss entirely, so do not copy all UV/normal/colour channels for them.
+        var selected = new bool[index.Length / 3];
+        int selectedCount = 0;
+        for (int t = 0; t + 2 < index.Length; t += 3)
+        {
+            var a = xf * positions[index[t]];
+            var b = xf * positions[index[t + 1]];
+            var c = xf * positions[index[t + 2]];
+            if (!consider((a, b, c))) continue;
+            bool outside = false;
+            foreach (var f in inside)
+                if (f(a) <= 0 && f(b) <= 0 && f(c) <= 0) { outside = true; break; }
+            if (outside) continue;
+            selected[t / 3] = true;
+            selectedCount++;
+        }
+        if (selectedCount == 0) return 0;
         int count = positions.Length;
         var channels = new List<Channel>();
         for (int k = 0; k < (int)Mesh.ArrayType.Index; k++)
@@ -276,18 +319,12 @@ public static class QuayNotch
         int cutTriangles = 0;
         for (int t = 0; t + 2 < index.Length; t += 3)
         {
+            if (!selected[t / 3])
+            {
+                kept.Add(index[t]); kept.Add(index[t + 1]); kept.Add(index[t + 2]);
+                continue;
+            }
             var tri = new List<float[]> { Row(index[t]), Row(index[t + 1]), Row(index[t + 2]) };
-            if (!consider((W(tri[0]), W(tri[1]), W(tri[2]))))
-            {
-                kept.Add(index[t]); kept.Add(index[t + 1]); kept.Add(index[t + 2]);
-                continue;
-            }
-            // nothing of it inside one of the half planes: kept as it is
-            if (inside.Any(f => tri.All(r => f(W(r)) <= 0)))
-            {
-                kept.Add(index[t]); kept.Add(index[t + 1]); kept.Add(index[t + 2]);
-                continue;
-            }
             cutTriangles++;
             var rest = tri;
             foreach (var f in inside)

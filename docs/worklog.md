@@ -67,6 +67,28 @@ Low shaft inspection still shows narrow light leaks (#276); #274 stays open pend
 Native build passes with 27 existing warnings; both Blender contract suites pass.
 Evidence: `D:/Code/Proofs/ruien-274/` (before, no-soot-ready/shots, after/shots, rays logs, geometry-exact.txt).
 
+## Ruien entrance startup, 2026-11-03 (#273)
+
+The delay was repeated town cutting for the entrances' stair-air regions, not a search for a missing area. The original
+trace traversed 14,685 nodes per region and spent 705.1 s cutting 25 entrances (636.2 s in air regions). Region batches
+now visit each mesh once, reject distant triangles before copying vertex channels, and skip uploads for misses. Actual
+cuts retain Godot's packing between regions. All 25 cut-count rows match the original on the same town snapshot.
+
+On the shared machine, fixed cut stages took 190.5–220.2 s across three runs. Final L105: town 382.7 s, ready 483.9 s,
+all six original views plus two street views, 68/68 checks (30 per entrance and eight tide checks). Save/reload was skipped
+in the temporary proof harness because of #277. Installed areas: town 343.9 s, ready 457.3 s, clean exit; original installed
+run: town 871.9 s, first proof observation 1035.9 s. These are individual runs on a shared machine, not a controlled
+alternating benchmark: the parent explicitly reduced the scope to reuse the original timings. The original menu-blocked
+walk is excluded. The two final rendered runs held the assigned lock, each bounded at 900 s, then ownership-released it.
+Midday clear entrance pictures match the openings, frames and stair routes in historical RE-build1/2 references; these
+are not fresh matched A images. Existing wall/vault checker bands remain (#282); this is not an overall asset art pass.
+
+The final native build and bounded clipping/collision regression pass (27 existing warnings, zero errors), including
+compressed batch/sequential equivalence. Town-art's O2 resources, collision, oak_hatch textures/material and RuienSurround
+are preserved; this fix changes no installed resources or network fingerprint. Rendering used main 487228be0 plus the fix;
+the final build also includes the section-height main bf41352d8. Whole-town headless RID diagnostics are tracked in #280.
+Evidence, recipes, historical image provenance and timings: `D:/Code/Proofs/ruien-273/`.
+
 ## Ruien stretch intake, stage 1c, 2026-11-03 (#272)
 
 Generic stretch collision, route keys, markers and empty movers now accompany both LODs; mask heights use the

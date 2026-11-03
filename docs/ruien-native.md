@@ -273,6 +273,12 @@ doorway through the named wall meshes (drawn faces and collision stand-ins, `Qua
 the wall and every hidden face in the tunnel's air, the plants and climbers before the door, and a gate house's drawn
 door. `--no-ruien-entrances` leaves the town whole and builds nothing (before pictures).
 
+The stair-air regions visit each mesh once and reuse CPU arrays across misses. Distant triangles are rejected before
+copying vertex channels; unchanged meshes keep their resources. Actual cuts retain Godot's packing between regions,
+so later cuts see the same rounded coordinates as separate calls. Entrance cuts run once
+per town, independently of `--ruien-areas`. `pwsh -File native-godot/scripts/check-ruien-cuts.ps1` checks clipping,
+UVs, collision-only changes, source preservation and batch/sequential equivalence in a bounded headless fixture.
+
 **Light and air.** No Godot light. The open door is an opening in the Ruien's light list (`entrance_<id>_door`,
 daylight in by day, a trace of street glow at night, a little through an arched door's fanlight when shut); deeper
 down it is dark and Jef's own lantern lights the way (a carried lantern burns below the street whatever the hour:
