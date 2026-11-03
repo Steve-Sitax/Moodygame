@@ -11,6 +11,7 @@ Bugs and loose ends are tracked as [issues](https://github.com/Steve-Sitax/Moody
 
 ## [Unreleased]
 
+- Where a rui opens into a giant gallery's side, and across the rui mouth in the junction room by Sint-Pauluskerk, a riveted iron footbridge now carries the walkway over the channel: two leaves on flush hinges in bluestone seats, with hand rails and a worm-gear lifting box. The leaves fold up flat against the jambs when Antigoon comes, so he can wade through, and come down again after he has passed. They never move while someone stands on them or in their swing, and a raised leaf closes the walk.
 - Carolus church capitals have branching carved leaves and rounded Ionic scrolls, with stone grain following their curved surfaces. The surrounding columns, stonework and drainage remain unfinished.
 - The Vleeshuis hall mouth has paired bluestone bearing stones with recessed mortar joints. Its street hatch uses weathered timber grain along the planks and braces; surrounding coping and stonework remain unfinished.
 - Street paving now meets courtyard walls and adjoining ground without narrow see-through seams; the church stair apron joins the cobbles while its drain stays open.

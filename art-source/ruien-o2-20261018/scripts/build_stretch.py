@@ -193,5 +193,8 @@ if '--no-export' not in argv:
     EG.gltf_export(cp, cobs)
     manifest['files'][os.path.basename(cp)] = dict(sha256=EG.sha(cp), bytes=os.path.getsize(cp))
     manifest['markers'] = EG.markers(U.coll('EXPORT_MK'), stretch_objs, path, sec, info)
+    # a tee mouth cuts the gallery ledge: the branch places the folding footbridge over its culvert (kit/fold_bridge.py)
+    from kit import fold_bridge as FB
+    manifest['markers']['bridges'] = [FB.for_tee(t, RID) for t in TEES if type(t) is KM.Tee and t.branch_id == RID]
     json.dump(manifest, open(os.path.join(OUT, 'manifest.json'), 'w'), indent=1, default=lambda o: o.tolist() if hasattr(o, 'tolist') else float(o))
     log('exported')

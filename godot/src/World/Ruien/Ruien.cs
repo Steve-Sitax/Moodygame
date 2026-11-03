@@ -129,6 +129,8 @@ public partial class Ruien : Node
             var pipes=RuienPipe.Read(spec[area.Id],area);
             for(int i=0;i<pipes.Count;i++)Main.I.View.AddChild(RuienPipe.Build(pipes[i],i));
             foreach(var end in RuienEnd.Read(spec[area.Id]))Main.I.View.AddChild(RuienEnd.Build(end));
+            // Folding footbridges over the rui channels (#286, #283): one shared model, the server's shared leaf state.
+            foreach(var bridge in area.Bridges)Main.I.View.AddChild(RuienFoldBridge.Build(bridge,Data.Bridge));
             if(spec[area.Id].TryGetProperty("grates",out var grates))
                 foreach(var g in grates.EnumerateArray())
                     if(g.TryGetProperty("collar",out var collar))

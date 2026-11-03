@@ -261,6 +261,36 @@ A culling change still needs zero differing pixels in Ruien and street views at 
 - **Kit pieces** (`export/kit`, converted one by one with `--ruien-kit <kit> --pieces a,b`) are shared meshes placed
   by an area's `kit` list (O2 adds a second safety lamp on its bracket where the study lit v5 with a lantern).
 
+### Fold bridges
+
+Where a rui channel cuts a walkway (every tee mouth in a gallery's ledge, R1's crossing of the L100 mouth) people cross
+on a folding iron footbridge (#286, #283; the kit: `art-source/ruien-o2-20261018/KIT.md`, "Fold bridge"). Code:
+`RuienFoldBridge.cs` (the shared model, its collision, the drawn phase), `NativeRuienBridges.cs` (the server's state).
+Data: an area's `bridges` (in areas.json or the export's markers: `id`, pivots `a` and `b`, `gear`) and the shared
+engine numbers in areas.json `foldBridge` (timing, angle, distances, sweep zone).
+
+- **The engine owns it.** Rest is down. Both leaves rise (90 degrees in 14 s) when Antigoon comes nearer than
+  `giantRaise` (9 m) to the bridge's middle at its level (`giantHeight` 3.5 m: a giant on the street above does not
+  count), and come down when he is further than `giantLower` (10.5 m). He waits `giantHold` (4.5 m) short of the
+  bridge until both stand. Each leaf's collision is part of its hinge node and turns with it, as the tide doors' does.
+- **Nobody is trapped or swept.** A leaf never moves while anyone (a player; any person who walks the Ruien) is in the
+  zone it sweeps: the deck, and 1.15 m behind each hinge where its rails swing, 0.55 m either side of the deck's line,
+  up to 2.2 m over it. So the rule is: the leaf waits for Jef, and Antigoon waits for the leaf. A standing leaf closes
+  the walk at its hinge; Jef walking at it stops on the walk. People and routes may cross only while both leaves are
+  down (`OpenToPeople`); a giant only while both stand (`OpenToGiant`). No crew or townspeople route crosses a bridge
+  yet; the O2 crew's route does not meet one.
+- **Multiplayer.** The server is the authority: `GET api/ruien/bridges` gives every leaf's phase, direction and hold
+  (and a proof giant); every player's client draws that phase and its collision. Players' feet (with height) come from
+  the multiplayer seats; the live giant from `NativeAntigoon.Live`. The phase is not saved: after a load it is derived
+  from where the giants are and stands there at once.
+- **Route limit.** Antigoon's live routes are still street-only (see Dev), so in play the leaves stay down until his
+  underground routes exist; `POST api/dev/ruien/giant` (host only) walks a proof giant along a path by the same rules.
+- **Proof.** `--ruien-bridge-proof <out> --ruien-bridge-spec <json>` (`NativeRuienBridgeProof`) with isolated data and
+  an external `--ruien-areas`: kit checks, Jef crosses, the leaf waits for him, the giant waits, the leaves rise,
+  collision follows part way and standing, a standing leaf stops Jef and clears the masonry, the giant wades through
+  upright, the leaves come down, Jef crosses again; views down, part way and up in inspection light, midday, rain and
+  night; a short shown/hidden frame-cost sample.
+
 ## Entrances
 
 Ways down from the street, built before the network they will join (Steve chose 25 from the RE-entrances survey,
