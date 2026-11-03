@@ -1,5 +1,5 @@
 {
-  "about": "Stretch fittings placed by build_stretch.py from the plan (Steve, #272, 2026-11-03): R2 iron edge rail on every rui walkway, R3 covered drain crossing where a side drain enters on the walkway side. Metres; per section class. kit/rail.py and kit/drain_crossing.py read this file.",
+  "about": "Stretch fittings placed by build_stretch.py from the plan (Steve, #272, 2026-11-03): R2 iron edge rail on every rui walkway, R3 covered drain crossing where a side drain enters on the walkway side. drainCrossing.rim: arch rim face width, reveal step, reveal depth, proud (kit/arch_rim.py); farSill: the far mouth sill top over the invert, depth below it, nose. Metres; per section class. kit/rail.py and kit/drain_crossing.py read this file.",
   "rail": {
     "M": {
       "postSpacing": 1.6,
@@ -31,7 +31,8 @@
       "raised": 0.012,
       "grateBars": 6,
       "barrel": [0.9, 1.05, 70, 0.9],
-      "rings": 2
+      "rim": [0.23, 0.11, 0.11, 0.03],
+      "farSill": [0.2, 0.1, 0.05]
     }
   }
 }

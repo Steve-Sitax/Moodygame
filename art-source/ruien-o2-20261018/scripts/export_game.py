@@ -370,6 +370,10 @@ def build_lod(lod, objs, hide_coll=None, section=None):
         if k == 'static':
             statics.append(md); continue
         mat = md.mats[0]
+        # ruien_keep_mesh (kit/arch_rim.py): an exact solid with metric charts on narrow rounded faces; it is baked
+        # (colour, masks, AO) but not subdivided or decimated, its relief stays in the maps. Unflagged sources: unchanged.
+        keep = bool(o.get('ruien_keep_mesh'))
+        gkey = (mat,) if keep else mat
         if k == 'masonry':
             r = md.pa.pop('rnd', None)
             r = r[:, 0] if r is not None else np.zeros(len(md.V))
@@ -383,10 +387,10 @@ def build_lod(lod, objs, hide_coll=None, section=None):
                 part = md.subset(cls == c_)
                 if not len(part.pt):
                     continue
-                lvl = level_for(part, NEAR_T if c_ == 0 else FAR_T, lod, o.get('ruien_level_edge'))
+                lvl = 0 if keep else level_for(part, NEAR_T if c_ == 0 else FAR_T, lod, o.get('ruien_level_edge'))
                 sp = subdivide(part, lvl, work)
                 sp.pa['__fade'] = seam_fade(sp.V, segs).reshape(-1, 1).astype(np.float32) if segs else np.ones((len(sp.V), 1), np.float32)
-                groups.setdefault(mat, []).append(sp)
+                groups.setdefault(gkey, []).append(sp)
         else:
             sp = subdivide(md, level_for(md, SILT_T if k == 'silt' else CALC_T, lod), work)
             sp.pa['__fade'] = np.ones((len(sp.V), 1), np.float32)
@@ -400,7 +404,9 @@ def build_lod(lod, objs, hide_coll=None, section=None):
     # hide the sources: bakes and AO see the export geometry only
     hide_coll.hide_render = True
     baked = []
-    for mat, lst in groups.items():
+    for gkey, lst in groups.items():
+        keep = isinstance(gkey, tuple)
+        mat = gkey[0] if keep else gkey
         md = MD.merge(lst)
         ob = md.to_object('__grp_' + mat, work)
         src = bpy.data.materials[mat]
@@ -422,7 +428,7 @@ def build_lod(lod, objs, hide_coll=None, section=None):
             wet = np.clip((water_y + 0.6 - y) / 0.6, 0, 1)
             md.pa['Col'] = np.stack([np.maximum(wet, 0.6 if mat.startswith('Silt') else 0.2), np.full(len(V), 0.9 if mat.startswith('Calc') else 0.0),
                                      np.full(len(V), 0.2), np.zeros(len(V))], -1).astype(np.float32)
-        r_ = DECIM_RELIEF.get(lod, 1.0)
+        r_ = 1.0 if keep else DECIM_RELIEF.get(lod, 1.0)
         if r_ < 1.0:
             n0 = md.tris
             me_old = ob.data; bpy.data.objects.remove(ob); bpy.data.meshes.remove(me_old)

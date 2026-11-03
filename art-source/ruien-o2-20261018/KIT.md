@@ -51,13 +51,14 @@ O2 (vliet sluice, giant gallery, Vleeshuis hall) is the first use. All scripts r
 | `scripts/kit/junction_gen.py` | `plan_room(room, routes, on_street, over)` and `build_room(...)`: a junction room (J1) from a room rectangle at rui depth. See "Junction rooms" below. | `over`: per route `t` (along its wall) and `side` (walkway, +1 = towards +t), `stair` `{wall, end}`, `crown_grate` |
 | `scripts/build_junction.py` | Export driver: builds a room, check pictures, LOD0/LOD1 GLBs, collision, markers, manifest (`uvRepair`, `layout` with each mouth's stub end, direction and walkway side for the stretch that joins it). | `--room R1`, `--out <dir>`, `--over <json>`, `--lods`, `--no-render`, `--no-export` |
 | `scripts/kit/rail.py` | R2 (#272): the rui walkway's iron edge rail. Round posts in cast shoes bolted to the coping's channel face (the 0.8 m stays clear), two rails through knuckles on the bend's offset line, dome caps; ball-topped dressed end posts at the mouths and at each shaft ladder gap, escape irons down the channel face in the gap; at a drain crossing two posts flank the lip stone and the rails run on. Rust stains from every shoe. Collision: one 5 cm slab per run (gaps only at ladders); the bars carry none. | `kit/fittings.json` `rail` (spacing, heights, radii, shoe, gaps) |
-| `scripts/kit/drain_crossing.py` | R3 (#272): finds the plan's side drains at the route (`sideDrains`). Walkway side: the egg drain through the wall in two rowlock header rings (15 mm proud) on a flush lime mortar bed with a skirt, a lined barrel that bends towards the drain's run and ends dark, a notched bluestone sill at the mouth and a notched, rebated kerb across the walk with a flush cast grate (bars, frame, ties), a trickle and a pour over the lip, wet/lime stains below. Far wall: the same mouth just above the water. The vault, the walk and the coping are cut or re-laid with the pieces' own outlines (exact boolean, `fitlib.boolean_cut`); plan lamps move off the rings. | `kit/fittings.json` `drainCrossing` (match distance, spacing from ends/shafts, egg, sill, notch, rebate) |
+| `scripts/kit/drain_crossing.py` | R3 (#272): finds the plan's side drains at the route (`sideDrains`). Walkway side: the egg drain through the wall inside an arch rim (`kit/arch_rim.py`) standing on the sill, a lined barrel that bends towards the drain's run and ends dark, a notched bluestone sill at the mouth and a notched, rebated kerb across the walk with a flush cast grate (bars, frame, ties), a trickle and a pour over the lip, wet/lime stains below. Far wall: the same mouth just above the water, its rim on a notched bluestone sill with a 5 cm nose over which the water pours. The vault, the walk and the coping are cut or re-laid with the pieces' own outlines (exact boolean, `fitlib.boolean_cut`); plan lamps move off the rim. | `kit/fittings.json` `drainCrossing` (match distance, spacing from ends/shafts, egg, sill, notch, rebate, `rim`, `farSill`) |
+| `scripts/kit/arch_rim.py` | The arch rim (#272, Steve 2026-11-03), used for every arched opening the generators make (drain mouths, tee and throat rings; grate shafts excluded). One closed solid band round the clear outline, standing proud of the host face, with a one-brick reveal step back to the clear opening. See "Arch rim" below. | `rim(name, outline, host, mat, coll, width, step, depth, proud, back, arris, closed, masks, seed)` |
 | `scripts/kit/fitlib.py` | Shared: route frame `W(du, y, d)`, chamfered rods, bevelled boxes, notched stones with rounded arrises and metric UVs, boolean cuts that keep UVs, masks and the host's subdivision level (`ruien_level_edge`), mask edits, transparent stains (`runoff_*`, no collision). | |
-| `scripts/check_fittings.py`, `scripts/review_fittings.py` | Headless checks (rail clear of the walk, closed solids, no collision on bars/headers/stains, collision gaps only at ladders, post spacing, smooth rails, host cut open, walk cut, coping re-laid, grate plate) and close Cycles review renders of a built stretch's `.blend`. | `--route`, `--walkway`, `--report`; `--out`, `--only` |
+| `scripts/check_fittings.py`, `scripts/review_fittings.py` | Headless checks (rail clear of the walk, closed solids, no collision on bars/rims/stains, one rim per drain mouth and no loose header bricks, rim charts within the UV audit, collision gaps only at ladders, post spacing, smooth rails, host cut open, walk cut, coping re-laid, grate plate) and close Cycles review renders of a built stretch's `.blend`. | `--route`, `--walkway`, `--report`; `--out`, `--only` |
 | `scripts/build.py` | The O2 piece itself (vliet, gate, giant gallery, Vleeshuis hall) with hand-tuned features. | none |
 | `rlib/vliet.py` | Gate end: outlet arch in a quay head wall, tide doors, sluice gear, quay walls, bed. | spec values (`GATE_X`, `VLIET_*`); faces -z only, for other gates rotate the `tide_doors` and `gate_dressing` pieces |
 | `rlib/wax.py` | Calcite: `wax_curtain(host, width, length)` on any host surface, groin ridges from the two vault faces, run-off (runnels, wet and iron trails, splash crusts), lime halo on the masonry. | host function, size, thickness, taper, landing |
-| `scripts/export_game.py` | The game export: relief bake, masks, AO, family UVs and materials, area chunks of at most 200k triangles, collision, markers, manifest. Also a library (`build_lod`, `export_chunks`). | `--lod 0,1`, `--dry` |
+| `scripts/export_game.py` | The game export (objects flagged `ruien_keep_mesh` keep their mesh: bake only): relief bake, masks, AO, family UVs and materials, area chunks of at most 200k triangles, collision, markers, manifest. Also a library (`build_lod`, `export_chunks`). | `--lod 0,1`, `--dry` |
 | `scripts/kit_export.py` | Exports the kit pieces below. | none |
 
 ## Kit pieces (`export/kit/`, `kit.json` lists files, triangle counts, pivots, SHA-256)
@@ -108,9 +109,11 @@ giant's steps and head room, water and film.
 ### Where galleries meet (#272 stage 1d)
 
 - **Tee** (rui into a gallery side). The gallery cuts its shell round the opening and its ledge paving, coping and
-  channel wall across the rui's channel. The rui ends its barrel inside a brick ring of two header rowlocks (0.28 m
-  thick, 0.24 m deep, face 2 cm proud of the gallery face, soffit 5 cm inside the barrel, 18 mm worn arrises; thinner
-  over the crown, where the vaults are nearly level). Its far wall runs on through the ledge as a culvert with dressed
+  channel wall across the rui's channel. The rui ends its barrel inside an arch rim (0.34 m out from the clear
+  opening: an 11 cm reveal step and a 23 cm face, 0.24 m deep, face 3 cm proud of the gallery face, the clear opening
+  5 cm inside the barrel as before; measured on the gallery face, so it keeps its width over the crown without fanning
+  out). The gallery cuts its shell round it exactly (`Tee.host_cutter`, a boolean prism half the rim's width out from the
+  clear opening); its grid holes only take the cells well inside the opening. Its far wall runs on through the ledge as a culvert with dressed
   bluestone return copings (1 cm proud: seam stones where the directions meet), bluestone quoins at the mouth, a
   bluestone sill at the rui bed (-4.9) with its nose 6 cm proud, and a step at -5.5 on the gallery bed for Antigoon.
   The walkway climbs a bluestone step (-3.75) and threshold (-3.59) onto the gallery ledge. The rui water starts at the
@@ -131,6 +134,48 @@ For an external native intake and review, see `docs/ruien-native.md` (`--out`, `
 
 Proof: `export/stretches/L105/` is the Kipdorprui (L105, 21.7 m, two bends of 4.1 m radius, one grate shaft with ladder, 1.23 M triangles at LOD0) built with these scripts;
 `export/stretches/hall_C3_check.jpg` is the C3 hall from its rectangle.
+
+## Arch rim (`kit/arch_rim.py`)
+
+Steve's design (2026-11-03): no rings of loose bricks round an opening, but one rim the size of a brick, a little out
+of the wall, with the brick arch in its texture, rounded corners, and a step one brick deep behind it so the opening
+has depth.
+
+```
+rim(name, outline, host, mat, coll, width=0.23, step=0.11, depth=0.11, proud=0.03, back=0.24, arris=0.010,
+    closed=False, masks=None, seed=0)
+```
+
+- `outline`: (n, 2) points (x, y) of the clear opening in its section plane, either order. Open (an arch on jambs,
+  an egg above a sill) ends at the feet; `closed=True` runs all round. `width` and `step` may be one value per point
+  (a ring may thin where its host turns over).
+- `host.point(x, y, t)`: game points; t runs along the opening's axis from the host face into the wall, t < 0 is
+  proud. `RouteWall(fitlib.Frame)`: a rui or gallery side wall in true metres along the wall (route u is not metric
+  in a bend; its `W(x, y, d)` is the same metric frame for the lining and cuts). `PlaneWall(origin, across, into)`:
+  a flat wall. `meet._RimHost(tee)`: a gallery's curved side or a throat's end wall.
+- Section: face from `step` to `step + width` out from the clear outline, `proud` in front of the host face; the
+  soffit runs `depth` behind the face, a step face goes back in to the clear outline, which runs on to `back`
+  (hidden, where the lining or barrel continues). Arrises: `arris` on the face, the step and the outer edge, a 6 mm
+  mortar fillet in the reveal corner; the feet (on a sill or step) have a 4 mm chamfer.
+- Choices: 3 cm proud gives a clear shadow line and room for the 10 mm arris on a flat face (the old rings stood
+  1.5-2 cm out), and stays out of Jef's way; the 23 cm face is the old pair of rowlock rings; the 11 cm step is one
+  header end, so the lining's end course reads as a recessed brick ring; the 11 cm depth is one brick.
+- Charts: header-bond brick (`mats['brick_rib']`). U runs round the section (the header heads point outwards and
+  carry on round the arris), V along the outline at the face's middle, one texture course (about 6 cm) per voussoir,
+  so the joints stand square to the outline. The step and each half of the hidden back keep their own V lines. Every
+  face stays within the RuienUv audit (anisotropy 1.3, scale 0.6-1.7) down to outline radii of about 0.45 m; put a
+  tighter opening's invert on a sill (the drain's far mouth does) instead of a closed rim. `uv_audit(ob)` repeats the
+  native metric in Blender.
+- Masks: `masks(P, M)` edits wxA/wxB/wxC (as `fitlib.edit_masks`), so the rim takes the wall's soot, slime and stains.
+  Each rim has its own brick phase (`rnd`) and no collision. It is exported as built (`ruien_keep_mesh`:
+  `export_game.build_lod` bakes its colour, masks and AO but does not subdivide, displace or decimate it; edge-collapse
+  decimation skewed a third of its charts). The rounded arrises and the reveal are geometry; the mortar relief, under
+  1 cm, comes from the normal and height maps.
+- Host cut: `outer_outline(outline, step + width - 0.006, closed)` is the outline to cut the host with (6 mm under
+  the rim's outer edge); add the sill's outline below it where the rim stands on one.
+- Limit: on a tee the rim's hidden back and outer side, and a little of its face, still exceed the audit in a narrow band
+  over the crown, where the gallery vault lies almost along the rui (0.55 m2 of 11.5 m2 on L79).
+- Cost: an egg drain rim (1.0 x 1.6 m, open above the walk) is 7.3k triangles in both LODs; the tee and throat rims 15.5k and 16.1k.
 
 ## Known limits
 

@@ -9,7 +9,7 @@ sys.path.insert(0, os.path.join(ROOT, 'scripts'))
 argv = sys.argv[sys.argv.index('--') + 1:] if '--' in sys.argv else []
 def arg(k, d=None):
     return argv[argv.index(k) + 1] if k in argv else d
-from kit import sweep as KS, fitlib as FL, drain_crossing as KD
+from kit import sweep as KS, fitlib as FL, drain_crossing as KD, arch_rim as AR
 RID = arg('--route', 'L105')
 r = json.load(open(os.path.join(REPO, 'docs', 'plans', 'ruien', 'ruien-routes.json')))['routes'][RID]
 sec = KS.Section(r['class'], int(arg('--walkway', '1')))
@@ -44,11 +44,18 @@ for o in rail:
         S = local(P)[:, 1]
         worst = min(worst, float(np.min(side * (edge - 0.04) - side * S)) if not o.name.startswith('escape') else 1.0)
 check('rail parts clear of the walkway (coping face) above the walk', worst >= -0.0025, 'closest %.4f m' % worst)
-open_parts = [o.name for o in rail + [o for o in obs if o.name.endswith(('_grate_frame', '_grate_bar', '_grate_tie', '_header', '_sill', '_kerb'))] if boundary_edges(o) > 0]
-check('rail, grate, sill and header pieces are closed solids (no see-through faces)', not open_parts, open_parts[:8])
-nocol = [o.name for o in rail + [o for o in obs if '_header' in o.name or o.name.startswith('runoff_') or '_grate_' in o.name]
+open_parts = [o.name for o in rail + [o for o in obs if o.name.endswith(('_grate_frame', '_grate_bar', '_grate_tie', '_rim', '_sill', '_kerb'))] if boundary_edges(o) > 0]
+check('rail, grate, sill and arch rim pieces are closed solids (no see-through faces)', not open_parts, open_parts[:8])
+nocol = [o.name for o in rail + [o for o in obs if o.name.endswith('_rim') or o.name.startswith('runoff_') or '_grate_' in o.name]
          if o.get('ruien_collision', True) and not o.name.startswith(('escape_iron', 'rail_col_', 'runoff_')) and not o.name.endswith('_col')]
-check('thin ironwork, headers and stains carry no collision of their own', not nocol, nocol[:6])
+check('thin ironwork, arch rims and stains carry no collision of their own', not nocol, nocol[:6])
+# arch rims (kit/arch_rim.py): one solid each, no loose header bricks, charts within RuienUv's limits
+rims = [o for o in obs if o.get('ruien_arch_rim')]
+loose = [o.name for o in obs if o.name.endswith('_header')]
+check('drain mouths use one arch rim each, no loose header bricks', len(rims) >= len([o for o in obs if o.name.endswith('_lining') and '_drain_' in o.name]) and not loose, loose[:4])
+for o in rims:
+    a, b, w = AR.uv_audit(o)
+    check(o.name + ' charts within the UV audit (anisotropy <= 1.3, scale 0.6-1.7)', b < 1e-4, 'area %.2f m2, stretched %.5f m2, worst %.3f, %d tris' % (a, b, w, AR.triangles(o)))
 # posts: spacing along the rail and radial standing
 posts = [o for o in obs if o.name.startswith('rail_post')]
 pc = np.array([FL.mesh_points(o).mean(0) for o in posts])
