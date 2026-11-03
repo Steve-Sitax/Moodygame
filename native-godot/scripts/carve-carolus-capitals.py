@@ -10,6 +10,7 @@ import pathlib
 import sys
 
 import bmesh
+import bpy
 import numpy as np
 from mathutils import Vector
 from mathutils.geometry import delaunay_2d_cdt
@@ -189,6 +190,54 @@ def leaf(bm, center, direction):
             order=tri if side==0 else tri[::-1]
             face=bm.faces.new([vertices[side][i] for i in order]); face[chart]=10+side
             for loop,i in zip(face.loops,order): loop[uv].uv=(.08+y[i]/3.,.25+x[i]/3.)
+    unwrap_leaf(bm)
+
+
+def unwrap_leaf(bm):
+    """Unfold the actual curved stone, with one continuous island per side."""
+    bm.verts.index_update();bm.faces.index_update()
+    chart=bm.faces.layers.int.get('chart'); uv=bm.loops.layers.uv.active
+    for edge in bm.edges: edge.seam=edge.link_faces[0][chart]!=edge.link_faces[1][chart]
+    mesh=bpy.data.meshes.new('carved_leaf_uv')
+    bm.to_mesh(mesh)
+    # UV solving uses a translated copy for numerical conditioning only.
+    # Neither the source BMesh nor its exported positions/normals are changed.
+    centre=np.mean([v.co for v in mesh.vertices],axis=0)
+    for vertex in mesh.vertices: vertex.co-=Vector(centre)
+    obj=bpy.data.objects.new('carved_leaf_uv',mesh)
+    bpy.context.scene.collection.objects.link(obj)
+    bpy.ops.object.select_all(action='DESELECT');obj.select_set(True);bpy.context.view_layer.objects.active=obj
+    try:
+        bpy.ops.object.mode_set(mode='EDIT');bpy.ops.mesh.select_all(action='SELECT')
+        bpy.ops.uv.unwrap(method='ANGLE_BASED',fill_holes=True,correct_aspect=False,margin=0.,no_flip=True)
+        bpy.ops.uv.unwrap(method='MINIMUM_STRETCH',fill_holes=True,correct_aspect=False,margin=0.,no_flip=True,iterations=100)
+        bpy.ops.object.mode_set(mode='OBJECT')
+        layer=mesh.uv_layers.active.data
+        for side in (10,11):
+            faces=[f for f in bm.faces if f[chart]==side]
+            coords=[];world=[]
+            for face in faces:
+                polygon=mesh.polygons[face.index]
+                by_vertex={mesh.loops[i].vertex_index:tuple(layer[i].uv) for i in polygon.loop_indices}
+                coords.append([by_vertex[loop.vert.index] for loop in face.loops])
+                world.append([tuple(loop.vert.co) for loop in face.loops])
+            coords=np.asarray(coords,dtype=np.float64); world=np.asarray(world,dtype=np.float64)
+            a=coords[:,1]-coords[:,0];b=coords[:,2]-coords[:,0]
+            uv_area=np.abs(a[:,0]*b[:,1]-a[:,1]*b[:,0]).sum()
+            world_area=np.linalg.norm(np.cross(world[:,1]-world[:,0],world[:,2]-world[:,0]),axis=1).sum()
+            assert uv_area>1e-12
+            flat=coords.reshape(-1,2); flat-=flat.mean(0)
+            _,basis=np.linalg.eigh(flat.T@flat);basis=basis[:,::-1]
+            flat=flat@basis
+            if np.corrcoef(flat[:,0],world[:,:,1].reshape(-1))[0,1]<0: flat[:,0]*=-1
+            flat*=math.sqrt(world_area/uv_area)/3.
+            flat-=flat.min(0); flat+=np.array([.08,.195])
+            assert (flat.max(0)<[.47,.325]).all(), 'Metric leaf island does not fit the mortar-free block'
+            for face,values in zip(faces,flat.reshape(-1,3,2)):
+                for loop,value in zip(face.loops,values):loop[uv].uv=value
+    finally:
+        if obj.mode!='OBJECT': bpy.ops.object.mode_set(mode='OBJECT')
+        bpy.data.objects.remove(obj,do_unlink=True);bpy.data.meshes.remove(mesh)
 
 
 def volute(bm, lo, hi, mirror):
