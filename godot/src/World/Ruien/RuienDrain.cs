@@ -9,7 +9,6 @@ namespace Scheldemist.World.Ruien;
 /// <summary>B2's reusable sill and grated gutter; all clear widths stay walkable.</summary>
 public static class RuienDrain
 {
-    public static readonly (float u,int side)[] Mouths={(16.6f,1),(23.8f,-1),(33f,1)};
     public static List<Func<Vector3,float>> GutterCut(RuienData.Zone zone,float u,int side)
     {
         var(c,t)=zone.Frame(u);var n=new Vector2(t.Y,-t.X)*side;

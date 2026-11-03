@@ -91,6 +91,26 @@ public sealed class RuienData
         }
     }
 
+    /// <summary>
+    /// A side drain's mouth (areas.json `drains`, also `sealedDrains` for the repair): on line zone `Zone`, `U` metres
+    /// along its centre line, `Side` +1 or -1 (the right or left of the line's direction).
+    /// </summary>
+    public sealed record Drain(string Zone, float U, int Side);
+
+    /// <summary>An area's drain list (`drains` or `sealedDrains`); every entry must name one of its line zones.</summary>
+    public static List<Drain> ReadDrains(JsonElement area, string key, Func<string, bool> isLine)
+    {
+        var list = new List<Drain>();
+        if (!area.TryGetProperty(key, out var dr)) return list;
+        foreach (var x in dr.EnumerateArray())
+        {
+            var drain = new Drain(S(x, "zone"), x.GetProperty("u").GetSingle(), x.GetProperty("side").GetInt32());
+            if (!isLine(drain.Zone)) throw new InvalidOperationException($"ruien: {S(area, "id")} {key}: '{drain.Zone}' is not a line zone of the area");
+            list.Add(drain);
+        }
+        return list;
+    }
+
     /// <summary>A gate in a quay wall: the plane of the wall's face, the opening (x along the face, y up) cut through it.</summary>
     public sealed class Gate
     {
@@ -173,6 +193,10 @@ public sealed class RuienData
         public readonly HashSet<string> SkipKeys = new();
         public string Id = "", Name = "", Export = "";
         public readonly List<Zone> Zones = new();
+        /// <summary>B2 side drain mouths (`drains`): each on a line zone, at a distance along it, on one side.</summary>
+        public readonly List<Drain> Drains = new();
+        /// <summary>The line zone with this id, or null.</summary>
+        public Zone? Line(string id) => Zones.FirstOrDefault(z => z.Kind == "line" && z.Id == id);
         public readonly List<Gate> Gates = new();
         public readonly List<Source> Sources = new();
         public readonly List<MistBox> Mist = new();
@@ -362,6 +386,7 @@ public sealed class RuienData
                         Hole=new Rect2(h[0].GetSingle(),h[1].GetSingle(),h[2].GetSingle(),h[3].GetSingle()),
                         LandingPath=s.TryGetProperty("landingPath",out var lp)?lp.EnumerateArray().Select(V2).ToArray():Array.Empty<Vector2>() });
                 }
+            area.Drains.AddRange(ReadDrains(a, "drains", id => area.Line(id) != null));
             area.Box = BoxOf(area);
             d.Areas.Add(area);
         }

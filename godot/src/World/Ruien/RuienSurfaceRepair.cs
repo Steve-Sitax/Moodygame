@@ -88,11 +88,14 @@ public static class RuienSurfaceRepair
         return changed;
     }
 
-    public static bool Apply(Godot.Collections.Array arrays,string family,RuienData.Zone zone,IReadOnlyList<RuienPipe.Spec> pipes)
+    /// <summary>A drain mouth resolved on its line zone's centre line (the zone gives its frame).</summary>
+    public readonly record struct Mouth(RuienData.Zone Zone,float U,int Side);
+
+    public static bool Apply(Godot.Collections.Array arrays,string family,IReadOnlyList<Mouth> drains,IReadOnlyList<RuienPipe.Spec> pipes)
     {
         bool changed=false;
         if(family=="ruien_brick_stretcher")
-            foreach(var (u,side) in RuienDrain.Mouths)
+            foreach(var (zone,u,side) in drains)
             {
                 var (centre,tangent)=zone.Frame(u);var normal=new Vector2(tangent.Y,-tangent.X)*side;
                 float Along(Vector3 p)=>(new Vector2(p.X,p.Z)-centre).Dot(tangent);
@@ -130,7 +133,7 @@ public static class RuienSurfaceRepair
                 changed|=QuayNotch.CutSurfaceWith(arrays,Transform3D.Identity,_=>true,planes)>0;
             }
         if(!family.StartsWith("ruien_brick") && family!="ruien_setts" && family!="ruien_bluestone")return changed;
-        foreach(var(u,side) in RuienDrain.Mouths)
+        foreach(var(zone,u,side) in drains)
             changed|=QuayNotch.CutSurfaceWith(arrays,Transform3D.Identity,_=>true,RuienDrain.GutterCut(zone,u,side))>0;
         var vertices=arrays[(int)Mesh.ArrayType.Vertex].AsVector3Array();
         var colors=arrays[(int)Mesh.ArrayType.Color].VariantType==Variant.Type.Nil?vertices.Select(_=>new Color(0,0,0,0)).ToArray():arrays[(int)Mesh.ArrayType.Color].AsColorArray();

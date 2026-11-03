@@ -8,7 +8,8 @@ namespace Scheldemist.Native.World;
 /// <summary>
 /// The Ruien's one-time conversion of a Blender export into game resources (docs/ruien-native.md), headless:
 ///   godot --headless --path native-godot res://world/ruien/convert.tscn -- --ruien-textures &lt;export/textures&gt;
-///   godot --headless --path native-godot res://world/ruien/convert.tscn -- --ruien-area &lt;export folder&gt; --area o2
+///   godot --headless --path native-godot res://world/ruien/convert.tscn -- --ruien-area &lt;export folder&gt; --area &lt;id&gt;
+///   ... -- --ruien-repair &lt;immutable export snapshot&gt; --area &lt;id&gt; [--headers &lt;fittings.glb&gt;]
 ///   ... -- --ruien-unfold-flanks &lt;installed mesh folder&gt; --backup &lt;folder&gt; (#214: the setts' relief flanks)
 /// It writes under res://world/ruien and quits; the game itself only loads what it wrote.
 /// </summary>
@@ -18,6 +19,9 @@ public partial class RuienConvert : Node
     {
         var args = OS.GetCmdlineUserArgs();
         string Arg(string k) => Array.IndexOf(args, "--" + k) is var i and >= 0 && i + 1 < args.Length ? args[i + 1] : "";
+        // An area conversion or repair names its area: there is no default, so one area's run never writes another's.
+        string AreaId() => Arg("area") is { Length: > 0 } id && !id.StartsWith("--") ? id
+            : throw new ArgumentException("--area <id> is required (an area of res://world/ruien/areas.json)");
         int code = 0;
         try
         {
@@ -26,11 +30,11 @@ public partial class RuienConvert : Node
             if(args.Contains("--ruien-paving-textures")) RuienPaving.PrepareTextures();
             if(Arg("ruien-screen") is {Length:>0} screen) RuienRepair.Screen(screen);
             if (Arg("ruien-repair") is { Length: > 0 } repair)
-                RuienRepair.Convert(repair, Arg("area") is { Length: > 0 } repairArea ? repairArea : "o2", Arg("headers"));
+                RuienRepair.Convert(repair, AreaId(), Arg("headers"));
             if (Arg("ruien-textures") is { Length: > 0 } tex)
                 GD.Print("ruien convert: textures " + string.Join(", ", RuienTextures.Convert(tex)));
             if (Arg("ruien-area") is { Length: > 0 } area)
-                GD.Print("ruien convert: area " + RuienImport.Convert(area, Arg("area") is { Length: > 0 } id ? id : "o2", Arg("lods") is { Length: > 0 } ls ? ls : "0"));
+                GD.Print("ruien convert: area " + RuienImport.Convert(area, AreaId(), Arg("lods") is { Length: > 0 } ls ? ls : "0"));
             if (Arg("ruien-kit") is { Length: > 0 } kit)
                 GD.Print("ruien convert: kit " + RuienImport.ConvertKit(kit, Arg("pieces")));
             if (args.Contains("--ruien-shader-check"))

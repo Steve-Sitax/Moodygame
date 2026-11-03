@@ -91,6 +91,27 @@ Conversion (headless, once per export; it writes under `res://world/ruien` and q
 
     godot --headless --path native-godot res://world/ruien/convert.tscn -- --ruien-textures <export>/textures
     godot --headless --path native-godot res://world/ruien/convert.tscn -- --ruien-area <export> --area o2
+    godot --headless --path native-godot res://world/ruien/convert.tscn -- --ruien-repair <immutable export snapshot> --area o2 --headers <fittings.glb>
+
+`--area` is required (no default). The repair (`RuienRepair.Convert`, #272 stage 1a) works for any area: an area
+with only rooms runs too. Generic passes run on every chunk: brick charts (`RuienUnfold`), narrow-face UVs
+(`RuienUv`), calcite and lime variation, dark bluestone bakes, round-shaft collars, the run-off ribbons and the keeper
+stair cuts (`keeperStairs[].repairChunks`). Every line zone is repaired on its own chunks (`repairChunks`, parts of
+the mesh file name; none = all) along its `repairPath` (the export's own sweep, smoothed with the zone's `curve` and
+`handle`, or `repairCurve`/`repairHandle`). The area's data drives the rest:
+
+- `drains`: B2 side drain mouths `{zone, u, side}` on a line zone: the native drain, its spout sound, the gutter cut
+  in meshes and collision, the open throat behind the exported end card.
+- `sealedDrains`: retired mouths, bricked up and their ghost evened.
+- `repair.headersPiece`: the kit piece the `--headers` fittings go to (`res://world/ruien/kit/<piece>.res`, placed by
+  the area's `kit` list; default `drain_headers_<area>`, O2 keeps `drain_headers`).
+- `repair.fixes`: the area's own export defects, each `{action, chunks, families}` (families exact, `prefix*`,
+  `*suffix`, `*part*`): `dropFamily` (retire a surface), `keepBelow` (keep triangles whose centre is below `y`),
+  `splay` (a gate apron rising to the outlet bed with splayed walls; meshes and collision), `dropBox` (triangles
+  strictly inside `min`..`max`), `addBox` (bevelled blocks at `at`), `vaultStrip` (an elliptical vault patch),
+  `mouthRings` (backing rings behind loose mouth headers), `cutCollision` (a box out of the collision),
+  `addCollisionFaces` (source LOD faces in a box that the collision export left out). Numbers and notes: O2 in
+  `areas.json`; code `RuienRepairFix.cs`.
 
 For an isolated stretch intake, add `--out <absolute resource folder>` to `--ruien-area`; the folder gets
 `area.json`, meshes, collision and markers without changing the installed world. `--area` names the area;
