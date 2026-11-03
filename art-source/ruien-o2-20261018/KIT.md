@@ -105,6 +105,6 @@ Proof: `export/stretches/L105/` is the Kipdorprui (L105, 21.7 m, two bends of 4.
   yet. Junction rooms (blue patches) should use `hall_gen` with rui depth once its section heights are parameters.
 - The hall generator and the gate end take their sizes through `spec` (module values), so build one hall or gate per
   Blender run (or reload `rlib.hall`).
-- The network file gives the rui channel as 2.0 m with a 0.8 m walkway in a 3.6 m width; the kit uses one 0.8 m
-  walkway and a 2.8 m channel (as briefed). Change `Section` if Steve wants a second ledge.
+- The native network matches the kit's rui: one 0.8 m walkway, 2.8 m channel and semicircular spring at -2.7 m.
+  `walkwaySide` selects the side; change `Section` if Steve wants a second ledge.
 - Fixed pieces taken from O2 are sized for the giant gallery (the shaft, the drain, the penstock).

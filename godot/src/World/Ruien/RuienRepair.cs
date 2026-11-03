@@ -45,9 +45,12 @@ public static class RuienRepair
     /// area's own defects are its `repair.fixes` (<see cref="RuienRepairFix"/>). Writes res://world/ruien/&lt;area&gt;
     /// and the headers piece res://world/ruien/kit/&lt;repair.headersPiece&gt;.res (default drain_headers_&lt;area&gt;).
     /// </summary>
-    public static void Convert(string source, string area, string headers)
+    public static void Convert(string source, string area, string headers, string output = "")
     {
-        string target = ProjectSettings.GlobalizePath($"res://world/ruien/{area}");
+        string target = output.Length > 0 ? Path.GetFullPath(output) : ProjectSettings.GlobalizePath($"res://world/ruien/{area}");
+        Directory.CreateDirectory(target);
+        if(output.Length>0)
+            foreach(var file in Directory.GetFiles(source)) File.Copy(file,Path.Combine(target,Path.GetFileName(file)),true);
         var layout=RuienData.Load().Areas.FirstOrDefault(a=>a.Id==area)??throw new InvalidOperationException($"ruien repair: no area '{area}' in {RuienData.AreasFile}");
         var areaConfig=JsonNode.Parse(File.ReadAllText(ProjectSettings.GlobalizePath(RuienData.AreasFile)))!["areas"]!.AsArray().First(a=>a!["id"]!.GetValue<string>()==area)!;
         var zoneConfig=areaConfig["zones"]!.AsArray().ToDictionary(z=>z!["id"]!.GetValue<string>(),z=>z!);
@@ -76,7 +79,7 @@ public static class RuienRepair
         // A drain the plan retired (its lining and mouth hole stayed, open to the void): bricked up and its ghost mended.
         var sealedDrains=RuienData.ReadDrains(JsonDocument.Parse(areaConfig.ToJsonString()).RootElement,"sealedDrains",built.ContainsKey)
             .Select(d=>(drain:Resolve(d),zone:d.Zone)).ToList();
-        var fixes=RuienRepairFix.Read(areaConfig);
+        var fixes=RuienRepairFix.Read(areaConfig,layout);
         RuienPaving.Layout(layout,built);
         // Round grates with a brick collar in the vault crown take ring courses (areas.json grates[].collar).
         var rings=new List<RuienUnfold.Ring>();
@@ -91,8 +94,7 @@ public static class RuienRepair
         var stairs=layout.Ways.Where(w=>w.Kind=="keeper_stair").ToArray();
         // Which chunks each keeper stair's cut reaches (keeperStairs[].repairChunks; none: every chunk).
         var stairChunks=(areaConfig["keeperStairs"] as JsonArray)?.Select(k=>k!["repairChunks"] is JsonArray c?c.Select(x=>x!.GetValue<string>()).ToArray():Array.Empty<string>()).ToArray()??Array.Empty<string[]>();
-        var lining=layout.Zones.FirstOrDefault(z=>z.Kind=="line");
-        var pipes=RuienPipe.Read(areaConfig);var backed=new HashSet<(string,bool)>();
+                var pipes=RuienPipe.Read(areaConfig,layout);var backed=new HashSet<(string,bool)>();
         var pavedFaces=new List<Vector3>();
         bool In(string file,string[] chunks)=>chunks.Length==0||chunks.Any(file.Contains);
         foreach (string path in Directory.GetFiles(source, "mesh_*.res"))
@@ -123,7 +125,7 @@ public static class RuienRepair
                         var stair=stairs[k];
                         changed |= QuayNotch.CutSurfaceWith(arrays,Transform3D.Identity,_=>true,RuienStair.Cut(stair))>0;
                         // The mouth's corner gives way to the native rounded arris (#217).
-                        if(RuienStair.ArrisCut(stair,lining) is { } arris)changed |= RuienPatch.Trim(arrays,arris,.025f)>0;
+                        if(RuienStair.ArrisCut(stair,layout.StairZone(stair)) is { } arris)changed |= RuienPatch.Trim(arrays,arris,.025f)>0;
                     }
                 bool emptied=false;
                 foreach(var fix in fixes)
@@ -151,7 +153,7 @@ public static class RuienRepair
                             var lat=Vector3.Up.Cross(k.Axis).Normalized();
                             changed|=RuienPatch.Drop(arrays,c=>{var d=c-k.Centre;float before=-d.Dot(k.Axis);
                                 // The old mouth's header ring reaches 1.2 m out from its axis and up to the crown.
-                                return before> -.06f&&before<2.2f&&MathF.Abs(d.Dot(lat))<1.25f&&c.Y> -3.5f&&c.Y< -1.4f;})>0;
+                                return before> -.06f&&before<2.2f&&MathF.Abs(d.Dot(lat))<1.25f&&c.Y> -3.5f+k.Section.WalkOffset&&c.Y< -1.4f+k.Section.WalkOffset;})>0;
                         }
                     if(family=="ruien_brick_stretcher")
                         for(int sc=0;sc<sealedCards.Count;sc++)
@@ -160,8 +162,8 @@ public static class RuienRepair
                                 var k=sealedCards[sc];
                                 // Brick up the old mouth 12 mm behind the vault face; the stair's own opening stays cut.
                                 var lat=Vector3.Up.Cross(k.Axis).Normalized();var plug=new RuienPatch.Tris();
-                                Vector3 W(float along,float h){float y=RuienDrain.Invert+h;var q=k.Centre+lat*along+Vector3.Up*(y-k.Centre.Y);
-                                    return q-k.Axis*(4.6f-RuienDrain.Shell(y)-.03f);}
+                                Vector3 W(float along,float h){float y=RuienDrain.Invert+h+k.Section.WalkOffset;var q=k.Centre+lat*along+Vector3.Up*(y-k.Centre.Y);
+                                    return q-k.Axis*(4.6f+(k.Section.Width/2-3f)-k.Section.Shell(y)-.03f);}
                                 const int rows=24;
                                 for(int r=0;r<rows;r++)
                                 {
@@ -244,7 +246,7 @@ public static class RuienRepair
         foreach(var stair in stairs)
         {
             QuayNotch.CutSurfaceWith(ca,Transform3D.Identity,_=>true,RuienStair.Cut(stair));
-            if(RuienStair.ArrisCut(stair,lining) is { } arris)RuienPatch.Trim(ca,arris,.02f);
+            if(RuienStair.ArrisCut(stair,layout.StairZone(stair)) is { } arris)RuienPatch.Trim(ca,arris,.02f);
         }
         foreach(var(d,_) in drains)QuayNotch.CutSurfaceWith(ca,Transform3D.Identity,_=>true,RuienDrain.GutterCut(d.Zone,d.U,d.Side));
         // An area's collision boxes over openings it shows (a hall wall boxed across its visible gallery mouth).
@@ -306,7 +308,7 @@ public static class RuienRepair
             merged.SetMeta("ruien_solid",true);
             // Each area writes its own piece (placed by its `kit` list), so one area's repair never replaces another's.
             string piece=areaConfig["repair"]?["headersPiece"]?.GetValue<string>()??"drain_headers_"+area;
-            ResourceSaver.Save(merged, $"{RuienKit.Dir}/{piece}.res", ResourceSaver.SaverFlags.Compress);
+            ResourceSaver.Save(merged, output.Length>0 ? Path.Combine(target,piece+".res") : $"{RuienKit.Dir}/{piece}.res", ResourceSaver.SaverFlags.Compress);
             GD.Print($"ruien repair: headers piece {piece}");
         }
         // Metadata follows the repaired resources, rather than reporting the retired ribbons and sacks.
@@ -322,7 +324,7 @@ public static class RuienRepair
         File.WriteAllText(Path.Combine(target,"area.json"),index.ToJsonString(new(){WriteIndented=true})+"\n");
     }
 
-    private sealed record Card(Vector3 Centre,Vector3 Axis,Vector3[] Ring);
+    private sealed record Card(Vector3 Centre,Vector3 Axis,Vector3[] Ring,RuienData.Section Section);
 
     /// <summary>
     /// Bluestone whose study bake came out near black (a bake darker than 0.07 linear, mean byte below 70: the hall's
@@ -363,10 +365,10 @@ public static class RuienRepair
         // and whether the vertex lies on the vault face there.
         (float edge,bool face,float h) Where(Vector3 v)
         {
-            var d=v-k.Centre;float along=MathF.Abs(d.Dot(lat)),h=v.Y-RuienDrain.Invert,before=-d.Dot(k.Axis);
+            var d=v-k.Centre;float along=MathF.Abs(d.Dot(lat)),h=v.Y-RuienDrain.Invert-k.Section.WalkOffset,before=-d.Dot(k.Axis);
             float half=RuienDrain.EggHalf(Math.Clamp(h,0,1.6f))+.62f;
             float edge=Math.Max(along-half,Math.Max(h-1.72f,-.08f-h));
-            return(edge,MathF.Abs(before-(4.6f-RuienDrain.Shell(v.Y)))<.3f,h);
+            return(edge,MathF.Abs(before-(4.6f+(k.Section.Width/2-3f)-k.Section.Shell(v.Y)))<.3f,h);
         }
         // The face's own values by course height, from a band 0.5 to 1.2 m outside the plug.
         var sum=new Dictionary<int,(double r,double g,double b,double a,Color c,int n)>();
@@ -414,12 +416,12 @@ public static class RuienRepair
             var ix=a[(int)Mesh.ArrayType.Index].VariantType==Variant.Type.Nil?Enumerable.Range(0,p.Length).ToArray():a[(int)Mesh.ArrayType.Index].AsInt32Array();
             foreach(var (zone,u,side) in mouths)
             {
-                var (c,t)=zone.Frame(u);var n=new Vector2(t.Y,-t.X)*side;var guess=c+n*4.6f;
+                var (c,t)=zone.Frame(u);var n=new Vector2(t.Y,-t.X)*side;var guess=c+n*(4.6f+(zone.S.Width/2-3f));
                 var pts=new List<Vector3>();
                 for(int i=0;i<ix.Length;i+=3)
                 {
                     var m=(p[ix[i]]+p[ix[i+1]]+p[ix[i+2]])/3;
-                    if(new Vector2(m.X,m.Z).DistanceTo(guess)>1.4f||m.Y< -3.45f||m.Y> -1.65f)continue;
+                    if(new Vector2(m.X,m.Z).DistanceTo(guess)>1.4f||m.Y< -3.45f+zone.S.WalkOffset||m.Y> -1.65f+zone.S.WalkOffset)continue;
                     pts.AddRange(new[]{p[ix[i]],p[ix[i+1]],p[ix[i+2]]});
                 }
                 if(pts.Count<45)continue;
@@ -440,7 +442,7 @@ public static class RuienRepair
                     if(mesh.SurfaceGetName(s2)!="ruien_brick_flemish")continue;
                     var lp=mesh.SurfaceGetArrays(s2)[(int)Mesh.ArrayType.Vertex].AsVector3Array();
                     var lat0=Vector3.Up.Cross(axis).Normalized();
-                    var tube=lp.Where(q=>{var d=q-centre;float before=-d.Dot(axis);return before>.15f&&before<1.5f&&MathF.Abs(d.Dot(lat0))<.6f&&q.Y> -3.4f&&q.Y< -1.7f;}).ToArray();
+                    var tube=lp.Where(q=>{var d=q-centre;float before=-d.Dot(axis);return before>.15f&&before<1.5f&&MathF.Abs(d.Dot(lat0))<.6f&&q.Y> -3.4f+zone.S.WalkOffset&&q.Y< -1.7f+zone.S.WalkOffset;}).ToArray();
                     if(tube.Length<200)continue;
                     // The tube's centre line: mean position in slices along the guess, fitted by least squares.
                     var near=tube.Where(q=>-(q-centre).Dot(axis)<.6f).ToArray();var far=tube.Where(q=>-(q-centre).Dot(axis)>1.0f).ToArray();
@@ -450,7 +452,7 @@ public static class RuienRepair
                 }
                 var lat=Vector3.Up.Cross(axis).Normalized();
                 ring=ring.OrderBy(q=>MathF.Atan2((q-centre).Y,(q-centre).Dot(lat))).ToList();
-                found.Add(new Card(centre,axis,ring.ToArray()));
+                found.Add(new Card(centre,axis,ring.ToArray(),zone.S));
             }
         }
         return found;

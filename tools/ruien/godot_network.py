@@ -22,6 +22,10 @@ def main():
         keep = {key: c[key] for key in ('name', 'innerWidth', 'bedToCrown', 'channelWidth', 'ledgeWidth', 'ledgeAboveBed', 'wall', 'bed') if key in c}
         if 'bed' in keep and 'bedToCrown' in keep:
             keep['crown'] = round(keep['bed'] + keep['bedToCrown'], 3)
+        if k == 'G':
+            keep.update(spring=-3.1, walkwaySide=0, water=-4.6)
+        elif k == 'M':
+            keep.update(channelWidth=2.8, spring=-2.7, walkwaySide=1, water=-4.4)
         classes[k] = keep
     out = {
         'about': 'Made by tools/ruien/godot_network.py from docs/plans/ruien (ruien-routes.json, ruien-network.json). Do not edit.',

@@ -13,6 +13,7 @@ public static class RuienPaving
     public const float Tile = 2.5f, Relief = .016f;
     private static Image? height;
     private static RuienData.Zone[] paths=Array.Empty<RuienData.Zone>();
+    private static float? uniformFloor;
     private static RuienData.Zone[] rooms=Array.Empty<RuienData.Zone>();
     public static void Layout(RuienData.Area area,IReadOnlyDictionary<string,RuienData.Zone>? built=null)
     {
@@ -21,6 +22,7 @@ public static class RuienPaving
         // `built` holds each line zone's repair path by zone id.
         paths=System.Linq.Enumerable.ToArray(System.Linq.Enumerable.Select(System.Linq.Enumerable.Where(area.Zones,z=>z.Kind=="line"),
             z=>built!=null&&built.TryGetValue(z.Id,out var b)?b:z));
+        uniformFloor=System.Linq.Enumerable.All(area.Zones,z=>z.S.WalkwaySide==0 && z.S.LedgeY==area.Zones[0].S.LedgeY) && area.Zones.Count>0 ? area.Zones[0].S.LedgeY : null;
         rooms=System.Linq.Enumerable.ToArray(System.Linq.Enumerable.Where(area.Zones,z=>z.Kind=="room"));
     }
 
@@ -52,7 +54,7 @@ public static class RuienPaving
             return(at,t);
         }
         var f=Frame(u);var n=new Vector2(f.tangent.Y,-f.tangent.X);
-        float side=(q-f.at).Dot(n),centre=MathF.Sign(side)*(z.S.Channel/2+z.S.Width/2)/2;
+        float side=(q-f.at).Dot(n),centre=MathF.Sign(side)*(z.S.Edge(side>=0?1:-1)+z.S.Width/2)/2;
         // Rows run along the walk's own centre line: the path offset by the walk's centre, mitred at corners.
         // Arc length on that line is metric for every vertex of the walk, at bends and sharp corners alike
         // (a sharp corner meets under its dressed seam stone).
@@ -198,19 +200,45 @@ public static class RuienPaving
             stone.AppendFrom(block,0,new Transform3D(basis,at));
         }
     }
+    public static float? Floor(Vector3 p)
+    {
+        // Uniform two-sided areas need no path search per vertex (the original G extraction semantics).
+        if(uniformFloor is float walk)
+        {
+            float dy=walk-(-3.6f);
+            return p.Y> -3.66f+dy && p.Y< -3.54f+dy ? walk : null;
+        }
+        var q=new Vector2(p.X,p.Z);
+        RuienData.Zone? best=null;float distance=float.MaxValue;
+        foreach(var z in paths)
+        {
+            float inside=z.Inside(q,out _);
+            if(z.S.Width/2-inside<distance){best=z;distance=z.S.Width/2-inside;}
+        }
+        foreach(var z in rooms) if(z.Rect.HasPoint(q)) { best=z;break; }
+        if(best==null)return p.Y> -3.66f && p.Y< -3.54f ? -3.6f : null;
+        var s=best.S;
+        if(best.Kind=="line" && s.WalkwaySide!=0)
+        {
+            best.Inside(q,out float u);var(c,t)=best.Frame(u);
+            float across=(q-c).Dot(new Vector2(t.Y,-t.X))*s.WalkwaySide;
+            if(across<s.Edge(s.WalkwaySide)-.06f || across>s.Width/2+.06f)return null;
+        }
+        return p.Y> -3.66f+s.WalkOffset && p.Y< -3.54f+s.WalkOffset ? s.LedgeY : null;
+    }
     public static bool Extract(Godot.Collections.Array arrays,SurfaceTool paving,float spacing,Func<Vector3,float?>? floor=null)
     {
         var p=arrays[(int)Mesh.ArrayType.Vertex].AsVector3Array();var ix=arrays[(int)Mesh.ArrayType.Index].AsInt32Array();
         var keep=new List<int>();bool changed=false;
+        floor ??= Floor;
         for(int i=0;i<ix.Length;i+=3)
         {
             var a=p[ix[i]];var b=p[ix[i+1]];var c=p[ix[i+2]];
-            float? ha=floor?.Invoke(a),hb=floor?.Invoke(b),hc=floor?.Invoke(c);
-            bool top=(floor==null ? MathF.Min(a.Y,MathF.Min(b.Y,c.Y))> -3.66f && MathF.Max(a.Y,MathF.Max(b.Y,c.Y))< -3.54f
-                : ha.HasValue && hb.HasValue && hc.HasValue && MathF.Abs(ha.Value-hb.Value)<.001f && MathF.Abs(ha.Value-hc.Value)<.001f)
+            float? ha=floor.Invoke(a),hb=floor.Invoke(b),hc=floor.Invoke(c);
+            bool top=(ha.HasValue && hb.HasValue && hc.HasValue && MathF.Abs(ha.Value-hb.Value)<.001f && MathF.Abs(ha.Value-hc.Value)<.001f)
                 && MathF.Abs((b-a).Cross(c-a).Normalized().Y)>.65f;
             if(!top){keep.AddRange(new[]{ix[i],ix[i+1],ix[i+2]});continue;}
-            a.Y=b.Y=c.Y=ha??-3.6f;Triangle(paving,a,b,c,spacing);changed=true;
+            a.Y=b.Y=c.Y=ha!.Value;Triangle(paving,a,b,c,spacing);changed=true;
         }
         arrays[(int)Mesh.ArrayType.Index]=keep.ToArray();return changed;
     }

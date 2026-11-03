@@ -123,6 +123,19 @@ area-list schema, set its area's `export` to the external resource folder, `wate
 and its line zone to the stretch's path/class. `--ruien-always` forces visibility; it is a flag, not a folder argument.
 Isolate `SCHELDEMIST_USER_DATA`, `--db`, `--prefs`, `--author-root` and `--port` for this run as for other proofs.
 
+Section classes carry `spring`, `water`, `channelWidth` and `walkwaySide` (0 = both, +1/-1 = one side of the
+path normal `(tangent.z, -tangent.x)`). A zone can override these and `walk`. M matches the kit: spring -2.7,
+walk -3.9, water -4.4, one 0.8 m ledge and a 2.8 m channel. Paving, runoff, drains, escape irons and stand-in
+sections use those bounds. Authored pipe `front` coordinates remain explicit; `zone` selects its runoff floor.
+`keeperStairs[].zone` selects the lining for both repair and native arris/reveal; omission keeps the first-line
+fallback, while an unknown explicit zone is an error. Flight orientation is still the separate #272 stage 1c task.
+`stairSurrounds` accepts an id or `{id, steps, going}`; its support bed follows the section. A repair `keepBelow`
+can use `{zone, walkOffset}` instead of absolute `y`.
+
+`--ruien-repair ... --out <absolute folder>` copies the immutable source and repairs that external copy; any
+headers piece is written beside it. This permits comparisons without replacing installed resources. The headless
+`--ruien-section-proof <report folder>` checks both M sides, paving relief, drain impact and keeper-zone selection.
+
 ## Rendering
 
 - Three shader kinds (`native-godot/shaders/ruien_*`, shared parts in `ruien_common.gdshaderinc`), added once with
