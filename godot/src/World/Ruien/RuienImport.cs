@@ -39,6 +39,9 @@ public static class RuienImport
         float waterMin = manifest.TryGetProperty("waterMin", out var wm) ? wm.GetSingle()
             : area?.WaterMin ?? manifest.GetProperty("markers").GetProperty("water").EnumerateArray().First().GetProperty("height").GetSingle();
         int meshes = 0, tris = 0;
+        // (#272 1d) An export that asks for it gets the metric UV repair of narrow and collapsed charts at full
+        // precision, as RuienRepair gives O2; older exports convert exactly as before.
+        bool uvRepair = manifest.TryGetProperty("uvRepair", out var ur) && ur.ValueKind == JsonValueKind.True;
         foreach (var f in manifest.GetProperty("files").EnumerateObject())
         {
             if (!f.Value.TryGetProperty("lod", out var lodE) || lodE.ValueKind != JsonValueKind.Number) continue;
@@ -53,7 +56,7 @@ public static class RuienImport
                 var m = Regex.Match(name, @"^(?<key>.+)_lod(?<lod>\d+)_(?<n>\d+)$");
                 string key = m.Success ? m.Groups["key"].Value : name;
                 if (skip.Contains(key)) continue; // (the area's skipKeys: the town draws its own there)
-                var mesh = Build(obj, out int n);
+                var mesh = Build(obj, out int n, uvRepair);
                 if (mesh == null) continue;
                 string file = $"mesh_{key}_lod{lod}_{(m.Success ? m.Groups["n"].Value : "00")}.res";
                 var err = ResourceSaver.Save(mesh, $"{outRes}/{file}", ResourceSaver.SaverFlags.Compress);
@@ -137,7 +140,7 @@ public static class RuienImport
     /// One object as a compressed mesh, a surface per family (named so), glTF's turn of the faces made Godot's; a
     /// family's faces in pieces of under 65,536 corners, so each piece has 16-bit indices (half the size on disk).
     /// </summary>
-    public static ArrayMesh? Build(RuienGlb.Obj obj, out int tris)
+    public static ArrayMesh? Build(RuienGlb.Obj obj, out int tris, bool uvRepair = false)
     {
         tris = 0;
         var mesh = new ArrayMesh { ResourceName = obj.Name };
@@ -187,9 +190,11 @@ public static class RuienImport
                 arrays[(int)Mesh.ArrayType.Color] = order.Select(i => p.Col != null ? p.Col[i] : new Color(0, 0, 0, 0)).ToArray();
                 arrays[(int)Mesh.ArrayType.Index] = idx.ToArray();
                 var format = Mesh.ArrayFormat.FlagCompressAttributes | (Mesh.ArrayFormat)((long)Mesh.ArrayCustomFormat.Rgba8Unorm << (int)Mesh.ArrayFormat.FormatCustom0Shift);
+                // Quantized UVs collapse millimetre bevel charts, so a repaired surface keeps full-precision attributes.
+                if (uvRepair) { RuienUv.Repair(arrays, p.Material); format &= ~Mesh.ArrayFormat.FlagCompressAttributes; }
                 mesh.AddSurfaceFromArrays(Mesh.PrimitiveType.Triangles, arrays, null, null, format);
                 mesh.SurfaceSetName(mesh.GetSurfaceCount() - 1, p.Material);
-                tris += idx.Count / 3;
+                tris += arrays[(int)Mesh.ArrayType.Index].AsInt32Array().Length / 3;
             }
         }
         return mesh.GetSurfaceCount() > 0 ? mesh : null;
