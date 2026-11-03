@@ -164,7 +164,8 @@ for inspection, not proof of an autonomous underground route.
 ## Entrances
 
 Ways down from the street, built before the network they will join (Steve chose 25 from the RE-entrances survey,
-2026-11-02; the first nine are built). Each entrance is a street door in a wall that is already there, one straight
+2026-11-02; seventeen are built: nine wall doors, four gateway side doors, four house side doors). Each entrance is a
+street door in a wall that is already there, one straight
 bluestone flight down to the level of its Ruien line, and a small landing that ends at a locked iron grille or a
 bricked-up arch ("closed for works") where the Ruien join later. Nothing leads nowhere and there is nothing to fall
 into. Code: `RuienEntrance.cs` (data, frames, town cuts, model), `RuienEntranceDoor.cs` (the door and the closure's
@@ -176,14 +177,16 @@ the entry. Fields (defaults in the file's `defaults`):
 | Field | Meaning |
 |---|---|
 | `id`, `name`, `survey` | Permanent id (the door's saved state is `entrance_<id>`), a name, the survey's number. |
-| `host` | `rampart` (a door into the bank behind the rampart's inner wall) or `gate_house` (a gate house's drawn door). |
+| `host` | `rampart` (a door into the bank behind the rampart's inner wall), `gate_house` (a gate house's drawn door), `passage` (a side door in a gateway's passage, the stair inside the house beside it) or `house` (a door in a house wall, the stair inside the house). |
 | `door`, `out`, `street` | The doorway's middle on the wall's face (x, z), the face's normal to the street, street level. |
 | `depth`, `line` | Landing level: gallery ledge -3.6, rui walkway -3.9; the Ruien line it will join. |
 | `layout`, `flight` | `L`: door in the tunnel's side, the tunnel along the wall (`flight` `right` or `left` as seen from the street). `I`: door in its end, the tunnel straight in. |
 | `closure`, `closureSide` | `grille` (a locked gate before a 1 m niche closed by new brick) or `bricked` (fresh brick in the arch); `street` (L), `right`/`left` (I), `back` or `end`. |
 | `wall`, `width` | The host wall's thickness (the reveal), the tunnel's clear width (1.3 m; 1.5 m in gate houses). |
-| `doorWidth`, `doorHeight`, `post`, `head`, `frame` | The opening in the wall, the leaf's clear height, the oak posts, `arch` (brick ring and iron fanlight) or `flat` (oak lintel), the surround (`bluestone` jambs or the gate house's `oak` frame). |
+| `doorWidth`, `doorHeight`, `post`, `head`, `frame` | The opening in the wall, the leaf's clear height, the oak posts, `arch` (brick ring and iron fanlight) or `flat` (oak transom), the surround: `bluestone` jambs and a rowlock ring (rampart), the gate house's `oak` frame, `passage` (a dressed bluestone frame with an eared lintel on plinth blocks) or `house` (an oak casing, a bluestone lintel and a bluestone doorstep). |
 | `riser`, `pitchDeg`, `topLanding`, `bottomLanding`, `lining`, `spring`, `vaultRise` | Steps of at most 18 cm at 35 degrees (about 5.1 m for 3.6 m), 1.5 m landings, 28 cm brick lining, the barrel vault's springing over the treads and its rise. |
+| `approach`, `from`, `openDeg` | Where the walk test stands before the door (1.6 m out; 0.9 m, the middle of a passage), the street points it walks from first (world x, z), and how far the leaf opens (86 degrees; 96 in the cottages, so it clears the narrow landing). The leaf hangs on the post away from the flight. |
+| `house` | (notes only) the building or buildings the stair stands in, for the fit check. |
 | `cut`, `clear`, `foliage`, `foliageMaterials`, `keepAbove` | Town meshes the doorway is cut through; a gate house's drawn door dropped below `keepAbove` (its hood stays); plants and climbers removed before the door (whole leaves; the `vegetation` group's copies are folded away). |
 
 **What the kit makes.** Bluestone flags on a lime bed for the landings and one solid block a step for the flight (as
@@ -205,7 +208,15 @@ down it is dark and Jef's own lantern lights the way (a carried lantern burns be
 rain's room box). The cover map has a second channel (green): a closed way in,
 covered at every height, so the stair inside the bank takes no sky or sun even above street level, and the eye there
 takes the underground air. The masonry, water and air kinds read it in `ruien_covered` (code changed in place, no new
-kind).
+kind). Blue holds the height the closed way reaches (-8 to +8 m): every height in a bank or a gate house, the
+masonry's top for a buried stair, so the street over a buried stair's lower end keeps its sky and its air.
+
+**Buried stairs** (`passage` and `house`): a building is not a bank, so only the part of the stair above the street may
+stand inside the building, and the lower end runs on under the street, a yard or the next house. Its brick walls, its
+cut in the town and its cover are made in short pieces along the run (`RuienEntrance.Steps`) that follow the vault
+down (`Spec.Ceiling`): nothing of it stands above the street outside the building, the street's paving over it is not
+cut, and an eye on that street is not "below". Small cottages take a steep cellar stair (45 degrees, a 0.8 m top
+landing, a lower vault) straight in from the gable, between its two windows.
 
 **The door** opens and shuts with E from the street or the top landing (not while Jef stands in its swing). Its state
 is the world's: the hatches' service (`api/ruien/hatches/entrance_<id>`, `NativeRuienAccess`) keeps it in saves and
@@ -217,10 +228,11 @@ shares it. At the landing E at the closure says why the way on is shut.
    ray from the street at 0.3 m and 2.2 m height), `out` the face's normal, `depth` from its line's class.
 2. Choose `layout`/`flight` so the tunnel stays inside the host (the bank is 7 m thick; a gate house about 12 m deep)
    and clear of passages, stairs and other ways down. `L` needs about 8.7 m along the wall at 3.6 m depth, `I` about
-   9.9 m straight in.
+   9.9 m straight in. A buried stair needs only its part above the street inside the building: about 5.8 m at 35
+   degrees, 3.7 m for the cottages' 45-degree cellar stair (from the face).
 3. Name the host's wall meshes in `cut` (and a drawn door in `clear`), the plants in `foliage`.
-4. A new host kind (a house side door, a stair-house) is a new `host` value: the frame, opening and surround choices
-   are in `Kit.DoorWall`; everything below the door is shared.
+4. A new host kind (a stair-house) is a new `host` value: the frame, opening and surround choices are in
+   `Kit.DoorWall`; everything below the door is shared. A host that is a building sets `Spec.Buried`.
 5. Check it: `--ruien-proof <dir> --ruien-proof-entrances [--ruien-proof-entrance-ids id]` walks Jef from the street
    through the door to the landing and back (E prompts, depth, room for his body every 20 cm, the closure holds, the
    door shuts and stays solid, saved state); review cameras take `"doorsOpen": true`.

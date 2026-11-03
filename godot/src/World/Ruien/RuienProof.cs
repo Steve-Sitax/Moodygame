@@ -184,8 +184,20 @@ public partial class RuienProof : Node
             var r=e.Route.Select(p=>e.World(p)).ToArray();
             float yawIn=YawTo(e.World(Vector3.Zero)-r[0]);
             Player.Arms.I!.ProofLantern=false;
-            j.Place(r[0].X,r[0].Z,yawIn,0,e.Street);await Seconds(1.5f);
-            j.Place(r[0].X,r[0].Z,yawIn,0,e.Street);await Seconds(1.5f);
+            if(e.From.Length>0)
+            {
+                // the way to the door from the street (a gateway's passage, an alley): walked, not placed
+                j.Place(e.From[0].X,e.From[0].Y,YawTo(new Vector3(r[0].X-e.From[0].X,0,r[0].Z-e.From[0].Y)),0,e.Street);await Seconds(1.5f);
+                j.Place(e.From[0].X,e.From[0].Y,YawTo(new Vector3(r[0].X-e.From[0].X,0,r[0].Z-e.From[0].Y)),0,e.Street);await Seconds(1.5f);
+                for(int k=1;k<e.From.Length;k++)await WalkTo(e.From[k],e.Id+$" from the street {k}");
+                await WalkTo(new Vector2(r[0].X,r[0].Z),e.Id+" from the street to the door");
+                j.Yaw=yawIn;await Seconds(.3f);
+            }
+            else
+            {
+                j.Place(r[0].X,r[0].Z,yawIn,0,e.Street);await Seconds(1.5f);
+                j.Place(r[0].X,r[0].Z,yawIn,0,e.Street);await Seconds(1.5f);
+            }
             await Until(()=>door.Known,10);
             Check(e.Id+" door state known",door.Known);
             if(door.Target){door.Set(false);await Until(()=>!door.Target&&door.Open<.001f);}
@@ -256,6 +268,7 @@ public partial class RuienProof : Node
             await Until(()=>door.Open<.001f,10);
             Check(e.Id+" door shut again",door.Open<.01f&&!door.Target,$"open={door.Open}");
             Check(e.Id+" shut again and solid",Blocked(e.World(new Vector3(0,1,.4f)),e.World(new Vector3(0,1,e.LeafFace-.25f))));
+            for(int k=e.From.Length-1;k>=0;k--)await WalkTo(e.From[k],e.Id+$" back to the street {k}");
             if(!saved&&Scheldemist.Net.ServerLink.I?.Api is {} api)
             {
                 // the door's state is the world's: saved and loaded with the game

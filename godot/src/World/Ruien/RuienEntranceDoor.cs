@@ -29,7 +29,6 @@ public partial class RuienEntranceDoor : Node3D
     public float Open { get; private set; }
     public bool Target { get; private set; }
     public bool Known { get; private set; }
-    public const float OpenDeg = 86;
     public const float Planks = .042f, Ledges = .03f;
     private Node3D hinge = null!;
     private float poll;
@@ -43,16 +42,18 @@ public partial class RuienEntranceDoor : Node3D
     {
         All[Spec.Id] = this;
         var o = Spec.DoorOpening;
-        // The hinge: the left post's inner edge, at the planks' inner face; the leaf runs +x from it.
-        hinge = new Node3D { Name = "hinge", Position = new Vector3(-o.H + Spec.Post + .004f, .012f, Spec.LeafFace - Planks) };
+        // The hinge: the left post's inner edge, at the planks' inner face; the leaf runs +x from it. Hung on the right
+        // post (Spec.HingeRight) the same leaf is mirrored and runs -x.
+        hinge = new Node3D { Name = "hinge", Position = new Vector3(Side * (-o.H + Spec.Post + .004f), .012f, Spec.LeafFace - Planks) };
         AddChild(hinge);
         Leaf(hinge, LeafWidth, LeafHeight);
+        if (Side < 0) Mirror(hinge);
         // the pintles on the post, fixed
         var fixedIron = new SurfaceTool(); fixedIron.Begin(Mesh.PrimitiveType.Triangles);
         var ironMat = RuienMaterials.Get("ruien_iron");
         foreach (float y in Straps(LeafHeight))
         {
-            fixedIron.AppendFrom(BevelMesh.Box(new Vector3(.05f, .07f, .012f), .002f, ironMat), 0, new Transform3D(Basis.Identity, hinge.Position + new Vector3(-.03f, y, -.006f)));
+            fixedIron.AppendFrom(BevelMesh.Box(new Vector3(.05f, .07f, .012f), .002f, ironMat), 0, new Transform3D(Basis.Identity, hinge.Position + new Vector3(-.03f * Side, y, -.006f)));
             var pin = new SurfaceTool(); pin.CreateFrom(new CylinderMesh { TopRadius = .011f, BottomRadius = .011f, Height = .12f, RadialSegments = 16 }, 0); pin.Deindex();
             fixedIron.AppendFrom(pin.Commit(), 0, new Transform3D(Basis.Identity, hinge.Position + new Vector3(0, y, -.012f)));
         }
@@ -61,6 +62,83 @@ public partial class RuienEntranceDoor : Node3D
     }
 
     private static float[] Straps(float height) => new[] { .28f, height - .28f };
+    /// <summary>+1: hung on the left post (the leaf runs +x), -1: on the right.</summary>
+    private float Side => Spec.HingeRight ? -1 : 1;
+
+    /// <summary>The leaf's meshes and collision mirrored across the hinge (x to -x, the triangles turned to face out again).</summary>
+    private static void Mirror(Node3D hinge)
+    {
+        foreach (var node in hinge.FindChildren("*", "", true, false))
+        {
+            if (node is MeshInstance3D { Mesh: ArrayMesh mesh } mi)
+            {
+                var done = new ArrayMesh();
+                for (int si = 0; si < mesh.GetSurfaceCount(); si++)
+                {
+                    var a = mesh.SurfaceGetArrays(si);
+                    var p = a[(int)Mesh.ArrayType.Vertex].AsVector3Array();
+                    int count = p.Length;
+                    for (int i = 0; i < p.Length; i++) p[i].X = -p[i].X;
+                    a[(int)Mesh.ArrayType.Vertex] = p;
+                    if (a[(int)Mesh.ArrayType.Normal].VariantType != Variant.Type.Nil)
+                    {
+                        var n = a[(int)Mesh.ArrayType.Normal].AsVector3Array();
+                        for (int i = 0; i < n.Length; i++) n[i].X = -n[i].X;
+                        a[(int)Mesh.ArrayType.Normal] = n;
+                    }
+                    if (a[(int)Mesh.ArrayType.Tangent].VariantType != Variant.Type.Nil)
+                    {
+                        // (the tangent's x flips; its sign of the bitangent flips with the mirror)
+                        var t = a[(int)Mesh.ArrayType.Tangent].AsFloat32Array();
+                        for (int i = 0; i + 3 < t.Length; i += 4) { t[i] = -t[i]; t[i + 3] = -t[i + 3]; }
+                        a[(int)Mesh.ArrayType.Tangent] = t;
+                    }
+                    if (a[(int)Mesh.ArrayType.Index].VariantType != Variant.Type.Nil && a[(int)Mesh.ArrayType.Index].AsInt32Array().Length > 0)
+                    {
+                        var ix = a[(int)Mesh.ArrayType.Index].AsInt32Array();
+                        for (int i = 0; i + 2 < ix.Length; i += 3) (ix[i + 1], ix[i + 2]) = (ix[i + 2], ix[i + 1]);
+                        a[(int)Mesh.ArrayType.Index] = ix;
+                    }
+                    else
+                        // unindexed: swap the second and third corner of every triangle in every per-vertex array
+                        for (int k = 0; k < (int)Mesh.ArrayType.Max; k++)
+                            if (k != (int)Mesh.ArrayType.Index) a[k] = SwapCorners(a[k], count);
+                    done.AddSurfaceFromArrays(mesh.SurfaceGetPrimitiveType(si), a, null, null, mesh.SurfaceGetFormat(si));
+                    done.SurfaceSetMaterial(si, mesh.SurfaceGetMaterial(si));
+                    done.SurfaceSetName(si, mesh.SurfaceGetName(si));
+                }
+                mi.Mesh = done;
+            }
+            else if (node is CollisionShape3D { Shape: ConcavePolygonShape3D shape })
+            {
+                var f = shape.Data;
+                for (int i = 0; i < f.Length; i++) f[i].X = -f[i].X;
+                shape.Data = f;
+            }
+        }
+    }
+
+    private static Variant SwapCorners(Variant v, int count)
+    {
+        // (one element per vertex, or a fixed number of numbers per vertex)
+        switch (v.VariantType)
+        {
+            case Variant.Type.PackedVector3Array: { var x = v.AsVector3Array(); Swap(x, 1); return x; }
+            case Variant.Type.PackedVector2Array: { var x = v.AsVector2Array(); Swap(x, 1); return x; }
+            case Variant.Type.PackedColorArray: { var x = v.AsColorArray(); Swap(x, 1); return x; }
+            case Variant.Type.PackedFloat32Array: { var x = v.AsFloat32Array(); Swap(x, x.Length / Math.Max(1, count)); return x; }
+            case Variant.Type.PackedByteArray: { var x = v.AsByteArray(); Swap(x, x.Length / Math.Max(1, count)); return x; }
+            case Variant.Type.PackedInt32Array: { var x = v.AsInt32Array(); Swap(x, x.Length / Math.Max(1, count)); return x; }
+            default: return v;
+        }
+        static void Swap<T>(T[] x, int per)
+        {
+            if (per <= 0) return;
+            for (int t = 0; (t + 3) * per <= x.Length; t += 3)
+                for (int k = 0; k < per; k++) (x[(t + 1) * per + k], x[(t + 2) * per + k]) = (x[(t + 2) * per + k], x[(t + 1) * per + k]);
+        }
+    }
+
 
     /// <summary>
     /// The leaf (in the hinge's frame: x across from the hinge, y up from the foot, z through it, the planks' outer face at
@@ -169,7 +247,8 @@ public partial class RuienEntranceDoor : Node3D
         var j = Jef.I; if (j == null) return false;
         var q = Spec.Local.AffineInverse() * new Vector3(j.X, j.Y, j.Z);
         var h = hinge.Position;
-        return q.X < h.X + LeafWidth + Jef.Radius && q.X > h.X - Jef.Radius && q.Z < h.Z + Planks + Jef.Radius && q.Z > h.Z - LeafWidth - Jef.Radius && q.Y < 2;
+        float x0 = Side > 0 ? h.X - Jef.Radius : h.X - LeafWidth - Jef.Radius, x1 = Side > 0 ? h.X + LeafWidth + Jef.Radius : h.X + Jef.Radius;
+        return q.X < x1 && q.X > x0 && q.Z < h.Z + Planks + Jef.Radius && q.Z > h.Z - LeafWidth - Jef.Radius && q.Y < 2;
     }
 
     public void Press()
@@ -209,6 +288,6 @@ public partial class RuienEntranceDoor : Node3D
             requested = null; Target = local; Known = true;
         }
         Open = Mathf.MoveToward(Open, Target ? 1 : 0, (float)delta * .85f);
-        hinge.Rotation = new Vector3(0, Mathf.DegToRad(OpenDeg) * Mathf.SmoothStep(0, 1, Open), 0);
+        hinge.Rotation = new Vector3(0, Side * Mathf.DegToRad(Spec.OpenDeg) * Mathf.SmoothStep(0, 1, Open), 0);
     }
 }
