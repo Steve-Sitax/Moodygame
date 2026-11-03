@@ -41,12 +41,14 @@ float ruien_noise3(vec3 p) {
 }
 
 // 1 under a vault (no sky, no sun, no street lamp), 0 in the open; the shafts' tops and the outlet's mouth between.
-// Green: a closed way in from the street (an entrance's stair behind its door): covered at every height.
+// Green: a closed way in from the street (an entrance's stair behind its door): covered below the height in blue
+// (-8 m .. +8 m: every height in a bank, the masonry's top where a stair runs on under a street; RuienCover).
 float ruien_covered(vec3 wp) {
 	vec2 uv = (wp.xz - ruien_cover_box.xy) / ruien_cover_box.zw;
 	if (uv.x < 0.0 || uv.y < 0.0 || uv.x > 1.0 || uv.y > 1.0) return 0.0;
-	vec2 c = textureLod(ruien_cover, uv, 0.0).rg;
-	return max(c.r * (1.0 - smoothstep(-0.7, -0.05, wp.y)), c.g);
+	vec3 c = textureLod(ruien_cover, uv, 0.0).rgb;
+	float top = c.b * 16.0 - 8.0;
+	return max(c.r * (1.0 - smoothstep(-0.7, -0.05, wp.y)), c.g * (1.0 - smoothstep(top - 0.05, top + 0.25, wp.y)));
 }
 
 // an opening's axes: u across, v along (a level opening: x and z)

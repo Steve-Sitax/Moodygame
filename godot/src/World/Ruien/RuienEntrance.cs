@@ -38,6 +38,22 @@ public static class RuienEntrance
         public float Street, Depth = -3.6f, Wall = .9f, Width = 1.3f, DoorWidth = 1.2f, DoorHeight = 2.0f, Post = .08f, KeepAbove;
         public float Riser = .18f, PitchDeg = 35, TopLanding = 1.5f, BottomLanding = 1.5f, Lining = .28f, Spring = 2.45f, VaultRise = .32f;
         public string[] Cut = Array.Empty<string>(), Clear = Array.Empty<string>(), Foliage = Array.Empty<string>(), FoliageMaterials = Array.Empty<string>();
+        /// <summary>How far out from the face the walk starts (a gateway's passage is narrow), how far the leaf opens; the way there from the street (world x, z).</summary>
+        public float Approach = 1.6f, OpenDeg = 86;
+        public Vector2[] From = Array.Empty<Vector2>();
+        /// <summary>
+        /// A door in a building (a gateway's passage, a house): above the street the stair stays inside the building, and
+        /// where it runs on under the street or a yard its masonry, its cut and its cover follow the flight down, so
+        /// nothing of it shows or darkens the street above (the rampart's bank and a gate house hide all of it).
+        /// </summary>
+        public bool Buried => Host is "passage" or "house";
+        /// <summary>The leaf hangs on the post away from the flight, so open it lies along the landing's closed end (layout L, flight left: the right post).</summary>
+        public bool HingeRight => Layout == "L" && Flight == "left";
+        /// <summary>How far the reveal's brick reaches beside and over the opening behind the face (a house's windows stay clear).</summary>
+        public float RevealMargin => Buried ? .13f : .45f;
+        public float Top => Spring + VaultRise + .26f;
+        /// <summary>The top of the tunnel's masonry at u along the run (level over the landings, falling with the flight).</summary>
+        public float Ceiling(float u) => Top - Drop * Math.Clamp((u - TopLanding) / FlightLength, 0, 1);
         public float Drop => Street - Depth;
         public int Steps => (int)MathF.Ceiling(Drop / Riser - 1e-4f);
         public float Rise => Drop / Steps;
@@ -99,6 +115,8 @@ public static class RuienEntrance
                 Riser = F(e, "riser", .18f), PitchDeg = F(e, "pitchDeg", 35), TopLanding = F(e, "topLanding", 1.5f), BottomLanding = F(e, "bottomLanding", 1.5f),
                 Lining = F(e, "lining", .28f), Spring = F(e, "spring", 2.45f), VaultRise = F(e, "vaultRise", .32f),
                 Cut = A(e, "cut"), Clear = A(e, "clear"), Foliage = A(e, "foliage"), FoliageMaterials = A(e, "foliageMaterials"),
+                Approach = F(e, "approach", 1.6f), OpenDeg = F(e, "openDeg", 86),
+                From = e.TryGetProperty("from", out var fr) && fr.ValueKind == JsonValueKind.Array ? fr.EnumerateArray().Select(p => new Vector2(p[0].GetSingle(), p[1].GetSingle())).ToArray() : Array.Empty<Vector2>(),
             };
             Frames(s);
             list.Add(s);
@@ -148,7 +166,7 @@ public static class RuienEntrance
         }
         s.ClosureOpening = close;
         // The route: the street before the door, the doorway, the top landing, the flight's head and foot, the landing.
-        var route = new List<Vector3> { new(0, 0, 1.6f), new(0, 0, -s.Wall / 2) };
+        var route = new List<Vector3> { new(0, 0, s.Approach), new(0, 0, -s.Wall / 2) };
         Vector3 R(float uu, float y) => s.Run * new Vector3(uu, y, 0);
         route.Add(R(s.TopLanding / 2, 0));
         route.Add(R(s.TopLanding - .05f, 0));
@@ -171,7 +189,9 @@ public static class RuienEntrance
         foreach (var s in All)
         {
             var q = (s.Local * s.Run).AffineInverse() * p;
-            if (q.X < -s.Lining || q.X > s.RunLength + s.Lining || MathF.Abs(q.Z) > s.Width / 2 + s.Lining || q.Y > s.Spring + s.VaultRise + .5f || q.Y < -s.Drop - 1) continue;
+            if (q.X < -s.Lining || q.X > s.RunLength + s.Lining || MathF.Abs(q.Z) > s.Width / 2 + s.Lining || q.Y < -s.Drop - 1) continue;
+            // (a buried stair: only under its own vault, not on the street over its lower end)
+            if (q.Y > (s.Buried ? s.Ceiling(q.X) : s.Spring + s.VaultRise + .5f)) continue;
             return BoxOf(s.Local * s.Run, new Vector3(0, -s.Drop - .5f, -s.Width / 2), new Vector3(s.RunLength, s.Spring + s.VaultRise + .5f, s.Width / 2));
         }
         return null;
@@ -229,13 +249,20 @@ public static class RuienEntrance
     private static IEnumerable<(Vector3 lo, Vector3 hi, Transform3D frame)> AirBoxes(Spec s)
     {
         float top = s.Spring + s.VaultRise + .25f;
-        yield return (new Vector3(-s.Lining, -s.Drop - .45f, -s.Width / 2 - s.Lining), new Vector3(s.RunLength + s.Lining, top, s.Width / 2 + s.Lining), s.Run);
+        float across = s.Width / 2 + s.Lining;
+        if (!s.Buried)
+            yield return (new Vector3(-s.Lining, -s.Drop - .45f, -across), new Vector3(s.RunLength + s.Lining, top, across), s.Run);
+        else
+            // (a buried stair: the masonry's own steps down, so the street over its lower end stays whole)
+            foreach (var (u0, u1) in Steps(s))
+                yield return (new Vector3(u0, -s.Drop - .45f, -across), new Vector3(u1, s.Ceiling(u0) - .01f, across), s.Run);
         // the closure's niche and the stub behind a grille
         var c = s.ClosureOpening;
         yield return (new Vector3(c.C - c.H - s.Lining, c.Floor - .45f, -.05f), new Vector3(c.C + c.H + s.Lining, c.Top + c.Ring + .2f, s.Lining + 1.3f), s.ClosureWall);
         // the reveal through the host wall
         var o = s.DoorOpening;
-        yield return (new Vector3(-o.H - .45f, -.45f, -s.Wall - .05f), new Vector3(o.H + .45f, o.Top + o.Ring + .3f, -.06f), Transform3D.Identity);
+        float m = s.RevealMargin;
+        yield return (new Vector3(-o.H - m, -.45f, -s.Wall - .05f), new Vector3(o.H + m, o.Top + o.Ring + Math.Min(.3f, m), -.06f), Transform3D.Identity);
     }
 
     private static Aabb Box(Spec s, Vector3 lo, Vector3 hi) => BoxOf(s.Local, lo, hi);
@@ -316,15 +343,34 @@ public static class RuienEntrance
 
     // ---------------------------------------------------------------- the cover (underground light) and the lights
 
-    /// <summary>The entrance's footprint for the cover map: the tunnel, the closure's niche and the reveal behind the leaf.</summary>
-    public static IEnumerable<(Transform3D frame, Vector2 lo, Vector2 hi)> Footprint(Spec s)
+    /// <summary>
+    /// The entrance's footprint for the cover map: the tunnel, the closure's niche and the reveal behind the leaf; each
+    /// with the height (world y) up to which it is closed in: every height for a stair in a bank or a gate house, the
+    /// masonry's top for a buried one, so the street over its lower end keeps its sky.
+    /// </summary>
+    public static IEnumerable<(Transform3D frame, Vector2 lo, Vector2 hi, float ceiling)> Footprint(Spec s)
     {
         // (in each frame x and z; the cover is a plan)
-        yield return (s.Local * s.Run, new Vector2(-s.Lining, -s.Width / 2 - s.Lining), new Vector2(s.RunLength + s.Lining, s.Width / 2 + s.Lining));
+        float across = s.Width / 2 + s.Lining, every = float.PositiveInfinity;
+        if (!s.Buried)
+            yield return (s.Local * s.Run, new Vector2(-s.Lining, -across), new Vector2(s.RunLength + s.Lining, across), every);
+        else
+            foreach (var (u0, u1) in Steps(s))
+                yield return (s.Local * s.Run, new Vector2(u0, -across), new Vector2(u1, across), s.Street + s.Ceiling(u0));
         var c = s.ClosureOpening;
-        yield return (s.Local * s.ClosureWall, new Vector2(c.C - c.H - s.Lining, 0), new Vector2(c.C + c.H + s.Lining, s.Lining + 1.25f));
+        yield return (s.Local * s.ClosureWall, new Vector2(c.C - c.H - s.Lining, 0), new Vector2(c.C + c.H + s.Lining, s.Lining + 1.25f), s.Buried ? s.Street + c.Top + c.Ring + .3f : every);
         var o = s.DoorOpening;
-        yield return (s.Local, new Vector2(-o.H - .2f, -s.Wall - .1f), new Vector2(o.H + .2f, -.45f));
+        yield return (s.Local, new Vector2(-o.H - .2f, -s.Wall - .1f), new Vector2(o.H + .2f, -.45f), s.Buried ? s.Street + s.Top : every);
+    }
+
+    /// <summary>A buried stair's pieces along the run (u0, u1): the top landing, the flight in short lengths, the bottom landing; the ends take the lining.</summary>
+    public static IEnumerable<(float u0, float u1)> Steps(Spec s, bool lining = true)
+    {
+        float lt = s.TopLanding, lf = s.FlightLength, L = lining ? s.Lining : 0;
+        yield return (-L, lt);
+        int n = Math.Max(1, (int)MathF.Ceiling(lf / .2f));
+        for (int i = 0; i < n; i++) yield return (lt + lf * i / n, lt + lf * (i + 1) / n);
+        yield return (lt + lf, s.RunLength + L);
     }
 
     /// <summary>The daylight through the open door: an opening in the Ruien's light list (no Godot light).</summary>
@@ -426,7 +472,27 @@ public static class RuienEntrance
             VaultRing(frame, new Vector3(o.C, o.Spring, n0), new Vector3(o.C, o.Spring, n1), Vector3.Back, o.H, o.Rise, o.Ring);
         }
 
-        float Top => s.Spring + s.VaultRise + .26f;
+        float Top => s.Top;
+
+        /// <summary>
+        /// A wall along the run (its frame's a = u * along + a at u 0): whole to Top in a bank; a buried stair's in the
+        /// pieces of Steps, each up to the masonry's top there, so none stands above the street outside the building.
+        /// The openings go to the piece they stand in.
+        /// </summary>
+        private void RunWall(SurfaceTool t, Transform3D frame, Func<float, float> aOf, float y0, float n0, float n1, IList<Opening> openings)
+        {
+            if (!s.Buried)
+            {
+                float a0 = Math.Min(aOf(0), aOf(s.RunLength)), a1 = Math.Max(aOf(0), aOf(s.RunLength));
+                Wall(t, frame, a0, a1, y0, Top, n0, n1, openings);
+                return;
+            }
+            foreach (var (u0, u1) in Steps(s, false))
+            {
+                float a0 = Math.Min(aOf(u0), aOf(u1)), a1 = Math.Max(aOf(u0), aOf(u1));
+                Wall(t, frame, a0, a1, y0, s.Ceiling(u0), n0, n1, openings.Where(o => o.C > a0 - .001f && o.C < a1 + .001f));
+            }
+        }
 
         /// <summary>The tunnel: landings and flight in bluestone, brick walls, the barrel vault over all of it, handrails.</summary>
         public void Tunnel()
@@ -453,7 +519,7 @@ public static class RuienEntrance
             // Walls: the far end always; layout L the start end and the back; layout I both sides. The door's side of an L
             // tunnel is the door wall (DoorWall), the closure's side carries its opening.
             var endFar = run * new Transform3D(new Basis(Vector3.Forward, Vector3.Up, Vector3.Right), new Vector3(rl, 0, 0));
-            Wall(Brick, endFar, -half - L, half + L, y0, Top, 0, L, ClosureIn(endFar));
+            Wall(Brick, endFar, -half - L, half + L, y0, s.Buried ? s.Ceiling(rl) : Top, 0, L, ClosureIn(endFar));
             if (s.Layout != "I")
             {
                 var endStart = run * new Transform3D(new Basis(Vector3.Back, Vector3.Up, Vector3.Left), Vector3.Zero);
@@ -464,8 +530,7 @@ public static class RuienEntrance
                 if (s.Layout != "I" && side == s.StreetSide) continue;
                 var n = new Vector3(0, 0, side); var a = Vector3.Up.Cross(n);
                 var frame = run * new Transform3D(new Basis(a, Vector3.Up, n), new Vector3(0, 0, side * half));
-                float a0 = Math.Min(a.X * 0, a.X * rl), a1 = Math.Max(a.X * 0, a.X * rl);
-                Wall(Brick, frame, a0, a1, y0, Top, 0, L, ClosureIn(frame));
+                RunWall(Brick, frame, u => a.X * u, y0, 0, L, ClosureIn(frame).ToList());
             }
             // The barrel vault: level over the landings, inclined over the flight, run into the end walls.
             float sp = s.Spring;
@@ -506,17 +571,16 @@ public static class RuienEntrance
             var o = s.DoorOpening; float L = s.Lining, drop = s.Drop;
             // The door wall's inner face is local z = -Wall; n runs out to the street (+z).
             var frame = new Transform3D(Basis.Identity, new Vector3(0, 0, -s.Wall));
-            float a0, a1;
-            if (s.Layout == "I") { a0 = -s.Width / 2 - L; a1 = s.Width / 2 + L; }
-            else { var p0 = s.Run * Vector3.Zero; var p1 = s.Run * new Vector3(s.RunLength, 0, 0); a0 = Math.Min(p0.X, p1.X); a1 = Math.Max(p0.X, p1.X); }
             var openings = new List<Opening> { o };
             bool closureHere = Same(frame, s.ClosureWall);
             if (closureHere) openings.Add(s.ClosureOpening);
             float face = s.Wall - .05f; // (the reveal stops 5 cm behind the face: the surround covers the joint)
-            Wall(Brick, frame, a0, a1, -drop - .4f, Top, 0, L, openings);
+            if (s.Layout == "I") Wall(Brick, frame, -s.Width / 2 - L, s.Width / 2 + L, -drop - .4f, Top, 0, L, openings);
+            else RunWall(Brick, frame, u => (s.Run * new Vector3(u, 0, 0)).X, -drop - .4f, 0, L, openings);
             // The reveal through the host wall, round the doorway only.
             var reveal = new Opening { C = o.C, H = o.H, Floor = o.Floor, Spring = o.Spring, Rise = o.Rise, Ring = o.Ring };
-            Wall(Brick, frame, o.C - o.H - .45f, o.C + o.H + .45f, -.45f, o.Top + o.Ring + .35f, L, face, new[] { reveal });
+            float m = s.RevealMargin;
+            Wall(Brick, frame, o.C - o.H - m, o.C + o.H + m, -.45f, o.Top + o.Ring + Math.Min(.35f, m), L, face, new[] { reveal });
             Ring(frame, o, 0, face);
             // (a flat head: an oak lintel over the frame is the gate house's; the brick over it is the wall's)
             // Threshold: one bluestone sill through the reveal, its top 1 cm above the street.
@@ -533,6 +597,40 @@ public static class RuienEntrance
                 if (o.Rise > 0) VaultRing(Transform3D.Identity, new Vector3(0, o.Spring, -.05f), new Vector3(0, o.Spring, .012f), Vector3.Back, o.H, o.Rise, o.Ring, FaceVault);
                 OakFrame(o, -.30f, -.18f);
                 Fanlight(o);
+            }
+            else if (s.Frame == "passage")
+            {
+                // A side door in a gateway's passage: a dressed bluestone frame (two jambs and a lintel with ears), the
+                // jambs on low, prouder plinth blocks with a capping course that take the knocks of barrows in the passage.
+                const float jamb = .2f, lintel = .3f, ear = .07f;
+                float jt = s.FrameTop;
+                foreach (float side in new[] { -1f, 1f })
+                {
+                    float x0 = side < 0 ? -o.H - jamb : o.H, x1 = side < 0 ? -o.H : o.H + jamb;
+                    Box(FaceStone, Transform3D.Identity, new Vector3(x0, .32f, -.05f), new Vector3(x1, jt, .035f), .010f);
+                    // the plinth block, a little wider and prouder, and its cap
+                    float p0 = side < 0 ? -o.H - jamb - .03f : o.H, p1 = side < 0 ? -o.H : o.H + jamb + .03f;
+                    Box(FaceStone, Transform3D.Identity, new Vector3(p0, 0, -.05f), new Vector3(p1, .30f, .075f), .012f);
+                    Box(FaceStone, Transform3D.Identity, new Vector3(p0 + .01f, .29f, -.05f), new Vector3(p1 - .01f, .33f, .05f), .010f);
+                }
+                Box(FaceStone, Transform3D.Identity, new Vector3(-o.H - jamb - ear, jt, -.05f), new Vector3(o.H + jamb + ear, jt + lintel, .05f), .012f);
+                OakFrame(o, -.30f, -.18f);
+            }
+            else if (s.Frame == "house")
+            {
+                // A side door in a house wall: an oak casing round the opening on the face, a bluestone lintel over it and
+                // a bluestone doorstep that runs out over the pavement.
+                const float casing = .11f;
+                float jt = s.FrameTop;
+                var mat = RuienMaterials.Get("ruien_oak");
+                void Board(Vector3 lo, Vector3 hi, Vector3 grain, float column)
+                { var size = hi - lo; oak.Add((BevelMesh.Box(size, .003f, mat), new Transform3D(Basis.Identity, (lo + hi) / 2), grain, column)); }
+                Board(new Vector3(-o.H - casing, .02f, -.05f), new Vector3(-o.H, jt, .022f), Vector3.Up, 2.3f);
+                Board(new Vector3(o.H, .02f, -.05f), new Vector3(o.H + casing, jt, .022f), Vector3.Up, 2.6f);
+                Board(new Vector3(-o.H - casing, jt, -.05f), new Vector3(o.H + casing, jt + casing, .022f), Vector3.Right, 2.9f);
+                Box(FaceStone, Transform3D.Identity, new Vector3(-o.H - casing - .06f, jt + casing, -.05f), new Vector3(o.H + casing + .06f, jt + casing + .17f, .045f), .010f);
+                Box(FaceStone, Transform3D.Identity, new Vector3(-o.H - .1f, -.2f, -.02f), new Vector3(o.H + .1f, .01f, .17f), .010f);
+                OakFrame(o, -.30f, -.18f);
             }
             else
             {

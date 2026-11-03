@@ -363,7 +363,7 @@ public partial class Ruien : Node
     }
 
     /// <summary>How far under a vault a point is: 0 in the open .. 1 inside (the cover map, below the crown).</summary>
-    public float CoverAt(Vector3 p) => Math.Max(Cover.At(p.X, p.Z) * (1 - Mathf.SmoothStep(-0.7f, -0.05f, p.Y)), Cover.Closed(p.X, p.Z));
+    public float CoverAt(Vector3 p) => Math.Max(Cover.At(p.X, p.Z) * (1 - Mathf.SmoothStep(-0.7f, -0.05f, p.Y)), Cover.Closed(p.X, p.Y, p.Z));
 
     /// <summary>The same footprint and level as the drawn water, including the gate's sloping outflow.</summary>
     public float? WaterAt(float x, float z)

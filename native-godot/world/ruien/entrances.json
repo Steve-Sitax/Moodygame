@@ -358,6 +358,370 @@
     "rampart_leaves_"
    ],
    "note": "nothing else uses this wall"
+  },
+  {
+   "street": 0.0,
+   "width": 1.3,
+   "doorWidth": 1.1,
+   "doorHeight": 2.0,
+   "post": 0.08,
+   "head": "flat",
+   "cut": [
+    "city_",
+    "streetlife_",
+    "posters_",
+    "clutter_decals",
+    "ambient_windows"
+   ],
+   "id": "re01_sint_joris_poort",
+   "survey": 1,
+   "name": "Side door in the Sint-Jorispoort passage",
+   "host": "passage",
+   "frame": "passage",
+   "door": [
+    -312.5,
+    142.96
+   ],
+   "out": [
+    0.0,
+    -1.0
+   ],
+   "depth": -3.6,
+   "line": "L111",
+   "layout": "L",
+   "flight": "right",
+   "closure": "grille",
+   "closureSide": "back",
+   "wall": 0.4,
+   "approach": 0.9,
+   "house": 677,
+   "from": [
+    [
+     -305.8,
+     142.06
+    ],
+    [
+     -309.4,
+     142.06
+    ]
+   ],
+   "note": "In the passage's north wall (house 677, no interior); the stair runs west inside the house, the landing's grille faces the gallery 5 m north. The leaf opens into the stair: the passage stays clear."
+  },
+  {
+   "street": 0.0,
+   "width": 1.3,
+   "doorWidth": 1.1,
+   "doorHeight": 2.0,
+   "post": 0.08,
+   "head": "flat",
+   "cut": [
+    "city_",
+    "streetlife_",
+    "posters_",
+    "clutter_decals",
+    "ambient_windows"
+   ],
+   "id": "re02_keizerspoort_poort",
+   "survey": 2,
+   "name": "Side door in the passage by the Keizerspoort",
+   "host": "passage",
+   "frame": "passage",
+   "door": [
+    49.5,
+    326.68
+   ],
+   "out": [
+    -0.0645,
+    -0.9979
+   ],
+   "depth": -3.6,
+   "line": "L62",
+   "layout": "L",
+   "flight": "left",
+   "closure": "grille",
+   "closureSide": "end",
+   "wall": 0.4,
+   "approach": 0.9,
+   "house": 308,
+   "from": [
+    [
+     60.0,
+     323.0
+    ],
+    [
+     58.4,
+     325.2
+    ]
+   ],
+   "note": "In the passage's north wall (house 308, no interior); the stair runs east toward the Keizersrui gallery under the street (5 m from the landing's grille); the sluice keeper's stair S18 is 16 m north."
+  },
+  {
+   "street": 0.0,
+   "width": 1.3,
+   "doorWidth": 1.1,
+   "doorHeight": 2.0,
+   "post": 0.08,
+   "head": "flat",
+   "cut": [
+    "city_",
+    "streetlife_",
+    "posters_",
+    "clutter_decals",
+    "ambient_windows"
+   ],
+   "id": "re03_kanaalrui_poort",
+   "survey": 3,
+   "name": "Side door in the gateway on the Kanaalrui",
+   "host": "passage",
+   "frame": "passage",
+   "door": [
+    -81.21,
+    220.0
+   ],
+   "out": [
+    -1.0,
+    0.0
+   ],
+   "depth": -3.6,
+   "line": "L46",
+   "layout": "L",
+   "flight": "left",
+   "closure": "bricked",
+   "closureSide": "end",
+   "wall": 0.4,
+   "approach": 0.9,
+   "house": 395,
+   "from": [
+    [
+     -82.11,
+     208.6
+    ],
+    [
+     -82.11,
+     211.6
+    ]
+   ],
+   "note": "In the passage's east wall (house 395, no interior); the stair runs south toward the Kanaalrui gallery under the canal street, the landing bricked up facing it."
+  },
+  {
+   "street": 0.0,
+   "width": 1.3,
+   "doorWidth": 1.1,
+   "doorHeight": 2.0,
+   "post": 0.08,
+   "head": "flat",
+   "cut": [
+    "city_",
+    "streetlife_",
+    "posters_",
+    "clutter_decals",
+    "ambient_windows"
+   ],
+   "id": "re04_sint_jansplein_poort",
+   "survey": 4,
+   "name": "Side door in the covered passage by Sint-Jansplein",
+   "host": "passage",
+   "frame": "passage",
+   "door": [
+    -17.0,
+    289.14
+   ],
+   "out": [
+    -0.0575,
+    -0.9983
+   ],
+   "depth": -3.9,
+   "line": "L66",
+   "layout": "L",
+   "flight": "right",
+   "closure": "grille",
+   "closureSide": "end",
+   "wall": 0.4,
+   "approach": 0.9,
+   "house": 287,
+   "from": [
+    [
+     -29.4,
+     288.9
+    ],
+    [
+     -26.4,
+     288.75
+    ]
+   ],
+   "note": "In the passage's north wall (house 287, no interior); the stair runs west toward the Jacobsrui under the street; the inn's cellar hatch on the pavement (x -26) stays clear north of the stair."
+  },
+  {
+   "street": 0.0,
+   "width": 1.3,
+   "doorWidth": 0.92,
+   "doorHeight": 1.95,
+   "post": 0.065,
+   "head": "flat",
+   "cut": [
+    "city_",
+    "streetlife_",
+    "posters_",
+    "clutter_decals",
+    "ambient_windows"
+   ],
+   "id": "re17_kipdorprui_cottage",
+   "survey": 17,
+   "name": "Cellar door in a cottage gable on the Kipdorprui",
+   "door": [
+    -169.65,
+    230.07
+   ],
+   "out": [
+    -0.844,
+    0.537
+   ],
+   "line": "L84",
+   "closureSide": "left",
+   "house": [
+    1063,
+    568
+   ],
+   "note": "Between the gable's two windows; a steep cellar stair straight in across the cottage (no interior); its top runs on into the empty house behind (568, no interior); the landing bricked up facing the Kipdorprui under the front street.",
+   "host": "house",
+   "frame": "house",
+   "layout": "I",
+   "flight": "in",
+   "depth": -3.9,
+   "wall": 0.5,
+   "pitchDeg": 45,
+   "topLanding": 0.7,
+   "bottomLanding": 1.3,
+   "spring": 2.15,
+   "vaultRise": 0.3,
+   "openDeg": 96,
+   "closure": "bricked"
+  },
+  {
+   "street": 0.0,
+   "width": 1.3,
+   "doorWidth": 1.1,
+   "doorHeight": 2.0,
+   "post": 0.08,
+   "head": "flat",
+   "cut": [
+    "city_",
+    "streetlife_",
+    "posters_",
+    "clutter_decals",
+    "ambient_windows"
+   ],
+   "id": "re18_paulusrui_house",
+   "survey": 18,
+   "name": "Side door in a house wall on the Paulusrui",
+   "host": "house",
+   "frame": "house",
+   "door": [
+    28.11,
+    115.07
+   ],
+   "out": [
+    0.992,
+    0.129
+   ],
+   "depth": -3.9,
+   "line": "L70",
+   "layout": "L",
+   "flight": "left",
+   "closure": "grille",
+   "closureSide": "street",
+   "wall": 0.4,
+   "house": 755,
+   "note": "On the plain side wall round the corner from the wine shop front (house 755, no interior); the stair runs north inside the house, the landing's grille faces the Paulusrui under the street."
+  },
+  {
+   "street": 0.0,
+   "width": 1.3,
+   "doorWidth": 0.92,
+   "doorHeight": 1.95,
+   "post": 0.065,
+   "head": "flat",
+   "cut": [
+    "city_",
+    "streetlife_",
+    "posters_",
+    "clutter_decals",
+    "ambient_windows"
+   ],
+   "id": "re20_kanaalrui_cottage",
+   "survey": 20,
+   "name": "Cellar door in a cottage gable on the Kanaalrui",
+   "door": [
+    -45.68,
+    221.7
+   ],
+   "out": [
+    0.961,
+    0.276
+   ],
+   "line": "L39",
+   "closureSide": "right",
+   "house": 1057,
+   "note": "Between the gable's two windows, the pump 4 m off; a steep cellar stair straight in (no interior), the landing bricked up facing the Kanaalrui to the south.",
+   "host": "house",
+   "frame": "house",
+   "layout": "I",
+   "flight": "in",
+   "depth": -3.9,
+   "wall": 0.5,
+   "pitchDeg": 45,
+   "topLanding": 0.7,
+   "bottomLanding": 1.3,
+   "spring": 2.15,
+   "vaultRise": 0.3,
+   "openDeg": 96,
+   "closure": "bricked"
+  },
+  {
+   "street": 0.0,
+   "width": 1.3,
+   "doorWidth": 0.92,
+   "doorHeight": 1.95,
+   "post": 0.065,
+   "head": "flat",
+   "cut": [
+    "city_",
+    "streetlife_",
+    "posters_",
+    "clutter_decals",
+    "ambient_windows"
+   ],
+   "id": "re21_entrepotrui_cottage",
+   "survey": 21,
+   "name": "Cellar door in a cottage gable on the Entrepotrui",
+   "door": [
+    179.8,
+    250.55
+   ],
+   "out": [
+    0.566,
+    0.825
+   ],
+   "line": "L98",
+   "closureSide": "right",
+   "house": [
+    1022,
+    1021
+   ],
+   "note": "Between the gable's two windows; the cottage is 3.7 m deep, so the stair's top runs on into the empty cottage behind (1021, no interior); the landing bricked up facing the Entrepotrui.",
+   "host": "house",
+   "frame": "house",
+   "layout": "I",
+   "flight": "in",
+   "depth": -3.9,
+   "wall": 0.5,
+   "pitchDeg": 45,
+   "topLanding": 0.7,
+   "bottomLanding": 1.3,
+   "spring": 2.15,
+   "vaultRise": 0.3,
+   "openDeg": 96,
+   "closure": "bricked"
   }
  ]
 }

@@ -8,7 +8,8 @@ namespace Scheldemist.World.Ruien;
 /// Vault coverage shared by underground lighting and world-space exclusion of the town water sheets.
 /// It follows the clear interior plus masonry thickness, independent of camera height and tide.
 /// Red: a vault overhead (open above the street, so the shafts' tops and the street keep the sky). Green: a closed way
-/// in from the street (an entrance's stair and landing behind its door, RuienEntrance), covered at every height.
+/// in from the street (an entrance's stair and landing behind its door, RuienEntrance), covered up to the height in blue
+/// (-8 m at 0 to +8 m at 1: every height for a stair in a bank, the masonry's top for one that runs on under a street).
 /// </summary>
 public sealed class RuienCover
 {
@@ -16,6 +17,8 @@ public sealed class RuienCover
     public Vector4 Box { get; private set; }
     private float[] map = Array.Empty<float>();
     private float[] closed = Array.Empty<float>();
+    private float[] ceiling = Array.Empty<float>();
+    public const float CeilingSpan = 8;
     private int w, h;
     public ImageTexture? Texture { get; private set; }
 
@@ -39,7 +42,7 @@ public sealed class RuienCover
         Aabb? merged = null;
         foreach (var a in data.Areas) merged = merged is { } m ? m.Merge(a.Box) : a.Box;
         foreach (var e in entrances)
-            foreach (var (frame, lo, hi) in RuienEntrance.Footprint(e))
+            foreach (var (frame, lo, hi, _) in RuienEntrance.Footprint(e))
                 foreach (var c in new[] { new Vector3(lo.X, 0, lo.Y), new Vector3(hi.X, 0, lo.Y), new Vector3(lo.X, 0, hi.Y), new Vector3(hi.X, 0, hi.Y) })
                 {
                     var p = frame * c;
@@ -51,7 +54,11 @@ public sealed class RuienCover
         Box = new Vector4(box.Position.X, box.Position.Z, w * Px, h * Px);
         map = new float[w * h];
         closed = new float[w * h];
-        var bytes = new byte[w * h * 2];
+        ceiling = new float[w * h];
+        Array.Fill(ceiling, -CeilingSpan);
+        var deepest = new float[w * h];
+        Array.Fill(deepest, float.NegativeInfinity);
+        var bytes = new byte[w * h * 3];
         foreach (var a in data.Areas)
             foreach (var z in a.Zones)
             {
@@ -70,7 +77,7 @@ public sealed class RuienCover
         // The entrances: their footprints (in their frames' x and z), soft over a quarter metre at the edge. Under them
         // red too: below the street the stair is under cover like a vault (rain, the water sheets).
         foreach (var e in entrances)
-            foreach (var (frame, lo, hi) in RuienEntrance.Footprint(e))
+            foreach (var (frame, lo, hi, top) in RuienEntrance.Footprint(e))
             {
                 var inv = frame.AffineInverse();
                 var r = new Rect2(); bool first = true;
@@ -90,15 +97,18 @@ public sealed class RuienCover
                         float c = Mathf.SmoothStep(-0.25f, 0.25f, inside);
                         if (c > closed[j * w + i]) closed[j * w + i] = c;
                         if (c > map[j * w + i]) map[j * w + i] = c;
+                        // (the height of the piece this cell is deepest in, or nearest to: no fall-off at the edges)
+                        if (inside > deepest[j * w + i]) { deepest[j * w + i] = inside; ceiling[j * w + i] = Math.Min(top, CeilingSpan); }
                     }
             }
         for (int k = 0; k < map.Length; k++)
         {
-            bytes[2 * k] = (byte)Math.Clamp(MathF.Round(map[k] * 255), 0, 255);
-            bytes[2 * k + 1] = (byte)Math.Clamp(MathF.Round(closed[k] * 255), 0, 255);
+            bytes[3 * k] = (byte)Math.Clamp(MathF.Round(map[k] * 255), 0, 255);
+            bytes[3 * k + 1] = (byte)Math.Clamp(MathF.Round(closed[k] * 255), 0, 255);
+            bytes[3 * k + 2] = (byte)Math.Clamp(MathF.Round((ceiling[k] + CeilingSpan) / (2 * CeilingSpan) * 255), 0, 255);
         }
         // (x across the picture, z down it: the shaders' uv is (x - x0, z - z0) / size)
-        var im = Image.CreateFromData(w, h, false, Image.Format.Rg8, bytes);
+        var im = Image.CreateFromData(w, h, false, Image.Format.Rgb8, bytes);
         Texture = ImageTexture.CreateFromImage(im);
     }
 
@@ -111,8 +121,12 @@ public sealed class RuienCover
 
     /// <summary>The cover at a point of the plan (0 outside every area), as the shaders read it.</summary>
     public float At(float x, float z) => Sample(map, x, z);
-    /// <summary>A closed way in (an entrance) at a point of the plan: covered whatever the height.</summary>
-    public float Closed(float x, float z) => Sample(closed, x, z);
+    /// <summary>A closed way in (an entrance) at a point: covered below its height there (as ruien_covered).</summary>
+    public float Closed(float x, float y, float z)
+    {
+        float top = Sample(ceiling, x, z);
+        return Sample(closed, x, z) * (1 - Mathf.SmoothStep(top - .05f, top + .25f, y));
+    }
 
     private float Sample(float[] map, float x, float z)
     {
