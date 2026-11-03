@@ -56,6 +56,11 @@ check('drain mouths use one arch rim each, no loose header bricks', len(rims) >=
 for o in rims:
     a, b, w = AR.uv_audit(o)
     check(o.name + ' charts within the UV audit (anisotropy <= 1.3, scale 0.6-1.7)', b < 1e-4, 'area %.2f m2, stretched %.5f m2, worst %.3f, %d tris' % (a, b, w, AR.triangles(o)))
+    # (#293) the visible faces (face and soffit, reveal step, clear reveal) are not sheared: courses square to the edge
+    pr = AR.uv_audit(o, parts=True)
+    sh = sum(pr[k]['shear'] for k in ('face', 'step', 'reveal') if k in pr)
+    check(o.name + ' visible charts not sheared (over %.0f degrees on under 0.005 m2)' % AR.SHEAR_DEG, sh < 0.005,
+          ', '.join('%s %.4f m2 (worst %.1f deg)' % (k, pr[k]['shear'], pr[k]['worst_shear']) for k in ('face', 'step', 'reveal') if k in pr))
 # posts: spacing along the rail and radial standing
 posts = [o for o in obs if o.name.startswith('rail_post')]
 pc = np.array([FL.mesh_points(o).mean(0) for o in posts])

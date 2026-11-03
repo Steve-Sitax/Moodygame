@@ -18,6 +18,7 @@ from mathutils import Vector, geometry as MG
 from rlib import util as U, gallery as G, props as PR, wax as WX, chosen as CH
 from rlib import hall as H
 from kit.sweep import Section
+from kit import arch_rim as AR
 
 SEC = Section('M', 1)
 P = dict(
@@ -28,7 +29,8 @@ P = dict(
     apex_y=-0.9,         # crown: 0.9 m under the street
     lun_crown=-0.93,     # lunette (elliptic barrel) crown over a mouth
     ring_crown=-0.945,   # mouth ring intrados crown: the giant's 3.86 m capsule keeps 2 cm at its shoulder 0.4 m off the centre line
-    ring_w=0.24, ring_proud=0.06,
+    ring_w=0.24, ring_proud=0.06,   # ring_w spaces the mouths in the plan; ring_proud sets the imposts (the rim is AR.PROUD)
+    hole=0.2,            # (#292) the wall's hole round an arch rim: inside the rim's 0.11-0.34 m face, behind it
     spring=-2.7, hw=1.8, rui_wall=0.36, stub=1.2,
     rui_walk_in=1.0,     # rui walkway edge, measured from the rui axis (channel 2.8 m, walkway 0.8 m)
     oculus=0.42,         # hole in the crown under the D1 shaft (its flare covers 0.6 m)
@@ -569,14 +571,14 @@ def hole_top(room, w, t):
     for m in room.mouths:
         if m['wall'] != w:
             continue
-        s = t - m['t']; rr = P['ring_crown'] - P['spring'] + 0.12; hh = P['hw'] + 0.12
+        s = t - m['t']; rr = P['ring_crown'] - P['spring'] + P['hole']; hh = P['hw'] - 0.01 + P['hole']
         e = P['spring'] + rr * np.sqrt(np.clip(1 - (s / hh) ** 2, 0, 1))
-        y = np.where(np.abs(s) < P['hw'], np.maximum(e, P['spring']), y)
+        y = np.where(np.abs(s) < hh, np.maximum(e, P['spring']), y)       # (#292) beside the feet too: the reveal stays open
     st = room.lay['stair']
     if st['wall'] == w:
-        s = t - st['t']; r = P['stair_w'] / 2 + 0.1
+        s = t - st['t']; r = P['stair_w'] / 2 - 0.012 + P['hole']
         e = P['stair_spring'] + np.sqrt(np.clip(r * r - s * s, 0, None))
-        y = np.where(np.abs(s) < P['stair_w'] / 2, np.maximum(e, P['stair_spring']), y)
+        y = np.where(np.abs(s) < r, np.maximum(e, P['stair_spring']), y)
     return y
 
 def walk_covers(room, w, t):
@@ -598,9 +600,11 @@ def wall_breaks(room, w):
     for m in room.mouths:
         if m['wall'] == w:
             b += [m['t'] - P['hw'], m['t'] + P['hw']] + list(walk_part(m))
+            b += [m['t'] - P['hw'] + 0.01 - P['hole'], m['t'] + P['hw'] - 0.01 + P['hole']]
     st = room.lay['stair']
     if st['wall'] == w:
         b += [st['t'] - P['stair_w'] / 2, st['t'] + P['stair_w'] / 2]
+        b += [st['t'] - P['stair_w'] / 2 + 0.012 - P['hole'], st['t'] + P['stair_w'] / 2 - 0.012 + P['hole']]
     for r in room.lay['runs']:
         if r['wall'] == w:
             b += [r['ta'], r['tb']]
@@ -773,6 +777,31 @@ def walls(room, T, mats, coll, rng, col):
             obs.append(mesh('%s_wall_%s_%d' % (room.lay['room'], w, k), V, F, uv, coll, mats['brick_hallvault'], {'wxA': A, 'wxB': B, 'wxC': Cc}))
             col.append(('wall_%s_%d' % (w, k), V, F))
             k += 1
+        # (#292) beside each opening the wall's hole reaches past the jamb line, so the arch rim's reveal stays open
+        # down to its feet; below the springing the wall goes on behind the imposts and jambs
+        spans = [(m['t'], P['hw'], P['hw'] - 0.01 + P['hole'], P['spring']) for m in room.mouths if m['wall'] == w]
+        st = room.lay['stair']
+        if st['wall'] == w:
+            spans.append((st['t'], P['stair_w'] / 2, P['stair_w'] / 2 - 0.012 + P['hole'], P['stair_spring']))
+        for tc, h0, h1, ys in spans:
+            for sd in (-1, 1):
+                a, b = sorted((tc + sd * h0, tc + sd * h1))
+                a, b = max(a, -0.03), min(b, L + 0.03)
+                if b - a < 1e-3:
+                    continue
+                poly = np.array([(a, BED_BOT), (b, BED_BOT), (b, ys), (a, ys)])
+                S = grid_points(poly.min(0), poly.max(0), 0.055, 0.15, np.random.default_rng(seed(room.lay['room'], 50 + k)))
+                V2, F = cdt([poly], (), S, 0.055)
+                tt, yy = V2[:, 0], V2[:, 1]
+                q = f32(wpt(rect, w, tt))
+                V = np.stack([q[:, 0], yy, q[:, 1]], -1)
+                F = orient(V, F, lambda c, nn: -(nn[:, 0] * n[0] + nn[:, 2] * n[1]))
+                uv = np.stack([tt, yy], -1)[F.ravel()]
+                A, B, Cc = weather(V, seed(room.lay['room'], 60 + k), 'wall')
+                B[:, 3] = U.smoothstep(0.0, 0.03, ys - yy)
+                obs.append(mesh('%s_wall_%s_%d' % (room.lay['room'], w, k), V, F, uv, coll, mats['brick_hallvault'], {'wxA': A, 'wxB': B, 'wxC': Cc}))
+                col.append(('wall_%s_%d' % (w, k), V, F))
+                k += 1
     return obs
 
 # ---- mouths: header ring, bluestone imposts and jambs, the rui's first metres with its walkway
@@ -794,6 +823,19 @@ def ring_solid(name, origin, across, inward, cs, cy, nrm, width, depth, mat, col
     for i in (0, count):
         faces.append([4 * i + j for j in range(4)]); uv.extend([(0, 0), (width, 0), (width, depth), (0, depth)])
     return CH.solid(name, pts, faces, uv, mat, coll, radius)
+
+def arch_rim(room, name, origin, across, into, cs, cy, mats, coll, rng, width=AR.WIDTH):
+    """(#292) The kit's arch rim (kit/arch_rim.py) round an opening in a room wall: (cs, cy) is the clear intrados as the
+    old header ring had it (the giant's and Jef's head room stay), the face AR.PROUD proud of the wall plane at origin,
+    the 11 cm reveal step behind it and the clear reveal through the whole wall (back = the wall's thickness), where the
+    rui or stair vault goes on. It is the opening's collision too (its name holds '_ring': build_junction keeps it exact)."""
+    host = AR.PlaneWall(origin, across, into)
+    sd_ = zlib.crc32(name.encode())                        # its own brick phase; the room's random stream is left alone
+    def masks(Pm, M):
+        A, B, Cc = weather(Pm, sd_, 'wall')                # the wall's soot, damp and grime
+        M['wxA'][:] = A; M['wxB'][:, :3] = B[:, :3]; M['wxC'][:] = Cc
+    return AR.rim(name, np.stack([cs, cy], -1), host, mats['brick_rib'], coll, width=width, back=P['wall'], masks=masks,
+                  seed=sd_)
 
 def ellipse_curve(hw, spring, rise, n=150):
     th = np.linspace(np.pi, 0, n + 1)
@@ -823,8 +865,7 @@ def mouth(room, m, mats, coll, rng, col, info):
     o3 = frame3(room, w, m['t'], 0, 0)
     across = np.array([tv[0], 0, tv[1]]); r_in = np.array([-n[0], 0, -n[1]])
     cs, cy, nv = ellipse_curve(P['hw'] - 0.01, P['spring'], P['ring_crown'] - P['spring'])
-    obs.append(ring_solid('%s_mouth_ring_%s' % (room.lay['room'], m['route']), o3 + r_in * P['ring_proud'], across, r_in, cs, cy, nv,
-                          P['ring_w'], P['wall'] + P['ring_proud'], mats['brick_rib_side'], coll))
+    obs.append(arch_rim(room, '%s_mouth_ring_%s' % (room.lay['room'], m['route']), o3, across, -r_in, cs, cy, mats, coll, rng))
     # bluestone imposts under the ring, jamb stones below them (rounded arrises; the reveal side 1 cm proud)
     for sd in (-1, 1):
         ts = m['t'] + sd * P['hw']
@@ -855,6 +896,10 @@ def stub(room, m, mats, coll, rng, col, info):
     s_p, y_p, v_p, vt = sec.profile(0.055)      # source edges under 0.07 m: one relief level in the bake, as C2
     aa = np.r_[-0.01, np.linspace(0, length, int(length / 0.06) + 1)]
     A_, Vv = np.meshgrid(aa, np.arange(len(s_p)), indexing='ij')
+    # (#292) above the springing the vault starts behind the arch rim's reveal step, which it would otherwise cover
+    a0 = AR.DEPTH + 0.005
+    vault = (y_p[Vv] > P['spring'] + 1e-4)
+    A_ = np.where(vault, a0 + (A_ - aa[0]) * (length - a0) / (length - aa[0]), A_)
     def pt(a, s, y):
         q = wpt(rect, w, m['t'] + s, -a)
         return np.stack([q[..., 0], y, q[..., 1]], -1)
@@ -1109,10 +1154,10 @@ def stair(room, mats, coll, rng, col, info):
         return np.maximum(P['stair_spring'] + hw, SEC.ledge_y + P['headroom'] + (np.asarray(a, float) - a0) * slope - 0.0)
     a_v = a_h  # end of the vault
     # arch ring in the room wall, bluestone imposts and jambs
-    o3 = pt(0, 0, 0) + np.array([-n[0], 0, -n[1]]) * P['ring_proud']
     across = np.array([tv[0], 0, tv[1]]); r_in = np.array([-n[0], 0, -n[1]])
     cs, cy, nv = ellipse_curve(hw - 0.012, P['stair_spring'], hw - 0.012, 64)
-    obs.append(ring_solid('%s_stair_ring' % rid, o3, across, r_in, cs, cy, nv, 0.2, P['wall'] + P['ring_proud'], mats['brick_rib_side'], coll))
+    # (#292) the kit's arch rim, its face 0.2 m (it stands on the 0.3 m imposts)
+    obs.append(arch_rim(room, '%s_stair_ring' % rid, pt(0, 0, 0), across, -r_in, cs, cy, mats, coll, rng, width=0.2))
     for sd in (-1, 1):
         ts = st['t'] + sd * hw
         a, b = sorted((ts - sd * 0.01, ts + sd * 0.3))
@@ -1142,7 +1187,7 @@ def stair(room, mats, coll, rng, col, info):
             U.add_adaptive(ob); obs.append(ob)
             col.append(('stair_wall_%d_%d' % (part, sd), Pp.reshape(-1, 3), U.grid_faces(*Pp.shape[:2])))
     # vault: level over the landing, inclined over the flight, ending under the hatch's low end
-    av = np.r_[np.arange(-0.01, a_v, 0.05), a_v]
+    av = np.r_[np.arange(AR.DEPTH + 0.005, a_v, 0.05), a_v]   # (#292) from behind the arch rim's reveal step
     th = np.linspace(np.pi, 0, 41)
     A_, TH = np.meshgrid(av, th, indexing='ij')
     Y = (crown(A_) - hw) + hw * np.sin(TH)
