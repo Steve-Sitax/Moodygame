@@ -16,7 +16,7 @@ try {
     & dotnet build (Join-Path $project 'Scheldemist.Native.csproj') --nologo -v quiet
     if($LASTEXITCODE -ne 0){throw 'Build failed'}
     Update-WorkshopImports $engine $project
-    $arguments=@('--rendering-method','forward_plus','--audio-driver','Dummy','--path',$project,'--log-file',(Join-Path $proof 'live.log'),'res://town.tscn','--','--no-ai','--port',"$Port",'--db',(Join-Path $proof 'game.sqlite'),'--prefs',(Join-Path $proof 'settings.json'),'--author-root',(Join-Path $proof 'layouts'),'--stone-corners-proof',$proof,'--stone-corners-views',[IO.Path]::GetFullPath($Views))
+    $arguments=@('--rendering-method','forward_plus','--audio-driver','Dummy','--path',$project,'--log-file',(Join-Path $proof 'live.log'),'res://town.tscn','--','--no-ai','--no-mainmenu','--port',"$Port",'--db',(Join-Path $proof 'game.sqlite'),'--prefs',(Join-Path $proof 'settings.json'),'--author-root',(Join-Path $proof 'layouts'),'--stone-corners-proof',$proof,'--stone-corners-views',[IO.Path]::GetFullPath($Views))
     if($Candidate){$arguments+=@('--stone-corners-candidate',[IO.Path]::GetFullPath($Candidate))}
     if($Measure){$arguments+='--stone-corners-measure'}
     if($Raw){$arguments+='--stone-corners-raw'}

@@ -40,8 +40,37 @@ public static class NativeStoneCornersProof
             var views = JsonSerializer.Deserialize<View[]>(File.ReadAllText(Paths.Absolute(Option("stone-corners-views"))), new JsonSerializerOptions { PropertyNameCaseInsensitive = true })!;
             string candidateFolder = Option("stone-corners-candidate");
             Check("stone corners proof uses its own disposable database", Path.GetFullPath(Paths.Database).StartsWith(Path.GetFullPath(output) + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase) && game.Flag("no-ai"));
-            Check("native town and services become ready", await Until(() => game.Loaded && !Loading.Busy && ServerLink.I?.Up == true && GameState.I.Live, 900));
-            var api = ServerLink.I!.Api!; MainMenu.I!.Start(); Jef.I.TestInput = true; Pause.Clear(); game.Ui.Visible = false;
+            // Cold town loads can exceed fifteen minutes. Leave capture time within the launcher's
+            // 1500-second bound, and stop here on failure instead of dereferencing unready services.
+            var readinessStart = DateTime.UtcNow;
+            string previousReadiness = "";
+            bool Ready()
+            {
+                var snapshot = JsonSerializer.Serialize(new { loaded = game.Loaded, loadingBusy = Loading.Busy,
+                    loadingStep = Loading.I?.StepNow, serverPresent = ServerLink.I != null,
+                    serverUp = ServerLink.I?.Up == true, serverStatus = ServerLink.I?.Status,
+                    serverError = ServerLink.I?.Error, stateLive = GameState.I.Live,
+                    playerPresent = Jef.I != null, noMainMenu = game.Flag("no-mainmenu") });
+                if (snapshot != previousReadiness)
+                {
+                    previousReadiness = snapshot;
+                    File.AppendAllText(Path.Combine(output, "readiness.jsonl"),
+                        JsonSerializer.Serialize(new { elapsedSeconds = (DateTime.UtcNow - readinessStart).TotalSeconds,
+                            state = JsonSerializer.Deserialize<JsonElement>(snapshot) }) + System.Environment.NewLine);
+                    GD.Print("stone proof readiness: " + snapshot);
+                }
+                return game.Loaded && !Loading.Busy && ServerLink.I?.Up == true && GameState.I.Live;
+            }
+            // ServerLink.Linked requests Jobs and applies the first state independently of MainMenu/NewGame.
+            // Keep that prerequisite: NewGame resets a ready disposable game; it does not bootstrap the link.
+            bool ready = await Until(Ready, 1200);
+            Check("native town and services become ready", ready);
+            if (!ready)
+            {
+                File.WriteAllText(Path.Combine(output, "readiness-timeout.json"), previousReadiness);
+                throw new TimeoutException("Stone proof: town/services did not become ready within 1200 seconds. " + previousReadiness);
+            }
+            var api = ServerLink.I!.Api!; MainMenu.I?.Start(); Jef.I.TestInput = true; Pause.Clear(); game.Ui.Visible = false;
             for (int attempt = 1; ; attempt++)
                 try { GameState.I.Apply(await api.NewGame()); break; }
                 catch (ApiException) when (attempt < 4) { await Frames(30); }
