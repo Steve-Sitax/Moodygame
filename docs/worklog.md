@@ -1,5 +1,32 @@
 # Work log
 
+## Ruien arch rim reveal and junction rims, 2026-11-03 (#272, #293, #292)
+
+Branch t3/arch-reveal-junction-rims. #293: the drain mouth's reveal step was charted like the face (courses running
+out from the edge, each measured on the step's middle), so its bricks bent and changed size round the curve, and on a
+wall the proud part of the rim was not squared to the outline, which left a kink at the face that sheared the soffit
+up to 8 degrees where the wall turns into the vault (anisotropy still under 1.3, so the audit passed). Now the step's
+courses run round the opening, parallel to its edge, at true size; the clear reveal behind it keeps the lining's
+direction on its own line; a wall host (`RouteWall`, `PlaneWall`) is squared over the whole depth, a gallery host
+(tee) keeps its old rule (squaring it there skewed the tee face). Shear check: `arch_rim.uv_audit(ob, parts=True)`
+(per part, `rim_part` attribute), `check_fittings.py` (under 0.005 m2 over 5 degrees on face, step and reveal), and
+`RuienUv.Audit` reports `shearArea`, `worstShear`, `shearAt`. #292: `junction_gen` mouth and stair arches use the kit
+rim (clear intrados unchanged, crown -0.945; back through the 0.5 m wall; exact collision); the wall's hole reaches
+0.2 m past the clear outline, also beside the feet (a wall patch below the springing), and the rui and stair vaults
+start behind the step. Transverse arches and the stair's end ring stay header rings (they stand in no wall).
+
+Proof (D:/Code/Proofs/ruien-272-rim2): L105, the 1d tee and throat set (L79, L48, L92, L59, L60), R1 and R8 rebuilt
+and converted outside world/ruien. Native UV audit, both LODs: 0 m2 stretched in all eight areas; rim shear over 5
+degrees only on the hidden back (L105 0.03 m2 a LOD of 10.4) and the tee's crown band (old limit, now its own issue);
+visible face/step/reveal at most 0.001 m2. Blender per part: drain rims face/step/reveal 0-0.001 m2; room rims 0
+(worst 2 degrees). Checks: fittings L105 PASS (17), check_meet, check_stretch_ends (1080 rays), check_stretch_export
+PASS. Native runs (render lock, isolated data, ports 19791-19793): stretches 101/101, R8 95/95, R1 123/127 (the four
+fails are the giant behind the L100 footbridge, as before). Offline giant check: head room unchanged in the stubs,
++11 cm at the wall face; Jef's routes as before. Cost: room mouth rim 14.3k triangles (old ring 4.9k), stair rim
+5.3k; R1 LOD0 409k (was 410k), collision 70k -> 101k; R8 collision 94k -> 115k. O2 build.py: 3765 objects, 0
+differing from main; no O2 code changed, so its export is unchanged. Shots: run-stretch/crossing-reveal-inspect.png,
+compare-reveal-right.png (before/after), run-R1/mouth-L65-water-inspect.png, sheet-*.png. Not installed.
+
 ## Ruien arch rim, 2026-11-03 (#272, #289, ring part of #285)
 
 Branch t3/ruien-arch-rim. Steve's design for the side-drain mouth: no rings of loose bricks, but one rim a little out

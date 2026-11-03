@@ -205,6 +205,18 @@ public static class RuienUv
         GD.Print($"ruien flanks: {total} triangles in {files} meshes");
     }
 
+    /// <summary>Degrees a chart's texture axes stand off square (#293); above this its courses visibly bend.</summary>
+    public const float ShearLimit=5f;
+
+    /// <summary>Shear of a triangle's chart in degrees, from its UV derivatives along (u) and across (w) the triangle's
+    /// first edge: the angle between the U and V gradients less 90.</summary>
+    public static float Shear(Vector2 u,Vector2 w)
+    {
+        var gu=new Vector2(u.X,w.X);var gv=new Vector2(u.Y,w.Y);
+        float n=gu.Length()*gv.Length();if(n<1e-12f)return 0;
+        return Mathf.RadToDeg(MathF.Asin(Math.Min(1f,MathF.Abs(gu.Dot(gv))/n)));
+    }
+
     public static void Audit(string folder,string output)
     {
         var families=RuienTextures.Families();var report=new List<object>();
@@ -220,7 +232,8 @@ public static class RuienUv
                 var uv=a[(int)Mesh.ArrayType.TexUV].AsVector2Array();var ix=a[(int)Mesh.ArrayType.Index].AsInt32Array();
                 if(ix.Length==0)ix=Enumerable.Range(0,v.Length).ToArray();
                 if(uv.Length!=v.Length)continue;
-                double area=0,bad=0;float worst=0;Vector3 where=default;var samples=new List<object>();
+                // (#293) shear: texture axes off square bend the courses while area and anisotropy can still pass
+                double area=0,bad=0,sheared=0;float worst=0,worstShear=0;Vector3 where=default,shearAt=default;var samples=new List<object>();
                 for(int i=0;i<ix.Length;i+=3)
                 {
                     var p=v[ix[i]];var e=v[ix[i+1]]-p;var f=v[ix[i+2]]-p;
@@ -237,8 +250,12 @@ public static class RuienUv
                         if(samples.Count<5)samples.Add(new{at=new[]{p.X,p.Y,p.Z},ratio,min,max});
                     }
                     if(ratio>worst){worst=ratio;where=p;}
+                    float shear=Shear(u,w);
+                    if(shear>ShearLimit)sheared+=weight;
+                    if(shear>worstShear){worstShear=shear;shearAt=p;}
                 }
-                report.Add(new{file=Path.GetFileName(file),family=name,area,badArea=bad,worst,at=new[]{where.X,where.Y,where.Z},samples});
+                report.Add(new{file=Path.GetFileName(file),family=name,area,badArea=bad,worst,at=new[]{where.X,where.Y,where.Z},
+                    shearArea=sheared,worstShear,shearAt=new[]{shearAt.X,shearAt.Y,shearAt.Z},samples});
             }
         }
         File.WriteAllText(output,JsonSerializer.Serialize(report,new JsonSerializerOptions{WriteIndented=true}));

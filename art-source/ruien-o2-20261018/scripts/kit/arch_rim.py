@@ -151,8 +151,11 @@ def outer_outline(outline, offset, closed, row=ROW):
     return Q + normals(Q, closed) * offset
 
 # ------------------------------------------------------------------ section
-G_EDGE = [4, 0, 0, 1, 1, 2]     # group of the edge leaving corner A, B, C, D, E, F: 4 outer side, 0 face, 1 reveal step, 2-3 back
-                                # (the back is split in its middle: group 3 runs on round A, so each half keeps its own V line)
+G_EDGE = [4, 0, 0, 1, 5, 2]     # group of the edge leaving corner A, B, C, D, E, F: 4 outer side, 0 face and soffit, 1 reveal
+                                # step, 5 the clear reveal behind it, 2-3 back (the back is split in its middle: group 3 runs on
+                                # round A, so each half keeps its own V line)
+PARTS = {0: 'face', 1: 'step', 2: 'back', 3: 'back', 4: 'outer', 5: 'reveal', 6: 'feet'}
+CONCENTRIC = (1,)               # groups charted with their courses parallel to the opening's edge (U along the outline)
 
 class Section:
     """The band's section with a fixed vertex count for every row (corners filleted, straight edges split evenly)."""
@@ -182,10 +185,11 @@ class Section:
             a, b = c[-1], P[((i + 1) % len(Q)) * m]
             cnt = self.counts[i]
             for f in np.linspace(0, 1, cnt + 1)[1:-1]:
-                if abs(f - 0.5) < 0.5 / cnt:
+                # (an odd count puts two points equally near the middle: the first is taken)
+                if abs(f - 0.5) <= 0.5 / cnt + 1e-9 and 'ABCDEF'[i] + '>' not in tag:
                     tag['ABCDEF'[i] + '>'] = len(pts)       # the middle of the edge leaving this corner
                 for q_, nm_ in ((0.25, 'F<'), (0.75, 'A<')):
-                    if i == 5 and abs(f - q_) < 0.5 / cnt:
+                    if i == 5 and abs(f - q_) <= 0.5 / cnt + 1e-9 and nm_ not in tag:
                         tag[nm_] = len(pts)                 # quarter points of the back: its two V lines
                 pts.append(a + (b - a) * f); grp.append(3 if (i == 5 and f > 0.5) else G_EDGE[i])
         grp = [3 if (g_ == 2 and k_ < m // 2) else g_ for k_, g_ in enumerate(grp)]   # A's first half: the back's far half
@@ -241,18 +245,25 @@ def rim(name, outline, host, mat, coll, width=WIDTH, step=STEP, depth=DEPTH, pro
     T3 /= np.linalg.norm(T3, axis=1, keepdims=True) + 1e-12
     AX = host.point(Q[:, 0], Q[:, 1], z + 0.01) - F0; AX /= np.linalg.norm(AX, axis=1, keepdims=True)
     a_par = np.sum(AX * T3, 1)
+    # (#293) on a wall (RouteWall, PlaneWall) the whole depth is squared, the proud part too: squaring only behind the
+    # face left a kink at t = 0 that sheared the soffit and outer side up to 8 degrees where the wall turns into the
+    # vault over a drain mouth. On a gallery vault (meet._RimHost, a tee) the face stays on the host's own axis: there
+    # the shift along a fast-turning outline would skew the face's charts
+    whole = isinstance(host, (RouteWall, PlaneWall))
     for k, (i, inset, shift) in enumerate(rows):
         S, _, _ = sec.build(float(sv[i]), float(wv[i]))
         if inset > 0:
             S = S + _inward(S) * inset
         base = Q[i] + (T[i] * shift if shift else 0.0)
         xy = base[None, :] + S[:, 0:1] * N[i][None, :]
-        PV[k] = host.point(xy[:, 0], xy[:, 1], S[:, 1]) - (np.maximum(S[:, 1], 0.0) * a_par[i])[:, None] * T3[i][None, :]
+        PV[k] = host.point(xy[:, 0], xy[:, 1], S[:, 1]) - ((S[:, 1] if whole else np.maximum(S[:, 1], 0.0)) * a_par[i])[:, None] * T3[i][None, :]
     # ---- charts (metres): U round the section from each group's anchor, V along the rows on the group's reference line
     seg = np.linalg.norm(np.roll(PV, -1, axis=1) - PV, axis=2)                       # edge j -> j+1 (wraps)
     cum = np.c_[np.zeros(nr), np.cumsum(seg, 1)]                                        # (nr, m+1); cum[:, m] = loop length
-    anchor = {0: tag['C'], 1: tag['E'], 2: tag['F'], 3: tag['A'], 4: tag['A>']}
-    ref = {0: tag['B>'], 1: tag['D>'], 2: tag['F<'], 3: tag['A<'], 4: tag['A>']}
+    # (#293) each visible face behind the rim's face keeps the outline length on its own line: the step on its middle,
+    # the clear reveal (E-F) on the clear outline itself, so the bricks keep their true size all round the curve
+    anchor = {0: tag['C'], 1: tag['E'], 2: tag['F'], 3: tag['A'], 4: tag['A>'], 5: tag['E']}
+    ref = {0: tag['B>'], 1: tag['D>'], 2: tag['F<'], 3: tag['A<'], 4: tag['A>'], 5: tag['E>']}
     halfA = (sec.seg + 1) // 2                                                          # A's fillet start belongs to the back
     def cu(kk, jj, g):
         c = cum[kk, jj]
@@ -260,13 +271,18 @@ def rim(name, outline, host, mat, coll, width=WIDTH, step=STEP, depth=DEPTH, pro
             c = c + cum[kk, m]
         return c
     Vg = {}
-    for g in (0, 1, 2, 3, 4):
+    for g in anchor:
         L = np.r_[0, np.cumsum(np.linalg.norm(np.diff(PV[:, ref[g]], axis=0), axis=1))]
         if closed:
             L = np.r_[L, L[-1] + np.linalg.norm(PV[0, ref[g]] - PV[-1, ref[g]])]
         Vg[g] = L
     def uv_of(kk, jj, g, kv=None):
-        return np.array([cu(kk, jj, g) - cu(kk, anchor[g], g), Vg[g][kk if kv is None else kv]])
+        a, b = cu(kk, jj, g) - cu(kk, anchor[g], g), Vg[g][kk if kv is None else kv]
+        if g in CONCENTRIC:
+            # (#293) the reveal step: courses run round the opening (U along the outline), stacked out from the clear
+            # edge E (V); a quarter turn of the radial chart, so the handedness (and the normal map) stays the same
+            return np.array([b, -a])
+        return np.array([a, b])
     def chamfer(kc, kb, j, j1, jj1, g):
         # a quad of the foot chamfer: the row-kb edge keeps its chart, the cap row is laid flat at true size from it
         ua, ub = uv_of(kb, j, g), uv_of(kb, jj1, g)
@@ -280,7 +296,7 @@ def rim(name, outline, host, mat, coll, width=WIDTH, step=STEP, depth=DEPTH, pro
             w = p - a; x = np.dot(w, e1); y = np.linalg.norm(w - x * e1)
             return ua + d1 * x + d2 * y
         return {kb: (ua, ub), kc: (lay(PV[kc, j]), lay(PV[kc, j1]))}
-    faces, uvs = [], []
+    faces, uvs, parts = [], [], []
     nq = nr if closed else nr - 1
     for k in range(nq):
         k1 = (k + 1) % nr
@@ -298,7 +314,7 @@ def rim(name, outline, host, mat, coll, width=WIDTH, step=STEP, depth=DEPTH, pro
                 u4 = [uv_of(k, j, g), uv_of(k1, j, g, kv1), uv_of(k1, jj1, g, kv1), uv_of(k, jj1, g)]
             V4 = PV.reshape(-1, 3)[f]; U4 = np.array(u4, float)
             for tri in _split(V4, U4):
-                faces.append([f[t] for t in tri]); uvs += [u4[t] for t in tri]
+                faces.append([f[t] for t in tri]); uvs += [u4[t] for t in tri]; parts.append(g)
     if not closed:
         # the feet: ear-clipped caps with a metric chart in the cap's plane
         for kk in (0, nr - 1):
@@ -310,12 +326,14 @@ def rim(name, outline, host, mat, coll, width=WIDTH, step=STEP, depth=DEPTH, pro
             pl = [Vector((float(np.dot(p - c, e1)), float(np.dot(p - c, e2)), 0.0)) for p in P0]
             for tri in geometry.tessellate_polygon([pl]):
                 faces.append([kk * m + t for t in tri])
-                uvs += [(pl[t].x, pl[t].y) for t in tri]
+                uvs += [(pl[t].x, pl[t].y) for t in tri]; parts.append(6)
     ob = U.mesh_from_faces(name, PV.reshape(-1, 3), faces, uv=np.array(uvs), coll_=coll, mat=own_chart(mat), smooth=True)
     bm = bmesh.new(); bm.from_mesh(ob.data)
     bmesh.ops.recalc_face_normals(bm, faces=list(bm.faces))
     bm.to_mesh(ob.data); bm.free()
     me = ob.data
+    pa = me.attributes.new('rim_part', 'INT', 'FACE')     # the section part of each triangle, for uv_audit(parts=True)
+    pa.data.foreach_set('value', np.array(parts, np.int32))
     # recalc_face_normals points a closed solid outward; check on the face's middle row anyway
     kc = nr // 2
     p = me.polygons[2 * (kc * m + ref[0])]
@@ -349,29 +367,55 @@ def own_chart(mat):
 def triangles(ob):
     return int(sum(len(p.vertices) - 2 for p in ob.data.polygons))
 
-def uv_audit(ob, tile=None):
-    """RuienUv.Audit's metric on a Blender object (game metres, UVs in metres): (area, stretched area, worst ratio)."""
+SHEAR_DEG = 5.0     # (#293) texture axes this far off square read as bent courses, though the anisotropy stays under 1.3
+
+def chart_metrics(P, T):
+    """One triangle's chart (game metres, UVs in metres): (area, anisotropy, min scale, max scale, shear in degrees).
+    Shear is the angle between the U and V gradients less 90 degrees: a sheared chart keeps its area and may pass the
+    anisotropy limit (1.3 allows 15 degrees) while its courses bend away from square."""
+    e = P[1] - P[0]; f = P[2] - P[0]
+    x = np.linalg.norm(e); h = np.linalg.norm(np.cross(e, f)) / max(x, 1e-8); w = x * h * 0.5
+    if w < 1e-9:
+        return 0.0, 1.0, 1.0, 1.0, 0.0
+    u = (T[1] - T[0]) / max(x, 1e-8)
+    vv = ((T[2] - T[0]) - u * np.dot(f, e / x)) / h
+    aa, bb, ab = u @ u, vv @ vv, u @ vv
+    disc = np.sqrt((aa - bb) ** 2 + 4 * ab * ab)
+    mx = np.sqrt(max(0, (aa + bb + disc) / 2)); mn = np.sqrt(max(0, (aa + bb - disc) / 2))
+    gu = np.array([u[0], vv[0]]); gv = np.array([u[1], vv[1]])             # gradients of U and V on the triangle
+    c = abs(gu @ gv) / max(np.linalg.norm(gu) * np.linalg.norm(gv), 1e-12)
+    return w, mx / max(mn, 1e-5), mn, mx, float(np.degrees(np.arcsin(min(1.0, c))))
+
+def uv_audit(ob, tile=None, parts=False):
+    """RuienUv.Audit's metric on a Blender object (game metres, UVs in metres): (area, stretched area, worst ratio).
+    parts=True (a rim): {part: dict(area, bad, worst, shear, worst_shear, smin, smax)} by the rim_part attribute, where
+    shear is the area sheared over SHEAR_DEG."""
     me = ob.data
     V = np.array([v.co[:] for v in me.vertices])
     uvl = me.uv_layers['UVMap'].data
-    area = bad = worst = 0.0
+    pa = me.attributes.get('rim_part')
+    lab = np.zeros(len(me.polygons), int)
+    if pa is not None:
+        pa.data.foreach_get('value', lab)
+    out = {}
     for p in me.polygons:
         li = list(p.loop_indices); vi = list(p.vertices)
+        key = PARTS.get(int(lab[p.index]), 'face') if parts else 'all'
+        r = out.setdefault(key, dict(area=0.0, bad=0.0, worst=0.0, shear=0.0, worst_shear=0.0, smin=9.0, smax=0.0))
         for t in range(1, len(vi) - 1):
             a, b, c = (0, t, t + 1)
             P = V[[vi[a], vi[b], vi[c]]]; T = np.array([uvl[li[a]].uv[:], uvl[li[b]].uv[:], uvl[li[c]].uv[:]])
-            e = P[1] - P[0]; f = P[2] - P[0]
-            x = np.linalg.norm(e); h = np.linalg.norm(np.cross(e, f)) / max(x, 1e-8); w = x * h * 0.5
+            w, ratio, mn, mx, sh = chart_metrics(P, T)
             if w < 1e-9:
                 continue
-            u = (T[1] - T[0]) / max(x, 1e-8)
-            vv = ((T[2] - T[0]) - u * np.dot(f, e / x)) / h
-            aa, bb, ab = u @ u, vv @ vv, u @ vv
-            disc = np.sqrt((aa - bb) ** 2 + 4 * ab * ab)
-            mx = np.sqrt(max(0, (aa + bb + disc) / 2)); mn = np.sqrt(max(0, (aa + bb - disc) / 2))
-            ratio = mx / max(mn, 1e-5)
-            area += w
+            r['area'] += w
             if ratio > 1.3 or mn < 0.6 or mx > 1.7:
-                bad += w
-            worst = max(worst, ratio)
-    return area, bad, worst
+                r['bad'] += w
+            if sh > SHEAR_DEG:
+                r['shear'] += w
+            r['worst'] = max(r['worst'], ratio); r['worst_shear'] = max(r['worst_shear'], sh)
+            r['smin'] = min(r['smin'], mn); r['smax'] = max(r['smax'], mx)
+    if parts:
+        return out
+    r = out.get('all', dict(area=0.0, bad=0.0, worst=0.0))
+    return r['area'], r['bad'], r['worst']

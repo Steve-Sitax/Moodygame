@@ -160,12 +160,22 @@ rim(name, outline, host, mat, coll, width=0.23, step=0.11, depth=0.11, proud=0.0
 - Choices: 3 cm proud gives a clear shadow line and room for the 10 mm arris on a flat face (the old rings stood
   1.5-2 cm out), and stays out of Jef's way; the 23 cm face is the old pair of rowlock rings; the 11 cm step is one
   header end, so the lining's end course reads as a recessed brick ring; the 11 cm depth is one brick.
-- Charts: header-bond brick (`mats['brick_rib']`). U runs round the section (the header heads point outwards and
-  carry on round the arris), V along the outline at the face's middle, one texture course (about 6 cm) per voussoir,
-  so the joints stand square to the outline. The step and each half of the hidden back keep their own V lines. Every
-  face stays within the RuienUv audit (anisotropy 1.3, scale 0.6-1.7) down to outline radii of about 0.45 m; put a
-  tighter opening's invert on a sill (the drain's far mouth does) instead of a closed rim. `uv_audit(ob)` repeats the
-  native metric in Blender.
+- Charts: header-bond brick (`mats['brick_rib']`). Face and soffit: U runs round the section (the header heads point
+  outwards and carry on round the arris), V along the outline at the face's middle, one texture course (about 6 cm)
+  per voussoir, so the joints stand square to the outline. The reveal step (#293) is charted the other way: its
+  courses run round the opening, parallel to its edge (U along the outline on the step's middle line, V out from the
+  clear edge; a quarter turn of the radial chart, so the handedness stays). The clear reveal behind it keeps the
+  lining's direction, measured on the clear outline itself; each half of the hidden back has its own V line. So the
+  bricks keep their true size all round the curve. Every face stays within the RuienUv audit (anisotropy 1.3, scale
+  0.6-1.7) down to outline radii of about 0.45 m; put a tighter opening's invert on a sill (the drain's far mouth
+  does) instead of a closed rim. `uv_audit(ob)` repeats the native metric in Blender; `uv_audit(ob, parts=True)`
+  gives it per part (`rim_part` face attribute: face, step, reveal, back, outer, feet) with the shear.
+- Shear (#293): a chart can keep its area and pass the 1.3 anisotropy limit (which allows about 15 degrees) while its
+  courses bend. `SHEAR_DEG` (5 degrees) between the U and V gradients marks a sheared triangle; `RuienUv.Audit`
+  reports the same (`shearArea`, `worstShear`, `shearAt`) and `check_fittings.py` requires under 0.005 m2 on the
+  visible parts. On a wall host (`RouteWall`, `PlaneWall`) the whole depth is squared to the outline, the proud part
+  too: squaring only behind the face had left a kink at the face that sheared the soffit up to 8 degrees where the
+  wall turns into the vault. A gallery host (`meet._RimHost`) keeps the face on its own axis.
 - Own charts: the rim uses a copy of its material named `<material>_rim`, exported as family `brick_header_rim`. The
   game draws, tiles and audits it as `brick_header` (`RuienTextures.Key`), but `RuienImport` does not re-chart it with
   `RuienUnfold` (`RuienTextures.OwnChart`), so the voussoirs stay radial; `RuienUv` still repairs any failing triangle.
@@ -179,7 +189,7 @@ rim(name, outline, host, mat, coll, width=0.23, step=0.11, depth=0.11, proud=0.0
 - Limit: on a tee the exported rim's hidden back and outer side, and a little of its face, exceed the audit in a narrow
   band over the crown, where the gallery vault lies almost along the rui (0.55 m2 of 11.5 m2 on L79); the native
   intake's RuienUv repair re-charts those triangles (0 m2 after import).
-- Cost: an egg drain rim (1.0 x 1.6 m, open above the walk) is 7.3k triangles in both LODs; the tee and throat rims 15.5k and 16.1k.
+- Cost: an egg drain rim (1.0 x 1.6 m, open above the walk) is 7.3k triangles in both LODs; the tee and throat rims 15.5k and 16.1k. A junction-room mouth rim (3.6 m arch, back through the 0.5 m wall) is 14.3k, the stair rim 5.3k.
 
 ## Known limits
 
@@ -215,8 +225,15 @@ convert the folder with `--ruien-area <dir> --area R1 --out <resource folder> --
   from one end barrel to the other under a dome cap. A long room with mouths only on its long walls has no giant
   route along it.
 - **Mouths.** Every M line that ends in the room gives a mouth where it leaves the rectangle, clamped clear of corners
-  and bay boundaries. Each is one solid header ring (intrados crown -0.945, 6 cm proud) on bluestone imposts,
-  bluestone jambs with 8-12 mm arrises, and the rui's first 1.7 m with its walkway and a dark end card.
+  and bay boundaries. Each has the kit's arch rim (#292, `arch_rim(...)`: clear intrados as before, crown -0.945,
+  face 23 cm and 3 cm proud, the 11 cm reveal step, the clear reveal through the 0.5 m wall) on bluestone imposts,
+  bluestone jambs with 8-12 mm arrises, and the rui's first 1.7 m with its walkway and a dark end card. The rim is
+  the opening's collision (its name holds `_ring`: `build_junction` keeps it exact). The wall's hole reaches 0.2 m
+  past the clear outline, also beside the feet (a wall patch below the springing goes on behind the imposts), and the
+  rui vault starts behind the step. Over the crown the lunette comes down to 1.5 cm over the clear outline, so the
+  rim's upper part lies in the vault there, as the old ring's did. The stair arch has the same rim with a 0.2 m face
+  (on its 0.3 m imposts). The stair vault's end ring under the street and the transverse arches stay header rings:
+  they stand in no wall.
 - **Walkway.** Each rui's walkway side and the fewest cast-iron footbridges are chosen so one walkway joins every rui
   walkway and the stair. Setts in rows along each run (0.11 m courses), bluestone coping, raised dressed seam stones
   on every mitre (room corners, rui junctions, stair landing). Room walls run down to the bed behind the walkways,
