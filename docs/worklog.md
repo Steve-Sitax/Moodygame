@@ -1,5 +1,19 @@
 # Work log
 
+## Ruien stretch intake, stage 1c, 2026-11-03 (#272)
+
+Generic stretch collision, route keys, markers and empty movers now accompany both LODs; mask heights use the
+section. Corrected the parametric grate's height/lateral argument order. Native conversion accepts empty or absent
+movers and no outlet, reads water from data, and supports external `--out`; `--ruien-areas` isolates the review list.
+O2: 10 before/after GLBs have identical geometry/UVs/masks/bakes and metadata; raw AO differs by at most 1.8e-7,
+with identical native packing. All 72 converted files have identical mesh arrays, formats, names, collision and JSON
+content (generated resource UIDs excluded). G and both M walkway sides pass the headless contract checks.
+L105: 609,346 + 169,458 drawn triangles, 112,022 collision triangles, 3 keys; full native load and six camera views
+(clear 13:00, rain, night and low angle) passed with isolated data and ports 19721–19728. No installed area or fingerprint changed.
+The review used `--no-ruien-entrances`: entrance-enabled startup timed out (#273). Visible triangular sheets remain
+an art blocker (#274); this is a pipeline proof, not environment acceptance. RuienStair and other stages remain open.
+Proofs: `D:/Code/Proofs/ruien-272-1c/` (native-final.log, native-proof, o2-comparison.json, o2-native-comparison.json).
+
 ## Ruien O2 clean matched frame timing, 2026-11-03 (#210, T210-idle)
 
 Branch t3/idle-ruien-frame-capture, main 0aaff75f2 against ddb78706 (detached worktree, imported once, removed after). Same method as #209: `perf-views.json`, 1440x900, vsync off, no cap, clear 13:00, tide -4.95, sample 0 dropped, median of sample means 1-3, own PERF-LOCK per run, isolated data, ports 9741-9747. Four interleaved rounds of baseline / main / main with hatch open and crew active. 12/12 runs clean: no other Godot or Blender in any start, end or 5 s sample receipt. Nothing was stopped.

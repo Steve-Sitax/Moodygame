@@ -340,7 +340,10 @@ def setup_render():
         if bpy.data.collections.get(cn):
             bpy.data.collections[cn].hide_render = True
 
-def build_lod(lod, objs, hide_coll=None):
+def build_lod(lod, objs, hide_coll=None, section=None):
+    near_y = NEAR_Y if section is None else section.ledge_y + 2.0
+    water_y = spec.WATER_Y if section is None else section.water
+    static_wet_y = -3.85 if section is None else section.ledge_y - 0.25
     hide_coll = hide_coll or src_root
     work = bpy.data.collections.new('EXPORT_WORK_%d' % lod); sc.collection.children.link(work)
     groups = {}            # source material -> list of MD (to bake), for subdivided kinds
@@ -362,7 +365,7 @@ def build_lod(lod, objs, hide_coll=None):
             # named 'rnd' (the shader's Attribute node reads it the same way) and apply it to the export UVs later
             md.pa['rnd'] = np.stack([r, r, r, np.ones(len(r))], -1).astype(np.float32)
             yc = b2g(md.face_centroids())[:, 1]
-            cls = ((yc >= NEAR_Y) | (yc < spec.WATER_Y - 0.3)).astype(np.int64)
+            cls = ((yc >= near_y) | (yc < water_y - 0.3)).astype(np.int64)
             segs = seam_edges(md, cls) if 0 < cls.sum() < len(cls) else []
             for c_ in (0, 1):
                 part = md.subset(cls == c_)
@@ -404,7 +407,7 @@ def build_lod(lod, objs, hide_coll=None):
             md.pa['_BAKECOL'] = np.c_[col[:, :3], np.ones(len(col))].astype(np.float32)
         else:
             y = b2g(V)[:, 1]
-            wet = np.clip((spec.WATER_Y + 0.6 - y) / 0.6, 0, 1)
+            wet = np.clip((water_y + 0.6 - y) / 0.6, 0, 1)
             md.pa['Col'] = np.stack([np.maximum(wet, 0.6 if mat.startswith('Silt') else 0.2), np.full(len(V), 0.9 if mat.startswith('Calc') else 0.0),
                                      np.full(len(V), 0.2), np.zeros(len(V))], -1).astype(np.float32)
         r_ = DECIM_RELIEF.get(lod, 1.0)
@@ -432,7 +435,7 @@ def build_lod(lod, objs, hide_coll=None):
             md2.mats = md.mats
             md = md2
         y = b2g(md.V)[:, 1]
-        wet = np.clip((-3.85 - y) / 0.3, 0, 1)
+        wet = np.clip((static_wet_y - y) / 0.3, 0, 1)
         md.pa['Col'] = np.stack([wet, np.zeros(len(y)), np.full(len(y), 0.2), np.zeros(len(y))], -1).astype(np.float32)
         ob = md.to_object('__st_' + mat, work)
         baked.append((mat, md, ob))
@@ -600,7 +603,13 @@ def finalize_uv_mats(mat, md):
 
 # ===================================================================== areas and chunks
 PATH = G.Path(spec.GAL_PATH_KEYS)
-def area_keys(Cg):
+def area_keys(Cg, path=None):
+    if path is not None:
+        kd = kdtree.KDTree(len(path.P))
+        for i, q in enumerate(path.P):
+            kd.insert((q[0], q[1], 0.0), i)
+        kd.balance()
+        return np.array(["s%d" % int(path.u[kd.find((c[0], c[2], 0.0))[1]] // 10) for c in Cg], dtype=object)
     x, z = Cg[:, 0], Cg[:, 2]
     outlet = z < 73.2
     gate = outlet & (np.abs(x - spec.GATE_X) < 3.75) & (z > 67.8)
@@ -632,8 +641,11 @@ def file_of(key):
     return 'outlet' if key.startswith('outlet') else ('gallery' if key.startswith('gallery') else 'hall')
 
 MOVERS = {}
-def prepare_movers():
-    """Doors to their shut rest pose, origins on the hinge lines; penstock door tagged with its travel."""
+def prepare_movers(section=None):
+    """Stretches have no moving kit pieces; O2 doors keep their original rest poses and pivots."""
+    if section is not None:
+        MOVERS.clear(); PIVOTS.clear()
+        return []
     from mathutils import Matrix, Vector
     W2 = spec.GAL_W / 2
     def tag(o, t):
@@ -697,7 +709,19 @@ def water_planes(coll):
     plane('water_hall', np.array([[[spec.HALL_X0, spec.WATER_Y, spec.HALL_Z0], [spec.HALL_X0, spec.WATER_Y, spec.HALL_Z1]], [[spec.HALL_X1, spec.WATER_Y, spec.HALL_Z0], [spec.HALL_X1, spec.WATER_Y, spec.HALL_Z1]]]))
     return obs
 
-def collision(coll):
+def collision(coll, sources=None):
+    if sources is not None:
+        # The section sweep already contains the shaft holes, caps and walkway sides.
+        # Evaluate its construction geometry, without the export relief subdivision.
+        obs = []
+        for src in sources:
+            if kind_of(src) == "water" or src.name.endswith("_void") or src.name.startswith("runoff_"):
+                continue
+            md = MD.from_object(src)
+            md.uv = {}; md.pa = {}
+            md.mats = []; md.pm[:] = 0
+            obs.append(md.to_object("col_" + src.name, coll))
+        return obs
     cm = bpy.data.materials.new('col_surface')
     obs = []
     def boxes(name, lst):
@@ -751,7 +775,9 @@ def collision(coll):
     boxes('col_shaft_ladder', [U.box_corners(a[0] - 0.22, a[0] + 0.22, spec.LEDGE_Y, -0.28, a[2] - 0.22, a[2] + 0.22)])
     return obs
 
-def markers(coll):
+def markers(coll, sources=None, path=None, section=None, info=None):
+    if section is not None:
+        return stretch_markers(sources, path, section, info)
     out = {'lamps': [], 'flames': [], 'daylight_openings': [], 'beams': [], 'mist': [], 'water': [], 'ladders': [], 'stairs': [], 'outlet': {}}
     def empty(name, pos_g, props, disp='PLAIN_AXES', size=0.3):
         e = bpy.data.objects.new(name, None); coll.objects.link(e)
@@ -859,6 +885,46 @@ def markers(coll):
         V = np.vstack([P, P + np.array([0, 0, -0.01])]); n = len(P)
         F = [[i, i + 1, n + i + 1, n + i] for i in range(n - 1)]
         U.mesh_from_faces('mk_outlet_' + nm, V, F, coll_=coll, mat=None, smooth=False)
+    return out
+
+def stretch_markers(sources, path, section, info):
+    """Gameplay anchors from the same section, path and placements as the drawn stretch."""
+    out = {k: [] for k in ('lamps', 'flames', 'daylight_openings', 'beams', 'mist', 'water', 'ladders', 'stairs')}
+    def point(u, s, y):
+        return path.world(np.array(u), np.array(s), np.array(y)).tolist()
+    for o in sources:
+        fl = [i for i, slot in enumerate(o.material_slots) if slot.material and slot.material.name.startswith('Lamp_flame')]
+        pts = [o.matrix_world @ o.data.vertices[v].co for face in o.data.polygons if face.material_index in fl for v in face.vertices]
+        if not pts:
+            continue
+        c = sum(pts, Vector()) / len(pts)
+        pos = [float(c.x), float(c.z), float(-c.y)]
+        out['flames'].append(dict(name=o.name, pos=pos, color=[1.0, 0.74, 0.52], glow_radius_m=0.12))
+        out['lamps'].append(dict(name=o.name, pos=pos, color=[1.0, 0.74, 0.52], power_w=150.0, range_m=11.0, kind='point'))
+    for i, pl in enumerate(info['placements']):
+        if pl['piece'] != 'grate_shaft_parametric':
+            continue
+        u = pl['u']; pos = pl['pos']
+        px, pz, tx, tz, nx, nz = path.frame(np.array(u))
+        s = float((pos[0] - px) * nx + (pos[2] - pz) * nz)
+        side = 1 if s > 0 else -1
+        name = 'grate_%d' % i
+        centre = point(u, s, -0.005)
+        out['daylight_openings'].append(dict(name=name, kind='grate', centre=centre, size_m=[0.66, 0.66],
+            vault_opening=point(u, s, float(section.vault_y_at_s(s)))))
+        out['ladders'].append(dict(name=name, bottom=point(u, s + side * (0.33 - 0.14), section.ledge_y),
+            top=point(u, s, 0.0), grate_size_m=[0.66, 0.66]))
+    lo, hi = section.channel_edges()
+    uu = np.linspace(0, path.length, int(path.length / 0.25) + 2)
+    mid = path.world(uu, np.full_like(uu, (lo + hi) / 2), np.full_like(uu, section.water))
+    out['water'].append(dict(name=info['route'], height=section.water, centre_line=mid[:, [0, 2]].tolist(), width=hi-lo))
+    # Short boxes follow bends instead of filling the route's entire bounding rectangle.
+    ends = np.unique(np.r_[np.arange(0, len(mid), 8), len(mid)-1])
+    for i, (a, b) in enumerate(zip(mid[ends[:-1]], mid[ends[1:]])):
+        low = np.minimum(a, b); high = np.maximum(a, b)
+        low[[0, 2]] -= (hi-lo)/2; high[[0, 2]] += (hi-lo)/2
+        high[1] += 0.6
+        out['mist'].append(dict(name='rot_mist_%d' % i, min=low.tolist(), max=high.tolist(), density_peak=0.055))
     return out
 
 # ===================================================================== export

@@ -92,6 +92,16 @@ Conversion (headless, once per export; it writes under `res://world/ruien` and q
     godot --headless --path native-godot res://world/ruien/convert.tscn -- --ruien-textures <export>/textures
     godot --headless --path native-godot res://world/ruien/convert.tscn -- --ruien-area <export> --area o2
 
+For an isolated stretch intake, add `--out <absolute resource folder>` to `--ruien-area`; the folder gets
+`area.json`, meshes, collision and markers without changing the installed world. `--area` names the area;
+stretch mesh prefixes come from the manifest's route ID. Empty or absent movers and absent outlets are valid.
+Daylight beam fall uses the manifest's `waterMin` (or the installed area's value for older exports).
+
+A native review can use `--ruien-areas <absolute JSON>` to replace the area list for that process. Keep the usual
+area-list schema, set its area's `export` to the external resource folder, `waterMin` to the section's water,
+and its line zone to the stretch's path/class. `--ruien-always` forces visibility; it is a flag, not a folder argument.
+Isolate `SCHELDEMIST_USER_DATA`, `--db`, `--prefs`, `--author-root` and `--port` for this run as for other proofs.
+
 ## Rendering
 
 - Three shader kinds (`native-godot/shaders/ruien_*`, shared parts in `ruien_common.gdshaderinc`), added once with

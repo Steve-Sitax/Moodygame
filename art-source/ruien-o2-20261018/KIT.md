@@ -86,7 +86,11 @@ the game cuts its own quay wall along `markers.outlet` (opening and dressing out
 ```
 
 This writes `export/stretches/L90/`: `L90.blend` (editable), `L90_check.jpg`, `L90_mood.jpg`,
-`ruien_L90_L90_lod0.glb`, `..._lod1.glb` and `manifest.json` (with the kit placements it used). For a hall:
+`ruien_L90_L90_lod0.glb`, `..._lod1.glb` and `manifest.json` (kit placements, section water, collision, lamp/flame and daylight markers, ladder ends,
+water and mist, empty movers). Collision follows the generated section, including shaft holes and end caps;
+void cards and water have no collision. Mask heights follow `Section`; O2 retains its original defaults.
+`check_stretch_export.py` checks G and both M walkway sides in headless Blender without textures or a render.
+For an external native intake and review, see `docs/ruien-native.md` (`--out`, `--ruien-areas`). For a hall:
 `kit/hall_gen.build_hall(room, mats, coll, rng, mouths=[('z0', 1)])` (see `work/test_hall_gen.py`, which built C3).
 
 Proof: `export/stretches/L105/` is the Kipdorprui (L105, 21.7 m, two bends of 4.1 m radius, one grate shaft with ladder, 1.23 M triangles at LOD0) built with these scripts;

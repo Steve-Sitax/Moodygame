@@ -17,7 +17,17 @@ namespace Scheldemist.World.Ruien;
 public sealed class RuienData
 {
     public const string NetworkFile = "res://world/ruien/network.json";
-    public const string AreasFile = "res://world/ruien/areas.json";
+    // An external review list leaves the installed world and its fingerprint untouched.
+    public static string AreasFile
+    {
+        get
+        {
+            var args = OS.GetCmdlineUserArgs();
+            int i = Array.IndexOf(args, "--ruien-areas");
+            if (i >= 0 && i + 1 >= args.Length) throw new ArgumentException("--ruien-areas needs a JSON file");
+            return i >= 0 ? args[i + 1] : "res://world/ruien/areas.json";
+        }
+    }
 
     /// <summary>A gallery class's section (network.json classes: G the giant gallery, M a rui).</summary>
     public sealed record Section(float Width, float Bed, float Crown, float Channel, float Ledge, float LedgeY, float Spring);

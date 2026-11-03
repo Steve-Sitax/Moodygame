@@ -92,22 +92,19 @@ if '--no-export' not in argv:
     import export_game as EG
     importlib.reload(EG)
     EG.setup_render()
-    kd = __import__('mathutils').kdtree.KDTree(len(path.P[::10]))
-    for i, q in enumerate(path.P[::10]):
-        kd.insert((q[0], q[1], 0.0), i)
-    kd.balance()
-    ustep = path.u[::10]
     def keyfn(Cg):
-        out = np.empty(len(Cg), dtype=object)
-        for i, c in enumerate(Cg):
-            _, j, _ = kd.find((c[0], c[2], 0.0))
-            out[i] = 's%d' % int(ustep[j] // 10)
-        return out
-    manifest = dict(route=RID, name=r.get('name'), cls=cls, built_with='scripts/build_stretch.py + scripts/kit/sweep.py', files={}, info=info,
+        return EG.area_keys(Cg, path)
+    manifest = dict(route=RID, name=r.get('name'), cls=cls, built_with='scripts/build_stretch.py + scripts/kit/sweep.py', files={}, info=info, waterMin=sec.water, movers=EG.prepare_movers(sec),
                     coordinates='glTF +Y up; glTF (x, y, z) = (game x, game y, game z)', textures='shared: ../../textures (see ../../manifest.json)')
     stretch_objs = [o for o in coll.all_objects if o.type == 'MESH']
     for lod in [int(x) for x in arg('--lods', '0,1').split(',')]:
-        baked = EG.build_lod(lod, stretch_objs, hide_coll=coll)
+        baked = EG.build_lod(lod, stretch_objs, hide_coll=coll, section=sec)
         EG.export_chunks(baked, keyfn, lambda k: RID, lod, OUT, 'ruien_%s_' % RID, manifest)
+    cc = U.coll('EXPORT_COL')
+    cobs = EG.collision(cc, stretch_objs)
+    cp = os.path.join(OUT, 'ruien_%s_collision.glb' % RID)
+    EG.gltf_export(cp, cobs)
+    manifest['files'][os.path.basename(cp)] = dict(sha256=EG.sha(cp), bytes=os.path.getsize(cp))
+    manifest['markers'] = EG.markers(U.coll('EXPORT_MK'), stretch_objs, path, sec, info)
     json.dump(manifest, open(os.path.join(OUT, 'manifest.json'), 'w'), indent=1, default=lambda o: o.tolist() if hasattr(o, 'tolist') else float(o))
     log('exported')
