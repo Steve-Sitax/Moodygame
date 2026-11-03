@@ -7,29 +7,24 @@ using Scheldemist.World;
 namespace Scheldemist.Movers;
 
 /// <summary>
-/// The one rope of the town: every rope, line, hawser, shroud and wire rope is a real tube with its own thickness in
-/// metres, so it is thin far off and thick close by, as a real one. All of them share the washing lines' hemp material
-/// (the laundry pack's rope_sample: a laid three-strand picture repeating along the rope, art-source/tools/blender/
-/// laundry/tex.py rope): no new shader kind. The picture runs along the rope (u) at its real lay, about one strand
-/// crown per diameter, and once round it (v); the kind of rope gives its thickness and its colour (tarred standing
-/// rigging, weathered hemp, iron wire), carried in the vertex colour with its wet: darker within a metre of the water
-/// and in the rain. No collision: nobody walks into a rope here (mooring lines lie over the coping's nose at the feet).
-/// <see cref="Tube"/> builds tubes into reusable arrays (no allocation while the counts stay the same);
-/// <see cref="FromLines"/> turns a model's line set (the old one-pixel rigging) into tubes once.
+/// Shared geometry for the town's cordage and fittings: laid hemp tubes, forged interlocking iron links,
+/// wire and flat rounded-edge leather straps. Material variants reuse the existing rope shader kind.
+/// Paths retain authored endpoints; rain darkens surfaces and moving sets rebuild with their carriers.
 /// </summary>
 public static class Rope
 {
-    public enum Kind { Hawser, Mooring, Standing, Running, Ratline, Wire, Chain, Leather, Twine, Laundry }
+    public enum Kind { Hawser, Mooring, Standing, Running, Ratline, Wire, Chain, Leather, Twine, Laundry, FurnitureWire }
 
     /// <summary>A rope's diameter in metres: period hemp and manila, wire for the cranes.</summary>
     public static float Diameter(Kind k) => k switch
     {
+        Kind.FurnitureWire => 0.002f, // Light bent wire in the lampshade frame, not a crane cable.
         Kind.Hawser => 0.040f, Kind.Mooring => 0.032f, Kind.Standing => 0.020f, Kind.Running => 0.014f,
         Kind.Ratline => 0.009f, Kind.Wire => 0.016f, Kind.Chain => 0.018f, Kind.Leather => 0.022f, Kind.Twine => 0.003f, _ => 0.010f,
     };
 
     /// <summary>The sides round a rope: enough for its silhouette close by.</summary>
-    public static int Sides(Kind k) => k switch { Kind.Hawser or Kind.Mooring or Kind.Laundry => 8, Kind.Ratline => 5, Kind.Twine => 4, _ => 6 };
+    public static int Sides(Kind k) => k switch { Kind.Hawser or Kind.Mooring or Kind.Laundry or Kind.FurnitureWire => 8, Kind.Ratline => 5, Kind.Twine => 4, _ => 6 };
 
     /// <summary>Times over the hemp picture (already a weathered grey-brown): tarred standing rigging dark, hemp lighter, iron wire grey.</summary>
     public static Color Tint(Kind k) => k switch
@@ -38,9 +33,9 @@ public static class Rope
         Kind.Standing => new Color(0.42f, 0.36f, 0.30f),
         Kind.Ratline => new Color(0.55f, 0.48f, 0.40f),
         Kind.Running => new Color(0.92f, 0.86f, 0.74f),
-        Kind.Wire => new Color(0.46f, 0.47f, 0.48f),
-        Kind.Chain => new Color(0.30f, 0.27f, 0.25f),
-        Kind.Leather => new Color(0.36f, 0.24f, 0.16f),
+        Kind.Wire or Kind.FurnitureWire => new Color(0.12f, 0.125f, 0.13f),
+        Kind.Chain => new Color(0.065f, 0.055f, 0.045f),
+        Kind.Leather => new Color(0.07f, 0.028f, 0.012f),
         Kind.Twine => new Color(1.1f, 1.05f, 0.95f),
         _ => Colors.White,
     };
@@ -74,6 +69,22 @@ public static class Rope
         }
     }
 
+    private static readonly Dictionary<Kind, Material> fittings = new();
+    /// <summary>Same shader as hemp, without its woven albedo or relief on iron and hide.</summary>
+    public static Material? MaterialFor(Kind kind)
+    {
+        if (kind is not (Kind.Chain or Kind.Leather or Kind.Wire or Kind.FurnitureWire)) return Material;
+        if (fittings.TryGetValue(kind, out var cached)) return cached;
+        if (Material is not ShaderMaterial source) return Material;
+        var result = (ShaderMaterial)source.Duplicate();
+        result.ResourceName = kind == Kind.Leather ? "rope-leather" : "rope-iron";
+        result.SetShaderParameter("tex", default(Variant));
+        result.SetShaderParameter("bump_map", default(Variant));
+        result.SetShaderParameter("bump_scale", 0f);
+        fittings[kind] = result;
+        return result;
+    }
+
     /// <summary>The rain's wet on every rope now (0-1): the ground's wet (Daylight.Wet).</summary>
     public static float RainWet => Daylight.I?.Wet ?? 0;
 
@@ -93,6 +104,7 @@ public static class Rope
     /// </summary>
     public sealed class Tube
     {
+        private readonly Vector3[] chainLoop = new Vector3[33];
         private Vector3[] pos = new Vector3[256], nor = new Vector3[256];
         private Vector2[] uv = new Vector2[256], uv2 = new Vector2[256];
         private Color[] col = new Color[256];
@@ -126,7 +138,7 @@ public static class Rope
         /// One rope along `path` (at least two points), `diameter` thick in the mesh's units (the picture's lay follows
         /// it), its colour tint darkened by the water at `water` (world height; NaN: none) and the rain (0-1).
         /// </summary>
-        public void Add(ReadOnlySpan<Vector3> path, float diameter, int sides, Color tint, float water = float.NaN, float rain = 0)
+        public void Add(ReadOnlySpan<Vector3> path, float diameter, int sides, Color tint, float water = float.NaN, float rain = 0, bool strap = false, bool closed = false)
         {
             int n = path.Length;
             if (n < 2) return;
@@ -137,7 +149,7 @@ public static class Rope
             int first = Verts;
             for (int p = 0; p < n; p++)
             {
-                var t = path[Math.Min(n - 1, p + 1)] - path[Math.Max(0, p - 1)];
+                var t = closed && (p == 0 || p == n - 1) ? path[1] - path[n - 2] : path[Math.Min(n - 1, p + 1)] - path[Math.Max(0, p - 1)];
                 t = t.LengthSquared() < 1e-12f ? Vector3.Up : t.Normalized();
                 if (p == 0)
                 {
@@ -156,11 +168,18 @@ public static class Rope
                 var c = Wet(tint, wet);
                 for (int s = 0; s < ring; s++)
                 {
-                    float a = MathF.Tau * s / sides;
+                    // The strap has two semicircular ends joined by flat faces. Give each
+                    // face both corner vertices and repeat the first point exactly at the UV seam.
+                    int profile = s % sides, half = sides / 2;
+                    float a = strap
+                        ? MathF.PI * (profile % half) / (half - 1) + (profile >= half ? MathF.PI : 0)
+                        : MathF.Tau * s / sides;
                     var nrm = side * MathF.Cos(a) + b * MathF.Sin(a);
                     int vi = Verts + p * ring + s;
                     // (uv2: the radius, and 1 for a side the Rope shader may widen to half a pixel far off)
-                    pos[vi] = path[p] + nrm * r; nor[vi] = nrm; uv[vi] = new Vector2(u, (float)s / sides); uv2[vi] = new Vector2(r, 1); col[vi] = c;
+                    // Leather is a 22 x 3 mm strip: flat broad faces, 1.5 mm rounded edges.
+                    var offset = strap ? nrm * (r * 0.136f) + b * ((profile < half ? 1 : -1) * r * 0.864f) : nrm * r;
+                    pos[vi] = path[p] + offset; nor[vi] = nrm; uv[vi] = new Vector2(u, (float)s / sides); uv2[vi] = new Vector2(r, 1); col[vi] = c;
                 }
             }
             for (int p = 0; p < n - 1; p++)
@@ -172,8 +191,49 @@ public static class Rope
                     idx[Indices++] = a; idx[Indices++] = dd; idx[Indices++] = cc;
                 }
             Verts += n * ring;
+            if (closed) return;
             Cap(path[0], path[0] - path[1], first, ring, sides, r);
             Cap(path[n - 1], path[n - 1] - path[n - 2], first + (n - 1) * ring, ring, sides, r);
+        }
+
+        /// <summary>Shared geometry for live lifting chains, harness straps and recovered static lines.</summary>
+        public void AddKind(ReadOnlySpan<Vector3> path, Kind kind, float scale = 1, float water = float.NaN, float rain = 0)
+        {
+            float d = Diameter(kind) / scale;
+            if (kind != Kind.Chain)
+            {
+                Add(path, d, kind == Kind.Leather ? 16 : Sides(kind), Tint(kind), water, rain, strap: kind == Kind.Leather);
+                return;
+            }
+            if (path.Length < 2) return;
+            float total = 0;
+            for (int i = 1; i < path.Length; i++) total += path[i].DistanceTo(path[i - 1]);
+            if (total < d) return;
+            // Forged oval links: 18 mm bar, 36 mm clear width; alternate planes interlock.
+            int count = Math.Max(2, (int)MathF.Round(total / (d * 4)));
+            float pitch = total / count;
+            var loop = chainLoop;
+            int segment = 1; float start = 0;
+            for (int link = 0; link < count; link++)
+            {
+                float distance = (link + .5f) * pitch;
+                while (segment < path.Length - 1 && start + path[segment].DistanceTo(path[segment - 1]) < distance)
+                { start += path[segment].DistanceTo(path[segment - 1]); segment++; }
+                var delta = path[segment] - path[segment - 1];
+                var tangent = delta.Normalized();
+                var center = path[segment - 1] + tangent * (distance - start);
+                var side = tangent.Cross(MathF.Abs(tangent.Y) > .9f ? Vector3.Right : Vector3.Up).Normalized();
+                if ((link & 1) != 0) side = tangent.Cross(side);
+                float radius = d * 1.5f, straight = MathF.Max(0, pitch * .5f - d * .5f);
+                for (int k = 0; k <= 32; k++)
+                {
+                    float a = MathF.Tau * k / 32;
+                    loop[k] = center + tangent * (MathF.Cos(a) * radius + (k < 8 || k > 24 ? straight : k > 8 && k < 24 ? -straight : 0)) + side * (MathF.Sin(a) * radius);
+                }
+                // Duplicate the first vertex exactly; no cap or normal seam at the welded closure.
+                loop[32] = loop[0];
+                Add(loop, d, 10, Tint(kind), water, rain, closed: true);
+            }
         }
 
         /// <summary>A flat end: the cut face of the rope, its rim the ring at `rim`.</summary>
@@ -259,16 +319,18 @@ public static class Rope
         }
         var tube = new Tube();
         tube.Begin();
+        Kind materialKind = Kind.Running;
         foreach (var path in Chains(segs))
         {
             float len = 0;
             for (int i = 1; i < path.Count; i++) len += path[i].DistanceTo(path[i - 1]);
             var kind = kindOf(path[0], path[^1], len * scale);
-            tube.Add(System.Runtime.InteropServices.CollectionsMarshal.AsSpan(path), Diameter(kind) / scale, Sides(kind), Tint(kind), float.NaN, staticWet);
+            materialKind = kind;
+            tube.AddKind(System.Runtime.InteropServices.CollectionsMarshal.AsSpan(path), kind, scale, rain: staticWet);
         }
         if (tube.Verts == 0) return null;
         var mesh = new ArrayMesh { ResourceName = "ropes" };
-        tube.Commit(mesh, Material);
+        tube.Commit(mesh, MaterialFor(materialKind));
         var st = new Static { Mesh = mesh, Arrays = mesh.SurfaceGetArrays(0), Dry = new Color[tube.Verts] };
         // the dry colours: undo the rain's share the tube put in (staticWet is 0 at load)
         Array.Copy(st.Arrays[(int)Mesh.ArrayType.Color].AsColorArray(), st.Dry, st.Dry.Length);
@@ -333,6 +395,7 @@ public static class Rope
     /// shrouds and stays (long) tarred standing rigging, her ratlines (short and level) thin, the rest running rigging.</summary>
     public static Func<Vector3, Vector3, float, Kind> RiggingKinds(string name)
     {
+        if (name == "f_wire") return (_, _, _) => Kind.FurnitureWire;
         if (name.Contains("jib_rigging")) return (_, _, _) => Kind.Wire;
         if (name.Contains("gate_leaf") || name.Contains("chains")) return (_, _, _) => Kind.Chain;
         if (name == "angler") return (_, _, _) => Kind.Twine;
@@ -356,9 +419,10 @@ public static class Rope
         {
             if (node is not GeometryInstance3D g) continue;
             string name = node.Name.ToString();
+            if (g is MeshInstance3D { Mesh: { } wireMesh } wire && wireMesh.GetSurfaceCount() > 0 && wire.GetActiveMaterial(0)?.ResourceName == "f_wire") name = "f_wire";
             // (the angler's line at the Steen: a bare line set in the Steen's life group)
             if (node.GetParent()?.GetParent()?.Name == "steenlife") name = "angler";
-            if (!name.Contains("rigging") && !name.Contains("chains") && name != "angler") continue;
+            if (!name.Contains("rigging") && !name.Contains("chains") && name != "angler" && name != "f_wire") continue;
             Mesh? m = (g as MeshInstance3D)?.Mesh ?? (g as MultiMeshInstance3D)?.Multimesh?.Mesh;
             if (m == null || m.GetSurfaceCount() == 0 || Primitive(m, 0) is not (Mesh.PrimitiveType.Lines or Mesh.PrimitiveType.LineStrip)) continue;
             if (m is not ArrayMesh) continue; // (a RopeLines' immediate mesh draws itself as tubes)
@@ -366,7 +430,7 @@ public static class Rope
             if (!(scale > 1e-4f)) scale = 1;
             var tubes = FromLines(m, scale, RiggingKinds(name));
             if (tubes == null) continue;
-            if (g is MeshInstance3D mesh) mesh.Mesh = tubes;
+            if (g is MeshInstance3D mesh) { mesh.Mesh = tubes; mesh.SetSurfaceOverrideMaterial(0, null); }
             else ((MultiMeshInstance3D)g).Multimesh!.Mesh = tubes;
             g.MaterialOverride = null;
             g.CastShadow = GeometryInstance3D.ShadowCastingSetting.Off;

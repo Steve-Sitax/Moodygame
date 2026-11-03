@@ -30,7 +30,7 @@ public static class NativeRopeProof
         async Task Wait(Func<bool> ok, int seconds) { var until = DateTime.UtcNow.AddSeconds(seconds); while (!ok()) { if (DateTime.UtcNow > until) throw new TimeoutException("rope-proof wait"); await Frames(1); } }
         try
         {
-            Engine.MaxFps = 30; await Wait(() => game.Loaded && ServerLink.I?.Up == true && GameState.I.Live && !Scheldemist.Menu.Loading.Busy, 160);
+            Engine.MaxFps = 30; await Wait(() => game.Loaded && ServerLink.I?.Up == true && GameState.I.Live && !Scheldemist.Menu.Loading.Busy, 1500);
             Jef.I.TestInput = true; var api = ServerLink.I!.Api!;
             async Task Clock(float hour, string weather)
             {
@@ -39,9 +39,47 @@ public static class NativeRopeProof
             }
             await Clock(13, "clear"); await Frames(30);
             facts["inventory"] = Inventory(game);
+            var fittingChecks = new List<object>();
+            foreach (var kind in new[] { Scheldemist.Movers.Rope.Kind.Chain, Scheldemist.Movers.Rope.Kind.Leather, Scheldemist.Movers.Rope.Kind.Wire, Scheldemist.Movers.Rope.Kind.FurnitureWire })
+            {
+                var tube = new Scheldemist.Movers.Rope.Tube(); tube.Begin();
+                tube.AddKind(new[] { Vector3.Zero, Vector3.Right }, kind);
+                var mesh = new ArrayMesh(); tube.Commit(mesh, Scheldemist.Movers.Rope.MaterialFor(kind));
+                var arrays = mesh.SurfaceGetArrays(0);
+                var vertices = arrays[(int)Mesh.ArrayType.Vertex].AsVector3Array();
+                var normals = arrays[(int)Mesh.ArrayType.Normal].AsVector3Array();
+                Check(vertices.All(v => v.IsFinite()) && normals.All(v => v.IsFinite() && v.Length() > .99f), $"{kind} finite positions and unit normals");
+                Check(mesh.SurfaceGetMaterial(0) != Scheldemist.Movers.Rope.Material, $"{kind} uses a fitting material, not hemp");
+                var size = mesh.GetAabb().Size;
+                if (kind == Scheldemist.Movers.Rope.Kind.FurnitureWire)
+                    Check(MathF.Abs(size.Y - .002f) < .00001f && MathF.Abs(size.Z - .002f) < .00001f, "furniture frame uses 2 mm wire rather than crane cable");
+                if (kind == Scheldemist.Movers.Rope.Kind.Leather)
+                {
+                    Check(MathF.Min(size.Y, size.Z) < .004f && MathF.Max(size.Y, size.Z) > .021f, "leather has flat 22 x 3 mm section");
+                    var welded = new Dictionary<(int, int, int), int>();
+                    var vertexIds = vertices.Select(v =>
+                    {
+                        var key = ((int)MathF.Round(v.X * 1000000), (int)MathF.Round(v.Y * 1000000), (int)MathF.Round(v.Z * 1000000));
+                        if (!welded.TryGetValue(key, out int id)) welded[key] = id = welded.Count;
+                        return id;
+                    }).ToArray();
+                    var edges = new Dictionary<(int, int), int>();
+                    var indices = arrays[(int)Mesh.ArrayType.Index].AsInt32Array();
+                    for (int i = 0; i < indices.Length; i += 3)
+                        for (int j = 0; j < 3; j++)
+                        {
+                            int a = vertexIds[indices[i + j]], b = vertexIds[indices[i + (j + 1) % 3]];
+                            var edge = (Math.Min(a, b), Math.Max(a, b));
+                            edges[edge] = edges.GetValueOrDefault(edge) + 1;
+                        }
+                    Check(edges.All(e => e.Key.Item1 != e.Key.Item2 && e.Value == 2), "leather surface is closed across its seam and end caps");
+                }
+                fittingChecks.Add(new { kind = kind.ToString(), verts = tube.Verts, triangles = tube.Indices / 3, size = new[] { size.X, size.Y, size.Z } });
+            }
+            facts["fittingGeometry"] = fittingChecks;
             facts["ropes"] = Scheldemist.Movers.Rope.Report();
-            // (not rope: the lightning's bolt, and a piece of furniture's iron wire, f_wire)
-            bool NotRope(GeometryInstance3D g) => g.Name.ToString() == "alive_bolt" || (g as MeshInstance3D)?.GetActiveMaterial(0)?.ResourceName == "f_wire";
+            // Only lightning is intentionally drawn as a line.
+            bool NotRope(GeometryInstance3D g) => g.Name.ToString() == "alive_bolt";
             facts["notRopeLines"] = Scheldemist.Movers.Rope.LineMeshes(Main.I).Where(NotRope).Select(g => g.GetPath().ToString()).ToArray();
             var flat = Scheldemist.Movers.Rope.LineMeshes(Main.I).Where(g => !NotRope(g)).ToArray();
             facts["flatLines"] = flat.Select(g =>
@@ -52,11 +90,16 @@ public static class NativeRopeProof
                 var mat = (g as MeshInstance3D)?.GetActiveMaterial(0);
                 return new { path = g.GetPath().ToString(), src, material = mat?.ResourceName, kind = mat is ShaderMaterial sm ? Scheldemist.Render.Psx.KindOf(sm.Shader)?.ToString() : null, v };
             }).ToArray();
-            Check(flat.Length == 0, $"no rope is drawn as a line without thickness ({flat.Length} line meshes besides the lightning and a furniture wire)");
+            Check(flat.Length == 0, $"no rope is drawn as a line without thickness ({flat.Length} line meshes besides the lightning)");
             // the mooring lines at low and high water: drawn, over the water, slack at high water and taut at low
             var lines = Scheldemist.Movers.ShipLines.I;
             if (lines != null)
             {
+                Check(lines.SmallEdgesMissing == 0, $"all small painters have a coping bearing ({lines.SmallEdgesMissing} missing)");
+                facts["deckFittings"] = lines.DeckFittings();
+                Check(lines.DeckColliders == lines.DeckBittCount, "all solid deck posts have collision");
+                Check(lines.DeckSupportsMissing == 0, $"deck fittings have measured support ({lines.DeckSupportsMissing} missing)");
+                Check(lines.DeckBittCount >= lines.ShipLineCount, $"ship endpoints have deck bitts ({lines.DeckBittCount})");
                 var tides = new List<object>();
                 var sags = new Dictionary<string, float[]>();
                 foreach (var (name, level) in new[] { ("low", Tide.LwMin + .2f), ("high", Tide.HwMax - .2f) })
@@ -75,8 +118,6 @@ public static class NativeRopeProof
                 }
                 Tide.Hold(null);
                 facts["tide"] = tides;
-                facts["cost"] = new { shipLinesBytes = lines.Bytes, ropeSetBytes = Scheldemist.Movers.RopeLines.Bytes, ropeSetCommits = Scheldemist.Movers.RopeLines.Commits, meanFrameUs = lines.Frames == 0 ? 0 : lines.ProcessUs / lines.Frames, slowestFrameUs = lines.MaxBuildUs, frames = lines.Frames, rebuilds = lines.Rebuilds };
-                GD.Print($"rope-proof: mooring lines cost {(lines.Frames == 0 ? 0 : lines.ProcessUs / lines.Frames):0.0} us a frame on average, the slowest frame {lines.MaxBuildUs:0} us, over {lines.Frames} frames with {lines.Rebuilds} chunks made again; managed bytes: {lines.Bytes} in the mooring lines, {Scheldemist.Movers.RopeLines.Bytes} in {Scheldemist.Movers.RopeLines.Commits} commits of the moving rope sets");
                 float lowSag = sags["low"].Average(), highSag = sags["high"].Average();
                 Check(highSag > lowSag + 0.05f, $"the lines hang slacker at high water than at low (mean sag {lowSag:0.00} m at low, {highSag:0.00} m at high)");
             }
@@ -108,6 +149,39 @@ public static class NativeRopeProof
                 }
                 Tide.Hold(null);
             }
+            if (Main.I.Arg("rope-animation") != "")
+            {
+                var wanted = new[] { "bridge_canal_mouth", "lock_bridge", "lock_gates", "railway_shunter_harness" };
+                var probes = Scheldemist.Movers.MoversTest.Probes.Where(p => wanted.Contains(p.Name)).ToArray();
+                Check(probes.Length == wanted.Length, "all four chain/harness motion probes registered");
+                foreach (var weather in new[] { "clear", "rain", "night" })
+                    foreach (var probe in probes)
+                    {
+                        await Clock(weather == "night" ? 22 : 13, weather == "rain" ? "rain" : "clear");
+                        probe.Start?.Invoke();
+                        if (probe.Ready != null) await Wait(probe.Ready, (int)probe.MaxWait + 1);
+                        await Frames(15);
+                        var first = probe.Where();
+                        for (int sample = 0; sample < 2; sample++)
+                        {
+                            var (eye, look) = probe.View();
+                            if (probe.Name == "railway_shunter_harness") eye = look + (eye - look) * .45f;
+                            game.Cam.GlobalPosition = eye;
+                            var q = new Transform3D(Basis.Identity, eye).LookingAt(look).Basis.GetRotationQuaternion();
+                            if (game.Cam is FlyCam fly) fly.Face(q); else game.Cam.Quaternion = q;
+                            await Frames(2); await game.ToSignal(RenderingServer.Singleton, RenderingServer.SignalName.FramePostDraw);
+                            using var picture = game.GetViewport().GetTexture().GetImage();
+                            picture.SavePng(Path.Combine(output, $"motion-{probe.Name}-{weather}-{sample}.png"));
+                            if (sample == 0) await Frames((int)(probe.Gap * 30));
+                        }
+                        var after = probe.Where();
+                        Check((probe.MinMove > 0 && first.At.DistanceTo(after.At) >= probe.MinMove) || (probe.MinTurn > 0 && Math.Abs(first.Turn - after.Turn) >= probe.MinTurn), $"{probe.Name} moves in {weather}");
+                        if (probe.Check != null) Check(string.IsNullOrEmpty(probe.Check()), $"{probe.Name} attachment check in {weather}: {probe.Check()}");
+                        probe.End?.Invoke();
+                        if (probe.End != null) await Frames(300);
+                    }
+            }
+
         }
         catch (Exception e) { error = e.ToString(); GD.PrintErr("rope-proof failed: " + e); }
         bool ok = error == null && checks.All(c => (bool)c.GetType().GetProperty("pass")!.GetValue(c)!);

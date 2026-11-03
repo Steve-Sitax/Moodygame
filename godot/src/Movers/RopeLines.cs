@@ -91,8 +91,8 @@ public partial class RopeLines : MeshInstance3D
                 float f = (float)k / n;
                 path[k] = a.Lerp(b, f) + Vector3.Down * (sag * 4 * f * (1 - f));
             }
-            tube.Add(path.AsSpan(0, n + 1), d, sides, tint, water, wet);
+            tube.AddKind(path.AsSpan(0, n + 1), kind, water: water, rain: wet);
         }
-        tube.Commit(mesh, Rope.Material);
+        tube.Commit(mesh, Rope.MaterialFor(kind));
     }
 }

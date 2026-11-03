@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using Godot;
 using Scheldemist.World;
 
@@ -64,6 +65,73 @@ public partial class ShipLines : Node
     private float drawnWet = -1;
     private bool ready, started;
     private int nShip;
+    private readonly List<(Node3D Node, int Carrier, float Y)> bitts = new();
+
+    private Material? bittIron;
+    private readonly CapsuleMesh bittPost = new() { Radius = .09f, Height = 1.0f, RadialSegments = 24, Rings = 6 };
+    private readonly CapsuleMesh bittHorns = new() { Radius = .045f, Height = .42f, RadialSegments = 16, Rings = 6 };
+    private ArrayMesh? bittFoot;
+
+    private void AddBitt(End end)
+    {
+        if (end.V < 0 || end.V >= carriers.Count) return;
+        var c = carriers[end.V];
+        var inward = new Vector3(c.X - end.X, 0, c.Z - end.Z).Normalized() * .35f;
+        var root = new Node3D { Name = "deck_bitt", Position = new Vector3(end.X, end.Y, end.Z) + inward };
+        Mv.Town.AddChild(root);
+        if (bittIron == null)
+        {
+            // Reuse the town's existing detailed native iron, including wet response and casting relief.
+            foreach (var node in BakedWorld.All(Mv.Town).OfType<MeshInstance3D>())
+            {
+                if (node.Mesh == null) continue;
+                for (int i = 0; i < node.Mesh.GetSurfaceCount(); i++)
+                    if (node.GetActiveMaterial(i) is ShaderMaterial iron && iron.HasMeta("native_surface_kind") && iron.GetMeta("native_surface_kind").AsString() == "cast_iron") { bittIron = iron; break; }
+                if (bittIron != null) break;
+            }
+            if (bittIron == null)
+            {
+                var fallback = (ShaderMaterial?)Rope.MaterialFor(Rope.Kind.Chain)?.Duplicate();
+                fallback?.SetShaderParameter("albedo", Rope.Tint(Rope.Kind.Chain)); bittIron = fallback;
+            }
+        }
+        if (bittFoot == null)
+        {
+            var surface = new SurfaceTool(); surface.Begin(Mesh.PrimitiveType.Triangles);
+            surface.AppendFrom(new CylinderMesh { TopRadius = .137f, BottomRadius = .137f, Height = .026f, RadialSegments = 24 }, 0, Transform3D.Identity);
+            var rim = new TorusMesh { InnerRadius = .134f, OuterRadius = .14f, Rings = 24, RingSegments = 8 };
+            foreach (float y in new[] { -.01f, .01f }) surface.AppendFrom(rim, 0, new Transform3D(Basis.Identity, Vector3.Up * y));
+            // Four recessed-deck fasteners: hex flats intentionally retain their machined edges.
+            var bolt = new CylinderMesh { TopRadius = .01f, BottomRadius = .01f, Height = .008f, RadialSegments = 6 };
+            var bevel = new CylinderMesh { TopRadius = .008f, BottomRadius = .01f, Height = .002f, RadialSegments = 6 };
+            foreach (float x in new[] { -.085f, .085f }) foreach (float z in new[] { -.085f, .085f })
+            {
+                surface.AppendFrom(bolt, 0, new Transform3D(Basis.Identity, new Vector3(x, .017f, z)));
+                surface.AppendFrom(bevel, 0, new Transform3D(Basis.Identity, new Vector3(x, .022f, z)));
+            }
+            bittFoot = surface.Commit();
+        }
+        root.AddChild(new MeshInstance3D { Name = "post", Position = Vector3.Down * .35f, Mesh = bittPost, MaterialOverride = bittIron });
+        root.AddChild(new MeshInstance3D { Name = "horns", Position = Vector3.Up * .04f, Rotation = new Vector3(0,0,MathF.PI / 2), Mesh = bittHorns, MaterialOverride = bittIron });
+        root.AddChild(new MeshInstance3D { Name = "rounded_cast_foot", Position = Vector3.Down * .75f, Mesh = bittFoot, MaterialOverride = bittIron });
+        var body = new AnimatableBody3D { Name = "bitt_collision", SyncToPhysics = false };
+        body.AddChild(new CollisionShape3D { Name = "shaft", Position = Vector3.Down * .35f, Shape = new CapsuleShape3D { Radius = .09f, Height = 1f } });
+        body.AddChild(new CollisionShape3D { Name = "horns", Position = Vector3.Up * .04f, Rotation = new Vector3(0,0,MathF.PI / 2), Shape = new CapsuleShape3D { Radius = .045f, Height = .42f } });
+        root.AddChild(body);
+        var tube = new Rope.Tube(); tube.Begin();
+        var tail = new Vector3[22];
+        tail[0] = -inward;
+        for (int i = 1; i < tail.Length; i++)
+        {
+            float t = (i - 1) / 20f;
+            float a = t * MathF.Tau * 2;
+            tail[i] = new Vector3(MathF.Cos(a) * .112f, -.04f - t * .085f, MathF.Sin(a) * .112f);
+        }
+        tube.Add(tail, Rope.Diameter(Rope.Kind.Hawser), 8, Rope.Tint(Rope.Kind.Hawser));
+        var mesh = new ArrayMesh(); tube.Commit(mesh, Rope.Material);
+        root.AddChild(new MeshInstance3D { Name = "belayed_hawser", Mesh = mesh });
+        bitts.Add((root, end.V, end.Y));
+    }
     public int Rebuilds { get; private set; }
     public static ShipLines? I { get; private set; }
 
@@ -92,14 +160,17 @@ public partial class ShipLines : Node
         if (space == null) return null;
         var q = new PhysicsRayQueryParameters3D { CollideWithAreas = false };
         Vector3? lastOn = null;
-        for (float s = 0.04f; s < 1.8f; s += 0.04f)
+        for (float s = -0.4f; s < 4f; s += 0.04f)
         {
             var p = ring + across * s;
-            q.From = new Vector3(p.X, ring.Y + 0.8f, p.Z);
+            q.From = new Vector3(p.X, ring.Y + 0.3f, p.Z);
             q.To = new Vector3(p.X, ring.Y - 0.5f, p.Z);
             var hit = space.IntersectRay(q);
             if (hit.Count == 0 || hit["position"].AsVector3().Y < ring.Y - 0.3f)
-                return lastOn;
+            {
+                if (lastOn != null) return lastOn;
+                continue; // Some rings sit just outside the collision lip; find the stone behind them first.
+            }
             float y = hit["position"].AsVector3().Y;
             if (y > ring.Y + 0.4f) return lastOn; // (a bollard or a wall, not the coping)
             lastOn = new Vector3(p.X, y, p.Z);
@@ -156,6 +227,7 @@ public partial class ShipLines : Node
             lines.Add(l);
         }
         nShip = lines.Count;
+        foreach (var line in lines) { AddBitt(line.A); AddBitt(line.B); }
         // the bake's chunks: which lines each holds (hidden; their meshes were the browser's tubes at bake time)
         foreach (var c in root.GetChildren())
         {
@@ -213,6 +285,27 @@ public partial class ShipLines : Node
                 if (l.A.V >= 0 && l.A.V < of.Length && !of[l.A.V].Contains(c)) of[l.A.V].Add(c);
                 if (l.B.V >= 0 && l.B.V < of.Length && !of[l.B.V].Contains(c)) of[l.B.V].Add(c);
             }
+        // Use the same measured deck surfaces as walking, not a universal rail-to-deck height.
+        foreach (var bitt in bitts)
+        {
+            var carrier = carriers[bitt.Carrier];
+            var decks = Scheldemist.Play.ShipWalk.I?.Decks;
+            var deck = decks?.Where(d => d.Visible()).OrderBy(d => new Vector2(d.World().Origin.X - carrier.X, d.World().Origin.Z - carrier.Z).LengthSquared()).FirstOrDefault();
+            if (deck == null || new Vector2(deck.World().Origin.X - carrier.X, deck.World().Origin.Z - carrier.Z).Length() > 1) { DeckSupportsMissing++; continue; }
+            var xf = deck.World();
+            var local = xf.AffineInverse() * new Vector3(bitt.Node.Position.X, xf.Origin.Y, bitt.Node.Position.Z);
+            float floor = deck.Mesh.Floor(local.X, local.Z);
+            if (!float.IsFinite(floor)) { DeckSupportsMissing++; continue; }
+            float foot = (xf * new Vector3(local.X, floor, local.Z)).Y - CarrierY(bitt.Carrier) - bitt.Y;
+            bitt.Node.GetNode<Node3D>("rounded_cast_foot").Position = Vector3.Up * (foot + .013f);
+            var post = bitt.Node.GetNode<Node3D>("post");
+            float bottom = foot - .03f;
+            post.Position = Vector3.Up * ((bottom + .15f) / 2);
+            post.Scale = new Vector3(1, MathF.Max(.2f, .15f - bottom), 1);
+            var collision = bitt.Node.GetNode<CollisionShape3D>("bitt_collision/shaft");
+            collision.Position = post.Position;
+            ((CapsuleShape3D)collision.Shape).Height = post.Scale.Y;
+        }
         chunksOf = Array.ConvertAll(of, l => l.ToArray());
         last = new float[carriers.Count];
         now = new float[carriers.Count];
@@ -259,6 +352,7 @@ public partial class ShipLines : Node
                 foreach (int c in chunksOf[i]) chunks[c].Dirty = true;
             }
         }
+        foreach (var bitt in bitts) bitt.Node.Position = new Vector3(bitt.Node.Position.X, last[bitt.Carrier] + bitt.Y, bitt.Node.Position.Z);
         // one chunk a frame (all of them the first time): the tide moves a centimetre in half a minute or so
         for (int c = 0; c < chunks.Count; c++)
         {
@@ -376,6 +470,11 @@ public partial class ShipLines : Node
     public int ShipLineCount => nShip;
     /// <summary>For checks: the carriers of small boats' painters that are not shown now (taken away or hidden), their places.</summary>
     public IEnumerable<Vector2> HiddenCarriers() { for (int i = 0; i < carriers.Count; i++) if (!(carriers[i].Shown?.Invoke() ?? true)) yield return new Vector2(carriers[i].X, carriers[i].Z); }
+    public int DeckColliders => bitts.Count(b => b.Node.GetNodeOrNull<CollisionShape3D>("bitt_collision/shaft")?.Shape is CapsuleShape3D);
+    public object DeckFittings() => bitts.Select(b => new { carrier = b.Carrier, at = new[] { b.Node.GlobalPosition.X, b.Node.GlobalPosition.Y, b.Node.GlobalPosition.Z }, foot = b.Node.GetNode<Node3D>("rounded_cast_foot").Position.Y, material = bittIron?.ResourceName }).ToArray();
+    public int DeckSupportsMissing { get; private set; }
+    public int DeckBittCount => bitts.Count;
+    public int SmallEdgesMissing => lines.GetRange(nShip, lines.Count - nShip).FindAll(l => !l.HasEdge).Count;
     public int SmallLineCount => lines.Count - nShip;
 
     /// <summary>

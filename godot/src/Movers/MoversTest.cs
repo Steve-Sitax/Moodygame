@@ -43,7 +43,7 @@ public partial class MoversTest : Node
     }
 
     public static readonly List<Probe> Probes = new();
-    public static bool On => Main.I.Arg("moverstest") != "";
+    public static bool On => Main.I.Arg("moverstest") != "" || Main.I.Arg("rope-animation") != "";
     public static void Add(Probe p) => Probes.Add(p);
 
     private string dir = "";
