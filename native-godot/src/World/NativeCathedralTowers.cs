@@ -22,7 +22,7 @@ namespace Scheldemist.Native.World;
 /// shader kind, no light. No collision: nothing reaches the towers' stages (and the shell has none there).
 /// (dev: --open-cathedral-towers leaves the towers as baked, for a before-and-after)
 /// </summary>
-public static class NativeCathedralTowers
+public static partial class NativeCathedralTowers
 {
     public const string Meta = "native_cathedral_towers";
     private const string Paint = "res://assets/materials/town-facades-20261018/shutter-paint-kept.tres";
@@ -58,10 +58,12 @@ public static class NativeCathedralTowers
         var holder = new Node3D { Name = "cathedral_tower_infill" };
         town.AddChild(holder);
         var metal = new Builder(); var oak = new Builder(); var wall = new Builder(); var stone = new Builder(); var pane = new Builder(); var bars = new Builder();
+        var tracery = new Builder();
         var rng = new Random(260);
         int gratings = 0, louvres = 0;
         foreach (var op in openings)
         {
+            Tracery(op, tracery);
             if (op.Kind == Fill.Grating) { Grating(op, metal, wall, stone, pane, bars, rng); gratings++; }
             else { Louvres(op, oak, rng); louvres++; }
         }
@@ -80,6 +82,7 @@ public static class NativeCathedralTowers
         Add("window_reveals", stone, carved, 260);
         Add("window_glass", pane, glass, 0);
         Add("window_bars", bars, iron, 160);
+        Add("stone_tracery", tracery, carved, 0);
         holder.SetMeta(Meta, true);
         foreach (var n in Scheldemist.World.BakedWorld.All(holder)) n.SetMeta(Meta, true);
         return (gratings, louvres, removed, tris);
@@ -90,12 +93,12 @@ public static class NativeCathedralTowers
     private static Vector3 W(float u, float v, float y) => new(CentreX + v, y, FrontZ + u);
 
     /// <summary>A pointed arch's outline in a unit box (arch_shape(tsp, 3) of the bake: two-centred, radius 1.25).</summary>
-    private static Vector2[] ArchShape(float tsp)
+    private static Vector2[] ArchShape(float tsp, int steps = 6)
     {
         const float r = 1.25f;
         float T(float x) { x = Math.Min(x, 1 - x); return tsp + (1 - tsp) * MathF.Sqrt(Math.Max(0, r * r - (x - r) * (x - r))); }
         var pts = new List<Vector2> { new(0, 0), new(1, 0), new(1, tsp) };
-        for (int k = 1; k < 6; k++) { float x = 1 - k / 6f; pts.Add(new Vector2(x, T(x))); }
+        for (int k = 1; k < steps; k++) { float x = 1 - k / (float)steps; pts.Add(new Vector2(x, T(x))); }
         pts.Add(new Vector2(0, tsp));
         return pts.ToArray();
     }
@@ -123,7 +126,7 @@ public static class NativeCathedralTowers
                 var a = ring[fi]; var b = ring[(fi + 1) % 4];
                 var mid = (a + b) / 2 - new Vector2(TowerU, tv);
                 AddFace(list, $"{(st.North ? "north" : "south")} tower stage {st.I} face {fi}", a, b, mid, st.Y0, st.Y1, 128, 256,
-                    new[] { (17f, 30f, 42f, 222f), (69f, 30f, 42f, 222f) }, 0.8f, unit, 1.0f, clip, st.Kind);
+                    st.I <= 2 ? new[] { (24f, 30f, 80f, 222f) } : new[] { (17f, 30f, 42f, 222f), (69f, 30f, 42f, 222f) }, 0.8f, st.I <= 2 ? ArchShape(.8f, 48) : unit, 1.0f, clip, st.Kind);
             }
         }
         // the north tower's octagon (74-93.5 m): its cardinal faces open over the clock (83.2 m up), its diagonal faces all the way

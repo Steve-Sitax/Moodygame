@@ -2,6 +2,7 @@ using Godot;
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Globalization;
 using System.Linq;
 using System.Security.Cryptography;
 using System.Text.Json;
@@ -39,14 +40,19 @@ public partial class SqueezedUvRepair : Node
         // J * [x1 x2; 0 y2] = [d1 d2]
         float j00 = d1.X / x1, j10 = d1.Y / x1;
         float j01 = (d2.X - j00 * x2) / y2, j11 = (d2.Y - j10 * x2) / y2;
-        float s1 = j00 * j00 + j01 * j01 + j10 * j10 + j11 * j11, det = j00 * j11 - j01 * j10;
-        float root = MathF.Sqrt(Math.Max(0, s1 * s1 - 4 * det * det));
-        return (MathF.Sqrt((s1 + root) / 2), MathF.Sqrt(Math.Max(0, (s1 - root) / 2)), area);
+        double s1 = (double)j00 * j00 + (double)j01 * j01 + (double)j10 * j10 + (double)j11 * j11;
+        double det = (double)j00 * j11 - (double)j01 * j10;
+        double hi = Math.Sqrt((s1 + Math.Sqrt(Math.Max(0, s1 * s1 - 4 * det * det))) / 2);
+        // det = hi * lo avoids cancellation on the very narrow bevel faces we inspect.
+        return ((float)hi, hi > 0 ? (float)(Math.Abs(det) / hi) : 0, area);
     }
 
     void Repair()
     {
         string root = Arg("root"), prefix = Arg("prefix"), output = Arg("record");
+        bool audit = OS.GetCmdlineUserArgs().Contains("--audit");
+        string materialFilter = Arg("material");
+        float? requestedScale = float.TryParse(Arg("scale"), NumberStyles.Float, CultureInfo.InvariantCulture, out float parsedScale) && parsedScale > 0 ? parsedScale : null;
         if (root == "" || output == "") throw new ArgumentException("--root and --record are required");
         Directory.CreateDirectory(output);
         var scene = ResourceLoader.Load<PackedScene>($"res://world/town/roots/{root}.scn").Instantiate<Node3D>(); AddChild(scene);
@@ -63,7 +69,9 @@ public partial class SqueezedUvRepair : Node
             for (int s = 0; s < source.GetSurfaceCount(); s++)
             {
                 var arrays = source.SurfaceGetArrays(s);
-                bool textured = source.SurfaceGetMaterial(s) is ShaderMaterial sm && sm.GetShaderParameter("tex").Obj is Texture2D;
+                var material = source.SurfaceGetMaterial(s);
+                bool textured = material is ShaderMaterial sm && sm.GetShaderParameter("tex").Obj is Texture2D
+                    && (materialFilter == "" || material.ResourceName == materialFilter);
                 if (textured && source.SurfaceGetPrimitiveType(s) == Mesh.PrimitiveType.Triangles && arrays[(int)Mesh.ArrayType.TexUV].VariantType != Variant.Type.Nil)
                 {
                     var v = arrays[(int)Mesh.ArrayType.Vertex].AsVector3Array();
@@ -74,14 +82,21 @@ public partial class SqueezedUvRepair : Node
                     for (int t = 0; t < st.Length; t++) st[t] = Stretch(w[ix[3 * t]], w[ix[3 * t + 1]], w[ix[3 * t + 2]], uv[ix[3 * t]], uv[ix[3 * t + 1]], uv[ix[3 * t + 2]]);
                     // the surface's own scale: the median of its large faces (over 0.2 m2)
                     var large = st.Where(q => q.Area > 0.2f && q.Lo > 0).Select(q => q.Lo).OrderBy(q => q).ToArray();
-                    if (large.Length >= 10)
+                    if (requestedScale != null || large.Length >= 10)
                     {
-                        float scale = large[large.Length / 2];
+                        float scale = requestedScale ?? large[large.Length / 2];
                         var bad = Enumerable.Range(0, st.Length).Where(t => st[t].Area > 0 && (st[t].Hi > 3 * scale || st[t].Lo < scale / 3)).ToArray();
                         if (bad.Length > 0)
                         {
+                            if (audit)
+                            {
+                                fixedTris += bad.Length;
+                                surfaces.Add($"{s}: {bad.Length} of {st.Length} at {scale:0.000}");
+                                if (bad.Length < 10)
+                                    foreach (int t in bad) GD.Print($"UV triangle {name}/{s}/{t}: area={st[t].Area:E3} stretch={st[t].Hi:E3}/{st[t].Lo:E3}");
+                                continue;
+                            }
                             // new corners for the bad triangles: every array copied, the uv mapped again
-                            var lists = new Dictionary<int, System.Collections.IList>();
                             int n0 = v.Length;
                             var copy = new List<int>();
                             var newUv = new List<Vector2>(uv);
@@ -91,9 +106,17 @@ public partial class SqueezedUvRepair : Node
                                 var n = (c - a).Cross(b - a).Normalized();
                                 Vector3 ud, vd;
                                 if (Math.Abs(n.Y) < 0.7f) { ud = Vector3.Up.Cross(n).Normalized(); vd = (Vector3.Down - n * n.Dot(Vector3.Down)).Normalized(); }
-                                else { ud = Vector3.Right; vd = Vector3.Back; }
+                                else
+                                {
+                                    ud = (Vector3.Right - n * n.X).Normalized();
+                                    vd = n.Cross(ud).Normalized();
+                                    if (vd.Dot(Vector3.Back) < 0) vd = -vd;
+                                }
                                 var centre = (uv[ix[3 * t]] + uv[ix[3 * t + 1]] + uv[ix[3 * t + 2]]) / 3;
                                 var pc = (a + b + c) / 3;
+                                // Microscopic slivers cannot retain a large UV offset and a sub-micron chart
+                                // in floats at once. A local chart keeps them finite and noncollapsed.
+                                if (st[t].Area < 1e-6f) { centre = Vector2.Zero; pc = a; }
                                 for (int k = 0; k < 3; k++)
                                 {
                                     var p = w[ix[3 * t + k]] - pc;
@@ -123,13 +146,22 @@ public partial class SqueezedUvRepair : Node
                         }
                     }
                 }
-                var flags = (Mesh.ArrayFormat)((long)source.SurfaceGetFormat(s) & ((long)Mesh.ArrayFormat.FlagCompressAttributes | ((long)Mesh.ArrayFormat.FormatCustomMask << (int)Mesh.ArrayFormat.FormatCustom0Shift) | ((long)Mesh.ArrayFormat.FormatCustomMask << (int)Mesh.ArrayFormat.FormatCustom1Shift)));
+                if (audit) continue;
+                // Recompressing decoded positions shifts narrow arrises (up to 3 mm on the cathedral), and
+                // half-precision UVs can collapse the newly repaired charts. Keep full precision here.
+                var flags = (Mesh.ArrayFormat)((long)source.SurfaceGetFormat(s) & (((long)Mesh.ArrayFormat.FormatCustomMask << (int)Mesh.ArrayFormat.FormatCustom0Shift) | ((long)Mesh.ArrayFormat.FormatCustomMask << (int)Mesh.ArrayFormat.FormatCustom1Shift)));
                 result.AddSurfaceFromArrays(source.SurfaceGetPrimitiveType(s), arrays, null, null, flags);
                 result.SurfaceSetMaterial(result.GetSurfaceCount() - 1, source.SurfaceGetMaterial(s));
-                if (result.SurfaceGetFormat(result.GetSurfaceCount() - 1) != source.SurfaceGetFormat(s)) throw new InvalidDataException($"{name} surface {s}: format {result.SurfaceGetFormat(result.GetSurfaceCount() - 1)} was {source.SurfaceGetFormat(s)}");
+                if (result.SurfaceGetFormat(result.GetSurfaceCount() - 1) != (source.SurfaceGetFormat(s) & ~Mesh.ArrayFormat.FlagCompressAttributes)) throw new InvalidDataException($"{name} surface {s}: format {result.SurfaceGetFormat(result.GetSurfaceCount() - 1)} was {source.SurfaceGetFormat(s)}");
             }
             if (fixedTris == 0) continue;
             string path = source.ResourcePath, file = ProjectSettings.GlobalizePath(path);
+            if (audit)
+            {
+                records.Add(new { node = name, mesh = path, triangles = fixedTris, surfaces });
+                GD.Print($"Squeezed uv audit: {name} ({path}): {fixedTris} triangles ({string.Join("; ", surfaces)})");
+                continue;
+            }
             var bytes = File.ReadAllBytes(file);
             string backup = Path.Combine(output, Path.GetFileName(file));
             if (File.Exists(backup)) throw new IOException("Backup exists; use a fresh record directory");
@@ -138,8 +170,8 @@ public partial class SqueezedUvRepair : Node
             records.Add(new { node = name, mesh = path, triangles = fixedTris, surfaces, before = Convert.ToHexString(SHA256.HashData(bytes)), after = Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(file))) });
             GD.Print($"Squeezed uv: {name} ({path}): {fixedTris} triangles mapped again ({string.Join("; ", surfaces)})");
         }
-        if (records.Count == 0) throw new InvalidDataException("Nothing squeezed (repaired already?)");
-        File.WriteAllText(Path.Combine(output, "squeezed-uv.json"), JsonSerializer.Serialize(records, new JsonSerializerOptions { WriteIndented = true }));
+        if (records.Count == 0 && !audit) throw new InvalidDataException("Nothing squeezed (repaired already?)");
+        File.WriteAllText(Path.Combine(output, audit ? "squeezed-uv-audit.json" : "squeezed-uv.json"), JsonSerializer.Serialize(records, new JsonSerializerOptions { WriteIndented = true }));
     }
 
     static T[] Extend<T>(T[] source, List<int> copy, int stride)

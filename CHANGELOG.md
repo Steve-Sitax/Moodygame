@@ -11,6 +11,8 @@ Bugs and loose ends are tracked as [issues](https://github.com/Steve-Sitax/Moody
 
 ## [Unreleased]
 
+- Street paving now meets courtyard walls and adjoining ground without narrow see-through seams; the church stair apron joins the cobbles while its drain stays open.
+- Cathedral lower tower stages now have one broad, four-light opening per face, with deeper reveals and rounded framing. The stone tracery braces meet the arches. Surrounding stonework and drainage remain unfinished.
 - Bridges and locks now have interlocking chain links, horse harnesses have flat leather straps, and the lampshade frame has thin iron wire. Ship mooring lines wrap around deck fittings that follow the tide. The torn sack by the rail has woven jute, folds and thin edges.
 - Removed the broad, blurry damp, moss and salt strips that floated across shop and tavern doorways. The walls retain their own weathering, local runoff marks, posters and lettering.
 - Eight more doors lead down towards the Ruien: a side door in each of four gateway passages (the Sint-Jorispoort, by the Keizerspoort, on the Kanaalrui and by Sint-Jansplein), in a dressed bluestone frame, and four doors in house walls (on the Paulusrui, and in the gables of three cottages on the Kipdorprui, Kanaalrui and Entrepotrui) with an oak casing and a bluestone doorstep. Behind each a lined stair goes down to a landing closed by a locked iron gate or fresh brickwork; the cottages have a steep cellar stair. The street over the lower end of these stairs keeps its daylight.
