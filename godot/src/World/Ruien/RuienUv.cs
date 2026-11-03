@@ -11,7 +11,7 @@ namespace Scheldemist.World.Ruien;
 public static class RuienUv
 {
     /// <summary>Restore collapsed/sliver UV charts on exposed narrow faces; retain the authored phase and direction.</summary>
-    public static bool Repair(Godot.Collections.Array arrays,string family,bool continuous=false)
+    public static bool Repair(Godot.Collections.Array arrays,string family,bool continuous=false,bool localPhase=false)
     {
         var families=RuienTextures.Families();
         if(!families.TryGetValue(family.StartsWith("ruien_")?family[6..]:family,out var f))return false;
@@ -38,6 +38,10 @@ public static class RuienUv
             float handed=du.Cross(dv)<0?-1:1;var v=new Vector2(-u.Y,u.X)*handed;
             var centre=(uv[a]+uv[b]+uv[c])*tile/3;
             var origin=centre-(u*(length+along)+v*across)/3;
+            // Whole-area charts can be hundreds of metres from zero. On a millimetre sliver, adding its
+            // width there loses float precision. An integral tile shift preserves the sampled bond and
+            // its direction while keeping this repaired triangle's arithmetic near zero.
+            if(localPhase)origin-=new Vector2(MathF.Floor(origin.X/tile.X)*tile.X,MathF.Floor(origin.Y/tile.Y)*tile.Y);
             var fix=new[]{origin,origin+u*length,origin+u*along+v*across};
             bool collapsed=min<.25f||max>3||max/Math.Max(min,1e-6f)>4;
             for(int j=0;j<3;j++){int old=ix[i+j];ix[i+j]=map.Count;if(collapsed)unbake.Add(map.Count);map.Add(old);mapped.Add(fix[j]/tile);}
