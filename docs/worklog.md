@@ -1,5 +1,29 @@
 # Work log
 
+## Generated Ruien UVs and rui surfaces, 2026-11-03 (#285, #291)
+
+`RuienImport` now unfolds generated brick families across each LOD's exported objects, returns triangles to
+their original chunks, repairs narrow charts and saves full-precision attributes. Tiny repaired triangles use
+whole-tile offsets near zero to avoid float cancellation; the audit thresholds are unchanged. O2 keeps its
+original import/snapshot-repair path. Stretch `surfaceLayout` carries the swept path (20 cm samples) and walkway
+side; import extracts native quay setts and adds their relief to collision. Previously import never called
+`RuienPaving`, so the 1b height fix could not affect these brick walks.
+The rubble band was `Gallery.sand`: random foundation masks became actual sandstone-family faces in the bake.
+Generated stretches no longer assign those arbitrary bands; random draws and O2's authored foundations stay.
+The old grey fan is absent in the later rail export and the fresh build. Rechecked #274's isolated card/ray
+evidence and the current #274/1d closure: 1,080 coverage rays pass. Isolated L105 uses an explicit open end card
+where an auto through end would require a neighbouring export. No new ring geometry was built here.
+
+Proofs outside source control: `D:/Code/Proofs/ruien-285-291/`. Both LODs of rebuilt L105 and connected tee
+L79/L48/L92, plus R1 room, audit at exactly 0 m2 stretched (`uv-summary.json`). Final O2 immutable-snapshot
+repair to the same external path: 73/73 files byte-identical, including collision and headers. L105 native
+walk/rail/view checks pass 72/72; tee and supplementary weather views pass 15/15. Matched issue cameras show
+setts, no rubble band and no grey sheet; the tee rim's courses are readable. Separate arch-rim geometry work
+remains outside this pass; these results are not overall connected-environment acceptance.
+Native captures use isolated data/ports and the exclusive render lock; ordinary midday, rain, night and
+inspection light are separate views. Build and G/M-left/M-right export contracts pass. No installed area,
+network fingerprint, package, or icon test was changed/run; existing Town-art resources remain intact.
+
 ## Ruien junction rooms (J1), stage 1d box 3, 2026-11-03 (#272)
 
 Branch t3/ruien-junction-room-generator. `kit/junction_gen.py` + `build_junction.py` build a junction room from its rectangle at rui depth: a sail vault (pendentives and cap in one sphere, springing -2.1, apex -0.9) pierced by elliptic lunettes (crown -0.93) over every rui mouth, since the -0.9 rui crowns leave no height for a dome standing on arches; one solid header ring per mouth (crown -0.945, 6 cm proud, 11 mm arrises) on bluestone imposts and jambs; walkway runs of worn setts with coping and raised seam stones, the walkway sides and fewest footbridges chosen so every rui walkway and the stair join; a corner-arch bluestone stair (2.4 m over the nosings) to an open stairwell whose street opening is checked against `walk.png`; D1 crown shafts kept 1.4 m off the giant's way. Long rooms get equal bays with transverse arches; end mouths run on as barrels for Antigoon. `RuienImport` repairs UVs when the manifest asks (`uvRepair`); `RuienProof --ruien-proof-walk` walks routes and tests the giant capsule for any area.

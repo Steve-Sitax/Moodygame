@@ -181,6 +181,8 @@ if '--no-export' not in argv:
                     coordinates='glTF +Y up; glTF (x, y, z) = (game x, game y, game z)', textures='shared: ../../textures (see ../../manifest.json)')
     stretch_objs = [o for o in coll.all_objects if o.type == 'MESH']
     EG.SEAMS[:] = [(np.array([s['pos'][0], 0, s['pos'][2]]), np.array([s['tangent'][0], 0, s['tangent'][1]])) for s in info.get('seams', [])]
+    # Native paving must follow the actual swept path, including its bends and walkway side.
+    manifest['surfaceLayout'] = dict(path=np.concatenate([path.P[:-1:20], path.P[-1:]]).tolist(), walkwaySide=sec.sides[0] if cls == 'M' else 0)
     for lod in [int(x) for x in arg('--lods', '0,1').split(',')]:
         baked = EG.build_lod(lod, stretch_objs, hide_coll=coll, section=sec)
         EG.export_chunks(baked, keyfn, lambda k: RID, lod, OUT, 'ruien_%s_' % RID, manifest)

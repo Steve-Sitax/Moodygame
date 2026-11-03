@@ -89,6 +89,11 @@ film (with `--write-movie` and `--fixed-fps`); `solo` and `probe` measure one so
 
 Conversion (headless, once per export; it writes under `res://world/ruien` and quits):
 
+Generated manifests with `cls` receive brick unfolding and narrow-face UV repair automatically, across each LOD's
+exported objects. Stretch `surfaceLayout` supplies the swept path and walkway side for native setts and their
+collision; older exports use the selected area's zones. Use `--lods 0,1` to convert both LODs and audit both.
+The original O2 study still uses its separate immutable-snapshot repair and unchanged import path.
+
     godot --headless --path native-godot res://world/ruien/convert.tscn -- --ruien-textures <export>/textures
     godot --headless --path native-godot res://world/ruien/convert.tscn -- --ruien-area <export> --area o2
     godot --headless --path native-godot res://world/ruien/convert.tscn -- --ruien-repair <immutable export snapshot> --area o2 --headers <fittings.glb>

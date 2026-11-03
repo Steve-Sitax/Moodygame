@@ -147,7 +147,9 @@ def build_stretch(route_id, pts, cls, mats, coll, grates=(), lamps=(), start='ju
             g.damage.append((r_.uniform(u_a, u_b), vc + r_.choice([-1, 1]) * r_.uniform(0.25, 0.42) * vtot, r_.uniform(0.2, 0.45), r_.uniform(0.8, 1.1)))
         if r_.random() < 0.4:
             sd = int(r_.choice([-1, 1])); ua = r_.uniform(u_a, u_b)
-            g.sand.append((ua, ua + r_.uniform(1.5, 4.0), sd, sec.spring + 0.4))
+            # Consume the old draws to preserve all other seeded details. Random rubble-foundation
+            # bands have no construction basis in a brick rui; O2's authored foundations are separate.
+            r_.uniform(1.5, 4.0)
         if r_.random() < 0.6:
             g.cdamage.append((r_.uniform(u_a, u_b), int(r_.choice([-1, 1])), sec.water + 0.25, r_.uniform(0.2, 0.4), 1.0))
     # grate shafts: hole in the vault over the walkway (or a ledge), shaft walls, grate and ladder

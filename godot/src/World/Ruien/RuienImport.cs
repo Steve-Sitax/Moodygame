@@ -39,9 +39,24 @@ public static class RuienImport
         float waterMin = manifest.TryGetProperty("waterMin", out var wm) ? wm.GetSingle()
             : area?.WaterMin ?? manifest.GetProperty("markers").GetProperty("water").EnumerateArray().First().GetProperty("height").GetSingle();
         int meshes = 0, tris = 0;
-        // (#272 1d) An export that asks for it gets the metric UV repair of narrow and collapsed charts at full
-        // precision, as RuienRepair gives O2; older exports convert exactly as before.
-        bool uvRepair = manifest.TryGetProperty("uvRepair", out var ur) && ur.ValueKind == JsonValueKind.True;
+        // Generated lines and rooms always receive the native metric charts. The original O2 study still
+        // goes through its separate immutable-snapshot repair, without changing its conversion bytes.
+        bool uvRepair = manifest.TryGetProperty("cls", out _) ||
+            (manifest.TryGetProperty("uvRepair", out var ur) && ur.ValueKind == JsonValueKind.True);
+        var surfaceArea = area;
+        if (manifest.TryGetProperty("surfaceLayout", out var layout))
+        {
+            var section = RuienData.Load().Classes[manifest.GetProperty("cls").GetString()!]
+                with { WalkwaySide = layout.GetProperty("walkwaySide").GetInt32() };
+            var points = layout.GetProperty("path").EnumerateArray().Select(p => new Vector2(p[0].GetSingle(), p[1].GetSingle())).ToArray();
+            var zone = new RuienData.Zone { Id = areaId, S = section, Path = points, Along = new float[points.Length] };
+            for (int i = 1; i < points.Length; i++) zone.Along[i] = zone.Along[i - 1] + points[i].DistanceTo(points[i - 1]);
+            surfaceArea = new RuienData.Area { Id = areaId };
+            surfaceArea.Zones.Add(zone);
+        }
+        bool pave = uvRepair && surfaceArea != null;
+        if (pave) RuienPaving.Layout(surfaceArea!);
+        var pavingFaces = new List<Vector3>();
         foreach (var f in manifest.GetProperty("files").EnumerateObject())
         {
             if (!f.Value.TryGetProperty("lod", out var lodE) || lodE.ValueKind != JsonValueKind.Number) continue;
@@ -50,13 +65,15 @@ public static class RuienImport
             // the area within the repository's budget; --lods 0,1 keeps both)
             if (!lods.Split(',').Contains(lod.ToString())) continue;
             var t0 = Time.GetTicksMsec();
-            foreach (var obj in RuienGlb.Read(Path.Combine(exportDir, f.Name)))
+            var objects = RuienGlb.Read(Path.Combine(exportDir, f.Name)).ToArray();
+            if (uvRepair) ChartBricks(objects);
+            foreach (var obj in objects)
             {
                 string name = obj.Name.StartsWith(prefix) ? obj.Name[prefix.Length..] : obj.Name;
                 var m = Regex.Match(name, @"^(?<key>.+)_lod(?<lod>\d+)_(?<n>\d+)$");
                 string key = m.Success ? m.Groups["key"].Value : name;
                 if (skip.Contains(key)) continue; // (the area's skipKeys: the town draws its own there)
-                var mesh = Build(obj, out int n, uvRepair);
+                var mesh = Build(obj, out int n, uvRepair, pave, lod, charted: uvRepair, pavingFaces: lod == 0 ? pavingFaces : null);
                 if (mesh == null) continue;
                 string file = $"mesh_{key}_lod{lod}_{(m.Success ? m.Groups["n"].Value : "00")}.res";
                 var err = ResourceSaver.Save(mesh, $"{outRes}/{file}", ResourceSaver.SaverFlags.Compress);
@@ -84,6 +101,7 @@ public static class RuienImport
                         into.Add(p.Pos[p.Idx[i]]); into.Add(p.Pos[p.Idx[i + 1]]); into.Add(p.Pos[p.Idx[i + 2]]);
                         named.Add((obj.Name, p.Pos[p.Idx[i]], p.Pos[p.Idx[i + 1]], p.Pos[p.Idx[i + 2]]));
                     }
+        col.AddRange(pavingFaces);
         ResourceSaver.Save(new ConcavePolygonShape3D { Data = col.ToArray(), BackfaceCollision = true }, $"{outRes}/collision.res", ResourceSaver.SaverFlags.Compress);
         foreach (var old in Directory.GetFiles(outDir, "collision_*.res")) File.Delete(old);
         foreach (var (mover, tri) in moverCol)
@@ -137,13 +155,16 @@ public static class RuienImport
     }
 
     /// <summary>
-    /// One object as a compressed mesh, a surface per family (named so), glTF's turn of the faces made Godot's; a
-    /// family's faces in pieces of under 65,536 corners, so each piece has 16-bit indices (half the size on disk).
+    /// One object, with named family surfaces and Godot winding. Legacy conversions use compressed attributes
+    /// and 16-bit index chunks; repaired exports retain full-precision charts with 32-bit indices when needed.
     /// </summary>
-    public static ArrayMesh? Build(RuienGlb.Obj obj, out int tris, bool uvRepair = false)
+    public static ArrayMesh? Build(RuienGlb.Obj obj, out int tris, bool uvRepair = false, bool pave = false, int lod = 0, bool charted = false, List<Vector3>? pavingFaces = null)
     {
         tris = 0;
         var mesh = new ArrayMesh { ResourceName = obj.Name };
+        using var paving = new SurfaceTool();
+        paving.Begin(Mesh.PrimitiveType.Triangles);
+        bool paved = false;
         foreach (var p in obj.Prims)
         {
             // (a family the game leaves out: the study's patches of street paving, where the town has its own street)
@@ -158,7 +179,7 @@ public static class RuienImport
                 {
                     int a = p.Idx[t], b = p.Idx[t + 2], c = p.Idx[t + 1];
                     int fresh = (map.ContainsKey(a) ? 0 : 1) + (map.ContainsKey(b) ? 0 : 1) + (map.ContainsKey(c) ? 0 : 1);
-                    if (map.Count + fresh > 65000) break;
+                    if (!uvRepair && map.Count + fresh > 65000) break;
                     foreach (int v in new[] { a, b, c })
                     {
                         if (!map.TryGetValue(v, out int k)) map[v] = k = map.Count;
@@ -191,13 +212,85 @@ public static class RuienImport
                 arrays[(int)Mesh.ArrayType.Index] = idx.ToArray();
                 var format = Mesh.ArrayFormat.FlagCompressAttributes | (Mesh.ArrayFormat)((long)Mesh.ArrayCustomFormat.Rgba8Unorm << (int)Mesh.ArrayFormat.FormatCustom0Shift);
                 // Quantized UVs collapse millimetre bevel charts, so a repaired surface keeps full-precision attributes.
-                if (uvRepair) { RuienUv.Repair(arrays, p.Material); format &= ~Mesh.ArrayFormat.FlagCompressAttributes; }
+                if (uvRepair)
+                {
+                    if (RuienUnfold.Bricks(p.Material))
+                    {
+                        if (pave) paved |= RuienPaving.Extract(arrays, paving, lod == 0 ? .045f : .075f);
+                        if (arrays[(int)Mesh.ArrayType.Index].AsInt32Array().Length == 0) continue;
+                        if (!charted) RuienUnfold.Apply(arrays, p.Material);
+                    }
+                    RuienUv.Repair(arrays, p.Material, localPhase: true);
+                    format &= ~Mesh.ArrayFormat.FlagCompressAttributes;
+                }
                 mesh.AddSurfaceFromArrays(Mesh.PrimitiveType.Triangles, arrays, null, null, format);
                 mesh.SurfaceSetName(mesh.GetSurfaceCount() - 1, p.Material);
                 tris += arrays[(int)Mesh.ArrayType.Index].AsInt32Array().Length / 3;
             }
         }
+        if (paved)
+        {
+            paving.Index();
+            using var pm = paving.Commit();
+            pavingFaces?.AddRange(pm.GetFaces());
+            var arrays = pm.SurfaceGetArrays(0);
+            RuienUv.Repair(arrays, "ruien_setts", continuous: true);
+            RuienUv.UnfoldFlanks(arrays, "ruien_setts");
+            mesh.AddSurfaceFromArrays(Mesh.PrimitiveType.Triangles, arrays);
+            mesh.SurfaceSetName(mesh.GetSurfaceCount() - 1, "ruien_setts");
+            tris += arrays[(int)Mesh.ArrayType.Index].AsInt32Array().Length / 3;
+        }
         return mesh.GetSurfaceCount() > 0 ? mesh : null;
+    }
+
+    // Export chunk boundaries are storage boundaries, not masonry seams. Unfold the whole family's
+    // connected geometry, then return each triangle to its original object, preserving keys and LOD bounds.
+    private static void ChartBricks(IEnumerable<RuienGlb.Obj> objects)
+    {
+        foreach (var group in objects.SelectMany(o => o.Prims).Where(p => RuienUnfold.Bricks(p.Material)).GroupBy(p => p.Material))
+        {
+            var parts = group.ToArray();
+            var triangles = new RuienPatch.Tris();
+            var indices = new List<int>();
+            foreach (var p in parts)
+            {
+                int start = triangles.P.Count;
+                indices.AddRange(p.Idx.Select(i => i + start));
+                for (int i = 0; i < p.Pos.Length; i++)
+                {
+                    triangles.P.Add(p.Pos[i]);
+                    triangles.N.Add(p.Nrm?[i] ?? Vector3.Up);
+                    triangles.Uv.Add(p.Uv?[i] ?? Vector2.Zero);
+                    triangles.C.Add(p.Col?[i] ?? new Color(0, 0, 0, 0));
+                    var b = p.Bake?[i] ?? new Color(0, 0, 0, 0);
+                    byte Pack(float c) => (byte)Math.Clamp(MathF.Round(MathF.Sqrt(Math.Max(c, 0)) * Math.Clamp(b.A, 0, 1) * 255), 0, 255);
+                    triangles.Bake.Add(new[] { Pack(b.R), Pack(b.G), Pack(b.B), (byte)Math.Clamp(MathF.Round(Math.Max(p.Ao?[i] ?? 1, .02f) * 255), 1, 255) });
+                }
+            }
+            var arrays = RuienPatch.ToArrays(triangles);
+            arrays[(int)Mesh.ArrayType.Index] = indices.ToArray();
+            RuienUnfold.Apply(arrays, group.Key);
+            var pos = arrays[(int)Mesh.ArrayType.Vertex].AsVector3Array();
+            var normal = arrays[(int)Mesh.ArrayType.Normal].AsVector3Array();
+            var uv = arrays[(int)Mesh.ArrayType.TexUV].AsVector2Array();
+            var colour = arrays[(int)Mesh.ArrayType.Color].AsColorArray();
+            var bake = arrays[(int)Mesh.ArrayType.Custom0].AsByteArray();
+            var ix = arrays[(int)Mesh.ArrayType.Index].AsInt32Array();
+            int offset = 0;
+            foreach (var p in parts)
+            {
+                int count = p.Idx.Length;
+                var map = new Dictionary<int, int>();
+                p.Idx = ix.Skip(offset).Take(count).Select(i => { if (!map.TryGetValue(i, out int k)) map[i] = k = map.Count; return k; }).ToArray();
+                var order = map.OrderBy(k => k.Value).Select(k => k.Key).ToArray();
+                p.Pos = order.Select(i => pos[i]).ToArray(); p.Nrm = order.Select(i => normal[i]).ToArray();
+                p.Uv = order.Select(i => uv[i]).ToArray(); p.Col = order.Select(i => colour[i]).ToArray();
+                p.Ao = order.Select(i => bake[i * 4 + 3] / 255f).ToArray();
+                float Linear(byte b) => b * b / (255f * 255f);
+                p.Bake = order.Select(i => new Color(Linear(bake[i * 4]), Linear(bake[i * 4 + 1]), Linear(bake[i * 4 + 2]), 1)).ToArray();
+                offset += count;
+            }
+        }
     }
 
     /// <summary>The first collision triangle (of the names picked) along a ray: its distance, or null (Moller-Trumbore).</summary>
