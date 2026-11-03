@@ -157,6 +157,42 @@ public partial class RuienProof : Node
             }
         }
     }
+    /// <summary>
+    /// Generic route proof for any area (#272 stage 1d): Jef walks each route's points from its start (the walk
+    /// must stay grounded and dry), and an upright 3.85 m giant capsule is tested on the bed at each "giant" point.
+    /// {"routes":[{"name","start":[x,y,z,yawDeg],"points":[[x,z],..],"topAbove":y?}],"giant":[{"name","at":[x,z]}]}
+    /// </summary>
+    private async Task RouteWalks(string file)
+    {
+        var j=Jef.I!;if(j.Fly)j.ToggleFly();j.Frozen=false;
+        var root=JsonDocument.Parse(File.ReadAllText(file)).RootElement;
+        var space=GetViewport().World3D.DirectSpaceState;
+        if(root.TryGetProperty("giant",out var giants))
+            foreach(var g in giants.EnumerateArray())
+            {
+                var at=g.GetProperty("at");float x=at[0].GetSingle(),z=at[1].GetSingle();
+                var hit=space.IntersectRay(PhysicsRayQueryParameters3D.Create(new Vector3(x,-4.2f,z),new Vector3(x,-6f,z),Solid.Layer));
+                float bed=hit.Count>0?hit["position"].AsVector3().Y:-9;
+                var query=new PhysicsShapeQueryParameters3D{Shape=new CapsuleShape3D{Height=3.86f,Radius=.464f},
+                    Transform=new Transform3D(Basis.Identity,new Vector3(x,bed+1.94f,z)),CollisionMask=Solid.Layer,Margin=0};
+                var hits=space.IntersectShape(query);
+                var up=space.IntersectRay(PhysicsRayQueryParameters3D.Create(new Vector3(x,bed+.2f,z),new Vector3(x,0,z),Solid.Layer));
+                float head=up.Count>0?up["position"].AsVector3().Y-(bed+3.86f):99;
+                Check("giant upright at "+g.GetProperty("name").GetString(),bed>-5.2f&&hits.Count==0,$"bed {bed:0.000}, clearance over the head {head:0.000} m, {string.Join(",",hits.Select(h=>(h["collider"].AsGodotObject() as Node)?.Name.ToString()))}");
+            }
+        foreach(var r in root.GetProperty("routes").EnumerateArray())
+        {
+            string name=r.GetProperty("name").GetString()!;var s=r.GetProperty("start");
+            j.Place(s[0].GetSingle(),s[2].GetSingle(),Mathf.DegToRad(s[3].GetSingle()),0,s[1].GetSingle());await Seconds(1.5f);
+            Check(name+" starts on its feet",j.Grounded&&!j.Swimming,$"{j.X},{j.Y},{j.Z}");
+            int k=0;
+            foreach(var p in r.GetProperty("points").EnumerateArray())
+                await WalkTo(new Vector2(p[0].GetSingle(),p[1].GetSingle()),$"{name} point {k++}");
+            if(r.TryGetProperty("topAbove",out var top))Check(name+" ends at the top",j.Y>top.GetSingle(),$"feet {j.Y}");
+            if(r.TryGetProperty("shot",out var shot))await Shot(shot.GetString()!);
+        }
+        if(!j.Fly)j.ToggleFly();
+    }
     private void Surrounds()
     {
         var space=Main.I.View.FindWorld3D().DirectSpaceState;
@@ -510,6 +546,9 @@ public partial class RuienProof : Node
             // Optional walk tests on a stretch (`--ruien-proof-walks <json>`): rail, bends, grates and ladder gaps.
             string walks=Main.I.Arg("ruien-proof-walks");
             if(walks.Length>0)await Walks(walks);
+            // Generic routes and giant checks for any area (`--ruien-proof-walk <json>`, #272 stage 1d junction rooms).
+            string routeWalks=Main.I.Arg("ruien-proof-walk");
+            if(routeWalks.Length>0)await RouteWalks(routeWalks);
             // Optional review cameras after physics assertions, without restarting the whole native town.
             using var lease=await Dev.PerformanceLease.Acquire("Ruien proof");
             string views=Main.I.Arg("ruien-proof-views");

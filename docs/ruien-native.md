@@ -118,6 +118,11 @@ For an isolated stretch intake, add `--out <absolute resource folder>` to `--rui
 stretch mesh prefixes come from the manifest's route ID. Empty or absent movers and absent outlets are valid.
 Daylight beam fall uses the manifest's `waterMin` (or the installed area's value for older exports).
 
+A junction room (`build_junction.py`, art-source KIT.md "Junction rooms") converts the same way; its manifest asks
+for `uvRepair`, so RuienImport runs `RuienUv.Repair` on every surface at full precision (older exports are unchanged).
+`--ruien-proof <dir> --ruien-proof-walk <json>` walks Jef along listed points (grounded and dry at each) and tests an
+upright 3.85 m giant capsule on the bed at listed points, for any area.
+
 A native review can use `--ruien-areas <absolute JSON>` to replace the area list for that process. Keep the usual
 area-list schema, set its area's `export` to the external resource folder, `waterMin` to the section's water,
 and its line zone to the stretch's path/class. `--ruien-always` forces visibility; it is a flag, not a folder argument.

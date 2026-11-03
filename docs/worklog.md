@@ -1,5 +1,11 @@
 # Work log
 
+## Ruien junction rooms (J1), stage 1d box 3, 2026-11-03 (#272)
+
+Branch t3/ruien-junction-room-generator. `kit/junction_gen.py` + `build_junction.py` build a junction room from its rectangle at rui depth: a sail vault (pendentives and cap in one sphere, springing -2.1, apex -0.9) pierced by elliptic lunettes (crown -0.93) over every rui mouth, since the -0.9 rui crowns leave no height for a dome standing on arches; one solid header ring per mouth (crown -0.945, 6 cm proud, 11 mm arrises) on bluestone imposts and jambs; walkway runs of worn setts with coping and raised seam stones, the walkway sides and fewest footbridges chosen so every rui walkway and the stair join; a corner-arch bluestone stair (2.4 m over the nosings) to an open stairwell whose street opening is checked against `walk.png`; D1 crown shafts kept 1.4 m off the giant's way. Long rooms get equal bays with transverse arches; end mouths run on as barrels for Antigoon. `RuienImport` repairs UVs when the manifest asks (`uvRepair`); `RuienProof --ruien-proof-walk` walks routes and tests the giant capsule for any area.
+R1 (7.5 x 5.5, one dome, mouths L65/L100/L114, one footbridge over L100) and R8 (10 x 21, three bays, mouths L31/L78), converted outside `world/ruien`. Density matched to hall C2 (1,058/350 triangles per m2 at LOD0/LOD1): R1 973/379 (410k + 159k, collision 70k), R8 891/324 (820k + 298k, collision 94k). UV audit 0 m2 stretched. See-through cube check (magenta void): at most 3 px per view, hairline T-junctions of the bake's near/far split (#284). Native, isolated (PERF-LOCK, no other windows): R1 71/75, the four failures the giant behind the L100 footbridge (#283); R8 54/54; every walkway to the street and back, giant at every other mouth, midday/rain/night views. The room adds 40-75 draw calls and no measurable frame time (paired hideParts views within +-1 ms). Stretch pipeline finds in #284; worktree import cache in #281. Proofs: `D:/Code/Proofs/ruien-272-1d/` (R1-native-1631, R8-native-1640, R1-native-1719, R8-native-1724).
+
+
 ## Rui rail and drain crossing kit, 2026-11-03 (#272, R2 and R3)
 
 Branch t3/ruien-rail-drain-kit. Steve chose R2 (iron edge rail) as the standard rui walkway and R3 (covered side-drain
