@@ -88,7 +88,10 @@ the game cuts its own quay wall along `markers.outlet` (opening and dressing out
 This writes `export/stretches/L90/`: `L90.blend` (editable), `L90_check.jpg`, `L90_mood.jpg`,
 `ruien_L90_L90_lod0.glb`, `..._lod1.glb` and `manifest.json` (kit placements, section water, collision, lamp/flame and daylight markers, ladder ends,
 water and mist, empty movers). Collision follows the generated section, including shaft holes and end caps;
-void cards and water have no collision. Mask heights follow `Section`; O2 retains its original defaults.
+void cards and water have no collision. End fans close the shell profile down to the bed; the shell
+profile alone leaves a triangular opening below the fan centre (#274). Void-card edges and the cap
+base beneath the bed stay sharp as hidden mating surfaces. `check_stretch_ends.py` checks end coverage
+for both classes, both rui walkway sides and all end kinds. Mask heights follow `Section`; O2 retains its original defaults.
 `check_stretch_export.py` checks G and both M walkway sides in headless Blender without textures or a render.
 For an external native intake and review, see `docs/ruien-native.md` (`--out`, `--ruien-areas`). For a hall:
 `kit/hall_gen.build_hall(room, mats, coll, rng, mouths=[('z0', 1)])` (see `work/test_hall_gen.py`, which built C3).
