@@ -65,6 +65,7 @@ public partial class RuienProof : Node
             Put(keys[0].at,keys[0].look);
             await Seconds(2.5f);
             GD.Print($"RUIEN_MOVIE start {name} frame {Engine.GetFramesDrawn()}");
+            using var profile = new RuienFrameProfile(GetTree());
             float t=0,total=keys[^1].t,nextProbe=0;
             while(t<=total)
             {
@@ -81,7 +82,11 @@ public partial class RuienProof : Node
                 await ToSignal(GetTree(),SceneTree.SignalName.ProcessFrame);
                 t+=(float)GetProcessDeltaTime();
             }
+            await ToSignal(RenderingServer.Singleton,RenderingServer.SignalName.FramePostDraw);
+            File.WriteAllText(Path.Combine(output,name+"-parts.json"),JsonSerializer.Serialize(profile.Finish(name),new JsonSerializerOptions{WriteIndented=true}));
             GD.Print($"RUIEN_MOVIE end {name} frame {Engine.GetFramesDrawn()}");
+            if(Main.I.Arg("ruien-proof-audit-parts").Length>0)
+                File.WriteAllText(Path.Combine(output,name+"-draw-audit.json"),JsonSerializer.Serialize(await RuienFrameProfile.Audit(this,output,name),new JsonSerializerOptions{WriteIndented=true}));
         }
         Audio.Soundscape.RuienSolo=-1;
         Ruien.I!.Data.Fill=authoredFill;
@@ -456,6 +461,7 @@ public partial class RuienProof : Node
             Check("hall street exit clear",j.BodyFree(hallStair.Top.X,.05f,139.2f));
             }
             // Optional review cameras after physics assertions, without restarting the whole native town.
+            using var lease=await Dev.PerformanceLease.Acquire("Ruien proof");
             string views=Main.I.Arg("ruien-proof-views");
             if(views.Length>0)
             {
@@ -491,6 +497,9 @@ public partial class RuienProof : Node
                     if(v.TryGetProperty("inspectionFill",out var inspect))fill=new Color(.55f,.50f,.42f)*inspect.GetSingle();
                     Ruien.I!.Data.Fill=fill;
                     string name=v.GetProperty("name").GetString()!;
+                    // Proof fixture only: an explicit candidate for paired timing and pixel rejection.
+                    using var hiddenParts=new RuienFrameProfile.HiddenParts(v.TryGetProperty("hideParts",out var hidden)
+                        ?hidden.EnumerateArray().Select(p=>p.GetString()!):Array.Empty<string>());
                     if(v.TryGetProperty("wait",out var wait))await Seconds(wait.GetSingle());
                     await Seconds(1);
                     if(RuienWorkmen.ProofActive)
@@ -504,8 +513,10 @@ public partial class RuienProof : Node
                         }
                     }
                     var crewAt=RuienWorkmen.ProofActive?Main.I.View.GetChildren().OfType<Node3D>().Where(n=>n.Name.ToString().Contains("_workman_")).ToDictionary(n=>n,n=>n.GlobalPosition):new();
+                    for(int warm=0;warm<51;warm++)await ToSignal(GetTree(),SceneTree.SignalName.ProcessFrame);
+                    using var profile=new RuienFrameProfile(GetTree());
                     var times=new List<double>();ulong last=Time.GetTicksUsec();
-                    for(int frame=0;frame<140;frame++)
+                    for(int frame=51;frame<140;frame++)
                     {
                         await ToSignal(GetTree(),SceneTree.SignalName.ProcessFrame);
                         ulong now=Time.GetTicksUsec();if(frame>50)times.Add((now-last)/1000.0);last=now;
@@ -521,15 +532,20 @@ public partial class RuienProof : Node
                         Check(worker.Name+" faces his walk at "+name,facing.Normalized().Dot(moved.Normalized())>.5f,$"facing {facing}, moved {moved}");
                     }
                     times.Sort();double mean=times.Average(),p95=times[(int)(times.Count*.95)];
-                    performance.Add(new{name,meanMs=mean,p95Ms=p95,shaders=Render.Psx.ShaderCount});
+                    await ToSignal(RenderingServer.Singleton,RenderingServer.SignalName.FramePostDraw);
+                    var parts=profile.Finish(name);
+                    performance.Add(new{name,meanMs=mean,p95Ms=p95,shaders=Render.Psx.ShaderCount,parts});
                     GD.Print($"RUIEN_FRAME {name}: {mean:0.00} ms, p95 {p95:0.00}");
                     await Shot(name);
+                    if(Main.I.Arg("ruien-proof-audit-parts").Length>0 && (!v.TryGetProperty("audit",out var audit)||audit.GetBoolean()))
+                        File.WriteAllText(Path.Combine(output,name+"-draw-audit.json"),JsonSerializer.Serialize(await RuienFrameProfile.Audit(this,output,name),new JsonSerializerOptions{WriteIndented=true}));
                 }
                 Ruien.I!.Data.Fill=authoredFill;
                 File.WriteAllText(Path.Combine(output,"frames.json"),JsonSerializer.Serialize(performance,new JsonSerializerOptions{WriteIndented=true}));
             }
             string paths=Main.I.Arg("ruien-proof-path");
             if(paths.Length>0)await Paths(paths);
+            File.WriteAllText(Path.Combine(output,"isolation.json"),JsonSerializer.Serialize(lease.Report(),new JsonSerializerOptions{WriteIndented=true}));
         }
         catch (Exception e) { Check("exception",false,e.ToString()); }
         File.WriteAllText(Path.Combine(output,"routes.json"),JsonSerializer.Serialize(checks,new JsonSerializerOptions{WriteIndented=true}));

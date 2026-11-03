@@ -1,5 +1,30 @@
 # Work log
 
+## Ruien per-view cost and culling audit, 2026-11-03 (#271)
+
+Proof-only instrumentation: `--profile-parts` now reports engine and named CPU scopes for views and paths,
+with total draw calls and town-group visibility/path inventories. Explicit group ablation records marginal draws
+and frozen before/hidden/restored images with positive controls; no gameplay culling was enabled.
+Measured base **96fb54883**, before the concurrent town/Ruien merges. 1440x900, seed 1873, uncapped, clear 13:00,
+tide -4.95, closed hatches, crew off. One process alternated four A/B pairs per view, 51 warmup + 89 timed frames;
+pair 0 discarded. B hid city/churches/park_nature. Values below are medians [ranges] of paired sample means, not independent process-run ranges.
+
+| View | A ms | B ms | A process / submission / Ruien ms | A draws |
+|---|---|---|---|---:|
+| Gate | 32.56 [28.47–39.81] | 32.62 [29.76–37.03] | 13.67 / 18.57 / 0.089 | 5268 |
+| Gallery | 25.47 [23.22–26.50] | 22.87 [22.22–23.16] | 10.85 / 14.30 / 0.092 | 3419 |
+| Hall | 18.91 [18.40–19.58] | 18.91 [18.60–19.38] | 10.03 / 8.82 / 0.086 | 1705 |
+
+Gate/hall ranges overlap; gallery does not. **No gain established:** other Godot windows overlapped measurement.
+Midday marginal draws, gate/gallery/hall: city 382.5/229/84 (265 scene-visible nodes), churches 68.5/68/12 (59),
+park_nature 8/8/8 (8). Counts include active passes; scene visibility alone is not renderer submission.
+City hiding changes gate/gallery/hall pixels in every weather (midday 391766/7/9); rejected. Churches change street
+pixels; park nature was unchanged at these cameras only. Wider visibility bounds remain unproven: [#275](https://github.com/Steve-Sitax/Moodygame/issues/275).
+Evidence: `proof/ruien-cost/final/` in worktree `t3-a736abe4`: 42 profiles, 109 path frames, 57 frozen comparisons,
+all restored controls zero, positive controls >=1,175,072 pixels, 85/85 fixture checks, exit 0, 42 shaders, 145 lights.
+The render lock was acquired during startup after coordination; PERF-LOCK covered sampling. Both released at exit.
+No icons, export, asset edits or fingerprint change. Measurements describe the base above, not later merged assets.
+
 ## Ruien end-card holes, 2026-11-03 (#274)
 
 The apparent grey sheets in both L105 directions were outside scenery seen through triangular holes in
