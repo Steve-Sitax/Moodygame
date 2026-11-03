@@ -152,6 +152,34 @@ for inspection, not proof of an autonomous underground route.
   part off; `--no-ruien-gates` leaves the walls whole.
 - Snap views take `fov=N` (vertical degrees) to match a Blender lens.
 
+### Frame costs per view
+
+Use `--profile-parts` with `--ruien-proof-views <json>` or `--ruien-proof-path <json>`.
+`frames.json` keeps the existing wall mean/p95 and adds `parts`: complete rendered-frame wall time,
+engine process/submission and named CPU scopes, total draw calls, scene counts and town-group mesh paths.
+Paths write `<segment>-parts.json` after each segment. Fixed-fps/movie paths are diagnostic, not speed tests.
+CPU scopes nest; do not add their times. Counts named `visibleMeshes` mean scene visibility flags, not occlusion
+or frustum results. MultiMesh nodes count once; draw calls include all active viewports and passes.
+
+`--ruien-proof-audit-parts town/city,town/churches` measures selected groups after the timing window:
+eight frames before, hidden and restored, averaging the last four draw counts in each phase. The per-group
+removed-draw estimate uses the mean of the two visible phases minus the hidden phase; it includes shadows and
+mirrors and can drift as people move. `<view>-draw-audit.json` records both phases and visibility counts.
+A view can set `"audit": false` to skip this work during matched timing. Before/hidden/restored PNGs and changed-pixel counts accompany it; `controlPixels` compares the two visible
+pictures. The scene is paused with fixed grain, and mirrors refresh explicitly.
+`positiveControlPixels` hides the camera geometry deliberately and must be nonzero; `controlPixels` must be zero.
+The diagnostic restores render layers in `finally`
+and never changes collision or enables production culling. Use the emitted group names to select candidates.
+
+A view may explicitly set `"hideParts": ["town/city"]` for a candidate B sample; layers restore after that view.
+This is a proof-only experiment, not a gameplay culling option.
+
+The outer runner must exclusively create `D:/Code/_locks/TOWN-ART-RENDER` before launching and release its own
+lease on exit, so initialization and image capture also serialize with art reviews.
+The proof acquires the shared performance lease and writes `isolation.json`; concurrent windows mean diagnostic
+numbers only. Alternate matched A/B runs, discard initial samples, report run ranges and overlapping ranges.
+A culling change still needs zero differing pixels in Ruien and street views at midday, rain and night.
+
 ## Moving parts and ways in
 
 - **Tide doors** (the export's movers, `markers.json` movers): each leaf turns on its hinge, shut while the river stands
