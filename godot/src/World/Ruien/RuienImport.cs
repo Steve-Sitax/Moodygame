@@ -24,13 +24,20 @@ public static class RuienImport
     public static string Convert(string exportDir, string areaId, string lods = "0")
     {
         var manifest = JsonDocument.Parse(File.ReadAllText(Path.Combine(exportDir, "manifest.json"))).RootElement;
-        string outRes = $"res://world/ruien/{areaId}";
+        // --out also works through the existing conversion scene without changing its dispatcher.
+        var args = OS.GetCmdlineUserArgs();
+        int outArg = Array.IndexOf(args, "--out");
+        if (outArg >= 0 && outArg + 1 >= args.Length) throw new ArgumentException("--out needs an output folder");
+        string outRes = outArg >= 0 ? Path.GetFullPath(args[outArg + 1]).Replace('\\', '/') : $"res://world/ruien/{areaId}";
         string outDir = ProjectSettings.GlobalizePath(outRes);
         Directory.CreateDirectory(outDir);
         foreach (var old in Directory.GetFiles(outDir, "mesh_*.res")) File.Delete(old);
-        string prefix = $"ruien_{areaId}_";
+        string prefix = $"ruien_{(manifest.TryGetProperty("route", out var route) ? route.GetString() : areaId)}_";
         var keys = new SortedDictionary<string, Dictionary<int, List<(string file, Aabb box, int tris)>>>();
-        var skip = RuienData.Load().Areas.FirstOrDefault(a => a.Id == areaId)?.SkipKeys ?? new HashSet<string>();
+        var area = RuienData.Load().Areas.FirstOrDefault(a => a.Id == areaId);
+        var skip = area?.SkipKeys ?? new HashSet<string>();
+        float waterMin = manifest.TryGetProperty("waterMin", out var wm) ? wm.GetSingle()
+            : area?.WaterMin ?? manifest.GetProperty("markers").GetProperty("water").EnumerateArray().First().GetProperty("height").GetSingle();
         int meshes = 0, tris = 0;
         foreach (var f in manifest.GetProperty("files").EnumerateObject())
         {
@@ -62,7 +69,7 @@ public static class RuienImport
         var col = new List<Vector3>();
         var named = new List<(string name, Vector3 a, Vector3 b, Vector3 c)>();
         // a mover's own collision (col_gate_door_n goes with the mover outlet_door_n: its name ends the same) is kept apart
-        var movers = manifest.TryGetProperty("movers", out var mv) ? mv.EnumerateObject().Select(m => m.Name).ToList() : new List<string>();
+        var movers = manifest.TryGetProperty("movers", out var mv) && mv.ValueKind == JsonValueKind.Object ? mv.EnumerateObject().Select(m => m.Name).ToList() : new List<string>();
         string? MoverOf(string colName) => movers.FirstOrDefault(m => colName.EndsWith("_" + string.Join("_", m.Split('_').TakeLast(2))));
         var moverCol = new Dictionary<string, List<Vector3>>();
         foreach (var f in manifest.GetProperty("files").EnumerateObject().Where(f => f.Name.Contains("collision")))
@@ -89,7 +96,7 @@ public static class RuienImport
             }).ToArray())),
         };
         File.WriteAllText(Path.Combine(outDir, "area.json"), JsonSerializer.Serialize(index, new JsonSerializerOptions { WriteIndented = true, Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping }) + "\n");
-        File.WriteAllText(Path.Combine(outDir, "markers.json"), Markers(manifest.GetProperty("markers"), named, mv, moverCol.Keys) + "\n");
+        File.WriteAllText(Path.Combine(outDir, "markers.json"), Markers(manifest.GetProperty("markers"), named, mv, moverCol.Keys, waterMin) + "\n");
         return $"{areaId}: {meshes} meshes, {tris} triangles in {keys.Count} keys, collision {col.Count / 3} triangles, written to {outRes}";
     }
 
@@ -217,7 +224,7 @@ public static class RuienImport
     /// meet the street; its area light over the hatch the hatch's opening; its wide side-gallery spots cool mouths.
     /// Render-only lights (the street's gas lamp over the vliet) and the outdoor and dust volumes are left out.
     /// </summary>
-    private static string Markers(JsonElement mk, List<(string name, Vector3 a, Vector3 b, Vector3 c)> col, JsonElement movers, IEnumerable<string> moverCol)
+    private static string Markers(JsonElement mk, List<(string name, Vector3 a, Vector3 b, Vector3 c)> col, JsonElement movers, IEnumerable<string> moverCol, float waterMin)
     {
         var sources = new List<object>();
         bool openings = mk.TryGetProperty("daylight_openings", out var dl);
@@ -251,7 +258,7 @@ public static class RuienImport
                 var d = new Vector3(0, -1, 0);
                 var bottom = new Vector3(at[0], at[1], at[2]);
                 float fall = Hit(col, bottom + d * 0.05f, d, n => !n.Contains("ladder")) is { } hb ? hb + 0.05f : 99;
-                fall = Math.Min(fall, bottom.Y - (-4.6f));
+                fall = Math.Min(fall, bottom.Y - waterMin);
                 string k = kind == "hatch" ? "hatch" : round ? "shaft" : "grate";
                 float power = k == "hatch" ? 2.2f : round ? 5f : 6f;
                 sources.Add(new { id = name, kind = k, at = new[] { at[0], at[1] - 0.05f, at[2] }, dir = new[] { 0f, -1f, 0f }, size, round, bars = k == "hatch" ? 0 : round ? 5 : 6, power, range = k == "hatch" ? 16f : 14f, beam = Math.Max(fall, 0.5f) });
@@ -275,7 +282,7 @@ public static class RuienImport
                 float down = Hit(col, street + d * -0.5f, d, n => n.Contains("vault")) is { } hv ? hv - 0.5f : (-0.95f - 0f) / d.Y;
                 var bottom = street + d * Math.Max(down, 0.3f);
                 float fall = Hit(col, bottom + d * 0.05f, d, n => !n.Contains("ladder")) is { } hb ? hb + 0.05f : 99;
-                fall = Math.Min(fall, (bottom.Y - (-4.6f)) / -d.Y);
+                fall = Math.Min(fall, (bottom.Y - waterMin) / -d.Y);
                 var at = new[] { bottom.X, bottom.Y - 0.05f, bottom.Z };
                 float len = Math.Max(fall, 0.5f);
                 sources.Add(new { id = name, kind = air ? "shaft" : "grate", at, dir, size = air ? new[] { 0.7f, 0.7f } : new[] { 0.66f, 0.66f }, round = air, bars = air ? 5 : 6, power = air ? 5.0f : 6.0f, range = 14f, beam = len });

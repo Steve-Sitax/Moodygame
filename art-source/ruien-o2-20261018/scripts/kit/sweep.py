@@ -280,10 +280,10 @@ def grate_shaft(path, sec, u, s_c, mats, coll, top=-0.28, h=0.33):
     """Parametric grate shaft: brick shaft walls from the vault to the street, cast-iron grate, step irons,
     and a wrought-iron ladder from the walkway (or ledge) up into the shaft."""
     obs = []
-    def P(uu, ss, yy):
+    def P(uu, yy, ss):
         return path.world(np.array(uu), np.array(ss), np.array(yy))
     s0, s1 = s_c - h, s_c + h
-    ctr = P(u, s_c, -1.0)
+    ctr = P(u, -1.0, s_c)
     def wall(name, fu, fs):
         a = np.linspace(0, 1, 12)
         uu_, ss_ = fu(a), fs(a)
