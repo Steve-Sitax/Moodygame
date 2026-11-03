@@ -136,6 +136,11 @@ can use `{zone, walkOffset}` instead of absolute `y`.
 headers piece is written beside it. This permits comparisons without replacing installed resources. The headless
 `--ruien-section-proof <report folder>` checks both M sides, paving relief, drain impact and keeper-zone selection.
 
+Meetings (#272 stage 1d): a rui that ends in a gallery's side (tee) or where a gallery ends (throat) is built in
+Blender by both stretches from the plan (`art-source/ruien-o2-20261018/scripts/kit/meet.py`, KIT.md "Where galleries
+meet"). Each stretch is its own area with its own water level; the rui's water starts at its sill lip and an exported
+water film (`ruien_misc_Water_film`, no collision) carries it down to the gallery water. No native code is involved.
+
 ## Rendering
 
 - Three shader kinds (`native-godot/shaders/ruien_*`, shared parts in `ruien_common.gdshaderinc`), added once with

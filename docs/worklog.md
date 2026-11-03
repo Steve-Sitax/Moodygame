@@ -1,5 +1,24 @@
 # Work log
 
+## Ruien junction openings, 2026-11-03 (#272 stage 1d, #276)
+
+Branch t3/ruien-gallery-junctions. New `kit/meet.py`: a rui ending in a gallery's side (tee) cuts the gallery's shell,
+ledge paving, coping and channel wall; the rui builds a proud two-rowlock header ring with 18 mm worn arrises, the
+culvert through the ledge with raised bluestone return copings and quoins, a bluestone sill at -4.9, a giant's step
+at -5.5, a step and threshold onto the ledge and the overflow film. `Throat`: a gallery that ends where a rui begins
+(end wall square to the rui, same pieces). build.py's annulus/throat/side gallery moved to `kit/throat.py`.
+`build_stretch.py` finds tees, throats and runs-on from the plan (`--start/--end auto`, `--clip`, `--walkways`).
+#276: one closed shaft lining in an exact vault cut, silt-packed coping joints, channel faces behind the coping,
+end cards 2 cm past the end and 15 cm larger; seams between separately built routes get a shared bed and no relief.
+Checks: `check_meet.py` (tee and throat, both walkway sides: closed ring, risers <= 0.16 m, giant steps <= 0.6 m,
+head room, water) PASS; `check_stretch_ends.py` 1080 rays PASS; `check_stretch_export.py` PASS. O2 build 3765 objects
+identical; O2 export geometry/UV/masks/bakes identical, raw AO round-off <= 1.8e-7. Native (isolated data, ports
+19761/19765, external `--ruien-areas`, 6 areas: L79 + L48/L92 tee, L59/L60 throat, L105): 39 + 26 views, 0 failed
+checks; inspection views show closed openings and no light leaks; L105's grate-low view (#276) shows light only
+through the grate. The meetings have no lamp or grate in the plan, so the mood shots there are dark. Open: ring face
+reads smeared and stretch UVs fail RuienUv by 15-30 % area (native stretch UV repair), the gallery ledge stops at a
+tee mouth (crossing is Steve's choice), area visibility at meetings, build.py hash() seeds. Proofs:
+`D:/Code/Proofs/ruien-272-1d/` (native-proof/, native-proof2/, o2-result.txt, uv-audit-*.json).
 ## Ruien section heights and keeper zones, 2026-11-03 (#272 stage 1b, #279)
 
 Native M now matches the kit: spring -2.7, channel 2.8, one 0.8 m walk at -3.9, water -4.4.
