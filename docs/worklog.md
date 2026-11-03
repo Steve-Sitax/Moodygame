@@ -1,5 +1,21 @@
 # Work log
 
+## Ruien folding footbridge, 2026-11-03 (#286, #283, #272)
+
+Branch t3/f7a7e134. Steve's choice B: one shared native kit piece, `RuienFoldBridge` (model, collision on each leaf's
+hinge node, drawn phase) and `NativeRuienBridges` (server state, `GET api/ruien/bridges`, host-only
+`POST api/dev/ruien/giant`). Two half leaves, not one: a 3.1 m leaf would need 3.1 m of head room by the mouth, the
+gallery vault over its ledge gives 1.5-1.9 m and R1's sail vault about 1.6 m. Riveted chequer plate on tapered plate
+girders, R2 rails, flush knuckle hinges in grooved bluestone seats on the area's coping, a worm-gear box with a windlass
+socket; 23k triangles a bridge in 4 meshes, `ruien_iron` and `ruien_bluestone` only. Rule: no leaf moves while anyone
+is in its sweep (deck, 1.15 m behind each hinge); Antigoon waits 4.5 m short until both stand; raise within 9 m,
+lower beyond 10.5 m, 14 s, 90 degrees (areas.json `foldBridge`). Not saved: derived from the giants after a load.
+Placement: `kit/fold_bridge.py` markers from `build_stretch.py` (tee branch) and `junction_gen.bridges` (R1's fixed
+bridge removed), passed through `RuienImport` to markers.json and `RuienData.Bridges`; `check_fold_bridge.py`.
+
+Proof `D:/Code/Proofs/ruien-272-bridge/` (R1 and the 1d tee L79/L48/L92 built and converted outside world/ruien,
+isolated data, ports 19791-19799, TOWN-ART-RENDER): RESULT-PLACEHOLDER
+
 ## Ruien arch rim reveal and junction rims, 2026-11-03 (#272, #293, #292)
 
 Branch t3/arch-reveal-junction-rims. #293: the drain mouth's reveal step was charted like the face (courses running

@@ -172,6 +172,30 @@ public sealed class RuienData
         public float OpenDeg;
     }
 
+    /// <summary>
+    /// A folding iron footbridge over a rui channel (#286, #283): two leaves on hinges at the pivots A and B (walk level,
+    /// on the deck's centre line). Each leaf folds up about its own hinge; Gear is the side (a world direction across
+    /// the span) where the lifting gear stands.
+    /// </summary>
+    public sealed class FoldBridge
+    {
+        public string Id = "";
+        public Vector3 A, B;
+        public Vector2 Gear;
+    }
+
+    /// <summary>The fold bridge's engine numbers (areas.json `foldBridge`): shared by every bridge.</summary>
+    public sealed class FoldBridgeKit
+    {
+        /// <summary>Deck top over the walk at the pivots (m), clear width between the rails' centres, rail heights.</summary>
+        public float DeckAbove = 0.025f, RailHalf = 0.385f, OpenDeg = 90, RaiseSeconds = 14;
+        /// <summary>Antigoon: the leaves rise when he comes nearer than Raise (m, from the bridge's middle), come down
+        /// when he is further than Lower; he waits at Hold until both leaves stand.</summary>
+        public float GiantRaise = 9, GiantLower = 10.5f, GiantHold = 4.5f, GiantHeight = 3.5f;
+        /// <summary>The zone a leaf sweeps (its deck, and its rails behind the hinge): nobody may be in it when it moves.</summary>
+        public float SweepBehind = 1.15f, SweepHalf = 0.55f, SweepAbove = 2.2f;
+    }
+
     /// <summary>A way between the street and an area: a ladder up a grate's shaft, or a stair under a hatch.</summary>
     public sealed class Way
     {
@@ -193,6 +217,8 @@ public sealed class RuienData
         public readonly List<Way> Ways = new();
         /// <summary>The export's moving parts: tide door leaves (turned about a hinge), the penstock (raised).</summary>
         public readonly List<Mover> Movers = new();
+        /// <summary>Folding footbridges over the rui channels (`bridges` in areas.json or the export's markers).</summary>
+        public readonly List<FoldBridge> Bridges = new();
         /// <summary>How far the penstock's door stands raised over its exported rest (m; its travel's top lets one wade under it).</summary>
         public float PenstockRaise;
         /// <summary>Kit pieces placed in the area (shared models: the lamp brackets the export does not carry).</summary>
@@ -230,6 +256,7 @@ public sealed class RuienData
     public float AirNear = 2, AirFar = 36, Haze = 0.35f, Exposure = 1.6f;
     public Color Fill = new(0.004f, 0.0037f, 0.003f);
     public int LampPool = 4;
+    public FoldBridgeKit Bridge = new();
     public JsonElement NetworkRoot;
 
     private static float F(JsonElement e, string k, float d) => e.TryGetProperty(k, out var v) && v.ValueKind == JsonValueKind.Number ? v.GetSingle() : d;
@@ -264,6 +291,15 @@ public sealed class RuienData
             if (air.TryGetProperty("fill", out var fl)) d.Fill = Col(fl).SrgbToLinear() * F(air, "fillStrength", 1);
         }
         d.LampPool = (int)F(root, "lampPool", d.LampPool);
+        if (root.TryGetProperty("foldBridge", out var fb))
+        {
+            var k = d.Bridge;
+            k.DeckAbove = F(fb, "deckAbove", k.DeckAbove); k.RailHalf = F(fb, "railHalf", k.RailHalf); k.OpenDeg = F(fb, "openDeg", k.OpenDeg);
+            k.RaiseSeconds = F(fb, "raiseSeconds", k.RaiseSeconds); k.GiantRaise = F(fb, "giantRaise", k.GiantRaise); k.GiantLower = F(fb, "giantLower", k.GiantLower);
+            k.GiantHold = F(fb, "giantHold", k.GiantHold); k.GiantHeight = F(fb, "giantHeight", k.GiantHeight);
+            k.SweepBehind = F(fb, "sweepBehind", k.SweepBehind); k.SweepHalf = F(fb, "sweepHalf", k.SweepHalf); k.SweepAbove = F(fb, "sweepAbove", k.SweepAbove);
+            if (k.GiantLower <= k.GiantRaise || k.GiantHold >= k.GiantRaise || k.RaiseSeconds <= 0) throw new InvalidOperationException("foldBridge: needs giantHold < giantRaise < giantLower and raiseSeconds > 0");
+        }
         foreach (var a in root.GetProperty("areas").EnumerateArray())
         {
             if (a.TryGetProperty("enabled", out var en) && en.ValueKind == JsonValueKind.False) continue;
@@ -377,6 +413,17 @@ public sealed class RuienData
             if (own.TryGetProperty("movers", out var mvs) && mvs.ValueKind == JsonValueKind.Array)
                 foreach (var m in mvs.EnumerateArray())
                     area.Movers.Add(new Mover { Id = S(m, "id"), Kind = S(m, "kind"), Pivot = V3(m.GetProperty("pivot")), OpenDeg = F(m, "openDeg", 0), Collision = S(m, "collision") });
+            foreach (var list in exported ? new[] { a, own } : new[] { a })
+                if (list.TryGetProperty("bridges", out var brs) && brs.ValueKind == JsonValueKind.Array)
+                    foreach (var b in brs.EnumerateArray())
+                    {
+                        string id = S(b, "id");
+                        if (area.Bridges.Any(x => x.Id == id)) continue; // (areas.json first: it may move an exported one)
+                        var bridge = new FoldBridge { Id = id, A = V3(b.GetProperty("a")), B = V3(b.GetProperty("b")), Gear = b.TryGetProperty("gear", out var gr) ? V2(gr).Normalized() : Vector2.Zero };
+                        float span = new Vector2(bridge.B.X - bridge.A.X, bridge.B.Z - bridge.A.Z).Length();
+                        if (id == "" || span < 1 || span > 6 || MathF.Abs(bridge.A.Y - bridge.B.Y) > 0.02f) throw new InvalidOperationException($"ruien: bridge '{id}' needs an id and two level pivots 1 to 6 m apart");
+                        area.Bridges.Add(bridge);
+                    }
             if (own.TryGetProperty("ladders", out var lds))
                 foreach (var l in lds.EnumerateArray())
                 {

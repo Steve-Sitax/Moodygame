@@ -32,6 +32,8 @@ public sealed partial class NativeAntigoon : INativeServiceModule
     public Func<P,P,bool> Reach = (_,_)=>true;
     private bool developmentEnabled;
     public NativeAntigoon(NativeServiceHost host)=>this.host=host;
+    /// <summary>Where he stands now (feet), while he is out; null when hidden or not started.</summary>
+    public (double X,double Y,double Z)? Live=>developmentEnabled&&brain!=null&&brain.State!="hidden"?(brain.Position.X,Ground(brain.Position)+brain.Lift,brain.Position.Z):null;
     internal System.Threading.Tasks.Task<T> WithState<T>(Func<NativeAntigoon,T> operation)=>host.WithState(_=>operation(this));
     private double Hour { get { var c=host.Clock.View();return NativeGoods.Number(c["hour"])+NativeGoods.Number(c["minute"])/60; } }
     private bool Night=>Hour>=20||Hour<6;

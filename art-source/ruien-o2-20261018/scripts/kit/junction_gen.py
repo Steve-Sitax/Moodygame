@@ -1263,33 +1263,14 @@ def box_faces(C):
         tris += [[f[0], f[1], f[2]], [f[0], f[2], f[3]]]
     return C, np.array(tris)
 
-# ---- footbridges (cast iron) where the walkway has to cross a rui channel
+# ---- footbridges where the walkway has to cross a rui channel: the folding iron bridge (kit/fold_bridge.py, #283).
+# Its model, collision and leaves are native (RuienFoldBridge); the room only places it, on the coping returns.
 def bridges(room, mats, coll, rng, info):
-    obs = []
-    rect = room.rect; rid = room.lay['room']
+    from kit import fold_bridge as FB
     for m in room.lay['bridges']:
-        w = m['wall']; p0, tv, n, L = wall_frame(rect, w)
-        a, b = channel_part(m)
-        t0, t1 = a - 0.25, b + 0.25          # bearings on the coping returns
-        d0, d1 = 0.06, P['walk'] + 0.08              # rails outside Jef's 0.64 m body on the 0.47 m line
-        y = SEC.ledge_y + 0.025                       # the deck lies on the coping returns
-        def C3(ta, tb, da, db, ya, yb):
-            return box_on_wall(room, w, ta, tb, da, db, ya, yb)
-        for d in (d0, d1):
-            obs.append(U.block_object('%s_bridge_girder' % rid, C3(t0, t1, d - 0.012, d + 0.012, y - 0.26, y - 0.025), mats['iron'], coll, r=0.003, res=0.05, chips=0))
-            obs.append(U.block_object('%s_bridge_flange' % rid, C3(t0, t1, d - 0.05, d + 0.05, y - 0.045, y - 0.025), mats['iron'], coll, r=0.003, res=0.05, chips=0))
-        obs.append(U.block_object('%s_bridge_deck' % rid, C3(t0 + 0.05, t1 - 0.05, d0 - 0.04, d1 + 0.04, y - 0.025, y - 0.003), mats['iron'], coll, r=0.003, res=0.05, chips=0))
-        for tt in np.linspace(t0 + 0.12, t1 - 0.12, 6):
-            obs.append(U.block_object('%s_bridge_tie' % rid, C3(tt - 0.03, tt + 0.03, d0, d1, y - 0.2, y - 0.05), mats['iron'], coll, r=0.002, res=0.05, chips=0))
-        # rails both sides: posts and two flat rails (the R2 rail's parts)
-        for d in (d0, d1):
-            posts = np.linspace(a + 0.05, b - 0.05, 4)          # rails over the channel only: the walkway ends stay free
-            for tt in posts:
-                obs.append(U.tube('%s_bridge_post' % rid, [frame3(room, w, tt, d, y - 0.03), frame3(room, w, tt, d, y + 1.0)], 0.016, n=8, coll_=coll, mat=mats['iron']))
-            for hy in (0.55, 1.0):
-                obs.append(U.tube('%s_bridge_rail' % rid, [frame3(room, w, a + 0.05, d, y + hy), frame3(room, w, b - 0.05, d, y + hy)], 0.016, n=8, coll_=coll, mat=mats['iron'], flat=0.6))
-        info['bridges'].append(dict(route=m['route'], wall=w, t=[round(t0, 3), round(t1, 3)], note='cast-iron footbridge over the rui channel; it closes this mouth to Antigoon'))
-    return obs
+        mk = FB.for_room(room, m, room.lay['room'])
+        info['bridges'].append(dict(route=m['route'], wall=m['wall'], marker=mk, note='folding iron footbridge: the leaves stand up for Antigoon'))
+    return []
 
 # ---- bed: silt over the room floor and the stub channels, thin along the mouths' centre lines
 def skirt(name, Pp, mats, coll):
@@ -1493,6 +1474,7 @@ def markers(room, sources, info):
         a = wpt(rect, m['wall'], tm, 0.3); b = wpt(rect, m['wall'], tm, -length)
         out['water'].append(dict(name='%s_%s' % (room.lay['room'], m['route']), height=SEC.water,
                                  centre_line=[[float(a[0]), float(a[1])], [float(b[0]), float(b[1])]], width=hi_t - lo_t))
+    out['bridges'] = [b['marker'] for b in info['bridges']]
     out['mist'].append(dict(name='rot_mist_room', min=[rect[0], SEC.water, rect[1]], max=[rect[2], SEC.water + 0.6, rect[3]], density_peak=0.055))
     return out
 

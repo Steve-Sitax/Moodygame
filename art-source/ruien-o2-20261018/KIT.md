@@ -53,6 +53,7 @@ O2 (vliet sluice, giant gallery, Vleeshuis hall) is the first use. All scripts r
 | `scripts/kit/rail.py` | R2 (#272): the rui walkway's iron edge rail. Round posts in cast shoes bolted to the coping's channel face (the 0.8 m stays clear), two rails through knuckles on the bend's offset line, dome caps; ball-topped dressed end posts at the mouths and at each shaft ladder gap, escape irons down the channel face in the gap; at a drain crossing two posts flank the lip stone and the rails run on. Rust stains from every shoe. Collision: one 5 cm slab per run (gaps only at ladders); the bars carry none. | `kit/fittings.json` `rail` (spacing, heights, radii, shoe, gaps) |
 | `scripts/kit/drain_crossing.py` | R3 (#272): finds the plan's side drains at the route (`sideDrains`). Walkway side: the egg drain through the wall inside an arch rim (`kit/arch_rim.py`) standing on the sill, a lined barrel that bends towards the drain's run and ends dark, a notched bluestone sill at the mouth and a notched, rebated kerb across the walk with a flush cast grate (bars, frame, ties), a trickle and a pour over the lip, wet/lime stains below. Far wall: the same mouth just above the water, its rim on a notched bluestone sill with a 5 cm nose over which the water pours. The vault, the walk and the coping are cut or re-laid with the pieces' own outlines (exact boolean, `fitlib.boolean_cut`); plan lamps move off the rim. | `kit/fittings.json` `drainCrossing` (match distance, spacing from ends/shafts, egg, sill, notch, rebate, `rim`, `farSill`) |
 | `scripts/kit/arch_rim.py` | The arch rim (#272, Steve 2026-11-03), used for every arched opening the generators make (drain mouths, tee and throat rings; grate shafts excluded). One closed solid band round the clear outline, standing proud of the host face, with a one-brick reveal step back to the clear opening. See "Arch rim" below. | `rim(name, outline, host, mat, coll, width, step, depth, proud, back, arris, closed, masks, seed)` |
+| `scripts/kit/fold_bridge.py` | The folding iron footbridge (#286, #283, Steve 2026-11-03) where a rui channel cuts a walkway: every tee mouth (`meet.Tee`, placed by `build_stretch.py` for the branch) and a junction room's crossing (`junction_gen.bridges`). Places only: a `bridges` marker (`id`, pivots `a` and `b` at walk level on the deck's centre line, `gear` side); the model, collision and behaviour are native and shared. See "Fold bridge" below. | `F` (pivot 0.18 m behind the coping nose, deck line on the tee ledge and in the room) |
 | `scripts/kit/fitlib.py` | Shared: route frame `W(du, y, d)`, chamfered rods, bevelled boxes, notched stones with rounded arrises and metric UVs, boolean cuts that keep UVs, masks and the host's subdivision level (`ruien_level_edge`), mask edits, transparent stains (`runoff_*`, no collision). | |
 | `scripts/check_fittings.py`, `scripts/review_fittings.py` | Headless checks (rail clear of the walk, closed solids, no collision on bars/rims/stains, one rim per drain mouth and no loose header bricks, rim charts within the UV audit, collision gaps only at ladders, post spacing, smooth rails, host cut open, walk cut, coping re-laid, grate plate) and close Cycles review renders of a built stretch's `.blend`. | `--route`, `--walkway`, `--report`; `--out`, `--only` |
 | `scripts/build.py` | The O2 piece itself (vliet, gate, giant gallery, Vleeshuis hall) with hand-tuned features. | none |
@@ -247,3 +248,28 @@ convert the folder with `--ruien-area <dir> --area R1 --out <resource folder> --
 - **Export.** `manifest.json` asks for `uvRepair` (RuienImport repairs narrow and collapsed charts at full precision,
   as RuienRepair does for O2). Collision is the construction surfaces (dome on a 0.15 m grid, walls, shells, walkway
   tops and faces, bed, stair) plus the solid stone, brick and iron pieces.
+
+## Fold bridge (`kit/fold_bridge.py`; native `RuienFoldBridge`, `NativeRuienBridges`)
+
+Steve's choice B (2026-11-03): a folding iron footbridge stays down for people and folds up against the jambs so
+Antigoon can wade through. One model everywhere; the export places it, the game builds and moves it.
+
+- **Why two leaves.** A one-piece 3.1 m leaf standing up needs 3.1 m of head room by the mouth; the gallery's basket
+  vault over its ledge gives 1.5-1.9 m and a junction room's sail vault about 1.6 m over its walkway. Each half leaf
+  (1.53 m) stands 1.56 m tall in the plane of its jamb, so the 2.8 m channel between them is clear for his 0.93 m body.
+- **Placement.** The pivots stand 0.18 m behind the coping's nose on both sides of the channel (span 2.8 + 2 x 0.14 =
+  3.08 m), at walk level on the deck's centre line: 1.9 m out from the gallery's centre line at a tee (the basket vault falls
+  towards the wall: Jef's head and the rails' 1.86 m swing keep clear), 0.5 m out from the wall in a junction room (the
+  wall-side rail swings clear of the mouth ring). The lifting gear stands on the wall side (tee) or the room side.
+  Throats are left out: their end wall carries no walkway across the mouth.
+- **Construction (native, 1873).** Riveted wrought-iron chequer plate on two plate girders, deep at the hinge (21 cm,
+  a cantilever) and 12.5 cm at the meeting joint, with flanges, end plates, web stiffeners and three cross girders;
+  toe boards and edge angles; R2 rails (19/23 mm posts in cast shoes, 16 mm rails at 0.5 and 1.0 m, ball tops).
+  Each leaf hangs on a flush knuckle hinge (five 56 mm knuckles, axis 3 cm under the deck top) let into a groove in
+  its bluestone seat; a cast worm-gear box with a bolted wheel cover and a windlass socket stands over the pin's end
+  (the gang's windlass key, as on lock paddles). Leaf B carries the meeting strip over leaf A's end. The seats lie on
+  the area's own coping, 1.3 cm over the walk, and corbel out under the gear box. Iron arrises 1.5-3 mm (bars 1 mm,
+  countersunk heads 0.7 mm: thin plate lips); bluestone 10 mm; machined pin ends flat. Rust bloom, salts and soot vary
+  by part (weather colour); occlusion per part.
+- **Kit checks** (in the native proof): metric UVs (RuienUv audit, 0 m2 stretched), closed meshes (no odd edges),
+  only `ruien_iron` and `ruien_bluestone`, the raised and half-raised leaves clear the masonry, the giant capsule clear.

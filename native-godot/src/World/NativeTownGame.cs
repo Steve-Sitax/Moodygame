@@ -84,6 +84,11 @@ public partial class NativeTownGame : Scheldemist.Main
                 ruienAccess.WorkRoutes[way.Id]=route.ToArray();
             }
             host.AddModule(ruienAccess);
+            // The Ruien's folding footbridges (#286): the server owns the leaves; giants and people come in below.
+            var ruienData = Scheldemist.World.Ruien.RuienData.Load(); var fold = ruienData.Bridge;
+            RuienBridges = new NativeRuienBridges(host, ruienData.Areas.SelectMany(a => a.Bridges).Select(b => new NativeRuienBridges.Bridge(b.Id, b.A.X, b.A.Y, b.A.Z, b.B.X, b.B.Y, b.B.Z)),
+                new NativeRuienBridges.Numbers(fold.DeckAbove, fold.RaiseSeconds, fold.GiantRaise, fold.GiantLower, fold.GiantHold, fold.GiantHeight, fold.SweepBehind, fold.SweepHalf, fold.SweepAbove));
+            host.AddModule(RuienBridges);
             var goods = new NativeGoods(host); host.AddModule(goods);
             var transport = new NativeTransport(host, goods) { GroundOpen = (x, z, radius) =>
                 navigation.PathFree(x, z) && navigation.PathFree(x - radius, z) && navigation.PathFree(x + radius, z) && navigation.PathFree(x, z - radius) && navigation.PathFree(x, z + radius) };
@@ -301,6 +306,7 @@ public partial class NativeTownGame : Scheldemist.Main
             if (Arg("native-journey-proof") is { Length: > 0 } journeyProof) _ = RunJourneyProof(Paths.Absolute(journeyProof));
             if (Arg("native-extras-proof") is { Length: > 0 } extrasProof) _ = RunExtrasProof(Paths.Absolute(extrasProof));
             if (Arg("antigoon-size-proof") is { Length: > 0 } sizeProof) _ = NativeAntigoonSizeProof.Run(this, Paths.Absolute(sizeProof));
+            if (Arg("ruien-bridge-proof") is { Length: > 0 } bridgeProof) _ = NativeRuienBridgeProof.Run(this, Paths.Absolute(bridgeProof));
             if (Arg("antigoon-event-proof") is { Length: > 0 } antigoonProof) _ = NativeAntigoonEventProof.Run(this, Paths.Absolute(antigoonProof));
             if (Arg("antigoon-story-map") is { Length: > 0 } storyMap) _ = NativeAntigoonStoryMap.Run(this, Paths.Absolute(storyMap));
             if (Arg("story-proof") is { Length: > 0 } storyProof) _ = NativeStoryProof.Run(this, Paths.Absolute(storyProof));
@@ -318,7 +324,7 @@ public partial class NativeTownGame : Scheldemist.Main
         try { await NativeJourneyGameplayProof.Run(this, output); GetTree().Quit(); }
         catch (System.Exception error) { GD.PrintErr(error); GetTree().Quit(1); }
     }
-    private sealed record Position(double X, double Z);
+    private sealed record Position(double X, double Z, double Y = 0);
     private async Task RunExtrasProof(string output)
     {
         try { await NativeExtrasGameplayProof.Run(this, output); GetTree().Quit(); }
@@ -349,7 +355,7 @@ public partial class NativeTownGame : Scheldemist.Main
         if (!initialized) return;
         if (DedicatedServer) return;
         base._Process(delta);
-        if (Scheldemist.Player.Jef.I is { Body: { } body }) { var p = body.GlobalPosition; Volatile.Write(ref playerPosition, new Position(p.X, p.Z)); }
+        if (Scheldemist.Player.Jef.I is { Body: { } body } jef) { var p = body.GlobalPosition; Volatile.Write(ref playerPosition, new Position(p.X, p.Z, jef.Y)); }
         if (Loaded && !titled) { titled = true; GetTree().Root.Title = "Scheldemist · Native Godot Town"; }
         if (!Scheldemist.Menu.Pause.Paused) Tide.Advance((float)delta);
     }

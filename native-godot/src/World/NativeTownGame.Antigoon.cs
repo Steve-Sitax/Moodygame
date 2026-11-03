@@ -16,6 +16,8 @@ namespace Scheldemist.Native.World;
 public partial class NativeTownGame
 {
     internal NativeAntigoon? AntigoonService;
+    /// <summary>The Ruien's folding footbridges' shared state (NativeRuienBridges).</summary>
+    internal NativeRuienBridges? RuienBridges;
     internal NativeStory? StoryService;
     internal NativeServiceHost? ServiceHost;
     protected override IEnumerable<Node> CreateParts()
@@ -201,6 +203,14 @@ public partial class NativeTownGame
         live=encounter;
         host.AddModule(encounter);
         AntigoonService=encounter;
+        // The folding footbridges see the live giant and every player (feet, with height: a street above is not the deck).
+        if(RuienBridges is {} bridges)
+        {
+            bridges.LiveGiants=()=>encounter.Live is {} g?new[]{new NativeRuienBridges.Spot(g.X,g.Y,g.Z)}:Array.Empty<NativeRuienBridges.Spot>();
+            bridges.People=()=>multiplayer.Enabled
+                ?multiplayer.OnlineIds().Select(multiplayer.Feet).Where(f=>f!=null).Select(f=>new NativeRuienBridges.Spot(f!.Value.X,f.Value.Y,f.Value.Z)).ToArray()
+                :Volatile.Read(ref playerPosition) is {} p?new[]{new NativeRuienBridges.Spot(p.X,p.Y,p.Z)}:Array.Empty<NativeRuienBridges.Spot>();
+        }
         var priorReservation=actions.Reserved;actions.Reserved=id=>encounter.Controls(id)||priorReservation?.Invoke(id)==true;
     }
 }

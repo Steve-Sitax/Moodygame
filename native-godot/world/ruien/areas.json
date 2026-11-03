@@ -2,6 +2,12 @@
  "about": "The Ruien areas the game draws (docs/ruien-native.md). Each names its zones (lines of network.json or their own paths, rooms), its gates in the quay walls (the opening cut through the wall at load), its water, its light sources (lamps; grates, shafts, hatches and outlets that let daylight in), its mist and its dev entry. `export` is the converted Blender export (res://world/ruien/<area>: area.scn, collision.res, markers); without it the game builds a stand-in from the zones. Coordinates: game metres, +x north, +z east, y up, street 0.",
  "air": {"color": "#0e0d0b", "near": 3, "far": 60, "haze": 0, "exposure": 1.35, "fill": [0.55, 0.5, 0.42], "fillStrength": 0.018},
  "lampPool": 4,
+ "foldBridge": {
+  "about": "Engine numbers of the folding iron footbridges (#286, #283; RuienFoldBridge, NativeRuienBridges). Metres, seconds, degrees. Both leaves rise when Antigoon is nearer than giantRaise to a bridge's middle (and within giantHeight of its deck level) and come down when he is further than giantLower; he waits giantHold short of it until both stand. No leaf moves while anyone is in the zone it sweeps: from sweepBehind behind one hinge to sweepBehind behind the other, sweepHalf either side of the deck's centre line, up to sweepAbove over the deck.",
+  "deckAbove": 0.025, "railHalf": 0.385, "openDeg": 90, "raiseSeconds": 14,
+  "giantRaise": 9.0, "giantLower": 10.5, "giantHold": 4.5, "giantHeight": 3.5,
+  "sweepBehind": 1.15, "sweepHalf": 0.55, "sweepAbove": 2.2
+ },
  "areas": [
   {
    "id": "o2",

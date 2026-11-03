@@ -407,6 +407,11 @@ public static class RuienImport
                 travel = m.Value.TryGetProperty("travel_y", out var tv) ? V(tv) : null,
                 collision = moverCol.Contains(m.Name) ? $"collision_{m.Name}.res" : null,
             }).ToArray() : null,
+            // folding footbridges (kit/fold_bridge.py): pivots at walk level and the lifting gear's side, as exported
+            bridges = mk.TryGetProperty("bridges", out var br) && br.ValueKind == JsonValueKind.Array ? br.EnumerateArray().Select(b => new
+            {
+                id = b.GetProperty("id").GetString(), a = V(b.GetProperty("a")), b = V(b.GetProperty("b")), gear = b.TryGetProperty("gear", out var g) ? V(g) : null,
+            }).ToArray() : null,
             ladders = mk.GetProperty("ladders").EnumerateArray().Select(l => new { id = l.GetProperty("name").GetString(), bottom = V(l.GetProperty("bottom")), top = V(l.GetProperty("top")), grate = V(l.GetProperty("grate_size_m")) }).ToArray(),
             stairs = mk.GetProperty("stairs").EnumerateArray().Select(l => new { id = l.GetProperty("name").GetString(), bottom = V(l.GetProperty("bottom")), top = V(l.GetProperty("top")), hatch = V(l.GetProperty("hatch")) }).ToArray() }, new JsonSerializerOptions { WriteIndented = true, Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping });
     }
