@@ -323,3 +323,11 @@ of a straight `I` stair. Code: `RuienStairHouse.cs` (the shell), the rest is the
   (rui: 3.28 m from the line's centre, gallery 4.63 m), the closure on the line's side; a `grille` needs 1.5 m more for
   its niche. Keep the house and a 1.6 m apron before the door clear of lanes, hauls, stalls, goods, doors and trees
   (canopies reach the roof). `--no-stair-house-shell` leaves the shell out (to look at the stair inside).
+
+Mouth bearing stones and hall hatch (#267): `scripts/ruien-mouth-repair.tscn` patches current O2 resources
+after checking source hashes and making external `--backup` copies. Paired 20 cm stones have 8 mm recessed
+mortar joints and 10–13 mm arrises; both LODs and collision share the replacement. The hatch uses owned
+timber artwork through `oak_hatch`, with aligned grain and relief. Native access/tide/state checks passed
+143/143; captures cover day, rain and night. Diagnostic fill exposes the stone joints; normal underground
+views limit fine underside inspection. Upper quoins/corbels, coping and material junctions remain unfinished.
+This is a partial repair, not overall Ruien or connected-environment acceptance.

@@ -163,7 +163,7 @@ public static class RuienSurround
             var lift=new Basis(Vector3.Back,-side*Mathf.DegToRad(LeafOpenDeg));
             var open=new Transform3D(lift*mirror,new Vector3(side*(half-.04f),.026f,0));
             if(side>0)open*=new Transform3D(Basis.Identity,new Vector3(0,0,-2*zc));
-            AddOak(root,oak,open,side);
+            AddOak(root,oak,open,side,material:"ruien_oak_hatch");
             var im=iron.Commit();var ia=im.SurfaceGetArrays(0);
             var ip=ia[(int)Mesh.ArrayType.Vertex].AsVector3Array();var inn=ia[(int)Mesh.ArrayType.Normal].AsVector3Array();
             for(int i=0;i<ip.Length;i++){ip[i]=open*ip[i];inn[i]=(open.Basis*inn[i]).Normalized();}
@@ -175,7 +175,7 @@ public static class RuienSurround
 
     // Oak atlas (texture_sets.json): u is the plank column (2.0 m across the atlas), v runs 5.4 m along the plank. Every
     // face is charted in its own plane: v along the piece's grain, u square to it, both at true size (bevels too).
-    internal static void AddOak(Node3D root,List<(ArrayMesh mesh,Transform3D at,Vector3 grain,float column)> pieces,Transform3D open,float side,string? name=null)
+    internal static void AddOak(Node3D root,List<(ArrayMesh mesh,Transform3D at,Vector3 grain,float column)> pieces,Transform3D open,float side,string? name=null,string material="ruien_oak")
     {
         var p=new List<Vector3>();var n=new List<Vector3>();var uv=new List<Vector2>();var colour=new List<Color>();
         foreach(var (mesh,at,grain,column) in pieces)
@@ -209,8 +209,8 @@ public static class RuienSurround
         var arr=new Godot.Collections.Array();arr.Resize((int)Mesh.ArrayType.Max);
         arr[(int)Mesh.ArrayType.Vertex]=p.ToArray();arr[(int)Mesh.ArrayType.Normal]=n.ToArray();
         arr[(int)Mesh.ArrayType.TexUV]=uv.ToArray();arr[(int)Mesh.ArrayType.Color]=colour.ToArray();
-        var done=new ArrayMesh();done.AddSurfaceFromArrays(Mesh.PrimitiveType.Triangles,arr);done.SurfaceSetMaterial(0,RuienMaterials.Get("ruien_oak"));
-        done.SurfaceSetName(0,"ruien_oak");
+        var done=new ArrayMesh();done.AddSurfaceFromArrays(Mesh.PrimitiveType.Triangles,arr);done.SurfaceSetMaterial(0,RuienMaterials.Get(material));
+        done.SurfaceSetName(0,material);
         root.AddChild(new MeshInstance3D{Name=name??"hatch_leaf_"+(side>0?"e":"w"),Mesh=done,Layers=Ruien.Layer,CastShadow=GeometryInstance3D.ShadowCastingSetting.Off});
         var body=new StaticBody3D{CollisionLayer=Solid.Layer,CollisionMask=0};
         body.AddChild(new CollisionShape3D{Shape=new ConcavePolygonShape3D{Data=done.GetFaces(),BackfaceCollision=true}});root.AddChild(body);

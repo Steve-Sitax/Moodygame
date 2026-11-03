@@ -39,6 +39,7 @@
     "relief": 0.012,
     "variants": false
   },
+  "oak_hatch": { "tile": [2, 5.4], "relief": 0.002, "variants": false },
   "oak": {
     "tile": [
       2,

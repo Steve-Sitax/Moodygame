@@ -1,0 +1,9 @@
+# Hall hatch timber
+
+Source: ../environment-20261013/wood-v3.png (project-owned generated artwork;
+original prompt and attribution retained there and in assets/ATTRIBUTION.md).
+PhotoCraft 0.16.0: `photocraft-cli run <source> --cmd image.imageRotation.90cw --out oak.png`.
+No hardware, joints or moss are painted into this material. Native leaf geometry supplies them.
+`pack.gd`, run headless with native-godot as project, derives aligned 2 mm relief, normals,
+roughness and mipmaps. The tile is 2 m across grain and 5.4 m along grain.
+Only hall hatch leaves use oak_hatch; other Ruien oak and debris remain unchanged.

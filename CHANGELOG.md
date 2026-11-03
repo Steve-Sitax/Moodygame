@@ -11,6 +11,7 @@ Bugs and loose ends are tracked as [issues](https://github.com/Steve-Sitax/Moody
 
 ## [Unreleased]
 
+- The Vleeshuis hall mouth has paired bluestone bearing stones with recessed mortar joints. Its street hatch uses weathered timber grain along the planks and braces; surrounding coping and stonework remain unfinished.
 - Street paving now meets courtyard walls and adjoining ground without narrow see-through seams; the church stair apron joins the cobbles while its drain stays open.
 - Cathedral lower tower stages now have one broad, four-light opening per face, with deeper reveals and rounded framing. The stone tracery braces meet the arches. Surrounding stonework and drainage remain unfinished.
 - Bridges and locks now have interlocking chain links, horse harnesses have flat leather straps, and the lampshade frame has thin iron wire. Ship mooring lines wrap around deck fittings that follow the tide. The torn sack by the rail has woven jute, folds and thin edges.

@@ -753,3 +753,5 @@ Original generated supplements (built-in image_gen, project LICENSE; **not** CC0
 | `art-source/plan-84/round2-generated/special.png` | `1e836dda08113b770b2a73226dd8de58c56717172dd9e66f5836168d4ec366df` | Ceramic, petal, grain, tar, casting, ash and intrinsic flame/ember samples |
 
 Exact generation prompts: `art-source/plan-84/round2-generated/prompts.json`. Original iron, lead and thin botanical cards retain the round 1/art2 provenance above. Serif sign letters are rasterized original game wording; no system font file is redistributed.
+
+Hall hatch (#267, 2026-11-03): reuses the project's owned `art-source/environment-20261013/wood-v3.png`; PhotoCraft rotates it into the leaf's grain direction. Source and runtime packing recipe: `art-source/ruien-hatch-20261103/`. No new third-party art.
