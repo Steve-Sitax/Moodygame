@@ -1,5 +1,11 @@
 # Work log
 
+## Ruien repair for any area, 2026-11-03 (#272 stage 1a)
+
+Branch t3/b40fce56, base main 96fb54883. `RuienRepair.Convert` is split into the generic pass and the area's data. Moved to `areas.json` (o2): the drain mouths (`drains`, also used at load for the native drains and their spout sounds; `RuienDrain.Mouths` is gone), the retired first drain (`sealedDrains`), the repair path (`zones[].repairPath`, smoothed with the zone's own curve flags and handle), the line zone's chunks (`repairChunks`), the keeper stair's cut chunks, the headers piece name (`repair.headersPiece`) and ten O2 fixes in `repair.fixes` (`RuienRepairFix.cs`: dropFamily, keepBelow x2, splay, dropBox, addBox, vaultStrip, mouthRings, cutCollision, addCollisionFaces). Every line zone is repaired; the collision gutter cut follows the area's drains; no `area.Id=="o2"` checks; `--area` is required by `--ruien-area` and `--ruien-repair`. The fingerprint was not refreshed (it hashes source, so the next export refreshes it).
+
+Proof: the repair run on the immutable snapshot (`ruien-o2-fix3/chosen-original`, headers `chosen-headers2`) before and after the change: all 73 outputs (72 O2 files and `kit/drain_headers.res`) are byte-identical (decoded compare 72/72 identical). A room-only area runs without error and writes `drain_headers_<area>`; no `--area` fails with a clear message. Found: the installed O2 differs from a fresh repair in 24 meshes: normals and tangents (mostly 1e-4, at most 0.03), positions at most 3e-6 m and setts UVs 2e-5, left by the #214 flank pass that re-saved the installed meshes; post-repairs on installed resources (#214, #267 RuienMouthRepair) must be run again after any new `--ruien-repair`. Native review cameras (11 views of the gallery and hall, 13:00 clear, inspection fill on 9, isolated data, port 9744, serial under TOWN-ART-RENDER), base build against this build: route checks 22/22 both; image diff mean 2.2-3.7 grey levels, the same as two runs of the base build (2.2-3.6): only the moving water, film grain and the ferry subtitle differ. Evidence: `_tmp_verify/ruien-272-1a/`.
+
 ## Ruien per-view cost and culling audit, 2026-11-03 (#271)
 
 Proof-only instrumentation: `--profile-parts` now reports engine and named CPU scopes for views and paths,

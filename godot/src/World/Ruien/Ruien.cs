@@ -124,7 +124,7 @@ public partial class Ruien : Node
             if (RuienArea.Load(area) is { } loaded) { root = loaded.Root; shape = loaded.Shape; d.Export = loaded; how = $"export {area.Export} ({loaded.Keys.Count} keys, {loaded.Triangles0} + {loaded.Triangles1} triangles)"; }
             else { (root, shape) = new RuienStandIn(area).Build(spec[area.Id]); how = "stand-in"; }
             Main.I.View.AddChild(RuienConnections.Build(spec[area.Id],area));
-            if(area.Id=="o2")foreach(var(u,side) in RuienDrain.Mouths)Main.I.View.AddChild(RuienDrain.Build(area.Zones.First(z=>z.Kind=="line"),u,side));
+            foreach(var drain in area.Drains)Main.I.View.AddChild(RuienDrain.Build(area.Line(drain.Zone)!,drain.U,drain.Side));
             // Shared kit pieces placed by the area's data: open cast outfalls and bricked-up stub ends.
             var pipes=RuienPipe.Read(spec[area.Id]);
             for(int i=0;i<pipes.Count;i++)Main.I.View.AddChild(RuienPipe.Build(pipes[i],i));
@@ -192,9 +192,8 @@ public partial class Ruien : Node
     /// </summary>
     private void SoundPoints(RuienData.Area area, JsonElement spec, List<RuienPipe.Spec> pipes)
     {
-        if (area.Id == "o2" && area.Zones.FirstOrDefault(z => z.Kind == "line") is { } line)
-            foreach (var (u, side) in RuienDrain.Mouths)
-                soundPoints.Add(new() { Kind = "spill", At = RuienDrain.SpoutImpact(line, u, side), Reach = 7, Gain = .6 });
+        foreach (var drain in area.Drains)
+            soundPoints.Add(new() { Kind = "spill", At = RuienDrain.SpoutImpact(area.Line(drain.Zone)!, drain.U, drain.Side), Reach = 7, Gain = .6 });
         foreach (var p in pipes)
             soundPoints.Add(new() { Kind = "drip", At = p.Front + Vector3.Down * .45f, Reach = 5, Gain = .8, Min = 4, Max = 11 });
         if (spec.TryGetProperty("drips", out var drips))

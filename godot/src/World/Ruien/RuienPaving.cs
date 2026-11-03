@@ -14,12 +14,13 @@ public static class RuienPaving
     private static Image? height;
     private static RuienData.Zone[] paths=Array.Empty<RuienData.Zone>();
     private static RuienData.Zone[] rooms=Array.Empty<RuienData.Zone>();
-    public static void Layout(RuienData.Area area,RuienData.Zone? built=null)
+    public static void Layout(RuienData.Area area,IReadOnlyDictionary<string,RuienData.Zone>? built=null)
     {
-        paths=System.Linq.Enumerable.ToArray(System.Linq.Enumerable.Where(area.Zones,z=>z.Kind=="line"));
         // The export was swept along its own smoothed key line; rows must turn where its walls turn, not where the
         // plan's coarser line bends (that put a phantom bend into the straight walk by the gate and smeared the setts).
-        if(built!=null&&paths.Length>0)paths[0]=built;
+        // `built` holds each line zone's repair path by zone id.
+        paths=System.Linq.Enumerable.ToArray(System.Linq.Enumerable.Select(System.Linq.Enumerable.Where(area.Zones,z=>z.Kind=="line"),
+            z=>built!=null&&built.TryGetValue(z.Id,out var b)?b:z));
         rooms=System.Linq.Enumerable.ToArray(System.Linq.Enumerable.Where(area.Zones,z=>z.Kind=="room"));
     }
 
