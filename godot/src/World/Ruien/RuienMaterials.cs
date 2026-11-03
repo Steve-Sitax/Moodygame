@@ -53,14 +53,14 @@ public static class RuienMaterials
     /// <summary>A family the game does not draw (materials.json skip): the town draws its own there.</summary>
     public static bool Skipped(string family)
     {
-        string key = family.StartsWith("ruien_") ? family[6..] : family;
+        string key = RuienTextures.Key(family);
         return Spec.TryGetProperty("skip", out var sk) && sk.EnumerateArray().Any(e => e.GetString() == key);
     }
 
     /// <summary>Which kind a family is drawn with: masonry, water or air.</summary>
     public static string KindOf(string family)
     {
-        string key = family.StartsWith("ruien_") ? family[6..] : family;
+        string key = RuienTextures.Key(family);
         string misc = key.StartsWith("misc_") ? key[5..] : key;
         if (Spec.GetProperty("water").TryGetProperty(key, out _) || Spec.GetProperty("water").TryGetProperty(misc, out _)) return "water";
         if (Spec.GetProperty("air").TryGetProperty(misc, out _)) return "air";
@@ -71,7 +71,7 @@ public static class RuienMaterials
     public static ShaderMaterial Get(string family)
     {
         if (Made.TryGetValue(family, out var m)) return m;
-        string key = family.StartsWith("ruien_") ? family[6..] : family;
+        string key = RuienTextures.Key(family);
         string misc = key.StartsWith("misc_") ? key[5..] : key;
         families ??= RuienTextures.Families();
         string kind = KindOf(family);

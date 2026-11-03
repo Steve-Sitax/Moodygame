@@ -166,6 +166,9 @@ rim(name, outline, host, mat, coll, width=0.23, step=0.11, depth=0.11, proud=0.0
   face stays within the RuienUv audit (anisotropy 1.3, scale 0.6-1.7) down to outline radii of about 0.45 m; put a
   tighter opening's invert on a sill (the drain's far mouth does) instead of a closed rim. `uv_audit(ob)` repeats the
   native metric in Blender.
+- Own charts: the rim uses a copy of its material named `<material>_rim`, exported as family `brick_header_rim`. The
+  game draws, tiles and audits it as `brick_header` (`RuienTextures.Key`), but `RuienImport` does not re-chart it with
+  `RuienUnfold` (`RuienTextures.OwnChart`), so the voussoirs stay radial; `RuienUv` still repairs any failing triangle.
 - Masks: `masks(P, M)` edits wxA/wxB/wxC (as `fitlib.edit_masks`), so the rim takes the wall's soot, slime and stains.
   Each rim has its own brick phase (`rnd`) and no collision. It is exported as built (`ruien_keep_mesh`:
   `export_game.build_lod` bakes its colour, masks and AO but does not subdivide, displace or decimate it; edge-collapse
@@ -173,8 +176,9 @@ rim(name, outline, host, mat, coll, width=0.23, step=0.11, depth=0.11, proud=0.0
   1 cm, comes from the normal and height maps.
 - Host cut: `outer_outline(outline, step + width - 0.006, closed)` is the outline to cut the host with (6 mm under
   the rim's outer edge); add the sill's outline below it where the rim stands on one.
-- Limit: on a tee the rim's hidden back and outer side, and a little of its face, still exceed the audit in a narrow band
-  over the crown, where the gallery vault lies almost along the rui (0.55 m2 of 11.5 m2 on L79).
+- Limit: on a tee the exported rim's hidden back and outer side, and a little of its face, exceed the audit in a narrow
+  band over the crown, where the gallery vault lies almost along the rui (0.55 m2 of 11.5 m2 on L79); the native
+  intake's RuienUv repair re-charts those triangles (0 m2 after import).
 - Cost: an egg drain rim (1.0 x 1.6 m, open above the walk) is 7.3k triangles in both LODs; the tee and throat rims 15.5k and 16.1k.
 
 ## Known limits

@@ -19,13 +19,15 @@ displaced or decimated (edge-collapse decimation had skewed a third of the rim's
 Proof (D:/Code/Proofs/ruien-272-arch): O2 build.py before/after 3765 objects, 0 differing; 0 flagged objects in the O2
 blend. check_meet PASS (tee, throat, both walkway sides, Antigoon head room); check_fittings L105 15/15.
 Rim UV metric in Blender (RuienUv limits): drain rims 0 m2, throat rim 0 m2, tee rim 0.55 m2 of 11.5 (a narrow band
-over the crown, mostly its hidden back and outer side). Native RuienUv audit of the converted areas: drain rims 12-35 cm2
-(4 mm foot chamfers on the sill, UV precision), throat 32 cm2, tee 0.56 m2. Cost: drain rim 7.3k triangles (LOD0 = LOD1),
+over the crown, mostly its hidden back and outer side). Native RuienUv audit after the intake (with #285's repair, which
+fixes those triangles): 0 m2 stretched in every family of all six areas, the rims (`ruien_brick_header_rim`) included. Cost: drain rim 7.3k triangles (LOD0 = LOD1),
 tee and throat rims 15.5k and 16.1k; L105 LOD0 752k -> 724k. Native external intake of L105, L79+L48/L92 and L59/L60
 (isolated data, ports 19781-19785, render lock): 85/85 view and walk checks (the walks over the grate stay level),
-tee rerun 10/10; the first tee run showed sky through two cut cells over the crown, fixed by the exact cut. Shots:
-D:/Code/Proofs/ruien-272-arch/run1 (drains, throat), run3-tee. L105 has no plan lamp at the crossing, so its midday,
-rain and night views are dark; the inspection light shows the rim.
+tee rerun 10/10; the first tee run showed sky through two cut cells over the crown, fixed by the exact cut. Final run
+on the rebased branch 85/85. Shots: D:/Code/Proofs/ruien-272-arch/final (all), run1, run3-tee. L105 has no plan lamp at the crossing, so its midday,
+rain and night views are dark; the inspection light shows the rim. The rim exports as family `brick_header_rim`, which the game draws as
+`brick_header` but does not re-chart at import (`RuienTextures.OwnChart`; #285 now unfolds every generated brick family).
+
 ## Generated Ruien UVs and rui surfaces, 2026-11-03 (#285, #291)
 
 `RuienImport` now unfolds generated brick families across each LOD's exported objects, returns triangles to

@@ -118,6 +118,9 @@ the mesh file name; none = all) along its `repairPath` (the export's own sweep, 
   `addCollisionFaces` (source LOD faces in a box that the collision export left out). Numbers and notes: O2 in
   `areas.json`; code `RuienRepairFix.cs`.
 
+A family name ending in `_rim` (`RuienTextures.OwnChart`, the kit's arch rims) is drawn, tiled and audited as its
+base family but keeps its exported radial charts: `RuienUnfold` skips it.
+
 For an isolated stretch intake, add `--out <absolute resource folder>` to `--ruien-area`; the folder gets
 `area.json`, meshes, collision and markers without changing the installed world. `--area` names the area;
 stretch mesh prefixes come from the manifest's route ID. Empty or absent movers and absent outlets are valid.

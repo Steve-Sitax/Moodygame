@@ -16,12 +16,12 @@ public static class RuienUnfold
     /// <summary>A round opening: rings out to <see cref="Outer"/> metres, its rim course at <see cref="Rim"/>.</summary>
     public readonly record struct Ring(Vector2 Centre,float Radius,float Outer,float Rim,float Top);
 
-    public static bool Bricks(string family)=>family.StartsWith("ruien_brick");
+    public static bool Bricks(string family)=>family.StartsWith("ruien_brick")&&!family.EndsWith(RuienTextures.OwnChart);
 
     public static bool Apply(Godot.Collections.Array arrays,string family,IReadOnlyList<Ring>? rings=null,float blur=.07f)
     {
         var families=RuienTextures.Families();
-        if(!families.TryGetValue(family.StartsWith("ruien_")?family[6..]:family,out var f))return false;
+        if(!families.TryGetValue(RuienTextures.Key(family),out var f))return false;
         var p=arrays[(int)Mesh.ArrayType.Vertex].AsVector3Array();
         if(p.Length==0)return false;
         var normals=arrays[(int)Mesh.ArrayType.Normal].VariantType==Variant.Type.Nil?null:arrays[(int)Mesh.ArrayType.Normal].AsVector3Array();

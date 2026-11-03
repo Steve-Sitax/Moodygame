@@ -28,6 +28,7 @@
 # reveal corner and the hidden back), which keeps every face within the audit's 1.3 anisotropy for outline radii
 # down to about 0.45 m (the 1.0 m egg's crown); use an open outline above a sill where an opening is tighter.
 import numpy as np
+import bpy
 import bmesh
 from mathutils import Vector, geometry
 from rlib import util as U
@@ -310,7 +311,7 @@ def rim(name, outline, host, mat, coll, width=WIDTH, step=STEP, depth=DEPTH, pro
             for tri in geometry.tessellate_polygon([pl]):
                 faces.append([kk * m + t for t in tri])
                 uvs += [(pl[t].x, pl[t].y) for t in tri]
-    ob = U.mesh_from_faces(name, PV.reshape(-1, 3), faces, uv=np.array(uvs), coll_=coll, mat=mat, smooth=True)
+    ob = U.mesh_from_faces(name, PV.reshape(-1, 3), faces, uv=np.array(uvs), coll_=coll, mat=own_chart(mat), smooth=True)
     bm = bmesh.new(); bm.from_mesh(ob.data)
     bmesh.ops.recalc_face_normals(bm, faces=list(bm.faces))
     bm.to_mesh(ob.data); bm.free()
@@ -334,6 +335,16 @@ def rim(name, outline, host, mat, coll, width=WIDTH, step=STEP, depth=DEPTH, pro
     ob['ruien_arch_rim'] = '%d rows x %d section points; width %.3f, step %.3f, depth %.3f, proud %.3f' % (nr, m, wv.max(), sv.max(), depth, proud)
     U.add_adaptive(ob)
     return ob
+
+def own_chart(mat):
+    """The rim's copy of a brick material (name + '_rim'): exported as family '<brick family>_rim', which the game draws as
+    its base family but does not re-chart at import (RuienTextures.OwnChart), so the radial voussoirs stay."""
+    if mat is None or mat.name.endswith('_rim'):
+        return mat
+    m = bpy.data.materials.get(mat.name + '_rim')
+    if m is None:
+        m = mat.copy(); m.name = mat.name + '_rim'
+    return m
 
 def triangles(ob):
     return int(sum(len(p.vertices) - 2 for p in ob.data.polygons))
