@@ -14,7 +14,18 @@ Placement: `kit/fold_bridge.py` markers from `build_stretch.py` (tee branch) and
 bridge removed), passed through `RuienImport` to markers.json and `RuienData.Bridges`; `check_fold_bridge.py`.
 
 Proof `D:/Code/Proofs/ruien-272-bridge/` (R1 and the 1d tee L79/L48/L92 built and converted outside world/ruien,
-isolated data, ports 19791-19799, TOWN-ART-RENDER): RESULT-PLACEHOLDER
+isolated data, ports 19791-19796, TOWN-ART-RENDER), final run on the rebased branch 72/72: kit (0 m2 stretched, 0 open
+edges, two families), down deck solid, Jef crosses, the leaf waits while he stands on it and the giant waits 4.5 m out,
+the leaves rise once he steps off, collision follows the leaf at 38 degrees (to the mm), both stand, a standing leaf stops
+Jef 0.35 m short of its hinge, raised and half-raised leaves clear the masonry, R1 L100 giant checks 6/6 with the
+leaves up (head room 0.09-1.035 m), the giant passes without touching a leaf, the leaves come down, Jef crosses again.
+Frame cost at the bridge views, shown/hidden alternated: 13.7-14.5 vs 13.6-13.8 ms median, draw calls equal within the
+crowd drift: no cost beyond noise. Views down, half and up in inspection light, midday, rain and night (the tee has no
+plan lamp or grate: dark there). Area findings, not the bridge: in the tee test the L79 rui silt (-4.77) leaves an
+upright 3.86 m giant 1 cm under the crown, and L48 has a solid at water level near its clipped end (`area-findings.json`).
+While the leaves stand, R1's L100 rui walkway cannot step into the room: leaf A's rails close its join (people wait).
+The engine log's only errors are three Antigoon footstep sounds this worktree has not imported. Best shots:
+`final/tee-bridge-up-inspect.png`, `final/r1-bridge-down-inspect.png`, `final/tee-mouth-mid-inspect.png`.
 
 ## Ruien arch rim reveal and junction rims, 2026-11-03 (#272, #293, #292)
 
