@@ -210,7 +210,8 @@ public static class RuienUv
             for(int s=0;s<mesh.GetSurfaceCount();s++)
             {
                 string name=mesh.SurfaceGetName(s),key=name.StartsWith("ruien_")?name[6..]:name;
-                if(!families.TryGetValue(key,out var family))continue;
+                // (a stair-house's shell: the town's pictures at their own tiles, RuienStairHouse)
+                Vector2 tile;if(families.TryGetValue(key,out var family))tile=new Vector2(family.TileU,family.TileV);else if(RuienStairHouse.Tile(name) is Vector2 own)tile=own;else continue;
                 var a=mesh.SurfaceGetArrays(s);var v=a[(int)Mesh.ArrayType.Vertex].AsVector3Array();
                 var uv=a[(int)Mesh.ArrayType.TexUV].AsVector2Array();var ix=a[(int)Mesh.ArrayType.Index].AsInt32Array();
                 if(ix.Length==0)ix=Enumerable.Range(0,v.Length).ToArray();
@@ -221,7 +222,6 @@ public static class RuienUv
                     var p=v[ix[i]];var e=v[ix[i+1]]-p;var f=v[ix[i+2]]-p;
                     float x=e.Length(),height=e.Cross(f).Length()/Math.Max(x,1e-8f),weight=x*height*.5f;
                     if(weight<1e-7f)continue;
-                    var tile=new Vector2(family.TileU,family.TileV);
                     var u=(uv[ix[i+1]]-uv[ix[i]])*tile/Math.Max(x,1e-8f);
                     var w=((uv[ix[i+2]]-uv[ix[i]])*tile-u*f.Dot(e/x))/height;
                     float aa=u.LengthSquared(),bb=w.LengthSquared(),ab=u.Dot(w),disc=MathF.Sqrt((aa-bb)*(aa-bb)+4*ab*ab);

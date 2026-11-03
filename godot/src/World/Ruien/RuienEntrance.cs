@@ -63,6 +63,10 @@ public static class RuienEntrance
         public string DoorId => "entrance_" + Id;
         public string LightId => "entrance_" + Id + "_door";
         public bool Gate => Host == "gate_house";
+        /// <summary>A free-standing stair-house (RuienStairHouse) over the stair's top, on a square, green or quay.</summary>
+        public bool House => Host == "stair_house";
+        /// <summary>A stair-house: along the run (u) where its back wall stands, the flight's vault being under the paving from there.</summary>
+        public float HouseBack;
         /// <summary>Local (see the class) to world.</summary>
         public Transform3D Local;
         /// <summary>The tunnel's frame (u, y, v) to local.</summary>
@@ -135,6 +139,12 @@ public static class RuienEntrance
         else { u = s.Flight == "left" ? Vector3.Left : Vector3.Right; origin = -u * (s.TopLanding / 2) + new Vector3(0, 0, -s.Wall - s.Width / 2); }
         var v = u.Cross(Vector3.Up);
         s.Run = new Transform3D(new Basis(u, Vector3.Up, v), origin);
+        if (s.House)
+        {
+            // the vault's back (its crown's extrados) is under the paving and its bed from here on: the house ends here
+            float over = s.Spring + s.VaultRise + .22f + RuienStairHouse.Cover;
+            s.HouseBack = MathF.Ceiling((s.TopLanding + over / MathF.Tan(Mathf.DegToRad(s.PitchDeg))) * 20) / 20;
+        }
         s.StreetSide = v.Dot(Vector3.Back) >= 0 ? 1 : -1;
         float h = s.DoorWidth / 2;
         s.DoorOpening = s.Head == "arch"
@@ -192,9 +202,18 @@ public static class RuienEntrance
             if (q.X < -s.Lining || q.X > s.RunLength + s.Lining || MathF.Abs(q.Z) > s.Width / 2 + s.Lining || q.Y < -s.Drop - 1) continue;
             // (a buried stair: only under its own vault, not on the street over its lower end)
             if (q.Y > (s.Buried ? s.Ceiling(q.X) : s.Spring + s.VaultRise + .5f)) continue;
+            // (beyond a stair-house's back the stair is under the street: an eye over it is out in the rain)
+            if (s.House && q.X > s.HouseBack && q.Y > -.1f) continue;
             return BoxOf(s.Local * s.Run, new Vector3(0, -s.Drop - .5f, -s.Width / 2), new Vector3(s.RunLength, s.Spring + s.VaultRise + .5f, s.Width / 2));
         }
         return null;
+    }
+
+    /// <summary>A point inside the entrance's tunnel (its lining's box from the street down to under the landing).</summary>
+    public static bool Holds(Spec s, Vector3 p)
+    {
+        var q = (s.Local * s.Run).AffineInverse() * p;
+        return q.X > -s.Lining && q.X < s.RunLength + s.Lining && MathF.Abs(q.Z) < s.Width / 2 + s.Lining && q.Y > -s.Drop - 1 && q.Y < s.Spring + s.VaultRise + .5f;
     }
 
     /// <summary>The closure's middle in the world, a little in front of it on the landing (for the prompt and the checks).</summary>
@@ -226,7 +245,7 @@ public static class RuienEntrance
                 p => (inv * p).Z + s.Wall + .05f, p => .12f - (inv * p).Z,
                 p => { var q = inv * p; if (q.Y <= o.Spring) return o.Spring + o.Rise + .002f - q.Y; if (o.Rise <= 0) return o.Spring + .002f - q.Y; float k = q.X / (o.H + .002f), m = (q.Y - o.Spring) / (o.Rise + .002f); return (1 - MathF.Sqrt(k * k + m * m)) * Math.Min(o.H, o.Rise); },
             };
-            int wall = QuayNotch.CutRegion(town, mi => s.Cut.Any(c => mi.Name.ToString().StartsWith(c, StringComparison.Ordinal)), Box(s, new Vector3(-o.H - .1f, 0, -s.Wall - .2f), new Vector3(o.H + .1f, o.Top + .1f, .2f)), _ => true, door);
+            int wall = s.Cut.Length == 0 ? 0 : QuayNotch.CutRegion(town, mi => s.Cut.Any(c => mi.Name.ToString().StartsWith(c, StringComparison.Ordinal)), Box(s, new Vector3(-o.H - .1f, 0, -s.Wall - .2f), new Vector3(o.H + .1f, o.Top + .1f, .2f)), _ => true, door);
             // 2. the floor under the wall inside the doorway and everything in the tunnel's air (the bank's and the house's
             //    hidden faces): every mesh.
             int air = 0;
@@ -237,6 +256,15 @@ public static class RuienEntrance
             var corridor = new Aabb(new Vector3(-o.H - .55f, -.2f, -.6f), new Vector3(2 * o.H + 1.1f, o.Top + 1.1f, 2.3f));
             int leaves = Drop(town, mi => s.Foliage.Any(c => mi.Name.ToString().StartsWith(c, StringComparison.Ordinal)), s.FoliageMaterials, inv, corridor);
             leaves += HidePlants(town, s, inv, corridor);
+            if (s.House)
+            {
+                // a stair-house: the town's ground, its plants and anything else inside the plinth's outline give way (no
+                // ground there: the crowd's walk map leaves the house out, and the street's collision stops at the plinth)
+                var (lo, hi) = RuienStairHouse.Outline(s);
+                var plinth = new Vector3(.012f, 0, .012f);
+                air += QuayNotch.CutRegion(town, _ => true, Box(s, lo + plinth, hi - plinth), _ => true, Planes(s.Local, lo + plinth, hi - plinth));
+                leaves += HidePlants(town, s, inv, new Aabb(lo - new Vector3(.25f, 0, .25f), hi - lo + new Vector3(.5f, 0, .5f)));
+            }
             // 4. a gate house's drawn door (frame, leaf and recess) under its hood: whole pieces.
             var drawn = new Aabb(new Vector3(-o.H - .03f, -.1f, -1.7f), new Vector3(2 * o.H + .06f, s.KeepAbove + .1f, 2.1f));
             int cleared = s.Clear.Length == 0 ? 0 : Drop(town, mi => s.Clear.Any(c => mi.Name.ToString().StartsWith(c, StringComparison.Ordinal)), Array.Empty<string>(), inv, drawn, s.KeepAbove);
@@ -250,7 +278,14 @@ public static class RuienEntrance
     {
         float top = s.Spring + s.VaultRise + .25f;
         float across = s.Width / 2 + s.Lining;
-        if (!s.Buried)
+        if (s.House)
+        {
+            // under the house the tunnel's air; beyond its back only under the paving (the street over the stair stays)
+            float back = s.HouseBack + RuienStairHouse.BackWall;
+            yield return (new Vector3(-s.Lining, -s.Drop - .45f, -across), new Vector3(back, top, across), s.Run);
+            yield return (new Vector3(back - .01f, -s.Drop - .45f, -across), new Vector3(s.RunLength + s.Lining, -.1f, across), s.Run);
+        }
+        else if (!s.Buried)
             yield return (new Vector3(-s.Lining, -s.Drop - .45f, -across), new Vector3(s.RunLength + s.Lining, top, across), s.Run);
         else
             // (a buried stair: the masonry's own steps down, so the street over its lower end stays whole)
@@ -350,9 +385,12 @@ public static class RuienEntrance
     /// </summary>
     public static IEnumerable<(Transform3D frame, Vector2 lo, Vector2 hi, float ceiling)> Footprint(Spec s)
     {
-        // (in each frame x and z; the cover is a plan)
+        // (in each frame x and z; the cover is a plan; a stair-house's from its front wall's inner face: its door and
+        // surround stay in the open)
         float across = s.Width / 2 + s.Lining, every = float.PositiveInfinity;
-        if (!s.Buried)
+        if (s.House)
+            yield return (s.Local * s.Run, new Vector2(0, -across), new Vector2(s.RunLength + s.Lining, across), every);
+        else if (!s.Buried)
             yield return (s.Local * s.Run, new Vector2(-s.Lining, -across), new Vector2(s.RunLength + s.Lining, across), every);
         else
             foreach (var (u0, u1) in Steps(s))
@@ -360,7 +398,7 @@ public static class RuienEntrance
         var c = s.ClosureOpening;
         yield return (s.Local * s.ClosureWall, new Vector2(c.C - c.H - s.Lining, 0), new Vector2(c.C + c.H + s.Lining, s.Lining + 1.25f), s.Buried ? s.Street + c.Top + c.Ring + .3f : every);
         var o = s.DoorOpening;
-        yield return (s.Local, new Vector2(-o.H - .2f, -s.Wall - .1f), new Vector2(o.H + .2f, -.45f), s.Buried ? s.Street + s.Top : every);
+        if (!s.House) yield return (s.Local, new Vector2(-o.H - .2f, -s.Wall - .1f), new Vector2(o.H + .2f, -.45f), s.Buried ? s.Street + s.Top : every);
     }
 
     /// <summary>A buried stair's pieces along the run (u0, u1): the top landing, the flight in short lengths, the bottom landing; the ends take the lining.</summary>
@@ -400,6 +438,8 @@ public static class RuienEntrance
         // (far off nothing of it shows: the street sees the door, the rest is behind walls)
         foreach (var mi in root.FindChildren("*", "MeshInstance3D", true, false).OfType<MeshInstance3D>())
         { mi.VisibilityRangeEnd = 90; mi.VisibilityRangeEndMargin = 6; }
+        // (a stair-house stands on the square: its shell is seen from as far as the town's houses)
+        if (s.House && Main.I?.Flag("no-stair-house-shell") != true) root.AddChild(RuienStairHouse.Build(s));
         return root;
     }
 
@@ -408,6 +448,9 @@ public static class RuienEntrance
     {
         private readonly Spec s;
         public readonly SurfaceTool Stone = new(), Brick = new(), FreshBrick = new(), Vault = new(), Iron = new();
+        /// <summary>A stair-house's door wall and its arch through the wall: seen from the street, so always drawn (the rest of a
+        /// stair-house's inside only while it can be seen: RuienEntranceDoor).</summary>
+        public readonly SurfaceTool DoorBrick = new(), DoorVault = new();
         /// <summary>The surround on the street face: stone and brick that the rain washes, not the damp and soot inside.</summary>
         public readonly SurfaceTool FaceStone = new(), FaceBrick = new(), FaceVault = new();
         private readonly List<Func<Vector3, float>> trims = new();
@@ -415,7 +458,7 @@ public static class RuienEntrance
         public Kit(Spec spec)
         {
             s = spec;
-            foreach (var t in new[] { Stone, Brick, FreshBrick, Vault, Iron, FaceStone, FaceBrick, FaceVault }) t.Begin(Mesh.PrimitiveType.Triangles);
+            foreach (var t in new[] { Stone, Brick, FreshBrick, Vault, Iron, FaceStone, FaceBrick, FaceVault, DoorBrick, DoorVault }) t.Begin(Mesh.PrimitiveType.Triangles);
         }
 
         private Material M(SurfaceTool t) => RuienMaterials.Get(t == Iron ? "ruien_iron" : t == Stone || t == FaceStone ? "ruien_bluestone" : "ruien_brick_stretcher");
@@ -466,10 +509,10 @@ public static class RuienEntrance
         }
 
         /// <summary>The arch ring of an opening through a wall's depth (n0 to n1).</summary>
-        public void Ring(Transform3D frame, Opening o, float n0, float n1)
+        public void Ring(Transform3D frame, Opening o, float n0, float n1, SurfaceTool? into = null)
         {
             if (o.Rise <= 0) return;
-            VaultRing(frame, new Vector3(o.C, o.Spring, n0), new Vector3(o.C, o.Spring, n1), Vector3.Back, o.H, o.Rise, o.Ring);
+            VaultRing(frame, new Vector3(o.C, o.Spring, n0), new Vector3(o.C, o.Spring, n1), Vector3.Back, o.H, o.Rise, o.Ring, into);
         }
 
         float Top => s.Top;
@@ -499,6 +542,12 @@ public static class RuienEntrance
         {
             var run = s.Run; float w = s.Width, half = w / 2, L = s.Lining, lt = s.TopLanding, lf = s.FlightLength, rl = s.RunLength, drop = s.Drop;
             float y0 = -drop - .4f;
+            if (s.House)
+            {
+                // beyond a stair-house's back wall the lining stops under the paving (the street over it is the town's)
+                var into = run.AffineInverse(); float end = s.HouseBack + RuienStairHouse.BackWall;
+                trims.Add(p => { var q = into * p; return q.X > end ? q.Y + .12f : -1; });
+            }
             // Landings: flags across the tunnel with 3 mm joints, 24 cm thick.
             void Flags(float u0, float u1, float y)
             {
@@ -575,13 +624,13 @@ public static class RuienEntrance
             bool closureHere = Same(frame, s.ClosureWall);
             if (closureHere) openings.Add(s.ClosureOpening);
             float face = s.Wall - .05f; // (the reveal stops 5 cm behind the face: the surround covers the joint)
-            if (s.Layout == "I") Wall(Brick, frame, -s.Width / 2 - L, s.Width / 2 + L, -drop - .4f, Top, 0, L, openings);
-            else RunWall(Brick, frame, u => (s.Run * new Vector3(u, 0, 0)).X, -drop - .4f, 0, L, openings);
+            if (s.Layout == "I") Wall(s.House ? DoorBrick : Brick, frame, -s.Width / 2 - L, s.Width / 2 + L, -drop - .4f, Top, 0, L, openings);
+            else RunWall(s.House ? DoorBrick : Brick, frame, u => (s.Run * new Vector3(u, 0, 0)).X, -drop - .4f, 0, L, openings);
             // The reveal through the host wall, round the doorway only.
             var reveal = new Opening { C = o.C, H = o.H, Floor = o.Floor, Spring = o.Spring, Rise = o.Rise, Ring = o.Ring };
             float m = s.RevealMargin;
-            Wall(Brick, frame, o.C - o.H - m, o.C + o.H + m, -.45f, o.Top + o.Ring + Math.Min(.35f, m), L, face, new[] { reveal });
-            Ring(frame, o, 0, face);
+            if (face > L + .02f) Wall(Brick, frame, o.C - o.H - m, o.C + o.H + m, -.45f, o.Top + o.Ring + Math.Min(.35f, m), L, face, new[] { reveal });
+            Ring(frame, o, 0, face, s.House ? DoorVault : null);
             // (a flat head: an oak lintel over the frame is the gate house's; the brick over it is the wall's)
             // Threshold: one bluestone sill through the reveal, its top 1 cm above the street.
             Box(FaceStone, Transform3D.Identity, new Vector3(-o.H, -.24f, -s.Wall - .002f), new Vector3(o.H, .01f, .012f), .008f);
@@ -589,10 +638,12 @@ public static class RuienEntrance
             if (s.Frame == "bluestone")
             {
                 // bluestone jambs in the plinth's height (they cover the cut plinth's edge) and a rowlock brick ring
+                // (a stair-house's jambs run up to the springing: free-standing, it has no plinth course to stop at)
+                float jamb = s.House ? o.Spring : 1.8f;
                 foreach (float side in new[] { -1f, 1f })
                 {
-                    Box(FaceStone, Transform3D.Identity, new Vector3(side < 0 ? -o.H - .26f : o.H, 0, -.05f), new Vector3(side < 0 ? -o.H : o.H + .26f, 1.8f, .015f), .008f);
-                    Box(FaceBrick, Transform3D.Identity, new Vector3(side < 0 ? -o.H - .12f : o.H, 1.8f, -.05f), new Vector3(side < 0 ? -o.H : o.H + .12f, o.Spring, .004f), .006f);
+                    Box(FaceStone, Transform3D.Identity, new Vector3(side < 0 ? -o.H - .26f : o.H, 0, -.05f), new Vector3(side < 0 ? -o.H : o.H + .26f, jamb, .015f), .008f);
+                    Box(FaceBrick, Transform3D.Identity, new Vector3(side < 0 ? -o.H - .12f : o.H, jamb, -.05f), new Vector3(side < 0 ? -o.H : o.H + .12f, o.Spring, .004f), .006f);
                 }
                 if (o.Rise > 0) VaultRing(Transform3D.Identity, new Vector3(0, o.Spring, -.05f), new Vector3(0, o.Spring, .012f), Vector3.Back, o.H, o.Rise, o.Ring, FaceVault);
                 OakFrame(o, -.30f, -.18f);
@@ -750,12 +801,17 @@ public static class RuienEntrance
         public void Commit(Node3D root)
         {
             Func<Vector3, float>? trim = trims.Count == 0 ? null : p => { float best = -1e9f; foreach (var t in trims) best = Math.Max(best, t(p)); return best; };
+            // (a stair-house's stair under its own node: the door shows or hides it, its collision stays)
+            var inside = root;
+            if (s.House) { inside = new Node3D { Name = "inside" }; root.AddChild(inside); }
             // (the treads and flags: bluestone worn to a dark grey on top, its own grain over that colour)
-            RuienStair.Add(root, Stone, "ruien_bluestone", true, bake: new Color(.07f, .072f, .075f));
-            RuienStair.Add(root, Brick, "ruien_brick_stretcher", true, trim: trim);
-            RuienStair.Add(root, Vault, "ruien_brick_stretcher", true, barrel: true);
+            RuienStair.Add(inside, Stone, "ruien_bluestone", true, bake: new Color(.07f, .072f, .075f));
+            RuienStair.Add(inside, Brick, "ruien_brick_stretcher", true, trim: trim);
+            RuienStair.Add(inside, Vault, "ruien_brick_stretcher", true, barrel: true);
+            RuienStair.Add(root, DoorBrick, "ruien_brick_stretcher", true, trim: trim);
+            RuienStair.Add(root, DoorVault, "ruien_brick_stretcher", true, barrel: true);
             // (new brick: clean, a lighter and warmer red than the old lining, its mortar still pale)
-            RuienStair.Add(root, FreshBrick, "ruien_brick_stretcher", true, trim: freshTrim, colour: new Color(.06f, .12f, .02f, 0), bake: new Color(.30f, .13f, .075f));
+            RuienStair.Add(inside, FreshBrick, "ruien_brick_stretcher", true, trim: freshTrim, colour: new Color(.06f, .12f, .02f, 0), bake: new Color(.30f, .13f, .075f));
             RuienStair.Add(root, Iron, "ruien_iron", false);
             var washed = new Color(.06f, 0, .05f, 0);
             // (weathered bluestone outdoors goes a light grey: its own grain over that colour)

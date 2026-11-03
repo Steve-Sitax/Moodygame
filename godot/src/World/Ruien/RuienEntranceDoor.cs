@@ -58,6 +58,7 @@ public partial class RuienEntranceDoor : Node3D
             fixedIron.AppendFrom(pin.Commit(), 0, new Transform3D(Basis.Identity, hinge.Position + new Vector3(0, y, -.012f)));
         }
         RuienStair.Add(this, fixedIron, "ruien_iron", false);
+        inside = GetParent()?.GetNodeOrNull<Node3D>("inside");
         CallDeferred(MethodName.Install);
     }
 
@@ -289,5 +290,14 @@ public partial class RuienEntranceDoor : Node3D
         }
         Open = Mathf.MoveToward(Open, Target ? 1 : 0, (float)delta * .85f);
         hinge.Rotation = new Vector3(0, Side * Mathf.DegToRad(Spec.OpenDeg) * Mathf.SmoothStep(0, 1, Open), 0);
+        // A stair-house's stair (its node "inside") is drawn only while it can be seen: the door open, or the eye in it.
+        // Behind the shut house none of it can be seen: no draw calls for it there.
+        if (inside != null)
+        {
+            var eye = GetViewport()?.GetCamera3D()?.GlobalPosition;
+            bool show = Open > .001f || eye is Vector3 e && RuienEntrance.Holds(Spec, e);
+            if (inside.Visible != show) inside.Visible = show;
+        }
     }
+    private Node3D? inside;
 }

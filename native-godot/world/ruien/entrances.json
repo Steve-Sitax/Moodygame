@@ -722,6 +722,246 @@
    "vaultRise": 0.3,
    "openDeg": 96,
    "closure": "bricked"
+  },
+  {
+   "id": "re24_steenplein",
+   "survey": 24,
+   "name": "Stair-house on the Steenplein",
+   "host": "stair_house",
+   "door": [
+    -208.45,
+    14.91
+   ],
+   "out": [
+    0.0278,
+    -0.9996
+   ],
+   "street": 0.0,
+   "depth": -3.6,
+   "line": "L28",
+   "layout": "I",
+   "flight": "in",
+   "closure": "grille",
+   "closureSide": "left",
+   "wall": 0.34,
+   "width": 1.3,
+   "doorWidth": 1.1,
+   "doorHeight": 2.0,
+   "post": 0.08,
+   "head": "arch",
+   "frame": "bluestone",
+   "topLanding": 1.2,
+   "note": "On the Steenplein by the trees, 6 m from the Suikerrui gallery (room for the gate's niche); the door faces the square, clear of the quay lanes and goods piles; the Werf watch walks round it."
+  },
+  {
+   "id": "re27_werf",
+   "survey": 27,
+   "name": "Stair-house on the Werf",
+   "host": "stair_house",
+   "door": [
+    -301.2,
+    58.58
+   ],
+   "out": [
+    -0.999,
+    -0.0454
+   ],
+   "street": 0.0,
+   "depth": -3.6,
+   "line": "L7",
+   "layout": "I",
+   "flight": "in",
+   "closure": "bricked",
+   "closureSide": "right",
+   "wall": 0.34,
+   "width": 1.3,
+   "doorWidth": 1.1,
+   "doorHeight": 2.0,
+   "post": 0.08,
+   "head": "arch",
+   "frame": "bluestone",
+   "topLanding": 1.2,
+   "note": "On the Werf square, the stair along the Werfrui gallery; the door faces the open square."
+  },
+  {
+   "id": "re28_rijnkaai",
+   "survey": 28,
+   "name": "Stair-house on the Rijnkaai",
+   "host": "stair_house",
+   "door": [
+    39.75,
+    31.89
+   ],
+   "out": [
+    -0.7071,
+    0.7071
+   ],
+   "street": 0.0,
+   "depth": -3.9,
+   "line": "L33",
+   "layout": "I",
+   "flight": "in",
+   "closure": "bricked",
+   "closureSide": "left",
+   "wall": 0.34,
+   "width": 1.3,
+   "doorWidth": 1.1,
+   "doorHeight": 2.0,
+   "post": 0.08,
+   "head": "arch",
+   "frame": "bluestone",
+   "topLanding": 1.2,
+   "note": "Moved 21 m north-east along the Rijnkaai from the survey spot, which stood on the dockers' hauls and against a wine shop's goods: here it stands on the open flagged quay beside the rui, off every haul, lane and pile."
+  },
+  {
+   "id": "re29_sint_paulus",
+   "survey": 29,
+   "name": "Stair-house by Sint-Paulus",
+   "host": "stair_house",
+   "door": [
+    150.7,
+    272.92
+   ],
+   "out": [
+    0.2195,
+    0.9756
+   ],
+   "street": 0.0,
+   "depth": -3.9,
+   "line": "L100",
+   "layout": "I",
+   "flight": "in",
+   "closure": "bricked",
+   "closureSide": "right",
+   "wall": 0.34,
+   "width": 1.3,
+   "doorWidth": 1.1,
+   "doorHeight": 2.0,
+   "post": 0.08,
+   "head": "arch",
+   "frame": "bluestone",
+   "topLanding": 1.2,
+   "note": "In the street widening by Sint-Paulus, the stair along the rui; turned along the street, away from the church's side door."
+  },
+  {
+   "id": "re30_hanseatic",
+   "survey": 30,
+   "name": "Stair-house on the green by the Hanseatic House",
+   "host": "stair_house",
+   "door": [
+    78.64,
+    199.12
+   ],
+   "out": [
+    0.995,
+    0.0995
+   ],
+   "street": 0.0,
+   "depth": -3.9,
+   "line": "L51",
+   "layout": "I",
+   "flight": "in",
+   "closure": "bricked",
+   "closureSide": "left",
+   "wall": 0.34,
+   "width": 1.3,
+   "doorWidth": 1.1,
+   "doorHeight": 2.0,
+   "post": 0.08,
+   "head": "arch",
+   "frame": "bluestone",
+   "topLanding": 1.2,
+   "note": "Turned to the south side of the rui and moved 6 m: the survey spot was hard by an elm. The door faces north onto the green."
+  },
+  {
+   "id": "re31_kipdorp",
+   "survey": 31,
+   "name": "Stair-house on the Kipdorp green",
+   "host": "stair_house",
+   "door": [
+    -174.9,
+    289.63
+   ],
+   "out": [
+    0.0665,
+    0.9978
+   ],
+   "street": 0.0,
+   "depth": -3.9,
+   "line": "L57",
+   "layout": "I",
+   "flight": "in",
+   "closure": "bricked",
+   "closureSide": "left",
+   "wall": 0.34,
+   "width": 1.3,
+   "doorWidth": 1.1,
+   "doorHeight": 2.0,
+   "post": 0.08,
+   "head": "arch",
+   "frame": "bluestone",
+   "topLanding": 1.2,
+   "note": "On the Kipdorp green, the stair along the Kipdorprui; the door faces east, clear of the elm; the children's chalk pitch finds free green beside it."
+  },
+  {
+   "id": "re32_stadspark",
+   "survey": 32,
+   "name": "Stair-house on the green by the Stadspark",
+   "host": "stair_house",
+   "door": [
+    -221.34,
+    319.08
+   ],
+   "out": [
+    0.0208,
+    -0.9998
+   ],
+   "street": 0.0,
+   "depth": -3.9,
+   "line": "L34",
+   "layout": "I",
+   "flight": "in",
+   "closure": "bricked",
+   "closureSide": "left",
+   "wall": 0.34,
+   "width": 1.3,
+   "doorWidth": 1.1,
+   "doorHeight": 2.0,
+   "post": 0.08,
+   "head": "arch",
+   "frame": "bluestone",
+   "topLanding": 1.2,
+   "note": "On the green by the Stadspark, the stair along the Vestrui; the door faces west onto the path; the children's chalk pitch finds free green beside it."
+  },
+  {
+   "id": "re33_lijnwaadmarkt",
+   "survey": 33,
+   "name": "Stair-house on the Lijnwaadmarkt",
+   "host": "stair_house",
+   "door": [
+    -214.25,
+    147.04
+   ],
+   "out": [
+    -0.0061,
+    -1.0
+   ],
+   "street": 0.0,
+   "depth": -3.6,
+   "line": "L42",
+   "layout": "I",
+   "flight": "in",
+   "closure": "bricked",
+   "closureSide": "right",
+   "wall": 0.34,
+   "width": 1.3,
+   "doorWidth": 1.1,
+   "doorHeight": 2.0,
+   "post": 0.08,
+   "head": "arch",
+   "frame": "bluestone",
+   "topLanding": 1.2,
+   "note": "On the Lijnwaadmarkt, the stair along the Lijnwaadrui gallery, off the paths and benches."
   }
  ]
 }
