@@ -224,3 +224,31 @@ shares it. At the landing E at the closure says why the way on is shut.
 5. Check it: `--ruien-proof <dir> --ruien-proof-entrances [--ruien-proof-entrance-ids id]` walks Jef from the street
    through the door to the landing and back (E prompts, depth, room for his body every 20 cm, the closure holds, the
    door shuts and stays solid, saved state); review cameras take `"doorsOpen": true`.
+
+### Stair-houses
+
+Host `stair_house` (survey 24, 27-33): a small free-standing city-works house on a square, green or quay over the top
+of a straight `I` stair. Code: `RuienStairHouse.cs` (the shell), the rest is the kit.
+
+- **One model.** The shell is one mesh and one collision shape, built once and shared by every stair-house: brick in
+  the town's own wall brick on a bluestone plinth in stones with real joints, parapet gables under bluestone coping
+  with kneelers, a projecting band under the eaves, a slate roof with a zinc ridge roll, half-round iron gutters on
+  brackets, downpipes with shoes onto splash stones at the back corners, tie anchors. All in the town's materials
+  (`environment-20261013`: brick, stair stone, slate, iron), so no new shader kind; they take sky, sun and rain like a
+  town wall and cast a shadow. The front gable carries the kit's own bluestone jambs, rowlock arch, wrought-iron
+  fanlight and oak door (`doorWidth` 1.1: Jef's 0.64 m body passes the open leaf).
+- **Length.** The house runs from the door wall back to where the flight's vault is under the paving
+  (`HouseBack`: the top landing plus the run in which the flight drops the vault's height, its thickness and 0.2 m of
+  bed), about 6.2 m with a 1.2 m top landing; inside you only see the kit's lined, vaulted stair. Beyond the back wall
+  the stair runs on under the street: the kit's lining is trimmed under the paving there, and only the tunnel's air
+  under the paving is cut.
+- **The town gives way** inside the plinth's outline (ground, plants, decals, leaves): the crowd's walk map has no
+  ground there, so people and carts go round the house, and the street's collision stops at the plinth.
+- **Drawn when seen.** The stair inside (its landings, flight, lining, vault and closure) is drawn only while the door is
+  open or the eye is in the tunnel; the door wall and its arch, seen in the doorway, always. Its collision always stays.
+- **Cover.** A stair-house's closed (green) footprint starts at its door wall's inner face, so the door, its surround
+  and the house's outside stay in the open.
+- **Placing one.** Run the tunnel parallel to its Ruien line, its line-side wall just clear of the vault's outer face
+  (rui: 3.28 m from the line's centre, gallery 4.63 m), the closure on the line's side; a `grille` needs 1.5 m more for
+  its niche. Keep the house and a 1.6 m apron before the door clear of lanes, hauls, stalls, goods, doors and trees
+  (canopies reach the roof). `--no-stair-house-shell` leaves the shell out (to look at the stair inside).
