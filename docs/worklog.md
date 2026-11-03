@@ -1,5 +1,24 @@
 # Work log
 
+## Ruien section heights and keeper zones, 2026-11-03 (#272 stage 1b, #279)
+
+Native M now matches the kit: spring -2.7, channel 2.8, one 0.8 m walk at -3.9, water -4.4.
+Section/zone data drives paving extraction, pipe runoff, drain shell/crossing/spout, stair support beds,
+rungs, stand-in sections and asymmetric water strips. The loose-brick cutoff references the zone's walk.
+Keeper stairs name their own line zone for repair and runtime arris/reveal; an omitted key retains the
+first-line fallback and an unknown explicit key fails. O2 explicitly names vlietrui.
+The remaining flight-orientation work is still #272 stage 1c; this does not claim that stage complete.
+
+Proof: immutable O2 chosen-original + chosen-headers2, baseline and final repair to the same external path:
+73/73 files byte-identical, including collision and drain_headers. Different output paths assign different
+resource UIDs; their decoded comparison is also exact (zero numeric differences).
+L105 from the corrected #274 export converts and repairs outside the installed world; 79,797 sett vertices
+lie at -3.899955..-3.884000, on the -3.9 walk with 16 mm relief. Thirty headless fixtures pass, including
+both walkway sides, generated pipe film and drain spout heights, and the second-zone keeper arris.
+Build: zero errors, 27 existing warnings. Evidence: D:/Code/Proofs/ruien-272-1b/.
+Render review is pending the serialized town-art slot; no overall environment acceptance is claimed.
+No installed area meshes, authored placements, Blender scripts, packages or fingerprint were changed.
+
 ## Ruien repair for any area, 2026-11-03 (#272 stage 1a)
 
 Branch t3/b40fce56, base main 96fb54883. `RuienRepair.Convert` is split into the generic pass and the area's data. Moved to `areas.json` (o2): the drain mouths (`drains`, also used at load for the native drains and their spout sounds; `RuienDrain.Mouths` is gone), the retired first drain (`sealedDrains`), the repair path (`zones[].repairPath`, smoothed with the zone's own curve flags and handle), the line zone's chunks (`repairChunks`), the keeper stair's cut chunks, the headers piece name (`repair.headersPiece`) and ten O2 fixes in `repair.fixes` (`RuienRepairFix.cs`: dropFamily, keepBelow x2, splay, dropBox, addBox, vaultStrip, mouthRings, cutCollision, addCollisionFaces). Every line zone is repaired; the collision gutter cut follows the area's drains; no `area.Id=="o2"` checks; `--area` is required by `--ruien-area` and `--ruien-repair`. The fingerprint was not refreshed (it hashes source, so the next export refreshes it).

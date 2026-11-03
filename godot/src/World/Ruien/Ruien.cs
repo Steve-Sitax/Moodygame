@@ -126,7 +126,7 @@ public partial class Ruien : Node
             Main.I.View.AddChild(RuienConnections.Build(spec[area.Id],area));
             foreach(var drain in area.Drains)Main.I.View.AddChild(RuienDrain.Build(area.Line(drain.Zone)!,drain.U,drain.Side));
             // Shared kit pieces placed by the area's data: open cast outfalls and bricked-up stub ends.
-            var pipes=RuienPipe.Read(spec[area.Id]);
+            var pipes=RuienPipe.Read(spec[area.Id],area);
             for(int i=0;i<pipes.Count;i++)Main.I.View.AddChild(RuienPipe.Build(pipes[i],i));
             foreach(var end in RuienEnd.Read(spec[area.Id]))Main.I.View.AddChild(RuienEnd.Build(end));
             if(spec[area.Id].TryGetProperty("grates",out var grates))
@@ -232,13 +232,17 @@ public partial class Ruien : Node
                 for (int i = 1; i + 1 < w.Outline.Length; i++) { V(w.Outline[0]); V(w.Outline[i]); V(w.Outline[i + 1]); }
             else if ((w.Line.Length >= 2 ? w.Line : area.Zones.FirstOrDefault(z => z.Id == w.Zone && z.Kind == "line")?.Path) is { Length: >= 2 } path)
             {
-                float half = (w.Width > 0 ? w.Width : area.Zones.FirstOrDefault(z => z.Kind == "line")?.S.Channel ?? 3) / 2;
+                var section=area.Line(w.Zone)?.S;
+                float half = (w.Width > 0 ? w.Width : section?.Channel ?? 3) / 2;
+                float centre=w.Line.Length>=2?0:((section?.ChannelLow??-half)+(section?.ChannelHigh??half))/2;
                 for (int i = 0; i + 1 < path.Length; i++)
                 {
                     var t0 = (path[Math.Min(i + 1, path.Length - 1)] - path[Math.Max(i - 1, 0)]).Normalized();
                     var t1 = (path[Math.Min(i + 2, path.Length - 1)] - path[i]).Normalized();
                     var n0 = new Vector2(t0.Y, -t0.X) * half; var n1 = new Vector2(t1.Y, -t1.X) * half;
                     Vector2 a = path[i] - n0, b = path[i] + n0, c = path[i + 1] + n1, e = path[i + 1] - n1;
+                    var shift0=new Vector2(t0.Y,-t0.X)*centre;var shift1=new Vector2(t1.Y,-t1.X)*centre;
+                    a+=shift0;b+=shift0;c+=shift1;e+=shift1;
                     V(a); V(b); V(c); V(a); V(c); V(e);
                 }
             }
@@ -289,7 +293,7 @@ public partial class Ruien : Node
             if (RuienSurround.Applies(w)) Main.I.View.AddChild(RuienSurround.Build(w));
             if (w.Kind is "ladder" or "grate") Main.I.View.AddChild(RuienKit.Grate(w));
             if (w.Kind == "rungs" && w.Irons) root.AddChild(RuienKit.StepIrons(w));
-            if (w.Kind == "keeper_stair") Main.I.View.AddChild(RuienStair.Build(w, area.Zones.FirstOrDefault(z => z.Kind == "line")));
+            if (w.Kind == "keeper_stair") Main.I.View.AddChild(RuienStair.Build(w, area.StairZone(w)));
         }
         foreach (var mb in area.Mist)
         {
@@ -384,12 +388,14 @@ public partial class Ruien : Node
                 if (w.Outline.Length >= 3 && Geometry2D.IsPointInPolygon(p, w.Outline)) return d.Level;
                 var line = w.Line.Length >= 2 ? w.Line : d.Area.Zones.FirstOrDefault(q => q.Id == w.Zone)?.Path;
                 if (line == null) continue;
-                float half=(w.Width>0?w.Width:d.Area.Zones.FirstOrDefault(q=>q.Kind=="line")?.S.Channel??3)/2;
+                var section=d.Area.Line(w.Zone)?.S;
+                float half=(w.Width>0?w.Width:section?.Channel??3)/2;
+                float centre=w.Line.Length>=2?0:((section?.ChannelLow??-half)+(section?.ChannelHigh??half))/2;
                 for (int i = 0; i + 1 < line.Length; i++)
                 {
                     var ab = line[i + 1] - line[i];
                     float t = (p - line[i]).Dot(ab) / Math.Max(ab.LengthSquared(), 1e-6f);
-                    if (t >= 0 && t <= 1 && p.DistanceTo(line[i] + ab * t) < half) return d.Level;
+                    if (t >= 0 && t <= 1 && MathF.Abs((p-line[i]).Dot(new Vector2(ab.Y,-ab.X).Normalized())-centre) < half) return d.Level;
                 }
             }
         }

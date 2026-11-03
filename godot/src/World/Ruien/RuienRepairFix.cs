@@ -35,7 +35,7 @@ public sealed class RuienRepairFix
     /// <summary>Actions that add native closing pieces to a chunk (after the generic cuts and backings).</summary>
     public static readonly string[] Close = { "addBox", "vaultStrip", "mouthRings" };
 
-    public static List<RuienRepairFix> Read(JsonNode? area)
+    public static List<RuienRepairFix> Read(JsonNode? area,RuienData.Area? layout=null)
     {
         var list = new List<RuienRepairFix>();
         if (area?["repair"]?["fixes"] is not JsonArray fixes) return list;
@@ -46,6 +46,11 @@ public sealed class RuienRepairFix
                 Chunks = Strings(f["chunks"]), Families = Strings(f["families"]), Spec = f.AsObject(), Index = list.Count };
             if (!Shape.Contains(fix.Action) && !Close.Contains(fix.Action) && fix.Action is not ("dropFamily" or "cutCollision" or "addCollisionFaces"))
                 throw new InvalidOperationException($"ruien repair: unknown fix action '{fix.Action}'");
+            if(f["walkOffset"] is JsonNode offset)
+            {
+                var zone=layout?.Line(f["zone"]!.GetValue<string>()) ?? throw new InvalidOperationException("Repair walk cutoff needs a line zone");
+                fix.Spec["y"]=zone.S.LedgeY+offset.GetValue<float>();
+            }
             list.Add(fix);
         }
         return list;

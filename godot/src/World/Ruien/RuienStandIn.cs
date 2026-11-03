@@ -97,9 +97,12 @@ public sealed class RuienStandIn
         var pr = new List<(Vector2, string)>();
         float hw = s.Width / 2, hc = s.Channel / 2;
         void Add(float x, float y, string f) => pr.Add((new Vector2(x, y), f));
-        Add(-hc, s.Bed, "silt"); Add(hc, s.Bed, "brick_flemish");
+        Add(s.ChannelLow, s.Bed, "silt"); Add(s.ChannelHigh, s.Bed, "brick_flemish");
+        hc=s.ChannelHigh;
+        if(s.HasWalk(1)){
         Add(hc, s.LedgeY - 0.25f, "brick_flemish"); Add(hc, s.LedgeY, "bluestone"); Add(hc + 0.5f, s.LedgeY, "brick_stretcher");
         Add(hw, s.LedgeY, "brick_flemish");
+        }
         Add(hw, s.Spring, "brick_stretcher");
         float rise = s.Crown - s.Spring;
         for (int i = 1; i < 24; i++)
@@ -108,8 +111,11 @@ public sealed class RuienStandIn
             Add(hw * MathF.Cos(t), s.Spring + rise * MathF.Sin(t), "brick_stretcher");
         }
         Add(-hw, s.Spring, "brick_flemish");
+        hc=-s.ChannelLow;
+        if(s.HasWalk(-1)){
         Add(-hw, s.LedgeY, "brick_stretcher"); Add(-hc - 0.5f, s.LedgeY, "bluestone"); Add(-hc, s.LedgeY, "brick_flemish");
         Add(-hc, s.LedgeY - 0.25f, "brick_flemish"); Add(-hc, s.Bed, "silt");
+        } else Add(-hw,s.Bed,"silt");
         return pr;
     }
 
@@ -262,9 +268,16 @@ public sealed class RuienStandIn
             Vector3 P(float a, float y) => new(g.Origin.X + along.X * a, y, g.Origin.Y + along.Y * a);
             float hw = s.Width / 2, hc = s.Channel / 2;
             // under the ledges, and the sill's step down into the channel
-            foreach (float sgn in new[] { -1f, 1f })
-                Quad("brick_flemish", s, P(sgn * hc, g.Sill), P(sgn * hw, g.Sill), P(sgn * hw, s.LedgeY), P(sgn * hc, s.LedgeY), Vector2.Zero, new Vector2(0.3f, 0), new Vector2(0.3f, 0.6f), new Vector2(0, 0.6f), into, into);
-            Quad("bluestone", s, P(-hc, s.Bed), P(hc, s.Bed), P(hc, g.Sill), P(-hc, g.Sill), Vector2.Zero, new Vector2(1.2f, 0), new Vector2(1.2f, 0.4f), new Vector2(0, 0.4f), into, into);
+            z.Inside(g.Origin,out float u);var tangent=z.Frame(u).tan;
+            int orientation=along.Dot(new Vector2(tangent.Y,-tangent.X))>=0?1:-1;
+            foreach (int sgn in new[] { -1, 1 })
+            {
+                if(!s.HasWalk(sgn*orientation))continue;
+                float edge=s.Edge(sgn*orientation);
+                Quad("brick_flemish", s, P(sgn * edge, g.Sill), P(sgn * hw, g.Sill), P(sgn * hw, s.LedgeY), P(sgn * edge, s.LedgeY), Vector2.Zero, new Vector2(0.3f, 0), new Vector2(0.3f, 0.6f), new Vector2(0, 0.6f), into, into);
+            }
+            float low=-s.Edge(-orientation),high=s.Edge(orientation);
+            Quad("bluestone", s, P(low, s.Bed), P(high, s.Bed), P(high, g.Sill), P(low, g.Sill), Vector2.Zero, new Vector2(1.2f, 0), new Vector2(1.2f, 0.4f), new Vector2(0, 0.4f), into, into);
             // the sill itself, a bluestone apron level with the vliet's bed
             Quad("bluestone", s, P(-hw, g.Sill), P(hw, g.Sill), P(hw, g.Sill) - into * 1.2f, P(-hw, g.Sill) - into * 1.2f, Vector2.Zero, new Vector2(2.5f, 0), new Vector2(2.5f, 0.5f), new Vector2(0, 0.5f), Vector3.Up, Vector3.Up);
         }

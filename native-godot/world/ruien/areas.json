@@ -81,7 +81,7 @@
     {"from": [-158.3, -3.574, 136.52], "to": [-157.9, -3.574, 137.98]}
    ],
    "keeperStairs": [
-    {"id": "o2_keeper", "top": [-154, 0, 74.5], "bottom": [-154, -3.6, 80.5], "hole": [-154.65, 74.5, 1.3, 4.4], "landingPath": [[-154, 81.1], [-151.05, 81.1], [-150.5, 81.0], [-150.6, 80], [-149.65, 78.5], [-148.5, 76.5], [-148.05, 75.75]], "repairChunks": ["gallery_s0", "gallery_s1"], "lightSource": "keeper_hatch"}
+    {"id": "o2_keeper", "zone": "vlietrui", "top": [-154, 0, 74.5], "bottom": [-154, -3.6, 80.5], "hole": [-154.65, 74.5, 1.3, 4.4], "landingPath": [[-154, 81.1], [-151.05, 81.1], [-150.5, 81.0], [-150.6, 80], [-149.65, 78.5], [-148.5, 76.5], [-148.05, 75.75]], "repairChunks": ["gallery_s0", "gallery_s1"], "lightSource": "keeper_hatch"}
    ],
    "lightScale": {"lampPower": 0.32, "lampRange": 0.7, "openingPower": 0.3, "openingRange": 0.45},
    "grates": [
@@ -141,7 +141,7 @@
      {"action": "dropFamily", "chunks": ["hall_bay0"], "families": ["*Sacking"], "note": "sacks on the butcher bank were unfinished, smooth closed blobs"},
      {"action": "keepBelow", "chunks": ["gallery_s2"], "y": 0.1, "note": "the shaft's helper swapped height and lateral offset, lifting its irons above the street; RuienKit draws the street grate, the corrected source the ladder"},
      {"action": "splay", "chunks": ["gallery_s0"], "x": -146.1, "halfWidth": 3, "z": [72, 76.5], "top": -3.4, "bed": -5.05, "rise": 1.05, "ramp": [73.5, 76.5], "splayZ": 74.5, "splayLength": 2.5, "splayMax": 0.94, "inner": 1.4, "outer": 4, "note": "the outlet apron rises smoothly from the deep gallery bed to the vliet bed and the walls splay to the outlet, without a vertical step; meshes and collision"},
-     {"action": "keepBelow", "chunks": ["gallery_s"], "families": ["*Brick_loose"], "y": -3.59, "note": "loose bricks above the walk floated"},
+     {"action": "keepBelow", "chunks": ["gallery_s"], "families": ["*Brick_loose"], "zone": "vlietrui", "walkOffset": 0.01, "note": "loose bricks above the walk floated"},
      {"action": "dropBox", "chunks": ["hall_bay03", "hall_bay13"], "families": ["ruien_brick_header*", "ruien_calcite"], "min": [-154.07, -1.55, 134.2], "max": [-152.93, -0.8, 136.8], "note": "when the hall stair moved into the street its well cut a rib open: the rib's top and its crust hung inside the well"},
      {"action": "addBox", "chunks": ["outlet_gate"], "families": ["ruien_bluestone"], "size": [0.38, 0.29, 0.085], "bevel": 0.006, "at": [[-147.757, -3.752, 72.522], [-144.443, -3.752, 72.522]], "color": [0.35, 0.04, 0.25, 0], "ao": 0.7, "tile": 2.4, "note": "the slots between the outlet's coping blocks and jamb stones, where brick showed through"},
      {"action": "vaultStrip", "chunks": ["hall_bay23"], "families": ["ruien_brick_stretcher"], "vault": {"centre": -143.1, "halfSpan": 3, "rise": 2.5, "spring": -3.4}, "lift": 0.03, "x": [-145.75, 0.1, 14], "z": [137.98, 138.6, 139.27], "color": [0.3, 0.05, 0.3, 0], "ao": 0.7, "note": "the study left a strip of the east side channel's mouth vault open beside its arch ring (x -145.2..-144.5, z 138-139.2): sky showed through"},
