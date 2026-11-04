@@ -912,12 +912,13 @@ def stub(room, m, mats, coll, rng, col, info):
                      flip=G.orient_check(Pp, inside), coll_=coll, mat=mats['brick_vault'])
     U.add_adaptive(ob); obs.append(ob)
     col.append(('stub_' + m['route'], Pp.reshape(-1, 3), U.grid_faces(*Pp.shape[:2])))
-    # dark card where the stretch continues
-    Pv = pt(np.full(len(s_p), length - 0.03), s_p * 1.04, -2.9 + (y_p + 2.9) * 1.04)
-    Pc = pt(np.array(length - 0.03), np.array(0.0), np.array(-2.9))
-    nv_ = len(Pv)
-    obs.append(U.mesh_from_faces('%s_stub_%s_void' % (rid, m['route']), np.r_[Pv, Pc[None]], [[i, i + 1, nv_] for i in range(nv_ - 1)] + [[nv_ - 1, 0, nv_]],
-                                 coll_=coll, mat=mats['soot_black'], smooth=False))
+    # dark card where the stretch continues (none where the stretch is built to join it: m['joined'])
+    if not m.get('joined'):
+        Pv = pt(np.full(len(s_p), length - 0.03), s_p * 1.04, -2.9 + (y_p + 2.9) * 1.04)
+        Pc = pt(np.array(length - 0.03), np.array(0.0), np.array(-2.9))
+        nv_ = len(Pv)
+        obs.append(U.mesh_from_faces('%s_stub_%s_void' % (rid, m['route']), np.r_[Pv, Pc[None]], [[i, i + 1, nv_] for i in range(nv_ - 1)] + [[nv_ - 1, 0, nv_]],
+                                     coll_=coll, mat=mats['soot_black'], smooth=False))
     # walkway in the stub: setts and coping, the channel face below the coping
     wa, wb = walk_part(m)
     edge = (wa if sd > 0 else wb) - m['t']        # lateral of the water edge
@@ -1112,6 +1113,9 @@ def walkways(room, mats, coll, rng, col, info):
         frame = lambda V2, p0=p0, n=n, tv=tv, jt=jamb_t: (((V2 - p0) @ (-n)), np.abs((V2 - p0) @ tv - jt))
         obs.append(sett_field('%s_setts_stub_%s' % (rid, m['route']), plan, frame, mats, coll, rng, wear_line=0.22))
         obs += seam_stones('%s_seam_stub_%s' % (rid, m['route']), wpt(rect, w, jamb_t - sd * 0.02, 0.02), wpt(rect, w, cope_in, ws), mats, coll, rng)
+        if m.get('joined'):
+            # the joined stretch's setts meet the stub's across the seam: a raised bond stone over the joint
+            obs += seam_stones('%s_seam_join_%s' % (rid, m['route']), wpt(rect, w, jamb_t - sd * 0.02, -length), wpt(rect, w, cope_in, -length), mats, coll, rng)
         obs += coping_line('%s_coping_stub_%s' % (rid, m['route']), wpt(rect, w, edge_t, -length), wpt(rect, w, edge_t, ws), -tv * sd, mats, coll, rng)
         col.append(('walk_stub_' + m['route'], *flat_quad(rect, w, min(edge_t, jamb_t), max(edge_t, jamb_t), -length, 0.0)))
     return obs

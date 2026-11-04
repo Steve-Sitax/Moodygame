@@ -4,6 +4,8 @@
 # Run: blender --background --factory-startup --python scripts/build_junction.py -- --room R1 --out <dir>
 #      [--over <json>] [--lods 0,1] [--no-render] [--no-export]
 # --over: {"<route>": {"t": metres along its wall, "side": 1|-1}, "stair": {"wall": "z1", "end": "hi"}, "crown_grate": false}
+# --joined L65,L100: mouths whose stretch is built to join the stub end (build_stretch.py --from-room): no dark card,
+#      a raised bond stone over the seam, no relief bake at the seam plane
 import bpy, sys, os, json, time, zlib, importlib
 import numpy as np
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -45,6 +47,9 @@ def on_street(x, z, margin=0.25):
     return True
 
 lay = JG.plan_room(room, plan['routes'], on_street, over)
+JOINED = [x for x in (arg('--joined') or '').split(',') if x]
+for m in lay['mouths']:
+    m['joined'] = m['route'] in JOINED
 log('room %s %s: %d bays, mouths %s, stair %s %s, runs %d, bridges %s' % (RID, room.get('name'), lay['bays']['n'],
     [(m['route'], m['wall'], round(m['t'], 2), m['side']) for m in lay['mouths']], lay['stair']['wall'], lay['stair']['end'],
     len(lay['runs']), [m['route'] for m in lay['bridges']]))
@@ -119,6 +124,9 @@ if '--no-export' not in argv:
                     waterMin=JG.SEC.water, movers=EG.prepare_movers(JG.SEC),
                     coordinates='glTF +Y up; glTF (x, y, z) = (game x, game y, game z)', textures='shared: ../../textures (see ../../manifest.json)')
     src = [o for o in coll.all_objects if o.type == 'MESH' and not o.name.endswith('_water') and not o.name.startswith('runoff_')]   # stains live in the host masks, as O2
+    # a joined stretch's seam: no relief within 0.3 m of the stub's end plane, as the stretch does on its side
+    EG.SEAMS[:] = [(np.array([m['end'][0], 0, m['end'][1]]), np.array([m['dir'][0], 0, m['dir'][1]])) for m in info['mouths'] if m['route'] in JOINED]
+    manifest['joined'] = JOINED
     for lod in [int(x) for x in arg('--lods', '0,1').split(',')]:
         baked = EG.build_lod(lod, src, hide_coll=coll, section=JG.SEC)
         EG.export_chunks(baked, keyfn, lambda k: RID, lod, OUT, 'ruien_%s_' % RID, manifest)

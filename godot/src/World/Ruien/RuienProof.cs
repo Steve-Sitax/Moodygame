@@ -161,6 +161,8 @@ public partial class RuienProof : Node
     /// Generic route proof for any area (#272 stage 1d): Jef walks each route's points from its start (the walk
     /// must stay grounded and dry), and an upright 3.85 m giant capsule is tested on the bed at each "giant" point.
     /// {"routes":[{"name","start":[x,y,z,yawDeg],"points":[[x,z],..],"topAbove":y?}],"giant":[{"name","at":[x,z]}]}
+    /// A point may also be {"ladder":"<way id>","dir":"down"|"up"} (E on the street grate, or E at the ladder's foot)
+    /// or {"shot":"<name>"}; a route's "y" checks every walked point's feet within "tol" (default 0.08) of it.
     /// </summary>
     private async Task RouteWalks(string file)
     {
@@ -186,12 +188,91 @@ public partial class RuienProof : Node
             j.Place(s[0].GetSingle(),s[2].GetSingle(),Mathf.DegToRad(s[3].GetSingle()),0,s[1].GetSingle());await Seconds(1.5f);
             Check(name+" starts on its feet",j.Grounded&&!j.Swimming,$"{j.X},{j.Y},{j.Z}");
             int k=0;
+            float? level=r.TryGetProperty("y",out var ly)?ly.GetSingle():null;float tol=r.TryGetProperty("tol",out var lt)?lt.GetSingle():.08f;
             foreach(var p in r.GetProperty("points").EnumerateArray())
-                await WalkTo(new Vector2(p[0].GetSingle(),p[1].GetSingle()),$"{name} point {k++}");
+            {
+                if(p.ValueKind==JsonValueKind.Object)
+                {
+                    if(p.TryGetProperty("shot",out var ps)){await Shot(ps.GetString()!);continue;}
+                    await Ladder(p.GetProperty("ladder").GetString()!,p.GetProperty("dir").GetString()=="down",$"{name} step {k++}");
+                    continue;
+                }
+                await WalkTo(new Vector2(p[0].GetSingle(),p[1].GetSingle()),$"{name} point {k}");
+                if(level is float y0)Check($"{name} point {k} at the walk's level",MathF.Abs(j.Y-y0)<tol,$"feet {j.Y:0.000}, walk {y0}");
+                k++;
+            }
             if(r.TryGetProperty("topAbove",out var top))Check(name+" ends at the top",j.Y>top.GetSingle(),$"feet {j.Y}");
             if(r.TryGetProperty("shot",out var shot))await Shot(shot.GetString()!);
         }
         if(!j.Fly)j.ToggleFly();
+    }
+    /// <summary>
+    /// Town geometry inside the vaults of the areas whose id starts with the prefix: every drawn town triangle (meshes and
+    /// multimesh copies outside the Ruien layer) with a corner inside a line zone's masonry (the section's semicircle grown
+    /// by a 0.36 m rui wall, down to 0.4 m under the bed) or under a room zone's rectangle (grown by its wall, below -0.85).
+    /// </summary>
+    private void TownClear(string prefix)
+    {
+        var areas=Ruien.I!.Data.Areas.Where(a=>a.Id.StartsWith(prefix)).ToArray();
+        var box=areas.Select(a=>a.Box).Aggregate((x,y)=>x.Merge(y)).Grow(1);
+        bool InMasonry(Vector3 p)
+        {
+            foreach(var a in areas)foreach(var z in a.Zones)
+            {
+                if(z.Kind=="room"){if(p.Y<-.85f&&p.Y>z.S.Bed-.4f&&z.Inside(new Vector2(p.X,p.Z),out _)>-z.Wall)return true;continue;}
+                float d=z.Inside(new Vector2(p.X,p.Z),out _);float half=z.S.Width/2,R=half+.36f,s=half-d;
+                if(s>R||p.Y<z.S.Bed-.4f)continue;
+                if(p.Y<z.S.Spring+MathF.Sqrt(Math.Max(0,R*R-s*s)))return true;
+            }
+            return false;
+        }
+        var hits=new Dictionary<string,int>();int meshes=0;
+        void Test(string name,Transform3D xf,Vector3[] faces)
+        {
+            int n=0;for(int i=0;i<faces.Length;i++)if(InMasonry(xf*faces[i]))n++;
+            if(n>0)hits[name]=hits.GetValueOrDefault(name)+n;
+        }
+        foreach(var node in Main.I.View.FindChildren("*","",true,false))
+        {
+            if(node is GeometryInstance3D gi&&(gi.Layers&Ruien.Layer)!=0)continue;
+            if(node is not Node3D n3||!n3.IsVisibleInTree())continue;
+            string path=n3.GetPath().ToString();
+            if(path.Contains("ruien")||path.Contains("surround_")||path.Contains("grate_")||path.Contains("entrance_"))continue;
+            if(path.EndsWith("/river_sheet"))continue; // (the river's sheet: its shader discards it under the cover map)
+            if(node is MeshInstance3D mi&&mi.Mesh!=null)
+            {
+                var gb=mi.GlobalTransform*mi.GetAabb();
+                if(!gb.Intersects(box)||gb.Position.Y>-.5f)continue;
+                meshes++;Test(path,mi.GlobalTransform,mi.Mesh.GetFaces());
+            }
+            else if(node is MultiMeshInstance3D mm&&mm.Multimesh?.Mesh!=null)
+            {
+                var faces=mm.Multimesh.Mesh.GetFaces();
+                int count=mm.Multimesh.VisibleInstanceCount<0?mm.Multimesh.InstanceCount:mm.Multimesh.VisibleInstanceCount;
+                for(int k=0;k<count;k++)
+                {
+                    var xf=mm.GlobalTransform*mm.Multimesh.GetInstanceTransform(k);
+                    var gb=xf*mm.Multimesh.Mesh.GetAabb();
+                    if(!gb.Intersects(box)||gb.Position.Y>-.5f)continue;
+                    meshes++;Test(path+"#"+k,xf,faces);
+                }
+            }
+        }
+        Check($"no town geometry inside the {prefix} vaults ({meshes} town meshes reach below -0.5 m there)",hits.Count==0,
+            string.Join("; ",hits.OrderByDescending(h=>h.Value).Take(12).Select(h=>$"{h.Key}: {h.Value} corners")));
+    }
+    /// <summary>A street grate's ladder: down from the grate (Jef stands on it) or up from its foot, with the E prompts.</summary>
+    private async Task Ladder(string id,bool down,string name)
+    {
+        var j=Jef.I!;var w=Ruien.I!.Data.Areas.SelectMany(a=>a.Ways).Single(x=>x.Id==id&&x.Kind=="ladder");
+        string text=down?"lift the grate and climb down":"climb up to the street";
+        if(down){j.Place(w.Top.X+.15f,w.Top.Z,MathF.PI/2,-.5f,w.Top.Y+.04f);await Seconds(1);
+            Check(name+" "+id+" street grate supports Jef",j.Grounded&&j.Y>-.02f,$"feet {j.Y}");}
+        await Until(()=>Interact.I.Acts.Any(a=>a.Key==Key.E&&a.Text==text),5);
+        Check(name+" "+id+" E: "+text,Interact.I.Acts.Any(a=>a.Key==Key.E&&a.Text==text),Interact.I.Text);
+        Check(name+" "+id+" E accepted",Interact.I.Press(Key.E));await Until(()=>!j.Climbing,60);await Seconds(1);
+        if(down)Check(name+" "+id+" ladder reaches the walkway",j.Grounded&&!j.Swimming&&MathF.Abs(j.Y-w.Bottom.Y)<.2f,$"feet {j.Y}, foot {w.Bottom.Y}");
+        else Check(name+" "+id+" ladder returns to the street",j.Grounded&&MathF.Abs(j.Y-w.Top.Y)<.15f,$"feet {j.Y}, street {w.Top.Y}");
     }
     private void Surrounds()
     {
@@ -547,6 +628,9 @@ public partial class RuienProof : Node
             string walks=Main.I.Arg("ruien-proof-walks");
             if(walks.Length>0)await Walks(walks);
             // Generic routes and giant checks for any area (`--ruien-proof-walk <json>`, #272 stage 1d junction rooms).
+            // No town mesh (a cellar, a foundation, a kerb's skirt) inside the masonry of the areas named (`--ruien-proof-town-clear r1`).
+            string townClear=Main.I.Arg("ruien-proof-town-clear");
+            if(townClear.Length>0)TownClear(townClear);
             string routeWalks=Main.I.Arg("ruien-proof-walk");
             if(routeWalks.Length>0)await RouteWalks(routeWalks);
             // Optional review cameras after physics assertions, without restarting the whole native town.

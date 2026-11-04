@@ -139,7 +139,7 @@ while True:  # every point of the network within reach of a stair
     p = s_[min(cand, key=lambda j: abs(j - k))]
     stairs.append({"id": f"S{len(stairs) + 1}", "name": f"Sluice keeper's stair by {near_place(p)}", "at": p, "note": "A door in a small stair house on the street."})
 lights = [g_ for g_ in grates] + [tuple(rm["centre"]) for rm in rooms] + [tuple(g["at"]) for g in gates] + [s_["at"] for s_ in stairs]
-lamps = []
+lamps = [tuple(l_["at"]) for l_ in net.get("lamps", {}).get("placed", [])]  # placed by hand where the built light falls short
 while True:  # dim lamps where no grate, room, gate or stair lights the way
     far = max(net_pts, key=lambda q: min(math.dist(q[1], l_) for l_ in lights + lamps))
     if min(math.dist(far[1], l_) for l_ in lights + lamps) <= sp["lightWithin"]: break

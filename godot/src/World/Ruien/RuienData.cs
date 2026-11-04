@@ -163,6 +163,8 @@ public sealed class RuienData
         public float Width; // a strip along a zone's line, or along its own line
         public Vector2[] Line = Array.Empty<Vector2>();
         public Vector2 Flow;
+        /// <summary>Where it can be (its outline or line grown by its half width), set at the first water query.</summary>
+        public Rect2? Bounds;
     }
 
     public sealed class Mover
@@ -228,6 +230,9 @@ public sealed class RuienData
         /// <summary>Export keys not drawn (the vliet's own walls and bed: the town draws its vliet).</summary>
         public readonly HashSet<string> SkipKeys = new();
         public string Id = "", Name = "", Export = "";
+        /// <summary>Areas of one group (`group`, default the area's own id) are drawn together: a junction room and the
+        /// ruien built from its mouths show while the eye is in any of their boxes or at any of their openings.</summary>
+        public string Group = "";
         public readonly List<Zone> Zones = new();
         /// <summary>B2 side drain mouths (`drains`): each on a line zone, at a distance along it, on one side.</summary>
         public readonly List<Drain> Drains = new();
@@ -304,6 +309,7 @@ public sealed class RuienData
         {
             if (a.TryGetProperty("enabled", out var en) && en.ValueKind == JsonValueKind.False) continue;
             var area = new Area { Id = S(a, "id"), Name = S(a, "name"), Export = S(a, "export"), WaterMin = F(a, "waterMin", -4.6f), WaterRise = F(a, "waterRise", 0.12f) };
+            area.Group = S(a, "group", area.Id);
             if (a.TryGetProperty("kit", out var kp))
                 foreach (var k in kp.EnumerateArray()) area.Kit.Add((S(k, "piece"), V3(k.GetProperty("at")), F(k, "yaw", 0), k.TryGetProperty("hook", out var hk) && hk.GetBoolean()));
             if (a.TryGetProperty("lampHooks", out var lh)) foreach (var k in lh.EnumerateArray()) area.LampHooks.Add(k.GetString()!);
@@ -380,6 +386,11 @@ public sealed class RuienData
                         Line = w.TryGetProperty("line", out var ln) ? ln.EnumerateArray().Select(V2).ToArray() : Array.Empty<Vector2>(),
                         Flow = w.TryGetProperty("flow", out var fw) ? V2(fw) : Vector2.Zero,
                     });
+            // a stub end that asks for it (`channelEnds[].water`): the channel's water runs on into its barred culvert
+            if (a.TryGetProperty("channelEnds", out var ends))
+                foreach (var (e, spec) in ends.EnumerateArray().Zip(RuienEnd.Read(a)))
+                    if (e.TryGetProperty("water", out var ew) && ew.ValueKind == JsonValueKind.True)
+                        area.Water.Add(new WaterSheet { Id = spec.Id + "_culvert", Outline = RuienEnd.CulvertWater(spec) });
             area.Exported = exported;
             float spacing = F(a, "channelLadderSpacing", 0);
             if (spacing > 0)
