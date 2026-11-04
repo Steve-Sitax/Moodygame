@@ -30,7 +30,17 @@ public sealed class RuienData
     }
 
     /// <summary>A gallery class's section (network.json classes: G the giant gallery, M a rui).</summary>
-    public sealed record Section(float Width, float Bed, float Crown, float Channel, float Ledge, float LedgeY, float Spring);
+    public sealed record Section(float Width, float Bed, float Crown, float Channel, float Ledge, float LedgeY, float Spring, int WalkwaySide = 0, float Water = -4.6f)
+    {
+        public bool HasWalk(int side) => WalkwaySide == 0 || WalkwaySide == side;
+        public float ChannelLow => WalkwaySide == 0 ? -Channel/2 : -Width/2 + (HasWalk(-1) ? Ledge : 0);
+        public float ChannelHigh => WalkwaySide == 0 ? Channel/2 : Width/2 - (HasWalk(1) ? Ledge : 0);
+        /// <summary>Offset from the original kit datum; adding zero preserves its serialized G output.</summary>
+        public float WalkOffset => LedgeY - (-3.6f);
+        public float Edge(int side) => side > 0 ? ChannelHigh : -ChannelLow;
+        // Round metre dimensions before division so the original 2.2 m G rise keeps identical floats.
+        public float Shell(float y) => y <= Spring ? Width/2 : Width/2*MathF.Sqrt(Math.Max(0,1-MathF.Pow((y-Spring)/MathF.Round(Crown-Spring,6),2)));
+    }
 
     /// <summary>
     /// A covered stretch: a line (a gallery: its centre line, sampled every half metre, and its section) or a room
@@ -153,6 +163,8 @@ public sealed class RuienData
         public float Width; // a strip along a zone's line, or along its own line
         public Vector2[] Line = Array.Empty<Vector2>();
         public Vector2 Flow;
+        /// <summary>Where it can be (its outline or line grown by its half width), set at the first water query.</summary>
+        public Rect2? Bounds;
     }
 
     public sealed class Mover
@@ -162,10 +174,34 @@ public sealed class RuienData
         public float OpenDeg;
     }
 
+    /// <summary>
+    /// A folding iron footbridge over a rui channel (#286, #283): two leaves on hinges at the pivots A and B (walk level,
+    /// on the deck's centre line). Each leaf folds up about its own hinge; Gear is the side (a world direction across
+    /// the span) where the lifting gear stands.
+    /// </summary>
+    public sealed class FoldBridge
+    {
+        public string Id = "";
+        public Vector3 A, B;
+        public Vector2 Gear;
+    }
+
+    /// <summary>The fold bridge's engine numbers (areas.json `foldBridge`): shared by every bridge.</summary>
+    public sealed class FoldBridgeKit
+    {
+        /// <summary>Deck top over the walk at the pivots (m), clear width between the rails' centres, rail heights.</summary>
+        public float DeckAbove = 0.025f, RailHalf = 0.385f, OpenDeg = 90, RaiseSeconds = 14;
+        /// <summary>Antigoon: the leaves rise when he comes nearer than Raise (m, from the bridge's middle), come down
+        /// when he is further than Lower; he waits at Hold until both leaves stand.</summary>
+        public float GiantRaise = 9, GiantLower = 10.5f, GiantHold = 4.5f, GiantHeight = 3.5f;
+        /// <summary>The zone a leaf sweeps (its deck, and its rails behind the hinge): nobody may be in it when it moves.</summary>
+        public float SweepBehind = 1.15f, SweepHalf = 0.55f, SweepAbove = 2.2f;
+    }
+
     /// <summary>A way between the street and an area: a ladder up a grate's shaft, or a stair under a hatch.</summary>
     public sealed class Way
     {
-        public string Id = "", Kind = "ladder";
+        public string Id = "", Kind = "ladder", Zone = "";
         public Vector3 Bottom, Top;
         /// <summary>The street's hole over it (x0, z0, size).</summary>
         public Rect2 Hole;
@@ -183,6 +219,8 @@ public sealed class RuienData
         public readonly List<Way> Ways = new();
         /// <summary>The export's moving parts: tide door leaves (turned about a hinge), the penstock (raised).</summary>
         public readonly List<Mover> Movers = new();
+        /// <summary>Folding footbridges over the rui channels (`bridges` in areas.json or the export's markers).</summary>
+        public readonly List<FoldBridge> Bridges = new();
         /// <summary>How far the penstock's door stands raised over its exported rest (m; its travel's top lets one wade under it).</summary>
         public float PenstockRaise;
         /// <summary>Kit pieces placed in the area (shared models: the lamp brackets the export does not carry).</summary>
@@ -192,11 +230,16 @@ public sealed class RuienData
         /// <summary>Export keys not drawn (the vliet's own walls and bed: the town draws its vliet).</summary>
         public readonly HashSet<string> SkipKeys = new();
         public string Id = "", Name = "", Export = "";
+        /// <summary>Areas of one group (`group`, default the area's own id) are drawn together: a junction room and the
+        /// ruien built from its mouths show while the eye is in any of their boxes or at any of their openings.</summary>
+        public string Group = "";
         public readonly List<Zone> Zones = new();
         /// <summary>B2 side drain mouths (`drains`): each on a line zone, at a distance along it, on one side.</summary>
         public readonly List<Drain> Drains = new();
         /// <summary>The line zone with this id, or null.</summary>
         public Zone? Line(string id) => Zones.FirstOrDefault(z => z.Kind == "line" && z.Id == id);
+        public Zone? StairZone(Way way) => way.Zone.Length == 0 ? Zones.FirstOrDefault(z=>z.Kind=="line")
+            : Line(way.Zone) ?? throw new InvalidOperationException($"ruien: stair {way.Id}: unknown line zone {way.Zone}");
         public readonly List<Gate> Gates = new();
         public readonly List<Source> Sources = new();
         public readonly List<MistBox> Mist = new();
@@ -218,6 +261,7 @@ public sealed class RuienData
     public float AirNear = 2, AirFar = 36, Haze = 0.35f, Exposure = 1.6f;
     public Color Fill = new(0.004f, 0.0037f, 0.003f);
     public int LampPool = 4;
+    public FoldBridgeKit Bridge = new();
     public JsonElement NetworkRoot;
 
     private static float F(JsonElement e, string k, float d) => e.TryGetProperty(k, out var v) && v.ValueKind == JsonValueKind.Number ? v.GetSingle() : d;
@@ -237,7 +281,7 @@ public sealed class RuienData
             var v = c.Value;
             float bed = F(v, "bed", -6.1f), crown = F(v, "crown", bed + F(v, "bedToCrown", 5.2f)), w = F(v, "innerWidth", 6);
             float ledgeY = bed + F(v, "ledgeAboveBed", 2.5f);
-            d.Classes[c.Name] = new Section(w, bed, crown, F(v, "channelWidth", w * 0.5f), F(v, "ledgeWidth", 1.5f), ledgeY, ledgeY + 0.5f);
+            d.Classes[c.Name] = new Section(w, bed, crown, F(v, "channelWidth", w * 0.5f), F(v, "ledgeWidth", 1.5f), ledgeY, F(v,"spring",ledgeY + 0.5f), (int)F(v,"walkwaySide",0), F(v,"water",-4.6f));
         }
         var lines = net.GetProperty("lines").EnumerateArray().ToDictionary(l => l.GetProperty("id").GetString()!, l => l);
         var rooms = net.GetProperty("rooms").EnumerateArray().ToDictionary(r => r.GetProperty("id").GetString()!, r => r);
@@ -252,10 +296,20 @@ public sealed class RuienData
             if (air.TryGetProperty("fill", out var fl)) d.Fill = Col(fl).SrgbToLinear() * F(air, "fillStrength", 1);
         }
         d.LampPool = (int)F(root, "lampPool", d.LampPool);
+        if (root.TryGetProperty("foldBridge", out var fb))
+        {
+            var k = d.Bridge;
+            k.DeckAbove = F(fb, "deckAbove", k.DeckAbove); k.RailHalf = F(fb, "railHalf", k.RailHalf); k.OpenDeg = F(fb, "openDeg", k.OpenDeg);
+            k.RaiseSeconds = F(fb, "raiseSeconds", k.RaiseSeconds); k.GiantRaise = F(fb, "giantRaise", k.GiantRaise); k.GiantLower = F(fb, "giantLower", k.GiantLower);
+            k.GiantHold = F(fb, "giantHold", k.GiantHold); k.GiantHeight = F(fb, "giantHeight", k.GiantHeight);
+            k.SweepBehind = F(fb, "sweepBehind", k.SweepBehind); k.SweepHalf = F(fb, "sweepHalf", k.SweepHalf); k.SweepAbove = F(fb, "sweepAbove", k.SweepAbove);
+            if (k.GiantLower <= k.GiantRaise || k.GiantHold >= k.GiantRaise || k.RaiseSeconds <= 0) throw new InvalidOperationException("foldBridge: needs giantHold < giantRaise < giantLower and raiseSeconds > 0");
+        }
         foreach (var a in root.GetProperty("areas").EnumerateArray())
         {
             if (a.TryGetProperty("enabled", out var en) && en.ValueKind == JsonValueKind.False) continue;
             var area = new Area { Id = S(a, "id"), Name = S(a, "name"), Export = S(a, "export"), WaterMin = F(a, "waterMin", -4.6f), WaterRise = F(a, "waterRise", 0.12f) };
+            area.Group = S(a, "group", area.Id);
             if (a.TryGetProperty("kit", out var kp))
                 foreach (var k in kp.EnumerateArray()) area.Kit.Add((S(k, "piece"), V3(k.GetProperty("at")), F(k, "yaw", 0), k.TryGetProperty("hook", out var hk) && hk.GetBoolean()));
             if (a.TryGetProperty("lampHooks", out var lh)) foreach (var k in lh.EnumerateArray()) area.LampHooks.Add(k.GetString()!);
@@ -263,7 +317,11 @@ public sealed class RuienData
             if (a.TryGetProperty("devEntry", out var de)) area.DevEntry = new Vector4(de[0].GetSingle(), de[1].GetSingle(), de[2].GetSingle(), de[3].GetSingle());
             foreach (var z in a.GetProperty("zones").EnumerateArray())
             {
-                var cls = d.Classes.GetValueOrDefault(S(z, "cls", "G")) ?? d.Classes.Values.First();
+                var cls = d.Classes.GetValueOrDefault(S(z, "cls", z.TryGetProperty("line",out var lineId) && lines.TryGetValue(lineId.GetString()!,out var lineSpec)?S(lineSpec,"cls","G"):"G")) ?? d.Classes.Values.First();
+                cls = cls with { LedgeY=F(z,"walk",cls.LedgeY), Spring=F(z,"spring",cls.Spring), Water=F(z,"water",F(a,"waterMin",cls.Water)),
+                    Channel=F(z,"channelWidth",cls.Channel), WalkwaySide=(int)F(z,"walkwaySide",cls.WalkwaySide) };
+                if(z.TryGetProperty("channelWidth",out _)) cls=cls with { Ledge=(cls.Width-cls.Channel)/(cls.WalkwaySide==0?2:1) };
+                if(cls.WalkwaySide is < -1 or > 1)throw new InvalidOperationException("walkwaySide must be -1, 0 (both), or 1");
                 var zone = new Zone { Id = S(z, "id"), S = cls, Wall = F(z, "wall", 0.6f), FadeStart = F(z, "fadeStart", 0), FadeEnd = F(z, "fadeEnd", 0) };
                 if (z.TryGetProperty("rect", out var rc) || (z.TryGetProperty("room", out var rm) && rooms.TryGetValue(rm.GetString()!, out var room) && room.TryGetProperty("rect", out rc)))
                 {
@@ -328,6 +386,11 @@ public sealed class RuienData
                         Line = w.TryGetProperty("line", out var ln) ? ln.EnumerateArray().Select(V2).ToArray() : Array.Empty<Vector2>(),
                         Flow = w.TryGetProperty("flow", out var fw) ? V2(fw) : Vector2.Zero,
                     });
+            // a stub end that asks for it (`channelEnds[].water`): the channel's water runs on into its barred culvert
+            if (a.TryGetProperty("channelEnds", out var ends))
+                foreach (var (e, spec) in ends.EnumerateArray().Zip(RuienEnd.Read(a)))
+                    if (e.TryGetProperty("water", out var ew) && ew.ValueKind == JsonValueKind.True)
+                        area.Water.Add(new WaterSheet { Id = spec.Id + "_culvert", Outline = RuienEnd.CulvertWater(spec) });
             area.Exported = exported;
             float spacing = F(a, "channelLadderSpacing", 0);
             if (spacing > 0)
@@ -337,8 +400,9 @@ public sealed class RuienData
                         float u = 7 + k * spacing / 2;
                         if(a.TryGetProperty("channelLadderOffsets",out var offsets) && k<offsets.GetArrayLength())u+=offsets[k].GetSingle();
                         var (centre, tangent) = zone.Frame(u);
-                        var side = new Vector2(tangent.Y, -tangent.X) * (k % 2 == 0 ? -1 : 1);
-                        var wall = centre + side * zone.S.Channel / 2;
+                        int sign=zone.S.WalkwaySide==0?(k % 2 == 0 ? -1 : 1):zone.S.WalkwaySide;
+                        var side = new Vector2(tangent.Y, -tangent.X) * sign;
+                        var wall = centre + side * zone.S.Edge(sign);
                         var outw = -side;
                         var ledge = wall + side * 0.4f;
                         area.Ways.Add(new Way { Id = zone.Id + "_escape_" + k, Kind = "rungs", Wall = wall, Out = outw,
@@ -352,12 +416,25 @@ public sealed class RuienData
                     var wall = V2(r.GetProperty("wall"));
                     var outw = V2(r.GetProperty("out")).Normalized();
                     var ledge = V2(r.GetProperty("ledge"));
-                    float bot = F(r, "bottom", -6.1f), top = F(r, "top", -3.6f);
+                    var section=(r.TryGetProperty("zone",out var rz)?area.Line(rz.GetString()!) ?? throw new InvalidOperationException("Unknown rung zone")
+                        :area.Zones.OrderByDescending(z=>z.Inside(wall,out _)).FirstOrDefault())?.S ?? d.Classes["G"];
+                    float bot = F(r, "bottom", section.Bed), top = F(r, "top", section.LedgeY);
                     area.Ways.Add(new Way { Id = S(r, "id"), Kind = "rungs", Wall = wall, Out = outw, Irons = !(r.TryGetProperty("irons", out var ir) && ir.ValueKind == JsonValueKind.False), Bottom = new Vector3(wall.X + outw.X * 0.55f, bot, wall.Y + outw.Y * 0.55f), Top = new Vector3(ledge.X, top, ledge.Y) });
                 }
             if (own.TryGetProperty("movers", out var mvs) && mvs.ValueKind == JsonValueKind.Array)
                 foreach (var m in mvs.EnumerateArray())
                     area.Movers.Add(new Mover { Id = S(m, "id"), Kind = S(m, "kind"), Pivot = V3(m.GetProperty("pivot")), OpenDeg = F(m, "openDeg", 0), Collision = S(m, "collision") });
+            foreach (var list in exported ? new[] { a, own } : new[] { a })
+                if (list.TryGetProperty("bridges", out var brs) && brs.ValueKind == JsonValueKind.Array)
+                    foreach (var b in brs.EnumerateArray())
+                    {
+                        string id = S(b, "id");
+                        if (area.Bridges.Any(x => x.Id == id)) continue; // (areas.json first: it may move an exported one)
+                        var bridge = new FoldBridge { Id = id, A = V3(b.GetProperty("a")), B = V3(b.GetProperty("b")), Gear = b.TryGetProperty("gear", out var gr) ? V2(gr).Normalized() : Vector2.Zero };
+                        float span = new Vector2(bridge.B.X - bridge.A.X, bridge.B.Z - bridge.A.Z).Length();
+                        if (id == "" || span < 1 || span > 6 || MathF.Abs(bridge.A.Y - bridge.B.Y) > 0.02f) throw new InvalidOperationException($"ruien: bridge '{id}' needs an id and two level pivots 1 to 6 m apart");
+                        area.Bridges.Add(bridge);
+                    }
             if (own.TryGetProperty("ladders", out var lds))
                 foreach (var l in lds.EnumerateArray())
                 {
@@ -369,7 +446,7 @@ public sealed class RuienData
                 foreach (var l in sts.EnumerateArray())
                 {
                     var h = l.GetProperty("hatch");
-                    area.Ways.Add(new Way { Id = S(l, "id"), Kind = "stair", Bottom = V3(l.GetProperty("bottom")), Top = V3(l.GetProperty("top")), Hole = new Rect2(h[0].GetSingle(), h[2].GetSingle(), h[1].GetSingle() - h[0].GetSingle(), h[3].GetSingle() - h[2].GetSingle()) });
+                    area.Ways.Add(new Way { Id = S(l, "id"), Kind = "stair", Zone=S(l,"zone"), Bottom = V3(l.GetProperty("bottom")), Top = V3(l.GetProperty("top")), Hole = new Rect2(h[0].GetSingle(), h[2].GetSingle(), h[1].GetSingle() - h[0].GetSingle(), h[3].GetSingle() - h[2].GetSingle()) });
                 }
             if(a.TryGetProperty("grates",out var grates))
                 foreach(var gr in grates.EnumerateArray())
@@ -381,11 +458,13 @@ public sealed class RuienData
                 foreach (var s in ks.EnumerateArray())
                 {
                     var h=s.GetProperty("hole");
-                    area.Ways.Add(new Way { Id=S(s,"id"), Kind="keeper_stair", Top=V3(s.GetProperty("top")), Bottom=V3(s.GetProperty("bottom")),
+                    area.Ways.Add(new Way { Id=S(s,"id"), Kind="keeper_stair", Zone=S(s,"zone"), Top=V3(s.GetProperty("top")), Bottom=V3(s.GetProperty("bottom")),
                         LightSource=S(s,"lightSource"),
                         Hole=new Rect2(h[0].GetSingle(),h[1].GetSingle(),h[2].GetSingle(),h[3].GetSingle()),
                         LandingPath=s.TryGetProperty("landingPath",out var lp)?lp.EnumerateArray().Select(V2).ToArray():Array.Empty<Vector2>() });
                 }
+            foreach(var stair in area.Ways.Where(w=>w.Kind=="keeper_stair")) area.StairZone(stair);
+            if(!a.TryGetProperty("waterMin",out _)) area.WaterMin=area.Zones.FirstOrDefault()?.S.Water ?? area.WaterMin;
             area.Drains.AddRange(ReadDrains(a, "drains", id => area.Line(id) != null));
             area.Box = BoxOf(area);
             d.Areas.Add(area);

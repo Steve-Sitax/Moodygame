@@ -108,8 +108,11 @@ class RoutePath(G.Path):
 def seed_of(route_id, seg=0):
     return zlib.crc32(('%s/%d' % (route_id, seg)).encode()) & 0x7fffffff
 
-def build_stretch(route_id, pts, cls, mats, coll, grates=(), lamps=(), start='junction', end='open', walkway_side=1, bend_r=None):
-    """Builds one route. Returns (objects, info) with info['placements'] for the kit pieces it used."""
+def build_stretch(route_id, pts, cls, mats, coll, grates=(), lamps=(), start='junction', end='open', walkway_side=1, bend_r=None, tees=(), keep_clear=()):
+    """Builds one route. Returns (objects, info) with info['placements'] for the kit pieces it used.
+    tees: kit/meet.py Tee objects at this route: as the branch (an end of this route opens into a gallery side;
+    that end's kind is 'tee') or as the host (a rui opens into this gallery's side).
+    keep_clear: more (u0, u1) spans without rings, curtains, grates or lamps (a 'stub' end's bricked-up wall)."""
     sec = Section(cls, walkway_side)
     path = RoutePath(pts, r=bend_r or (sec.W * 1.2))
     rng = np.random.default_rng(seed_of(route_id))
@@ -118,6 +121,20 @@ def build_stretch(route_id, pts, cls, mats, coll, grates=(), lamps=(), start='ju
     g.path = path
     g.u1 = path.length
     info = dict(route=route_id, cls=cls, length_m=round(path.length, 2), min_bend_radius_m=round(path.min_radius, 2), placements=[])
+    as_branch = [t for t in tees if t.bpath is not None and t.branch_id == route_id]
+    as_host = [t for t in tees if t.branch_id != route_id and path.u_near(*t.O)[1] < 0.3]
+    zones = [t.keep_out() for t in as_branch] + [t.host_zone(path)[1] for t in as_host] + [tuple(z) for z in keep_clear]
+    def clear(u, pad=0.0):
+        return all(not (a - pad <= u <= b + pad) for a, b in zones)
+    for t in as_branch:
+        g.holes.append(t.branch_shell_hole)
+        info['water_u'] = t.water_from()
+        info.setdefault('tees', []).append(dict(role='branch', host=t.host_ids, node=t.O.tolist()))
+    for t in as_host:
+        g.holes.append(t.host_shell_hole(path))
+        if hasattr(t, 'host_water'):
+            info['water_u'] = t.host_water(path)
+        info.setdefault('tees', []).append(dict(role='host', branch=t.branch_id, node=t.O.tolist(), side=t.sigma))
     s_p, y_p, v_p, vtot = sec.profile(g.dv)
     vc = vtot / 2
     # per 10 m segment: leaks (seeps), damage clusters, sandstone patches; reproducible per segment
@@ -131,37 +148,62 @@ def build_stretch(route_id, pts, cls, mats, coll, grates=(), lamps=(), start='ju
             g.damage.append((r_.uniform(u_a, u_b), vc + r_.choice([-1, 1]) * r_.uniform(0.25, 0.42) * vtot, r_.uniform(0.2, 0.45), r_.uniform(0.8, 1.1)))
         if r_.random() < 0.4:
             sd = int(r_.choice([-1, 1])); ua = r_.uniform(u_a, u_b)
-            g.sand.append((ua, ua + r_.uniform(1.5, 4.0), sd, sec.spring + 0.4))
+            # Consume the old draws to preserve all other seeded details. Random rubble-foundation
+            # bands have no construction basis in a brick rui; O2's authored foundations are separate.
+            r_.uniform(1.5, 4.0)
         if r_.random() < 0.6:
             g.cdamage.append((r_.uniform(u_a, u_b), int(r_.choice([-1, 1])), sec.water + 0.25, r_.uniform(0.2, 0.4), 1.0))
     # grate shafts: hole in the vault over the walkway (or a ledge), shaft walls, grate and ladder
     shafts = []
+    u_knots, v_knots = [], []
     for (gx, gz) in grates:
         u, d = path.u_near(gx, gz)
         if d < 4.0:
             u = float(np.clip(u, 1.2, path.length - 0.8))
+            if not clear(u, 0.5):
+                info.setdefault('skipped', []).append(dict(grate=[gx, gz], why='inside a tee'))
+                continue
             side = sec.sides[0]
             s_c = side * (sec.hw - (sec.ledge_w * 0.55 if cls == 'M' else 0.65))
             shafts.append((u, s_c))
-            g.holes.append(lambda U_, S_, Y_, u=u, s_c=s_c: (np.abs(U_ - u) < 0.335) & (np.abs(S_ - s_c) < 0.335) & (Y_ > sec.spring))
+            uk, vk = grate_knots(sec, u, s_c)
+            u_knots += uk; v_knots += vk
+            g.holes.append(lambda U_, S_, Y_, u=u, s_c=s_c: (np.abs(U_ - u) < 0.329) & (np.abs(S_ - s_c) < 0.329) & (Y_ > sec.spring))
             g.wetsrc.append((u, side, sec.spring + 0.8, 0.3))
     for (lx, lz) in lamps:
         u, d = path.u_near(lx, lz)
-        if d < 4.0:
+        if d < 4.0 and clear(u, 0.5):
             g.lamps.append(tuple(path.world(np.array(u), np.array(sec.sides[0] * sec.wall_s_at_y(-2.3) * 0.98), np.array(-2.3))))
-    obs = [g.build_shell()]
-    obs += build_lower(g, sec, mats, coll, rng)
+    obs = [g.build_shell(u_knots=u_knots or None, v_knots=v_knots or None)]
+    for t in as_host:
+        # a tee's exact cut round its arch rim (the grid holes only take the cells well inside the opening)
+        if getattr(t, 'host_cutter', None) is not None:
+            from kit import fitlib as FL
+            V_, F_ = t.host_cutter(path)
+            FL.boolean_cut(obs[0], V_, F_, coll)
+    # 'through': the next route of the same section runs on; 'room': a junction room's mouth stub continues it
+    # (kit/junction_gen.py stub: both builds meet without relief and on the stub's own bed)
+    seams = [(u, k) for u, k in ((0.0, start), (path.length, end)) if k in ('through', 'room')]
+    info['seams'] = [dict(pos=[float(v) for v in path.world(np.array(u), np.array(0.0), np.array(0.0))], tangent=[float(v) for v in np.array(path.frame(np.array(u))[2:4])], kind=k) for u, k in seams]
+    obs += build_lower(g, sec, mats, coll, rng, as_branch, as_host, seams)
+    if end == 'stub':
+        info['channelEnds'] = [stub_end(path, sec, route_id)]
     for (u, s_c) in shafts:
         obs += grate_shaft(path, sec, u, s_c, mats, coll)
         info['placements'].append(dict(piece='grate_shaft_parametric', u=round(u, 2), pos=[round(v, 3) for v in path.world(np.array(u), np.array(s_c), np.array(sec.ledge_y))]))
-    for lp in g.lamps:
+    for k, lp in enumerate(g.lamps):
         u, _ = path.u_near(lp[0], lp[2])
-        obs += place_lamp(path, sec, u, mats, coll, rng)
+        obs += place_lamp(path, sec, u, mats, coll, rng, name='%s_lamp_%d' % (route_id, k))   # ids unique across areas
         info['placements'].append(dict(piece='lamp_bracket_safety_lamp', u=round(u, 2), pos=[round(float(v), 3) for v in lp]))
     # ends
     for which, kind in (('start', start), ('end', end)):
         u = 0.0 if which == 'start' else path.length
         obs += end_piece(path, sec, u, kind, which, mats, coll)
+    for t in as_branch:
+        obs += t.build(route_id, mats, coll, np.random.default_rng(seed_of(route_id, 1000)))
+    for t in as_host:
+        if hasattr(t, 'build_host'):
+            obs += t.build_host(route_id, mats, coll)
     # mooring rings on the walkway or ledge coping every 6 to 9 m
     u = rng.uniform(2.0, 5.0)
     while u < path.length - 2:
@@ -170,8 +212,9 @@ def build_stretch(route_id, pts, cls, mats, coll, grates=(), lamps=(), start='ju
         edge = hi if side > 0 else lo
         loc = path.world(np.array(u), np.array(edge - side * 0.04), np.array(sec.ledge_y - 0.12))
         px, pz, tx, tz, nx, nz = path.frame(np.array(u))
-        obs += PR.ring_on_staple('%s_ring_%d' % (route_id, len(obs)), loc, -side * np.array([float(nx), 0, float(nz)]), mats['iron_wet'], coll, R=0.06)
-        info['placements'].append(dict(piece='mooring_ring', u=round(u, 2)))
+        if clear(u, 0.6):
+            obs += PR.ring_on_staple('%s_ring_%d' % (route_id, len(obs)), loc, -side * np.array([float(nx), 0, float(nz)]), mats['iron_wet'], coll, R=0.06)
+            info['placements'].append(dict(piece='mooring_ring', u=round(u, 2)))
         u += rng.uniform(6.0, 9.0)
     # calcite curtains (the wax recipe) under the strongest leaks, with run-off to the walkway or the water
     strong = sorted([q for q in g.seeps if q[2] > 0.6 and abs(q[1] - vc) > 0.3 * vtot * 0.4], key=lambda q: -q[2])[:max(2, int(path.length / 8))]
@@ -182,6 +225,8 @@ def build_stretch(route_id, pts, cls, mats, coll, grates=(), lamps=(), start='ju
         W0 = rng.uniform(0.45, 0.9)
         host = host_section(path, sec, su, side, y_top)
         L = (y_top - floor) * rng.uniform(0.45, 0.7)
+        if not clear(su, 1.0):
+            continue
         obs.append(WX.wax_curtain('%s_calcite' % route_id, host, W0, L, mats, coll, rng, T=0.012 + 0.02 * W0, taper=0.7, relief=0.5,
                                   Lend=y_top - floor - 0.01, land='ledge' if side in sec.sides else None))
     # floating and stranded debris, a rubble pile below each damage cluster
@@ -189,7 +234,10 @@ def build_stretch(route_id, pts, cls, mats, coll, grates=(), lamps=(), start='ju
         u = rng.uniform(1.0, path.length - 1.0); lo, hi = sec.channel_edges()
         pos = path.world(np.array(u), np.array(rng.uniform(lo + 0.2, hi - 0.2)), np.array(sec.water - 0.01))
         o = PR.plank('%s_plank_%d' % (route_id, k), rng.uniform(0.3, 1.0), rng.uniform(0.06, 0.16), 0.025, mats['wood_wet'], coll, seed=int(rng.integers(1e6)))
+        if not clear(u, 0.6):
+            bpy.data.objects.remove(o, do_unlink=True); continue
         o.location = U.gv(*pos); o.rotation_euler = (0, 0, rng.uniform(0, 6.28)); obs.append(o)
+        o['ruien_collision'] = False   # it floats: no fixed solid at the water line (it blocked the giant and the wader)
     return obs, info, g, sec
 
 def host_section(path, sec, u0, side, y_top):
@@ -209,13 +257,21 @@ def host_section(path, sec, u0, side, y_top):
         return pt, n / np.linalg.norm(n)
     return host
 
-def build_lower(g, sec, mats, coll, rng):
-    """Walkway or ledges, channel walls, bed, silt banks, water, and bluestone coping on the walkway edge."""
+def cells(A):
+    """Cell centres of a grid array (n, m) -> (n-1, m-1)."""
+    return 0.25 * (A[1:, 1:] + A[:-1, :-1] + A[1:, :-1] + A[:-1, 1:])
+
+def build_lower(g, sec, mats, coll, rng, branch=(), host=(), seams=()):
+    """Walkway or ledges, channel walls, bed, silt banks, water, and bluestone coping on the walkway edge.
+    branch / host: kit/meet.py tees where this stretch is the rui that ends, or the gallery that is cut."""
     obs = []
     path = g.path
     uu = np.arange(0.0, path.length + 1e-6, 0.2)
     if uu[-1] < path.length - 1e-6:
         uu = np.r_[uu, path.length]
+    for t in host:
+        if t.host_u_knots(path):
+            uu = G.merge_knots(uu, t.host_u_knots(path), 0.2)
     lo, hi = sec.channel_edges()
     def attrs(P, wet=0.4, silt=0.4, slime=0.3):
         n = P.shape[0] * P.shape[1]
@@ -226,32 +282,67 @@ def build_lower(g, sec, mats, coll, rng):
         A[:, 3] = silt * (0.6 + 0.8 * U.fbm3(Pf, g.seed + 7, 1.2))
         Cc[:, 2] = wet
         return {'wxA': np.clip(A, 0, 1).reshape(*P.shape[:2], 4), 'wxB': B.reshape(*P.shape[:2], 4), 'wxC': Cc.reshape(*P.shape[:2], 4)}
+    def keep_or_none(keep):
+        return None if keep.all() else keep
     for side in sec.sides:
         edge = hi if side > 0 else lo
         ss = np.linspace(edge, side * (sec.hw + 0.06), 9)
         Uu, Ss = np.meshgrid(uu, ss, indexing='ij')
         P = path.world(Uu, Ss, np.full(Uu.shape, sec.ledge_y))
-        ob = U.grid_mesh('%s_walk_%s' % (g.name, 'n' if side > 0 else 's'), P, np.stack([Uu, np.abs(Ss)], -1), attrs=attrs(P, 0.9),
+        keep = np.ones((len(uu) - 1, len(ss) - 1), bool)
+        for t in branch:
+            keep &= ~t.walk_hole(cells(Uu), cells(Ss))
+        for t in host:
+            keep &= ~t.host_walk_hole(path, cells(Uu), cells(Ss))
+        ob = U.grid_mesh('%s_walk_%s' % (g.name, 'n' if side > 0 else 's'), P, np.stack([Uu, np.abs(Ss)], -1), attrs=attrs(P, 0.9), keep=keep_or_none(keep),
                          flip=G.orient_check(P, P[P.shape[0] // 2, 4] + np.array([0, 1.0, 0])), coll_=coll, mat=mats['brick_ledge'])
+        if not keep.all():
+            U.remove_loose(ob)
         U.add_adaptive(ob); obs.append(ob)
-        yy = np.linspace(sec.bed - 0.15, sec.ledge_y - 0.25, 18)
+        # the channel face runs 6 cm up behind the coping, so the coping's rounded underside never shows a slit (#276)
+        yy = np.linspace(sec.bed - 0.15, sec.ledge_y - 0.19, 18)
         Uu, Yy = np.meshgrid(uu, yy, indexing='ij')
         P = path.world(Uu, np.full(Uu.shape, edge), Yy)
-        ob = U.grid_mesh('%s_walkface_%s' % (g.name, 'n' if side > 0 else 's'), P, np.stack([Uu, Yy], -1), attrs=attrs(P, 0.5, 0.2, 0.5),
+        keep = np.ones((len(uu) - 1, len(yy) - 1), bool)
+        for t in branch:
+            keep &= ~t.walkface_hole(cells(Uu))
+        for t in host:
+            keep &= ~t.host_walkface_hole(path, cells(Uu), cells(Yy), side)
+        ob = U.grid_mesh('%s_walkface_%s' % (g.name, 'n' if side > 0 else 's'), P, np.stack([Uu, Yy], -1), attrs=attrs(P, 0.5, 0.2, 0.5), keep=keep_or_none(keep),
                          flip=G.orient_check(P, path.world(np.array([uu[len(uu) // 2]]), np.array([0.0 if sec.cls == 'G' else (lo + hi) / 2]), np.array([sec.bed + 0.5]))[0]),
                          coll_=coll, mat=mats['brick_channel'])
+        if not keep.all():
+            U.remove_loose(ob)
         U.add_adaptive(ob); obs.append(ob)
-        # coping blocks along the edge
-        u = 0.0; k = 0
-        while u < path.length - 0.2:
-            L = min(rng.uniform(0.7, 1.1), path.length - u)
-            V, F = U.chipped_block(L - 0.003, 0.25, 0.4, r=rng.uniform(0.006, 0.012), res=0.055, seed=g.seed * 1000 + k, chips=int(rng.integers(5, 11)),
-                                   chip_size=(0.02, 0.07), wear_top=0.012, corners=int(rng.integers(0, 3)), wobble=0.0009)
-            Pw = path.world(u + L / 2 + V[:, 0], edge + side * (0.2 - 0.04) + side * V[:, 2], sec.ledge_y - 0.125 + V[:, 1])
-            if side > 0:
-                F = F[:, ::-1]
-            obs.append(U.mesh_from_faces('%s_coping_%03d' % (g.name, k), Pw, F, uv=U.box_uv(V, F), coll_=coll, mat=mats['bluestone']))
-            u += L; k += 1
+        # coping blocks along the edge; a tee leaves a gap whose ends butt against its own stones
+        gaps = sorted([t.coping_gap() for t in branch] + [gp for gp in (t.host_coping_gap(path, side) for t in host) if gp is not None])
+        runs, u0 = [], 0.0
+        for ga, gb in gaps:
+            if ga > u0:
+                runs.append((u0, ga))
+            u0 = max(u0, gb)
+        if u0 < path.length:
+            runs.append((u0, path.length))
+        k = 0
+        for ra, rb in runs:
+            u = ra
+            while u < rb - 0.2 if not gaps else u < rb - 0.05:
+                L = min(rng.uniform(0.7, 1.1), rb - u)
+                if gaps and rb - (u + L) < 0.3:
+                    L = rb - u
+                V, F = U.chipped_block(L - 0.003, 0.25, 0.4, r=rng.uniform(0.006, 0.012), res=0.055, seed=g.seed * 1000 + k, chips=int(rng.integers(5, 11)),
+                                       chip_size=(0.02, 0.07), wear_top=0.012, corners=int(rng.integers(0, 3)), wobble=0.0009)
+                Pw = path.world(u + L / 2 + V[:, 0], edge + side * (0.2 - 0.04) + side * V[:, 2], sec.ledge_y - 0.125 + V[:, 1])
+                if side > 0:
+                    F = F[:, ::-1]
+                obs.append(U.mesh_from_faces('%s_coping_%03d' % (g.name, k), Pw, F, uv=U.box_uv(V, F), coll_=coll, mat=mats['bluestone']))
+                if u + L < rb - 0.05:
+                    # silt and dirt packed in the joint, so no view opens under the walkway (#276)
+                    uj = u + L - 0.0015
+                    Cj = np.array([path.world(np.array(uj + (-0.006 if not (j & 1) else 0.006)), np.array(edge + side * (-0.03 if not (j & 4) else 0.34)),
+                                              np.array(sec.ledge_y - 0.245 if not (j & 2) else sec.ledge_y - 0.012)) for j in range(8)])
+                    obs.append(U.block_object('%s_copingjoint' % g.name, Cj, mats['silt'], coll, r=0.002, res=0.1, chips=0))
+                u += L; k += 1
     # bed and silt
     ss = np.linspace(lo - 0.06, hi + 0.06, 13)
     Uu, Ss = np.meshgrid(uu, ss, indexing='ij')
@@ -260,11 +351,41 @@ def build_lower(g, sec, mats, coll, rng):
     edge = np.abs(Ss - (lo + hi) / 2) / ((hi - lo) / 2)
     depth = sec.bed + 0.12 + 0.45 * edge ** 3 * (0.5 + n1)
     depth = np.minimum(depth, sec.water + 0.1)
+    if sec.cls == 'M':
+        # the giant's way: Antigoon (3.85 m) wades a rui upright on its -4.9 bed, 0.15 m under the crown, so the silt
+        # stays a skim along the channel's middle and banks up only towards its edges (as the junction rooms' bed)
+        mid = U.smoothstep(0.75, 1.35, np.abs(Ss - (lo + hi) / 2))
+        depth = sec.bed + 0.005 + (depth - sec.bed - 0.005) * mid
+    for us, kind in seams:
+        # where the next route runs on, both builds meet the same bed: noise from world position, not the route
+        shared = np.minimum(sec.bed + 0.12 + 0.45 * edge ** 3 * (0.5 + U.fbm3(Pc, 1873, 3.0)), sec.water + 0.1)
+        if kind == 'room':
+            # the room stub's silt (kit/junction_gen.py bed): thin along the channel, 6 cm more at its edges
+            shared = sec.bed + 0.005 + 0.06 * U.smoothstep(0.9, 1.4, np.abs(Ss - (lo + hi) / 2))
+        w = U.smoothstep(1.0, 0.0, np.abs(Uu - us))
+        depth = depth * (1 - w) + shared * w
+    keep = np.ones((len(uu) - 1, len(ss) - 1), bool)
+    for t in branch:
+        near = t.q_of_u(Uu) - t.q_chan(Ss)
+        depth = np.minimum(depth, sec.bed - 0.03 + 0.3 * np.clip(near - 0.45, 0, 1))
+        keep &= ~t.silt_hole(cells(Uu), cells(Ss))
+    for t in host:
+        keep &= ~t.host_silt_hole(path, cells(Uu), cells(Ss))
     P = path.world(Uu, Ss, depth)
-    ob = U.grid_mesh('%s_silt' % g.name, P, np.stack([Uu, Ss], -1), flip=G.orient_check(P, P[P.shape[0] // 2, 6] + np.array([0, 1.0, 0])), coll_=coll, mat=mats['silt'])
+    for t in host:
+        P[..., 1] = t.host_silt(path, P)
+    ob = U.grid_mesh('%s_silt' % g.name, P, np.stack([Uu, Ss], -1), keep=keep_or_none(keep), flip=G.orient_check(P, P[P.shape[0] // 2, 6] + np.array([0, 1.0, 0])), coll_=coll, mat=mats['silt'])
+    if not keep.all():
+        U.remove_loose(ob)
     U.add_adaptive(ob); obs.append(ob)
     # far wall below the shell foot on the channel side already reaches the bed (profile); water box
-    uw = np.linspace(0, path.length, max(2, int(path.length / 0.5)))
+    w0, w1 = 0.0, path.length
+    for t in branch:
+        w0, w1 = t.water_from()
+    for t in host:
+        if hasattr(t, 'host_water'):
+            w0, w1 = t.host_water(path)
+    uw = np.linspace(w0, w1, max(2, int((w1 - w0) / 0.5)))
     cs = np.array([lo, hi, hi, lo]); cy = np.array([sec.water, sec.water, sec.bed - 0.3, sec.bed - 0.3])
     Uu = np.broadcast_to(uw[:, None], (len(uw), 4))
     P = path.world(Uu, np.broadcast_to(cs, Uu.shape), np.broadcast_to(cy, Uu.shape))
@@ -276,6 +397,18 @@ def build_lower(g, sec, mats, coll, rng):
                                  coll_=coll, mat=mats['water'], smooth=False))
     return obs
 
+def grate_knots(sec, u, s_c, h=0.33):
+    """Shell u and profile v knots that make the vault hole exactly the shaft's square."""
+    s_p, y_p, v_p, vt = sec.profile(0.002)
+    v_of = lambda s: float(np.interp(s, s_p, v_p)) if s_p[-1] > s_p[0] else float(np.interp(-s, -s_p, v_p))
+    vs = []
+    for s in (s_c - h, s_c + h):
+        side = s_p > 0 if s > 0 else s_p <= 0
+        sp, vp = s_p[side & (y_p > sec.spring)], v_p[side & (y_p > sec.spring)]
+        o = np.argsort(sp)
+        vs.append(float(np.interp(s, sp[o], vp[o])))
+    return [u - h, u + h], vs
+
 def grate_shaft(path, sec, u, s_c, mats, coll, top=-0.28, h=0.33):
     """Parametric grate shaft: brick shaft walls from the vault to the street, cast-iron grate, step irons,
     and a wrought-iron ladder from the walkway (or ledge) up into the shaft."""
@@ -284,22 +417,27 @@ def grate_shaft(path, sec, u, s_c, mats, coll, top=-0.28, h=0.33):
         return path.world(np.array(uu), np.array(ss), np.array(yy))
     s0, s1 = s_c - h, s_c + h
     ctr = P(u, -1.0, s_c)
-    def wall(name, fu, fs):
-        a = np.linspace(0, 1, 12)
-        uu_, ss_ = fu(a), fs(a)
-        ybot = sec.vault_y_at_s(ss_) - 0.12
-        q = np.linspace(0, 1, 16)
-        Uu = np.broadcast_to(uu_[:, None], (12, 16)); Ss = np.broadcast_to(ss_[:, None], (12, 16))
-        Y = ybot[:, None] + (top - ybot[:, None]) * q[None]
-        Pp = path.world(Uu, Ss, Y)
-        A = np.zeros((*Pp.shape[:2], 4), np.float32); B = np.zeros((*Pp.shape[:2], 4), np.float32); B[..., 3] = 1
-        A[..., 2] = 0.55; A[..., 0] = 0.35
-        return U.grid_mesh(name, Pp, np.stack([np.broadcast_to(a[:, None] * 0.66, Y.shape), Y], -1), attrs={'wxA': A, 'wxB': B},
-                           flip=G.orient_check(Pp, ctr), coll_=coll, mat=mats['brick_vault'])
-    obs.append(wall('shaft_wall_a', lambda a: u - h + a * 2 * h, lambda a: np.full_like(a, s1)))
-    obs.append(wall('shaft_wall_b', lambda a: u - h + a * 2 * h, lambda a: np.full_like(a, s0)))
-    obs.append(wall('shaft_wall_c', lambda a: np.full_like(a, u - h), lambda a: s0 + a * (s1 - s0)))
-    obs.append(wall('shaft_wall_d', lambda a: np.full_like(a, u + h), lambda a: s0 + a * (s1 - s0)))
+    # One closed lining round the shaft (#276): the four faces share their corner vertices, so the relief bake
+    # moves both sides of a corner together and no crack opens. The lining starts 3 cm under the vault face,
+    # which is cut to the same square by exact u and v knots (grate_knots).
+    def corner_path(t):
+        t = t % (8 * h)
+        su = np.select([t < 2 * h, t < 4 * h, t < 6 * h], [u - h + t, np.full_like(t, u + h), u + h - (t - 4 * h)], np.full_like(t, u - h))
+        ss = np.select([t < 2 * h, t < 4 * h, t < 6 * h], [np.full_like(t, s1), s1 - (t - 2 * h), np.full_like(t, s0)], s0 + (t - 6 * h))
+        return su, ss
+    # one loop starting mid-face (the UV seam lies on a flat face), every corner a shared vertex
+    t_ring = np.unique(np.r_[np.linspace(h, 9 * h, 49), 2 * h, 4 * h, 6 * h, 8 * h])
+    uu_, ss_ = corner_path(t_ring)
+    ybot = sec.vault_y_at_s(ss_) - 0.03
+    q = np.linspace(0, 1, 16)
+    Uu = np.broadcast_to(uu_[:, None], (len(t_ring), 16)); Ss = np.broadcast_to(ss_[:, None], (len(t_ring), 16))
+    Y = ybot[:, None] + (top - ybot[:, None]) * q[None]
+    Pp = path.world(Uu, Ss, Y)
+    A = np.zeros((*Pp.shape[:2], 4), np.float32); B = np.zeros((*Pp.shape[:2], 4), np.float32); B[..., 3] = 1
+    A[..., 2] = 0.55; A[..., 0] = 0.35
+    arc = np.broadcast_to((t_ring - h)[:, None], Y.shape)
+    obs.append(U.grid_mesh('shaft_lining', Pp, np.stack([arc, Y], -1), attrs={'wxA': A, 'wxB': B},
+                           flip=G.orient_check(Pp, ctr), coll_=coll, mat=mats['brick_vault']))
     iron = mats['iron']
     for k, ss in enumerate(np.linspace(s0 + 0.04, s1 - 0.04, 9)):
         C = np.array([P(u - h if not (j & 1) else u + h, -0.09 if not (j & 2) else -0.005, ss - 0.012 if not (j & 4) else ss + 0.012) for j in range(8)])
@@ -323,20 +461,47 @@ def grate_shaft(path, sec, u, s_c, mats, coll, top=-0.28, h=0.33):
         obs.append(U.tube('ladder_rung', [P(u - 0.2, yy, lad), P(u + 0.2, yy, lad)], 0.013, n=8, coll_=coll, mat=iron))
     return obs
 
-def place_lamp(path, sec, u, mats, coll, rng):
+def place_lamp(path, sec, u, mats, coll, rng, name='kit_lamp'):
     wy = -2.3
     side = sec.sides[0]
     ws = float(sec.wall_s_at_y(wy))
     wall_pt = path.world(np.array(u), np.array(side * ws), np.array(wy))
     inner = path.world(np.array(u), np.array(side * (ws - 1.0)), np.array(wy))
     parts, hook = PR.lamp_bracket('lamp_bracket', wall_pt, inner - wall_pt, 0.3, mats['iron'], coll)
-    lo, ll = PR.safety_lamp('kit_lamp', mats, coll, light_power=150.0)
+    lo, ll = PR.safety_lamp(name, mats, coll, light_power=150.0)
     lo.location = U.gv(*hook)
     return parts + [lo]
 
+def world_ext(path, u, s, y):
+    """path.world, but continued straight past both ends (path.world clamps there)."""
+    u = np.asarray(u, float)
+    uc = np.clip(u, 0.0, path.length)
+    px, pz, tx, tz, nx, nz = path.frame(uc)
+    d = u - uc
+    return np.stack(np.broadcast_arrays(px + d * tx + s * nx, y, pz + d * tz + s * nz), -1)
+
+STUB_BACK = 0.05   # a 'stub' end's bricked-up wall stands this far inside the swept end
+
+def stub_end(path, sec, route_id):
+    """A 'stub' end: the game's RuienEnd (areas.json channelEnds) bricks the section up just inside the swept end,
+    with a barred culvert over the channel's middle carrying the water on, where the next area joins later."""
+    u = path.length - STUB_BACK
+    lo, hi = sec.channel_edges()
+    c = (lo + hi) / 2
+    at = path.world(np.array(u), np.array(c), np.array(0.0))
+    px, pz, tx, tz, nx, nz = path.frame(np.array(u))
+    half = max(abs(-sec.hw - c), abs(sec.hw - c)) + 0.5     # reaches behind both walls of the shell
+    return dict(id='%s_stub' % route_id, at=[round(float(at[0]), 3), 0.0, round(float(at[2]), 3)], axis=[round(float(tx), 5), 0.0, round(float(tz), 5)],
+                half=round(half, 3), bottom=round(sec.bed - 0.3, 3), top=round(sec.crown + 0.15, 3), culvert=1.0, spring=round(sec.water + 0.1, 3), water=True)
+
 def end_piece(path, sec, u, kind, which, mats, coll):
     """'cap': dead-end brick wall; 'open': a dark void card (the route continues, built separately);
-    'junction': a header-brick arch ring where the route opens into a bigger gallery or room."""
+    'junction': a header-brick arch ring where the route opens into a room (no host gallery found);
+    'through': nothing (the next route continues the same section); 'tee': built by kit/meet.py;
+    'room': nothing (a junction room's mouth stub continues it); 'stub': nothing here, the game's RuienEnd bricks it
+    up (stub_end)."""
+    if kind in ('through', 'tee', 'reducer', 'room', 'stub'):
+        return []
     obs = []
     s_p, y_p, v_p, vt = sec.profile(0.2)
     # The shell profile is open between its unequal feet. An end fan needs a
@@ -356,13 +521,19 @@ def end_piece(path, sec, u, kind, which, mats, coll):
         o = U.grid_mesh('%s_cap' % which, Pp, np.stack([np.broadcast_to(s_p[:, None], Pp.shape[:2]), Pp[..., 1]], -1), attrs={'wxA': A, 'wxB': B},
                         flip=G.orient_check(Pp, inside), closed_u=True, coll_=coll, mat=mats['brick_channel'])
         U.add_adaptive(o); obs.append(o)
-    else:
+    elif kind in ('open', 'junction'):
+        # The dark card stands 2 cm past the shell's end and reaches 15 cm beyond its whole outline, so no
+        # grazing view past the crown, the walls or the bed finds an edge to look round (#276).
         n = len(s_p)
-        P0 = path.world(np.full(n, u + (0.3 if which == 'end' else -0.3)), s_p * 1.02, y_p)
         cy = (sec.bed + sec.crown) / 2
-        P1 = path.world(np.full(n, u + (0.3 if which == 'end' else -0.3)), s_p * 0.0, np.full(n, cy))
+        off = 0.02 if which == 'end' else -0.02
+        rad = np.hypot(s_p, y_p - cy)
+        k = (rad + 0.15) / np.maximum(rad, 1e-6)
+        P0 = world_ext(path, np.full(n, u + off), s_p * k, cy + (y_p - cy) * k)
+        P1 = world_ext(path, np.full(n, u + off), s_p * 0.0, np.full(n, cy))
         Pp = np.stack([P0, P1], 1)
-        obs.append(U.grid_mesh('%s_void' % which, Pp, np.zeros((n, 2, 2)), closed_u=True, coll_=coll, mat=mats['soot_black'], smooth=False))
+        inside = world_ext(path, np.array([u - off * 25]), np.array([0.0]), np.array([cy]))[0]
+        obs.append(U.grid_mesh('%s_void' % which, Pp, np.zeros((n, 2, 2)), closed_u=True, flip=G.orient_check(Pp, inside), coll_=coll, mat=mats['soot_black'], smooth=False))
         if kind == 'junction':
             th = np.linspace(np.pi, 0, 2000)
             es, ey = (sec.hw + 0.05) * np.cos(th), sec.spring + (sec.rise + 0.05) * np.sin(th)

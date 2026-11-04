@@ -15,10 +15,10 @@ namespace Scheldemist.World.Ruien;
 /// </summary>
 public static class RuienPipe
 {
-    public readonly record struct Spec(Vector3 Front,Vector3 Axis);
-    public const float Proud=.21f,Outer=.150f,Bore=.118f,Walk=-3.6f;
+    public readonly record struct Spec(Vector3 Front,Vector3 Axis,float Walk=-3.6f,float Ledge=1.5f);
+    public const float Proud=.21f,Outer=.150f,Bore=.118f;
 
-    public static List<Spec> Read(JsonElement area)
+    public static List<Spec> Read(JsonElement area,RuienData.Area? layout=null)
     {
         var list=new List<Spec>();
         if(!area.TryGetProperty("pipes",out var pipes))return list;
@@ -27,9 +27,17 @@ public static class RuienPipe
             var f=p.GetProperty("front");var a=p.GetProperty("axis");
             list.Add(new Spec(new Vector3(f[0].GetSingle(),f[1].GetSingle(),f[2].GetSingle()),new Vector3(a[0].GetSingle(),0,a[2].GetSingle()).Normalized()));
         }
+        if(layout!=null)
+            for(int i=0;i<list.Count;i++)
+            {
+                var spec=list[i];var entry=pipes[i];var q=new Vector2(spec.Front.X,spec.Front.Z);
+                var zone=entry.TryGetProperty("zone",out var id) ? layout.Line(id.GetString()!) ?? throw new InvalidOperationException("Unknown pipe zone")
+                    : layout.Zones.OrderByDescending(z=>z.Inside(q,out _)).FirstOrDefault();
+                if(zone!=null)list[i]=spec with { Walk=zone.S.LedgeY,Ledge=zone.S.Ledge };
+            }
         return list;
     }
-    public static List<Spec> Read(JsonNode area)=>Read(JsonDocument.Parse(area.ToJsonString()).RootElement);
+    public static List<Spec> Read(JsonNode area,RuienData.Area? layout=null)=>Read(JsonDocument.Parse(area.ToJsonString()).RootElement,layout);
 
     /// <summary>Wall face point of the pipe's axis.</summary>
     public static Vector3 Wall(Spec s)=>s.Front+s.Axis*Proud;
@@ -149,8 +157,8 @@ public static class RuienPipe
         // The run-off spreading from the wall foot over the setts to the coping: a thin wet film that pools in the
         // joints and fans out (same water kind as the walls' films), over the vertex stain the repair laid there.
         var film=new SurfaceTool();film.Begin(Mesh.PrimitiveType.Triangles);
-        var foot=new Vector3(wall.X,Walk+.0175f,wall.Z);
-        Vector3 Film(float d,float side){float w=.07f+.2f*d/1.45f+.02f*MathF.Sin(d*9);return foot-s.Axis*d+lat*(side*w+.04f*MathF.Sin(d*4.3f));}
+        var foot=new Vector3(wall.X,s.Walk+.0175f,wall.Z);
+        Vector3 Film(float d,float side){d*=s.Ledge/1.5f;float w=.07f+.2f*d/1.45f+.02f*MathF.Sin(d*9);return foot-s.Axis*d+lat*(side*w+.04f*MathF.Sin(d*4.3f));}
         for(int i=0;i<12;i++)
         {
             float d0=.01f+i*1.44f/12,d1=d0+1.44f/12;

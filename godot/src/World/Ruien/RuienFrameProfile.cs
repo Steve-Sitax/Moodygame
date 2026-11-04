@@ -80,8 +80,10 @@ internal sealed class RuienFrameProfile : IDisposable
         public HiddenParts(IEnumerable<string> parts)
         {
             var selected=parts.ToHashSet();
+            // "ruien_<area>/<name prefix>": only that area's pieces whose node name starts so (mist_, beam_, water_, mesh_)
+            var pieces=selected.Where(p=>p.StartsWith("ruien_")&&p.Contains('/')).Select(p=>(part:p[..p.IndexOf('/')],name:p[(p.IndexOf('/')+1)..])).ToArray();
             saved=selected.Count==0?Array.Empty<(GeometryInstance3D,uint)>():Geometry()
-                .Where(m=>selected.Contains(Part(m))).Select(m=>(m,m.Layers)).ToArray();
+                .Where(m=>selected.Contains(Part(m))||pieces.Any(q=>q.part==Part(m)&&m.Name.ToString().StartsWith(q.name))).Select(m=>(m,m.Layers)).ToArray();
             foreach(var (mesh,_) in saved)mesh.Layers=0;
         }
         public void Dispose(){foreach(var (mesh,layers) in saved)mesh.Layers=layers;}

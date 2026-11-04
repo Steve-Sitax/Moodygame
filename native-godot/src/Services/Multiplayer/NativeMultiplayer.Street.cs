@@ -119,6 +119,8 @@ public sealed partial class NativeMultiplayer
     private static double Distance(NativeMpState a,NativeMpState b)=>Math.Sqrt(Math.Pow(a.X-b.X,2)+Math.Pow(a.Z-b.Z,2));
     public int[] OnlineIds()=>Enabled?seats.Values.Where(s=>s.GoneAt==null&&s.Connection!=null&&s.State!=null&&C.Now-s.At<30000).Select(s=>s.Id).ToArray():new[]{1};
     public JsonObject? Position(int player) { if(!Enabled)return null;var seat=seats.GetValueOrDefault(player);return seat?.State!=null&&seat.GoneAt==null&&C.Now-seat.At<5000?PosePoint(seat.State):null; }
+    /// <summary>A seated player's feet (with height), for the Ruien's fold bridges.</summary>
+    public (double X,double Y,double Z)? Feet(int player) { if(!Enabled)return null;var seat=seats.GetValueOrDefault(player);return seat?.State!=null&&seat.GoneAt==null&&C.Now-seat.At<5000?(seat.State.X,seat.State.Y,seat.State.Z):null; }
     public int? Walker(string npc) { if(!Enabled)return null;int? number=owners.NumberOf(npc);return number==null?0:owners.OwnerOf(number.Value); }
     private IReadOnlyDictionary<string,int> PinsNow() { if(C.Now-pinsAt>=250) { pinsAt=C.Now;pins=Pins?.Invoke(OnlineIds())??DefaultPins(OnlineIds());foreach(int id in FigureHolders?.Invoke()??DefaultFigureHolders())figHeldAt[id]=C.Now; }return pins; }
     private JsonObject PinsMessage()=>new(){["type"]="pins",["list"]=new JsonArray(PinsNow().OrderBy(x=>x.Key,StringComparer.Ordinal).Select(x=>(JsonNode)new JsonArray(x.Key,x.Value)).ToArray())};

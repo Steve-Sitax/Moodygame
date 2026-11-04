@@ -24,18 +24,24 @@
    "ledgeAboveBed": 2.5,
    "wall": 0.6,
    "bed": -6.1,
-   "crown": -0.9
+   "crown": -0.9,
+   "spring": -3.1,
+   "walkwaySide": 0,
+   "water": -4.6
   },
   "M": {
    "name": "Rui",
    "innerWidth": 3.6,
    "bedToCrown": 4.0,
-   "channelWidth": 2.0,
+   "channelWidth": 2.8,
    "ledgeWidth": 0.8,
    "ledgeAboveBed": 1.0,
    "wall": 0.45,
    "bed": -4.9,
-   "crown": -0.9
+   "crown": -0.9,
+   "spring": -2.7,
+   "walkwaySide": 1,
+   "water": -4.4
   },
   "S": {
    "name": "Side drain",
@@ -3561,6 +3567,22 @@
  ],
  "lamps": [
   [
+   155.6,
+   310.2
+  ],
+  [
+   155.7,
+   277.9
+  ],
+  [
+   148.8,
+   290.8
+  ],
+  [
+   131.5,
+   295.7
+  ],
+  [
    184.5,
    244.0
   ],
@@ -3683,10 +3705,6 @@
   [
    204.2,
    26.0
-  ],
-  [
-   115.4,
-   300.2
   ],
   [
    -341.5,

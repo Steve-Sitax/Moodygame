@@ -1,0 +1,38 @@
+{
+  "about": "Stretch fittings placed by build_stretch.py from the plan (Steve, #272, 2026-11-03): R2 iron edge rail on every rui walkway, R3 covered drain crossing where a side drain enters on the walkway side. drainCrossing.rim: arch rim face width, reveal step, reveal depth, proud (kit/arch_rim.py); farSill: the far mouth sill top over the invert, depth below it, nose. Metres; per section class. kit/rail.py and kit/drain_crossing.py read this file.",
+  "rail": {
+    "M": {
+      "postSpacing": 1.6,
+      "railHeights": [0.5, 1.0],
+      "postRadius": 0.019,
+      "endPostRadius": 0.023,
+      "railRadius": 0.016,
+      "postBelow": 0.3,
+      "shoe": [0.1, 0.2, 0.014],
+      "standoff": 0.012,
+      "ladderGap": 0.95,
+      "mouthClear": 0.35,
+      "crossingFlank": 0.56,
+      "collisionHeight": 1.1
+    }
+  },
+  "drainCrossing": {
+    "M": {
+      "match": 1.2,
+      "minFromEnd": 1.6,
+      "minFromShaft": 1.4,
+      "minApart": 2.2,
+      "egg": [1.0, 1.6],
+      "invertBelowWalk": 0.2,
+      "farInvertAboveWater": 0.14,
+      "sillHalf": 0.4,
+      "notch": 0.3,
+      "rebate": [0.03, 0.035],
+      "raised": 0.012,
+      "grateBars": 6,
+      "barrel": [0.9, 1.05, 70, 0.9],
+      "rim": [0.23, 0.11, 0.11, 0.03],
+      "farSill": [0.2, 0.1, 0.05]
+    }
+  }
+}

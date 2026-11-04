@@ -33,6 +33,17 @@ public static class RuienTextures
         return t;
     }
 
+    /// <summary>Suffix of a family whose export charts are its own (kit/arch_rim.py: radial voussoirs): drawn, tiled and
+    /// audited as its base family, but not re-charted by <see cref="RuienUnfold"/> at import.</summary>
+    public const string OwnChart = "_rim";
+
+    /// <summary>The family key of an export material name: "ruien_" and an <see cref="OwnChart"/> suffix removed.</summary>
+    public static string Key(string family)
+    {
+        string key = family.StartsWith("ruien_") ? family[6..] : family;
+        return key.EndsWith(OwnChart) ? key[..^OwnChart.Length] : key;
+    }
+
     public static Dictionary<string, Family> Families()
     {
         var map = new Dictionary<string, Family>();

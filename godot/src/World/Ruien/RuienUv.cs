@@ -11,10 +11,10 @@ namespace Scheldemist.World.Ruien;
 public static class RuienUv
 {
     /// <summary>Restore collapsed/sliver UV charts on exposed narrow faces; retain the authored phase and direction.</summary>
-    public static bool Repair(Godot.Collections.Array arrays,string family,bool continuous=false)
+    public static bool Repair(Godot.Collections.Array arrays,string family,bool continuous=false,bool localPhase=false)
     {
         var families=RuienTextures.Families();
-        if(!families.TryGetValue(family.StartsWith("ruien_")?family[6..]:family,out var f))return false;
+        if(!families.TryGetValue(RuienTextures.Key(family),out var f))return false;
         var p=arrays[(int)Mesh.ArrayType.Vertex].AsVector3Array();var uv=arrays[(int)Mesh.ArrayType.TexUV].AsVector2Array();
         var ix=arrays[(int)Mesh.ArrayType.Index].AsInt32Array();if(uv.Length!=p.Length)return false;
         if(ix.Length==0)ix=Enumerable.Range(0,p.Length).ToArray();
@@ -38,6 +38,10 @@ public static class RuienUv
             float handed=du.Cross(dv)<0?-1:1;var v=new Vector2(-u.Y,u.X)*handed;
             var centre=(uv[a]+uv[b]+uv[c])*tile/3;
             var origin=centre-(u*(length+along)+v*across)/3;
+            // Whole-area charts can be hundreds of metres from zero. On a millimetre sliver, adding its
+            // width there loses float precision. An integral tile shift preserves the sampled bond and
+            // its direction while keeping this repaired triangle's arithmetic near zero.
+            if(localPhase)origin-=new Vector2(MathF.Floor(origin.X/tile.X)*tile.X,MathF.Floor(origin.Y/tile.Y)*tile.Y);
             var fix=new[]{origin,origin+u*length,origin+u*along+v*across};
             bool collapsed=min<.25f||max>3||max/Math.Max(min,1e-6f)>4;
             for(int j=0;j<3;j++){int old=ix[i+j];ix[i+j]=map.Count;if(collapsed)unbake.Add(map.Count);map.Add(old);mapped.Add(fix[j]/tile);}
@@ -84,7 +88,7 @@ public static class RuienUv
     public static int UnfoldFlanks(Godot.Collections.Array arrays,string family)
     {
         var families=RuienTextures.Families();
-        if(!families.TryGetValue(family.StartsWith("ruien_")?family[6..]:family,out var f))return 0;
+        if(!families.TryGetValue(RuienTextures.Key(family),out var f))return 0;
         var p=arrays[(int)Mesh.ArrayType.Vertex].AsVector3Array();var uv=arrays[(int)Mesh.ArrayType.TexUV].AsVector2Array();
         var ix=arrays[(int)Mesh.ArrayType.Index].AsInt32Array();if(uv.Length!=p.Length)return 0;
         if(ix.Length==0)ix=Enumerable.Range(0,p.Length).ToArray();
@@ -201,6 +205,18 @@ public static class RuienUv
         GD.Print($"ruien flanks: {total} triangles in {files} meshes");
     }
 
+    /// <summary>Degrees a chart's texture axes stand off square (#293); above this its courses visibly bend.</summary>
+    public const float ShearLimit=5f;
+
+    /// <summary>Shear of a triangle's chart in degrees, from its UV derivatives along (u) and across (w) the triangle's
+    /// first edge: the angle between the U and V gradients less 90.</summary>
+    public static float Shear(Vector2 u,Vector2 w)
+    {
+        var gu=new Vector2(u.X,w.X);var gv=new Vector2(u.Y,w.Y);
+        float n=gu.Length()*gv.Length();if(n<1e-12f)return 0;
+        return Mathf.RadToDeg(MathF.Asin(Math.Min(1f,MathF.Abs(gu.Dot(gv))/n)));
+    }
+
     public static void Audit(string folder,string output)
     {
         var families=RuienTextures.Families();var report=new List<object>();
@@ -209,14 +225,16 @@ public static class RuienUv
             var mesh=ResourceLoader.Load<ArrayMesh>(file);
             for(int s=0;s<mesh.GetSurfaceCount();s++)
             {
-                string name=mesh.SurfaceGetName(s),key=name.StartsWith("ruien_")?name[6..]:name;
+                string name=mesh.SurfaceGetName(s),key=RuienTextures.Key(name);
                 // (a stair-house's shell: the town's pictures at their own tiles, RuienStairHouse)
                 Vector2 tile;if(families.TryGetValue(key,out var family))tile=new Vector2(family.TileU,family.TileV);else if(RuienStairHouse.Tile(name) is Vector2 own)tile=own;else continue;
                 var a=mesh.SurfaceGetArrays(s);var v=a[(int)Mesh.ArrayType.Vertex].AsVector3Array();
                 var uv=a[(int)Mesh.ArrayType.TexUV].AsVector2Array();var ix=a[(int)Mesh.ArrayType.Index].AsInt32Array();
                 if(ix.Length==0)ix=Enumerable.Range(0,v.Length).ToArray();
                 if(uv.Length!=v.Length)continue;
-                double area=0,bad=0;float worst=0;Vector3 where=default;var samples=new List<object>();
+                // (#293) shear: texture axes off square bend the courses while area and anisotropy can still pass
+                double area=0,bad=0,sheared=0;float worst=0,worstShear=0;Vector3 where=default,shearAt=default;var samples=new List<object>();
+                var shearBig=new List<(float weight,Vector3 at,float shear)>(); // the largest sheared faces, for a review camera
                 for(int i=0;i<ix.Length;i+=3)
                 {
                     var p=v[ix[i]];var e=v[ix[i+1]]-p;var f=v[ix[i+2]]-p;
@@ -233,8 +251,13 @@ public static class RuienUv
                         if(samples.Count<5)samples.Add(new{at=new[]{p.X,p.Y,p.Z},ratio,min,max});
                     }
                     if(ratio>worst){worst=ratio;where=p;}
+                    float shear=Shear(u,w);
+                    if(shear>ShearLimit){sheared+=weight;shearBig.Add((weight,(p+v[ix[i+1]]+v[ix[i+2]])/3,shear));}
+                    if(shear>worstShear){worstShear=shear;shearAt=p;}
                 }
-                report.Add(new{file=Path.GetFileName(file),family=name,area,badArea=bad,worst,at=new[]{where.X,where.Y,where.Z},samples});
+                report.Add(new{file=Path.GetFileName(file),family=name,area,badArea=bad,worst,at=new[]{where.X,where.Y,where.Z},
+                    shearArea=sheared,worstShear,shearAt=new[]{shearAt.X,shearAt.Y,shearAt.Z},samples,
+                    shearLargest=shearBig.OrderByDescending(t=>t.weight).Take(5).Select(t=>new{at=new[]{t.at.X,t.at.Y,t.at.Z},area=t.weight,t.shear})});
             }
         }
         File.WriteAllText(output,JsonSerializer.Serialize(report,new JsonSerializerOptions{WriteIndented=true}));

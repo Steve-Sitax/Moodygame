@@ -62,6 +62,37 @@ the flight's side wall ends where the near jamb starts (they shared a face) and 
 ceiling's free edge closes the slot under the niche's sloping vault (no lower than that edge: the headroom stays). The keeper crew face the way they walk.
 
 
+## The R1 sample (#272)
+
+The first playable piece of the full network, installed next to O2: junction room R1 by Sint-Pauluskerk and the first
+22-26 m of the three ruien that meet in it (L65 22 m, L100 26 m, L114 25 m). Each shows a street grate with its ladder,
+plan lamps and the plan's side-drain crossings, and ends at a bricked-up stub (`RuienEnd`, barred culvert) where the
+next area joins. Reach it from the street at the open oak hatch at (159.6, 300), from any of its three grates, or with
+the kit command `ruien r1` (Jef on the stair foot landing).
+
+- **Areas.** `r1` (the room), `r1_l65`, `r1_l100`, `r1_l114`, one converted export each. `group` (default the area's
+  id) draws a group whole while the eye is underground in any of its boxes (the room and its ruien see one another);
+  at a street opening only that area is drawn (the whole group at a grate cost some 700 more draw calls).
+- **Build.** `build_junction.py --room R1 --joined L65,L100,L114`, then `build_stretch.py --route <id> --from-room
+  <R1 manifest> --clip 0,<length> --end stub` (KIT.md "A rui from a room"); L65 adds `--drain-match 1.6`. The
+  areas.json entries come from the manifests: zones (the swept path, walkway side), `channelEnds` (`water` true: the
+  channel runs on into the culvert), `spills` (each crossing's and far-wall mouth's pour, reach 7 and 6 m) and `drips`
+  (each grate's shaft, reach 5 m), `lampHooks` (the stretch lamps on the curved walls).
+- **Light.** The plan's rule (every point within 20 m of a grate, room, gate or lamp) held, yet the crossings and stub
+  ends were black at midday: in the game a grate lights its rui about 7 m each way and a lamp about 6 m. Four lamps are
+  placed by hand in the plan (`ruien-network.json` `lamps.placed`, kept by `plan.py`): L65 u 15.5, L100 u 8, L114 u 2.5
+  and 20.5; every walkway point is now within 0.55 of some source's game range. Lamps are named `<route>_lamp_<k>` and
+  grates `<route>_grate_<k>` (ids are unique across areas).
+- **Antigoon.** Every rui keeps its silt a skim along the channel's middle, so the 3.85 m giant stands upright on the
+  -4.9 bed with 0.135 m to spare (49 points along the three ruien); floating planks carry no collision. The L100
+  footbridge leaves lie down in normal play; the bridge proof raises them for the giant.
+- **Cost.** About O2's: room landing 23.7 ms, a rui walkway 18.3, O2's gallery 21.1 in the same runs (`--profile-parts`,
+  contended; worklog 2026-11-04). `WaterAt` skips each water sheet by its bounds: every walker, gull and cart asks it,
+  and the streets over a rui lie inside its area's box (before, O2's own views ran 5-7 ms slower with the sample).
+- `--ruien-proof-town-clear <area prefix>` checks that no drawn town triangle lies inside the areas' masonry (the
+  river's sheet is skipped: its shader discards it under the cover map). `--ruien-proof-walk` points may be
+  `{"ladder": id, "dir": "up"|"down"}` (the E prompts at a street grate's ladder) or `{"shot": name}`.
+
 ## Sound
 
 The Ruien are a room of the soundscape ("ruien" in `Soundscape.Halls`, `RuienSound.cs`): a 3.4 s brick echo, the
@@ -89,6 +120,11 @@ film (with `--write-movie` and `--fixed-fps`); `solo` and `probe` measure one so
 
 Conversion (headless, once per export; it writes under `res://world/ruien` and quits):
 
+Generated manifests with `cls` receive brick unfolding and narrow-face UV repair automatically, across each LOD's
+exported objects. Stretch `surfaceLayout` supplies the swept path and walkway side for native setts and their
+collision; older exports use the selected area's zones. Use `--lods 0,1` to convert both LODs and audit both.
+The original O2 study still uses its separate immutable-snapshot repair and unchanged import path.
+
     godot --headless --path native-godot res://world/ruien/convert.tscn -- --ruien-textures <export>/textures
     godot --headless --path native-godot res://world/ruien/convert.tscn -- --ruien-area <export> --area o2
     godot --headless --path native-godot res://world/ruien/convert.tscn -- --ruien-repair <immutable export snapshot> --area o2 --headers <fittings.glb>
@@ -113,15 +149,51 @@ the mesh file name; none = all) along its `repairPath` (the export's own sweep, 
   `addCollisionFaces` (source LOD faces in a box that the collision export left out). Numbers and notes: O2 in
   `areas.json`; code `RuienRepairFix.cs`.
 
+A family name ending in `_rim` (`RuienTextures.OwnChart`, the kit's arch rims) is drawn, tiled and audited as its
+base family but keeps its exported radial charts: `RuienUnfold` skips it.
+
 For an isolated stretch intake, add `--out <absolute resource folder>` to `--ruien-area`; the folder gets
 `area.json`, meshes, collision and markers without changing the installed world. `--area` names the area;
 stretch mesh prefixes come from the manifest's route ID. Empty or absent movers and absent outlets are valid.
 Daylight beam fall uses the manifest's `waterMin` (or the installed area's value for older exports).
 
+A junction room (`build_junction.py`, art-source KIT.md "Junction rooms") converts the same way; its manifest asks
+for `uvRepair`, so RuienImport runs `RuienUv.Repair` on every surface at full precision (older exports are unchanged).
+`--ruien-proof <dir> --ruien-proof-walk <json>` walks Jef along listed points (grounded and dry at each) and tests an
+upright 3.85 m giant capsule on the bed at listed points, for any area.
+
 A native review can use `--ruien-areas <absolute JSON>` to replace the area list for that process. Keep the usual
 area-list schema, set its area's `export` to the external resource folder, `waterMin` to the section's water,
 and its line zone to the stretch's path/class. `--ruien-always` forces visibility; it is a flag, not a folder argument.
 Isolate `SCHELDEMIST_USER_DATA`, `--db`, `--prefs`, `--author-root` and `--port` for this run as for other proofs.
+Convert both LODs with `--lods 0,1` (the default is LOD0 only). `--ruien-proof-walks <json>` walks Jef on a stretch:
+`walk` entries go through waypoints and must stay grounded at the walk level (`y`, `tol`); `push` entries hold W
+along `dir` and must stay on the walkway (`blocked`: the rail holds) or leave it (a ladder gap).
+
+Every class M stretch carries R2 and R3 (Steve, #272, 2026-11-03), built in the generator (`kit/rail.py`,
+`kit/drain_crossing.py`, numbers in `kit/fittings.json`): the iron edge rail on the walkway's water edge, with
+collision as one slab per run broken only at ladder gaps, and at each plan side drain on the walkway side the
+covered crossing (egg mouth in two rowlock rings, notched bluestone sill, flush grate over the recessed gutter, pour
+into the channel); on the far wall the drain opens just above the water. The export cuts the vault and walk for
+them, so no native repair is needed. `check_fittings.py` checks the built `.blend`.
+
+Section classes carry `spring`, `water`, `channelWidth` and `walkwaySide` (0 = both, +1/-1 = one side of the
+path normal `(tangent.z, -tangent.x)`). A zone can override these and `walk`. M matches the kit: spring -2.7,
+walk -3.9, water -4.4, one 0.8 m ledge and a 2.8 m channel. Paving, runoff, drains, escape irons and stand-in
+sections use those bounds. Authored pipe `front` coordinates remain explicit; `zone` selects its runoff floor.
+`keeperStairs[].zone` selects the lining for both repair and native arris/reveal; omission keeps the first-line
+fallback, while an unknown explicit zone is an error. Flight orientation is still the separate #272 stage 1c task.
+`stairSurrounds` accepts an id or `{id, steps, going}`; its support bed follows the section. A repair `keepBelow`
+can use `{zone, walkOffset}` instead of absolute `y`.
+
+`--ruien-repair ... --out <absolute folder>` copies the immutable source and repairs that external copy; any
+headers piece is written beside it. This permits comparisons without replacing installed resources. The headless
+`--ruien-section-proof <report folder>` checks both M sides, paving relief, drain impact and keeper-zone selection.
+
+Meetings (#272 stage 1d): a rui that ends in a gallery's side (tee) or where a gallery ends (throat) is built in
+Blender by both stretches from the plan (`art-source/ruien-o2-20261018/scripts/kit/meet.py`, KIT.md "Where galleries
+meet"). Each stretch is its own area with its own water level; the rui's water starts at its sill lip and an exported
+water film (`ruien_misc_Water_film`, no collision) carries it down to the gallery water. No native code is involved.
 
 ## Rendering
 
@@ -157,7 +229,7 @@ collision, clearance, reach and world-space pose offsets use `AntigoonSize`. His
 0.5 m of water surrounds his legs, leaving 0.15 m below a 4 m crown. The raised human walkway is too low for him.
 The red gallery gives 1.35 m above his head on its bed; its maximum 2.4 m water is now above his waist.
 
-**Route limit:** only O2/C2 is built. C1 under the Grote Markt and the connecting galleries are plan data, and
+**Route limit:** only O2/C2 and the R1 sample are built. C1 under the Grote Markt and the connecting galleries are plan data, and
 Antigoon's live encounter still uses a street-only X/Z route map that excludes water. A complete refuge-to-Ruien
 route is not implemented or accepted. It needs separate underground footing/navigation and the missing areas.
 The selected C1 arch clears a 3.86 m tall, 0.928 m wide capsule over the actual channel bed at all four throat
@@ -220,6 +292,36 @@ A culling change still needs zero differing pixels in Ruien and street views at 
 - **Kit pieces** (`export/kit`, converted one by one with `--ruien-kit <kit> --pieces a,b`) are shared meshes placed
   by an area's `kit` list (O2 adds a second safety lamp on its bracket where the study lit v5 with a lantern).
 
+### Fold bridges
+
+Where a rui channel cuts a walkway (every tee mouth in a gallery's ledge, R1's crossing of the L100 mouth) people cross
+on a folding iron footbridge (#286, #283; the kit: `art-source/ruien-o2-20261018/KIT.md`, "Fold bridge"). Code:
+`RuienFoldBridge.cs` (the shared model, its collision, the drawn phase), `NativeRuienBridges.cs` (the server's state).
+Data: an area's `bridges` (in areas.json or the export's markers: `id`, pivots `a` and `b`, `gear`) and the shared
+engine numbers in areas.json `foldBridge` (timing, angle, distances, sweep zone).
+
+- **The engine owns it.** Rest is down. Both leaves rise (90 degrees in 14 s) when Antigoon comes nearer than
+  `giantRaise` (9 m) to the bridge's middle at its level (`giantHeight` 3.5 m: a giant on the street above does not
+  count), and come down when he is further than `giantLower` (10.5 m). He waits `giantHold` (4.5 m) short of the
+  bridge until both stand. Each leaf's collision is part of its hinge node and turns with it, as the tide doors' does.
+- **Nobody is trapped or swept.** A leaf never moves while anyone (a player; any person who walks the Ruien) is in the
+  zone it sweeps: the deck, and 1.15 m behind each hinge where its rails swing, 0.55 m either side of the deck's line,
+  up to 2.2 m over it. So the rule is: the leaf waits for Jef, and Antigoon waits for the leaf. A standing leaf closes
+  the walk at its hinge; Jef walking at it stops on the walk. People and routes may cross only while both leaves are
+  down (`OpenToPeople`); a giant only while both stand (`OpenToGiant`). No crew or townspeople route crosses a bridge
+  yet; the O2 crew's route does not meet one.
+- **Multiplayer.** The server is the authority: `GET api/ruien/bridges` gives every leaf's phase, direction and hold
+  (and a proof giant); every player's client draws that phase and its collision. Players' feet (with height) come from
+  the multiplayer seats; the live giant from `NativeAntigoon.Live`. The phase is not saved: after a load it is derived
+  from where the giants are and stands there at once.
+- **Route limit.** Antigoon's live routes are still street-only (see Dev), so in play the leaves stay down until his
+  underground routes exist; `POST api/dev/ruien/giant` (host only) walks a proof giant along a path by the same rules.
+- **Proof.** `--ruien-bridge-proof <out> --ruien-bridge-spec <json>` (`NativeRuienBridgeProof`) with isolated data and
+  an external `--ruien-areas`: kit checks, Jef crosses, the leaf waits for him, the giant waits, the leaves rise,
+  collision follows part way and standing, a standing leaf stops Jef and clears the masonry, the giant wades through
+  upright, the leaves come down, Jef crosses again; views down, part way and up in inspection light, midday, rain and
+  night; a short shown/hidden frame-cost sample.
+
 ## Entrances
 
 Ways down from the street, built before the network they will join (Steve chose 25 from the RE-entrances survey,
@@ -259,6 +361,12 @@ it looks solid: the leaf's collision turns with it, the grille has a slab of col
 doorway through the named wall meshes (drawn faces and collision stand-ins, `QuayNotch.CutRegion`), the floor under
 the wall and every hidden face in the tunnel's air, the plants and climbers before the door, and a gate house's drawn
 door. `--no-ruien-entrances` leaves the town whole and builds nothing (before pictures).
+
+The stair-air regions visit each mesh once and reuse CPU arrays across misses. Distant triangles are rejected before
+copying vertex channels; unchanged meshes keep their resources. Actual cuts retain Godot's packing between regions,
+so later cuts see the same rounded coordinates as separate calls. Entrance cuts run once
+per town, independently of `--ruien-areas`. `pwsh -File native-godot/scripts/check-ruien-cuts.ps1` checks clipping,
+UVs, collision-only changes, source preservation and batch/sequential equivalence in a bounded headless fixture.
 
 **Light and air.** No Godot light. The open door is an opening in the Ruien's light list (`entrance_<id>_door`,
 daylight in by day, a trace of street glow at night, a little through an arched door's fanlight when shut); deeper

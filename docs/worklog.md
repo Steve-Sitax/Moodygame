@@ -1,5 +1,192 @@
 # Work log
 
+## Ruien R1 sample installed, 2026-11-04 (#272)
+
+Branch t3/d2daeb31. The first playable piece of the full network, next to O2: junction room R1 by Sint-Pauluskerk and the first 22-26 m of L65, L100 and L114 (four areas `r1`, `r1_l65`, `r1_l100`, `r1_l114`, one `group`). Chosen because R1 is the plan's smallest junction room with three ruien, a stair to the street and a footbridge, and each rui within 26 m shows a street grate with its ladder and the plan's drain crossings; 74 m of rui and 2.9 M triangles keep the cost measurable. Pipeline: `build_junction.py --joined` (no dark card, a bond stone over each seam, no relief at the seam plane) and `build_stretch.py --from-room ... --end stub` (start kind `room`, the game's RuienEnd bricks the end up; `channelEnds.water`), `--drain-match` for L65's plan drain 1.5 m off the built line. Fixes found on the way: every rui's silt is a skim along the channel's middle (it lifted the bed 12 cm: Antigoon did not fit upright), floating planks carry no collision, lamp and grate ids are unique per route, a group shows whole only underground (at a street grate the whole group cost some 700 draw calls), `WaterAt` skips water sheets by their bounds (every walker, gull and cart asks it over the streets above a rui).
+
+Light: the plan's 20 m rule held (worst 12.9 m), yet in normal light the crossings and stub ends were black: a grate lights about 7 m of rui, a lamp about 6 m. Four plan lamps (`ruien-network.json` `lamps.placed`, kept by `plan.py`; one automatic lamp further along L114 is no longer needed) on RuienHook hooks: every walkway point within 0.55 of a source's game range. No shader kind or real light added (lamp pool 4).
+
+Proof `D:/Code/Proofs/ruien-272-r1/` (isolated data, ports 19811-19846, TOWN-ART-RENDER per run): final-a 329/329 (the walk from the street hatch down the stair, round the room, over the footbridge, along every walkway over the five drain crossings to the three stubs, up the L65 grate ladder to the street and down again, back up the stair; 49 giant points along the ruien, head room at least 0.135 m; 180 views inspect and midday), final-b 198/199 (rain, night, the shear spots; the one fail was the river's sheet in the new town-clearance check, which the cover map discards and the check now skips: no cellar or foundation in the vaults), bridge 40/40 (leaves down for Jef, up for the giant, collision follows, the giant passes; the old spec's giant route ran straight past L100's bend: bridge2 along the built centre lines 40/40, 0 of 3852 body samples blocked), final-c on the last build 170/170 (the whole walk again, town clearance: no town triangle in the vaults). UV audit (RuienUv, LOD0, all four areas): 0 m2 stretched; shear over 5 degrees 4-12 m2 per area in facets of up to 0.04 m2 (chips on bluestone sills and treads, sett flanks, silt under water), worst 14.8 degrees; the close shots of the largest show no bent grain. O2: data and resources untouched (areas entry identical). Frame cost (`--profile-parts`, 1440x900 uncapped, 13:00 clear, PERF-LOCK, no other Godot window, but another project's ambient-render and ffmpeg took some 19 cores from 01:57; medians of rounds 1-2 over three alternated with/without runs, so read differences under about 3 ms as noise): stair top over the hatch 33.1 ms with / 31.3 without, L65 street grate 33.6 / 29.6, room landing 23.7, L100 walkway 18.3 (without the sample those cameras see the town from below: 29.4 and 26.0), O2 gate 26.5 / 26.3, gallery 21.1 / 21.0, hall 18.0 / 17.6. Before the group and WaterAt fixes (two pairs) O2's own views were 5-7 ms slower with the sample (townspeople, crowd and physics, not drawing) and a street grate 10-16 ms; after them neither shows beyond noise. Hiding parts at the street grates (mist, beams, water, meshes, the whole area) moves the frame by at most 3.5 ms. The profile's own scopes inflate every view: O2's clean #210 numbers are 13.5 ms gallery and 11.1 ms hall; the sample costs about what O2 costs.
+
+Open: the R1 hatch's stairwell looks milky from the street at midday (its daylight beam's haze seen from above); the stretch export makes one mist box per 2 m (11-13 per rui, O2 has 3); #296 (raised rails close one walkway join while the leaves stand) unchanged; the desktop icon test needs the main checkout.
+
+## Ruien folding footbridge, 2026-11-03 (#286, #283, #272)
+
+Branch t3/f7a7e134. Steve's choice B: one shared native kit piece, `RuienFoldBridge` (model, collision on each leaf's
+hinge node, drawn phase) and `NativeRuienBridges` (server state, `GET api/ruien/bridges`, host-only
+`POST api/dev/ruien/giant`). Two half leaves, not one: a 3.1 m leaf would need 3.1 m of head room by the mouth, the
+gallery vault over its ledge gives 1.5-1.9 m and R1's sail vault about 1.6 m. Riveted chequer plate on tapered plate
+girders, R2 rails, flush knuckle hinges in grooved bluestone seats on the area's coping, a worm-gear box with a windlass
+socket; 23k triangles a bridge in 4 meshes, `ruien_iron` and `ruien_bluestone` only. Rule: no leaf moves while anyone
+is in its sweep (deck, 1.15 m behind each hinge); Antigoon waits 4.5 m short until both stand; raise within 9 m,
+lower beyond 10.5 m, 14 s, 90 degrees (areas.json `foldBridge`). Not saved: derived from the giants after a load.
+Placement: `kit/fold_bridge.py` markers from `build_stretch.py` (tee branch) and `junction_gen.bridges` (R1's fixed
+bridge removed), passed through `RuienImport` to markers.json and `RuienData.Bridges`; `check_fold_bridge.py`.
+
+Proof `D:/Code/Proofs/ruien-272-bridge/` (R1 and the 1d tee L79/L48/L92 built and converted outside world/ruien,
+isolated data, ports 19791-19796, TOWN-ART-RENDER), final run on the rebased branch 72/72: kit (0 m2 stretched, 0 open
+edges, two families), down deck solid, Jef crosses, the leaf waits while he stands on it and the giant waits 4.5 m out,
+the leaves rise once he steps off, collision follows the leaf at 38 degrees (to the mm), both stand, a standing leaf stops
+Jef 0.35 m short of its hinge, raised and half-raised leaves clear the masonry, R1 L100 giant checks 6/6 with the
+leaves up (head room 0.09-1.035 m), the giant passes without touching a leaf, the leaves come down, Jef crosses again.
+Frame cost at the bridge views, shown/hidden alternated: 13.7-14.5 vs 13.6-13.8 ms median, draw calls equal within the
+crowd drift: no cost beyond noise. Views down, half and up in inspection light, midday, rain and night (the tee has no
+plan lamp or grate: dark there). Area findings, not the bridge: in the tee test the L79 rui silt (-4.77) leaves an
+upright 3.86 m giant 1 cm under the crown, and L48 has a solid at water level near its clipped end (`area-findings.json`).
+While the leaves stand, R1's L100 rui walkway cannot step into the room: leaf A's rails close its join (people wait).
+The engine log's only errors are three Antigoon footstep sounds this worktree has not imported. Best shots:
+`final/tee-bridge-up-inspect.png`, `final/r1-bridge-down-inspect.png`, `final/tee-mouth-mid-inspect.png`.
+
+## Ruien arch rim reveal and junction rims, 2026-11-03 (#272, #293, #292)
+
+Branch t3/arch-reveal-junction-rims. #293: the drain mouth's reveal step was charted like the face (courses running
+out from the edge, each measured on the step's middle), so its bricks bent and changed size round the curve, and on a
+wall the proud part of the rim was not squared to the outline, which left a kink at the face that sheared the soffit
+up to 8 degrees where the wall turns into the vault (anisotropy still under 1.3, so the audit passed). Now the step's
+courses run round the opening, parallel to its edge, at true size; the clear reveal behind it keeps the lining's
+direction on its own line; a wall host (`RouteWall`, `PlaneWall`) is squared over the whole depth, a gallery host
+(tee) keeps its old rule (squaring it there skewed the tee face). Shear check: `arch_rim.uv_audit(ob, parts=True)`
+(per part, `rim_part` attribute), `check_fittings.py` (under 0.005 m2 over 5 degrees on face, step and reveal), and
+`RuienUv.Audit` reports `shearArea`, `worstShear`, `shearAt`. #292: `junction_gen` mouth and stair arches use the kit
+rim (clear intrados unchanged, crown -0.945; back through the 0.5 m wall; exact collision); the wall's hole reaches
+0.2 m past the clear outline, also beside the feet (a wall patch below the springing), and the rui and stair vaults
+start behind the step. Transverse arches and the stair's end ring stay header rings (they stand in no wall).
+
+Proof (D:/Code/Proofs/ruien-272-rim2): L105, the 1d tee and throat set (L79, L48, L92, L59, L60), R1 and R8 rebuilt
+and converted outside world/ruien. Native UV audit, both LODs: 0 m2 stretched in all eight areas; rim shear over 5
+degrees only on the hidden back (L105 0.03 m2 a LOD of 10.4) and the tee's crown band (old limit, now its own issue);
+visible face/step/reveal at most 0.001 m2. Blender per part: drain rims face/step/reveal 0-0.001 m2; room rims 0
+(worst 2 degrees). Checks: fittings L105 PASS (17), check_meet, check_stretch_ends (1080 rays), check_stretch_export
+PASS. Native runs (render lock, isolated data, ports 19791-19793): stretches 101/101, R8 95/95, R1 123/127 (the four
+fails are the giant behind the L100 footbridge, as before). Offline giant check: head room unchanged in the stubs,
++11 cm at the wall face; Jef's routes as before. Cost: room mouth rim 14.3k triangles (old ring 4.9k), stair rim
+5.3k; R1 LOD0 409k (was 410k), collision 70k -> 101k; R8 collision 94k -> 115k. O2 build.py: 3765 objects, 0
+differing from main; no O2 code changed, so its export is unchanged. Shots: run-stretch/crossing-reveal-inspect.png,
+compare-reveal-right.png (before/after), run-R1/mouth-L65-water-inspect.png, sheet-*.png. Not installed.
+
+## Ruien arch rim, 2026-11-03 (#272, #289, ring part of #285)
+
+Branch t3/ruien-arch-rim. Steve's design for the side-drain mouth: no rings of loose bricks, but one rim a little out
+of the wall with the brick arch in its texture, rounded corners, and a step one brick deep behind it. New reusable
+piece `kit/arch_rim.py` (`rim(name, outline, host, mat, coll, width, step, depth, proud, back, arris, ...)`, KIT.md
+"Arch rim"): one closed solid round the clear outline, face 23 cm wide and 3 cm proud, 10 mm arrises, an 11 cm reveal
+step one brick (11 cm) deep, header-bond charts laid radially (texture courses round the arch, header heads outwards)
+at true size, wall masks, its own brick phase, no collision. The outward directions are taken on the host face, so a
+rim on a gallery vault (tee) or in a bend (route u is not metric there: `RouteWall`) is not sheared. Used by the R3
+crossing (rim on the widened bluestone sill), the far-wall mouth (rim on a new notched bluestone sill with a 5 cm
+nose; the egg invert is too tight for a brick chart), and the tee and throat rings of `kit/meet.py` (clear opening as
+built, rim 6 cm larger, full width over the crown; the gallery cuts its shell round the rim exactly, `Tee.host_cutter`). The loose `Brick_loose` header
+bricks are gone (#289). `export_game.build_lod`: sources flagged `ruien_keep_mesh` are baked but not subdivided,
+displaced or decimated (edge-collapse decimation had skewed a third of the rim's charts); no O2 object is flagged.
+`check_fittings.py` checks one rim per mouth, no loose headers, rim charts.
+
+Proof (D:/Code/Proofs/ruien-272-arch): O2 build.py before/after 3765 objects, 0 differing; 0 flagged objects in the O2
+blend. check_meet PASS (tee, throat, both walkway sides, Antigoon head room); check_fittings L105 15/15.
+Rim UV metric in Blender (RuienUv limits): drain rims 0 m2, throat rim 0 m2, tee rim 0.55 m2 of 11.5 (a narrow band
+over the crown, mostly its hidden back and outer side). Native RuienUv audit after the intake (with #285's repair, which
+fixes those triangles): 0 m2 stretched in every family of all six areas, the rims (`ruien_brick_header_rim`) included. Cost: drain rim 7.3k triangles (LOD0 = LOD1),
+tee and throat rims 15.5k and 16.1k; L105 LOD0 752k -> 724k. Native external intake of L105, L79+L48/L92 and L59/L60
+(isolated data, ports 19781-19785, render lock): 85/85 view and walk checks (the walks over the grate stay level),
+tee rerun 10/10; the first tee run showed sky through two cut cells over the crown, fixed by the exact cut. Final run
+on the rebased branch 85/85. Shots: D:/Code/Proofs/ruien-272-arch/final (all), run1, run3-tee. L105 has no plan lamp at the crossing, so its midday,
+rain and night views are dark; the inspection light shows the rim. The rim exports as family `brick_header_rim`, which the game draws as
+`brick_header` but does not re-chart at import (`RuienTextures.OwnChart`; #285 now unfolds every generated brick family).
+
+## Generated Ruien UVs and rui surfaces, 2026-11-03 (#285, #291)
+
+`RuienImport` now unfolds generated brick families across each LOD's exported objects, returns triangles to
+their original chunks, repairs narrow charts and saves full-precision attributes. Tiny repaired triangles use
+whole-tile offsets near zero to avoid float cancellation; the audit thresholds are unchanged. O2 keeps its
+original import/snapshot-repair path. Stretch `surfaceLayout` carries the swept path (20 cm samples) and walkway
+side; import extracts native quay setts and adds their relief to collision. Previously import never called
+`RuienPaving`, so the 1b height fix could not affect these brick walks.
+The rubble band was `Gallery.sand`: random foundation masks became actual sandstone-family faces in the bake.
+Generated stretches no longer assign those arbitrary bands; random draws and O2's authored foundations stay.
+The old grey fan is absent in the later rail export and the fresh build. Rechecked #274's isolated card/ray
+evidence and the current #274/1d closure: 1,080 coverage rays pass. Isolated L105 uses an explicit open end card
+where an auto through end would require a neighbouring export. No new ring geometry was built here.
+
+Proofs outside source control: `D:/Code/Proofs/ruien-285-291/`. Both LODs of rebuilt L105 and connected tee
+L79/L48/L92, plus R1 room, audit at exactly 0 m2 stretched (`uv-summary.json`). Final O2 immutable-snapshot
+repair to the same external path: 73/73 files byte-identical, including collision and headers. L105 native
+walk/rail/view checks pass 72/72; tee and supplementary weather views pass 15/15. Matched issue cameras show
+setts, no rubble band and no grey sheet; the tee rim's courses are readable. Separate arch-rim geometry work
+remains outside this pass; these results are not overall connected-environment acceptance.
+Native captures use isolated data/ports and the exclusive render lock; ordinary midday, rain, night and
+inspection light are separate views. Build and G/M-left/M-right export contracts pass. No installed area,
+network fingerprint, package, or icon test was changed/run; existing Town-art resources remain intact.
+
+## Ruien junction rooms (J1), stage 1d box 3, 2026-11-03 (#272)
+
+Branch t3/ruien-junction-room-generator. `kit/junction_gen.py` + `build_junction.py` build a junction room from its rectangle at rui depth: a sail vault (pendentives and cap in one sphere, springing -2.1, apex -0.9) pierced by elliptic lunettes (crown -0.93) over every rui mouth, since the -0.9 rui crowns leave no height for a dome standing on arches; one solid header ring per mouth (crown -0.945, 6 cm proud, 11 mm arrises) on bluestone imposts and jambs; walkway runs of worn setts with coping and raised seam stones, the walkway sides and fewest footbridges chosen so every rui walkway and the stair join; a corner-arch bluestone stair (2.4 m over the nosings) to an open stairwell whose street opening is checked against `walk.png`; D1 crown shafts kept 1.4 m off the giant's way. Long rooms get equal bays with transverse arches; end mouths run on as barrels for Antigoon. `RuienImport` repairs UVs when the manifest asks (`uvRepair`); `RuienProof --ruien-proof-walk` walks routes and tests the giant capsule for any area.
+R1 (7.5 x 5.5, one dome, mouths L65/L100/L114, one footbridge over L100) and R8 (10 x 21, three bays, mouths L31/L78), converted outside `world/ruien`. Density matched to hall C2 (1,058/350 triangles per m2 at LOD0/LOD1): R1 973/379 (410k + 159k, collision 70k), R8 891/324 (820k + 298k, collision 94k). UV audit 0 m2 stretched. See-through cube check (magenta void): at most 3 px per view, hairline T-junctions of the bake's near/far split (#284). Native, isolated (PERF-LOCK, no other windows): R1 71/75, the four failures the giant behind the L100 footbridge (#283); R8 54/54; every walkway to the street and back, giant at every other mouth, midday/rain/night views. The room adds 40-75 draw calls and no measurable frame time (paired hideParts views within +-1 ms). Stretch pipeline finds in #284; worktree import cache in #281. Proofs: `D:/Code/Proofs/ruien-272-1d/` (R1-native-1631, R8-native-1640, R1-native-1719, R8-native-1724).
+
+
+## Rui rail and drain crossing kit, 2026-11-03 (#272, R2 and R3)
+
+Branch t3/ruien-rail-drain-kit. Steve chose R2 (iron edge rail) as the standard rui walkway and R3 (covered side-drain
+crossing) where a plan side drain enters. New kit files `kit/rail.py`, `kit/drain_crossing.py`, `kit/fitlib.py`,
+`kit/fittings.json`, placed by `build_stretch.py` (`--no-fittings` leaves them out). Rail: round posts in cast shoes
+bolted to the coping's channel face (0.8 m kept clear), two rails through knuckles on the bend's offset line, dressed
+ball-topped end posts at mouths and shaft-ladder gaps, escape irons in each gap, rust stains under every shoe, one
+collision slab per run; it runs on to a `through` seam and stops clear of junction zones. Drains: the plan's
+`sideDrains` are matched to the route; the walkway side gets the egg mouth (two rowlock rings 15 mm proud on a lime
+bed with a skirt), a lined barrel bending towards the drain's run, a notched bluestone sill, a rebated kerb with a
+flush cast grate and a grate collision plate, trickle, pour and stains; the far wall gets the mouth just above the
+water. The vault and walk are cut by exact boolean (UVs and masks kept; `export_game.level_for` takes the host's own
+grid spacing via `ruien_level_edge`, so a cut does not drop the vault's relief level; O2 unaffected); the coping is
+re-laid round the sill. `RuienProof` gains `--ruien-proof-walks`.
+
+Proof L105 (one walkway-side crossing at u 14.2 in the second bend, one far-wall mouth, one shaft): headless checks
+12/12 (L37 walkway -1 22/22, L91 13/13, L79 with a tee end 8/8; main's stretch, end and meet checks pass); native external intake (`--ruien-areas`, `--ruien-always`,
+`--no-ruien-entrances`, isolated data, ports 19761-19774, render lock) 72/72: walks through both bends and over the
+grate stay level (feet -3.900 to -3.887), the rail holds at 7 places, the ladder gap lets Jef into the channel.
+LOD0 588k -> 752k triangles, collision 81k -> 102k. Matched A/B with `--profile-parts` (base, fit, base, fit): draw
+calls +1-3 %; fit-1 means 11.1-21.3 ms against base 12.1-21.0 ms; fit-2 doubled its CPU process time half way
+(outside load), so no frame cost shows beyond noise. Evidence: `D:/Code/Proofs/ruien-272-rail/` (ab-*, run2,
+review*, fitcheck-*.json). Leftovers: header bricks in one flat colour (#289); escape irons have no native climb way yet (#290). Not installed in the game.
+
+## Ruien junction openings, 2026-11-03 (#272 stage 1d, #276)
+
+Branch t3/ruien-gallery-junctions. New `kit/meet.py`: a rui ending in a gallery's side (tee) cuts the gallery's shell,
+ledge paving, coping and channel wall; the rui builds a proud two-rowlock header ring with 18 mm worn arrises, the
+culvert through the ledge with raised bluestone return copings and quoins, a bluestone sill at -4.9, a giant's step
+at -5.5, a step and threshold onto the ledge and the overflow film. `Throat`: a gallery that ends where a rui begins
+(end wall square to the rui, same pieces). build.py's annulus/throat/side gallery moved to `kit/throat.py`.
+`build_stretch.py` finds tees, throats and runs-on from the plan (`--start/--end auto`, `--clip`, `--walkways`).
+#276: one closed shaft lining in an exact vault cut, silt-packed coping joints, channel faces behind the coping,
+end cards 2 cm past the end and 15 cm larger; seams between separately built routes get a shared bed and no relief.
+Checks: `check_meet.py` (tee and throat, both walkway sides: closed ring, risers <= 0.16 m, giant steps <= 0.6 m,
+head room, water) PASS; `check_stretch_ends.py` 1080 rays PASS; `check_stretch_export.py` PASS. O2 build 3765 objects
+identical; O2 export geometry/UV/masks/bakes identical, raw AO round-off <= 1.8e-7. Native (isolated data, ports
+19761/19765, external `--ruien-areas`, 6 areas: L79 + L48/L92 tee, L59/L60 throat, L105): 39 + 26 views, 0 failed
+checks; inspection views show closed openings and no light leaks; L105's grate-low view (#276) shows light only
+through the grate. The meetings have no lamp or grate in the plan, so the mood shots there are dark. Open: ring face
+reads smeared and stretch UVs fail RuienUv by 15-30 % area (native stretch UV repair), the gallery ledge stops at a
+tee mouth (crossing is Steve's choice), area visibility at meetings, build.py hash() seeds. Proofs:
+`D:/Code/Proofs/ruien-272-1d/` (native-proof/, native-proof2/, o2-result.txt, uv-audit-*.json).
+## Ruien section heights and keeper zones, 2026-11-03 (#272 stage 1b, #279)
+
+Native M now matches the kit: spring -2.7, channel 2.8, one 0.8 m walk at -3.9, water -4.4.
+Section/zone data drives paving extraction, pipe runoff, drain shell/crossing/spout, stair support beds,
+rungs, stand-in sections and asymmetric water strips. The loose-brick cutoff references the zone's walk.
+Keeper stairs name their own line zone for repair and runtime arris/reveal; an omitted key retains the
+first-line fallback and an unknown explicit key fails. O2 explicitly names vlietrui.
+The remaining flight-orientation work is still #272 stage 1c; this does not claim that stage complete.
+
+Proof: immutable O2 chosen-original + chosen-headers2, baseline and final repair to the same external path:
+73/73 files byte-identical, including collision and drain_headers. Different output paths assign different
+resource UIDs; their decoded comparison is also exact (zero numeric differences).
+L105 from the corrected #274 export converts and repairs outside the installed world; 79,797 sett vertices
+lie at -3.899955..-3.884000, on the -3.9 walk with 16 mm relief. Thirty headless fixtures pass, including
+both walkway sides, generated pipe film and drain spout heights, and the second-zone keeper arris.
+Build: zero errors, 27 existing warnings. Evidence: D:/Code/Proofs/ruien-272-1b/.
+Render review remains open: the first serialized run stopped on missing local imports. The headless cache
+rebuild passed, but the retry could not acquire the busy render lock within the hour-long wait window.
+Partial-startup exceptions in FerryArrival and SmallLife are recorded in [#281](https://github.com/Steve-Sitax/Moodygame/issues/281).
+No overall environment acceptance is claimed.
+No installed area meshes, authored placements, Blender scripts, packages or fingerprint were changed.
+
 ## Ruien repair for any area, 2026-11-03 (#272 stage 1a)
 
 Branch t3/b40fce56, base main 96fb54883. `RuienRepair.Convert` is split into the generic pass and the area's data. Moved to `areas.json` (o2): the drain mouths (`drains`, also used at load for the native drains and their spout sounds; `RuienDrain.Mouths` is gone), the retired first drain (`sealedDrains`), the repair path (`zones[].repairPath`, smoothed with the zone's own curve flags and handle), the line zone's chunks (`repairChunks`), the keeper stair's cut chunks, the headers piece name (`repair.headersPiece`) and ten O2 fixes in `repair.fixes` (`RuienRepairFix.cs`: dropFamily, keepBelow x2, splay, dropBox, addBox, vaultStrip, mouthRings, cutCollision, addCollisionFaces). Every line zone is repaired; the collision gutter cut follows the area's drains; no `area.Id=="o2"` checks; `--area` is required by `--ruien-area` and `--ruien-repair`. The fingerprint was not refreshed (it hashes source, so the next export refreshes it).
@@ -44,6 +231,28 @@ Thirteen native views remove the large triangles in both directions, day/rain/ni
 Low shaft inspection still shows narrow light leaks (#276); #274 stays open pending clean visual acceptance.
 Native build passes with 27 existing warnings; both Blender contract suites pass.
 Evidence: `D:/Code/Proofs/ruien-274/` (before, no-soot-ready/shots, after/shots, rays logs, geometry-exact.txt).
+
+## Ruien entrance startup, 2026-11-03 (#273)
+
+The delay was repeated town cutting for the entrances' stair-air regions, not a search for a missing area. The original
+trace traversed 14,685 nodes per region and spent 705.1 s cutting 25 entrances (636.2 s in air regions). Region batches
+now visit each mesh once, reject distant triangles before copying vertex channels, and skip uploads for misses. Actual
+cuts retain Godot's packing between regions. All 25 cut-count rows match the original on the same town snapshot.
+
+On the shared machine, fixed cut stages took 190.5–220.2 s across three runs. Final L105: town 382.7 s, ready 483.9 s,
+all six original views plus two street views, 68/68 checks (30 per entrance and eight tide checks). Save/reload was skipped
+in the temporary proof harness because of #277. Installed areas: town 343.9 s, ready 457.3 s, clean exit; original installed
+run: town 871.9 s, first proof observation 1035.9 s. These are individual runs on a shared machine, not a controlled
+alternating benchmark: the parent explicitly reduced the scope to reuse the original timings. The original menu-blocked
+walk is excluded. The two final rendered runs held the assigned lock, each bounded at 900 s, then ownership-released it.
+Midday clear entrance pictures match the openings, frames and stair routes in historical RE-build1/2 references; these
+are not fresh matched A images. Existing wall/vault checker bands remain (#282); this is not an overall asset art pass.
+
+The final native build and bounded clipping/collision regression pass (27 existing warnings, zero errors), including
+compressed batch/sequential equivalence. Town-art's O2 resources, collision, oak_hatch textures/material and RuienSurround
+are preserved; this fix changes no installed resources or network fingerprint. Rendering used main 487228be0 plus the fix;
+the final build also includes the section-height main bf41352d8. Whole-town headless RID diagnostics are tracked in #280.
+Evidence, recipes, historical image provenance and timings: `D:/Code/Proofs/ruien-273/`.
 
 ## Ruien stretch intake, stage 1c, 2026-11-03 (#272)
 

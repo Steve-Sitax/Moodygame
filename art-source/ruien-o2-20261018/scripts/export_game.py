@@ -207,8 +207,9 @@ def mean_edge(md):
     nxt[ends] = md.ps
     return float(np.mean(np.linalg.norm(a - md.V[md.lv[nxt]], axis=1)))
 
-def level_for(md, target, lod):
-    e = mean_edge(md)
+def level_for(md, target, lod, edge=None):
+    # edge: a source's own grid spacing (kit/fitlib.boolean_cut keeps it: a cut adds short edges to the mean)
+    e = mean_edge(md) if edge is None else edge
     return int(np.clip(math.floor(math.log2(max(e / target, 1.0)) + 0.5) - lod, 0, 4))
 
 def seam_edges(md, face_class):
@@ -340,6 +341,17 @@ def setup_render():
         if bpy.data.collections.get(cn):
             bpy.data.collections[cn].hide_render = True
 
+SEAMS = []   # stretches: (game point, game unit tangent) where the next route runs on; set by build_stretch.py
+def seam_plane_fade(V, width=0.3):
+    """No relief bake within width of a seam plane, so two routes built apart meet without a crack."""
+    if not SEAMS:
+        return np.ones(len(V))
+    Vg = b2g(V); f = np.ones(len(V))
+    for p, t in SEAMS:
+        d = np.abs((Vg[:, [0, 2]] - np.asarray(p)[[0, 2]]) @ np.asarray(t)[[0, 2]])
+        f = np.minimum(f, U.smoothstep(0.0, width, d))
+    return f
+
 def build_lod(lod, objs, hide_coll=None, section=None):
     near_y = NEAR_Y if section is None else section.ledge_y + 2.0
     water_y = spec.WATER_Y if section is None else section.water
@@ -358,6 +370,10 @@ def build_lod(lod, objs, hide_coll=None, section=None):
         if k == 'static':
             statics.append(md); continue
         mat = md.mats[0]
+        # ruien_keep_mesh (kit/arch_rim.py): an exact solid with metric charts on narrow rounded faces; it is baked
+        # (colour, masks, AO) but not subdivided or decimated, its relief stays in the maps. Unflagged sources: unchanged.
+        keep = bool(o.get('ruien_keep_mesh'))
+        gkey = (mat,) if keep else mat
         if k == 'masonry':
             r = md.pa.pop('rnd', None)
             r = r[:, 0] if r is not None else np.zeros(len(md.V))
@@ -371,10 +387,10 @@ def build_lod(lod, objs, hide_coll=None, section=None):
                 part = md.subset(cls == c_)
                 if not len(part.pt):
                     continue
-                lvl = level_for(part, NEAR_T if c_ == 0 else FAR_T, lod)
+                lvl = 0 if keep else level_for(part, NEAR_T if c_ == 0 else FAR_T, lod, o.get('ruien_level_edge'))
                 sp = subdivide(part, lvl, work)
                 sp.pa['__fade'] = seam_fade(sp.V, segs).reshape(-1, 1).astype(np.float32) if segs else np.ones((len(sp.V), 1), np.float32)
-                groups.setdefault(mat, []).append(sp)
+                groups.setdefault(gkey, []).append(sp)
         else:
             sp = subdivide(md, level_for(md, SILT_T if k == 'silt' else CALC_T, lod), work)
             sp.pa['__fade'] = np.ones((len(sp.V), 1), np.float32)
@@ -388,14 +404,16 @@ def build_lod(lod, objs, hide_coll=None, section=None):
     # hide the sources: bakes and AO see the export geometry only
     hide_coll.hide_render = True
     baked = []
-    for mat, lst in groups.items():
+    for gkey, lst in groups.items():
+        keep = isinstance(gkey, tuple)
+        mat = gkey[0] if keep else gkey
         md = MD.merge(lst)
         ob = md.to_object('__grp_' + mat, work)
         src = bpy.data.materials[mat]
         hb = bake_vc(ob, 'EMIT', 1, [bake_material(src, 'H')])
         h = (hb[:, 0] - 0.5) / 4.0
         nrm = vertex_normals(ob)
-        V = md.V + nrm * (h * md.pa['__fade'][:, 0])[:, None]
+        V = md.V + nrm * (h * md.pa['__fade'][:, 0] * seam_plane_fade(md.V))[:, None]
         ob.data.vertices.foreach_set('co', V.astype(np.float32).ravel()); ob.data.update()
         md.V = V
         if kind_of_mat(mat) == 'masonry':
@@ -410,7 +428,7 @@ def build_lod(lod, objs, hide_coll=None, section=None):
             wet = np.clip((water_y + 0.6 - y) / 0.6, 0, 1)
             md.pa['Col'] = np.stack([np.maximum(wet, 0.6 if mat.startswith('Silt') else 0.2), np.full(len(V), 0.9 if mat.startswith('Calc') else 0.0),
                                      np.full(len(V), 0.2), np.zeros(len(V))], -1).astype(np.float32)
-        r_ = DECIM_RELIEF.get(lod, 1.0)
+        r_ = 1.0 if keep else DECIM_RELIEF.get(lod, 1.0)
         if r_ < 1.0:
             n0 = md.tris
             me_old = ob.data; bpy.data.objects.remove(ob); bpy.data.meshes.remove(me_old)
@@ -468,7 +486,10 @@ def kind_of_mat(m):
 
 # ===================================================================== export materials and UVs
 FAM_TEX = json.load(open(os.path.join(TEXD, 'texture_sets.json')))
+OWN_CHART = '_rim'   # kit/arch_rim.py: a brick material copy whose family keeps its own charts in the game (RuienTextures.OwnChart)
 def fam_of(mat):
+    if mat.endswith(OWN_CHART) and mat.startswith('Brick_'):
+        return fam_of(mat[:-len(OWN_CHART)]) + OWN_CHART
     if mat in BOND or mat.startswith('Brick_') and mat != 'Brick_loose':
         return 'brick_' + BOND.get(mat, 'flemish')
     if mat.startswith('Bluestone'):
@@ -514,7 +535,8 @@ def export_material(fam_or_misc):
     out = nt.nodes.new('ShaderNodeOutputMaterial')
     b = nt.nodes.new('ShaderNodeBsdfPrincipled')
     nt.links.new(b.outputs[0], out.inputs['Surface'])
-    fam = fam_or_misc if fam_or_misc in FAM_TEX else ('oak' if fam_or_misc == 'oak_debris' else None)
+    base = fam_or_misc[:-len(OWN_CHART)] if fam_or_misc.endswith(OWN_CHART) else fam_or_misc
+    fam = base if base in FAM_TEX else ('oak' if fam_or_misc == 'oak_debris' else None)
     if fam:
         uvn = nt.nodes.new('ShaderNodeUVMap'); uvn.uv_map = 'UVMap'
         def tex(suffix, data):
@@ -570,7 +592,7 @@ def finalize_uv_mats(mat, md):
         uv0 = uv0 + rl * np.array([17.31, 9.13])
         uv = uv0 / np.array([tw, th])
         famf = np.full(len(md.pt), 0)
-        fams = ['brick_' + BOND.get(mat, 'flemish'), 'sandstone', 'bluestone']
+        fams = [fam, 'sandstone', 'bluestone']
         sand = np.add.reduceat(md.pa['__sand'][md.lv, 0], md.ps) / md.pt
         stone = np.add.reduceat(md.pa['__stone'][md.lv, 0], md.ps) / md.pt
         famf[sand > 0.5] = 1; famf[stone > 0.5] = 2
@@ -717,6 +739,8 @@ def collision(coll, sources=None):
         for src in sources:
             if kind_of(src) == "water" or src.name.endswith("_void") or src.name.startswith("runoff_"):
                 continue
+            if any(sl.material and sl.material.name.startswith('Water_film') for sl in src.material_slots):
+                continue  # a tee's overflow film is water, not a surface to stand on
             md = MD.from_object(src)
             md.uv = {}; md.pa = {}
             md.mats = []; md.pm[:] = 0
@@ -908,14 +932,15 @@ def stretch_markers(sources, path, section, info):
         px, pz, tx, tz, nx, nz = path.frame(np.array(u))
         s = float((pos[0] - px) * nx + (pos[2] - pz) * nz)
         side = 1 if s > 0 else -1
-        name = 'grate_%d' % i
+        name = '%s_grate_%d' % (info['route'], i)   # unique across areas: ways and light sources are found by id
         centre = point(u, s, -0.005)
         out['daylight_openings'].append(dict(name=name, kind='grate', centre=centre, size_m=[0.66, 0.66],
             vault_opening=point(u, s, float(section.vault_y_at_s(s)))))
         out['ladders'].append(dict(name=name, bottom=point(u, s + side * (0.33 - 0.14), section.ledge_y),
             top=point(u, s, 0.0), grate_size_m=[0.66, 0.66]))
     lo, hi = section.channel_edges()
-    uu = np.linspace(0, path.length, int(path.length / 0.25) + 2)
+    w0, w1 = info.get('water_u', (0.0, path.length))   # a tee's branch water starts at its sill lip
+    uu = np.linspace(w0, w1, int((w1 - w0) / 0.25) + 2)
     mid = path.world(uu, np.full_like(uu, (lo + hi) / 2), np.full_like(uu, section.water))
     out['water'].append(dict(name=info['route'], height=section.water, centre_line=mid[:, [0, 2]].tolist(), width=hi-lo))
     # Short boxes follow bends instead of filling the route's entire bounding rectangle.

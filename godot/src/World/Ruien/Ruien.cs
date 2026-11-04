@@ -44,13 +44,14 @@ public partial class Ruien : Node
         public readonly List<(MeshInstance3D mesh, ShaderMaterial material, RuienData.MistBox box)> Mists = new();
         public readonly List<(ShaderMaterial m, RuienData.Source s)> Beams = new();
         public float Level;
-        public bool Shown;
+        public bool Shown, InBox, AtGate, AtOpening;
         public RuienArea? Export;
         /// <summary>The tide doors: their meshes (every level), their own solid body, how open now (0 shut .. 1).</summary>
         public readonly List<(RuienData.Mover m, List<MeshInstance3D> meshes, StaticBody3D? body, float[] open)> Doors = new();
     }
 
     private readonly List<Drawn> drawn = new();
+    private readonly HashSet<string> groupShown = new();
     /// <summary>The entrances' doors (plan), for lighting their stairs when the eye is near one.</summary>
     private readonly List<Vector2> entranceDoors = new();
     private readonly List<RuienData.Source> sources = new();
@@ -126,9 +127,11 @@ public partial class Ruien : Node
             Main.I.View.AddChild(RuienConnections.Build(spec[area.Id],area));
             foreach(var drain in area.Drains)Main.I.View.AddChild(RuienDrain.Build(area.Line(drain.Zone)!,drain.U,drain.Side));
             // Shared kit pieces placed by the area's data: open cast outfalls and bricked-up stub ends.
-            var pipes=RuienPipe.Read(spec[area.Id]);
+            var pipes=RuienPipe.Read(spec[area.Id],area);
             for(int i=0;i<pipes.Count;i++)Main.I.View.AddChild(RuienPipe.Build(pipes[i],i));
             foreach(var end in RuienEnd.Read(spec[area.Id]))Main.I.View.AddChild(RuienEnd.Build(end));
+            // Folding footbridges over the rui channels (#286, #283): one shared model, the server's shared leaf state.
+            foreach(var bridge in area.Bridges)Main.I.View.AddChild(RuienFoldBridge.Build(bridge,Data.Bridge));
             if(spec[area.Id].TryGetProperty("grates",out var grates))
                 foreach(var g in grates.EnumerateArray())
                     if(g.TryGetProperty("collar",out var collar))
@@ -196,6 +199,14 @@ public partial class Ruien : Node
             soundPoints.Add(new() { Kind = "spill", At = RuienDrain.SpoutImpact(area.Line(drain.Zone)!, drain.U, drain.Side), Reach = 7, Gain = .6 });
         foreach (var p in pipes)
             soundPoints.Add(new() { Kind = "drip", At = p.Front + Vector3.Down * .45f, Reach = 5, Gain = .8, Min = 4, Max = 11 });
+        // a covered side drain's pour where it meets the channel (`spills`: the R3 crossings of a generated stretch)
+        if (spec.TryGetProperty("spills", out var spills))
+            foreach (var s in spills.EnumerateArray())
+            {
+                var at = s.GetProperty("at");
+                soundPoints.Add(new() { Kind = "spill", At = new Vector3(at[0].GetSingle(), at[1].GetSingle(), at[2].GetSingle()),
+                    Reach = s.TryGetProperty("reach", out var r) ? r.GetDouble() : 7, Gain = s.TryGetProperty("gain", out var g) ? g.GetDouble() : .6 });
+            }
         if (spec.TryGetProperty("drips", out var drips))
             foreach (var d in drips.EnumerateArray())
             {
@@ -232,13 +243,17 @@ public partial class Ruien : Node
                 for (int i = 1; i + 1 < w.Outline.Length; i++) { V(w.Outline[0]); V(w.Outline[i]); V(w.Outline[i + 1]); }
             else if ((w.Line.Length >= 2 ? w.Line : area.Zones.FirstOrDefault(z => z.Id == w.Zone && z.Kind == "line")?.Path) is { Length: >= 2 } path)
             {
-                float half = (w.Width > 0 ? w.Width : area.Zones.FirstOrDefault(z => z.Kind == "line")?.S.Channel ?? 3) / 2;
+                var section=area.Line(w.Zone)?.S;
+                float half = (w.Width > 0 ? w.Width : section?.Channel ?? 3) / 2;
+                float centre=w.Line.Length>=2?0:((section?.ChannelLow??-half)+(section?.ChannelHigh??half))/2;
                 for (int i = 0; i + 1 < path.Length; i++)
                 {
                     var t0 = (path[Math.Min(i + 1, path.Length - 1)] - path[Math.Max(i - 1, 0)]).Normalized();
                     var t1 = (path[Math.Min(i + 2, path.Length - 1)] - path[i]).Normalized();
                     var n0 = new Vector2(t0.Y, -t0.X) * half; var n1 = new Vector2(t1.Y, -t1.X) * half;
                     Vector2 a = path[i] - n0, b = path[i] + n0, c = path[i + 1] + n1, e = path[i + 1] - n1;
+                    var shift0=new Vector2(t0.Y,-t0.X)*centre;var shift1=new Vector2(t1.Y,-t1.X)*centre;
+                    a+=shift0;b+=shift0;c+=shift1;e+=shift1;
                     V(a); V(b); V(c); V(a); V(c); V(e);
                 }
             }
@@ -289,7 +304,7 @@ public partial class Ruien : Node
             if (RuienSurround.Applies(w)) Main.I.View.AddChild(RuienSurround.Build(w));
             if (w.Kind is "ladder" or "grate") Main.I.View.AddChild(RuienKit.Grate(w));
             if (w.Kind == "rungs" && w.Irons) root.AddChild(RuienKit.StepIrons(w));
-            if (w.Kind == "keeper_stair") Main.I.View.AddChild(RuienStair.Build(w, area.Zones.FirstOrDefault(z => z.Kind == "line")));
+            if (w.Kind == "keeper_stair") Main.I.View.AddChild(RuienStair.Build(w, area.StairZone(w)));
         }
         foreach (var mb in area.Mist)
         {
@@ -365,6 +380,14 @@ public partial class Ruien : Node
     public float CoverAt(Vector3 p) => Math.Max(Cover.At(p.X, p.Z) * (1 - Mathf.SmoothStep(-0.7f, -0.05f, p.Y)), Cover.Closed(p.X, p.Y, p.Z));
 
     /// <summary>The same footprint and level as the drawn water, including the gate's sloping outflow.</summary>
+    private static Rect2 SheetBounds(Vector2[] pts, float grow)
+    {
+        if (pts.Length == 0) return new Rect2();
+        var r = new Rect2(pts[0], Vector2.Zero);
+        foreach (var q in pts) r = r.Expand(q);
+        return r.Grow(grow);
+    }
+
     public float? WaterAt(float x, float z)
     {
         var p = new Vector2(x, z);
@@ -381,15 +404,20 @@ public partial class Ruien : Node
             }
             foreach (var w in d.Area.Water)
             {
-                if (w.Outline.Length >= 3 && Geometry2D.IsPointInPolygon(p, w.Outline)) return d.Level;
                 var line = w.Line.Length >= 2 ? w.Line : d.Area.Zones.FirstOrDefault(q => q.Id == w.Zone)?.Path;
+                var section=d.Area.Line(w.Zone)?.S;
+                float half=(w.Width>0?w.Width:section?.Channel??3)/2;
+                // (each sheet's own bounds first: the streets over a rui ask this for every walker, gull and cart)
+                w.Bounds ??= SheetBounds(w.Outline.Length >= 3 ? w.Outline : line ?? Array.Empty<Vector2>(), half + Math.Abs(((section?.ChannelLow??0)+(section?.ChannelHigh??0))/2) + 0.1f);
+                if (!w.Bounds.Value.HasPoint(p)) continue;
+                if (w.Outline.Length >= 3 && Geometry2D.IsPointInPolygon(p, w.Outline)) return d.Level;
                 if (line == null) continue;
-                float half=(w.Width>0?w.Width:d.Area.Zones.FirstOrDefault(q=>q.Kind=="line")?.S.Channel??3)/2;
+                float centre=w.Line.Length>=2?0:((section?.ChannelLow??-half)+(section?.ChannelHigh??half))/2;
                 for (int i = 0; i + 1 < line.Length; i++)
                 {
                     var ab = line[i + 1] - line[i];
                     float t = (p - line[i]).Dot(ab) / Math.Max(ab.LengthSquared(), 1e-6f);
-                    if (t >= 0 && t <= 1 && p.DistanceTo(line[i] + ab * t) < half) return d.Level;
+                    if (t >= 0 && t <= 1 && MathF.Abs((p-line[i]).Dot(new Vector2(ab.Y,-ab.X).Normalized())-centre) < half) return d.Level;
                 }
             }
         }
@@ -414,13 +442,22 @@ public partial class Ruien : Node
         UniformUpdates.Global("ruien_fill", new Vector4(Data.Fill.R, Data.Fill.G, Data.Fill.B, below));
         Near = null;
         lodT -= dt;
+        // which areas the eye calls for: underground in an area's box its whole group shows (a room and the ruien built
+        // from its mouths are seen from one another); before a gate or at a street opening only that area itself
+        groupShown.Clear();
         foreach (var d in drawn)
         {
             var a = d.Area;
-            bool inBox = a.Box.Grow(2).HasPoint(eye);
-            bool atGate = a.Gates.Any(g => { var rel = new Vector2(eye.X, eye.Z) - g.Origin; return rel.Dot(g.Normal) > -1 && rel.Length() < 90 && eye.Y < 6; });
-            bool atOpening = a.Sources.Any(s => s.Kind != "lamp" && new Vector2(eye.X - s.At.X, eye.Z - s.At.Z).Length() < 14 && eye.Y > -1.5f);
-            bool show = Main.I.Flag("ruien-always") || (inBox && eye.Y < 0.5f) || atGate || atOpening;
+            d.InBox = a.Box.Grow(2).HasPoint(eye);
+            d.AtGate = a.Gates.Any(g => { var rel = new Vector2(eye.X, eye.Z) - g.Origin; return rel.Dot(g.Normal) > -1 && rel.Length() < 90 && eye.Y < 6; });
+            d.AtOpening = a.Sources.Any(s => s.Kind != "lamp" && new Vector2(eye.X - s.At.X, eye.Z - s.At.Z).Length() < 14 && eye.Y > -1.5f);
+            if (d.InBox && eye.Y < 0.5f) groupShown.Add(a.Group);
+        }
+        foreach (var d in drawn)
+        {
+            var a = d.Area;
+            bool inBox = d.InBox, atGate = d.AtGate;
+            bool show = Main.I.Flag("ruien-always") || groupShown.Contains(a.Group) || atGate || d.AtOpening;
             if (show != d.Shown) { d.Shown = show; d.Root.Visible = show; }
             if (inBox || atGate) Near = a;
             // the export's levels of detail, four times a second

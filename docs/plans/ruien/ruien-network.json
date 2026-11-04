@@ -423,6 +423,15 @@
       ]
     }
   ],
+  "lamps": {
+    "_about": "Lamps placed by hand where the built light falls short (tools/ruien/plan.py keeps them, then adds its own until every point is within lightWithin of light). The #272 R1 sample: in normal light a grate lights its rui about 7 m each way, the room's lamps about 6 m, so the drain crossings and stub ends beyond were black; each lamp here lights walkway points no grate or room reaches (within 0.55 of a source's game range).",
+    "placed": [
+    {"at": [155.6, 310.18], "line": "L65", "note": "#272 R1 sample: L65 u 15.5, 6 walkway points beyond the light of its grate and the room"},
+    {"at": [155.65, 277.95], "line": "L100", "note": "#272 R1 sample: L100 u 8.0, 22 walkway points beyond the light of its grate and the room"},
+    {"at": [148.8, 290.75], "line": "L114", "note": "#272 R1 sample: L114 u 2.5, 12 walkway points beyond the light of its grate and the room"},
+    {"at": [131.5, 295.7], "line": "L114", "note": "#272 R1 sample: L114 u 20.5, 3 walkway points beyond the light of its grate and the room"}
+    ]
+  },
   "spacing": {
     "grateEvery": 45,
     "stairWithin": 110,
