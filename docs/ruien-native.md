@@ -62,6 +62,37 @@ the flight's side wall ends where the near jamb starts (they shared a face) and 
 ceiling's free edge closes the slot under the niche's sloping vault (no lower than that edge: the headroom stays). The keeper crew face the way they walk.
 
 
+## The R1 sample (#272)
+
+The first playable piece of the full network, installed next to O2: junction room R1 by Sint-Pauluskerk and the first
+22-26 m of the three ruien that meet in it (L65 22 m, L100 26 m, L114 25 m). Each shows a street grate with its ladder,
+plan lamps and the plan's side-drain crossings, and ends at a bricked-up stub (`RuienEnd`, barred culvert) where the
+next area joins. Reach it from the street at the open oak hatch at (159.6, 300), from any of its three grates, or with
+the kit command `ruien r1` (Jef on the stair foot landing).
+
+- **Areas.** `r1` (the room), `r1_l65`, `r1_l100`, `r1_l114`, one converted export each. `group` (default the area's
+  id) draws a group whole while the eye is underground in any of its boxes (the room and its ruien see one another);
+  at a street opening only that area is drawn (the whole group at a grate cost some 700 more draw calls).
+- **Build.** `build_junction.py --room R1 --joined L65,L100,L114`, then `build_stretch.py --route <id> --from-room
+  <R1 manifest> --clip 0,<length> --end stub` (KIT.md "A rui from a room"); L65 adds `--drain-match 1.6`. The
+  areas.json entries come from the manifests: zones (the swept path, walkway side), `channelEnds` (`water` true: the
+  channel runs on into the culvert), `spills` (each crossing's and far-wall mouth's pour, reach 7 and 6 m) and `drips`
+  (each grate's shaft, reach 5 m), `lampHooks` (the stretch lamps on the curved walls).
+- **Light.** The plan's rule (every point within 20 m of a grate, room, gate or lamp) held, yet the crossings and stub
+  ends were black at midday: in the game a grate lights its rui about 7 m each way and a lamp about 6 m. Four lamps are
+  placed by hand in the plan (`ruien-network.json` `lamps.placed`, kept by `plan.py`): L65 u 15.5, L100 u 8, L114 u 2.5
+  and 20.5; every walkway point is now within 0.55 of some source's game range. Lamps are named `<route>_lamp_<k>` and
+  grates `<route>_grate_<k>` (ids are unique across areas).
+- **Antigoon.** Every rui keeps its silt a skim along the channel's middle, so the 3.85 m giant stands upright on the
+  -4.9 bed with 0.135 m to spare (49 points along the three ruien); floating planks carry no collision. The L100
+  footbridge leaves lie down in normal play; the bridge proof raises them for the giant.
+- **Cost.** About O2's: room landing 23.7 ms, a rui walkway 18.3, O2's gallery 21.1 in the same runs (`--profile-parts`,
+  contended; worklog 2026-11-04). `WaterAt` skips each water sheet by its bounds: every walker, gull and cart asks it,
+  and the streets over a rui lie inside its area's box (before, O2's own views ran 5-7 ms slower with the sample).
+- `--ruien-proof-town-clear <area prefix>` checks that no drawn town triangle lies inside the areas' masonry (the
+  river's sheet is skipped: its shader discards it under the cover map). `--ruien-proof-walk` points may be
+  `{"ladder": id, "dir": "up"|"down"}` (the E prompts at a street grate's ladder) or `{"shot": name}`.
+
 ## Sound
 
 The Ruien are a room of the soundscape ("ruien" in `Soundscape.Halls`, `RuienSound.cs`): a 3.4 s brick echo, the
@@ -198,7 +229,7 @@ collision, clearance, reach and world-space pose offsets use `AntigoonSize`. His
 0.5 m of water surrounds his legs, leaving 0.15 m below a 4 m crown. The raised human walkway is too low for him.
 The red gallery gives 1.35 m above his head on its bed; its maximum 2.4 m water is now above his waist.
 
-**Route limit:** only O2/C2 is built. C1 under the Grote Markt and the connecting galleries are plan data, and
+**Route limit:** only O2/C2 and the R1 sample are built. C1 under the Grote Markt and the connecting galleries are plan data, and
 Antigoon's live encounter still uses a street-only X/Z route map that excludes water. A complete refuge-to-Ruien
 route is not implemented or accepted. It needs separate underground footing/navigation and the missing areas.
 The selected C1 arch clears a 3.86 m tall, 0.928 m wide capsule over the actual channel bed at all four throat

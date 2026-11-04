@@ -234,6 +234,7 @@ public static class RuienUv
                 if(uv.Length!=v.Length)continue;
                 // (#293) shear: texture axes off square bend the courses while area and anisotropy can still pass
                 double area=0,bad=0,sheared=0;float worst=0,worstShear=0;Vector3 where=default,shearAt=default;var samples=new List<object>();
+                var shearBig=new List<(float weight,Vector3 at,float shear)>(); // the largest sheared faces, for a review camera
                 for(int i=0;i<ix.Length;i+=3)
                 {
                     var p=v[ix[i]];var e=v[ix[i+1]]-p;var f=v[ix[i+2]]-p;
@@ -251,11 +252,12 @@ public static class RuienUv
                     }
                     if(ratio>worst){worst=ratio;where=p;}
                     float shear=Shear(u,w);
-                    if(shear>ShearLimit)sheared+=weight;
+                    if(shear>ShearLimit){sheared+=weight;shearBig.Add((weight,(p+v[ix[i+1]]+v[ix[i+2]])/3,shear));}
                     if(shear>worstShear){worstShear=shear;shearAt=p;}
                 }
                 report.Add(new{file=Path.GetFileName(file),family=name,area,badArea=bad,worst,at=new[]{where.X,where.Y,where.Z},
-                    shearArea=sheared,worstShear,shearAt=new[]{shearAt.X,shearAt.Y,shearAt.Z},samples});
+                    shearArea=sheared,worstShear,shearAt=new[]{shearAt.X,shearAt.Y,shearAt.Z},samples,
+                    shearLargest=shearBig.OrderByDescending(t=>t.weight).Take(5).Select(t=>new{at=new[]{t.at.X,t.at.Y,t.at.Z},area=t.weight,t.shear})});
             }
         }
         File.WriteAllText(output,JsonSerializer.Serialize(report,new JsonSerializerOptions{WriteIndented=true}));

@@ -932,7 +932,7 @@ def stretch_markers(sources, path, section, info):
         px, pz, tx, tz, nx, nz = path.frame(np.array(u))
         s = float((pos[0] - px) * nx + (pos[2] - pz) * nz)
         side = 1 if s > 0 else -1
-        name = 'grate_%d' % i
+        name = '%s_grate_%d' % (info['route'], i)   # unique across areas: ways and light sources are found by id
         centre = point(u, s, -0.005)
         out['daylight_openings'].append(dict(name=name, kind='grate', centre=centre, size_m=[0.66, 0.66],
             vault_opening=point(u, s, float(section.vault_y_at_s(s)))))

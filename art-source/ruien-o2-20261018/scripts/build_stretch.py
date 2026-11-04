@@ -2,10 +2,16 @@
 # render a check picture, and export it with the same pipeline as O2 (baked relief, masks, LODs, GLB).
 # Run: blender --background --factory-startup --python scripts/build_stretch.py -- --route L105 --out export/stretches/L105
 #      [--walkway 1|-1] [--walkways L79=1,L105=-1] [--start auto|tee|through|junction|open|cap] [--end ...]
-#      [--clip a,b] [--lods 0,1] [--no-export] [--no-render] [--no-fittings]
+#      [--clip a,b] [--lods 0,1] [--no-export] [--no-render] [--no-fittings] [--from-room <room manifest.json>]
+#      [--drain-match m] (how far a plan side drain's end may lie off the built line; default fittings.json)
 # 'auto' (default) finds the end from the plan: 'tee' where a rui ends in a gallery's side (kit/meet.py), 'through'
 # where the same section runs on, else 'open'. A gallery always cuts the openings of the ruien that end in its side.
 # --clip a,b keeps only the route between a and b metres along it (proof pieces); a clipped end is 'open'.
+# --from-room: the route starts at that junction room's mouth stub end (build_junction.py's manifest) and runs out of
+# the room: straight on along the stub for LEAD m, then along the plan's line from its first point 5 m outside the
+# room. Its walkway side is the mouth's, its start 'room' (no card, the stub's bed, no relief at the seam).
+# --end stub: the game's RuienEnd bricks the end up just inside it (a barred culvert carries the water on); the
+# manifest's info.channelEnds gives its numbers for areas.json.
 import bpy, sys, os, json, time, zlib, importlib
 import numpy as np
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -44,9 +50,23 @@ def clip_pts(P, a, b):
     at = lambda d: tuple(np.array([np.interp(d, L, P[:, 0]), np.interp(d, L, P[:, 1])]))
     return [at(a)] + inner + [at(b)]
 full_pts = [tuple(p) for p in r['pts']]
+FROM_ROOM = json.load(open(arg('--from-room'))) if arg('--from-room') else None
+LEAD = 2.5
+if FROM_ROOM:
+    lay_ = FROM_ROOM['layout']; rect_ = lay_['rect']
+    mouth_ = next(m for m in lay_['mouths'] if m['route'] == RID)
+    def inside_(p, m):
+        return rect_[0] - m <= p[0] <= rect_[2] + m and rect_[1] - m <= p[1] <= rect_[3] + m
+    seq_ = full_pts if inside_(full_pts[0], 0.6) else full_pts[::-1]
+    e_ = np.array(mouth_['end'], float); d_ = np.array(mouth_['dir'], float)
+    full_pts = [tuple(e_), tuple(e_ + d_ * LEAD)] + [tuple(p) for p in seq_ if not inside_(p, 5.0)]
+    if '--walkway' not in argv:
+        WALKWAYS[RID] = int(mouth_['walkway_side'])
 CLIP = [float(x) for x in arg('--clip', '').split(',')] if arg('--clip') else None
 pts = clip_pts(full_pts, *CLIP) if CLIP else full_pts
-TEES = KM.find_tees(R_ALL, RID, path_of, section_of) + KM.find_throats(R_ALL, RID, path_of, section_of)
+# from a room, only meetings at the piece built count (the plan's far end may lie beyond a clipped piece)
+R_TEE = dict(R_ALL, **{RID: dict(r, pts=[list(p) for p in pts])}) if FROM_ROOM else R_ALL
+TEES = KM.find_tees(R_TEE, RID, path_of, section_of) + KM.find_throats(R_TEE, RID, path_of, section_of)
 # a gallery that ends in a throat runs on past the node, so the wall plane square to the rui cuts it everywhere
 for t in TEES:
     if isinstance(t, KM.Throat) and RID in t.host_ids:
@@ -58,6 +78,8 @@ for t in TEES:
 def end_kind(which, asked):
     if asked != 'auto':
         return asked
+    if FROM_ROOM and which == 'start':
+        return 'room'
     full_len = float(np.sum(np.linalg.norm(np.diff(np.array(full_pts), axis=0), axis=1)))
     if CLIP and ((which == 'start' and CLIP[0] > 1e-6) or (which == 'end' and min(CLIP[1], full_len) < full_len - 1e-3)):
         return 'open'
@@ -86,6 +108,10 @@ def near_route(p, tol=4.0):
     return False
 grates = [tuple(g) for g in routes['grates'] if near_route(g)]
 lamps = [tuple(l) for l in routes['lamps'] if near_route(l)]
+if FROM_ROOM:
+    # the room's own crown grate and lamps are the room's
+    grates = [g for g in grates if not inside_(g, 0.0)]
+    lamps = [l for l in lamps if not inside_(l, 0.0)]
 log('route %s %s class %s, %d m, %d grates, %d lamps' % (RID, r.get('name'), cls, r['lengthM'], len(grates), len(lamps)))
 M.DAYLIGHT[:] = [(gx, gz, 3.2) for (gx, gz) in grates]
 mats = M2.make_all()
@@ -96,11 +122,17 @@ WX.DEPOSITS.clear(); WX.RUNOFF_PTS.clear()
 # R2 rail and R3 drain crossings (kit/rail.py, kit/drain_crossing.py; numbers in kit/fittings.json)
 from kit import fitlib as FL, rail as KR, drain_crossing as KD
 FIT = FL.data(cls) if '--no-fittings' not in argv else {}
+if FIT.get('drainCrossing') and arg('--drain-match'):
+    # a piece from a room leaves the plan's line near the room: a plan drain may end a little further off it
+    FIT['drainCrossing'] = dict(FIT['drainCrossing'], match=float(arg('--drain-match')))
 sec0 = section_of(RID)
 path0 = KS.RoutePath(pts, r=sec0.W * 1.2)
 shafts0 = [float(np.clip(path0.u_near(gx, gz)[0], 1.2, path0.length - 0.8)) for (gx, gz) in grates if path0.u_near(gx, gz)[1] < 4.0]
 # junction zones along this route, as sweep.build_stretch keeps them clear (kit/meet.py)
 zones0 = [t.keep_out() for t in TEES if getattr(t, 'bpath', None) is not None and t.branch_id == RID] +          [t.host_zone(path0)[1] for t in TEES if t.branch_id != RID and path0.u_near(*t.O)[1] < 0.3]
+# a stub end's wall: no drain, ring, curtain, lamp or grate in its last metre and a half
+STUB_CLEAR = [(path0.length - 1.5, path0.length + 1.0)] if END == 'stub' else []
+zones0 += STUB_CLEAR
 drains = KD.find(routes, path0, sec0, shafts0, FIT['drainCrossing'], log=log, zones=zones0) if FIT.get('drainCrossing') else []
 # a plan lamp never hangs on a drain's header rings: move it along the wall
 for i, (lx, lz) in enumerate(lamps):
@@ -112,7 +144,7 @@ for i, (lx, lz) in enumerate(lamps):
             lamps[i] = (float(q[0]), float(q[2])); log('lamp at u %.1f moved to %.1f, clear of a drain' % (lu, nu))
 log('ends', START, END, 'tees', [(t.branch_id, t.which, t.host_ids) for t in TEES])
 objs, info, g, sec = KS.build_stretch(RID, pts, cls, mats, coll, grates=grates, lamps=lamps, start=START, end=END,
-                                      walkway_side=WALKWAYS[RID], tees=TEES)
+                                      walkway_side=WALKWAYS[RID], tees=TEES, keep_clear=STUB_CLEAR)
 cFitCol = U.coll('FITTINGS_COLLISION'); cFitCol.hide_render = True
 fit_proxies = []
 if drains:

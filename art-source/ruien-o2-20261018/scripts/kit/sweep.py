@@ -108,10 +108,11 @@ class RoutePath(G.Path):
 def seed_of(route_id, seg=0):
     return zlib.crc32(('%s/%d' % (route_id, seg)).encode()) & 0x7fffffff
 
-def build_stretch(route_id, pts, cls, mats, coll, grates=(), lamps=(), start='junction', end='open', walkway_side=1, bend_r=None, tees=()):
+def build_stretch(route_id, pts, cls, mats, coll, grates=(), lamps=(), start='junction', end='open', walkway_side=1, bend_r=None, tees=(), keep_clear=()):
     """Builds one route. Returns (objects, info) with info['placements'] for the kit pieces it used.
     tees: kit/meet.py Tee objects at this route: as the branch (an end of this route opens into a gallery side;
-    that end's kind is 'tee') or as the host (a rui opens into this gallery's side)."""
+    that end's kind is 'tee') or as the host (a rui opens into this gallery's side).
+    keep_clear: more (u0, u1) spans without rings, curtains, grates or lamps (a 'stub' end's bricked-up wall)."""
     sec = Section(cls, walkway_side)
     path = RoutePath(pts, r=bend_r or (sec.W * 1.2))
     rng = np.random.default_rng(seed_of(route_id))
@@ -122,7 +123,7 @@ def build_stretch(route_id, pts, cls, mats, coll, grates=(), lamps=(), start='ju
     info = dict(route=route_id, cls=cls, length_m=round(path.length, 2), min_bend_radius_m=round(path.min_radius, 2), placements=[])
     as_branch = [t for t in tees if t.bpath is not None and t.branch_id == route_id]
     as_host = [t for t in tees if t.branch_id != route_id and path.u_near(*t.O)[1] < 0.3]
-    zones = [t.keep_out() for t in as_branch] + [t.host_zone(path)[1] for t in as_host]
+    zones = [t.keep_out() for t in as_branch] + [t.host_zone(path)[1] for t in as_host] + [tuple(z) for z in keep_clear]
     def clear(u, pad=0.0):
         return all(not (a - pad <= u <= b + pad) for a, b in zones)
     for t in as_branch:
@@ -180,15 +181,19 @@ def build_stretch(route_id, pts, cls, mats, coll, grates=(), lamps=(), start='ju
             from kit import fitlib as FL
             V_, F_ = t.host_cutter(path)
             FL.boolean_cut(obs[0], V_, F_, coll)
-    seams = [u for u, k in ((0.0, start), (path.length, end)) if k == 'through']
-    info['seams'] = [dict(pos=[float(v) for v in path.world(np.array(u), np.array(0.0), np.array(0.0))], tangent=[float(v) for v in np.array(path.frame(np.array(u))[2:4])]) for u in seams]
+    # 'through': the next route of the same section runs on; 'room': a junction room's mouth stub continues it
+    # (kit/junction_gen.py stub: both builds meet without relief and on the stub's own bed)
+    seams = [(u, k) for u, k in ((0.0, start), (path.length, end)) if k in ('through', 'room')]
+    info['seams'] = [dict(pos=[float(v) for v in path.world(np.array(u), np.array(0.0), np.array(0.0))], tangent=[float(v) for v in np.array(path.frame(np.array(u))[2:4])], kind=k) for u, k in seams]
     obs += build_lower(g, sec, mats, coll, rng, as_branch, as_host, seams)
+    if end == 'stub':
+        info['channelEnds'] = [stub_end(path, sec, route_id)]
     for (u, s_c) in shafts:
         obs += grate_shaft(path, sec, u, s_c, mats, coll)
         info['placements'].append(dict(piece='grate_shaft_parametric', u=round(u, 2), pos=[round(v, 3) for v in path.world(np.array(u), np.array(s_c), np.array(sec.ledge_y))]))
-    for lp in g.lamps:
+    for k, lp in enumerate(g.lamps):
         u, _ = path.u_near(lp[0], lp[2])
-        obs += place_lamp(path, sec, u, mats, coll, rng)
+        obs += place_lamp(path, sec, u, mats, coll, rng, name='%s_lamp_%d' % (route_id, k))   # ids unique across areas
         info['placements'].append(dict(piece='lamp_bracket_safety_lamp', u=round(u, 2), pos=[round(float(v), 3) for v in lp]))
     # ends
     for which, kind in (('start', start), ('end', end)):
@@ -232,6 +237,7 @@ def build_stretch(route_id, pts, cls, mats, coll, grates=(), lamps=(), start='ju
         if not clear(u, 0.6):
             bpy.data.objects.remove(o, do_unlink=True); continue
         o.location = U.gv(*pos); o.rotation_euler = (0, 0, rng.uniform(0, 6.28)); obs.append(o)
+        o['ruien_collision'] = False   # it floats: no fixed solid at the water line (it blocked the giant and the wader)
     return obs, info, g, sec
 
 def host_section(path, sec, u0, side, y_top):
@@ -345,9 +351,17 @@ def build_lower(g, sec, mats, coll, rng, branch=(), host=(), seams=()):
     edge = np.abs(Ss - (lo + hi) / 2) / ((hi - lo) / 2)
     depth = sec.bed + 0.12 + 0.45 * edge ** 3 * (0.5 + n1)
     depth = np.minimum(depth, sec.water + 0.1)
-    for us in seams:
+    if sec.cls == 'M':
+        # the giant's way: Antigoon (3.85 m) wades a rui upright on its -4.9 bed, 0.15 m under the crown, so the silt
+        # stays a skim along the channel's middle and banks up only towards its edges (as the junction rooms' bed)
+        mid = U.smoothstep(0.75, 1.35, np.abs(Ss - (lo + hi) / 2))
+        depth = sec.bed + 0.005 + (depth - sec.bed - 0.005) * mid
+    for us, kind in seams:
         # where the next route runs on, both builds meet the same bed: noise from world position, not the route
         shared = np.minimum(sec.bed + 0.12 + 0.45 * edge ** 3 * (0.5 + U.fbm3(Pc, 1873, 3.0)), sec.water + 0.1)
+        if kind == 'room':
+            # the room stub's silt (kit/junction_gen.py bed): thin along the channel, 6 cm more at its edges
+            shared = sec.bed + 0.005 + 0.06 * U.smoothstep(0.9, 1.4, np.abs(Ss - (lo + hi) / 2))
         w = U.smoothstep(1.0, 0.0, np.abs(Uu - us))
         depth = depth * (1 - w) + shared * w
     keep = np.ones((len(uu) - 1, len(ss) - 1), bool)
@@ -447,14 +461,14 @@ def grate_shaft(path, sec, u, s_c, mats, coll, top=-0.28, h=0.33):
         obs.append(U.tube('ladder_rung', [P(u - 0.2, yy, lad), P(u + 0.2, yy, lad)], 0.013, n=8, coll_=coll, mat=iron))
     return obs
 
-def place_lamp(path, sec, u, mats, coll, rng):
+def place_lamp(path, sec, u, mats, coll, rng, name='kit_lamp'):
     wy = -2.3
     side = sec.sides[0]
     ws = float(sec.wall_s_at_y(wy))
     wall_pt = path.world(np.array(u), np.array(side * ws), np.array(wy))
     inner = path.world(np.array(u), np.array(side * (ws - 1.0)), np.array(wy))
     parts, hook = PR.lamp_bracket('lamp_bracket', wall_pt, inner - wall_pt, 0.3, mats['iron'], coll)
-    lo, ll = PR.safety_lamp('kit_lamp', mats, coll, light_power=150.0)
+    lo, ll = PR.safety_lamp(name, mats, coll, light_power=150.0)
     lo.location = U.gv(*hook)
     return parts + [lo]
 
@@ -466,11 +480,27 @@ def world_ext(path, u, s, y):
     d = u - uc
     return np.stack(np.broadcast_arrays(px + d * tx + s * nx, y, pz + d * tz + s * nz), -1)
 
+STUB_BACK = 0.05   # a 'stub' end's bricked-up wall stands this far inside the swept end
+
+def stub_end(path, sec, route_id):
+    """A 'stub' end: the game's RuienEnd (areas.json channelEnds) bricks the section up just inside the swept end,
+    with a barred culvert over the channel's middle carrying the water on, where the next area joins later."""
+    u = path.length - STUB_BACK
+    lo, hi = sec.channel_edges()
+    c = (lo + hi) / 2
+    at = path.world(np.array(u), np.array(c), np.array(0.0))
+    px, pz, tx, tz, nx, nz = path.frame(np.array(u))
+    half = max(abs(-sec.hw - c), abs(sec.hw - c)) + 0.5     # reaches behind both walls of the shell
+    return dict(id='%s_stub' % route_id, at=[round(float(at[0]), 3), 0.0, round(float(at[2]), 3)], axis=[round(float(tx), 5), 0.0, round(float(tz), 5)],
+                half=round(half, 3), bottom=round(sec.bed - 0.3, 3), top=round(sec.crown + 0.15, 3), culvert=1.0, spring=round(sec.water + 0.1, 3), water=True)
+
 def end_piece(path, sec, u, kind, which, mats, coll):
     """'cap': dead-end brick wall; 'open': a dark void card (the route continues, built separately);
     'junction': a header-brick arch ring where the route opens into a room (no host gallery found);
-    'through': nothing (the next route continues the same section); 'tee': built by kit/meet.py."""
-    if kind in ('through', 'tee', 'reducer'):
+    'through': nothing (the next route continues the same section); 'tee': built by kit/meet.py;
+    'room': nothing (a junction room's mouth stub continues it); 'stub': nothing here, the game's RuienEnd bricks it
+    up (stub_end)."""
+    if kind in ('through', 'tee', 'reducer', 'room', 'stub'):
         return []
     obs = []
     s_p, y_p, v_p, vt = sec.profile(0.2)
