@@ -2365,6 +2365,40 @@ void silt_at(vec2 v, vec2 p, vec2 dx, vec2 dy, out vec4 cw, out vec4 cd, out vec
         return code;
     }
 
+    /// <summary>Continuous water colour and sheltered basin motion; shared by generated and stored native shaders.</summary>
+    public static string WithNaturalWater(string code)
+    {
+        code = code.Replace("\r\n", "\n");
+        if (code.Contains("// natural-water-v2")) return code;
+        if (code.Contains("// natural-water-v1")) return RefineWater(code);
+        string ReplaceOnce(string source, string old, string next)
+        {
+            int at = source.IndexOf(old, StringComparison.Ordinal);
+            if (at < 0 || source.IndexOf(old, at + old.Length, StringComparison.Ordinal) >= 0)
+                throw new InvalidOperationException("Natural water anchor missing or repeated: " + old);
+            return source.Replace(old, next.Replace("\r\n", "\n"));
+        }
+        code = ReplaceOnce(code, "vec4 c = texture(tex, uv);", @"// natural-water-v1: optical depth colour, without a tiled photograph of ripples.
+    vec4 c = vec4(vec3(0.045, 0.062, 0.05), 1.0);");
+        code = ReplaceOnce(code, "vec3 wp = VERTEX;", @"vec3 wp = VERTEX;
+    float shelter = in_basin(wp.xz) ? 0.28 : 1.0;");
+        code = ReplaceOnce(code, "VERTEX.y += w;", "w *= shelter;\n\tNORMAL = normalize(mix(vec3(0.0, 1.0, 0.0), NORMAL, shelter));\n\tVERTEX.y += w;");
+        code = ReplaceOnce(code, "wave = psx_waves(wxz, psx_time);", @"wave = psx_waves(wxz, psx_time);
+        wave.xy *= (in_basin(wxz) ? 0.45 : 0.8) * (1.0 - 0.65 * smoothstep(18.0, 95.0, len));");
+        code = ReplaceOnce(code, "vec2 cl = floor(wxz * 5.0);", "vec2 cl = wxz * 2.3 + vec2(psx_time * 0.08, -psx_time * 0.05);");
+        code = ReplaceOnce(code, "float n = psx_h12(cl);", "float n = foul_val(cl) * 0.65 + foul_val(cl * 2.7) * 0.35;");
+        code = ReplaceOnce(code, "float foam = step(shore, reach) * (0.55 + 0.45 * step(0.5, n));", "float foam = (1.0 - smoothstep(reach * 0.25, reach, shore)) * smoothstep(0.42, 0.75, n) * (in_basin(wxz) ? 0.28 : 0.55);");
+        code = ReplaceOnce(code, "wave.xy * 0.22", "wave.xy * 0.075");
+        return RefineWater(code);
+    }
+
+    private static string RefineWater(string code) => code
+        .Replace("natural-water-v1", "natural-water-v2")
+        .Replace("in_basin(wxz) ? 0.45 : 0.8", "in_basin(wxz) ? 0.65 : 0.9")
+        .Replace("wave.xy * 0.075", "wave.xy * 0.14")
+        .Replace("return vec3(s, wa.b * 0.6 + wb.b * 0.4);", "s += (texture(psx_wave_n, p * vec2(0.7, 1.1) + t * vec2(0.019, -0.027)).rg * 2.0 - 1.0) * 0.035;\n\treturn vec3(s, wa.b * 0.6 + wb.b * 0.4);")
+        .Replace("max(0.22, 0.04 + 0.96 * pow(1.0 - cos_v, 5.0))", "0.025 + 0.975 * pow(1.0 - cos_v, 5.0)");
+
     public static string WithMurk(string code)
     {
         code = code.Replace("\r\n", "\n");
@@ -2960,7 +2994,7 @@ void light() {
 	FOG = vec4(fogc + halo, fog_k);
 }
 ");
-        s = new Shader { Code = k.Water > 0 ? WithMurk(c.ToString()) : c.ToString() };
+        s = new Shader { Code = k.Water > 0 ? WithNaturalWater(WithMurk(c.ToString())) : c.ToString() };
         Shaders[k] = s;
         Kinds[s] = k;
         return s;

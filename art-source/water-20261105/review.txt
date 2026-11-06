@@ -1,0 +1,25 @@
+Water rendering review - 2026-11-05
+
+Removed tiled colour from the water shaders; colour now comes from optical tint and scene lighting.
+Dock swell is reduced; the Schelde retains its exposed-water movement.
+Continuous, drifting foam replaces the old 20 cm shoreline cells.
+First review was too mirror-like; final adds fine ripples and restores moderate reflection distortion.
+Reduced the minimum reflection amount when looking down into water.
+Original shaders are in originals/. Stored native shaders and generated shaders use the same patch.
+Existing wakes, rain rings, tide masks, object IDs, placements and collision are retained.
+Water is a thin surface with its perimeter hidden by the shore; no solid edge bevel applies.
+
+Validation: native build passed; both stored shaders verified against patched originals.
+30 matched High-quality captures: before/ and final/, five views in daylight, rain and night.
+Final review: less mottled water, calmer dock swell, readable reflections, rain rings and dark night water.
+The first revision's overly clean reflections were rejected and revised before these final captures.
+Moving birds and vessels differ between frames. These are photographs of the running native game.
+The generated targets are visual direction, not screenshots or an exact reproduction of the final renderer.
+
+Coverage limit: --no-ruien-gates was needed to avoid the slow entrance-cut pass during capture.
+Quay junctions, drainage and entrance cuts have not received full environment acceptance in this water review.
+No overall high-detail quay pass is claimed. Storm whitecaps were not reviewed.
+Reproduce: native-godot/scripts/check-water.ps1 -Output <absolute-folder> -Port 9237 -SkipEntranceCuts
+Target prompts and generation method: target-prompt.txt. Comparison: comparison.html.
+Additional coverage limit: moving hulls obscure parts of the low Schelde views; these do not establish full shoreline acceptance.
+Visible neighbouring boat ring fittings remain faceted; this water change does not resolve that geometry defect.
