@@ -27,6 +27,12 @@ three runs taken close together: the same build varies about 15% over a day on t
 | Other parts (walk map 4, Ruien lay-in 4.5, railway 2, sound floors 2.3...) | main | 25 | |
 | Game rules, first state, shader settle and fade | main + workers | 8 | rules start after the walk map |
 
+## Decided
+
+- All collision is built at start (Steve, 2026-11-07). Building far collision later, near the player, was
+  offered (about 6-8 s faster) and declined: far ray tests and start-up ray checks could give other results.
+  Do not propose it again without a new reason.
+
 ## Traps
 
 - A mesh read (`SurfaceGetArrays`, `GetFaces`) from the loading thread waits for a main-thread frame. Keep the loading
