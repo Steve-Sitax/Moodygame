@@ -66,6 +66,33 @@ public partial class Lights : Node
     private Func<int, (Vector4 a, Vector4 b, Vector4 c, Vector4 d)> spillAt = null!;
     private readonly Src?[] slots = new Src?[Psx.MaxSpill];
     private readonly (Src? lamp, float w)[] lampSlots = new (Src?, float)[Psx.MaxLamps - 1];
+    /// <summary>How much of each lamp slot the water sees (Psx.SetLampWaterSeen), eased so a glint fades, and whose it is.</summary>
+    private readonly float[] waterSeen = { 1, 1, 1, 1, 1, 1 };
+    private readonly Src?[] waterSeenFor = new Src?[Psx.MaxLamps - 1];
+
+    /// <summary>
+    /// 1 when the water where the eye sees a lamp's reflection also sees the lamp, 0 when a quay wall, a bastion or a
+    /// house stands between them: one ray from that reflection point to just short of the lamp.
+    /// </summary>
+    private static float WaterSees(PhysicsDirectSpaceState3D? space, Vector3 eye, Vector3 lamp)
+    {
+        if (space == null) return 1;
+        float y = Tide.River;
+        for (int pass = 0; pass < 2; pass++)
+        {
+            if (eye.Y <= y + 0.05f || lamp.Y <= y + 0.05f) return 1;
+            // the reflection lies where the line from the eye to the lamp's mirror image crosses the water
+            float t = (eye.Y - y) / ((eye.Y - y) + (lamp.Y - y));
+            float x = eye.X + (lamp.X - eye.X) * t, z = eye.Z + (lamp.Z - eye.Z) * t;
+            if (!Water.In(x, z)) return 1;
+            float level = Water.Level(x, z);
+            if (MathF.Abs(level - y) > 0.05f && pass == 0) { y = level; continue; }
+            var from = new Vector3(x, y + 0.05f, z);
+            var to = lamp - (lamp - from).Normalized() * 0.6f;
+            return space.IntersectRay(PhysicsRayQueryParameters3D.Create(from, to, Solid.Layer)).Count > 0 ? 0 : 1;
+        }
+        return 1;
+    }
     /// <summary>The lamps' glass and flames: its lamp (null: the clock), its own opacity (1 solid, under 1 the clear
     /// glass of the hollow lanterns, gaslamps.ts), whether it is a lantern's one flame inside the glass, and whether it is
     /// a window's glow (lit by the clock only: the lamps' extra burning by day in thick air is not a window's, #70).</summary>
@@ -618,6 +645,17 @@ void fragment() {
         foreach (var (l, w) in lampSlots) lampValues.Add(l == null || w <= 0 ? new Vector4(0, -999, 0, 0) : new Vector4(l.At.X, l.At.Y, l.At.Z, l.B * w * Math.Min(1, l.Power / Power)));
         lampValues.Add(Lantern ?? new Vector4(0, -999, 0, 0));
         Psx.SetLamps(lampValues);
+        var space = cam.GetWorld3D()?.DirectSpaceState;
+        for (int i = 0; i < lampSlots.Length; i++)
+        {
+            var l = lampSlots[i].lamp;
+            if (l == null) { waterSeen[i] = 1; waterSeenFor[i] = null; continue; }
+            float seen = WaterSees(space, eye, l.At);
+            if (snap || waterSeenFor[i] != l) waterSeen[i] = seen;
+            else waterSeen[i] = Mathf.MoveToward(waterSeen[i], seen, dt * 4);
+            waterSeenFor[i] = l;
+        }
+        Psx.SetLampWaterSeen(waterSeen);
 
         // --- the painted windows
         if (panes != null)

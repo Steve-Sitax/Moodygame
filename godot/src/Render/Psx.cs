@@ -107,6 +107,9 @@ public static class Psx
         ("psx_lamp4", RenderingServer.GlobalShaderParameterType.Vec4, NoLamp),
         ("psx_lamp5", RenderingServer.GlobalShaderParameterType.Vec4, NoLamp),
         ("psx_lamp_color", RenderingServer.GlobalShaderParameterType.Vec4, new Vector4(1.0f, 0.62f, 0.28f, 1)),
+        // how much of each lamp slot the water sees past the quays and walls (World/Lights.cs WaterSees): 0..1 per slot
+        ("psx_lamp_seen0", RenderingServer.GlobalShaderParameterType.Vec4, Vector4.One),
+        ("psx_lamp_seen1", RenderingServer.GlobalShaderParameterType.Vec4, Vector4.One),
         // the sky over the streets (tools/city/skyshade.mjs) and where it lies: x0, z0, w, h; 0 until its picture is in
         ("psx_sky_box", RenderingServer.GlobalShaderParameterType.Vec4, new Vector4(-385, -80, 634, 453)),
         ("psx_sky_on", RenderingServer.GlobalShaderParameterType.Float, 0f),
@@ -430,6 +433,15 @@ public static class Psx
             value = new Vector4(c.R, c.G, c.B, c.A);
         }
         UniformUpdates.Global(name, value);
+    }
+
+    /// <summary>How much of each lamp slot (SetLamps) the water sees: a lamp behind a quay or a wall gives it no glint.</summary>
+    public static void SetLampWaterSeen(IReadOnlyList<float> seen)
+    {
+        EnsureGlobals();
+        float S(int i) => i < seen.Count ? seen[i] : 1;
+        UniformUpdates.Global("psx_lamp_seen0", new Vector4(S(0), S(1), S(2), S(3)));
+        UniformUpdates.Global("psx_lamp_seen1", new Vector4(S(4), S(5), 1, 1));
     }
 
     /// <summary>The six lamps whose glow hangs in the air (psx.ts uLamps): flame and brightness; the rest dark.</summary>
@@ -2398,9 +2410,10 @@ void silt_at(vec2 v, vec2 p, vec2 dx, vec2 dy, out vec4 cw, out vec4 cd, out vec
     public static string WithNaturalWater(string code)
     {
         code = code.Replace("\r\n", "\n");
-        if (code.Contains("// natural-water-v3")) return code;
-        if (code.Contains("// natural-water-v2")) return QuietScum(code);
-        if (code.Contains("// natural-water-v1")) return QuietScum(RefineWater(code));
+        if (code.Contains("// natural-water-v4")) return code;
+        if (code.Contains("// natural-water-v3")) return LampsBehindQuays(code);
+        if (code.Contains("// natural-water-v2")) return LampsBehindQuays(QuietScum(code));
+        if (code.Contains("// natural-water-v1")) return LampsBehindQuays(QuietScum(RefineWater(code)));
         string ReplaceOnce(string source, string old, string next)
         {
             int at = source.IndexOf(old, StringComparison.Ordinal);
@@ -2419,7 +2432,39 @@ void silt_at(vec2 v, vec2 p, vec2 dx, vec2 dy, out vec4 cw, out vec4 cd, out vec
         code = ReplaceOnce(code, "float n = psx_h12(cl);", "float n = foul_val(cl) * 0.65 + foul_val(cl * 2.7) * 0.35;");
         code = ReplaceOnce(code, "float foam = step(shore, reach) * (0.55 + 0.45 * step(0.5, n));", "float foam = (1.0 - smoothstep(reach * 0.25, reach, shore)) * smoothstep(0.42, 0.75, n) * (in_basin(wxz) ? 0.28 : 0.55);");
         code = ReplaceOnce(code, "wave.xy * 0.22", "wave.xy * 0.075");
-        return QuietScum(RefineWater(code));
+        return LampsBehindQuays(QuietScum(RefineWater(code)));
+    }
+
+    /// <summary>
+    /// A street lamp's drawn reflection and streak only where the water sees the lamp: seen from a boat under a high quay
+    /// wall or a bastion, the lamps behind it are hidden, and their glints flickered on the water at the wall's foot
+    /// (Steve, 2026-11-07). World/Lights.cs casts one ray per lamp slot from the water where its reflection lies
+    /// (psx_lamp_seen0/1).
+    /// </summary>
+    private static string LampsBehindQuays(string code)
+    {
+        string Once(string source, string old, string next)
+        {
+            int at = source.IndexOf(old, StringComparison.Ordinal);
+            if (at < 0 || source.IndexOf(old, at + old.Length, StringComparison.Ordinal) >= 0)
+                throw new InvalidOperationException("Lamps behind quays anchor missing or repeated: " + old);
+            return source.Replace(old, next);
+        }
+        code = Once(code, "natural-water-v3", "natural-water-v4");
+        code = Once(code, "varying float wave_h;\n", "global uniform vec4 psx_lamp_seen0;\nglobal uniform vec4 psx_lamp_seen1;\nvarying float wave_h;\n");
+        code = Once(code, "float foul_hash(vec2 p) {", @"// a lamp's glint and streak on the water, as much of it as the water sees past the quays (psx_lamp_seen0/1)
+float lamp_one(vec3 P, vec3 rr, vec4 l, float brk) {
+	if (l.w <= 0.0) return 0.0;
+	return lamp_reflect(P, rr, l) * 0.09 + l.w * wet_streak(P, rr, l.xyz) * 0.5 * brk;
+}
+float lamp_light(vec3 P, vec3 rr, float brk) {
+	return lamp_one(P, rr, psx_lamp0, brk) * psx_lamp_seen0.x + lamp_one(P, rr, psx_lamp1, brk) * psx_lamp_seen0.y
+		+ lamp_one(P, rr, psx_lamp2, brk) * psx_lamp_seen0.z + lamp_one(P, rr, psx_lamp3, brk) * psx_lamp_seen0.w
+		+ lamp_one(P, rr, psx_lamp4, brk) * psx_lamp_seen1.x + lamp_one(P, rr, psx_lamp5, brk) * psx_lamp_seen1.y;
+}
+float foul_hash(vec2 p) {");
+        return Once(code, "ad += psx_lamp_color.rgb * (lamp_reflects(world, rr) * 0.09 + lamp_streaks(world, rr) * 0.5 * brk);",
+            "ad += psx_lamp_color.rgb * lamp_light(world, rr, brk);");
     }
 
     /// <summary>
