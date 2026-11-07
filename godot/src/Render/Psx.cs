@@ -2398,8 +2398,9 @@ void silt_at(vec2 v, vec2 p, vec2 dx, vec2 dy, out vec4 cw, out vec4 cd, out vec
     public static string WithNaturalWater(string code)
     {
         code = code.Replace("\r\n", "\n");
-        if (code.Contains("// natural-water-v2")) return code;
-        if (code.Contains("// natural-water-v1")) return RefineWater(code);
+        if (code.Contains("// natural-water-v3")) return code;
+        if (code.Contains("// natural-water-v2")) return QuietScum(code);
+        if (code.Contains("// natural-water-v1")) return QuietScum(RefineWater(code));
         string ReplaceOnce(string source, string old, string next)
         {
             int at = source.IndexOf(old, StringComparison.Ordinal);
@@ -2418,7 +2419,28 @@ void silt_at(vec2 v, vec2 p, vec2 dx, vec2 dy, out vec4 cw, out vec4 cd, out vec
         code = ReplaceOnce(code, "float n = psx_h12(cl);", "float n = foul_val(cl) * 0.65 + foul_val(cl * 2.7) * 0.35;");
         code = ReplaceOnce(code, "float foam = step(shore, reach) * (0.55 + 0.45 * step(0.5, n));", "float foam = (1.0 - smoothstep(reach * 0.25, reach, shore)) * smoothstep(0.42, 0.75, n) * (in_basin(wxz) ? 0.28 : 0.55);");
         code = ReplaceOnce(code, "wave.xy * 0.22", "wave.xy * 0.075");
-        return RefineWater(code);
+        return QuietScum(RefineWater(code));
+    }
+
+    /// <summary>
+    /// The foul water's scum: small dull flecks a shade darker than the murk, not metre-wide pale grey blotches that read
+    /// as clouds on the canal and the vlieten (Steve, 2026-11-07).
+    /// </summary>
+    private static string QuietScum(string code)
+    {
+        foreach (var (old, next) in new[] {
+            ("natural-water-v2", "natural-water-v3"),
+            ("vec2 sp = world.xz * 0.8 + vec2(psx_time * 0.03, psx_time * 0.017);", "vec2 sp = world.xz * 1.3 + vec2(psx_time * 0.03, psx_time * 0.017);"),
+            ("float scum = smoothstep(0.5, 0.68,", "float scum = smoothstep(0.6, 0.78,"),
+            ("t = scum * 0.8;", "t = scum * 0.4;"),
+            ("(fogc * vec3(0.26, 0.23, 0.17) + vec3(0.03, 0.024, 0.014)) * t;", "(fogc * vec3(0.13, 0.115, 0.08) + vec3(0.012, 0.01, 0.006)) * t;") })
+        {
+            int at = code.IndexOf(old, StringComparison.Ordinal);
+            if (at < 0 || code.IndexOf(old, at + old.Length, StringComparison.Ordinal) >= 0)
+                throw new InvalidOperationException("Quiet scum anchor missing or repeated: " + old);
+            code = code.Replace(old, next);
+        }
+        return code;
     }
 
     private static string RefineWater(string code) => code

@@ -28,7 +28,7 @@ public partial class NaturalWaterRepair : Node
         {
             var shader = ResourceLoader.Load<Shader>(path, null, ResourceLoader.CacheMode.Ignore);
             string old = N(shader.Code);
-            if (old.Contains("natural-water-v2")) {
+            if (old.Contains("natural-water-v3")) {
                 int backupArg = Array.IndexOf(args, "--backup");
                 if (backupArg >= 0) {
                     string originalPath = Path.Combine(args[backupArg + 1], Path.GetFileName(path));
