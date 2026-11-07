@@ -19,6 +19,12 @@ the old pavements' raised flags, kerbs or a step read as broken edging (Codex on
 whose frame comes within 0.15 m of a raised top is moved the least way that clears it (at most 3 m; 6 m from the other
 trees, 2.5 m from a standing house, 3.5 m from a church, clear of the churchyard, the benches and the squares' things).
 --settle does only that to an existing squares.json, so every other tree and bench stays where it stood.
+    python squares.py --moves <squares.json> <moves.json>
+The earth trees were drawn on the bare earth, which runs on under the town wall, its gates and the prison: some stood in
+their walls or with their crowns through them (Steve, 2026-11-07). The game measures each earth tree's room at 1, 3.5 and
+6 m against everything solid but other trees (dev flag --tree-clearance <folder>, World/NativeTreeClearance.cs) and writes
+moves.json: by index, the nearest bare-earth spot within 8 m with room for most of its crown, 6 m from every other tree,
+or null where there is none. --moves applies it: moved trees keep their kind, yaw and scale; the null ones are left out.
 """
 import sys, json, math, pathlib
 import numpy as np, shapely
@@ -86,6 +92,16 @@ def settle(sq, raised):
 
 
 def main():
+    if sys.argv[1] == '--moves':
+        path, moves_path = sys.argv[2:4]
+        sq = json.load(open(path)); moves = json.load(open(moves_path))
+        for i, to in moves.items():
+            t = sq['trees'][int(i)]
+            if to is None: t['gone'] = True; print('tree', i, t['kind'], t['x'], t['z'], 'left out')
+            else: print('tree', i, t['kind'], t['x'], t['z'], '->', to['x'], to['z']); t['x'], t['z'] = to['x'], to['z']
+        sq['trees'] = [t for t in sq['trees'] if not t.pop('gone', False)]
+        json.dump(sq, open(path, 'w'), indent=1)
+        return
     if sys.argv[1] == '--settle':
         path, dump = sys.argv[2:4]
         sq = json.load(open(path))

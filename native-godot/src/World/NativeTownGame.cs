@@ -339,6 +339,7 @@ public partial class NativeTownGame : Scheldemist.Main
             if (Arg("arrival-pier-proof") is { Length: > 0 } pierProof) _ = NativeArrivalPierProof.Run(this, Paths.Absolute(pierProof));
             if (Arg("stone-corners-proof") is { Length: > 0 } stoneProof) _ = NativeStoneCornersProof.Run(this, Paths.Absolute(stoneProof));
             if (Arg("water-proof") is { Length: > 0 } waterProof) _ = NativeWaterProof.Run(this, Paths.Absolute(waterProof));
+            if (Arg("tree-clearance") is { Length: > 0 } treeClearance) _ = NativeTreeClearance.Run(this, Paths.Absolute(treeClearance));
             if (Arg("wake-proof") is { Length: > 0 } wakeProof) _ = NativeWakeProof.Run(this, Paths.Absolute(wakeProof));
             if (Arg("street-furniture-survey") is { Length: > 0 } furnitureSurvey) _ = NativeStreetFurnitureSurvey.Run(this, Paths.Absolute(furnitureSurvey));
         }

@@ -11,6 +11,7 @@ Bugs and loose ends are tracked as [issues](https://github.com/Steve-Sitax/Moody
 
 ## [Unreleased]
 
+- Trees no longer grow inside the town wall, its gates, the windmill bastion or the prison, with only their crowns showing through the wall walk. The trees on the bare earth by the wall that stood too close were moved to open ground nearby; those with no open ground near were taken away (57 of 98). The trees on the church squares are unchanged.
 - At night the water no longer shows lamp glints that flicker at the foot of a quay wall or a bastion when the lamp itself is hidden behind that wall. Lamps you can see still shine on the water.
 - The canals and vlieten no longer show big pale grey patches that looked like clouds on the water. Their dirty skin is now small, dull flecks a shade darker than the water.
 - The game starts much faster. On the test PC a normal start went from about 2½ minutes to about 1½ minutes (best runs 1 min 17 s). The town, its districts and the Ruien are now read and built side by side, and several slow steps were made quicker; the town, its collision and the walking map are exactly the same as before. The first start after an update that changes the town's buildings is still slow (about 5 minutes) while it prepares the town again.
