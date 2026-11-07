@@ -100,6 +100,9 @@ public sealed class NativeTownMaterials
         return made;
     }
 
+    /// <summary>The recovered materials' files, for the start's prefetch (World/StartupResources).</summary>
+    public static IEnumerable<string> GameMaterialFiles() => JsonNode.Parse(Godot.FileAccess.GetFileAsString(Table))!.AsObject().Select(row => row.Value!.GetValue<string>()).ToArray();
+
     private Dictionary<int, ShaderMaterial> GameMaterials()
     {
         if (game != null) return game;

@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text.Json;
 using Godot;
+using Scheldemist.World;
 
 namespace Scheldemist.Native.World;
 
@@ -83,7 +84,9 @@ public static class NativeShutters
         {
             var mm = new MultiMesh { TransformFormat = MultiMesh.TransformFormatEnum.Transform3D, UseColors = true, Mesh = Model(model), InstanceCount = list.Count };
             var box = new Aabb(list[0].At.Origin, Vector3.Zero);
-            for (int i = 0; i < list.Count; i++) { mm.SetInstanceTransform(i, list[i].At); mm.SetInstanceColor(i, list[i].Colour); box = box.Expand(list[i].At.Origin); }
+            var data=new float[list.Count*16];
+            for (int i = 0; i < list.Count; i++) { MultiMeshData.Transform(data,i*16,list[i].At); MultiMeshData.Colour(data,i*16+12,list[i].Colour); box = box.Expand(list[i].At.Origin); }
+            MultiMeshData.Write(mm,data);
             var node = new MultiMeshInstance3D
             {
                 Name = $"shutters_{chunk}_{model}{(isWorn ? "_worn" : "")}", Multimesh = mm,

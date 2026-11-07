@@ -53,7 +53,8 @@ public static class NativeDistrictLayouts
         return root != "" ? Path.Combine(root, id) : ProjectSettings.GlobalizePath("user://layouts/" + id);
     }
 
-    public static IReadOnlyList<AuthorDistrict> Available()
+    /// <summary>Every district descriptor, the reviewed district first.</summary>
+    public static List<string> DescriptorPaths()
     {
         var paths = new List<string> { ResourcePath(ReviewedDistrict) };
         if (DirAccess.DirExistsAbsolute(InteriorDirectory))
@@ -63,10 +64,16 @@ public static class NativeDistrictLayouts
             paths.AddRange(ResourceLoader.ListDirectory(DistrictDirectory)
                 .Where(f => f.EndsWith(".tres", StringComparison.Ordinal))
                 .OrderBy(f => f, StringComparer.Ordinal).Select(f => DistrictDirectory + "/" + f));
+        return paths;
+    }
+
+    public static IReadOnlyList<AuthorDistrict> Available()
+    {
         var result = new List<AuthorDistrict>(); var ids = new HashSet<string>(StringComparer.Ordinal);
-        foreach (string path in paths)
+        foreach (string path in DescriptorPaths())
         {
             string id=path.EndsWith("/district.tres",StringComparison.Ordinal)?ReviewedDistrict:Path.GetFileNameWithoutExtension(path);
+            using var descriptorTrace=Scheldemist.Dev.StartupTiming.Measure("district.resource."+id);
             var district = Descriptor(id);
             district.Validate();
             if (!ids.Add(district.Id)) throw new InvalidDataException("Duplicate native district id: " + district.Id);
@@ -92,7 +99,9 @@ public static class NativeDistrictLayouts
         {
             foreach (var district in Available())
             {
-                var objects = ReadSeed(district); var assets = district.Catalog.Index();
+                using var districtTrace=Scheldemist.Dev.StartupTiming.Split("district."+district.Id);
+                var objects = ReadSeed(district);districtTrace?.Next("seed");
+                var assets = district.Catalog.Index();districtTrace?.Next("catalog");
                 try
                 {
                     var seed = Capture(district, objects); seed.Validate(district.Id, assets);

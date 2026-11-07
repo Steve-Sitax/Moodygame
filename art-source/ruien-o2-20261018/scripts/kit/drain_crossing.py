@@ -213,9 +213,9 @@ def coping_block(name, path, sec, side, u, L, mats, coll, seed):
     """The sweep's coping block (sweep.build_lower), for re-laying the coping round a sill."""
     rng = np.random.default_rng(seed)
     lo, hi = sec.channel_edges(); edge = hi if side > 0 else lo
-    V, F = U.chipped_block(L - 0.003, 0.25, 0.4, r=rng.uniform(0.006, 0.012), res=0.055, seed=seed, chips=int(rng.integers(5, 11)),
+    V, F = U.chipped_block(L - 0.003, 0.32, 0.5, r=rng.uniform(0.008, 0.014), res=0.055, seed=seed, chips=int(rng.integers(5, 11)),
                            chip_size=(0.02, 0.07), wear_top=0.012, corners=int(rng.integers(0, 3)), wobble=0.0009)
-    Pw = path.world(u + L / 2 + V[:, 0], edge + side * (0.2 - 0.04) + side * V[:, 2], sec.ledge_y - 0.125 + V[:, 1])
+    Pw = path.world(u + L / 2 + V[:, 0], edge + side * (0.25 - 0.04) + side * V[:, 2], sec.ledge_y - 0.16 + V[:, 1])
     if side > 0:
         F = F[:, ::-1]
     return U.mesh_from_faces(name, Pw, F, uv=U.box_uv(V, F), coll_=coll, mat=mats['bluestone'])

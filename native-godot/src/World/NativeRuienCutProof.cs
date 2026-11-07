@@ -45,6 +45,19 @@ public partial class NativeRuienCutProof : Node
             Require(instance.Mesh.GetMeta("permanent_test_id").AsString() == "entrance-fixture", "metadata retained");
             Require(instance.Mesh.GetMeta("native_solid_stand_in").AsVector3Array().All(p => p.X <= 0), "collision follows opening");
             Require(mesh.GetMeta("native_solid_stand_in").AsVector3Array().Any(p => p.X > 0), "source resource unchanged");
+            var rear=Fixture(false);
+            var rearInstance=rear.GetChild<MeshInstance3D>(0);
+            var rearMesh=(ArrayMesh)rearInstance.Mesh!;
+            var rearDrawn=rearMesh.SurfaceGetArrays(0);
+            rearDrawn[(int)Mesh.ArrayType.Vertex]=new[]{new Vector3(-4,0,-1),new Vector3(-3,0,-1),new Vector3(-4,0,1)};
+            var thin=new ArrayMesh();thin.AddSurfaceFromArrays(Mesh.PrimitiveType.Triangles,rearDrawn);
+            thin.SetMeta("native_solid_stand_in",Triangle(false)[(int)Mesh.ArrayType.Vertex]);rearInstance.Mesh=thin;
+            var rearBox=new Aabb(new Vector3(.2f,-1,-2),new Vector3(2,2,4));
+            Require(QuayNotch.CutRegion(rear,_=>true,rearBox,_=>true,new(){p=>p.X-.2f})>0,"collision beyond the drawn bounds is cut");
+            Require(rearInstance.Mesh!.SurfaceGetArrays(0)[(int)Mesh.ArrayType.Vertex].AsVector3Array().SequenceEqual(rearDrawn[(int)Mesh.ArrayType.Vertex].AsVector3Array()),"collision-only rear cut preserves visible geometry");
+            Require(rearInstance.Mesh.GetMeta("native_solid_stand_in").AsVector3Array().All(p=>p.X<=.20001f),"rear collision follows the opening");
+            Require(thin.GetMeta("native_solid_stand_in").AsVector3Array().Any(p=>p.X>.2f),"rear source metadata preserved");
+            rear.Free();
             var regions = new[] {
                 new QuayNotch.Region(box, planes), new QuayNotch.Region(box, new() { p => p.Z }),
                 new QuayNotch.Region(box, new() { p => -.245643f - p.X }),

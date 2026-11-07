@@ -28,7 +28,8 @@ from kit import junction_gen as JG
 M.set_root(ROOT)
 plan = json.load(open(os.path.join(REPO, 'docs', 'plans', 'ruien', 'ruien-routes.json')))
 room = next(r for r in plan['rooms'] if r['id'] == RID)
-over = json.load(open(arg('--over'))) if arg('--over') else {}
+over_file = arg('--over') or os.path.join(ROOT, 'config', RID + '.json')
+over = json.load(open(over_file)) if os.path.isfile(over_file) else {}
 
 # the street mask (native-godot/world/data/public/city/walk.png: R wall, G water, B outside; black is street)
 city = json.load(open(os.path.join(REPO, 'native-godot', 'world', 'data', 'shared', 'city.json')))['walk']

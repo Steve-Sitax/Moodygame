@@ -5,7 +5,7 @@ python -I tools/ruien/plan.py <repo root>
 Input: docs/plans/ruien/ruien-network.json (sizes, levels, names, the drawn picture) and ruien-traced.json (the lines,
 rooms and gates read from Steve's picture by tools/ruien/trace.py).
 Adds: the side drains (every street gully, native-godot/world/town/drainage/ruien-inlets.json, flows along the streets
-to the nearest rui), names, levels, ladders under grates, stairs and lamps.
+to the nearest rui), names, levels, ventilation grates, stair connection targets and lamps.
 Writes docs/plans/ruien/ruien-routes.json, ruien-plan.png, ruien-sections.svg and ruien-plan.html.
 World: +x north, +z east, metres. Pictures: north up, east right."""
 import base64, io, json, math, os, sys
@@ -137,7 +137,9 @@ while True:  # every point of the network within reach of a stair
     s_ = samples(routes[far[0]]["pts"], 1.0); k = min(range(len(s_)), key=lambda j: math.dist(s_[j], far[1]))
     cand = [j for j in range(max(0, k - 25), min(len(s_), k + 26)) if on_street(*s_[j])] or [k]
     p = s_[min(cand, key=lambda j: abs(j - k))]
-    stairs.append({"id": f"S{len(stairs) + 1}", "name": f"Sluice keeper's stair by {near_place(p)}", "at": p, "note": "A door in a small stair house on the street."})
+    stairs.append({"id": f"S{len(stairs) + 1}", "name": f"Sluice keeper's stair by {near_place(p)}", "at": p, "note": "Underground connection target; choose a surveyed facade door or traffic-free square for the surface entrance."})
+for s_ in stairs:
+    s_['surfaceSiting'] = 'required'  # room centres and walk-mask pixels are not approved entrance footprints
 lights = [g_ for g_ in grates] + [tuple(rm["centre"]) for rm in rooms] + [tuple(g["at"]) for g in gates] + [s_["at"] for s_ in stairs]
 lamps = [tuple(l_["at"]) for l_ in net.get("lamps", {}).get("placed", [])]  # placed by hand where the built light falls short
 while True:  # dim lamps where no grate, room, gate or stair lights the way
@@ -146,7 +148,7 @@ while True:  # dim lamps where no grate, room, gate or stair lights the way
     lamps.append(far[1])
 access = [a_ for a_ in net["access"] if a_["kind"] != "stair"]
 
-json.dump({"_about": "Made by tools/ruien/plan.py. Do not edit; edit ruien-network.json or the drawing.",
+json.dump({"_about": "Made by tools/ruien/plan.py. Do not edit; edit ruien-network.json or the drawing.", "surfaceAccessPolicy": net.get('surfaceAccessPolicy', {}),
            "routes": routes, "rooms": rooms, "gates": gates, "sideDrains": side,
            "grates": rnd(grates), "stairs": [{**s_, "at": rnd([s_["at"]])[0]} for s_ in stairs], "lamps": rnd(lamps), "access": access},
           open(os.path.join(OUT, "ruien-routes.json"), "w"), indent=1)
@@ -237,7 +239,7 @@ style = {"grid": 'stroke="#000" stroke-opacity=".12" fill="#555" font-size="10"'
          "access": 'font-size="10" font-weight="bold"', "labels": 'font-size="11" font-weight="bold" paint-order="stroke" stroke="#fff" stroke-width="3"',
          "places": 'font-size="11" font-style="italic" fill="#3a2a1a" paint-order="stroke" stroke="#f4eee0" stroke-width="3"'}
 names = {"grid": "Grid (50 m)", "drains": "Side drains", "gullies": "Street gullies", "M": "Ruien", "G": "Giant galleries", "rooms": "Halls and rooms",
-         "gates": "Gates", "lamps": "Lamps", "grates": "Ladders and grates", "stairs": "Stairs", "access": "Hatches, shafts", "labels": "Rui names", "places": "Place names"}
+         "gates": "Gates", "lamps": "Lamps", "grates": "Ventilation grates", "stairs": "Stair connection targets", "access": "Hatches, shafts", "labels": "Rui names", "places": "Place names"}
 svg_layers = "".join(f'<g id="L_{k_}" {style[k_]}>{"".join(v)}</g>' for k_, v in L.items())
 
 # ---- sections to scale ----
@@ -318,7 +320,7 @@ table{{border-collapse:collapse;font-size:13px;margin-bottom:12px}} td,th{{borde
 <div class="bar">{checks}</div><div class="wrap">
 <div class="key"><span style="background:#b0203a;height:7px"></span>Giant gallery ({tot['G']} m) <span style="background:#1f5fa8"></span>Rui ({tot['M']} m)
 <span style="background:#3a9a5a;height:2px"></span>Side drain ({tot['S']} m).
-White squares: {len(grates)} ladders up through street grates (they let light in). Black triangles: {len(stairs)} stairs. Yellow dots: {len(lamps)} dim lamps.
+White squares: {len(grates)} closed ventilation grates (light and air only). Black triangles: {len(stairs)} underground stair connection targets; surface entrances still require a surveyed doorway or traffic-free square. Yellow dots: {len(lamps)} dim lamps.
 Coloured squares: gates (red giant size, blue normal, grey a closed boat door, purple the flush sluice). Gully dots: green within 40 m of a rui, orange 40-80 m, red farther.</div>
 <div class="map"><img src="data:image/png;base64,{base64png}"><svg viewBox="0 0 {W} {H}">{svg_layers}</svg></div>
 <h2>Sections to scale</h2><div class="sect">{sect}</div>

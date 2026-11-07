@@ -1,0 +1,22 @@
+<Project>
+  <!-- Hash the selected construction sources at compile time, never the editable source tree at runtime.
+       Keep the broad shared World/Models/Render set conservative when adding geometry dependencies. -->
+  <Target Name="StampStartupGeometry" BeforeTargets="CoreCompile">
+    <ItemGroup>
+      <_StartupGeometrySource Include="@(StartupGeometrySource);$(MSBuildProjectFullPath);$(MSBuildThisFileFullPath)" />
+    </ItemGroup>
+    <GetFileHash Files="@(_StartupGeometrySource)" Algorithm="SHA256">
+      <Output TaskParameter="Items" ItemName="_StartupGeometryHashes" />
+    </GetFileHash>
+    <WriteLinesToFile File="$(IntermediateOutputPath)startup-geometry-inputs.txt"
+      Lines="@(_StartupGeometryHashes->'%(Identity)=%(FileHash)');$(DefineConstants)|$(Optimize)|$(TargetFramework)|$(LangVersion)"
+      Overwrite="true" WriteOnlyWhenDifferent="true" Encoding="UTF-8" />
+    <GetFileHash Files="$(IntermediateOutputPath)startup-geometry-inputs.txt" Algorithm="SHA256">
+      <Output TaskParameter="Hash" PropertyName="StartupGeometryRevision" />
+    </GetFileHash>
+    <WriteLinesToFile File="$(IntermediateOutputPath)StartupGeometryRevision.g.cs"
+      Lines="[assembly: System.Reflection.AssemblyMetadata(&quot;StartupGeometryCode&quot;, &quot;$(StartupGeometryRevision)&quot;)]"
+      Overwrite="true" WriteOnlyWhenDifferent="true" Encoding="UTF-8" />
+    <ItemGroup><Compile Include="$(IntermediateOutputPath)StartupGeometryRevision.g.cs" /></ItemGroup>
+  </Target>
+</Project>

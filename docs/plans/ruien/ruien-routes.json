@@ -1,4 +1,13 @@
 {
+ "surfaceAccessPolicy": {
+  "entrances": "surveyed facade door or traffic-free square only",
+  "traffic": "no opening, moving leaf or access house in cart or tram routes",
+  "alignment": "follow adjacent facade, boundary and paving",
+  "streetGrates": "ventilation only",
+  "stairMarkers": "underground connection targets; surface footprint requires review",
+  "reservedFootprints": "native-godot/world/ruien/surface-reservations.json",
+  "roofDrainage": "native-godot/world/ruien/surface-drainage.json; onward connections are reserved, not built"
+ },
  "_about": "Made by tools/ruien/plan.py. Do not edit; edit ruien-network.json or the drawing.",
  "routes": {
   "L1": {

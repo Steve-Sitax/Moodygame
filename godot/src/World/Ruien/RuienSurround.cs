@@ -10,7 +10,7 @@ namespace Scheldemist.World.Ruien;
 public static class RuienSurround
 {
     public const float Bottom=-.30f, Joint=.009f, Seat=-.015f, LidTop=.027f;
-    public static bool Applies(RuienData.Way w)=>w.Kind is "keeper_stair" or "stair" or "ladder" or "grate";
+    public static bool Applies(RuienData.Way w)=>!w.Retired && w.Kind is "keeper_stair" or "stair" or "ladder" or "grate";
     public static float Width(RuienData.Way w)=>w.Kind is "keeper_stair" or "stair"?.32f:.23f;
     public static float Top(RuienData.Way w)=>w.Kind is "keeper_stair" or "stair"?.065f:.035f;
     public static Rect2 Opening(RuienData.Way w)

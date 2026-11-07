@@ -7,4 +7,6 @@
     <Optimize>true</Optimize>
     <RootNamespace>Scheldemist</RootNamespace>
   </PropertyGroup>
+  <ItemGroup><StartupGeometrySource Include="src/World/**/*.cs;src/Models/**/*.cs;src/Render/**/*.cs;src/Main.cs;src/Paths.cs" /></ItemGroup>
+  <Import Project="../tools/build/StartupGeometry.targets" />
 </Project>

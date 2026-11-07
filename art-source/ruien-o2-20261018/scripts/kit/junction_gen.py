@@ -24,7 +24,7 @@ SEC = Section('M', 1)
 P = dict(
     wall=0.5,            # room wall thickness (two bricks)
     walk=0.8,            # walkway width, as the rui's
-    cope=0.4,            # bluestone coping width (0.04 over the water)
+    cope=0.5,            # broad bluestone coping (0.04 over the water); matches the stretch coping
     corner_y=-2.1,       # sail vault springing in the corners: 2 m head room over the walkway beside them
     apex_y=-0.9,         # crown: 0.9 m under the street
     lun_crown=-0.93,     # lunette (elliptic barrel) crown over a mouth
@@ -214,6 +214,15 @@ def stair_fits(rect, c, mouths, routes, on_street):
 
 def plan_stair(rect, mouths, routes, on_street, over):
     """Try every wall end for the corner arch; a mouth on the same wall may move up to 3 m off its line to make room."""
+    access = over.get('stair', {})
+    if access.get('connection'):
+        if access.get('kind') != 'door' or not access.get('entrance'):
+            raise RuntimeError('a door connection needs its surveyed entrance id')
+        c = dict(access); c.update(stair_numbers())
+        return c
+    # A walkable pixel cannot distinguish a square from a carriageway. Require a reviewed off-road footprint.
+    if access.get('kind') != 'square' or not access.get('approvedFootprint'):
+        raise RuntimeError('choose a surveyed square footprint or a connected facade door; never auto-site a street hatch')
     tried = []
     for w, _ in RING:
         p0, tv, n, L = wall_frame(rect, w)
@@ -237,6 +246,14 @@ def plan_stair(rect, mouths, routes, on_street, over):
                 else:
                     good = False
             ok, share = stair_fits(rect, c, mouths, routes, on_street) if good else (False, 0)
+            if ok:
+                poly = np.asarray(access['approvedFootprint'], float)
+                flight = stair_numbers()
+                for a in np.arange(flight['a_hatch']-.4, flight['a_top']+.7, .2):
+                    for l in (-P['stair_w']/2-.4, P['stair_w']/2+.4):
+                        q = wpt(rect,w,t+l)+n*a
+                        hits = sum((p[1]>q[1]) != (r[1]>q[1]) and q[0] < (r[0]-p[0])*(q[1]-p[1])/(r[1]-p[1])+p[0] for p,r in zip(poly,np.roll(poly,-1,axis=0)))
+                        if hits%2 == 0: ok=False
             tried.append((not ok, moves, -share, w, end, c, {id(m): m['t'] for m in mouths}))
             for m in mouths:
                 m['t'] = keep[id(m)]
@@ -957,11 +974,11 @@ def sett_field(name, poly, frame, mats, coll, rng, wear_line=None):
     V = np.stack([V2[:, 0], y, V2[:, 1]], -1)
     F = orient(V, F, lambda c, nn: nn[:, 1])
     uv = np.stack([u, ww], -1)[F.ravel()]
-    return mesh(name, V, F, uv, coll, mats['bluestone'], adaptive=False)
+    return mesh(name, V, F, uv, coll, mats['brick_ledge'], adaptive=False)
 
 def coping_line(name, a, b, out, mats, coll, rng, ends=(True, True)):
     """Bluestone coping blocks from plan point a to b along the water edge; out = plan normal towards the water.
-    The blocks are 0.4 m wide (0.04 over the water) and 0.25 m deep, 0.7 to 1.1 m long."""
+    The blocks are 0.5 m wide (0.04 over the water) and 0.32 m deep, 0.7 to 1.1 m long."""
     obs = []
     a, b, out = np.asarray(a, float), np.asarray(b, float), np.asarray(out, float)
     L = np.linalg.norm(b - a); d = (b - a) / L
@@ -974,7 +991,7 @@ def coping_line(name, a, b, out, mats, coll, rng, ends=(True, True)):
         C = np.zeros((8, 3))
         for j in range(8):
             q = (q1 if j & 1 else q0) + out * (0.04 if j & 4 else -(P['cope'] - 0.04))
-            C[j] = [q[0], SEC.ledge_y if j & 2 else SEC.ledge_y - 0.25, q[1]]
+            C[j] = [q[0], SEC.ledge_y if j & 2 else SEC.ledge_y - 0.32, q[1]]
         obs.append(U.block_object('%s_%02d' % (name, k), C, mats['bluestone'], coll, r=rng.uniform(0.008, 0.012), res=0.055,
                                   seed=int(rng.integers(1e6)), chips=int(rng.integers(6, 12)), chip_size=(0.02, 0.07), wear_top=0.012,
                                   corners=int(rng.integers(0, 3)), wobble=0.0009))
@@ -1174,6 +1191,9 @@ def stair(room, mats, coll, rng, col, info):
             a, b = sorted((ts - sd * 0.01, ts + sd * ln))
             obs.append(stone('%s_stair_jamb_%d_%d' % (rid, sd, k), box_on_wall(room, w, a, b, -(0.34 if k % 2 == 0 else 0.22), 0.012, y, y + hgt - 0.002), mats['bluestone_quoin'], coll, rng, chips=(3, 7)))
             y += hgt; k += 1
+    if st.get('connection'):
+        obs += door_passage(room, mats, coll, col, info, pt)
+        return obs
     # lining walls: level courses, from below the treads to the vault springing or the street
     for part, (pa, pb) in enumerate(((-0.01, a_v), (a_v, a_top + 0.3))):
         aa = np.r_[np.arange(pa, pb, 0.06), pb]
@@ -1258,6 +1278,43 @@ def stair(room, mats, coll, rng, col, info):
     hatch = [min(h0[0], h1[0]), max(h0[0], h1[0]), min(h0[2], h1[2]), max(h0[2], h1[2])]
     info['stair'] = dict(bottom=[float(v) for v in bottom], top=[float(v) for v in top], hatch=[round(float(v), 3) for v in hatch],
                          wall=w, t=st['t'], risers=nr, rise=round(rise, 4), going=P['going'], vault_end=round(float(a_v), 3))
+    return obs
+
+def door_passage(room, mats, coll, col, info, pt):
+    """A short vaulted link to a native facade stair. No street opening or hatch is exported."""
+    st=room.lay['stair']; rid=room.lay['room']; rect=room.rect
+    p0,tv,n,_=wall_frame(rect,st['wall'])
+    start=wpt(rect,st['wall'],st['t'])
+    end=np.asarray(st['connection']['at'],float)
+    front=np.asarray(st['connection']['toward'],float)
+    length=np.linalg.norm(end-start)
+    t=np.linspace(0,1,max(12,int(length/.045)))
+    # Tangent continuity at the room wall and the angled door stair's closure reveal.
+    c1=start+n*length/3; c2=end-front*length/3
+    Q=(1-t[:,None])**3*start+3*(1-t[:,None])**2*t[:,None]*c1+3*(1-t[:,None])*t[:,None]**2*c2+t[:,None]**3*end
+    tangent=3*(1-t[:,None])**2*(c1-start)+6*(1-t[:,None])*t[:,None]*(c2-c1)+3*t[:,None]**2*(end-c2)
+    tangent/=np.linalg.norm(tangent,axis=1)[:,None]
+    across=np.stack([tangent[:,1],-tangent[:,0]],-1)
+    hw=(1-t)*P['stair_w']/2+t*.6
+    spring=(1-t)*P['stair_spring']+t*(SEC.ledge_y+1.6)
+    arc=np.r_[0,np.cumsum(np.linalg.norm(np.diff(Q,axis=0),axis=1))]
+    obs=[]
+    # Closed section: floor, both walls, arch. End faces are shared openings, deliberately uncapped.
+    for kind,theta in [('floor',None),('lining',np.linspace(np.pi,0,41))]:
+        if kind=='floor':
+            s=np.linspace(-1,1,9); xz=Q[:,None,:]+across[:,None,:]*hw[:,None,None]*s[None,:,None]
+            Y=np.full(xz.shape[:2],SEC.ledge_y)
+        else:
+            # Down the left jamb, over the arch, down the right jamb, with matching section joins.
+            sx=np.r_[-np.ones(20),np.cos(theta),np.ones(20)]
+            sy=np.concatenate([SEC.ledge_y+np.linspace(0,1,20)[:,None]*(spring[None,:]-SEC.ledge_y),spring[None,:]+np.sin(theta)[:,None]*hw[None,:],np.linspace(1,0,20)[:,None]*(spring[None,:]-SEC.ledge_y)+SEC.ledge_y],axis=0).T
+            xz=Q[:,None,:]+across[:,None,:]*hw[:,None,None]*sx[None,:,None];Y=sy
+        V=np.stack([xz[...,0],Y,xz[...,1]],-1)
+        uv=np.stack(np.broadcast_arrays(arc[:,None],np.linspace(0,1,V.shape[1])[None,:]),-1)
+        ob=U.grid_mesh(rid+'_door_'+kind,V,uv,flip=G.orient_check(V,np.array([*Q[len(t)//2][:1],-2.8,Q[len(t)//2][1]])),coll_=coll,mat=mats['brick_ledge' if kind=='floor' else 'brick_hallwall'])
+        U.add_adaptive(ob);obs.append(ob);col.append(('door_'+kind,V.reshape(-1,3),U.grid_faces(*V.shape[:2])))
+    bottom=pt(-.3,0,SEC.ledge_y)
+    info['stair']=dict(kind='door',entrance=st['entrance'],bottom=bottom.tolist(),top=st['door'],connection=st['connection'],wall=st['wall'],t=st['t'])
     return obs
 
 def box_faces(C):
@@ -1467,9 +1524,10 @@ def markers(room, sources, info):
         out['daylight_openings'].append(dict(name='crown_%d' % i, kind='round_shaft', centre=[gx, -0.005, gz], radius_m=0.3,
                                              vault_opening=[gx, yv - 0.05, gz]))
     s = info['stair']
-    out['daylight_openings'].append(dict(name='stair_hatch', kind='hatch', centre=[(s['hatch'][0] + s['hatch'][1]) / 2, 0.0, (s['hatch'][2] + s['hatch'][3]) / 2],
-                                         size_m=[s['hatch'][1] - s['hatch'][0], s['hatch'][3] - s['hatch'][2]]))
-    out['stairs'].append(dict(name='%s_stair' % room.lay['room'], bottom=s['bottom'], top=s['top'], hatch=s['hatch']))
+    if s.get('kind') != 'door':
+        out['daylight_openings'].append(dict(name='stair_hatch', kind='hatch', centre=[(s['hatch'][0] + s['hatch'][1]) / 2, 0.0, (s['hatch'][2] + s['hatch'][3]) / 2],
+                                             size_m=[s['hatch'][1] - s['hatch'][0], s['hatch'][3] - s['hatch'][2]]))
+        out['stairs'].append(dict(name='%s_stair' % room.lay['room'], bottom=s['bottom'], top=s['top'], hatch=s['hatch']))
     rect = room.rect
     out['water'].append(dict(name=room.lay['room'], height=SEC.water, outline=[[rect[0], rect[1]], [rect[2], rect[1]], [rect[2], rect[3]], [rect[0], rect[3]]]))
     for m in room.mouths:

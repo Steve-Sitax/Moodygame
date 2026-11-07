@@ -7,7 +7,7 @@ using Scheldemist.Models;
 namespace Scheldemist.World.Ruien;
 
 /// <summary>A1: a lined flight behind the gallery wall, with a vaulted side entry and flush twin lids.</summary>
-public static class RuienStair
+public static partial class RuienStair
 {
     public static List<Func<Vector3,float>> Cut(RuienData.Way w)
     {
@@ -115,6 +115,13 @@ public static class RuienStair
 
     public static Node3D Build(RuienData.Way w,RuienData.Zone? gallery=null)
     {
+        var root=BuildStructure(w,gallery);
+        if(!w.Retired)root.AddChild(new RuienHatch{Way=w});
+        return root;
+    }
+
+    private static Node3D BuildStructure(RuienData.Way w,RuienData.Zone? gallery)
+    {
         var root=new Node3D{Name="keeper_stair_"+w.Id,Position=w.Top};
         // The side entry's jambs and arch are set into the gallery wall: trimmed to its curved face, not standing proud.
         var air=GalleryAir(gallery);var arris=ArrisCut(w,gallery);
@@ -183,7 +190,6 @@ public static class RuienStair
         if(gallery is { Kind: "line" })ArrisStrip(brick,w,gallery,w.Top);
         Add(root,stone,"ruien_bluestone",true);Add(root,iron,"ruien_iron",true);Add(root,brick,"ruien_brick_stretcher",true,trim:flush);Add(root,vault,"ruien_brick_stretcher",true,trim:flush,barrel:true);
         Add(root,paving,"ruien_setts",true,metric:false);
-        root.AddChild(new RuienHatch{Way=w});
         return root;
     }
 
@@ -194,7 +200,7 @@ public static class RuienStair
         void Quad(Vector3 p,Vector3 q,Vector3 r,Vector3 s,float u,float v,float du,float dv)
         {
             var normal=(q-p).Cross(r-p).Normalized();
-            foreach(var (point,uv) in new[]{(p,new Vector2(u,v)),(q,new Vector2(u+du,v)),(r,new Vector2(u+du,v+dv)),(p,new Vector2(u,v)),(r,new Vector2(u+du,v+dv)),(s,new Vector2(u,v+dv))})
+            foreach(var (point,uv) in new[]{(p,new Vector2(u,v)),(r,new Vector2(u+du,v+dv)),(q,new Vector2(u+du,v)),(p,new Vector2(u,v)),(s,new Vector2(u,v+dv)),(r,new Vector2(u+du,v+dv))})
             {st.SetNormal(normal);st.SetUV(uv);st.AddVertex(point);}
         }
         float depth=a.DistanceTo(b),edge=.008f;

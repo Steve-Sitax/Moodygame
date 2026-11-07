@@ -100,7 +100,7 @@ public partial class Waters : Node
     // ---------------------------------------------------------------- the ripple sources (psx.ts `ripples`, the same)
 
     private struct RingSrc { public float X, Z, T0, C, Life, S; }
-    private sealed class WakeSrc { public float X, Z, Dx, Dz, V, Beam, S, Seen; }
+    private sealed class WakeSrc { public float X, Z, Dx, Dz, V, Beam, Length, S, Seen; }
     private static readonly List<RingSrc> rings = new(64);
     private static readonly Dictionary<object, WakeSrc> wakes = new();
     private static readonly Dictionary<object, float> emitAt = new();
@@ -120,12 +120,12 @@ public partial class Waters : Node
     }
 
     /// <summary>A boat under way this frame (`key` the boat): its bow at (x, z), heading (dx, dz), speed m/s, beam m.</summary>
-    public static void Wake(object key, float x, float z, float dx, float dz, float speed, float beam, float strength = 1)
+    public static void Wake(object key, float x, float z, float dx, float dz, float speed, float beam, float strength = 1, float length = 0)
     {
         float l = MathF.Sqrt(dx * dx + dz * dz);
         if (l < 1e-6f) l = 1;
         if (!wakes.TryGetValue(key, out var w)) wakes[key] = w = new WakeSrc();
-        w.X = x; w.Z = z; w.Dx = dx / l; w.Dz = dz / l; w.V = speed; w.Beam = beam; w.S = speed > 0.15f ? strength : 0; w.Seen = Now;
+        w.X = x; w.Z = z; w.Dx = dx / l; w.Dz = dz / l; w.V = speed; w.Beam = beam; w.Length = length; w.S = speed > 0.15f ? strength : 0; w.Seen = Now;
     }
 
     /// <summary>A swimmer this frame: a ring at every stroke while moving, a small wake.</summary>
@@ -157,7 +157,15 @@ public partial class Waters : Node
         camZ = cz;
         if (Movers.River.I is { } river)
             foreach (var m in river.Movers)
-                if (m.V > 0.01) Wake(m, (float)m.X, (float)m.Z, (float)m.Hx, (float)m.Hz, (float)m.V, (float)(m.Beam > 0 ? m.Beam : 4));
+                foreach (var part in m.Parts)
+                {
+                    var hull = part.Boat.Outer;
+                    float dx = MathF.Sin(hull.Rotation.Y), dz = MathF.Cos(hull.Rotation.Y);
+                    float length = (float)part.Len;
+                    float beam = Movers.Boats.I.Dims(part.Boat.Kind).Beam * m.K.Scale;
+                    Wake(part, hull.GlobalPosition.X + dx * length * .5f, hull.GlobalPosition.Z + dz * length * .5f,
+                        dx, dz, (float)m.V, beam, 1, length);
+                }
         float t = Now;
         rings.RemoveAll(r => t - r.T0 > r.Life || t < r.T0);
         foreach (var k in wakes.Where(p => t - p.Value.Seen > 0.5f || t < p.Value.Seen).Select(p => p.Key).ToList()) wakes.Remove(k);
@@ -171,8 +179,8 @@ public partial class Waters : Node
         foreach (var w in wakes.Values)
         {
             if (w.S <= 0) continue;
-            float d = MathF.Sqrt((w.X - cx) * (w.X - cx) + (w.Z - cz) * (w.Z - cz)) - 15;
-            if (d < 120) rippleList.Add((d - 40, new Vector4(w.X, w.Z, w.Dx, w.Dz), new Vector4(1, w.V, w.Beam, w.S)));
+            float d = MathF.Sqrt((w.X - cx) * (w.X - cx) + (w.Z - cz) * (w.Z - cz)) - MathF.Max(15, w.Length);
+            if (d < 120) rippleList.Add((d - 40, new Vector4(w.X, w.Z, w.Dx, w.Dz), new Vector4(1 + w.Length, w.V, w.Beam, w.S)));
         }
         rippleList.Sort((p, q) => p.d.CompareTo(q.d));
         rippleOut.Clear();

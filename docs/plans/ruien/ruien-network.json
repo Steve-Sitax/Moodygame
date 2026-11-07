@@ -1,441 +1,478 @@
 {
-  "_about": "Ruien plan, 2D. World metres: +x north, +z east, street level y 0, quay top 0. The lines, rooms and gates are Steve's drawing (steve-plan-2026-10-18.png), read by tools/ruien/trace.py into ruien-traced.json. tools/ruien/plan.py adds the side drains (every street gully flows along the streets to the nearest rui), names, levels, stairs, ladders under grates and lamps, and draws ruien-plan.html.",
-  "levels": {
-    "street": 0.0,
-    "crownBelowStreet": 0.9,
-    "highWater": -0.65,
-    "highWaterMax": -0.4,
-    "lowWater": -4.95,
-    "lowWaterMin": -5.2,
-    "lowWaterNeap": -4.71,
-    "canalAndVlietBed": -5.05,
-    "canalStillWaterAtLowTide": -4.75,
-    "petitBassin": -0.7,
-    "antigoonHeight": 3.85,
-    "lowestInsideWater": -4.6
+ "surfaceAccessPolicy": {
+  "entrances": "surveyed facade door or traffic-free square only",
+  "traffic": "no opening, moving leaf or access house in cart or tram routes",
+  "alignment": "follow adjacent facade, boundary and paving",
+  "streetGrates": "ventilation only",
+  "stairMarkers": "underground connection targets; surface footprint requires review",
+  "reservedFootprints": "native-godot/world/ruien/surface-reservations.json",
+  "roofDrainage": "native-godot/world/ruien/surface-drainage.json; onward connections are reserved, not built"
+ },
+ "_about": "Ruien plan, 2D. World metres: +x north, +z east, street level y 0, quay top 0. The lines, rooms and gates are Steve's drawing (steve-plan-2026-10-18.png), read by tools/ruien/trace.py into ruien-traced.json. tools/ruien/plan.py adds the side drains (every street gully flows along the streets to the nearest rui), names, levels, stair connection targets, closed ventilation grates and lamps, and draws ruien-plan.html.",
+ "levels": {
+  "street": 0.0,
+  "crownBelowStreet": 0.9,
+  "highWater": -0.65,
+  "highWaterMax": -0.4,
+  "lowWater": -4.95,
+  "lowWaterMin": -5.2,
+  "lowWaterNeap": -4.71,
+  "canalAndVlietBed": -5.05,
+  "canalStillWaterAtLowTide": -4.75,
+  "petitBassin": -0.7,
+  "antigoonHeight": 3.85,
+  "lowestInsideWater": -4.6
+ },
+ "classes": {
+  "G": {
+   "name": "Giant gallery",
+   "innerWidth": 6.0,
+   "bedToCrown": 5.2,
+   "channelWidth": 3.0,
+   "ledgeWidth": 1.5,
+   "ledgeAboveBed": 2.5,
+   "sill": -4.6,
+   "colour": "#b0203a",
+   "stroke": 7,
+   "note": "Bed -6.1, normal water 1.5 m, at most 2.4 m; ledges -3.6 on both sides. Antigoon is 3.85 m, upright on the bed with 1.35 m below the crown (decision 2026-10-19, #189).",
+   "wall": 0.6,
+   "maxWaterAboveBed": 2.4,
+   "bed": -6.1
   },
-  "classes": {
-    "G": {
-      "name": "Giant gallery",
-      "innerWidth": 6.0,
-      "bedToCrown": 5.2,
-      "channelWidth": 3.0,
-      "ledgeWidth": 1.5,
-      "ledgeAboveBed": 2.5,
-      "sill": -4.6,
-      "colour": "#b0203a",
-      "stroke": 7,
-      "note": "Bed -6.1, normal water 1.5 m, at most 2.4 m; ledges -3.6 on both sides. Antigoon is 3.85 m, upright on the bed with 1.35 m below the crown (decision 2026-10-19, #189).",
-      "wall": 0.6,
-      "maxWaterAboveBed": 2.4,
-      "bed": -6.1
-    },
-    "M": {
-      "name": "Rui",
-      "innerWidth": 3.6,
-      "bedToCrown": 4.0,
-      "ledgeWidth": 0.8,
-      "ledgeAboveBed": 1.0,
-      "colour": "#1f5fa8",
-      "stroke": 4,
-      "note": "Steve 2026-10-18: 4 m from the water bottom to the roof, water in the channel, the walkway higher. Bed -4.9, water about 0.5 m, walkway -3.9; Antigoon (3.85 m) wades upright on the bed, 0.15 m below the crown (decision 2026-10-19, #189).",
-      "wall": 0.45,
-      "channelWidth": 2.8,
-      "bed": -4.9
-    },
-    "S": {
-      "name": "Side drain",
-      "innerWidth": 1.0,
-      "bedToCrown": 1.6,
-      "colour": "#3a9a5a",
-      "stroke": 1,
-      "note": "Brick egg drain from the street gullies. People must stoop. Not walkable in the game at first.",
-      "wall": 0.25
-    }
+  "M": {
+   "name": "Rui",
+   "innerWidth": 3.6,
+   "bedToCrown": 4.0,
+   "ledgeWidth": 0.8,
+   "ledgeAboveBed": 1.0,
+   "colour": "#1f5fa8",
+   "stroke": 4,
+   "note": "Steve 2026-10-18: 4 m from the water bottom to the roof, water in the channel, the walkway higher. Bed -4.9, water about 0.5 m, walkway -3.9; Antigoon (3.85 m) wades upright on the bed, 0.15 m below the crown (decision 2026-10-19, #189).",
+   "wall": 0.45,
+   "channelWidth": 2.8,
+   "bed": -4.9
   },
-  "gates": [
-    {
-      "id": "O1",
-      "name": "Steen gate",
-      "near": [
-        -195,
-        0
-      ],
-      "into": "Schelde (Steen bay)"
-    },
-    {
-      "id": "O2",
-      "name": "Vliet sluice",
-      "near": [
-        -146,
-        72
-      ],
-      "into": "Vliet head"
-    },
-    {
-      "id": "O4",
-      "name": "Brouwers sluice",
-      "near": [
-        -83,
-        114
-      ],
-      "into": "Canal des Brasseurs, south wall"
-    },
-    {
-      "id": "O6",
-      "name": "Canal head gate",
-      "near": [
-        -76,
-        205
-      ],
-      "into": "Canal des Brasseurs, head"
-    },
-    {
-      "id": "O7",
-      "name": "Jans gate",
-      "near": [
-        -70,
-        160
-      ],
-      "into": "Canal des Brasseurs, north wall"
-    },
-    {
-      "id": "O8",
-      "name": "Rijnkaai gate",
-      "near": [
-        -2,
-        0
-      ],
-      "into": "Schelde"
-    },
-    {
-      "id": "O9",
-      "name": "Paulus gate",
-      "near": [
-        57,
-        0
-      ],
-      "into": "Schelde"
-    },
-    {
-      "id": "O10",
-      "name": "Noorder gate",
-      "near": [
-        200,
-        0
-      ],
-      "into": "Schelde"
-    },
-    {
-      "id": "F1",
-      "name": "Kipdorp flush sluice",
-      "near": [
-        -146,
-        352
-      ],
-      "into": "Moat (lets moat water in to flush the ruien)"
-    },
-    {
-      "id": "P1",
-      "name": "Bassin boat door",
-      "near": [
-        153.8,
-        109.2
-      ],
-      "into": "Petit Bassin (held at -0.7 m: a closed door for boats, never an outlet)",
-      "door": true
-    }
-  ],
-  "access": [
-    {
-      "id": "A1",
-      "kind": "stair",
-      "name": "Sluice keeper's stair, Steenplein",
-      "at": [
-        -212,
-        22
-      ],
-      "note": "The story's human side stair by the quay steps."
-    },
-    {
-      "id": "A2",
-      "kind": "stair",
-      "name": "Stadhuis cellar stair",
-      "at": [
-        -258,
-        62
-      ],
-      "note": "The town's own door; locked."
-    },
-    {
-      "id": "A3",
-      "kind": "hatch",
-      "name": "Vismarkt waste hatch",
-      "at": [
-        -124,
-        44
-      ],
-      "note": "Fishmongers tip waste here; ladder down."
-    },
-    {
-      "id": "A4",
-      "kind": "hatch",
-      "name": "Vleeshuis cellar hatch",
-      "at": [
-        -118,
-        116
-      ],
-      "note": "Butchers' waste drop; ladder down."
-    },
-    {
-      "id": "A5",
-      "kind": "stair",
-      "name": "Jesuit stair, Conscienceplein",
-      "at": [
-        -118,
-        152
-      ],
-      "note": "Real Jesuit exit into the ruien."
-    },
-    {
-      "id": "A6",
-      "kind": "stair",
-      "name": "Kipdorp sluice house",
-      "at": [
-        -152,
-        330
-      ],
-      "note": "Keeper works the flush sluice."
-    },
-    {
-      "id": "A10",
-      "kind": "stair",
-      "name": "Rode Poort guard stair",
-      "at": [
-        205,
-        120
-      ],
-      "note": "Under the north rampart street."
-    },
-    {
-      "id": "A11",
-      "kind": "cellar",
-      "name": "Inn cellar door, Sint-Jacobs quarter",
-      "at": [
-        -62,
-        300
-      ],
-      "note": "Smugglers' way; a story hook."
-    },
-    {
-      "id": "V1",
-      "kind": "air",
-      "name": "Air shaft, Grote Markt pump",
-      "at": [
-        -252,
-        120
-      ],
-      "note": "The hall's chimney, dressed as a pump column."
-    },
-    {
-      "id": "V2",
-      "kind": "air",
-      "name": "Air shaft, Vismarkt",
-      "at": [
-        -140,
-        100
-      ]
-    },
-    {
-      "id": "X1",
-      "kind": "collapse",
-      "name": "Fallen vault, yard behind Steenplein",
-      "at": [
-        -180,
-        60
-      ],
-      "option": true,
-      "note": "Option: a dry way out for Antigoon, fenced by the town. Needed only if the gates also lock him in."
-    }
-  ],
-  "ruiNames": [
-    {
-      "name": "Suikerrui",
-      "near": [
-        -203,
-        60
-      ]
-    },
-    {
-      "name": "Vleeshuisrui",
-      "near": [
-        -200,
-        115
-      ]
-    },
-    {
-      "name": "Brouwersrui",
-      "near": [
-        -115,
-        114
-      ]
-    },
-    {
-      "name": "Kipdorprui",
-      "near": [
-        -148,
-        250
-      ]
-    },
-    {
-      "name": "Vlietrui",
-      "near": [
-        -147,
-        95
-      ]
-    },
-    {
-      "name": "Lijnwaadrui",
-      "near": [
-        -215,
-        200
-      ]
-    },
-    {
-      "name": "Werfrui",
-      "near": [
-        -330,
-        62
-      ]
-    },
-    {
-      "name": "Zuiderrui",
-      "near": [
-        -300,
-        220
-      ]
-    },
-    {
-      "name": "Vestrui",
-      "near": [
-        -250,
-        336
-      ]
-    },
-    {
-      "name": "Jansrui",
-      "near": [
-        0,
-        230
-      ]
-    },
-    {
-      "name": "Keizersrui",
-      "near": [
-        60,
-        343
-      ]
-    },
-    {
-      "name": "Noorderrui",
-      "near": [
-        205,
-        120
-      ]
-    },
-    {
-      "name": "Paulusrui",
-      "near": [
-        60,
-        90
-      ]
-    },
-    {
-      "name": "Rijnrui",
-      "near": [
-        -2,
-        100
-      ]
-    },
-    {
-      "name": "Kanaalrui",
-      "near": [
-        -90,
-        205
-      ]
-    },
-    {
-      "name": "Bassinrui",
-      "near": [
-        120,
-        113
-      ]
-    },
-    {
-      "name": "Entrepotrui",
-      "near": [
-        150,
-        170
-      ]
-    },
-    {
-      "name": "Rode Poort rui",
-      "near": [
-        223,
-        150
-      ]
-    },
-    {
-      "name": "Jacobsrui",
-      "near": [
-        -60,
-        262
-      ]
-    }
-  ],
-  "drawn": {
-    "picture": "steve-plan-2026-10-18.png",
-    "traced": "ruien-traced.json"
-  },
-  "rooms": [
-    {
-      "id": "C1",
-      "name": "Hall under the Grote Markt (Antigoon's refuge)",
-      "near": [
-        -255,
-        100
-      ]
-    },
-    {
-      "id": "C2",
-      "name": "Vleeshuis hall",
-      "near": [
-        -149,
-        124
-      ]
-    },
-    {
-      "id": "C3",
-      "name": "North hall by the rampart",
-      "near": [
-        211,
-        272
-      ]
-    }
-  ],
-  "lamps": {
-    "_about": "Lamps placed by hand where the built light falls short (tools/ruien/plan.py keeps them, then adds its own until every point is within lightWithin of light). The #272 R1 sample: in normal light a grate lights its rui about 7 m each way, the room's lamps about 6 m, so the drain crossings and stub ends beyond were black; each lamp here lights walkway points no grate or room reaches (within 0.55 of a source's game range).",
-    "placed": [
-    {"at": [155.6, 310.18], "line": "L65", "note": "#272 R1 sample: L65 u 15.5, 6 walkway points beyond the light of its grate and the room"},
-    {"at": [155.65, 277.95], "line": "L100", "note": "#272 R1 sample: L100 u 8.0, 22 walkway points beyond the light of its grate and the room"},
-    {"at": [148.8, 290.75], "line": "L114", "note": "#272 R1 sample: L114 u 2.5, 12 walkway points beyond the light of its grate and the room"},
-    {"at": [131.5, 295.7], "line": "L114", "note": "#272 R1 sample: L114 u 20.5, 3 walkway points beyond the light of its grate and the room"}
-    ]
-  },
-  "spacing": {
-    "grateEvery": 45,
-    "stairWithin": 110,
-    "lightWithin": 20,
-    "_about": "A ladder under a grate about every 45 m along every rui and gallery, under a street. Every point at most 110 m from a stair. Every point at most 20 m from light (a grate, a room, a gate or a lamp)."
+  "S": {
+   "name": "Side drain",
+   "innerWidth": 1.0,
+   "bedToCrown": 1.6,
+   "colour": "#3a9a5a",
+   "stroke": 1,
+   "note": "Brick egg drain from the street gullies. People must stoop. Not walkable in the game at first.",
+   "wall": 0.25
   }
+ },
+ "gates": [
+  {
+   "id": "O1",
+   "name": "Steen gate",
+   "near": [
+    -195,
+    0
+   ],
+   "into": "Schelde (Steen bay)"
+  },
+  {
+   "id": "O2",
+   "name": "Vliet sluice",
+   "near": [
+    -146,
+    72
+   ],
+   "into": "Vliet head"
+  },
+  {
+   "id": "O4",
+   "name": "Brouwers sluice",
+   "near": [
+    -83,
+    114
+   ],
+   "into": "Canal des Brasseurs, south wall"
+  },
+  {
+   "id": "O6",
+   "name": "Canal head gate",
+   "near": [
+    -76,
+    205
+   ],
+   "into": "Canal des Brasseurs, head"
+  },
+  {
+   "id": "O7",
+   "name": "Jans gate",
+   "near": [
+    -70,
+    160
+   ],
+   "into": "Canal des Brasseurs, north wall"
+  },
+  {
+   "id": "O8",
+   "name": "Rijnkaai gate",
+   "near": [
+    -2,
+    0
+   ],
+   "into": "Schelde"
+  },
+  {
+   "id": "O9",
+   "name": "Paulus gate",
+   "near": [
+    57,
+    0
+   ],
+   "into": "Schelde"
+  },
+  {
+   "id": "O10",
+   "name": "Noorder gate",
+   "near": [
+    200,
+    0
+   ],
+   "into": "Schelde"
+  },
+  {
+   "id": "F1",
+   "name": "Kipdorp flush sluice",
+   "near": [
+    -146,
+    352
+   ],
+   "into": "Moat (lets moat water in to flush the ruien)"
+  },
+  {
+   "id": "P1",
+   "name": "Bassin boat door",
+   "near": [
+    153.8,
+    109.2
+   ],
+   "into": "Petit Bassin (held at -0.7 m: a closed door for boats, never an outlet)",
+   "door": true
+  }
+ ],
+ "access": [
+  {
+   "id": "A1",
+   "kind": "stair",
+   "name": "Sluice keeper's stair, Steenplein",
+   "at": [
+    -212,
+    22
+   ],
+   "note": "The story's human side stair by the quay steps."
+  },
+  {
+   "id": "A2",
+   "kind": "stair",
+   "name": "Stadhuis cellar stair",
+   "at": [
+    -258,
+    62
+   ],
+   "note": "The town's own door; locked."
+  },
+  {
+   "id": "A3",
+   "kind": "hatch",
+   "name": "Vismarkt waste hatch",
+   "at": [
+    -124,
+    44
+   ],
+   "note": "Fishmongers tip waste here; ladder down."
+  },
+  {
+   "id": "A4",
+   "kind": "hatch",
+   "name": "Vleeshuis cellar hatch",
+   "at": [
+    -118,
+    116
+   ],
+   "note": "Butchers' waste drop; ladder down."
+  },
+  {
+   "id": "A5",
+   "kind": "stair",
+   "name": "Jesuit stair, Conscienceplein",
+   "at": [
+    -118,
+    152
+   ],
+   "note": "Real Jesuit exit into the ruien."
+  },
+  {
+   "id": "A6",
+   "kind": "stair",
+   "name": "Kipdorp sluice house",
+   "at": [
+    -152,
+    330
+   ],
+   "note": "Keeper works the flush sluice."
+  },
+  {
+   "id": "A10",
+   "kind": "stair",
+   "name": "Rode Poort guard stair",
+   "at": [
+    205,
+    120
+   ],
+   "note": "Under the north rampart street."
+  },
+  {
+   "id": "A11",
+   "kind": "cellar",
+   "name": "Inn cellar door, Sint-Jacobs quarter",
+   "at": [
+    -62,
+    300
+   ],
+   "note": "Smugglers' way; a story hook."
+  },
+  {
+   "id": "V1",
+   "kind": "air",
+   "name": "Air shaft, Grote Markt pump",
+   "at": [
+    -252,
+    120
+   ],
+   "note": "The hall's chimney, dressed as a pump column."
+  },
+  {
+   "id": "V2",
+   "kind": "air",
+   "name": "Air shaft, Vismarkt",
+   "at": [
+    -140,
+    100
+   ]
+  },
+  {
+   "id": "X1",
+   "kind": "collapse",
+   "name": "Fallen vault, yard behind Steenplein",
+   "at": [
+    -180,
+    60
+   ],
+   "option": true,
+   "note": "Option: a dry way out for Antigoon, fenced by the town. Needed only if the gates also lock him in."
+  }
+ ],
+ "ruiNames": [
+  {
+   "name": "Suikerrui",
+   "near": [
+    -203,
+    60
+   ]
+  },
+  {
+   "name": "Vleeshuisrui",
+   "near": [
+    -200,
+    115
+   ]
+  },
+  {
+   "name": "Brouwersrui",
+   "near": [
+    -115,
+    114
+   ]
+  },
+  {
+   "name": "Kipdorprui",
+   "near": [
+    -148,
+    250
+   ]
+  },
+  {
+   "name": "Vlietrui",
+   "near": [
+    -147,
+    95
+   ]
+  },
+  {
+   "name": "Lijnwaadrui",
+   "near": [
+    -215,
+    200
+   ]
+  },
+  {
+   "name": "Werfrui",
+   "near": [
+    -330,
+    62
+   ]
+  },
+  {
+   "name": "Zuiderrui",
+   "near": [
+    -300,
+    220
+   ]
+  },
+  {
+   "name": "Vestrui",
+   "near": [
+    -250,
+    336
+   ]
+  },
+  {
+   "name": "Jansrui",
+   "near": [
+    0,
+    230
+   ]
+  },
+  {
+   "name": "Keizersrui",
+   "near": [
+    60,
+    343
+   ]
+  },
+  {
+   "name": "Noorderrui",
+   "near": [
+    205,
+    120
+   ]
+  },
+  {
+   "name": "Paulusrui",
+   "near": [
+    60,
+    90
+   ]
+  },
+  {
+   "name": "Rijnrui",
+   "near": [
+    -2,
+    100
+   ]
+  },
+  {
+   "name": "Kanaalrui",
+   "near": [
+    -90,
+    205
+   ]
+  },
+  {
+   "name": "Bassinrui",
+   "near": [
+    120,
+    113
+   ]
+  },
+  {
+   "name": "Entrepotrui",
+   "near": [
+    150,
+    170
+   ]
+  },
+  {
+   "name": "Rode Poort rui",
+   "near": [
+    223,
+    150
+   ]
+  },
+  {
+   "name": "Jacobsrui",
+   "near": [
+    -60,
+    262
+   ]
+  }
+ ],
+ "drawn": {
+  "picture": "steve-plan-2026-10-18.png",
+  "traced": "ruien-traced.json"
+ },
+ "rooms": [
+  {
+   "id": "C1",
+   "name": "Hall under the Grote Markt (Antigoon's refuge)",
+   "near": [
+    -255,
+    100
+   ]
+  },
+  {
+   "id": "C2",
+   "name": "Vleeshuis hall",
+   "near": [
+    -149,
+    124
+   ]
+  },
+  {
+   "id": "C3",
+   "name": "North hall by the rampart",
+   "near": [
+    211,
+    272
+   ]
+  }
+ ],
+ "lamps": {
+  "_about": "Lamps placed by hand where the built light falls short (tools/ruien/plan.py keeps them, then adds its own until every point is within lightWithin of light). The #272 R1 sample: in normal light a grate lights its rui about 7 m each way, the room's lamps about 6 m, so the drain crossings and stub ends beyond were black; each lamp here lights walkway points no grate or room reaches (within 0.55 of a source's game range).",
+  "placed": [
+   {
+    "at": [
+     155.6,
+     310.18
+    ],
+    "line": "L65",
+    "note": "#272 R1 sample: L65 u 15.5, 6 walkway points beyond the light of its grate and the room"
+   },
+   {
+    "at": [
+     155.65,
+     277.95
+    ],
+    "line": "L100",
+    "note": "#272 R1 sample: L100 u 8.0, 22 walkway points beyond the light of its grate and the room"
+   },
+   {
+    "at": [
+     148.8,
+     290.75
+    ],
+    "line": "L114",
+    "note": "#272 R1 sample: L114 u 2.5, 12 walkway points beyond the light of its grate and the room"
+   },
+   {
+    "at": [
+     131.5,
+     295.7
+    ],
+    "line": "L114",
+    "note": "#272 R1 sample: L114 u 20.5, 3 walkway points beyond the light of its grate and the room"
+   }
+  ]
+ },
+ "spacing": {
+  "grateEvery": 45,
+  "stairWithin": 110,
+  "lightWithin": 20,
+  "_about": "A ladder under a grate about every 45 m along every rui and gallery, under a street. Every point at most 110 m from a stair. Every point at most 20 m from light (a grate, a room, a gate or a lamp)."
+ }
 }

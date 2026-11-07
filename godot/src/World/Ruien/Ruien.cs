@@ -83,10 +83,125 @@ public partial class Ruien : Node
         if (I != null) I.globalsIn = true;
     }
 
+    /// <summary>The pieces built beside the town's load (StartBeside), in the order they are laid into the view.</summary>
+    private readonly List<Node> placed = new();
+    private Action<Node> place = n => Main.I.View.AddChild(n);
+    private List<RuienEntrance.Spec> entrances = new();
+    private System.Threading.Tasks.Task<bool>? beside;
+    private Dev.StartupTiming.Sequence? ruienTrace;
+
+    /// <summary>
+    /// Build the entrances and the areas on a worker thread while the town loads (docs/ruien-native.md). Nothing is
+    /// in the tree until _Ready lays the pieces in, at the part's own place in the start, so what the other parts
+    /// see is unchanged. The globals and the cover come first, on this thread: the pieces' materials use them.
+    /// </summary>
+    public void StartBeside()
+    {
+        // (only while the town is still loading: Main joins the worker before the town enters the tree)
+        if (beside != null || IsInsideTree() || Main.I.World.IsInsideTree()) return;
+        PrepareEarly();
+        place = placed.Add;
+        // (two frames first: the globals and the cover picture made just now reach the renderer before the worker's
+        // materials use them)
+        var go = new System.Threading.Tasks.TaskCompletionSource();
+        beside = go.Task.ContinueWith(_ => BuildPieces(), System.Threading.Tasks.TaskScheduler.Default);
+        var tree = Main.I.GetTree();
+        int frames = 0;
+        void Tick() { if (++frames < 2) return; tree.ProcessFrame -= Tick; go.SetResult(); }
+        tree.ProcessFrame += Tick;
+    }
+
+    private bool preparedEarly;
+    /// <summary>
+    /// The globals and the cover picture, set before the town's loading thread starts: the renderer's global values are
+    /// not to be changed while that thread makes the town's materials.
+    /// </summary>
+    public void PrepareEarly()
+    {
+        if (preparedEarly || IsInsideTree()) return;
+        preparedEarly = true;
+        Prepare();
+    }
+
+    /// <summary>Done (or not started): the part can be added.</summary>
+    public System.Threading.Tasks.Task Beside => beside ?? System.Threading.Tasks.Task.CompletedTask;
+
     public override void _Ready()
     {
         I = this;
         ProcessPriority = 31; // after Jef (10) has moved the eye and Underwater (30)
+        bool areas;
+        if (beside == null) { if (!preparedEarly) Prepare(); areas = BuildPieces(); }
+        else
+        {
+            // (Main waits for the worker frame by frame before adding this part: this never blocks)
+            bool built = beside.IsCompletedSuccessfully;
+            if (!built) GD.PrintErr($"ruien: the pieces built beside the town failed, building them here: {beside.Exception?.GetBaseException()}");
+            areas = built && beside.Result;
+            if (built)
+                using (Dev.StartupTiming.Measure("ruien.attach"))
+                {
+                    var slow = new List<(double Ms, string Name)>();
+                    foreach (var node in placed)
+                    {
+                        long t0 = System.Diagnostics.Stopwatch.GetTimestamp();
+                        Main.I.View.AddChild(node);
+                        slow.Add((System.Diagnostics.Stopwatch.GetElapsedTime(t0).TotalMilliseconds, node.Name));
+                    }
+                    if (Main.I.Flag("startup-proof"))
+                        GD.Print("ruien: slowest to lay in: " + string.Join(", ", slow.OrderByDescending(x => x.Ms).Take(12).Select(x => $"{x.Name} {x.Ms:0} ms")) + $"; all {slow.Sum(x => x.Ms):0} ms");
+                }
+            else
+            {
+                foreach (var node in placed) node.Free();
+                drawn.Clear(); sources.Clear(); entranceDoors.Clear(); soundPoints.Clear();
+            }
+            placed.Clear();
+            place = n => Main.I.View.AddChild(n);
+            if (!built) { Prepare(); areas = BuildPieces(); }
+        }
+        UniformUpdates.Global("ruien_air", new Vector4(Data.Air.R, Data.Air.G, Data.Air.B, Data.Haze));
+        UniformUpdates.Global("ruien_fill", new Vector4(Data.Fill.R, Data.Fill.G, Data.Fill.B, 0));
+        if (Daylight.I != null) { Daylight.I.BelowAir = Data.Air; Daylight.I.BelowNear = Data.AirNear; Daylight.I.BelowFar = Data.AirFar; Daylight.I.BelowExposure = Data.Exposure; }
+        if (Main.I.Flag("startup-proof")) Fingerprint();
+        if (!areas) { GD.Print("ruien: no areas"); ruienTrace?.Dispose(); return; }
+        Audio.Soundscape.RuienPoints = soundPoints;
+        Audio.Soundscape.RuienOpenAt = OpenAt;
+        // the fixed pool of real lights for what is not Ruien stone (the arms, the body): never more, never fewer
+        pool = new OmniLight3D[Data.LampPool];
+        for (int i = 0; i < pool.Length; i++)
+        {
+            pool[i] = new OmniLight3D { Name = $"ruien_lamp_pool_{i}", LightEnergy = 0, OmniRange = 7, OmniAttenuation = 2, ShadowEnabled = false, LightSpecular = 0, LightCullMask = Player.Arms.ArmLayer | Player.Arms.BodyLayer, Position = new Vector3(0, -999, 0) };
+            Main.I.View.AddChild(pool[i]);
+        }
+        Update(0);
+        ruienTrace?.Dispose();
+    }
+
+    /// <summary>The proof's summary of every piece laid into the view: the same pieces whichever thread built them.</summary>
+    private void Fingerprint()
+    {
+        using var hash = System.Security.Cryptography.IncrementalHash.CreateHash(System.Security.Cryptography.HashAlgorithmName.SHA256);
+        int nodes = 0, meshes = 0, faces = 0;
+        var lines = Main.I.Arg("ruien-pieces-out") is { Length: > 0 } ? new List<string>() : null;
+        // (an unnamed node's automatic name carries a process-wide counter: left out)
+        void Add(string text) { text = System.Text.RegularExpressions.Regex.Replace(text, @"@(\w+)@\d+", "@$1@"); hash.AppendData(System.Text.Encoding.UTF8.GetBytes(text + "|")); lines?.Add(text); }
+        foreach (var top in Main.I.View.GetChildren())
+            foreach (var n in BakedWorld.All(top))
+            {
+                string at = Main.I.View.GetPathTo(n).ToString();
+                if (!at.Contains("ruien", StringComparison.OrdinalIgnoreCase) && !at.StartsWith("entrance_", StringComparison.Ordinal)) continue;
+                nodes++;
+                Add(Main.I.View.GetPathTo(n) + " " + n.GetClass() + (n is Node3D n3 ? " " + n3.Transform : ""));
+                if (n is MeshInstance3D { Mesh: { } m }) { meshes++; Add(m.GetSurfaceCount() + " " + m.GetAabb()); }
+                if (n is CollisionShape3D { Shape: ConcavePolygonShape3D c }) { var f = c.Data; faces += f.Length / 3; Add(Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Runtime.InteropServices.MemoryMarshal.AsBytes(f.AsSpan())))); }
+            }
+        if (lines != null) System.IO.File.WriteAllLines(Main.I.Arg("ruien-pieces-out"), lines);
+        GD.Print($"ruien pieces: {nodes} nodes, {meshes} meshes, {faces} collision triangles, {drawn.Count} areas, {sources.Count} sources, {soundPoints.Count} sound points, {Convert.ToHexString(hash.GetHashAndReset())[..16]}");
+    }
+
+    private void Prepare()
+    {
         Data = RuienData.Load();
         EnsureGlobals();
         // the light list and the cover map, as global pictures
@@ -95,28 +210,41 @@ public partial class Ruien : Node
         if (!Added.Add("ruien_lights")) RenderingServer.GlobalShaderParameterSet("ruien_lights", lightTex.GetRid());
         else RenderingServer.GlobalShaderParameterAdd("ruien_lights", RenderingServer.GlobalShaderParameterType.Sampler2D, lightTex.GetRid());
         // the ways in from the street (entrances.json): their models, their doors' daylight in the light list
-        var entrances = Main.I.Flag("no-ruien-entrances") ? new List<RuienEntrance.Spec>() : RuienEntrance.All.ToList();
+        entrances = Main.I.Flag("no-ruien-entrances") ? new List<RuienEntrance.Spec>() : RuienEntrance.All.ToList();
+        ruienTrace=Dev.StartupTiming.Split("ruien.prepare");
         Cover.Build(Data, entrances);
-        foreach (var e in entrances)
-        {
-            Main.I.View.AddChild(RuienEntrance.Build(e));
-            sources.Add(RuienEntrance.DoorLight(e));
-            entranceDoors.Add(new Vector2(e.Door.X, e.Door.Y));
-        }
-        if (entrances.Count > 0) GD.Print($"ruien: {entrances.Count} entrances from the street");
         var coverTex = Cover.Texture ?? ImageTexture.CreateFromImage(Image.CreateEmpty(1, 1, false, Image.Format.R8));
         if (!Added.Add("ruien_cover")) RenderingServer.GlobalShaderParameterSet("ruien_cover", coverTex.GetRid());
         else RenderingServer.GlobalShaderParameterAdd("ruien_cover", RenderingServer.GlobalShaderParameterType.Sampler2D, coverTex.GetRid());
         UniformUpdates.Global("ruien_cover_box", Cover.Box);
         RenderingServer.GlobalShaderParameterSet("psx_ruien_cover",coverTex.GetRid());
         UniformUpdates.Global("psx_ruien_box",Cover.Box);
-        UniformUpdates.Global("ruien_air", new Vector4(Data.Air.R, Data.Air.G, Data.Air.B, Data.Haze));
-        UniformUpdates.Global("ruien_fill", new Vector4(Data.Fill.R, Data.Fill.G, Data.Fill.B, 0));
-        if (Daylight.I != null) { Daylight.I.BelowAir = Data.Air; Daylight.I.BelowNear = Data.AirNear; Daylight.I.BelowFar = Data.AirFar; Daylight.I.BelowExposure = Data.Exposure; }
-        if (Data.Areas.Count == 0 || Main.I.Flag("no-ruien-draw")) { GD.Print("ruien: no areas"); return; }
+        ruienTrace?.Next("cover");
+        // (shared lazily made lists, made here once rather than on two threads)
+        _ = RuienEntrance.All;
+    }
+
+    /// <summary>The entrances' and areas' nodes, laid by <see cref="place"/>; false when there are no areas to draw.</summary>
+    private bool BuildPieces()
+    {
+        foreach (var e in entrances)
+        {
+            using var entranceTrace=Dev.StartupTiming.Split("ruien.entrance-add."+e.Id);
+            var built=RuienEntrance.Build(e);
+            entranceTrace?.Next("build");
+            place(built);
+            entranceTrace?.Next("attach");
+            sources.Add(RuienEntrance.DoorLight(e));
+            entranceTrace?.Next("light");
+            entranceDoors.Add(new Vector2(e.Door.X, e.Door.Y));
+        }
+        ruienTrace?.Next("entrances");
+        if (entrances.Count > 0) GD.Print($"ruien: {entrances.Count} entrances from the street");
+        if (Data.Areas.Count == 0 || Main.I.Flag("no-ruien-draw")) return false;
         var spec = JsonDocument.Parse(Godot.FileAccess.GetFileAsString(RuienData.AreasFile)).RootElement.GetProperty("areas").EnumerateArray().ToDictionary(a => a.GetProperty("id").GetString()!, a => a);
         foreach (var area in Data.Areas)
         {
+            using var areaTrace=Dev.StartupTiming.Split("ruien.area."+area.Id);
             ulong t0 = Time.GetTicksMsec();
             var d = new Drawn { Area = area, Level = area.WaterMin };
             Node3D root;
@@ -124,30 +252,34 @@ public partial class Ruien : Node
             string how;
             if (RuienArea.Load(area) is { } loaded) { root = loaded.Root; shape = loaded.Shape; d.Export = loaded; how = $"export {area.Export} ({loaded.Keys.Count} keys, {loaded.Triangles0} + {loaded.Triangles1} triangles)"; }
             else { (root, shape) = new RuienStandIn(area).Build(spec[area.Id]); how = "stand-in"; }
-            Main.I.View.AddChild(RuienConnections.Build(spec[area.Id],area));
-            foreach(var drain in area.Drains)Main.I.View.AddChild(RuienDrain.Build(area.Line(drain.Zone)!,drain.U,drain.Side));
+            areaTrace?.Next("load-export");
+            place(RuienConnections.Build(spec[area.Id],area));
+            foreach(var drain in area.Drains)place(RuienDrain.Build(area.Line(drain.Zone)!,drain.U,drain.Side));
             // Shared kit pieces placed by the area's data: open cast outfalls and bricked-up stub ends.
             var pipes=RuienPipe.Read(spec[area.Id],area);
-            for(int i=0;i<pipes.Count;i++)Main.I.View.AddChild(RuienPipe.Build(pipes[i],i));
-            foreach(var end in RuienEnd.Read(spec[area.Id]))Main.I.View.AddChild(RuienEnd.Build(end));
+            for(int i=0;i<pipes.Count;i++)place(RuienPipe.Build(pipes[i],i));
+            foreach(var end in RuienEnd.Read(spec[area.Id]))place(RuienEnd.Build(end));
             // Folding footbridges over the rui channels (#286, #283): one shared model, the server's shared leaf state.
-            foreach(var bridge in area.Bridges)Main.I.View.AddChild(RuienFoldBridge.Build(bridge,Data.Bridge));
+            foreach(var bridge in area.Bridges)place(RuienFoldBridge.Build(bridge,Data.Bridge));
             if(spec[area.Id].TryGetProperty("grates",out var grates))
                 foreach(var g in grates.EnumerateArray())
                     if(g.TryGetProperty("collar",out var collar))
                     {
                         var at=g.GetProperty("at");
-                        Main.I.View.AddChild(RuienKit.Collar(new Vector3(at[0].GetSingle(),0,at[2].GetSingle()),g.GetProperty("size").GetSingle()/2,collar.GetProperty("outer").GetSingle()+.17f,collar.GetProperty("rim").GetSingle()));
+                        place(RuienKit.Collar(new Vector3(at[0].GetSingle(),0,at[2].GetSingle()),g.GetProperty("size").GetSingle()/2,collar.GetProperty("outer").GetSingle()+.17f,collar.GetProperty("rim").GetSingle()));
                     }
+            areaTrace?.Next("connections");
             d.Root = root;
-            Main.I.View.AddChild(root);
+            place(root);
             if (shape != null)
             {
                 var body = new StaticBody3D { Name = "ruien_" + area.Id + "_solid", CollisionLayer = Solid.Layer, CollisionMask = 0 };
                 body.AddChild(new CollisionShape3D { Shape = shape });
-                Main.I.View.AddChild(body);
+                place(body);
             }
+            areaTrace?.Next("attach-collision");
             Dress(d, root);
+            areaTrace?.Next("dress");
             // the penstock stands raised (its travel's top), so the channel under it can be waded at low water
             if (d.Export != null && area.PenstockRaise != 0)
                 foreach (var mv in area.Movers.Where(m => m.Kind.StartsWith("penstock")))
@@ -165,7 +297,7 @@ public partial class Ruien : Node
                     {
                         body = new StaticBody3D { Name = "ruien_" + mv.Id + "_solid", CollisionLayer = Solid.Layer, CollisionMask = 0 };
                         body.AddChild(new CollisionShape3D { Shape = ResourceLoader.Load<ConcavePolygonShape3D>(colPath) });
-                        Main.I.View.AddChild(body);
+                        place(body);
                     }
                     d.Doors.Add((mv, key.Lods.SelectMany(l => l).ToList(), body, new[] { -1f }));
                 }
@@ -174,16 +306,8 @@ public partial class Ruien : Node
             SoundPoints(area, spec[area.Id], pipes);
             GD.Print($"ruien: {area.Id} ({area.Name}) from the {how}: {root.GetChildCount()} parts, {area.Sources.Count} sources, {area.Zones.Count} zones in {Time.GetTicksMsec() - t0} ms");
         }
-        Audio.Soundscape.RuienPoints = soundPoints;
-        Audio.Soundscape.RuienOpenAt = OpenAt;
-        // the fixed pool of real lights for what is not Ruien stone (the arms, the body): never more, never fewer
-        pool = new OmniLight3D[Data.LampPool];
-        for (int i = 0; i < pool.Length; i++)
-        {
-            pool[i] = new OmniLight3D { Name = $"ruien_lamp_pool_{i}", LightEnergy = 0, OmniRange = 7, OmniAttenuation = 2, ShadowEnabled = false, LightSpecular = 0, LightCullMask = Player.Arms.ArmLayer | Player.Arms.BodyLayer, Position = new Vector3(0, -999, 0) };
-            Main.I.View.AddChild(pool[i]);
-        }
-        Update(0);
+        ruienTrace?.Next("areas");
+        return true;
     }
 
     private readonly List<Audio.Soundscape.RuienPoint> soundPoints = new();
@@ -226,7 +350,7 @@ public partial class Ruien : Node
     {
         float best = float.MaxValue;
         foreach (var s in sources)
-            if (s.Kind != "lamp") best = Math.Min(best, new Vector2(p.X - s.At.X, p.Z - s.At.Z).Length() - Math.Max(s.HalfU, s.HalfV));
+            if (s.Kind != "lamp" && s.Power>0) best = Math.Min(best, new Vector2(p.X - s.At.X, p.Z - s.At.Z).Length() - Math.Max(s.HalfU, s.HalfV));
         return 1 - Mathf.SmoothStep(1.5f, 9f, best);
     }
 
@@ -234,6 +358,7 @@ public partial class Ruien : Node
     private void Dress(Drawn d, Node3D root)
     {
         var area = d.Area;
+        using var dressTrace=Scheldemist.Dev.StartupTiming.Split("ruien."+area.Id+".dress");
         foreach (var w in area.Water)
         {
             var st = new SurfaceTool();
@@ -266,6 +391,7 @@ public partial class Ruien : Node
             root.AddChild(mi);
             d.Water.Add(mi);
         }
+        dressTrace?.Next("water");
         foreach (var s in area.Sources)
         {
             if (s.Kind == "lamp")
@@ -285,6 +411,7 @@ public partial class Ruien : Node
             root.AddChild(mi);
             d.Beams.Add((m, s));
         }
+        dressTrace?.Next("sources");
         // the kit pieces the area places (shared models)
         foreach (var (piece, at, yaw, hook) in area.Kit)
         {
@@ -295,17 +422,22 @@ public partial class Ruien : Node
                 RuienHook.Place(root, pn, d.Export.Keys.SelectMany(k => k.Lods[0]).Select(m => m.Mesh).OfType<ArrayMesh>(),
                     RuienKit.LampTop, piece + "_" + at.X.ToString("0.0"));
         }
+        dressTrace?.Next("kit");
         // the export's lamps on curved walls: hooks instead of their straight brackets
         if (d.Export != null) GD.Print($"ruien: {RuienHook.Fit(area, d.Export, root)} lamp hooks fitted in {area.Id}");
         // the street grates over the ladder shafts: on the street, drawn with the town (not with the area); the step
         // irons up a channel wall
+        dressTrace?.Next("hooks");
         foreach (var w in area.Ways)
         {
-            if (RuienSurround.Applies(w)) Main.I.View.AddChild(RuienSurround.Build(w));
-            if (w.Kind is "ladder" or "grate") Main.I.View.AddChild(RuienKit.Grate(w));
+            using var wayTrace=Scheldemist.Dev.StartupTiming.Measure("ruien."+area.Id+".way."+w.Id);
+            if (RuienSurround.Applies(w)) place(RuienSurround.Build(w));
+            if (w.Kind is "ladder" or "grate") place(RuienKit.Grate(w));
             if (w.Kind == "rungs" && w.Irons) root.AddChild(RuienKit.StepIrons(w));
-            if (w.Kind == "keeper_stair") Main.I.View.AddChild(RuienStair.Build(w, area.StairZone(w)));
+            if (w.Kind == "keeper_stair") place(RuienStair.CachedBuild(w, area.StairZone(w)));
+            if(w.Retired)root.AddChild(RuienStreetClosure.Cap(w));
         }
+        dressTrace?.Next("ways");
         foreach (var mb in area.Mist)
         {
             var m = RuienMaterials.Mist(mb.Min, mb.Max, mb.Density);
@@ -450,7 +582,7 @@ public partial class Ruien : Node
             var a = d.Area;
             d.InBox = a.Box.Grow(2).HasPoint(eye);
             d.AtGate = a.Gates.Any(g => { var rel = new Vector2(eye.X, eye.Z) - g.Origin; return rel.Dot(g.Normal) > -1 && rel.Length() < 90 && eye.Y < 6; });
-            d.AtOpening = a.Sources.Any(s => s.Kind != "lamp" && new Vector2(eye.X - s.At.X, eye.Z - s.At.Z).Length() < 14 && eye.Y > -1.5f);
+            d.AtOpening = a.Sources.Any(s => s.Kind != "lamp" && s.Power>0 && new Vector2(eye.X - s.At.X, eye.Z - s.At.Z).Length() < 14 && eye.Y > -1.5f);
             if (d.InBox && eye.Y < 0.5f) groupShown.Add(a.Group);
         }
         foreach (var d in drawn)

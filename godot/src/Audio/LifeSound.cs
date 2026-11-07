@@ -38,6 +38,7 @@ public partial class LifeSound : Node
     public int CryStarts { get; private set; }
     public override void _Ready()
     {
+        using var startupTrace=Dev.StartupTiming.Split("life-sound");
         I = this; sound = Soundscape.I; town = Main.I.GetNodeOrNull<Townspeople>("Townspeople");
         if (sound == null) { SetProcess(false); return; }
         using var data = JsonDocument.Parse(Godot.FileAccess.GetFileAsString("res://assets/places.json"));
@@ -46,14 +47,32 @@ public partial class LifeSound : Node
             var o = e.GetProperty("origin"); var b = e.GetProperty("rect"); float a = e.GetProperty("yaw").GetSingle();
             counters.Add((e.GetProperty("id").GetString()!,o.GetProperty("x").GetSingle(),o.GetProperty("z").GetSingle(),e.GetProperty("floor_y").GetSingle(),MathF.Cos(a),MathF.Sin(a),b.GetProperty("minX").GetSingle(),b.GetProperty("maxX").GetSingle(),b.GetProperty("minZ").GetSingle(),b.GetProperty("maxZ").GetSingle()));
         }
+        startupTrace?.Next("inputs");
+        // Shared materials have the same puddle setting on every instance during this scan.
+        var puddleMaterials=new Dictionary<ShaderMaterial,float?>();
         foreach (var node in BakedWorld.All(Main.I.World)) if (node is MeshInstance3D mesh && mesh.Mesh != null)
         {
-            for (int i=0;i<mesh.Mesh.GetSurfaceCount();i++) if ((mesh.GetSurfaceOverrideMaterial(i) ?? mesh.Mesh.SurfaceGetMaterial(i)) is ShaderMaterial m && m.GetShaderParameter("puddles").VariantType == Variant.Type.Float) { groundPuddles[mesh.Name.ToString()] = m.GetShaderParameter("puddles").AsSingle(); break; }
+            for(int i=0;i<mesh.Mesh.GetSurfaceCount();i++)
+            {
+                if((mesh.GetSurfaceOverrideMaterial(i)??mesh.Mesh.SurfaceGetMaterial(i)) is not ShaderMaterial material)continue;
+                if(!puddleMaterials.TryGetValue(material,out var puddles))
+                {
+                    var value=material.GetShaderParameter("puddles");
+                    puddleMaterials[material]=puddles=value.VariantType==Variant.Type.Float?value.AsSingle():null;
+                }
+                if(puddles is not {} amount)continue;
+                groundPuddles[mesh.Name.ToString()]=amount;break;
+            }
         }
+        startupTrace?.Next("materials");
         sound.InteriorAt = Interior; sound.PuddleAt = Puddle;
         if (Events.I != null) sound.TempestNow = Tempest;
         // These new producer callbacks are ready before the first audible footstep.
-        if(Player.Jef.I is {} j){_=Puddle(new(j.X,j.Y,j.Z));_=Rooms.I?.SoundRoomAt(new(j.X,j.Y,j.Z));}
+        if(Player.Jef.I is {} j)
+        {
+            _=Puddle(new(j.X,j.Y,j.Z));startupTrace?.Next("puddle");
+            _=Rooms.I?.SoundRoomAt(new(j.X,j.Y,j.Z));startupTrace?.Next("room-floors");
+        }
     }
     public string? Interior(Vector3 p)
     {

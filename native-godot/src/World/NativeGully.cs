@@ -34,7 +34,21 @@ public static class NativeGully
         public Transform3D Xf;
         public Vector3[] V = Array.Empty<Vector3>();
         public int[] Index = Array.Empty<int>();
+        public int Count;
+        /// <summary>The triangles (their first index) that reach into the gully's square in plan, in mesh order.</summary>
+        public int[] Near = Array.Empty<int>();
         public long Format;
+        // (each attribute converted from the surface's arrays once: a conversion copies the whole array)
+        private readonly Dictionary<Mesh.ArrayType, object?> converted = new();
+        public T? Get<T>(Mesh.ArrayType type, Variant.Type kind, Func<Variant, T> convert) where T : class
+        {
+            if (converted.TryGetValue(type, out var known)) return (T?)known;
+            var value = Arrays[(int)type];
+            var result = value.VariantType == kind ? convert(value) : null;
+            converted[type] = result;
+            return result;
+        }
+        public Variant.Type KindOf(Mesh.ArrayType type) => Arrays[(int)type].VariantType;
         public Material? Material;
     }
 
@@ -78,16 +92,33 @@ public static class NativeGully
                 var v = arrays[(int)Mesh.ArrayType.Vertex].AsVector3Array();
                 var ix = arrays[(int)Mesh.ArrayType.Index];
                 var index = ix.VariantType == Variant.Type.PackedInt32Array && ix.AsInt32Array().Length > 0 ? ix.AsInt32Array() : Enumerable.Range(0, v.Length).ToArray();
-                sources.Add(new Source { Mesh = mesh, Surface = s, Arrays = arrays, Xf = xf, V = v.Select(q => xf * q).ToArray(), Index = index, Format = (long)am.SurfaceGetFormat(s), Material = mesh.GetActiveMaterial(s) });
+                sources.Add(new Source { Mesh = mesh, Surface = s, Arrays = arrays, Xf = xf, V = v.Select(q => xf * q).ToArray(), Count = v.Length, Index = index, Format = (long)am.SurfaceGetFormat(s), Material = mesh.GetActiveMaterial(s) });
             }
+        }
+        // (only the triangles reaching into the square can lie under a point in it: kept in their order, so ties go as before)
+        foreach (var src in sources)
+        {
+            var near = new List<int>();
+            for (int t = 0; t + 2 < src.Index.Length; t += 3)
+            {
+                Vector3 a = src.V[src.Index[t]], b = src.V[src.Index[t + 1]], c = src.V[src.Index[t + 2]];
+                if (Math.Max(a.X, Math.Max(b.X, c.X)) + 1e-3f < box.Position.X || Math.Min(a.X, Math.Min(b.X, c.X)) - 1e-3f > box.End.X
+                    || Math.Max(a.Z, Math.Max(b.Z, c.Z)) + 1e-3f < box.Position.Y || Math.Min(a.Z, Math.Min(b.Z, c.Z)) - 1e-3f > box.End.Y) continue;
+                near.Add(t);
+            }
+            src.Near = near.ToArray();
         }
         // the triangle under a point (the highest drawn one under the top) and its corners' weights
         (Source S, int T, float A, float B, float C, float Y)? Under(Vector2 p)
         {
             (Source, int, float, float, float, float)? best = null;
+            // (a point outside the square: every triangle, as before)
+            bool inside = box.HasPoint(p);
             foreach (var src in sources)
-                for (int t = 0; t + 2 < src.Index.Length; t += 3)
+                for (int k = 0, n = inside ? src.Near.Length : src.Index.Length / 3; k < n; k++)
                 {
+                    int t = inside ? src.Near[k] : k * 3;
+                    if (t + 2 >= src.Index.Length) continue;
                     Vector3 a = src.V[src.Index[t]], b = src.V[src.Index[t + 1]], c = src.V[src.Index[t + 2]];
                     if (a.Y > Top || b.Y > Top || c.Y > Top) continue;
                     if (p.X < Math.Min(a.X, Math.Min(b.X, c.X)) - 1e-4f || p.X > Math.Max(a.X, Math.Max(b.X, c.X)) + 1e-4f || p.Y < Math.Min(a.Z, Math.Min(b.Z, c.Z)) - 1e-4f || p.Y > Math.Max(a.Z, Math.Max(b.Z, c.Z)) + 1e-4f) continue;
@@ -140,28 +171,28 @@ public static class NativeGully
             if (hit == null || hit.Value.S != src) hit = Nearest(src, p);
             var (s, t, wa, wb, wc, y) = hit!.Value;
             int i0 = s.Index[t], i1 = s.Index[t + 1], i2 = s.Index[t + 2];
-            var arr = s.Arrays;
             float d = Depth(us[i], vs[j]);
             var (gu, gv) = Slope(us[i], vs[j]);
             // (the slope in plan: d grows toward the grate; the surface's height is the ground's less d)
             var gx = gu * cs + gv * sn; var gz = -gu * sn + gv * cs;
             o.V.Add(new Vector3(p.X, y - d, p.Y));
-            if (arr[(int)Mesh.ArrayType.Normal].VariantType != Variant.Type.Nil)
+            if (s.KindOf(Mesh.ArrayType.Normal) != Variant.Type.Nil)
             {
-                var n = arr[(int)Mesh.ArrayType.Normal].AsVector3Array();
+                var n = s.Get(Mesh.ArrayType.Normal, s.KindOf(Mesh.ArrayType.Normal), v => v.AsVector3Array())!;
                 var nw = (s.Xf.Basis * (n[i0] * wa + n[i1] * wb + n[i2] * wc)).Normalized();
                 o.N.Add((nw + new Vector3(gx, 0, gz)).Normalized());
             }
-            if (arr[(int)Mesh.ArrayType.Color].VariantType != Variant.Type.Nil) { var c = arr[(int)Mesh.ArrayType.Color].AsColorArray(); o.C.Add(c[i0] * wa + c[i1] * wb + c[i2] * wc); }
-            if (arr[(int)Mesh.ArrayType.TexUV].VariantType != Variant.Type.Nil) { var a = arr[(int)Mesh.ArrayType.TexUV].AsVector2Array(); o.Uv.Add(a[i0] * wa + a[i1] * wb + a[i2] * wc); }
-            if (arr[(int)Mesh.ArrayType.TexUV2].VariantType != Variant.Type.Nil) { var a = arr[(int)Mesh.ArrayType.TexUV2].AsVector2Array(); o.Uv2.Add(a[i0] * wa + a[i1] * wb + a[i2] * wc); }
-            int count = s.Arrays[(int)Mesh.ArrayType.Vertex].AsVector3Array().Length;
+            if (s.KindOf(Mesh.ArrayType.Color) != Variant.Type.Nil) { var c = s.Get(Mesh.ArrayType.Color, s.KindOf(Mesh.ArrayType.Color), v => v.AsColorArray())!; o.C.Add(c[i0] * wa + c[i1] * wb + c[i2] * wc); }
+            if (s.KindOf(Mesh.ArrayType.TexUV) != Variant.Type.Nil) { var a = s.Get(Mesh.ArrayType.TexUV, s.KindOf(Mesh.ArrayType.TexUV), v => v.AsVector2Array())!; o.Uv.Add(a[i0] * wa + a[i1] * wb + a[i2] * wc); }
+            if (s.KindOf(Mesh.ArrayType.TexUV2) != Variant.Type.Nil) { var a = s.Get(Mesh.ArrayType.TexUV2, s.KindOf(Mesh.ArrayType.TexUV2), v => v.AsVector2Array())!; o.Uv2.Add(a[i0] * wa + a[i1] * wb + a[i2] * wc); }
+            // (the vertex count: the surface's own vertices, as converted when the source was read)
+            int count = s.Count;
             foreach (var type in new[] { Mesh.ArrayType.Tangent, Mesh.ArrayType.Custom0, Mesh.ArrayType.Custom1, Mesh.ArrayType.Custom2, Mesh.ArrayType.Custom3 })
             {
-                var a = arr[(int)type];
-                if (a.VariantType == Variant.Type.PackedFloat32Array)
+                var kind = s.KindOf(type);
+                if (kind == Variant.Type.PackedFloat32Array)
                 {
-                    var f = a.AsFloat32Array(); int stride = f.Length / count;
+                    var f = s.Get(type, kind, v => v.AsFloat32Array())!; int stride = f.Length / count;
                     if (!o.F.TryGetValue((int)type, out var list)) o.F[(int)type] = list = new List<float>();
                     for (int q = 0; q < stride; q++) list.Add(f[i0 * stride + q] * wa + f[i1 * stride + q] * wb + f[i2 * stride + q] * wc);
                     if (type == Mesh.ArrayType.Tangent && stride == 4)
@@ -171,9 +202,9 @@ public static class NativeGully
                         list[^4] = tw.X; list[^3] = tw.Y; list[^2] = tw.Z;
                     }
                 }
-                else if (a.VariantType == Variant.Type.PackedByteArray)
+                else if (kind == Variant.Type.PackedByteArray)
                 {
-                    var b = a.AsByteArray(); int stride = b.Length / count;
+                    var b = s.Get(type, kind, v => v.AsByteArray())!; int stride = b.Length / count;
                     if (!o.B.TryGetValue((int)type, out var list)) o.B[(int)type] = list = new List<byte>();
                     for (int q = 0; q < stride; q++) list.Add((byte)Math.Clamp(Math.Round(b[i0 * stride + q] * wa + b[i1 * stride + q] * wb + b[i2 * stride + q] * wc), 0, 255));
                 }

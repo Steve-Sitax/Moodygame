@@ -129,6 +129,7 @@ public static class RuienMaterials
             }
             if (known)
             {
+                if (p.TryGetProperty("tint", out _)) m.SetShaderParameter("tint", C(p, "tint", Colors.White));
                 if (p.TryGetProperty("pom", out _)) m.SetShaderParameter("pom", F(p, "pom", 0.3f));
                 m.SetShaderParameter("normal_k", F(p, "normal", families.ContainsKey(texName) ? 1 : 0));
                 if (p.TryGetProperty("bake", out _)) m.SetShaderParameter("bake_k", F(p, "bake", 0.85f));

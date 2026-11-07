@@ -107,6 +107,7 @@ public partial class Rooms : Node, Dev.IInteriorAuditSource
 
     public override void _Ready()
     {
+        using var roomTrace=Dev.StartupTiming.Split("rooms");
         I = this;
         ProcessPriority = 42;
         var lit = new Dictionary<string, JsonElement>();
@@ -117,13 +118,15 @@ public partial class Rooms : Node, Dev.IInteriorAuditSource
         if ((nativeLights ?? (file != null ? JsonDocument.Parse(File.ReadAllText(file)) : null))?.RootElement is { } lightRoot && lightRoot.TryGetProperty("rooms", out var list))
             foreach (var r in list.EnumerateArray()) lit[r.GetProperty("id").GetString() ?? ""] = r.GetProperty("lights");
 
+        roomTrace?.Next("inputs");
+        var worldNodes = BakedWorld.All(Main.I.World).ToArray();
         var linings = new Dictionary<string, Node3D>();
         var houses = new Dictionary<string, Node3D>();
-        foreach (var n in BakedWorld.All(Main.I.World))
+        foreach (var n in worldNodes)
             if (n is Node3D h3 && n.Name.ToString().StartsWith("house_") && !n.Name.ToString().StartsWith("house_lining_")) houses.TryAdd(n.Name.ToString(), h3);
-        foreach (var n in BakedWorld.All(Main.I.World))
+        foreach (var n in worldNodes)
             if (n is Node3D n3 && n.Name.ToString().StartsWith("house_lining_")) linings[Key(n.Name.ToString()["house_lining_".Length..])] = n3;
-        foreach (var n in BakedWorld.All(Main.I.World).ToList())
+        foreach (var n in worldNodes)
         {
             if (n is not Node3D root || !n.HasMeta("extras")) continue;
             var ex = n.GetMeta("extras").AsGodotDictionary();
@@ -158,17 +161,23 @@ public partial class Rooms : Node, Dev.IInteriorAuditSource
             rooms.Add(room);
             byId[room.Id] = room;
         }
-        var markers = BakedWorld.All(Main.I.World).OfType<Node3D>().Where(n => n.Name.ToString().StartsWith("opening_") && n.HasMeta("extras") && n.GetMeta("extras").AsGodotDictionary().ContainsKey("kind")).ToArray();
+        roomTrace?.Next("build");
+        // Snapshot each marker once: the room/marker cross product must not repeat native metadata and transform calls.
+        var markers = BakedWorld.All(Main.I.World).OfType<Node3D>().Where(n => n.Name.ToString().StartsWith("opening_") && n.HasMeta("extras") && n.GetMeta("extras").AsGodotDictionary().ContainsKey("kind"))
+            .Select(n => (Node:n, Kind:n.GetMeta("extras").AsGodotDictionary()["kind"].AsString()=="door"?"door":"window", At:n.GlobalPosition)).ToArray();
         foreach (var r in rooms)
         {
             // The browser room registry calls slits and roof lights windows; shell markers retain their precise kind.
-            var openings = markers.Where(n => r.AuditOpenings.Any(o => o.kind == (n.GetMeta("extras").AsGodotDictionary()["kind"].AsString() == "door" ? "door" : "window") && o.box.Grow(0.15f).HasPoint(n.GlobalPosition))).ToArray();
+            var apertures=r.AuditOpenings.Select(o=>(o.kind,Box:o.box.Grow(.15f),o.open)).ToArray();
+            var matched = markers.Where(n => apertures.Any(o => o.kind==n.Kind && o.Box.HasPoint(n.At))).ToArray();
+            var openings=matched.Select(n=>n.Node).ToArray();
             // City walls are shared chunks, rather than children of a house's marker group.
             var bounds = r.Box;
             foreach (var o in r.AuditOpenings) bounds = bounds.Merge(o.box);
-            var shut = openings.Where(n => r.AuditOpenings.Any(o => o.kind == "door" && !o.open && o.box.Grow(0.15f).HasPoint(n.GlobalPosition))).ToArray();
+            var shut = matched.Where(n => apertures.Any(o => o.kind == "door" && !o.open && o.Box.HasPoint(n.At))).Select(n=>n.Node).ToArray();
             auditTargets.Add(new(r.Id, Main.I.World, r.Root, openings, bounds, r.AuditOpenings.Select(o => o.box).ToArray(), shut));
         }
+        roomTrace?.Next("audit-targets");
         // (the browser's punch cut the street's house open for a room drawn as a scene of its own; here the rooms stand
         // in the world behind real openings, so the punch has nothing to do)
         Main.I.World.Unported.RemoveAll(u => u.StartsWith("house_") && u.Contains("_punch/"));

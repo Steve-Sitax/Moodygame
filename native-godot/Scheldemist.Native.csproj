@@ -3,6 +3,8 @@
     <TargetFramework>net8.0</TargetFramework>
     <EnableDynamicLoading>true</EnableDynamicLoading>
     <Nullable>enable</Nullable>
+    <!-- Keep native world construction optimized during ordinary editor launches too. -->
+    <Optimize>true</Optimize>
     <RootNamespace>Scheldemist.Native</RootNamespace>
     <NativeAspNetRuntimeVersion>8.0.31</NativeAspNetRuntimeVersion>
     <NativeAspNetEditorRid>$(NETCoreSdkRuntimeIdentifier)</NativeAspNetEditorRid>
@@ -32,4 +34,6 @@
       </Reference>
     </ItemGroup>
   </Target>
+  <ItemGroup><StartupGeometrySource Include="src/World/NativeTown.cs;src/World/NativeCutCache.cs;src/World/NativeRazedHouses.cs;src/World/NativeSquareDressing*.cs" /></ItemGroup>
+  <Import Project="../tools/build/StartupGeometry.targets" />
 </Project>

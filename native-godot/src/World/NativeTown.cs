@@ -43,11 +43,17 @@ public partial class NativeTown : BakedWorld
     private NativeRazedHouses.Result razed = new(0, 0, 0, Array.Empty<string>());
     private NativeSquareDressing.Plan? squarePlan;
     public override IReadOnlyList<QuayExits.Ladder>? NativeQuayLadders => quayLadders;
+    /// <summary>The walk map is made (by the Lights part, after Solid): the game rules may start on it.</summary>
+    public bool WalkBuilt => walk != null;
     public override Scheldemist.Town.WalkMap? NativeWalk
     {
         get
         {
-            if (walk == null) { walk = NativeWorldNavigation.Build(town, new Rect2(-480, -80, 820, 560)); Ways.InstallNative(walk, null, Ways.ReadHouseFootprints(Paths.Shared("city_build.json"))); }
+            if (walk == null)
+            {
+                walk = NativeWorldNavigation.Build(town, new Rect2(-480, -80, 820, 560));
+                using (Scheldemist.Dev.StartupTiming.Measure("navigation.ways")) Ways.InstallNative(walk, null, Ways.ReadHouseFootprints(Paths.Shared("city_build.json")));
+            }
             return walk;
         }
     }
@@ -95,19 +101,38 @@ public partial class NativeTown : BakedWorld
     };
     public override Error Load(string unused)
     {
+        var startupClock = System.Diagnostics.Stopwatch.StartNew();
+        void Timing(string stage) => GD.Print($"startup: {stage}: {startupClock.ElapsedMilliseconds} ms");
         Stage = "read";
         Facts = JsonDocument.Parse(Godot.FileAccess.GetFileAsString(Root + "/facts.json"));
         attributes = JsonNode.Parse(Godot.FileAccess.GetFileAsString(Root + "/attributes.json"))!.AsArray();
         var intake = JsonNode.Parse(Godot.FileAccess.GetFileAsString(Root + "/intake.json"))!;
         foreach (var note in intake["unported"]!.AsArray()) Unported.Add(note!.GetValue<string>());
-        // #230: the town scene loads on a worker thread while the districts are read here (they need no town until they are laid)
+        // Load shared dependencies once before the districts request them: overlapping
+        // resource loads can race inside Godot (including invalid resource handles).
         string scene = Root + "/scene.tscn";
+        // The town's meshes, materials and pictures first, on the loader's worker threads at once (dev: --serial-town
+        // reads them one after another inside the town's own request, as before)
+        // (dev: --serial-districts leaves the districts' models to their own reading, after the town's)
+        var held = Scheldemist.Main.I.Flag("serial-town") ? new List<Resource>()
+            : NativeTownPrefetch.Run(Scheldemist.Main.I.Flag("serial-districts") ? Array.Empty<string>() : NativeDistrictLayouts.DescriptorPaths());
+        Timing("town prefetch");
         bool sceneLoading = ResourceLoader.LoadThreadedRequest(scene) == Error.Ok;
         Psx.LoadShared(Path.Combine(Scheldemist.Paths.NativeDataRoot!, "maps"));
+        Timing("shared textures");
         Stage = "build";
+        var packedTown = sceneLoading ? (PackedScene)ResourceLoader.LoadThreadedGet(scene) : ResourceLoader.Load<PackedScene>(scene);
+        Timing("town resources");
         var districts = NativeDistrictLayouts.Prepare();
-        town = (sceneLoading ? (PackedScene)ResourceLoader.LoadThreadedGet(scene) : ResourceLoader.Load<PackedScene>(scene)).Instantiate<Node3D>();
+        // (held until the game is up, for the parts that load the declared files later; the wrappers are shared, so
+        // never disposed here)
+        Scheldemist.World.StartupResources.Hold(held);
+        Timing("district resources");
+        town = packedTown.Instantiate<Node3D>();
+        Timing("town scene instantiated");
         Layouts = NativeDistrictLayouts.Attach(town, districts);
+        Timing("districts attached");
+        using var loadTrace = Scheldemist.Dev.StartupTiming.Split("native.load");
         if(Godot.FileAccess.FileExists("res://world/interiors/seat-bindings.json"))
             seatBindings=JsonSerializer.Deserialize<SeatBinding[]>(Godot.FileAccess.GetFileAsString("res://world/interiors/seat-bindings.json"),new JsonSerializerOptions{PropertyNameCaseInsensitive=true})!;
         int eventSnapshots = 0;
@@ -151,15 +176,21 @@ public partial class NativeTown : BakedWorld
         // (dev: --no-werf-cut leaves the ground as the bake has it, for a before-and-after)
         // The Ruien's gates (docs/ruien-native.md): each area's outlet is cut through its quay wall here, before collision
         // and navigation read the meshes. (dev: --no-ruien-gates leaves the walls whole, for a before-and-after)
-        int werfCut = CutBeforeRazing(town, !Scheldemist.Main.I.Flag("no-werf-cut"), !Scheldemist.Main.I.Flag("no-ruien-gates"), note => GD.Print("ruien: " + note));
+        loadTrace?.Next("snapshots");
+        int werfCut = NativeCutCache.Run(town, !Scheldemist.Main.I.Flag("no-werf-cut"), !Scheldemist.Main.I.Flag("no-ruien-gates"), note => GD.Print("ruien: " + note));
+        // (the Ruien's own pieces need nothing more of the town: they are built beside the rest of it from here)
+        Scheldemist.Main.I.StreetCutsDone();
         // Issue #176: the shutters, copies of one model per kind where the bake's flat boards stood (before the razed houses' cut, which takes theirs)
+        loadTrace?.Next("street-cuts");
         Report["shutterCopies"] = NativeShutters.Install(town, Scheldemist.Main.I.Arg("shutters-file") is { Length: > 0 } shutterFile ? shutterFile : null);
         // Houses pulled down after the bake (city_build.json "razed"): cut out before collision and navigation read the meshes.
         // (dev: --keep-razed leaves them standing, for a before-and-after; those the razed bake took out of the resources stay gone, #230)
         if (Scheldemist.Main.I.Flag("keep-razed") && Godot.FileAccess.FileExists(NativeRazedHouses.BakedFile)) GD.Print("razed houses: --keep-razed: the houses in razed-baked.json are baked out of the resources and stay gone");
+        loadTrace?.Next("shutters");
         razed = Scheldemist.Main.I.Flag("keep-razed") ? new NativeRazedHouses.Result(0, 0, 0, Array.Empty<string>()) : NativeRazedHouses.Cut(town, Scheldemist.Paths.Shared("city_build.json"));
         foreach (var note in razed.Notes) GD.Print("razed houses: " + note);
         // (their roofs gone from the sky map too: the cleared ground is no longer in their shadow)
+        loadTrace?.Next("razed");
         int roofPixels = 0;
         foreach (var outline in razed.Razed)
         {
@@ -168,25 +199,32 @@ public partial class NativeTown : BakedWorld
         }
         Report["razedRoofPixels"] = roofPixels;
         // Issue #174: the shop fronts, the shop windows with their goods, the front doors (none on a razed house)
+        loadTrace?.Next("roofs");
         Report["shopFronts"] = NativeShopFronts.Install(town, razed, Scheldemist.Main.I.Arg("shopfronts-file") is { Length: > 0 } shopFile ? shopFile : null);
         // The corner they leave gets a lime and a bench (only when the cut happened, so a re-baked town shows no tree in a house).
+        loadTrace?.Next("shop-fronts");
         var dressing = razed.Houses > 0 ? NativeRazedHouses.Dress(town) : Array.Empty<string>();
         // The squares the razing opened, made to read as 1873 ground with its houses just gone: the mud mask redrawn on the
         // plots, the neighbours' bared walls (brick, the ghost of the house, its anchors), the pump, guard stones and the
         // things that need no pack (art-source/square-mood-20261027). (dev: --no-square-dressing, for a before-and-after)
+        loadTrace?.Next("razed-dress");
         if (razed.Houses > 0 && !Scheldemist.Main.I.Flag("no-square-dressing") && NativeSquareDressing.Read() is { } squares)
         {
             var squareClock = System.Diagnostics.Stopwatch.StartNew();
             squarePlan = squares;
             Report["squareGroundPixels"] = NativeSquareDressing.Ground(squares, razed, Path.Combine(Scheldemist.Paths.NativeDataRoot!, "maps"));
+            using var squareTrace=Scheldemist.Dev.StartupTiming.Split("native.square");
             var (bared, bricked, ghostDecals, anchors) = NativeSquareDressing.Walls(town, NativeSquareDressing.Bared(razed, Scheldemist.Paths.Shared("city_build.json")));
             Report["squareBaredWalls"] = bared; Report["squareBrickedTriangles"] = bricked; Report["squareGhostDecals"] = ghostDecals; Report["squareAnchors"] = anchors;
+            squareTrace?.Next("walls");
             Report["squareThingsInstalled"] = NativeSquareDressing.Install(town, squares);
+            squareTrace?.Next("install");
             GD.Print($"square dressing: {bared} bared walls, {bricked} wall triangles bricked, {ghostDecals} ghost decals, {anchors} anchors in {squareClock.ElapsedMilliseconds} ms");
         }
         // St James's churchyard made larger over the razed plots east of it: its graves, vaults, railing and walks; the old
         // plots' dividing rail and the ground over the vault stair cut away (before collision and the walk map read the town)
         // (dev: --no-churchyard leaves the yard as baked, for a before-and-after)
+        loadTrace?.Next("square");
         if (razed.Houses > 0 && !Scheldemist.Main.I.Flag("no-churchyard"))
         {
             var churchyard = NativeChurchyard.Install(town);
@@ -196,6 +234,7 @@ public partial class NativeTown : BakedWorld
         }
         // #224 #227: the churches' model faults dressing cannot hide: Sint-Paulus' flat north door, Sint-Jacob's sharp wall top
         // (dev: --no-church-repairs leaves them as baked)
+        loadTrace?.Next("churchyard");
         if (!Scheldemist.Main.I.Flag("no-church-repairs"))
         {
             var (repairDoors, repairCopings) = NativeChurchRepairs.Install(town);
@@ -205,6 +244,7 @@ public partial class NativeTown : BakedWorld
         // #260: the cathedral towers' tall openings filled as the real towers' are: gratings with a stone wall and small windows
         // behind on the lower stages, oak louvre boards on the bell stage and the clock octagon (dev: --open-cathedral-towers
         // leaves them open, as baked)
+        loadTrace?.Next("church-repairs");
         if (!Scheldemist.Main.I.Flag("open-cathedral-towers"))
         {
             var towers = NativeCathedralTowers.Install(town);
@@ -213,13 +253,16 @@ public partial class NativeTown : BakedWorld
             GD.Print($"cathedral towers: {towers.Gratings} gratings, {towers.Louvres} louvred openings, {towers.LeadRemoved} lead louvre triangles out, {towers.Triangles} triangles");
         }
         // #244: the planted beds' and the liberty tree's bare earth in the tree pits' soil (dev: --keep-old-dirt leaves them)
+        loadTrace?.Next("towers");
         if (Scheldemist.Main.I?.Flag("keep-old-dirt") != true) Report["dirtBeds"] = NativeDirt.Lay(town);
         // #218: the last eight bare downpipe feet get a blue-stone channel stone to the kerb (dev: --no-pipe-ends leaves them bare)
         if (Scheldemist.Main.I?.Flag("no-pipe-ends") != true) Report["pipeEnds"] = NativePipeEnds.Lay(town);
         // (the street's ground drawn under the joins' new gutters and the pits' sunken earth, in one pass: NativePlanCut)
+        loadTrace?.Next("dirt-pipes");
         Report["groundPlanCut"] = NativePlanCut.CutQueuedGround(town);
         // The bake's plain benches give way to the new bench models, turned and placed as they stood (#165).
         // (dev: --keep-old-benches leaves them, for a before-and-after)
+        loadTrace?.Next("plan-cut");
         if (!Scheldemist.Main.I.Flag("keep-old-benches"))
         {
             var benchClock = System.Diagnostics.Stopwatch.StartNew();
@@ -230,17 +273,22 @@ public partial class NativeTown : BakedWorld
         }
         // #149 #160: the kit's cast-iron pumps and cellar hatches where the bake's old ones stood (their old boxes are gone from the
         // street-life meshes); the courts' old pump copies hidden. (dev: --street-furniture-file <plan>)
+        loadTrace?.Next("benches");
         var furniture = NativeStreetFurniture.Install(town, Scheldemist.Main.I.Arg("street-furniture-file") is { Length: > 0 } furnitureFile ? furnitureFile : null);
         Report["streetPumps"] = furniture.Pumps; Report["cellarHatches"] = furniture.Hatches; Report["oldCourtPumpsHidden"] = furniture.OldCourtPumps;
         // The bake's plain hiring board gives way to the authored one, where the notes hang (#153).
+        loadTrace?.Next("furniture");
         Report["oldHiringBoards"] = NativeWorkBoard.Retire(town);
         // The baked quay ladders ran through the coping and into the stone (issue 85): the native ladder replaces them.
+        loadTrace?.Next("work-board");
         var ladders = Scheldemist.Native.World.NativeQuayLadders.Install(town);
         quayLadders = ladders.Ladders;
         foreach (var note in ladders.Notes) GD.Print("quay ladders: " + note);
+        loadTrace?.Next("ladders");
         AddChild(town);
         // Static room portraits are source snapshots, never a second resident model. The Vleeshuis's
         // recovered figures (old kit, #178) give way to its live hall workers (HallPeople, people2).
+        loadTrace?.Next("add-town");
         int roomPeople=0;
         foreach(var skeleton in All(town).OfType<Skeleton3D>())
         {
@@ -252,6 +300,7 @@ public partial class NativeTown : BakedWorld
             foreach(var mesh in All(model).OfType<GeometryInstance3D>())mesh.Visible=false;
             foreach(var n in All(model)){n.SetMeta("native_replaced_event_snapshot",true);if(n is CollisionObject3D body){body.CollisionLayer=0;body.CollisionMask=0;}}
         }
+        loadTrace?.Next("room-people");
         Report["hiddenRoomPeopleSnapshots"]=roomPeople;
         // #187: a bake figure sat on or stood at a bench (the Steen's sailor) stays there frozen while the town's live people sit
         // and sleep on the new benches: it goes. (The bus stops' waiters are the movers' own, live_waiters, and not baked.)
@@ -265,6 +314,7 @@ public partial class NativeTown : BakedWorld
             model.Visible=false;benchPeople++;
             foreach(var n in All(model)){n.SetMeta("native_replaced_event_snapshot",true);if(n is CollisionObject3D body){body.CollisionLayer=0;body.CollisionMask=0;}}
         }
+        loadTrace?.Next("bench-people");
         Report["hiddenBenchPeopleSnapshots"]=benchPeople;
 
         Report["werfStepsCutTriangles"] = werfCut;
@@ -285,6 +335,8 @@ public partial class NativeTown : BakedWorld
         Report["hiddenSootSnapshots"] = sootSnapshots;
         Report["hiddenLeftoverSnapshots"] = leftoverCounts.Values.Sum();
         Report["hiddenLeftoverSnapshotKinds"] = string.Join(", ", leftoverCounts.Select(c => c.Value + " " + c.Key));
+        Timing("world geometry ready");
+        if (Scheldemist.Main.I.Flag("startup-proof")) GD.Print("town digest: " + Digest(town));
         Stage = "done";
         return Error.Ok;
     }
@@ -298,15 +350,39 @@ public partial class NativeTown : BakedWorld
         if (gates) foreach (var line in Scheldemist.World.Ruien.RuienGates.Cut(town)) note(line);
         return werfCut;
     }
+    /// <summary>The proof's digest of the built town: every node's path, kind and place, each mesh's surfaces and bounds,
+    /// each copy set's count and bounds (automatic node names left out).</summary>
+    private static string Digest(Node3D town)
+    {
+        using var hash = System.Security.Cryptography.IncrementalHash.CreateHash(System.Security.Cryptography.HashAlgorithmName.SHA256);
+        int nodes = 0;
+        foreach (var n in All(town))
+        {
+            nodes++;
+            string line = System.Text.RegularExpressions.Regex.Replace(town.GetPathTo(n).ToString(), @"@(\w+)@\d+", "@$1@") + " " + n.GetClass();
+            if (n is Node3D n3) line += " " + n3.Transform + (n3.Visible ? "" : " hidden");
+            if (n is MeshInstance3D { Mesh: { } m }) line += " " + m.GetSurfaceCount() + " " + m.GetAabb();
+            if (n is MultiMeshInstance3D { Multimesh: { } mm }) line += " " + mm.InstanceCount + " " + mm.GetAabb() + " " + (mm.Mesh?.GetAabb().ToString() ?? "");
+            hash.AppendData(System.Text.Encoding.UTF8.GetBytes(line + "|"));
+        }
+        return $"{nodes} nodes, {Convert.ToHexString(hash.GetHashAndReset())[..16]}";
+    }
+
     public override void _Ready()
     {
+        using var readyTrace=Scheldemist.Dev.StartupTiming.Split("native.ready");
         // #160 #164: the horse troughs and the washing on its lines and poles (the pack's materials are made on this thread)
         var washing = NativeStreetFurniture.Dress(town, Scheldemist.Main.I.Arg("street-furniture-file") is { Length: > 0 } washingFile ? washingFile : null);
         Report["troughs"] = washing.Troughs; Report["washingLines"] = washing.Lines; Report["washingPieces"] = washing.Pieces; Report["washingPegs"] = washing.Pegs; Report["washPoles"] = washing.Poles;
+        readyTrace?.Next("washing");
         if (squarePlan != null) Report["squareThingsDressed"] = NativeSquareDressing.Dress(town, squarePlan);
+        readyTrace?.Next("square-dress");
+        if(!Scheldemist.Main.I.Flag("no-ruien-entrances")) Report["entrancePlantsClearedAfterDressing"] = Scheldemist.World.Ruien.RuienEntrance.ClearPlants(town);
         // Authored objects arrive with editor materials, which the game's fog and light never reach (issue 79).
+        readyTrace?.Next("entrance-plants");
         var authoredMaterials = new NativeTownMaterials(); authoredMaterials.Apply(town);
         Report["authoredMaterialsSwapped"] = authoredMaterials.Swapped; Report["authoredMaterialsLeft"] = authoredMaterials.Left;
+        readyTrace?.Next("materials");
         // The baked wall lamps are marked hidden at source; nothing else draws them, so the wall lights floated without lamps.
         if (town.GetNodeOrNull<Node3D>("wall_lamps") is { } wallLamps)
             foreach (var wallLamp in wallLamps.GetChildren().OfType<Node3D>()) wallLamp.Visible = true;
@@ -318,6 +394,7 @@ public partial class NativeTown : BakedWorld
             Report["nearDetailMeshes"] = detailMeshes; Report["nearDetailWereHidden"] = detailHidden;
             Report["nearDetailSolidTriangles"] = detailSolid; Report["nearDetailOutOfReachTriangles"] = detailHigh;
         }
+        readyTrace?.Next("near-detail");
         var registered = new HashSet<ulong>();
         foreach (var node in All(town))
         {
@@ -346,6 +423,7 @@ public partial class NativeTown : BakedWorld
                     Psx.RegisterNative(shader, JsonSerializer.Deserialize<Psx.Kind>(shader.GetMeta("native_psx_kind").AsString()));
             }
         }
+        readyTrace?.Next("register-materials-collision");
         Solid.Leave.Add(n => n.HasMeta("native_author_district"));
         Solid.Leave.Add(n => n.HasMeta("native_replaced_event_snapshot"));
         Solid.Leave.Add(n => n.HasMeta(Scheldemist.Native.World.NativeQuayLadders.LeaveMeta));
@@ -358,7 +436,9 @@ public partial class NativeTown : BakedWorld
         Solid.Leave.Add(n => n.HasMeta(NativeChurchRepairs.Meta));
         Solid.Leave.Add(n => n.HasMeta(NativeCathedralTowers.Meta));
         Report["benches"] = NativeBenches.Index(town);
+        readyTrace?.Next("bench-index");
         BuildLights();
+        readyTrace?.Next("lights");
     }
     private void BuildLights()
     {

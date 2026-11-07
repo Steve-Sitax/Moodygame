@@ -480,6 +480,12 @@ void fragment() {
     private void FindGlass()
     {
         var seen = new HashSet<Material>();
+        var unshaded = new Dictionary<Shader,bool>();
+        bool Unshaded(Shader shader)
+        {
+            if(!unshaded.TryGetValue(shader,out bool value))unshaded[shader]=value=shader.Code.Contains("unshaded");
+            return value;
+        }
         foreach (var n in BakedWorld.All(Main.I.World))
         {
             if (n is not MeshInstance3D mi || mi.Mesh == null) continue;
@@ -500,7 +506,7 @@ void fragment() {
                     bool plain = mi.Name.ToString().Contains("glass");
                     landmark.Add((m, plain ? new Vector3(1.7f, 0.72f, 0.2f) : Vector3.One, box.GetCenter(), box.Size.Length() * 0.5f));
                 }
-                else if ((name == "glass" || name == "flame" || name.EndsWith("_glow")) && m.Shader.Code.Contains("unshaded"))
+                else if ((name == "glass" || name == "flame" || name.EndsWith("_glow")) && Unshaded(m.Shader))
                 {
                     // (its lamp: the nearest within a metre and a half, else it follows the clock)
                     var at = (mi.GlobalTransform * mi.GetAabb()).GetCenter();

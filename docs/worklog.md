@@ -1,5 +1,59 @@
 # Work log
 
+## Start-up under a minute: second pass, 2026-11-07
+
+Warm start (Forward+, RTX 5090, isolated save, `--startup-proof`): 155 s this morning, now median 87 s of three
+(85.0/89.1/87.4; the same build ran 76.5-78 s earlier in the day, the PC's speed drifts about 15%). Cache-miss
+start 313 s (Ruien worker joined before the town enters the tree). Goal 60 s not met.
+Changes: town and district resources read level by level on the loader's threads (`NativeTownPrefetch`, hints in
+`startup-cache/dependencies.json`); input files hashed on several cores (`InputFiles`); Ruien entrances and areas
+built on a worker beside the town load ([Start-up](ruien-native.md#start-up)); walk-map stamping on several cores;
+recordings decoded in parallel; Antigoon's index built on a worker; shop-front goods uploaded in one go with shared
+lit copies; the gully dish searches only its own triangles; furniture kit faces read once; stale cache entries
+pruned after 3 unused days (38 GB removed today, 4.4 GB kept).
+Checks: town digest, walk-map digest, Ruien piece digest and world report identical to an uncached
+`--no-startup-cache --ruien-in-order` run; cache, geometry and hook proofs pass; `test-icons.ps1 -Full` passes.
+Remaining, by size: Jolt building collision (Solid 5.6 s, Ruien lay-in 4 s, tree entry ~4.5 s), town passes 12 s,
+server start and first state 6 s, resource reads 9 s. Next: lay far collision in by distance (asks Steve: gameplay
+timing), start the server's world-free work during the parts. Open: an exit-time warning, 2 ObjectDB instances
+leaked, appears with the district prefetch; one intermittent "uninitialized RID" was seen before the Ruien globals
+moved ahead of the load (not seen since in 4 runs). Timings: `.scratch/startup-perf/s60/`.
+Later the same day: declared start files (`World/StartupResources`), the game rules' set-up starting once the walk map
+exists, bench arrays read once; still median 87 s (86.8/87.1/87.6), uncached reference identical. Rules for new
+start-up work: AGENTS.md "Adding to the start", guide and measuring script in [startup.md](startup.md).
+
+## Ruien map-wide entrance repairs, 2026-11-05
+
+Closed the built-entrance findings in the [audit](ruien-entrance-audit.md) and [map](media/ruien-entrance-audit.png).
+Retired RE29 in favour of the connected R1 door; aligned RE28 with the quay; cleared RE14 after native planting.
+O2 now uses house 579's inward facade door, lowered sill, buried stair, vaulted link, supported walk and underpass.
+Both O2 road hatches are sealed under continuous street paving; the grate is closed ventilation. Ceiling caps bear
+onto the old flared lining. Shared stair-houses now have individual lapped slates, boarding, flashings, wall relief,
+falling gutters, hollow pipes, channels and gullies. Reserved seven complete aprons and 14 onward drain connections.
+Original resource placements and IDs remain; imported render/collision repairs operate on copies of both LODs.
+
+Proof `D:/Code/Proofs/ruien-entrance-fixes/`: final player/street/survey run 170/170; seven stair-house routes 30/30
+each; final body probe 0/341 blocked and four ceiling sightlines closed; clipping regression PASS; builds zero errors.
+Final crown/ceiling/join recheck 90/90; 16 final views plus 91 shared-shell/street captures reviewed in native moods.
+All six shell material families have zero stretched UV area. Refreshed the native package identity.
+Unbuilt entrance targets and onward drain connections remain planned; this does not complete the underground network.
+
+
+## Ruien R1 paving, doorway and map-wide entrance audit, 2026-11-05
+
+Darker, rougher shared cobbles with joint/wall-foot dirt; R1 coping enlarged to 0.50 × 0.32 m with geometric bevels.
+Paving no longer covers its top. Rebuilt R1/L65/L100/L114 at both LODs. Retired the R1 road hatch and made the
+street grates closed vents. New `r1_paulus` uses house 82’s existing doorway beside the bakery, opens inward and
+connects by an enclosed stair and vaulted passage. Preserved original town placements and R1 mouths. Repaired
+arch clipping, duplicate decorative door and collision slivers at consecutive cut regions; broad-phase cut bounds
+now include native collision stand-ins. The generator requires a surveyed door or approved square footprint.
+
+[Entrance audit](ruien-entrance-audit.md) and [map](media/ruien-entrance-audit.png): all 26 installed entries plus
+legacy O2 and planned access. Open findings: RE29 in the street, RE28 diagonal to quay paving, O2 road openings,
+RE14 vegetation and unfinished roof/weathering/drainage on all eight stair-houses. No blanket environment pass.
+Proof `D:/Code/Proofs/ruien-r1-feedback/`: definitive native run 65/65; clipping regression PASS; focused body
+probe zero blocked samples; both-LOD UV audit zero stretched area. Build zero errors (12 existing warnings).
+
 ## Ruien R1 sample installed, 2026-11-04 (#272)
 
 Branch t3/d2daeb31. The first playable piece of the full network, next to O2: junction room R1 by Sint-Pauluskerk and the first 22-26 m of L65, L100 and L114 (four areas `r1`, `r1_l65`, `r1_l100`, `r1_l114`, one `group`). Chosen because R1 is the plan's smallest junction room with three ruien, a stair to the street and a footbridge, and each rui within 26 m shows a street grate with its ladder and the plan's drain crossings; 74 m of rui and 2.9 M triangles keep the cost measurable. Pipeline: `build_junction.py --joined` (no dark card, a bond stone over each seam, no relief at the seam plane) and `build_stretch.py --from-room ... --end stub` (start kind `room`, the game's RuienEnd bricks the end up; `channelEnds.water`), `--drain-match` for L65's plan drain 1.5 m off the built line. Fixes found on the way: every rui's silt is a skim along the channel's middle (it lifted the bed 12 cm: Antigoon did not fit upright), floating planks carry no collision, lamp and grate ids are unique per route, a group shows whole only underground (at a street grate the whole group cost some 700 draw calls), `WaterAt` skips water sheets by their bounds (every walker, gull and cart asks it over the streets above a rui).

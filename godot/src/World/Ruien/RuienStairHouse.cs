@@ -18,7 +18,7 @@ namespace Scheldemist.World.Ruien;
 /// Frame: the entrance's `Local` (origin the middle of the doorway on the front face at street level, X right as seen from
 /// the street, Z out to the street). The house stands from Z 0 back to -Length.
 /// </summary>
-public static class RuienStairHouse
+public static partial class RuienStairHouse
 {
     // (the town's materials: environment-20261013's wall brick, stair stone, slate and iron; native-godot/assets/materials)
     private const string BrickMaterial = "res://world/town/resources/r000630.res";
@@ -64,21 +64,25 @@ public static class RuienStairHouse
         var body = new StaticBody3D { Name = "shell_solid", CollisionLayer = Solid.Layer, CollisionMask = 0 };
         body.AddChild(new CollisionShape3D { Shape = m.Shape });
         root.AddChild(body);
+        root.AddChild(new RuienStairRunoff{Spec=s,Back=-Length(s)});
         return root;
     }
 
     /// <summary>Surface tools per material, each with its own chart (box-mapped in the house's frame, metres over the tile).</summary>
     private sealed class Parts
     {
-        public readonly SurfaceTool Brick = Begin(), Stone = Begin(), Slate = Begin(), Iron = Begin();
+        public readonly SurfaceTool Brick = Begin(), Stone = Begin(), Slate = Begin(), Iron = Begin(), Wood = Begin(), Relief = Begin();
         private static SurfaceTool Begin() { var t = new SurfaceTool(); t.Begin(Mesh.PrimitiveType.Triangles); return t; }
     }
 
     private static Made Make(RuienEntrance.Spec s)
     {
         var p = new Parts();
-        var brick = ResourceLoader.Load<Material>(BrickMaterial);
-        var stone = ResourceLoader.Load<Material>(StoneMaterial);
+        var brick = (ShaderMaterial)ResourceLoader.Load<Material>(BrickMaterial).Duplicate();
+        brick.SetShaderParameter("relief_depth",0f);
+        brick.SetShaderParameter("foot",1f);brick.SetShaderParameter("foot_wear",1f);
+        var stone = (ShaderMaterial)ResourceLoader.Load<Material>(StoneMaterial).Duplicate();
+        stone.SetShaderParameter("foot",.6f);stone.SetShaderParameter("foot_wear",1f);
         var slate = ResourceLoader.Load<Material>(SlateMaterial);
         var iron = ResourceLoader.Load<Material>(IronMaterial);
         float len = Length(s), back = -len, inner = s.Width / 2 + s.Lining, tan = MathF.Tan(Mathf.DegToRad(PitchDeg));
@@ -90,6 +94,7 @@ public static class RuienStairHouse
             if (turn is Basis b) { var pv = pivot ?? Vector3.Zero; at = new Transform3D(b, pv) * new Transform3D(Basis.Identity, (lo + hi) / 2 - pv); }
             t.AppendFrom(BevelMesh.Box(size, bevel, mat), 0, at);
         }
+        var wood=ResourceLoader.Load<Material>("res://assets/materials/town-facades-20261018/shutter-paint-worn.tres");
         var o = s.DoorOpening;
 
         // ---- the brick: side walls (full length, their ends in the gables' faces), the front skin round the doorway,
@@ -153,31 +158,43 @@ public static class RuienStairHouse
             Box(p.Stone, stone, new Vector3(-.13f, apex - .16f, zm - zw), new Vector3(.13f, apex + .1f, zm + zw), .012f);
         }
 
-        // ---- the slates: a slab each side from the ridge to the eaves (12 cm over the band), between the gables' inner faces
+        BrickRelief(p,s,back);
+
+        // Individually lapped slates over timber boarding, fitted between the parapets.
         foreach (float sd in new[] { -1f, 1f })
-            Roof(p.Slate, sd, back + BackWall + .002f, -s.Wall - .002f, tan);
+            Roof(p.Slate, p.Wood, slate, wood, sd, back + BackWall + .002f, -s.Wall - .002f, tan);
 
         // ---- the iron (painted zinc): the ridge roll and its flanges, gutters on brackets, downpipes with shoes, wall anchors
         float rz0 = back + BackWall, rz1 = -s.Wall;
-        Cyl(p.Iron, new Vector3(0, Ridge + .02f, rz0), new Vector3(0, Ridge + .02f, rz1), .032f, 12);
+        Cyl(p.Iron, new Vector3(0, Ridge + .065f, rz0), new Vector3(0, Ridge + .065f, rz1), .032f, 12);
+        // Lead soakers return up the parapets under their coping; the exposed sheet lip has a 1 mm radius.
+        foreach(float sd in new[]{-1f,1f})
+            foreach(float zz in new[]{rz0+.03f,rz1-.03f})
+            {
+                var down=new Vector3(sd,-tan,0).Normalized();var up=new Vector3(sd*tan,1,0).Normalized();
+                var basis=new Basis(down,up,sd>0?Vector3.Back:Vector3.Forward);
+                float slope=(Half+.16f)/MathF.Cos(Mathf.DegToRad(PitchDeg));
+                p.Iron.AppendFrom(BevelMesh.Box(new Vector3(slope,.004f,.12f),.001f,iron),0,
+                    new Transform3D(basis,new Vector3(0,Ridge,zz)+down*(slope/2)+up*.048f));
+            }
         foreach (float sd in new[] { -1f, 1f })
         {
             var turn = new Basis(Vector3.Back, -sd * Mathf.DegToRad(PitchDeg));
-            var at = new Transform3D(turn, new Vector3(sd * .07f, Ridge - .07f * tan + .006f, (rz0 + rz1) / 2));
+            var at = new Transform3D(turn, new Vector3(sd * .07f, Ridge - .07f * tan + .052f, (rz0 + rz1) / 2));
             p.Iron.AppendFrom(BevelMesh.Box(new Vector3(.18f, .006f, rz1 - rz0), .002f, iron), 0, at);
             // the gutter: a half-round on the eaves' line, its back on the fascia
             float gx = sd * (Half + .2f), gy = Eaves - .12f;
             Gutter(p.Iron, gx, gy, sd, back + .02f, -.02f);
             for (float z = back + .3f; z < -.2f; z += .9f)
-                Box(p.Iron, iron, new Vector3(sd < 0 ? -Half - .26f : Half + .04f, gy - .085f, z - .015f), new Vector3(sd < 0 ? -Half - .04f : Half + .26f, gy - .07f, z + .015f), .002f);
+                Box(p.Iron, iron, new Vector3(sd < 0 ? -Half - .26f : Half + .04f, gy + MathF.Abs(z-(back+.35f))*.002f - .085f, z - .015f), new Vector3(sd < 0 ? -Half - .04f : Half + .26f, gy + MathF.Abs(z-(back+.35f))*.002f - .07f, z + .015f), .002f);
             // the downpipe at the back corner, from the gutter's outlet down to its shoe over a splash stone
             float px = sd * (Half + .1f), pz = back + .35f;
-            Cyl(p.Iron, new Vector3(gx, gy - .06f, pz), new Vector3(px, gy - .32f, pz), .04f, 10);
-            Cyl(p.Iron, new Vector3(px, gy - .32f, pz), new Vector3(px, .32f, pz), .04f, 10);
-            Cyl(p.Iron, new Vector3(px, .32f, pz), new Vector3(px + sd * .14f, .1f, pz), .045f, 10);
+            Tube(p.Iron, new Vector3(gx, gy - .055f, pz), new Vector3(px, gy - .32f, pz), .04f);
+            Tube(p.Iron, new Vector3(px, gy - .32f, pz), new Vector3(px, .32f, pz), .04f);
+            Tube(p.Iron, new Vector3(px, .32f, pz), new Vector3(px + sd * .14f, .1f, pz), .045f);
             foreach (float y in new[] { .8f, 1.9f })
                 Box(p.Iron, iron, new Vector3(sd < 0 ? -Half - .15f : Half - .005f, y - .02f, pz - .055f), new Vector3(sd < 0 ? -Half + .005f : Half + .15f, y + .02f, pz + .055f), .002f);
-            Box(p.Stone, stone, new Vector3(sd < 0 ? -Half - .62f : Half + .12f, -.06f, pz - .2f), new Vector3(sd < 0 ? -Half - .12f : Half + .62f, .03f, pz + .2f), .01f);
+            Drain(p,stone,iron,sd,pz);
             // tie anchors: the roof's tie beams held to the side walls (an iron plate and its wedge)
             foreach (float z in new[] { -s.Wall - 1.4f, back + BackWall + 1.4f })
             {
@@ -192,14 +209,18 @@ public static class RuienStairHouse
             t.Deindex(); var m = t.Commit(); if (m.GetSurfaceCount() == 0) return;
             var a = m.SurfaceGetArrays(0);
             if (chart) a[(int)Mesh.ArrayType.TexUV] = Chart(a, tile);
-            // (otherwise the piece is charted already: the slates, in metres over their tile down the slope)
+            var vertices=a[(int)Mesh.ArrayType.Vertex].AsVector3Array();
+            a[(int)Mesh.ArrayType.Color]=vertices.Select(v=>Weather(v,back,name)).ToArray();
+            // Slates and boarding retain the metric charts assigned in their own construction frame.
             mesh.AddSurfaceFromArrays(Mesh.PrimitiveType.Triangles, a);
             mesh.SurfaceSetMaterial(mesh.GetSurfaceCount() - 1, mat);
             mesh.SurfaceSetName(mesh.GetSurfaceCount() - 1, name);
         }
         Commit(p.Brick, brick, BrickTile, "house_brick", true);
+        Commit(p.Relief, brick, BrickTile, "house_brick_relief", false);
         Commit(p.Stone, stone, StoneTile, "house_bluestone", true);
         Commit(p.Slate, slate, SlateTile, "house_slate", false);
+        Commit(p.Wood, wood, new Vector2(.6f,.6f), "house_boarding", true);
         Commit(p.Iron, iron, IronTile, "house_iron", true);
         mesh.ResourceName = "ruien_stair_house";
         // Collision: the walls, plinth, stone and roof as drawn (the thin iron too: it is up out of reach or hard by a wall).
@@ -220,7 +241,7 @@ public static class RuienStairHouse
         void Tri(Vector3 a, Vector3 b, Vector3 c)
         {
             var n = (b - a).Cross(c - a).Normalized();
-            foreach (var v in new[] { a, b, c }) { t.SetNormal(n); t.SetUV(Vector2.Zero); t.AddVertex(v); }
+            foreach (var v in new[] { a, c, b }) { t.SetNormal(n); t.SetUV(Vector2.Zero); t.AddVertex(v); }
         }
         int k = outline.Length;
         for (int i = 1; i + 1 < k; i++)
@@ -237,78 +258,41 @@ public static class RuienStairHouse
         }
     }
 
-    /// <summary>
-    /// One roof slope (side -1 or +1) from the ridge down past the wall plate to the eaves: a 5 cm slab of slates, its
-    /// top and its lower edge bevelled. Charted so the slates' courses run along the eaves and lap down the slope.
-    /// </summary>
-    private static void Roof(SurfaceTool t, float side, float z0, float z1, float tan)
-    {
-        float over = .16f; // past the wall face
-        float yTop(float x) => Eaves + .1f + (Half - MathF.Abs(x)) * tan;
-        float xr = side * .004f, xe = side * (Half + over);
-        var top0 = new Vector3(xr, yTop(xr), 0); var top1 = new Vector3(xe, yTop(xe), 0);
-        var down = (top1 - top0).Normalized(); var nrm = new Vector3(-down.Y, down.X, 0) * (side > 0 ? 1 : -1);
-        if (nrm.Y < 0) nrm = -nrm;
-        float th = .05f, slope = top0.DistanceTo(top1);
-        // corners: top face (ridge, eaves) and the underside, at z0 and z1
-        Vector3 P(float s, float d, float z) => top0 + down * s - nrm * d + new Vector3(0, 0, z);
-        void Quad(Vector3 a, Vector3 b, Vector3 c, Vector3 d, Vector3 n, Vector2 ua, Vector2 ub, Vector2 uc, Vector2 ud)
-        {
-            // (wound so the right-hand normal is n; the material draws both sides)
-            if ((b - a).Cross(c - a).Dot(n) < 0) { (b, d) = (d, b); (ub, ud) = (ud, ub); }
-            foreach (var (v, uv) in new[] { (a, ua), (b, ub), (c, uc), (a, ua), (c, uc), (d, ud) }) { t.SetNormal(n); t.SetUV(uv); t.AddVertex(v); }
-        }
-        Vector2 U(float s, float z) => new(z / SlateTile.X, s / SlateTile.Y);
-        // the top: the slates (v down the slope from the ridge)
-        Quad(P(0, 0, z0), P(slope, 0, z0), P(slope, 0, z1), P(0, 0, z1), nrm, U(0, z0), U(slope, z0), U(slope, z1), U(0, z1));
-        // the underside (boarding seen from under the eaves) and the lower edge (the slates' tails)
-        Quad(P(0, th, z0), P(0, th, z1), P(slope - .01f, th, z1), P(slope - .01f, th, z0), -nrm, U(0, z0), U(0, z1), U(slope, z1), U(slope, z0));
-        Quad(P(slope, 0, z0), P(slope - .01f, th, z0), P(slope - .01f, th, z1), P(slope, 0, z1), down, U(slope, z0), U(slope + th, z0), U(slope + th, z1), U(slope, z1));
-        // the ends (against the gables' inner faces) and the ridge's edge (under the roll)
-        foreach (float z in new[] { z0, z1 })
-            Quad(P(0, 0, z), P(slope, 0, z), P(slope - .01f, th, z), P(0, th, z), new Vector3(0, 0, z == z0 ? -1 : 1), U(0, 0), U(slope, 0), U(slope, th), U(0, th));
-    }
-
     /// <summary>A half-round gutter (outside x of `gx` on side sd) along z, its rolled lip outside, its stop ends.</summary>
     private static void Gutter(SurfaceTool t, float gx, float gy, float sd, float z0, float z1)
     {
         const int n = 10; float r = .065f, wall = .004f;
-        Vector3 C(int i, float rr, float z) { float a = MathF.PI * i / n; return new Vector3(gx + sd * MathF.Cos(a) * rr * -1, gy - MathF.Sin(a) * rr, z); }
+        Vector3 C(int i, float rr, float z) { float a = MathF.PI * i / n; return new Vector3(gx + sd * MathF.Cos(a) * rr * -1, gy + MathF.Abs(z-(z0+.33f))*.002f - MathF.Sin(a) * rr, z); }
         void Tri(Vector3 a, Vector3 b, Vector3 c, Vector2 ua, Vector2 ub, Vector2 uc)
         {
-            var nn = (b - a).Cross(c - a).Normalized();
+            var nn = (b - a).Cross(c - a).Normalized()*sd;
+            if(sd>0){(b,c)=(c,b);(ub,uc)=(uc,ub);}
             foreach (var (v, uv) in new[] { (a, ua), (b, ub), (c, uc) }) { t.SetNormal(nn); t.SetUV(uv); t.AddVertex(v); }
         }
-        for (int i = 0; i < n; i++)
-            foreach (float rr in new[] { r, r - wall })
-            {
-                var a0 = C(i, rr, z0); var a1 = C(i + 1, rr, z0); var b0 = C(i, rr, z1); var b1 = C(i + 1, rr, z1);
-                Tri(a0, a1, b1, Vector2.Zero, new Vector2(.03f, 0), new Vector2(.03f, z1 - z0)); Tri(a0, b1, b0, Vector2.Zero, new Vector2(.03f, z1 - z0), new Vector2(0, z1 - z0));
-            }
+        float outlet=z0+.33f;
+        var spans=new[]{(z0,outlet-.045f,false),(outlet-.045f,outlet+.045f,true),(outlet+.045f,z1,false)};
+        foreach(var (a,b,hole) in spans)
+            for(int i=0;i<n;i++)
+                foreach(float rr in new[]{r,r-wall})
+                {
+                    if(hole && i>=3 && i<=6)continue;
+                    var a0=C(i,rr,a);var a1=C(i+1,rr,a);var b0=C(i,rr,b);var b1=C(i+1,rr,b);
+                    if(rr==r){Tri(a0,a1,b1,Vector2.Zero,new(.03f,0),new(.03f,b-a));Tri(a0,b1,b0,Vector2.Zero,new(.03f,b-a),new(0,b-a));}
+                    else {Tri(a0,b1,a1,Vector2.Zero,new(.03f,b-a),new(.03f,0));Tri(a0,b0,b1,Vector2.Zero,new(0,b-a),new(.03f,b-a));}
+                }
         // the rolled lip (outside) and the stop ends
-        var lip0 = C(n, r, z0) + new Vector3(0, .008f, 0); var lip1 = C(n, r, z1) + new Vector3(0, .008f, 0);
-        Cyl(t, lip0, lip1, .009f, 8);
-        foreach (float z in new[] { z0, z1 })
-            for (int i = 0; i < n; i++)
-                Tri(new Vector3(gx, gy, z), C(i, r, z), C(i + 1, r, z), Vector2.Zero, new Vector2(.05f, 0), new Vector2(0, .05f));
-    }
-
-    /// <summary>A round bar or pipe from a to b (radius r, its ends closed).</summary>
-    private static void Cyl(SurfaceTool t, Vector3 a, Vector3 b, float r, int sides)
-    {
-        var d = b - a; float l = d.Length(); if (l < .001f) return;
-        var y = d / l; var x = (MathF.Abs(y.Y) < .9f ? Vector3.Up : Vector3.Right).Cross(y).Normalized(); var z = x.Cross(y);
-        Vector3 R(int i, float rr) { float t = Mathf.Tau * i / sides; return x * MathF.Cos(t) * rr + z * MathF.Sin(t) * rr; }
-        void V(Vector3 p, Vector3 n, Vector2 uv) { t.SetNormal(n); t.SetUV(uv); t.AddVertex(p); }
-        for (int i = 0; i < sides; i++)
+        foreach(var (a,b,_) in spans)
+            Cyl(t,C(n,r,a)+Vector3.Up*.008f,C(n,r,b)+Vector3.Up*.008f,.009f,8);
+        foreach(float z in new[]{z0,z1})
         {
-            Vector3 r0 = R(i, r), r1 = R(i + 1, r); float u0 = i * Mathf.Tau * r / sides, u1 = (i + 1) * Mathf.Tau * r / sides;
-            V(a + r0, r0.Normalized(), new(u0, 0)); V(b + r0, r0.Normalized(), new(u0, l)); V(b + r1, r1.Normalized(), new(u1, l));
-            V(a + r0, r0.Normalized(), new(u0, 0)); V(b + r1, r1.Normalized(), new(u1, l)); V(a + r1, r1.Normalized(), new(u1, 0));
-            V(a, -y, Vector2.Zero); V(a + r1, -y, new(u1, 0)); V(a + r0, -y, new(u0, 0));
-            V(b, y, Vector2.Zero); V(b + r0, y, new(u0, 0)); V(b + r1, y, new(u1, 0));
+            var end=Enumerable.Range(0,n+1).Select(i=>{var q=C(i,r,z);return new Vector2(q.X,q.Y);}).ToArray();
+            if(sd<0)Array.Reverse(end);
+            Prism(t,end,z-.002f,z+.002f); // 4 mm sheet stop; its thin lip is an intentional sharp sheet edge.
         }
     }
+
+    /// <summary>Rolled ridge and gutter lips, their ends housed against the parapets/stop plates.</summary>
+    private static void Cyl(SurfaceTool t,Vector3 a,Vector3 b,float r,int sides)=>Tube(t,a,b,r);
 
     /// <summary>
     /// Charted flat on each triangle's own plane, in metres over the tile: walls with u along the face and v down it,
@@ -335,6 +319,6 @@ public static class RuienStairHouse
     /// <summary>The tile (metres) of a shell surface by its name, for the UV audit (RuienUv.Audit); null for others.</summary>
     public static Vector2? Tile(string surface) => surface switch
     {
-        "house_brick" => BrickTile, "house_bluestone" => StoneTile, "house_slate" => SlateTile, "house_iron" => IronTile, _ => null,
+        "house_boarding" => new Vector2(.6f,.6f), "house_brick" => BrickTile, "house_brick_relief" => BrickTile, "house_bluestone" => StoneTile, "house_slate" => SlateTile, "house_iron" => IronTile, _ => null,
     };
 }

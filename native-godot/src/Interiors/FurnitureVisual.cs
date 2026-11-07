@@ -173,7 +173,7 @@ public partial class FurnitureVisual : Node3D
                 foreach(var mesh in pieces.SelectMany(Scheldemist.World.BakedWorld.All).OfType<MeshInstance3D>().Where(m=>m.Mesh!=null&&m.IsVisibleInTree()))
                 {
                     var transform=GlobalTransform.AffineInverse()*mesh.GlobalTransform;
-                    faces.AddRange(mesh.Mesh!.GetFaces().Select(p=>transform*p));
+                    faces.AddRange(FacesOf(mesh.Mesh!).Select(p=>transform*p));
                 }
                 var shape=new ConcavePolygonShape3D{BackfaceCollision=true};shape.SetFaces(faces.ToArray());
                 var body=new StaticBody3D{Name="ModelSolid",CollisionLayer=2,CollisionMask=0};body.AddChild(new CollisionShape3D{Name="Shape",Shape=shape});AddChild(body);
@@ -185,7 +185,7 @@ public partial class FurnitureVisual : Node3D
             foreach(var mesh in Scheldemist.World.BakedWorld.All(this).OfType<MeshInstance3D>().Where(m=>m.Mesh!=null&&(m.HasMeta(HullMeta)||m.IsVisibleInTree()&&!Hulled(m))))
             {
                 var transform=GlobalTransform.AffineInverse()*mesh.GlobalTransform;
-                var vertices=mesh.Mesh!.GetFaces();
+                var vertices=FacesOf(mesh.Mesh!);
                 for(int i=0;i+2<vertices.Length;i+=3)
                 {
                     var a=transform*vertices[i];var b=transform*vertices[i+1];var c=transform*vertices[i+2];
@@ -245,6 +245,15 @@ public partial class FurnitureVisual : Node3D
         }
         foreach(var far in model.FindChildren("*_far","Node3D",true,false).OfType<Node3D>())far.Visible=false;
         return model;
+    }
+    // A kit model from a file is read from the graphics card once for every room that uses it (it is never changed;
+    // a mesh made here, such as KeepContents' own, is read each time).
+    private static readonly System.Collections.Generic.Dictionary<Mesh,Vector3[]> fileFaces=new();
+    private static Vector3[] FacesOf(Mesh mesh)
+    {
+        if(!mesh.ResourcePath.StartsWith("res://",StringComparison.Ordinal)||mesh.ResourcePath.Contains("::"))return mesh.GetFaces();
+        if(!fileFaces.TryGetValue(mesh,out var faces))fileFaces[mesh]=faces=mesh.GetFaces();
+        return faces;
     }
     private Aabb? Bounds(Node3D model)
     {

@@ -4,15 +4,22 @@ The sewers under the town (plan: [plans/ruien](plans/ruien/README.md)). Everythi
 can follow area by area; the first area is O2: the vliet sluice outlet, the 38 m Vlietrui and the Vleeshuis hall C2.
 Code: `godot/src/World/Ruien/`. Data and resources: `native-godot/world/ruien/`.
 
-O2 access: the keeper hatch beside the outlet leads to the south winch; the hall hatch and grate shaft remain usable. Deep channel water uses Jef's existing swimming controls, with `E` at the escape irons. Ladder spacing, local offsets, gate channel widths and keeper landing paths are area data. The water query follows the rendered sheets, leaving the street navigation map dry.
+O2 access uses the existing house doorway at (-157.787, 132.000), an inward-opening leaf and a buried cellar stair.
+A vaulted side passage and supported maintenance walk join the hall bridge; a barrel under the new stair keeps the
+existing bridge route open. Both former road hatches are retired under continuous paving, and the street grate is
+closed ventilation. Deep channel water uses Jef's existing swimming controls, with `E` at the escape irons. Ladder
+spacing, local offsets, gate channel widths and keeper landing paths are area data. The water query follows the
+rendered sheets, leaving the street navigation map dry.
 
-The selected [construction options](plans/ruien/ideas/README.md) are A1/B2/C1/D1. A1's twin iron lids open and close with `E`; their native world state and the gate crew's route progress are included in ordinary saves. The flight lies behind the gallery wall and meets the ledge through a vaulted niche. B2's side drains cross the walkway in recessed grated gutters. C1 is a continuous brick arch; D1 has a round street grate and flared brick lining. The hall stair exits into the street on a supported route. All treads are bluestone.
+The original [construction options](plans/ruien/ideas/README.md) were A1/B2/C1/D1. A1's road lids are now retired;
+its underground flight and vaulted niche remain. B2's side drains cross the walkway in recessed grated gutters.
+C1 is a continuous brick arch; D1 has a closed round street grate and flared brick lining. All treads are bluestone.
 
-`RuienSurround` supplies the keeper, hall and grate frames: 30 cm deep reveals, 32 cm wide stair coping
+The historical `RuienSurround` kit supplies keeper, hall and grate frames: 30 cm deep reveals, 32 cm wide stair coping
 (23 cm at grates), 6.5/3.5 cm raised tops, recessed bearing seats and mortared joints. The street cut includes
 upright kerb faces and collision proxies; kerbs butt against the frame. The keeper aperture extends 40 cm farther
 over the flight so the vault crown stays below the street without lowering its headroom. Exported lining repairs
-apply to both LODs and collision; the hall's last tread, open oak leaves and handrail remain.
+apply to both LODs and collision. Retired ways omit the street frame and leaves; underground treads and handrails remain.
 
 Asset edge notes: coping profiles use 8 mm curved arrises and 6 mm rounded ends; the machined rebate is eased
 2 mm. Iron has 1–3 mm bevels; flat pin ends and hidden mating faces are intentional. Metric charts include narrow
@@ -67,8 +74,14 @@ ceiling's free edge closes the slot under the niche's sloping vault (no lower th
 The first playable piece of the full network, installed next to O2: junction room R1 by Sint-Pauluskerk and the first
 22-26 m of the three ruien that meet in it (L65 22 m, L100 26 m, L114 25 m). Each shows a street grate with its ladder,
 plan lamps and the plan's side-drain crossings, and ends at a bricked-up stub (`RuienEnd`, barred culvert) where the
-next area joins. Reach it from the street at the open oak hatch at (159.6, 300), from any of its three grates, or with
-the kit command `ruien r1` (Jef on the stair foot landing).
+next area joins. Reach it through the neighbouring house's existing doorway at (162.714, 301.475), whose inward-opening
+leaf leads to a facade-parallel cellar stair and a vaulted passage into the room, or with the kit command `ruien r1`.
+The former road hatch is retired: the town's paving and collision remain whole there. The three street grates are
+ventilation only (`streetGrates: "ventilation"`), with no climb prompt or moving lid in the carriageway.
+
+`art-source/ruien-o2-20261018/config/R1.json` fixes the surveyed doorway connection and keeps the three mouths in their
+authored positions. The room generator requires a facade-door connection or an explicitly reviewed square footprint;
+the walk mask cannot approve an entrance site. End faces at the shared passage/reveal joints are hidden mating surfaces.
 
 - **Areas.** `r1` (the room), `r1_l65`, `r1_l100`, `r1_l114`, one converted export each. `group` (default the area's
   id) draws a group whole while the eye is underground in any of its boxes (the room and its ruien see one another);
@@ -245,6 +258,24 @@ for inspection, not proof of an autonomous underground route.
   part off; `--no-ruien-gates` leaves the walls whole.
 - Snap views take `fov=N` (vertical degrees) to match a Blender lens.
 
+### Start-up
+
+The entrances and areas are built on a worker thread beside the town's load (`Ruien.StartBeside`, started once the
+street cuts are made; the globals and cover are set before the load starts). Main waits for the worker before the town
+enters the tree, so it never runs beside the main thread's own loads; the part then lays the finished nodes into the
+view at its own place in the start, and later parts see the same Ruien as before. A new area, entrance or kit piece needs no extra step:
+
+- Builder code (anything called from `BuildPieces`) runs off the main thread. It must not touch the scene tree,
+  `Ruien.I`, physics queries or other parts; add nodes through `place(...)`, never `Main.I.View.AddChild`.
+- Fixed geometry goes through `RuienGeometryCache` (or `RuienEntrance.Cached` for a Spec-built node tree). Keys hash
+  the content of `world/ruien/**/*.json`, the source export and the build's code revision, so an edit rebuilds only
+  on the next start; an edit to any Ruien JSON rebuilds every Ruien entry once.
+- Proofs: `--startup-proof` prints `ruien pieces: ... <digest>`; it must match a `--ruien-in-order --no-startup-cache`
+  run. `--ruien-in-order` builds on the main thread at the part's place, as before.
+- Cost now (2026-11-07, 5 areas, 26 entrances): about 7 s on the worker, hidden behind the town's load, plus about
+  4.5 s on the main thread to lay the pieces in (mostly collision shapes). Lay-in time grows with the network; past
+  roughly twice today's size, lay far areas in by distance instead of all at the start.
+
 ### Frame costs per view
 
 Use `--profile-parts` with `--ruien-proof-views <json>` or `--ruien-proof-path <json>`.
@@ -325,7 +356,8 @@ engine numbers in areas.json `foldBridge` (timing, angle, distances, sweep zone)
 ## Entrances
 
 Ways down from the street, built before the network they will join (Steve chose 25 from the RE-entrances survey,
-2026-11-02; seventeen are built: nine wall doors, four gateway side doors, four house side doors). Each entrance is a
+2026-11-02; 25 survey entries were built: nine wall doors, four gateway side doors, four house side doors, eight stair-houses).
+RE29 is now retired in favour of R1. With the connected R1 and O2 facade doors there are 26 active entries (19 wall/house doors and seven stair-houses). Each entrance is a
 street door in a wall that is already there, one straight
 bluestone flight down to the level of its Ruien line, and a small landing that ends at a locked iron grille or a
 bricked-up arch ("closed for works") where the Ruien join later. Nothing leads nowhere and there is nothing to fall
@@ -342,7 +374,7 @@ the entry. Fields (defaults in the file's `defaults`):
 | `door`, `out`, `street` | The doorway's middle on the wall's face (x, z), the face's normal to the street, street level. |
 | `depth`, `line` | Landing level: gallery ledge -3.6, rui walkway -3.9; the Ruien line it will join. |
 | `layout`, `flight` | `L`: door in the tunnel's side, the tunnel along the wall (`flight` `right` or `left` as seen from the street). `I`: door in its end, the tunnel straight in. |
-| `closure`, `closureSide` | `grille` (a locked gate before a 1 m niche closed by new brick) or `bricked` (fresh brick in the arch); `street` (L), `right`/`left` (I), `back` or `end`. |
+| `closure`, `closureSide` | `grille` (locked gate), `bricked` (fresh brick) or `open` (a built, walked connection to another area); `street` (L), `right`/`left` (I), `back` or `end`. An open connection has no works prompt. |
 | `wall`, `width` | The host wall's thickness (the reveal), the tunnel's clear width (1.3 m; 1.5 m in gate houses). |
 | `doorWidth`, `doorHeight`, `post`, `head`, `frame` | The opening in the wall, the leaf's clear height, the oak posts, `arch` (brick ring and iron fanlight) or `flat` (oak transom), the surround: `bluestone` jambs and a rowlock ring (rampart), the gate house's `oak` frame, `passage` (a dressed bluestone frame with an eared lintel on plinth blocks) or `house` (an oak casing, a bluestone lintel and a bluestone doorstep). |
 | `riser`, `pitchDeg`, `topLanding`, `bottomLanding`, `lining`, `spring`, `vaultRise` | Steps of at most 18 cm at 35 degrees (about 5.1 m for 3.6 m), 1.5 m landings, 28 cm brick lining, the barrel vault's springing over the treads and its rise. |
@@ -389,6 +421,26 @@ landing, a lower vault) straight in from the gable, between its two windows.
 is the world's: the hatches' service (`api/ruien/hatches/entrance_<id>`, `NativeRuienAccess`) keeps it in saves and
 shares it. At the landing E at the closure says why the way on is shut.
 
+**Siting.** Entrances must be behind a doorway or on a reviewed square footprint, aligned with the adjoining facade,
+boundary and paving. Include the surround, approach and open leaves in the clearance check. No stairwell, hatch,
+moving grate or access house may occupy a cart or tram route. `frame: "existing"` keeps a surveyed town surround
+and fanlight while replacing its recessed oak frame and leaf. Review findings: [entrance audit](ruien-entrance-audit.md).
+
+**Connected/retired access.** `connectArea` and `connectLength` link a native bottom arch to an imported area: the
+stair’s air and passage are clipped from copies of both imported LODs and collision. The passage cut follows the
+barrel's inner facets, leaving masonry over its crown and beside the lining; its far end overlaps the cut. O2’s new facade door uses this
+connection, with `lowerSill` replacing the projecting threshold inside the retained surround. `retiredWays` in
+`areas.json` preserves an old underground flight/niche under a solid stone closure, restores the street by leaving
+its original paving/collision whole, removes exported material above the closure, and disables lids and their service.
+Disable its opening sources as well. O2’s street grate is ventilation-only. Historical source exports retain their
+markers; the native retirement configuration is mandatory and survives reconversion. The stone closure bears beyond
+the lid rectangle onto the flared lining, closing the sky sightlines visible from the hall walk below.
+
+O2's `walkConnections` have jointed stone decks on iron I-girders, bearing plates, crossheads and masonry piers down
+to the bed. Rail spans open where another deck joins. `trimImported` replaces the joining bank/coping strip in both
+LODs and collision. The entrance's optional `underpass` describes a world-space brick barrel beneath its lower
+retaining wall, preserving the existing hall walk. Neither repair modifies the authored import resources.
+
 **Adding an entrance** (the next rounds: gateways, house side doors, small stair-houses):
 
 1. Copy an entry of the same kind and give it a new permanent `id`. Put `door` on the wall's face (measure the face: a
@@ -406,13 +458,22 @@ shares it. At the landing E at the closure says why the way on is shut.
 
 ### Stair-houses
 
-Host `stair_house` (survey 24, 27-33): a small free-standing city-works house on a square, green or quay over the top
-of a straight `I` stair. Code: `RuienStairHouse.cs` (the shell), the rest is the kit.
+Host `stair_house` (survey 24, 27-33): a small free-standing city-works house intended for a square, green or quay
+over a straight `I` stair. Code: `RuienStairHouse.cs` (the shell), the rest is the kit.
+
+The [5 November repairs](ruien-entrance-audit.md) retire RE29’s street house, align RE28 to the quay and replace the
+shared roof slabs with individually lapped slates over timber boarding and lead soakers. Wall relief follows the
+existing cross-bond image/height chart. Gutters fall to open outlets and hollow downpipes/shoes; sloped stone channels
+feed grated gullies. Ground damp is a conforming transparent film without collision.
+
+`surface-reservations.json` records full footprints, including the roof, gullies and 1.6 m door approaches.
+`surface-drainage.json` records all 14 inlets, -0.95 m inverts, 100 mm diameters and unique onward connection IDs.
+The roof-to-gully path is built; the onward Ruien connections remain reserved. Preserve these strips when adding traffic.
 
 - **One model.** The shell is one mesh and one collision shape, built once and shared by every stair-house: brick in
   the town's own wall brick on a bluestone plinth in stones with real joints, parapet gables under bluestone coping
-  with kneelers, a projecting band under the eaves, a slate roof with a zinc ridge roll, half-round iron gutters on
-  brackets, downpipes with shoes onto splash stones at the back corners, tie anchors. All in the town's materials
+  with kneelers, a projecting band under the eaves, a lapped slate roof with a lead ridge roll, half-round iron gutters on
+  brackets, hollow downpipes with shoes into sloped channels and grated gullies, tie anchors. All in the town's materials
   (`environment-20261013`: brick, stair stone, slate, iron), so no new shader kind; they take sky, sun and rain like a
   town wall and cast a shadow. The front gable carries the kit's own bluestone jambs, rowlock arch, wrought-iron
   fanlight and oak door (`doorWidth` 1.1: Jef's 0.64 m body passes the open leaf).

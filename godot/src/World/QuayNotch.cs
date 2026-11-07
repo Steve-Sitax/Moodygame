@@ -15,6 +15,52 @@ namespace Scheldemist.World;
 /// </summary>
 public static class QuayNotch
 {
+    // Entrance cuts only remove geometry. During a batch, the original world bounds
+    // conservatively cover every later version, including collision stand-ins.
+    [ThreadStatic] private static CutBatch? activeBatch;
+    private sealed class CutBatch : IDisposable
+    {
+        public readonly Node3D World;
+        public readonly Node[] Nodes;
+        public readonly (MeshInstance3D Mesh, Aabb Box)[] Meshes;
+        private readonly CutBatch? previous;
+        public CutBatch(Node3D world)
+        {
+            World = world; previous = activeBatch;
+            Nodes=BakedWorld.All(world).ToArray();
+            Meshes = Nodes.OfType<MeshInstance3D>().Where(m => m.Mesh is ArrayMesh).Select(m =>
+            {
+                var xf = Transform3D.Identity;
+                for (Node? n = m; n is Node3D n3; n = n.GetParent()) xf = n3.Transform * xf;
+                return (m, (xf * Bounds((ArrayMesh)m.Mesh)).Grow(.01f));
+            }).ToArray();
+            activeBatch = this;
+        }
+        public void Dispose() => activeBatch = previous;
+    }
+    public static IDisposable BeginCutBatch(Node3D world) => new CutBatch(world);
+    internal static IEnumerable<Node> BatchNodes(Node3D world) => activeBatch is { } batch && batch.World==world?batch.Nodes:BakedWorld.All(world);
+    internal static IEnumerable<Node> Candidates(Node3D world, IEnumerable<Aabb> boxes)
+    {
+        if (activeBatch is not { } batch || batch.World != world) return BakedWorld.All(world);
+        var regions = boxes.ToArray();
+        return batch.Meshes.Where(m => regions.Any(b => m.Box.Intersects(b))).Select(m => (Node)m.Mesh);
+    }
+
+    private sealed record MeshBounds(Aabb Box);
+    private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<ArrayMesh,MeshBounds> solidBounds=new();
+    // Collision stand-ins can reach behind a thin visible plinth. Rejecting by the drawn bounds alone leaves
+    // an invisible floor across a stair even though the doorway and the visible paving were cut correctly.
+    private static Aabb Bounds(ArrayMesh mesh)
+    {
+        if(!mesh.HasMeta("native_solid_stand_in"))return mesh.GetAabb();
+        return solidBounds.GetValue(mesh,m=>
+        {
+            var box=m.GetAabb();
+            foreach(var p in m.GetMeta("native_solid_stand_in").AsVector3Array())box=box.Expand(p);
+            return new MeshBounds(box);
+        }).Box;
+    }
     /// <summary>Clip the named mesh of the world at the box; returns the triangles that were cut or dropped (0: nothing to do).</summary>
     public static int Cut(Node3D world, string meshName, QuayExits.Frame f, float s0, float s1, float u0, float u1)
     {
@@ -126,12 +172,12 @@ public static class QuayNotch
             }
         }
         if(solidCut){edges.Add(p=>p.Y-y0);edges.Add(p=>y1-p.Y);}
-        foreach (var node in BakedWorld.All(world))
+        foreach (var node in Candidates(world, new[] { box }))
         {
             if (node is not MeshInstance3D { Mesh: ArrayMesh mesh } mi) continue;
             var xf = Transform3D.Identity;
             for (Node? n = mi; n is Node3D n3; n = n.GetParent()) xf = n3.Transform * xf;
-            if (!(xf * mesh.GetAabb()).Intersects(box)) continue;
+            if (!(xf * Bounds(mesh)).Intersects(box)) continue;
             var cut = new ArrayMesh { ResourceName = mesh.ResourceName };
             foreach (var key in mesh.GetMetaList()) cut.SetMeta(key, mesh.GetMeta(key));
             int here = 0;
@@ -179,23 +225,27 @@ public static class QuayNotch
     public static int CutRegions(Node3D world, Func<MeshInstance3D, bool> pick, Func<(Vector3, Vector3, Vector3), bool> consider, IReadOnlyList<Region> regions)
     {
         int changed = 0;
-        foreach (var node in BakedWorld.All(world))
+        foreach (var node in Candidates(world, regions.Select(r => r.Box)))
         {
             if (node is not MeshInstance3D { Mesh: ArrayMesh mesh } mi || !pick(mi)) continue;
             var xf = Transform3D.Identity;
             for (Node? n = mi; n is Node3D n3; n = n.GetParent()) xf = n3.Transform * xf;
-            var bounds = xf * mesh.GetAabb();
+            var bounds = xf * Bounds(mesh);
             if (!regions.Any(r => bounds.Intersects(r.Box))) continue;
             Godot.Collections.Array[]? surfaces = null;
+            SurfaceScan[]? scans = null;
+            int[]? misses = null;
             using var standIn = new ArrayMesh();
             if (mesh.HasMeta("native_solid_stand_in")) standIn.SetMeta("native_solid_stand_in", mesh.GetMeta("native_solid_stand_in"));
             foreach (var region in regions)
             {
                 var box = region.Box;
-                if (!(xf * mesh.GetAabb()).Intersects(box)) continue;
+                if (!bounds.Intersects(box)) continue;
                 if (surfaces == null)
                 {
                     surfaces = new Godot.Collections.Array[mesh.GetSurfaceCount()];
+                    scans = new SurfaceScan[surfaces.Length];
+                    misses = new int[surfaces.Length];
                     for (int s = 0; s < surfaces.Length; s++) surfaces[s] = mesh.SurfaceGetArrays(s);
                 }
                 bool Near((Vector3, Vector3, Vector3) tri)
@@ -207,7 +257,14 @@ public static class QuayNotch
                 int here = 0;
                 for (int s = 0; s < surfaces.Length; s++)
                     if (mesh.SurfaceGetPrimitiveType(s) == Mesh.PrimitiveType.Triangles)
-                        here += CutSurfaceWith(surfaces[s], xf, Near, region.Inside);
+                    {
+                        int removed = CutSurfaceWith(surfaces[s], xf, Near, region.Inside, scans![s], box);
+                        here += removed;
+                        // Build only after repeated misses. A surface cut at every step must
+                        // be repacked each time, so indexing each transient version wastes work.
+                        if (removed == 0 && scans[s] == null && ++misses![s] == 2)
+                            scans[s] = new SurfaceScan(surfaces[s], xf);
+                    }
                 // Collision-only changes must also produce a replacement resource.
                 here += CutStandIn(standIn, xf, Near, region.Inside);
                 if (here == 0) continue;
@@ -253,21 +310,61 @@ public static class QuayNotch
         return n;
     }
 
-    public static int CutSurfaceWith(Godot.Collections.Array arrays, Transform3D xf, Func<(Vector3, Vector3, Vector3), bool> consider, List<Func<Vector3, float>> inside)
+    // Small stair volumes repeatedly visit the same large surface. Index its triangle
+    // bounds once between edits; the exact clipping predicates still decide every cut.
+    private sealed class SurfaceScan
     {
-        var positions = arrays[(int)Mesh.ArrayType.Vertex].AsVector3Array();
+        public readonly Vector3[] Positions, World;
+        public readonly int[] Index;
+        private readonly Dictionary<(int, int), List<int>> cells = new();
+        private readonly List<int> broad = new();
+        private static int Cell(float v) => (int)MathF.Floor(v / 4);
+        public SurfaceScan(Godot.Collections.Array arrays, Transform3D xf)
+        {
+            Positions = arrays[(int)Mesh.ArrayType.Vertex].AsVector3Array();
+            var ix = arrays[(int)Mesh.ArrayType.Index];
+            Index = ix.VariantType == Variant.Type.Nil ? Enumerable.Range(0, Positions.Length).ToArray() : ix.AsInt32Array();
+            World = Positions.Select(p => xf * p).ToArray();
+            for (int t = 0; t + 2 < Index.Length; t += 3)
+            {
+                var a = World[Index[t]]; var b = World[Index[t+1]]; var c = World[Index[t+2]];
+                var lo = a.Min(b).Min(c); var hi = a.Max(b).Max(c);
+                int x0=Cell(lo.X), x1=Cell(hi.X), z0=Cell(lo.Z), z1=Cell(hi.Z);
+                if ((long)(x1-x0+1)*(z1-z0+1)>256) { broad.Add(t); continue; }
+                for(int x=x0;x<=x1;x++) for(int z=z0;z<=z1;z++)
+                {
+                    if(!cells.TryGetValue((x,z),out var list)) cells[(x,z)]=list=new();
+                    list.Add(t);
+                }
+            }
+        }
+        public IEnumerable<int> Query(Aabb box)
+        {
+            int x0=Cell(box.Position.X),x1=Cell(box.End.X),z0=Cell(box.Position.Z),z1=Cell(box.End.Z);
+            if((long)(x1-x0+1)*(z1-z0+1)>4096) return Enumerable.Range(0,Index.Length/3).Select(t=>t*3);
+            var result = new HashSet<int>(broad);
+            for(int x=x0;x<=x1;x++) for(int z=z0;z<=z1;z++)
+                if(cells.TryGetValue((x,z),out var list)) result.UnionWith(list);
+            return result;
+        }
+    }
+    public static int CutSurfaceWith(Godot.Collections.Array arrays, Transform3D xf, Func<(Vector3, Vector3, Vector3), bool> consider, List<Func<Vector3, float>> inside)
+        => CutSurfaceWith(arrays, xf, consider, inside, null, null);
+    private static int CutSurfaceWith(Godot.Collections.Array arrays, Transform3D xf, Func<(Vector3, Vector3, Vector3), bool> consider, List<Func<Vector3, float>> inside, SurfaceScan? scan, Aabb? box)
+    {
+        var positions = scan?.Positions ?? arrays[(int)Mesh.ArrayType.Vertex].AsVector3Array();
         var indexV = arrays[(int)Mesh.ArrayType.Index];
-        var index = indexV.VariantType == Variant.Type.Nil ? Enumerable.Range(0, positions.Length).ToArray() : indexV.AsInt32Array();
+        var index = scan?.Index ?? (indexV.VariantType == Variant.Type.Nil ? Enumerable.Range(0, positions.Length).ToArray() : indexV.AsInt32Array());
         if (positions.Length == 0 || index.Length < 3) return 0;
         // Entrance stair cuts are small volumes in large town meshes. Classify with positions only:
         // most surfaces miss entirely, so do not copy all UV/normal/colour channels for them.
         var selected = new bool[index.Length / 3];
         int selectedCount = 0;
-        for (int t = 0; t + 2 < index.Length; t += 3)
+        foreach (int t in scan != null && box.HasValue ? scan.Query(box.Value) : Enumerable.Range(0, index.Length / 3).Select(t => t * 3))
         {
-            var a = xf * positions[index[t]];
-            var b = xf * positions[index[t + 1]];
-            var c = xf * positions[index[t + 2]];
+            var a = scan != null ? scan.World[index[t]] : xf * positions[index[t]];
+            var b = scan != null ? scan.World[index[t+1]] : xf * positions[index[t + 1]];
+            var c = scan != null ? scan.World[index[t+2]] : xf * positions[index[t + 2]];
             if (!consider((a, b, c))) continue;
             bool outside = false;
             foreach (var f in inside)
@@ -292,9 +389,9 @@ public static class QuayNotch
                     c.Stride = c.Data.Length / count;
                     if (c.Stride * count != c.Data.Length) return 0;
                     break;
-                case Variant.Type.PackedVector3Array: c.Stride = 3; c.Data = v.AsVector3Array().SelectMany(p => new[] { p.X, p.Y, p.Z }).ToArray(); break;
-                case Variant.Type.PackedVector2Array: c.Stride = 2; c.Data = v.AsVector2Array().SelectMany(p => new[] { p.X, p.Y }).ToArray(); break;
-                case Variant.Type.PackedColorArray: c.Stride = 4; c.Data = v.AsColorArray().SelectMany(p => new[] { p.R, p.G, p.B, p.A }).ToArray(); break;
+                case Variant.Type.PackedVector3Array: c.Stride = 3; c.Data = Flatten(v.AsVector3Array()); break;
+                case Variant.Type.PackedVector2Array: c.Stride = 2; c.Data = Flatten(v.AsVector2Array()); break;
+                case Variant.Type.PackedColorArray: c.Stride = 4; c.Data = Flatten(v.AsColorArray()); break;
                 case Variant.Type.PackedFloat32Array:
                     c.Data = v.AsFloat32Array();
                     c.Stride = c.Data.Length / count;
@@ -378,6 +475,40 @@ public static class QuayNotch
         return cutTriangles;
     }
 
+    private static float[] Flatten(Vector3[] values)
+    {
+        var result = new float[values.Length * 3];
+        for (int i = 0; i < values.Length; i++)
+        {
+            result[i * 3 + 0] = values[i].X;
+            result[i * 3 + 1] = values[i].Y;
+            result[i * 3 + 2] = values[i].Z;
+        }
+        return result;
+    }
+    private static float[] Flatten(Vector2[] values)
+    {
+        var result = new float[values.Length * 2];
+        for (int i = 0; i < values.Length; i++)
+        {
+            result[i * 2 + 0] = values[i].X;
+            result[i * 2 + 1] = values[i].Y;
+        }
+        return result;
+    }
+    private static float[] Flatten(Color[] values)
+    {
+        var result = new float[values.Length * 4];
+        for (int i = 0; i < values.Length; i++)
+        {
+            result[i * 4 + 0] = values[i].R;
+            result[i * 4 + 1] = values[i].G;
+            result[i * 4 + 2] = values[i].B;
+            result[i * 4 + 3] = values[i].A;
+        }
+        return result;
+    }
+
     // one channel of a vertex (position, normal, tangent, colour, the uvs, the customs), flattened: Stride floats a vertex
     private sealed class Channel
     {
@@ -406,15 +537,15 @@ public static class QuayNotch
             {
                 case Variant.Type.PackedVector3Array:
                     c.Stride = 3;
-                    c.Data = v.AsVector3Array().SelectMany(p => new[] { p.X, p.Y, p.Z }).ToArray();
+                    c.Data = Flatten(v.AsVector3Array());
                     break;
                 case Variant.Type.PackedVector2Array:
                     c.Stride = 2;
-                    c.Data = v.AsVector2Array().SelectMany(p => new[] { p.X, p.Y }).ToArray();
+                    c.Data = Flatten(v.AsVector2Array());
                     break;
                 case Variant.Type.PackedColorArray:
                     c.Stride = 4;
-                    c.Data = v.AsColorArray().SelectMany(p => new[] { p.R, p.G, p.B, p.A }).ToArray();
+                    c.Data = Flatten(v.AsColorArray());
                     break;
                 case Variant.Type.PackedFloat32Array:
                     c.Data = v.AsFloat32Array();

@@ -102,6 +102,7 @@ public partial class Main : Node
 
     public override void _Ready()
     {
+        Dev.StartupTiming.Mark("main.ready");
         I = this;
         Dev.FrameCost.InstallContext();
         Paths.Initialize();
@@ -147,33 +148,54 @@ public partial class Main : Node
     /// </summary>
     private async void LoadTown(string town, bool beside)
     {
+        Dev.StartupTiming.Mark("prepare-world-load.begin");
         try { await PrepareWorldLoad(); }
         catch (Exception e) { GD.PrintErr($"The shared town could not be loaded: {e.Message}"); GetTree().Quit(1); return; }
+        Dev.StartupTiming.Mark("prepare-world-load.end");
         Error err;
-        if (beside)
+        if (beside && !Flag("load-on-main"))
         {
             // two frames first: the loading screen is on the glass before the work starts
             await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
             await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+            // Worker resource reads synchronize with the renderer. Do not make each
+            // synchronization wait for the monitor refresh or the player's frame cap.
+            bool display=DisplayServer.GetName()!="headless";
+            var vsync=display?DisplayServer.WindowGetVsyncMode():DisplayServer.VSyncMode.Disabled;
+            int frameCap=Engine.MaxFps;
+            Engine.MaxFps=0;
+            // (the Ruien's globals before the loading thread starts: World/Ruien/Ruien.PrepareEarly)
+            if(!Flag("ruien-in-order"))foreach(var ruien in parts.OfType<World.Ruien.Ruien>())ruien.PrepareEarly();
+            if(display)DisplayServer.WindowSetVsyncMode(DisplayServer.VSyncMode.Disabled);
             try
             {
-                err = await Task.Run(() => world.Load(town));
+                using(Dev.StartupTiming.Measure("world.load")) err = await Task.Run(() => world.Load(town));
             }
             catch (Exception e)
             {
                 GD.PrintErr(e.ToString());
                 err = Error.Failed;
             }
+            finally
+            {
+                Engine.MaxFps=frameCap;
+                if(display)DisplayServer.WindowSetVsyncMode(vsync);
+            }
         }
-        else err = world.Load(town);
+        else { using(Dev.StartupTiming.Measure("world.load")) err = world.Load(town); }
         if (err != Error.Ok)
         {
             GD.PrintErr($"The town did not load ({err}): {town}");
             GetTree().Quit(1);
             return;
         }
-        view.AddChild(world);
-        await PrepareWorld();
+        // The Ruien's worker only ever runs beside the town's loading thread: the main thread's own loads and the
+        // town's scripts (from world.ready on) must not run while it still loads (World/Ruien/Ruien.StartBeside).
+        using (Dev.StartupTiming.Measure("ruien.join"))
+            foreach (var early in parts.OfType<World.Ruien.Ruien>())
+                while (!early.Beside.IsCompleted) await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+        using(Dev.StartupTiming.Measure("world.ready")) view.AddChild(world);
+        using(Dev.StartupTiming.Measure("prepare-world")) await PrepareWorld();
         GD.Print($"town in: {JsonSerializer.Serialize(world.Report)}");
 
         if (DedicatedServer) { Loaded = true; return; }
@@ -191,9 +213,35 @@ public partial class Main : Node
             DisplayServer.WindowSetVsyncMode(DisplayServer.VSyncMode.Disabled);
             Engine.MaxFps = 0;
         }
-        foreach (var part in parts.Where(p => p.GetParent() == null)) AddChild(part);
-        if (!Flag("movers-original")) Movers.MoverCost.PrepareCode(parts);
+        foreach (var part in parts.Where(p => p.GetParent() == null))
+        {
+            // a part built beside the town's load is laid in at its own place, once its worker is done
+            if (part is World.Ruien.Ruien early && !early.Beside.IsCompleted)
+                using (Dev.StartupTiming.Measure("part.Ruien.wait"))
+                    while (!early.Beside.IsCompleted) await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+            var partClock = System.Diagnostics.Stopwatch.StartNew();
+            using(Dev.StartupTiming.Measure("part."+part.GetType().Name)) AddChild(part);
+            if (partClock.ElapsedMilliseconds >= 100) GD.Print($"startup part: {part.GetType().Name}: {partClock.ElapsedMilliseconds} ms");
+            // one frame once the walk map is made: the game rules start their own set-up then (NativeTownGame)
+            if (part is World.Lights) await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+        }
+        using(Dev.StartupTiming.Measure("prepare-mover-code"))
+            if (!Flag("movers-original")) Movers.MoverCost.PrepareCode(parts);
         Loaded = true;
+        Dev.StartupTiming.Mark("main.loaded");
+        Scheldemist.World.StartupResources.Release();
+        // (cache entries no start has used for days go, beside the game: World/StartupCachePrune)
+        if (!Flag("no-startup-cache")) Scheldemist.World.StartupCachePrune.Start();
+    }
+
+    /// <summary>
+    /// The town's street cuts are made (any thread): the parts that build beside the town's load start now, on the main
+    /// thread's next frame (dev: --ruien-in-order builds the Ruien at its own place in the start, as before).
+    /// </summary>
+    public void StreetCutsDone()
+    {
+        if (parts == null || Flag("ruien-in-order")) return;
+        Callable.From(() => { foreach (var ruien in parts.OfType<World.Ruien.Ruien>()) ruien.StartBeside(); }).CallDeferred();
     }
 
     /// <summary>

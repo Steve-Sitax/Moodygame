@@ -1,0 +1,37 @@
+{
+  "bronze": {
+    "triangles": 33960,
+    "finite": true,
+    "degenerate": 0,
+    "wrong_winding": 0,
+    "normal_error": 5.960464477539063e-08
+  },
+  "iron": {
+    "triangles": 97104,
+    "finite": true,
+    "degenerate": 0,
+    "wrong_winding": 0,
+    "normal_error": 5.960464477539063e-08
+  },
+  "mortar": {
+    "triangles": 4720,
+    "finite": true,
+    "degenerate": 0,
+    "wrong_winding": 0,
+    "normal_error": 5.960464477539063e-08
+  },
+  "rope": {
+    "triangles": 15120,
+    "finite": true,
+    "degenerate": 0,
+    "wrong_winding": 0,
+    "normal_error": 5.960464477539063e-08
+  },
+  "stone": {
+    "triangles": 70960,
+    "finite": true,
+    "degenerate": 0,
+    "wrong_winding": 0,
+    "normal_error": 5.960464477539063e-08
+  }
+}

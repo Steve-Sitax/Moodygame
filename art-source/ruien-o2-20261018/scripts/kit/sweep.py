@@ -286,7 +286,8 @@ def build_lower(g, sec, mats, coll, rng, branch=(), host=(), seams=()):
         return None if keep.all() else keep
     for side in sec.sides:
         edge = hi if side > 0 else lo
-        ss = np.linspace(edge, side * (sec.hw + 0.06), 9)
+        # Stop at the coping's inner arris. A full ledge here covered the coping with native setts after intake.
+        ss = np.linspace(edge + side * 0.46, side * (sec.hw + 0.06), 9)
         Uu, Ss = np.meshgrid(uu, ss, indexing='ij')
         P = path.world(Uu, Ss, np.full(Uu.shape, sec.ledge_y))
         keep = np.ones((len(uu) - 1, len(ss) - 1), bool)
@@ -330,17 +331,17 @@ def build_lower(g, sec, mats, coll, rng, branch=(), host=(), seams=()):
                 L = min(rng.uniform(0.7, 1.1), rb - u)
                 if gaps and rb - (u + L) < 0.3:
                     L = rb - u
-                V, F = U.chipped_block(L - 0.003, 0.25, 0.4, r=rng.uniform(0.006, 0.012), res=0.055, seed=g.seed * 1000 + k, chips=int(rng.integers(5, 11)),
+                V, F = U.chipped_block(L - 0.003, 0.32, 0.5, r=rng.uniform(0.008, 0.014), res=0.055, seed=g.seed * 1000 + k, chips=int(rng.integers(5, 11)),
                                        chip_size=(0.02, 0.07), wear_top=0.012, corners=int(rng.integers(0, 3)), wobble=0.0009)
-                Pw = path.world(u + L / 2 + V[:, 0], edge + side * (0.2 - 0.04) + side * V[:, 2], sec.ledge_y - 0.125 + V[:, 1])
+                Pw = path.world(u + L / 2 + V[:, 0], edge + side * (0.25 - 0.04) + side * V[:, 2], sec.ledge_y - 0.16 + V[:, 1])
                 if side > 0:
                     F = F[:, ::-1]
                 obs.append(U.mesh_from_faces('%s_coping_%03d' % (g.name, k), Pw, F, uv=U.box_uv(V, F), coll_=coll, mat=mats['bluestone']))
                 if u + L < rb - 0.05:
                     # silt and dirt packed in the joint, so no view opens under the walkway (#276)
                     uj = u + L - 0.0015
-                    Cj = np.array([path.world(np.array(uj + (-0.006 if not (j & 1) else 0.006)), np.array(edge + side * (-0.03 if not (j & 4) else 0.34)),
-                                              np.array(sec.ledge_y - 0.245 if not (j & 2) else sec.ledge_y - 0.012)) for j in range(8)])
+                    Cj = np.array([path.world(np.array(uj + (-0.006 if not (j & 1) else 0.006)), np.array(edge + side * (-0.03 if not (j & 4) else 0.45)),
+                                              np.array(sec.ledge_y - 0.315 if not (j & 2) else sec.ledge_y - 0.012)) for j in range(8)])
                     obs.append(U.block_object('%s_copingjoint' % g.name, Cj, mats['silt'], coll, r=0.002, res=0.1, chips=0))
                 u += L; k += 1
     # bed and silt

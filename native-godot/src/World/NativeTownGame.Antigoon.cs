@@ -30,7 +30,9 @@ public partial class NativeTownGame
     private void AttachAntigoon(NativeServiceHost host, NativeMultiplayer multiplayer, WalkMap map, NativeStreetLighting lamps, NativeActions actions, JsonObject city)
     {
         // Capture actual solid triangles once; requests never access scene nodes or physics.
-        var geometry=new AntigoonGeometry(World);
+        // (indexed on a worker; the first question waits for it, a few seconds into the start at most)
+        var capture=AntigoonGeometry.Capture(World);
+        AntigoonGeometry geometry()=>capture.Result;
         // He steps over crates, benches and low walls a man must climb; anything taller below his crown stops him.
         const float Step=AntigoonSize.Step,Radius=AntigoonSize.ClearanceRadius,Crown=AntigoonSize.ClearanceHeight,Leap=AntigoonSize.Leap;
         int Quarter(double v,double origin)=>(int)Math.Floor((v-origin)*4);
@@ -45,9 +47,9 @@ public partial class NativeTownGame
         }
         double Floor(P p)=>Footing(p) is {} f?map.BaseAt(f.X,f.Z):map.BaseAt(p.X,p.Z);
         Vector3 At(P p,float height=0)=>new((float)p.X,(float)Floor(p)+height,(float)p.Z);
-        bool Fits(P p)=>!Water.In((float)p.X,(float)p.Z)&&Footing(p) is {} f&&geometry.Clear(new((float)p.X,(float)map.BaseAt(f.X,f.Z),(float)p.Z),Radius,Crown,Step);
+        bool Fits(P p)=>!Water.In((float)p.X,(float)p.Z)&&Footing(p) is {} f&&geometry().Clear(new((float)p.X,(float)map.BaseAt(f.X,f.Z),(float)p.Z),Radius,Crown,Step);
         // Too tall to step over but low enough to leap: nothing between 2.3 m and his crown.
-        bool Leaps(P p)=>!Water.In((float)p.X,(float)p.Z)&&Footing(p) is {} f&&geometry.Clear(new((float)p.X,(float)map.BaseAt(f.X,f.Z),(float)p.Z),Radius,Crown,Leap);
+        bool Leaps(P p)=>!Water.In((float)p.X,(float)p.Z)&&Footing(p) is {} f&&geometry().Clear(new((float)p.X,(float)map.BaseAt(f.X,f.Z),(float)p.Z),Radius,Crown,Leap);
         var lampPositions=((NativeTown)World).LampFacts.Select(l=>new P(NativeGoods.Number(l?["x"]),NativeGoods.Number(l?["z"]))).ToArray();
         // His reachability map: built once per world on a worker thread, then kept in the data folder.
         AntigoonReach? reach=null;
@@ -75,7 +77,7 @@ public partial class NativeTownGame
         // Routes run over the map's own spots; a step between two of them may round a third of a metre off.
         bool OnMap(P p)=>Reach().Reachable(p);
         bool Clear(P p)=>Reach().NearAny(p,.36);
-        bool Sight(P a,P b)=>geometry.Visible(At(a,1.7f),At(b,1.7f));
+        bool Sight(P a,P b)=>geometry().Visible(At(a,1.7f),At(b,1.7f));
         P? PlayerAt(int id)
         {
             if(multiplayer.Enabled)return multiplayer.Position(id) is {} p?new P(NativeGoods.Number(p["x"]),NativeGoods.Number(p["z"])):null;
@@ -166,10 +168,10 @@ public partial class NativeTownGame
             return null;
         };
         // Any of him in a man's line of sight: legs, chest or head, from eyes at 1.6 m.
-        bool BodyVisible(P eye,P giant)=>geometry.Visible(At(eye,1.6f),At(giant,1.3f*AntigoonSize.Scale))||geometry.Visible(At(eye,1.6f),At(giant,2.9f*AntigoonSize.Scale))||geometry.Visible(At(eye,1.6f),At(giant,4.5f*AntigoonSize.Scale));
+        bool BodyVisible(P eye,P giant)=>geometry().Visible(At(eye,1.6f),At(giant,1.3f*AntigoonSize.Scale))||geometry().Visible(At(eye,1.6f),At(giant,2.9f*AntigoonSize.Scale))||geometry().Visible(At(eye,1.6f),At(giant,4.5f*AntigoonSize.Scale));
         double Walked(IReadOnlyList<P> path){double sum=0;for(int i=1;i<path.Count;i++)sum+=path[i].Distance(path[i-1]);return sum;}
         encounter.BodyVisible=BodyVisible;
-        encounter.Roofed=p=>!geometry.Visible(At(p,2),At(p,60));
+        encounter.Roofed=p=>!geometry().Visible(At(p,2),At(p,60));
         encounter.StageAt=(junction,eye,goal)=>
         {
             // The story's crossing: from cover on one side of a dark junction, across it in plain view of the eye,
@@ -198,7 +200,7 @@ public partial class NativeTownGame
             }
             return null;
         };
-        encounter.BlockReason=p=>Water.In((float)p.X,(float)p.Z)?"water":Footing(p)==null?"no footing":geometry.Blocker(At(p),Radius,Crown,Step);
+        encounter.BlockReason=p=>Water.In((float)p.X,(float)p.Z)?"water":Footing(p)==null?"no footing":geometry().Blocker(At(p),Radius,Crown,Step);
         encounter.Fits=Fits;encounter.ReachMap=Reach;
         live=encounter;
         host.AddModule(encounter);

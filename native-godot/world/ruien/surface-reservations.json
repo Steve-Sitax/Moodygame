@@ -1,0 +1,159 @@
+{
+ "about": "Full surface footprints surveyed against runtime vehicle routes, goods railway, crane runways and standing buildings. Preserve the approach and maintenance strip when placing future traffic or props.",
+ "footprints": [
+  {
+   "id": "re24_steenplein",
+   "outline": [
+    [
+     -206.8050237926713,
+     21.5883121578227
+    ],
+    [
+     -210.46360918390747,
+     21.486562784196884
+    ],
+    [
+     -210.23342207636054,
+     13.209763046646195
+    ],
+    [
+     -206.57483668512438,
+     13.31151242027201
+    ]
+   ],
+   "purpose": "City-works entrance, roof/gutters, two gullies and 1.6 m doorway approach; no vehicle route"
+  },
+  {
+   "id": "re27_werf",
+   "outline": [
+    [
+     -294.49375642681133,
+     57.05287946216876
+    ],
+    [
+     -294.65991526267493,
+     60.70910582841914
+    ],
+    [
+     -302.931378189602,
+     60.333205511219454
+    ],
+    [
+     -302.7652193537384,
+     56.676979144969074
+    ]
+   ],
+   "purpose": "City-works entrance, roof/gutters, two gullies and 1.6 m doorway approach; no vehicle route"
+  },
+  {
+   "id": "re28_rijnkaai",
+   "outline": [
+    [
+     46.38,
+     30.060000000000002
+    ],
+    [
+     46.38,
+     33.72
+    ],
+    [
+     38.1,
+     33.72
+    ],
+    [
+     38.1,
+     30.060000000000002
+    ]
+   ],
+   "purpose": "City-works entrance, roof/gutters, two gullies and 1.6 m doorway approach; no vehicle route"
+  },
+  {
+   "id": "re30_hanseatic",
+   "outline": [
+    [
+     71.86081162309935,
+     200.28120840097506
+    ],
+    [
+     72.2249952347162,
+     196.63937228480648
+    ],
+    [
+     80.46390316965491,
+     197.46326307830037
+    ],
+    [
+     80.09971955803806,
+     201.10509919446895
+    ]
+   ],
+   "purpose": "City-works entrance, roof/gutters, two gullies and 1.6 m doorway approach; no vehicle route"
+  },
+  {
+   "id": "re31_kipdorp",
+   "outline": [
+    [
+     -177.16683829588325,
+     283.1363689556368
+    ],
+    [
+     -173.5149397605139,
+     282.89298225228737
+    ],
+    [
+     -172.96432721851025,
+     291.1546543486967
+    ],
+    [
+     -176.6162257538796,
+     291.3980410520461
+    ]
+   ],
+   "purpose": "City-works entrance, roof/gutters, two gullies and 1.6 m doorway approach; no vehicle route"
+  },
+  {
+   "id": "re32_stadspark",
+   "outline": [
+    [
+     -219.6482976421907,
+     325.74662906817093
+    ],
+    [
+     -223.30750585121706,
+     325.670502312072
+    ],
+    [
+     -223.13528466528822,
+     317.39229357689766
+    ],
+    [
+     -219.47607645626186,
+     317.4684203329966
+    ]
+   ],
+   "purpose": "City-works entrance, roof/gutters, two gullies and 1.6 m doorway approach; no vehicle route"
+  },
+  {
+   "id": "re33_lijnwaadmarkt",
+   "outline": [
+    [
+     -212.37959179862085,
+     153.65871385997414
+    ],
+    [
+     -216.03952370622116,
+     153.6810394446105
+    ],
+    [
+     -216.09003076654605,
+     145.4011934897115
+    ],
+    [
+     -212.43009885894574,
+     145.37886790507514
+    ]
+   ],
+   "purpose": "City-works entrance, roof/gutters, two gullies and 1.6 m doorway approach; no vehicle route"
+  }
+ ]
+}

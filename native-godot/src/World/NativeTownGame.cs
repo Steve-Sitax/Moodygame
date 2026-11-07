@@ -37,7 +37,13 @@ public partial class NativeTownGame : Scheldemist.Main
     }
     public override async Task<ILocalGameBackend> CreateLocalBackend()
     {
-        while (!Loaded) await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+        // The rules' own set-up needs only the walk map and the town's fixed facts: it starts once the walk map is made
+        // (Main gives it one frame there) and its people are made on a worker beside the later parts. What reads the
+        // finished scene (Antigoon's index, the world identity) and the client's link wait for the whole start.
+        // (dev: --backend-after-load starts it after the whole start, as before)
+        bool early = !Flag("backend-after-load");
+        while (!Loaded && !(early && World is NativeTown { WalkBuilt: true })) await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+        Scheldemist.Dev.StartupTiming.Mark("backend.begin");
         var navigation = World.NativeWalk!;
         bool freshWorld = !File.Exists(Paths.Database) || new FileInfo(Paths.Database).Length == 0;
         var host = new NativeServiceHost(new NativeServiceOptions(Paths.Database, Path.Combine(Paths.NativeDataRoot!, "services"), Paths.SaveSlots));
@@ -67,12 +73,13 @@ public partial class NativeTownGame : Scheldemist.Main
             if(host.Rest.Bench(place.Id)==null)
             {var seat=place.At*new Vector3(0,0,.02f);host.Rest.RegisterBench(new JsonObject{["id"]=place.Id,["label"]=place.Label,["x"]=(double)seat.X,["z"]=(double)seat.Z,["y"]=(double)place.At.Origin.Y,["fine"]=place.Fine});newBenches++;}
         GD.Print($"benches: {Scheldemist.Play.BenchPlaces.All.Count} placed, {newBenches} new to the sleep list");
+        Scheldemist.Dev.StartupTiming.Mark("backend.host");
         try
         {
             var town = new Services.NativeTown(host); host.AddModule(town);
             var profile = new NativeTownProfile(host); host.AddModule(profile);
             host.AddModule(new NativeTownArrival(host));
-            var keeperWays=Scheldemist.World.Ruien.RuienData.Load().Areas.SelectMany(a=>a.Ways).Where(w=>w.Kind=="keeper_stair").ToArray();
+            var keeperWays=Scheldemist.World.Ruien.RuienData.Load().Areas.SelectMany(a=>a.Ways).Where(w=>w.Kind=="keeper_stair" && !w.Retired).ToArray();
             // (the entrances' street doors share the hatches' saved state: RuienEntranceDoor)
             var ruienAccess=new NativeRuienAccess(host,keeperWays.Select(w=>w.Id).Concat(Scheldemist.World.Ruien.RuienEntrance.All.Select(e=>e.DoorId)));
             foreach(var way in keeperWays)
@@ -205,11 +212,15 @@ public partial class NativeTownGame : Scheldemist.Main
             // and fresh-world lifecycle registration need no scene-node calls or render-thread blocking.
             // (#150: the Vismarkt's market-day sellers and their carts, added after the original fresh town; #221: the church
             // squares as places, their neighbours meeting there, before their markets' sellers)
+            Scheldemist.Dev.StartupTiming.Mark("backend.modules");
             await Task.Run(() => host.WithState(_ => { host.AddModule(populationLifecycle); host.AddModule(new NativeTownSquaresPopulation(population)); host.AddModule(new NativeTownMarketPopulation(population, populationLifecycle.Transport)); return true; }));
             // A population rebuild clears prison and park state. Initialize their schedules afterwards,
             // before any client can request the town or start planning its routes (#203).
+            Scheldemist.Dev.StartupTiming.Mark("backend.population");
             host.AddModule(prison); host.AddModule(park);
+            Scheldemist.Dev.StartupTiming.Mark("backend.prison-park");
             host.AddModule(new NativeLampJobs(host));
+            Scheldemist.Dev.StartupTiming.Mark("backend.lamp-jobs");
             var story = new NativeStory(host) {
                 Resident = town.Resident, Doing = id => town.Activity(id).Act,
                 Open = (x, z, maximum) => Ways.NearestOpen(x, z, maximum) is { } point ? (point.X, point.Y) : null,
@@ -225,10 +236,15 @@ public partial class NativeTownGame : Scheldemist.Main
                 Profile = id => new JsonObject { ["first"] = profile.Of(id).First, ["code"] = NativeTownProfile.Code(profile.Of(id)) },
                 PlayerLeft = (id, at) => goods.PlayerLeft(id, at)
             };
+            Scheldemist.Dev.StartupTiming.Mark("backend.story");
             host.AddModule(multiplayer);
             host.MultiplayerEnabled = () => multiplayer.Enabled;
             host.OnlinePlayers = multiplayer.OnlineIds;
+            Scheldemist.Dev.StartupTiming.Mark("backend.multiplayer");
+            while (!Loaded) await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+            Scheldemist.Dev.StartupTiming.Mark("backend.loaded");
             AttachAntigoon(host, multiplayer, navigation, streetLighting, actions, population.City);
+            Scheldemist.Dev.StartupTiming.Mark("backend.antigoon");
             AntigoonService!.StoryWanted = story.SightingWanted; AntigoonService.StoryWitnessed = story.Witness;
             actions.Walker = multiplayer.Walker;
             goods.NpcMayReport = multiplayer.MayReportNpc;
@@ -236,7 +252,9 @@ public partial class NativeTownGame : Scheldemist.Main
                 if (multiplayer.Enabled) return multiplayer.Position(player) is { } at ? (NativeGoods.Number(at["x"]), NativeGoods.Number(at["z"])) : null;
                 var position = Volatile.Read(ref playerPosition); return position == null ? null : (position.X, position.Z);
             };
+            Scheldemist.Dev.StartupTiming.Mark("backend.services");
             var sharedWorld = NativeWorldIdentity.Capture((NativeTown)World, fingerprint);
+            Scheldemist.Dev.StartupTiming.Mark("backend.world-identity");
             var network = new NativeNetworkHost(host, multiplayer, profile, sharedWorld);
             // Reset runs board extras, which can start asynchronous newspaper/notebook work.
             // Finish every constructor and authority callback before allowing that work to use SQLite.
@@ -250,7 +268,9 @@ public partial class NativeTownGame : Scheldemist.Main
             try
             {
                 int port = int.TryParse(Arg("port"), out int chosenPort) ? chosenPort : 8800;
+                Scheldemist.Dev.StartupTiming.Mark("backend.state");
                 await network.Start(port, Arg("port") != "");
+                Scheldemist.Dev.StartupTiming.Mark("backend.network");
                 if (DedicatedServer)
                 {
                     await host.WithState(_ => multiplayer.HandleLocal("POST", "/api/mp/config", 1, new JsonObject { ["multiplayer"] = true, ["lan"] = true }));
@@ -289,7 +309,12 @@ public partial class NativeTownGame : Scheldemist.Main
             fingerprint = NativeWorldIdentity.ReadFingerprint();
             Scheldemist.Models.ModelLibrary.NativeScene = name =>
                 ResourceLoader.Load<PackedScene>("res://assets/game-models/" + name + ".scn").Instantiate<Node3D>();
+            // (the game server's web code compiled beside the town's load: NativeNetworkHost.Prewarm)
+            if (!DedicatedServer) NativeNetworkHost.Prewarm();
+            // (files the start loads later on the main thread, read beside the town: World/StartupResources)
+            Scheldemist.World.StartupResources.Declare(NativeTownMaterials.GameMaterialFiles);
             base._Ready(); initialized = true;
+            if (Arg("startup-proof") is { Length: > 0 } startupProof) _ = NativeStartupProof.Run(this, Paths.Absolute(startupProof));
 #if DEBUG
             if(Arg("furniture-game-proof") is {Length:>0} furnitureProof) _ = Interiors.FurnitureGameProof.Run(this,Paths.Absolute(furnitureProof));
             if(Arg("room-route-audit") is {Length:>0} roomRoutes) _ = Interiors.RoomRouteAudit.Run(this,Paths.Absolute(roomRoutes));
@@ -314,6 +339,7 @@ public partial class NativeTownGame : Scheldemist.Main
             if (Arg("arrival-pier-proof") is { Length: > 0 } pierProof) _ = NativeArrivalPierProof.Run(this, Paths.Absolute(pierProof));
             if (Arg("stone-corners-proof") is { Length: > 0 } stoneProof) _ = NativeStoneCornersProof.Run(this, Paths.Absolute(stoneProof));
             if (Arg("water-proof") is { Length: > 0 } waterProof) _ = NativeWaterProof.Run(this, Paths.Absolute(waterProof));
+            if (Arg("wake-proof") is { Length: > 0 } wakeProof) _ = NativeWakeProof.Run(this, Paths.Absolute(wakeProof));
             if (Arg("street-furniture-survey") is { Length: > 0 } furnitureSurvey) _ = NativeStreetFurnitureSurvey.Run(this, Paths.Absolute(furnitureSurvey));
         }
         catch (System.Exception error) { GD.PrintErr(error); GetTree().Quit(1); }

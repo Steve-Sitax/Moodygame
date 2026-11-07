@@ -35,6 +35,8 @@ public static class NativeWorldNavigation
         Array.Fill(heights, short.MinValue);
         var seeds = new byte[cells];
         int supportMeshes = 0, supportTriangles = 0;
+        using var navTrace = Scheldemist.Dev.StartupTiming.Split("navigation");
+        double facesMs = 0;
         foreach (var node in BakedWorld.All(nativeTown))
         {
             if (node is not MeshInstance3D { Mesh: not null, Skin: null } mesh || !Visible(node, nativeTown, true)) continue;
@@ -48,7 +50,9 @@ public static class NativeWorldNavigation
             bool wall = name.StartsWith("wall_chunk_", StringComparison.OrdinalIgnoreCase);
             float minY = mesh.HasMeta("native_nav_min_y") ? mesh.GetMeta("native_nav_min_y").AsSingle() : -8;
             float maxY = mesh.HasMeta("native_nav_max_y") ? mesh.GetMeta("native_nav_max_y").AsSingle() : wall ? 6.65f : kind == Support.Ground ? 0.65f : 0.8f;
+            long tFaces = Stopwatch.GetTimestamp();
             var faces = SupportFaces(mesh.Mesh);
+            facesMs += Stopwatch.GetElapsedTime(tFaces).TotalMilliseconds;
             var transform = mesh.GlobalTransform;
             for (int i = 0; i + 2 < faces.Length; i += 3)
             {
@@ -63,6 +67,8 @@ public static class NativeWorldNavigation
             }
         }
 
+        navTrace?.Next("support");
+        GD.Print($"native navigation: support faces read in {facesMs:0} ms");
         var free = new byte[cells];
         var halfHeights = new short[width * depth * 4];
         for (int z = 0; z < gridDepth; z++) for (int x = 0; x < gridWidth; x++)
@@ -85,14 +91,21 @@ public static class NativeWorldNavigation
                 if (nx < 0 || nz < 0 || nx >= gridWidth || nz >= gridDepth || supports[nz * gridWidth + nx] == 0) { free[index] = 0; break; }
             }
         }
+        navTrace?.Next("margins");
         var map = WalkMap.FromNativeData(bounds, free, halfHeights, heights);
+        navTrace?.Next("map");
         Solid.I?.Footprints(map);
+        navTrace?.Next("footprints");
         int nativeShapes = AddAuthoredShapes(nativeTown, map);
+        navTrace?.Next("authored");
         var reached = Connected(map, heights, seeds, gridWidth, gridDepth);
+        navTrace?.Next("connected");
         map.RestrictNativeTo(reached);
         map.FinishNative();
+        navTrace?.Next("finish");
         int reachable = 0, elevated = 0;
         for (int i = 0; i < cells; i++) if (reached[i] != 0) { reachable++; if (heights[i] > 65) elevated++; }
+        if (Scheldemist.Main.I?.Flag("startup-proof") == true) GD.Print($"native navigation: map digest {map.ContentHash()}");
         GD.Print($"native navigation: {width}x{depth} m; {supportMeshes} support meshes/{supportTriangles} triangles, {nativeShapes} authored shapes, {reachable} free quarter cells ({elevated} elevated); {timer.ElapsedMilliseconds} ms");
         return map;
     }
@@ -207,6 +220,7 @@ public static class NativeWorldNavigation
     private static int AddAuthoredShapes(Node root, WalkMap map)
     {
         int count = 0;
+        var stamps = new List<Vector3[]>();
         foreach (var node in BakedWorld.All(root))
         {
             if (node is not CollisionShape3D { Shape: not null, Disabled: false } shape || !Visible(shape, root)) continue;
@@ -224,8 +238,10 @@ public static class NativeWorldNavigation
             }
             var transform = shape.GlobalTransform;
             for (int i = 0; i < faces.Length; i++) faces[i] = transform * faces[i];
-            map.AddTriangles(faces); count++;
+            stamps.Add(faces); count++;
         }
+        // (stamped on several cores: a stamp only closes cells, so the order makes no difference)
+        if (stamps.Count > 0) { map.BeginStamp(); System.Threading.Tasks.Parallel.ForEach(stamps, new System.Threading.Tasks.ParallelOptions { MaxDegreeOfParallelism = Scheldemist.Main.I?.Flag("serial-stamps") == true ? 1 : -1 }, map.Stamp); }
         return count;
     }
 

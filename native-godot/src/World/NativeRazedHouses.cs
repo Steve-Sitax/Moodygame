@@ -250,19 +250,14 @@ public static class NativeRazedHouses
         foreach (var copies in razedOutlines.Count == 0 ? Enumerable.Empty<MultiMeshInstance3D>() : BakedWorld.All(town).OfType<MultiMeshInstance3D>().Where(m => m.Multimesh is { InstanceCount: > 0 }))
         {
             var mm = copies.Multimesh; var xf = WorldOf(copies);
-            var keep = Enumerable.Range(0, mm.InstanceCount).Where(i => { var at = xf * mm.GetInstanceTransform(i).Origin; var q = new Vector2(at.X, at.Z); return !(InAny(allBoxes, q) && Belongs(q, razedOutlines, standingOutlines)); }).ToList();
+            var data = MultiMeshData.Read(mm); int stride = MultiMeshData.Stride(mm);
+            var keep = Enumerable.Range(0, mm.InstanceCount).Where(i => { var at = xf * MultiMeshData.Origin(data,i*stride); var q = new Vector2(at.X, at.Z); return !(InAny(allBoxes, q) && Belongs(q, razedOutlines, standingOutlines)); }).ToList();
             if (keep.Count == mm.InstanceCount) continue;
-            var transforms = keep.Select(mm.GetInstanceTransform).ToList();
-            var colours = mm.UseColors ? keep.Select(mm.GetInstanceColor).ToList() : null;
-            var custom = mm.UseCustomData ? keep.Select(mm.GetInstanceCustomData).ToList() : null;
+            var kept = new float[keep.Count * stride];
+            for(int i=0;i<keep.Count;i++) Array.Copy(data,keep[i]*stride,kept,i*stride,stride);
             copiesGone += mm.InstanceCount - keep.Count;
             mm.InstanceCount = keep.Count;
-            for (int i = 0; i < keep.Count; i++)
-            {
-                mm.SetInstanceTransform(i, transforms[i]);
-                if (colours != null) mm.SetInstanceColor(i, colours[i]);
-                if (custom != null) mm.SetInstanceCustomData(i, custom[i]);
-            }
+            if(keep.Count>0)MultiMeshData.Write(mm,kept);
         }
         if (copiesGone > 0) notes.Add($"copies at the razed houses: {copiesGone}");
         // the chimney smoke's points (ambient_smoke, ChimneySmoke: fourteen a chimney): a razed house's chimney smokes no more
@@ -302,11 +297,35 @@ public static class NativeRazedHouses
             root["notes"]!.AsArray().Select(n => n!.GetValue<string>()).ToArray());
     }
 
+    // Outline arrays are immutable during a load. Bounds reject distant houses without
+    // repeating point-in-polygon and edge-distance work for every triangle and pixel.
+    private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<Vector2[], Bounds> OutlineBounds = new();
+    private sealed class Bounds(Vector2[] outline)
+    {
+        public readonly Box Box = Box.Of(outline, 0);
+    }
+    private static bool WithinBox(Vector2[] outline, Vector2 q, float margin)
+    {
+        var box = OutlineBounds.GetValue(outline, static o => new Bounds(o)).Box;
+        // Only a broad-phase rejection: retain boundary candidates despite float rounding.
+        margin += 0.0001f;
+        return q.X >= box.X0 - margin && q.X <= box.X1 + margin
+            && q.Y >= box.Z0 - margin && q.Y <= box.Z1 + margin;
+    }
     private static bool Belongs(Vector2 q, IReadOnlyList<Vector2[]> razed, IReadOnlyList<Vector2[]> standing, float reach = Reach)
     {
-        float Away(Vector2[] outline) => Inside(outline, q) ? 0 : EdgeDistance(outline, q);
-        float razedAt = razed.Min(Away);
-        return razedAt <= reach && standing.All(n => Away(n) > razedAt);
+        float razedAt = float.PositiveInfinity;
+        foreach (var outline in razed)
+        {
+            if (!WithinBox(outline, q, Math.Min(reach, razedAt))) continue;
+            float distance = Inside(outline, q) ? 0 : EdgeDistance(outline, q);
+            razedAt = Math.Min(razedAt, distance);
+            if (razedAt == 0) break;
+        }
+        if (razedAt > reach) return false;
+        foreach (var outline in standing)
+            if (WithinBox(outline, q, razedAt) && (Inside(outline, q) || EdgeDistance(outline, q) <= razedAt)) return false;
+        return true;
     }
 
     /// <summary>The bake's light facts (lights.json) for the razed houses go too: their window and door-lantern spill and their lit panes.</summary>
@@ -478,9 +497,9 @@ public static class NativeRazedHouses
     {
         var xf = WorldOf(mesh);
         var source = (ArrayMesh)mesh.Mesh;
-        var rebuilt = new ArrayMesh { ResourceName = source.ResourceName };
-        // (its metadata too: Solid's stand-in faces and skipped surfaces live there, issue #163)
-        foreach (var key in source.GetMetaList()) rebuilt.SetMeta(key, source.GetMeta(key));
+        // Read and decide first. Uploading unchanged surfaces just to discard the mesh
+        // was rebuilding large town chunks on every launch.
+        var surfaces = new Godot.Collections.Array[source.GetSurfaceCount()];
         int dropped = 0, empty = 0;
         for (int s = 0; s < source.GetSurfaceCount(); s++)
         {
@@ -505,8 +524,7 @@ public static class NativeRazedHouses
                 if (kept.Count == 0 && index.Length > 0) { empty++; kept.Add(index[0]); kept.Add(index[0]); kept.Add(index[0]); }
                 arrays[(int)Mesh.ArrayType.Index] = kept.ToArray();
             }
-            rebuilt.AddSurfaceFromArrays(type, arrays, null, null, source.SurfaceGetFormat(s));
-            rebuilt.SurfaceSetMaterial(s, source.SurfaceGetMaterial(s));
+            surfaces[s] = arrays;
         }
         // (every triangle gone: the mesh keeps no surface at all, its metadata kept)
         if (dropped > 0 && empty == source.GetSurfaceCount())
@@ -516,7 +534,17 @@ public static class NativeRazedHouses
             mesh.Mesh = none;
             return dropped;
         }
-        if (dropped > 0) mesh.Mesh = rebuilt;
+        if (dropped > 0)
+        {
+            var rebuilt = new ArrayMesh { ResourceName = source.ResourceName };
+            foreach (var key in source.GetMetaList()) rebuilt.SetMeta(key, source.GetMeta(key));
+            for (int s = 0; s < surfaces.Length; s++)
+            {
+                rebuilt.AddSurfaceFromArrays(source.SurfaceGetPrimitiveType(s), surfaces[s], null, null, source.SurfaceGetFormat(s));
+                rebuilt.SurfaceSetMaterial(s, source.SurfaceGetMaterial(s));
+            }
+            mesh.Mesh = rebuilt;
+        }
         return dropped;
     }
 

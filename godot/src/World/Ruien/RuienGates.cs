@@ -13,6 +13,7 @@ public static class RuienGates
 {
     public static List<string> Cut(Node3D town)
     {
+        using var batch = QuayNotch.BeginCutBatch(town);
         var notes = new List<string>();
         var data = RuienData.Load();
         foreach (var area in data.Areas)
@@ -24,7 +25,7 @@ public static class RuienGates
             }
         // the street's holes over the ways down (a grate's shaft, a hatch's stair)
         foreach (var area in data.Areas)
-            foreach (var w in area.Ways.Where(w => w.Kind is "ladder" or "grate" or "stair" or "keeper_stair"))
+            foreach (var w in area.Ways.Where(w => !w.Retired && w.Kind is "ladder" or "grate" or "stair" or "keeper_stair"))
             {
                 var hole = RuienSurround.Footprint(w);
                 // Remove the whole paving/kerb volume, including upright kerb faces and its collision proxy.

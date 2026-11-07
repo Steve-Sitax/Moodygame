@@ -412,7 +412,7 @@ public static class RuienImport
             {
                 id = b.GetProperty("id").GetString(), a = V(b.GetProperty("a")), b = V(b.GetProperty("b")), gear = b.TryGetProperty("gear", out var g) ? V(g) : null,
             }).ToArray() : null,
-            ladders = mk.GetProperty("ladders").EnumerateArray().Select(l => new { id = l.GetProperty("name").GetString(), bottom = V(l.GetProperty("bottom")), top = V(l.GetProperty("top")), grate = V(l.GetProperty("grate_size_m")) }).ToArray(),
+            ladders = mk.GetProperty("ladders").EnumerateArray().Select(l => new { id = l.GetProperty("name").GetString(), bottom = V(l.GetProperty("bottom")), top = V(l.GetProperty("top")), grate = V(l.GetProperty("grate_size_m")), access = !l.TryGetProperty("access",out var ac) || ac.ValueKind != JsonValueKind.False }).ToArray(),
             stairs = mk.GetProperty("stairs").EnumerateArray().Select(l => new { id = l.GetProperty("name").GetString(), bottom = V(l.GetProperty("bottom")), top = V(l.GetProperty("top")), hatch = V(l.GetProperty("hatch")) }).ToArray() }, new JsonSerializerOptions { WriteIndented = true, Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping });
     }
 }

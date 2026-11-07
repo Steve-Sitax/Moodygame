@@ -95,7 +95,7 @@ public partial class Solid : Node
             // start, then a little every frame; a big mesh costs one slow frame when its turn comes).
             all = true;
             Ensure(Vector3.Zero, 1e9f);
-            GD.Print($"solid: the whole town, {Built} shapes, {Triangles} triangles, in {BuildMs:0} ms (stair holes {CutMs:0.0} ms)");
+            GD.Print($"solid: the whole town, {Built} shapes, {Triangles} triangles, in {BuildMs:0} ms (stair holes {CutMs:0.0} ms, faces {FacesMs:0} ms, shapes {ShapeMs:0} ms, add shape {AddShapeMs:0} ms, space {SpaceMs:0} ms)");
         }
         Main.I.World.Report["solidShapes"] = Built;
         Main.I.World.Report["solidTriangles"] = Triangles;
@@ -193,6 +193,9 @@ public partial class Solid : Node
     public Aabb BodyBounds(Rid body) => bounds.GetValueOrDefault(body);
 
     /// <summary>Immutable world-space solid triangles for host-side visibility/large actor clearance. Capture on the scene thread.</summary>
+    /// <summary>Each solid item's frame and its own faces (read now, on this thread), in the same order as <see cref="WorldTriangles"/>.</summary>
+    public (Transform3D Xf, Vector3[] Local)[] FaceSources() => items.Select(it => (it.Xf, FacesOf(it.Mesh))).ToArray();
+
     public IEnumerable<(Vector3 A,Vector3 B,Vector3 C)> WorldTriangles()
     {
         foreach(var item in items)
@@ -219,14 +222,16 @@ public partial class Solid : Node
     /// not a whole model AABB (which would close the bridge under its overhead beam).</summary>
     public void Footprints(Scheldemist.Town.WalkMap map)
     {
-        foreach (var it in items)
-            if (map.HasBodyAt(it.Box))
-            {
-                var local = FacesOf(it.Mesh);
-                var pts = new Vector3[local.Length];
-                for (int i = 0; i < pts.Length; i++) pts[i] = it.Xf * local[i];
-                map.AddTriangles(pts);
-            }
+        // (the faces are read here, on this thread; the stamping runs on several cores: it only closes cells)
+        var work = items.Where(it => map.HasBodyAt(it.Box)).Select(it => (it.Xf, Local: FacesOf(it.Mesh))).ToArray();
+        map.BeginStamp();
+        // (dev: --serial-stamps stamps them one after another, for a before-and-after)
+        System.Threading.Tasks.Parallel.ForEach(work, new System.Threading.Tasks.ParallelOptions { MaxDegreeOfParallelism = Main.I.Flag("serial-stamps") ? 1 : -1 }, w =>
+        {
+            var pts = new Vector3[w.Local.Length];
+            for (int i = 0; i < pts.Length; i++) pts[i] = w.Xf * w.Local[i];
+            map.Stamp(pts);
+        });
         map.CloseOpenCells();
     }
 
@@ -442,27 +447,36 @@ public partial class Solid : Node
         return o;
     }
 
+    private double FacesMs, ShapeMs, AddShapeMs, SpaceMs;
     private void Build(Item it)
     {
         it.Built = true;
+        long tFaces = System.Diagnostics.Stopwatch.GetTimestamp();
         var local = FacesOf(it.Mesh);
         if (local.Length < 3) return;
         var pts = new Vector3[local.Length];
         for (int i = 0; i < pts.Length; i++) pts[i] = it.Xf * local[i];
+        FacesMs += System.Diagnostics.Stopwatch.GetElapsedTime(tFaces).TotalMilliseconds;
         if (holes.Count > 0 && (it.Name.Contains("ground", StringComparison.Ordinal) || it.Name.Contains("house_lining_", StringComparison.Ordinal)))
         {
             ulong tCut = Time.GetTicksUsec();
             pts = OpenStairHoles(pts, it.Box);
             CutMs += (Time.GetTicksUsec() - tCut) / 1000.0;
         }
+        long tShape = System.Diagnostics.Stopwatch.GetTimestamp();
         var shape = new ConcavePolygonShape3D { BackfaceCollision = true };
         shape.SetFaces(pts);
+        ShapeMs += System.Diagnostics.Stopwatch.GetElapsedTime(tShape).TotalMilliseconds;
+        long tBody = System.Diagnostics.Stopwatch.GetTimestamp();
         var body = PhysicsServer3D.BodyCreate();
         PhysicsServer3D.BodySetMode(body, PhysicsServer3D.BodyMode.Static);
         PhysicsServer3D.BodyAddShape(body, shape.GetRid());
+        AddShapeMs += System.Diagnostics.Stopwatch.GetElapsedTime(tBody).TotalMilliseconds;
+        long tSpace = System.Diagnostics.Stopwatch.GetTimestamp();
         PhysicsServer3D.BodySetCollisionLayer(body, Layer);
         PhysicsServer3D.BodySetCollisionMask(body, 0);
         PhysicsServer3D.BodySetSpace(body, space);
+        SpaceMs += System.Diagnostics.Stopwatch.GetElapsedTime(tSpace).TotalMilliseconds;
         shapes.Add(shape);
         bodies.Add(body);
         names[body] = it.Name;

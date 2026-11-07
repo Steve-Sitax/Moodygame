@@ -4,7 +4,7 @@
   "misc_Paving_setts"
  ],
  "masonry": {
-  "setts": { "pom": 0, "normal": 0.35, "rough": 1, "roughFloor": 0.48, "bake": 0, "weather": 0.75, "halo": 0 },
+  "setts": { "tint": [0.72, 0.70, 0.64], "pom": 0, "normal": 0.35, "rough": 1, "roughFloor": 0.6, "bake": 0, "weather": 0.9, "halo": 0 },
   "brick_flemish": { "pom": 0.32, "normal": 1.0, "rough": 1.0, "weather": 1.0, "roughFloor": 0.42, "halo": 0.3 },
   "brick_stretcher": { "pom": 0.32, "normal": 1.0, "rough": 1.0, "weather": 1.0, "roughFloor": 0.42, "halo": 0.3 },
   "brick_header": { "pom": 0.32, "normal": 1.0, "rough": 1.0, "weather": 1.0, "roughFloor": 0.42, "halo": 0.3 },

@@ -15,6 +15,31 @@ internal sealed class AntigoonGeometry
     {
         foreach(var (a,b,c) in triangles)Add(a,b,c);
     }
+    /// <summary>
+    /// The index made on a worker thread: the scene's faces are read here first, then indexed beside the rest of the
+    /// start, in the same order as the constructor below (a hosted game without a Solid part does it here).
+    /// </summary>
+    public static System.Threading.Tasks.Task<AntigoonGeometry> Capture(Node world)
+    {
+        if (Solid.I is not { } solid) return System.Threading.Tasks.Task.FromResult(new AntigoonGeometry(world));
+        var sources = solid.FaceSources();
+        var shapes = new List<(Transform3D Xf, Vector3[] Faces)>();
+        foreach(var shape in world.FindChildren("*","CollisionShape3D",true,false).OfType<CollisionShape3D>())
+        {
+            if(shape.Disabled||shape.Shape==null||!shape.IsVisibleInTree()||shape.GetParent() is not CollisionObject3D body||(body.CollisionLayer&Solid.Layer)==0)continue;
+            shapes.Add((shape.GlobalTransform, shape.Shape is ConcavePolygonShape3D concave?concave.GetFaces():shape.Shape.GetDebugMesh().GetFaces()));
+        }
+        return System.Threading.Tasks.Task.Run(() =>
+        {
+            var index = new AntigoonGeometry(Array.Empty<(Vector3, Vector3, Vector3)>());
+            foreach (var (xf, local) in sources)
+                for (int i = 0; i + 2 < local.Length; i += 3) index.Add(xf * local[i], xf * local[i + 1], xf * local[i + 2]);
+            foreach (var (xf, faces) in shapes)
+                for (int i = 0; i + 2 < faces.Length; i += 3) index.Add(xf * faces[i], xf * faces[i + 1], xf * faces[i + 2]);
+            return index;
+        });
+    }
+
     public AntigoonGeometry(Node world)
         : this(Solid.I is { } solid ? solid.WorldTriangles() : Solid.CaptureWorldTriangles(world))
     {

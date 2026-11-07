@@ -793,8 +793,8 @@
     31.89
    ],
    "out": [
-    -0.7071,
-    0.7071
+    -1,
+    0
    ],
    "street": 0.0,
    "depth": -3.9,
@@ -811,7 +811,7 @@
    "head": "arch",
    "frame": "bluestone",
    "topLanding": 1.2,
-   "note": "Moved 21 m north-east along the Rijnkaai from the survey spot, which stood on the dockers' hauls and against a wine shop's goods: here it stands on the open flagged quay beside the rui, off every haul, lane and pile."
+   "note": "Aligned with the quay flagstone courses. Reserved city-works apron; the full roof, drainage and 1.6 m door approach stay outside railways, crane tracks and the fixed vehicle corridors."
   },
   {
    "id": "re29_sint_paulus",
@@ -841,7 +841,9 @@
    "head": "arch",
    "frame": "bluestone",
    "topLanding": 1.2,
-   "note": "In the street widening by Sint-Paulus, the stair along the rui; turned along the street, away from the church's side door."
+   "note": "Retired street obstruction. The connected R1 facade doorway serves Sint-Paulus; retain this permanent survey ID.",
+   "enabled": false,
+   "supersededBy": "r1_paulus"
   },
   {
    "id": "re30_hanseatic",
@@ -962,6 +964,95 @@
    "frame": "bluestone",
    "topLanding": 1.2,
    "note": "On the Lijnwaadmarkt, the stair along the Lijnwaadrui gallery, off the paths and benches."
+  },
+  {
+   "id": "r1_paulus",
+   "name": "R1 city-works cellar door",
+   "host": "house",
+   "line": "R1",
+   "layout": "L",
+   "flight": "left",
+   "closure": "open",
+   "closureSide": "street",
+   "head": "flat",
+   "frame": "existing",
+   "door": [
+    162.71388638799573,
+    301.475
+   ],
+   "out": [
+    -0.97022,
+    -0.24224
+   ],
+   "street": 0,
+   "depth": -3.9,
+   "wall": 0.42,
+   "width": 1.3,
+   "doorWidth": 1.08,
+   "doorHeight": 2.0,
+   "topLanding": 1.5,
+   "bottomLanding": 1.5,
+   "cut": [
+    "city_"
+   ],
+   "approach": 0.9,
+   "openDeg": 86,
+   "notes": "Reuses the decorative doorway of house 82, outside the bakery shopfront. Native house 82 has no authored interior. Original stone surround and fanlight retained; inward-opening oak leaf replaces the closed decorative leaf."
+  },
+  {
+   "id": "o2_vleeshuis_door",
+   "name": "O2 cellar door beside Vleeshuis",
+   "host": "house",
+   "line": "C2",
+   "layout": "I",
+   "flight": "in",
+   "closure": "open",
+   "closureSide": "left",
+   "head": "flat",
+   "frame": "existing",
+   "door": [
+    -157.78735,
+    132.0
+   ],
+   "out": [
+    0,
+    -1
+   ],
+   "street": 0,
+   "depth": -3.6,
+   "wall": 0.42,
+   "width": 1.3,
+   "doorWidth": 1.08,
+   "doorHeight": 2,
+   "pitchDeg": 45,
+   "topLanding": 0.8,
+   "bottomLanding": 1.5,
+   "cut": [
+    "city_"
+   ],
+   "approach": 0.9,
+   "openDeg": 86,
+   "connectArea": "o2",
+   "connectLength": 1.8,
+   "house": [
+    579
+   ],
+   "notes": "Existing decorative house 579 doorway, outside the neighbouring shop. Inward leaf and buried stair; side arch opens onto a supported maintenance walk joining the existing hall bridge. Replaces both unsafe road hatches. The projecting 260 mm threshold is lowered to a 25 mm worn sill within the retained surround.",
+   "lowerSill": true,
+   "underpass": {
+    "from": [
+     -158.8,
+     -3.6,
+     132.3
+    ],
+    "to": [
+     -156.6,
+     -3.6,
+     132.3
+    ],
+    "width": 1.13,
+    "bed": -5.85
+   }
   }
  ]
 }

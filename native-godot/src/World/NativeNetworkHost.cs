@@ -57,6 +57,24 @@ public sealed class NativeNetworkHost : IDisposable
 
     private NativeBackendAdapter Adapter(int id) => adapters.GetOrAdd(id, player => new NativeBackendAdapter(host, null, profile, player, false));
 
+    /// <summary>
+    /// Build (never start) one web host on a worker thread while the town loads, so the real start finds the
+    /// web server's code already loaded and compiled. Nothing listens and nothing is kept.
+    /// </summary>
+    public static void Prewarm() => Task.Run(async () =>
+    {
+        try
+        {
+            var builder = WebApplication.CreateSlimBuilder(new WebApplicationOptions { Args = Array.Empty<string>(), ContentRootPath = AppContext.BaseDirectory, ApplicationName = typeof(NativeNetworkHost).Assembly.GetName().Name });
+            builder.Logging.ClearProviders();
+            builder.WebHost.ConfigureKestrel(options => { options.AddServerHeader = false; options.Listen(IPAddress.Loopback, 0); });
+            await using var warm = builder.Build();
+            warm.UseWebSockets(new WebSocketOptions { KeepAliveInterval = TimeSpan.FromSeconds(20) });
+            warm.Run(_ => Task.CompletedTask);
+        }
+        catch (Exception e) { Godot.GD.Print("native network: warm-up skipped: " + e.Message); }
+    });
+
     public async Task Start(int port, bool exactPort)
     {
         if (port is < 1024 or > 65535 || Reserved.Contains(port)) throw new InvalidOperationException("Choose an unused game port from 1024 to 65535.");

@@ -128,9 +128,19 @@ public static class RuienPaving
             var n=new Vector3(-(H(world+Vector3.Right*e)-H(world-Vector3.Right*e))*Relief/(2*e),1,-(H(world+Vector3.Back*e)-H(world-Vector3.Back*e))*Relief/(2*e)).Normalized();
             st.SetNormal(n);st.SetUV(uv/Tile);
             // Existing dirt stays in the joints; the water-facing strip takes more slime and damp.
-            float wet=.40f;
+            float wet=.48f;
             if(Ruien.I?.WaterAt(world.X,world.Z) is float water) wet+=.2f*Math.Clamp(1-MathF.Abs(world.Y-water)/2,0,1);
-            st.SetColor(new Color(wet,0,.12f+.22f*(1-h),0));st.AddVertex(p);
+            // Sediment collects in recessed joints and at the wall foot; traffic keeps the crowns clearer.
+            float wall=0;
+            var q=new Vector2(world.X,world.Z);
+            foreach(var z in paths)
+                if(z.Inside(q,out _)>=-.1f)wall=Math.Max(wall,Math.Clamp(1-MathF.Abs(z.Inside(q,out _))/.22f,0,1));
+            foreach(var z in rooms)
+                if(z.Rect.HasPoint(q))wall=Math.Max(wall,Math.Clamp(1-Math.Min(Math.Min(q.X-z.Rect.Position.X,z.Rect.End.X-q.X),Math.Min(q.Y-z.Rect.Position.Y,z.Rect.End.Y-q.Y))/.22f,0,1));
+            float patch=.5f+.5f*MathF.Sin(world.X*1.37f+MathF.Sin(world.Z*.81f))*MathF.Sin(world.Z*1.13f);
+            float joint=Math.Clamp((.68f-h)*2.4f,0,1);
+            wet+=.14f*wall+.08f*patch;
+            st.SetColor(new Color(wet,0,.18f+.28f*joint+.12f*wall*patch,.12f*wall*joint*patch));st.AddVertex(p);
         }
     }
     public static void Rectangle(SurfaceTool st,Transform3D xf,float width,float length,Vector3 origin)

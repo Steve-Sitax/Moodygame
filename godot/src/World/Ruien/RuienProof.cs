@@ -412,6 +412,15 @@ public partial class RuienProof : Node
             await WalkTo(new Vector2(front.X,front.Z),e.Id+" before the closure");
             j.Yaw=YawTo(c0-front);j.Pitch=-.05f;await Seconds(.6f);
             var cl=Interact.I.Acts.FirstOrDefault(a=>a.Key==Key.E&&(a.Text=="try the iron gate"||a.Text=="look at the new brickwork"));
+            if(e.Closure=="open")
+            {
+                Check(e.Id+" connected passage has no works closure",cl==null,Interact.I.Text);
+                var through=RuienEntrance.ClosureFront(e,-.5f);
+                await WalkTo(new Vector2(through.X,through.Z),e.Id+" through the connected arch");
+                Check(e.Id+" connected arch stays dry and grounded",j.Grounded&&!j.Swimming&&MathF.Abs(j.Y-e.Depth)<.12f,$"feet {j.Y}");
+            }
+            else
+            {
             Check(e.Id+" closure answers E",cl!=null,Interact.I.Text);
             if(cl!=null)Check(e.Id+" closure E accepted",Interact.I.Press(Key.E));
             await Shot(e.Id+"-4-landing-closure");
@@ -421,6 +430,7 @@ public partial class RuienProof : Node
             var wallIn=e.Local.Basis*(e.ClosureWall.Basis.Z);
             float past=(new Vector3(j.X,0,j.Z)-new Vector3(c0.X,0,c0.Z)).Dot(new Vector3(wallIn.X,0,wallIn.Z).Normalized());
             Check(e.Id+" closure holds",past< -Jef.Radius+.12f,$"{past:0.00} m past the wall's face");
+            }
             j.ClearKeys();
             await WalkTo(new Vector2(r[5].X,r[5].Z),e.Id+" back on the landing");
             await WalkTo(new Vector2(r[4].X,r[4].Z),e.Id+" back at the foot");
@@ -453,6 +463,38 @@ public partial class RuienProof : Node
             }
         }
     }
+
+    // Read-only placement measurements alongside the native review cameras. A clear door is not an art pass.
+    private void EntranceSurvey()
+    {
+        var space=GetViewport().World3D.DirectSpaceState;
+        var result=new List<object>();
+        foreach(var e in RuienEntrance.All)
+        {
+            var sides=new List<object>();
+            foreach(float side in new[]{-1f,1f})foreach(float y in new[]{.35f,2.35f})
+            {
+                float x=side*(e.DoorWidth/2+.42f);
+                var a=e.World(new Vector3(x,y,1));var b=e.World(new Vector3(x,y,-1.2f));
+                var hit=space.IntersectRay(PhysicsRayQueryParameters3D.Create(a,b,Solid.Layer));
+                if(hit.Count==0){sides.Add(new{side,y,hit=false});continue;}
+                var at=hit["position"].AsVector3();var normal=hit["normal"].AsVector3();
+                float dot=Math.Clamp(MathF.Abs(normal.Dot(e.Local.Basis.Z)),0,1);
+                sides.Add(new{side,y,hit=true,faceOffset=e.Local.AffineInverse()*at,angleDeg=Mathf.RadToDeg(MathF.Acos(dot)),collider=(hit["collider"].AsGodotObject() as Node)?.GetPath().ToString()});
+            }
+            var approach=new List<object>();
+            foreach(float d in new[]{.45f,.9f,1.5f,2.5f})
+            {
+                var p=e.World(new Vector3(0,0,d));
+                var hit=space.IntersectRay(PhysicsRayQueryParameters3D.Create(p+Vector3.Up*.6f,p+Vector3.Down*.8f,Solid.Layer));
+                float? floor=hit.Count>0?hit["position"].AsVector3().Y:null;
+                approach.Add(new{d,x=p.X,z=p.Z,floor,bodyFree=floor.HasValue&&Jef.I!.BodyFree(p.X,floor.Value+.05f,p.Z)});
+            }
+            result.Add(new{id=e.Id,host=e.Host,door=new[]{e.Door.X,e.Door.Y},outward=new[]{e.Out.X,e.Out.Y},e.Closure,route=e.Route.Select(p=>e.World(p)).Select(p=>new[]{p.X,p.Y,p.Z}).ToArray(),facade=sides,approach});
+        }
+        File.WriteAllText(Path.Combine(output,"entrance-survey.json"),JsonSerializer.Serialize(result,new JsonSerializerOptions{WriteIndented=true,IncludeFields=true}));
+        Check("entrance survey covers all installed door entrances",result.Count==RuienEntrance.All.Count,$"{result.Count} entrances; placement measurements require visual review");
+    }
     public override async void _Ready()
     {
         output = Main.I.Arg("ruien-proof");
@@ -463,6 +505,8 @@ public partial class RuienProof : Node
             for (int i=0; i<3600 && (Jef.I == null || Ruien.I == null || !Dev.Kit.I.IsReady); i++)
                 await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
             var j = Jef.I ?? throw new InvalidOperationException("Player did not become ready.");
+            // Review cameras change the clock; night encounters must not cover the captured asset.
+            Play.Gangs.I?.SetProcess(false);
             if (j.Fly) j.ToggleFly();
             j.TestInput = true; j.Frozen = false;
             DisplayServer.WindowSetVsyncMode(DisplayServer.VSyncMode.Disabled);Engine.MaxFps=0;
@@ -635,6 +679,8 @@ public partial class RuienProof : Node
             if(routeWalks.Length>0)await RouteWalks(routeWalks);
             // Optional review cameras after physics assertions, without restarting the whole native town.
             using var lease=await Dev.PerformanceLease.Acquire("Ruien proof");
+            if(Main.I.Flag("ruien-proof-entrance-survey"))EntranceSurvey();
+            if(Main.I.Flag("ruien-proof-street-access"))StreetAccess();
             string views=Main.I.Arg("ruien-proof-views");
             if(views.Length>0)
             {

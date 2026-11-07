@@ -54,7 +54,24 @@ public static class Psx
     private static readonly Dictionary<Shader, Kind> Kinds = new();
     /// <summary>The switches a psx shader was made with (a part that needs the same material with one more).</summary>
     public static Kind? KindOf(Shader? s) => s != null && Kinds.TryGetValue(s, out var k) ? k : null;
-    public static void RegisterNative(Shader shader, Kind kind) => Kinds[shader] = kind;
+    public static void RegisterNative(Shader shader, Kind kind)
+    {
+        if (!Kinds.ContainsKey(shader) && kind.Water > 0)
+        {
+            const string begin = "vec3 psx_ripples_at(";
+            const string end = "// the wave normal";
+            int a = shader.Code.IndexOf(begin, StringComparison.Ordinal);
+            int b = shader.Code.IndexOf(end, a >= 0 ? a : 0, StringComparison.Ordinal);
+            if (a >= 0 && b > a)
+            {
+                string current = ShaderOf(kind).Code;
+                int ca = current.IndexOf(begin, StringComparison.Ordinal);
+                int cb = current.IndexOf(end, ca, StringComparison.Ordinal);
+                shader.Code = shader.Code[..a] + current[ca..cb] + shader.Code[b..];
+            }
+        }
+        Kinds[shader] = kind;
+    }
 
     /// <summary>A hex colour (sRGB, as the TypeScript writes them) as the linear colour the shaders count in.</summary>
     public static Color Hex(int h) => new Color(((h >> 16) & 255) / 255f, ((h >> 8) & 255) / 255f, (h & 255) / 255f).SrgbToLinear();
@@ -212,7 +229,7 @@ public static class Psx
     private static readonly byte[] RippleBytes = new byte[MaxRipples * 2 * 4 * 4];
     /// <summary>
     /// The ripple sources into the water's shader (psx.ts uRipA/uRipB): A row 0, B row 1, the active ones first; a ring
-    /// A (x, z, born at psx_time, 0), B (0, spreading m/s, life s, strength); a wake A (bow x, z, heading x, z), B (1,
+    /// A (x, z, born at psx_time, 0), B (0, spreading m/s, life s, strength); a wake A (bow x, z, heading x, z), B (1 + hull length in metres,
     /// speed m/s, beam m, strength).
     /// </summary>
     public static void SetRipples(IReadOnlyList<(Vector4 a, Vector4 b)> list)
@@ -863,30 +880,42 @@ vec3 psx_ripples_at(vec2 p, float t) {
 			float b = -dot(q, dir);
 			float ac = dot(q, perp);
 			float v = max(B.y, 0.3);
-			float beam = B.z;
-			vec2 qb = q - dir * beam * 0.15;
-			float sb = beam * beam * 0.35;
-			float eb = exp(-dot(qb, qb) / sb);
-			float ab = 0.03 * B.w * min(v / 3.0, 1.0) * beam;
-			s += ab * (-2.0 / sb) * eb * qb;
-			hz += ab * eb;
-			if (b < 0.0 || b > 25.0 + 12.0 * v || abs(ac) > 0.4 * b + beam + 2.0) continue;
-			float fade = B.w * exp(-b / (10.0 + 6.0 * v)) * smoothstep(0.0, beam, b) * min(v / 2.0, 1.0);
-			float da = abs(ac) - (0.354 * b + 0.5 * beam);
-			float sg = 0.35 + 0.05 * b;
-			float ka = clamp(15.0 / (v * v), 0.8, 14.0);
-			float g = exp(-da * da / (sg * sg));
-			float sl = 0.6 * fade;
-			float ah = sl / max(ka, 2.0 / sg);
-			float c = cos(ka * b);
-			float dda = ah * c * g * (-2.0 * da / (sg * sg)) * sign(ac);
-			float db = -ah * g * ka * sin(ka * b);
-			float kt = clamp(9.81 / (v * v), 0.5, 12.0);
-			float inside = smoothstep(0.5, -0.5, da);
-			float at = 0.5 * sl / max(kt, 1.0);
-			db += -at * inside * kt * sin(kt * b);
-			s += perp * dda - dir * db;
-			hz += ah * c * g + at * inside * cos(kt * b);
+			float beam = max(B.z, 0.3);
+			float hull = max(B.x - 1.0, 0.0);
+			float reach = 18.0 + 10.0 * v;
+			if (b < -beam || b > hull + reach * 3.0 || abs(ac) > beam + 0.4 * max(b, 0.0) + 3.0) continue;
+			float energy = B.w * smoothstep(0.15, 1.8, v);
+			// Two wave systems: a bow shoulder and a weaker stern wave. Never a solid V stripe.
+			for (int source = 0; source < 2; source++) {
+				float back = b - (source == 0 ? 0.0 : hull);
+				if (back <= 0.0) continue;
+				float edge = abs(ac) - 0.354 * back - beam * 0.35;
+				float envelope = (1.0 - smoothstep(-0.5, 1.5 + back * 0.025, edge))
+					* smoothstep(0.0, beam, back) * exp(-back / reach);
+				float k = clamp(9.81 / (v * v), 0.35, 6.0);
+				// Curved transverse crests with oblique divergent crests near the wedge edges.
+				float r = max(back, beam);
+				float phase = k * (back + ac * ac / (4.0 * r));
+				float amp = energy * envelope * (source == 0 ? 0.09 : 0.055);
+				float cross = ac / (2.0 * r);
+				float along = 1.0 - ac * ac / (4.0 * r * r);
+				s += amp * sin(phase) * (dir * along - perp * cross);
+				hz += amp / k * cos(phase);
+				float arm = exp(-pow(edge / (1.1 + back * 0.06), 2.0));
+				float oblique = k * (0.58 * back - 0.82 * abs(ac));
+				s += amp * arm * sin(oblique) * (dir * 0.58 + perp * sign(ac) * 0.82);
+				hz += amp * arm / k * cos(oblique);
+			}
+			// Stern eddies widen slowly and lose energy; world-space noise avoids a painted-on ladder.
+			float aft = b - hull;
+			if (aft > 0.0) {
+				float width = beam * 0.28 + sqrt(aft) * 0.24;
+				float wash = energy * exp(-ac * ac / (width * width))
+					* smoothstep(0.0, 1.5, aft) * exp(-aft / (reach * 0.65));
+				vec3 eddy = texture(psx_wave_n, p * 0.18 + t * vec2(0.018, -0.011)).rgb;
+				s += (eddy.rg * 2.0 - 1.0) * wash * 0.13;
+				hz += wash * smoothstep(0.45, 0.75, eddy.b) * 0.025;
+			}
 		}
 	}
 	return vec3(s, hz);

@@ -144,7 +144,7 @@ public sealed class RuienData
         public Vector3 At, Dir = Vector3.Down;
         public Color Color = new(1, 0.62f, 0.3f);
         public float Power = 1, Range = 9, HalfU = 0.33f, HalfV = 0.33f, Bars, Haze = 1;
-        public bool Round;
+        public bool Round, Retired;
         /// <summary>A beam's length (m, an opening: down to what it falls on).</summary>
         public float Beam;
     }
@@ -209,7 +209,7 @@ public sealed class RuienData
         public Vector2 Wall, Out;
         /// <summary>Step irons drawn on the wall (false: a climb over a stone's edge, a sill or a coping, needs none).</summary>
         public bool Irons = true;
-        public bool Round;
+        public bool Round, Retired;
         public string LightSource="";
         public Vector2[] LandingPath = Array.Empty<Vector2>();
     }
@@ -440,7 +440,8 @@ public sealed class RuienData
                 {
                     var top = V3(l.GetProperty("top"));
                     var g = l.TryGetProperty("grate", out var gr) ? V2(gr) : new Vector2(0.66f, 0.66f);
-                    area.Ways.Add(new Way { Id = S(l, "id"), Kind = "ladder", Bottom = V3(l.GetProperty("bottom")), Top = top, Hole = new Rect2(top.X - g.X / 2, top.Z - g.Y / 2, g.X, g.Y) });
+                    bool vent = S(a,"streetGrates") == "ventilation" || (l.TryGetProperty("access",out var access) && access.ValueKind==JsonValueKind.False);
+                    area.Ways.Add(new Way { Id = S(l, "id"), Kind = vent ? "grate" : "ladder", Bottom = V3(l.GetProperty("bottom")), Top = top, Hole = new Rect2(top.X - g.X / 2, top.Z - g.Y / 2, g.X, g.Y) });
                 }
             if (own.TryGetProperty("stairs", out var sts))
                 foreach (var l in sts.EnumerateArray())
@@ -463,6 +464,9 @@ public sealed class RuienData
                         Hole=new Rect2(h[0].GetSingle(),h[1].GetSingle(),h[2].GetSingle(),h[3].GetSingle()),
                         LandingPath=s.TryGetProperty("landingPath",out var lp)?lp.EnumerateArray().Select(V2).ToArray():Array.Empty<Vector2>() });
                 }
+            if(a.TryGetProperty("retiredWays",out var retired))
+                foreach(var id in retired.EnumerateArray().Select(x=>x.GetString()))
+                    foreach(var way in area.Ways.Where(w=>w.Id==id))way.Retired=true;
             foreach(var stair in area.Ways.Where(w=>w.Kind=="keeper_stair")) area.StairZone(stair);
             if(!a.TryGetProperty("waterMin",out _)) area.WaterMin=area.Zones.FirstOrDefault()?.S.Water ?? area.WaterMin;
             area.Drains.AddRange(ReadDrains(a, "drains", id => area.Line(id) != null));

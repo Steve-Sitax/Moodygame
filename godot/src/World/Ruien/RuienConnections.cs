@@ -8,7 +8,7 @@ using Scheldemist.Models;
 namespace Scheldemist.World.Ruien;
 
 /// <summary>Reusable supported walks and dressed street surrounds; collision comes from their visible solids.</summary>
-public static class RuienConnections
+public static partial class RuienConnections
 {
     public static Node3D Build(JsonElement spec,RuienData.Area area)
     {
@@ -23,31 +23,77 @@ public static class RuienConnections
             if(s==iron)hasIron=true;else if(s==brick)hasBrick=true;else hasStone=true;
         }
         if(spec.TryGetProperty("walkConnections",out var walks))
-            foreach(var w in walks.EnumerateArray())
+        {
+            Vector3 V(JsonElement v)=>new(v[0].GetSingle(),v[1].GetSingle(),v[2].GetSingle());
+            var all=walks.EnumerateArray().Select(w=>(a:V(w.GetProperty("from")),b:V(w.GetProperty("to")),width:w.GetProperty("width").GetSingle(),bed:w.GetProperty("bed").GetSingle())).ToArray();
+            for(int wi=0;wi<all.Length;wi++)
             {
-                Vector3 V(JsonElement v)=>new(v[0].GetSingle(),v[1].GetSingle(),v[2].GetSingle());
-                var a=V(w.GetProperty("from"));var b=V(w.GetProperty("to"));float width=w.GetProperty("width").GetSingle();
-                float bed=w.GetProperty("bed").GetSingle();var basis=Basis.LookingAt((b-a).Normalized());
-                int count=(int)MathF.Ceiling(a.DistanceTo(b)/.75f);
+                var w=all[wi];var a=w.a;var b=w.b;float width=w.width,bed=w.bed,length=a.DistanceTo(b);
+                var basis=Basis.LookingAt((b-a).Normalized());
+                int count=(int)MathF.Ceiling(length/.75f);
                 for(int i=0;i<count;i++)
                 {
                     var p=a.Lerp(b,(i+.5f)/count);
-                    Box(stone,p-Vector3.Up*.14f,new Vector3(width,.28f,a.DistanceTo(b)/count+.003f),.012f,basis);
-                    RuienPaving.Rectangle(paving,new Transform3D(basis,p),width-.09f,a.DistanceTo(b)/count-.005f,Vector3.Zero);hasPaving=true;
+                    Box(stone,p-Vector3.Up*.14f,new Vector3(width,.28f,length/count+.003f),.012f,basis);
+                    RuienPaving.Rectangle(paving,new Transform3D(basis,p),width-.09f,length/count-.005f,Vector3.Zero);hasPaving=true;
+                }
+                // The jointed flags bear on two iron I-girders, not on unsupported stone joints.
+                foreach(float side in new[]{-1f,1f})
+                {
+                    var off=basis.X*side*width*.32f;var mid=(a+b)/2+off;
+                    Box(iron,mid-Vector3.Up*.289f,new Vector3(.13f,.018f,length),.002f,basis);
+                    Box(iron,mid-Vector3.Up*.374f,new Vector3(.016f,.152f,length),.002f,basis);
+                    Box(iron,mid-Vector3.Up*.459f,new Vector3(.13f,.018f,length),.002f,basis);
                 }
                 foreach(float u in new[]{.25f,.65f})
                 {
-                    var p=a.Lerp(b,u);float h=p.Y-bed-.28f;
-                    Box(stone,new Vector3(p.X,bed+h/2,p.Z),new Vector3(.42f,h,.42f),.012f);
+                    var p=a.Lerp(b,u);float h=p.Y-bed-.68f;
+                    Box(stone,new Vector3(p.X,bed+h/2,p.Z),new Vector3(.39f,h,.39f),.008f);
+                    int blocks=(int)MathF.Ceiling(h/.42f);
+                    for(int i=0;i<blocks;i++)
+                        Box(stone,new Vector3(p.X,bed+(i+.5f)*h/blocks,p.Z),new Vector3(.44f,h/blocks-.003f,.44f),.010f);
+                    Box(stone,p-Vector3.Up*.59f,new Vector3(width-.10f,.18f,.55f),.012f,basis);
+                    Box(iron,p-Vector3.Up*.484f,new Vector3(width-.14f,.032f,.46f),.003f,basis);
                 }
-                // Both exposed sides have rails; each end remains open to its landing.
+                // Open a side rail wherever another supported walk joins it. Each remaining span gets end posts.
                 foreach(float side in new[]{-1f,1f})
                 {
-                    var off=basis.X*side*(width/2-.04f);
-                    Box(iron,a.Lerp(b,.44f)+off+Vector3.Up*1.03f,new Vector3(.035f,.035f,a.DistanceTo(b)*.80f),.003f,basis);
-                    for(int i=0;i<=count;i++)Box(iron,a.Lerp(b,.04f+.80f*i/count)+off+Vector3.Up*.51f,new Vector3(.032f,1.02f,.032f),.002f);
+                    var off=basis.X*side*(width/2-.04f);var spans=new List<(float lo,float hi)>{(.015f,.985f)};
+                    for(int oi=0;oi<all.Length;oi++)
+                    {
+                        if(oi==wi)continue;var other=all[oi];var dir=(other.b-other.a).Normalized();var across=Vector3.Up.Cross(dir);
+                        var q=a+off-other.a;var delta=b-a;float lo=0,hi=1;
+                        bool Clip(float value,float slope,float min,float max)
+                        {
+                            if(MathF.Abs(slope)<1e-6f)return value>=min&&value<=max;
+                            float x=(min-value)/slope,y=(max-value)/slope;if(x>y)(x,y)=(y,x);
+                            lo=Math.Max(lo,x);hi=Math.Min(hi,y);return lo<hi;
+                        }
+                        if(!Clip(q.Dot(dir),delta.Dot(dir),-.08f,other.a.DistanceTo(other.b)+.08f) ||
+                           !Clip(q.Dot(across),delta.Dot(across),-other.width/2-.06f,other.width/2+.06f))continue;
+                        var left=new List<(float,float)>();
+                        foreach(var span in spans)
+                        {
+                            if(hi<=span.lo||lo>=span.hi){left.Add(span);continue;}
+                            if(lo>span.lo)left.Add((span.lo,lo));if(hi<span.hi)left.Add((hi,span.hi));
+                        }
+                        spans=left;
+                    }
+                    foreach(var (lo,hi) in spans)
+                    {
+                        if((hi-lo)*length<.04f)continue;
+                        Box(iron,a.Lerp(b,(lo+hi)/2)+off+Vector3.Up*1.03f,new Vector3(.035f,.035f,length*(hi-lo)),.003f,basis);
+                        int posts=Math.Max(1,(int)MathF.Ceiling(length*(hi-lo)/.7f));
+                        for(int i=0;i<=posts;i++)
+                        {
+                            var p=a.Lerp(b,Mathf.Lerp(lo,hi,i/(float)posts))+off;
+                            Box(iron,p+Vector3.Up*.525f,new Vector3(.032f,1.02f,.032f),.002f,basis);
+                            Box(iron,p+Vector3.Up*.021f,new Vector3(.11f,.028f,.10f),.002f,basis);
+                        }
+                    }
                 }
             }
+        }
         if(spec.TryGetProperty("stairSurrounds",out var surrounds))
             foreach(var id in surrounds.EnumerateArray())
             {

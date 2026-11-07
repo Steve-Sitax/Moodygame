@@ -30,6 +30,7 @@ def main():
     out = {
         'about': 'Made by tools/ruien/godot_network.py from docs/plans/ruien (ruien-routes.json, ruien-network.json). Do not edit.',
         'levels': net['levels'],
+        'surfaceAccessPolicy': net.get('surfaceAccessPolicy', {}),
         'classes': classes,
         'lines': [dict(id=k, cls=r['class'], name=r.get('name', ''), pts=r['pts']) for k, r in routes['routes'].items()],
         'rooms': [dict(id=r['id'], cls=r['class'], name=r.get('name', ''), rect=r['rect']) for r in routes['rooms']],

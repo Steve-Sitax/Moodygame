@@ -138,6 +138,9 @@ public static partial class NativeShopFronts
         {
             Vector3 hinge = V(d.Hinge), along = V(d.Along), x = V(d.X), n = V(d.N), up = Vector3.Up;
             if (razed.Owned(hinge.X, hinge.Z)) { left++; continue; }
+            var middle=hinge+along*(d.W/2);
+            if(Scheldemist.Main.I?.Flag("no-ruien-entrances")!=true && Scheldemist.World.Ruien.RuienEntrance.All.Any(e=>
+                e.Frame=="existing" && new Vector2(middle.X-e.Door.X,middle.Z-e.Door.Y).Length()<.35f))continue;
             var size = Model(d.Model).GetMeta("part_size").AsVector3();
             bool dw = d.Wear > WornFrom; var paint = dw ? Faded(C(d.Paint)) : C(d.Paint);
             // the leaf's model runs from its hinge at x = 0 to x = W: placed by its middle, it is the same both ways across
@@ -152,13 +155,16 @@ public static partial class NativeShopFronts
             Vector3 x = V(p.X), n = V(p.N);
             Out("carolus", p.Model, new Transform3D(new Basis(x * p.Sx, Vector3.Up * p.Sy, n), V(p.At) - x * (p.Centred * p.Sx)), C(p.Paint), false);
         }
+        using var frontTrace = Scheldemist.Dev.StartupTiming.Split("native.shop-fronts");
         var holder = new Node3D { Name = "shop_fronts" };
         town.AddChild(holder);
         // the outside: one mesh a block, one surface per material (the worn paint its own)
         int mergedMeshes = 0;
+        // (each model's arrays are read from the graphics card once for all the blocks: a read from this loading thread waits for a frame)
+        var arrays = new Dictionary<(Mesh, int), (Vector3[] P, Vector3[] N, Vector2[] Uv, Color[] C, int[] I)>();
         foreach (var (chunk, list) in outside.OrderBy(o => o.Key))
         {
-            var mesh = Merge(list.Select(l => (Model(l.Model), l.At, l.Colour, l.Worn ? worn : null)));
+            var mesh = Merge(list.Select(l => (Model(l.Model), l.At, l.Colour, l.Worn ? worn : null)), arrays);
             var aabb = mesh.GetAabb();
             var node = new MeshInstance3D
             {
@@ -170,16 +176,21 @@ public static partial class NativeShopFronts
             holder.AddChild(node);
             mergedMeshes++;
         }
+        frontTrace?.Next("outside");
         // the inside: MultiMeshes per cell, model and lit group; a cell's lit windows share its lamps' hours
         litSets.Clear();
         var byCell = new Dictionary<string, LitSet>();
+        var litMeshes = new Dictionary<(Mesh, Color), Mesh>();
         int sets = 0;
         foreach (var ((cell, model, group, tint), list) in inside.OrderBy(s => s.Key.Cell).ThenBy(s => s.Key.Model).ThenBy(s => s.Key.Group).ThenBy(s => s.Key.Tint.ToHtml()))
         {
             var mesh = Model(model);
             var mm = new MultiMesh { TransformFormat = MultiMesh.TransformFormatEnum.Transform3D, UseColors = true, Mesh = mesh, InstanceCount = list.Count };
             var box = new Aabb(list[0].At.Origin, Vector3.Zero);
-            for (int i = 0; i < list.Count; i++) { mm.SetInstanceTransform(i, list[i].At); mm.SetInstanceColor(i, list[i].Colour); box = box.Expand(list[i].At.Origin); }
+            // (all copies in one upload: Scheldemist.World.MultiMeshData)
+            var buffer = new float[list.Count * 16];
+            for (int i = 0; i < list.Count; i++) { Scheldemist.World.MultiMeshData.Transform(buffer, i * 16, list[i].At); Scheldemist.World.MultiMeshData.Colour(buffer, i * 16 + 12, list[i].Colour); box = box.Expand(list[i].At.Origin); }
+            Scheldemist.World.MultiMeshData.Write(mm, buffer);
             holder.AddChild(new MultiMeshInstance3D
             {
                 Name = $"shopgoods_{cell}_{model}{(group == "" ? "" : "_lit")}{(tint == Colors.White ? "" : "_" + tint.ToHtml(false))}", Multimesh = mm, CastShadow = GeometryInstance3D.ShadowCastingSetting.Off,
@@ -195,9 +206,12 @@ public static partial class NativeShopFronts
                     var h = cellLit[cell]; var froms = h.Select(t => t.From).OrderBy(v => v).ToArray(); var tos = h.Select(t => t.To).OrderBy(v => v).ToArray();
                     byCell[cell] = ls = new LitSet { From = froms[froms.Length / 2], To = tos[tos.Length / 2] }; litSets.Add(ls);
                 }
-                ls.Copies.Add((mm, mesh, LitMesh(mesh, tint)));
+                // (one lit copy a model and tint: the copies are only ever swapped in, never changed)
+                if (!litMeshes.TryGetValue((mesh, tint), out var litMesh)) litMeshes[(mesh, tint)] = litMesh = LitMesh(mesh, tint);
+                ls.Copies.Add((mm, mesh, litMesh));
             }
         }
+        frontTrace?.Next("inside");
         holder.AddChild(new Lamps { Name = "shop_window_lamps" });
         int litWindows = cellLit.Values.Sum(v => v.Count);
         Counts = (windows, doors, goods, mergedMeshes, sets, litWindows);
@@ -219,10 +233,9 @@ public static partial class NativeShopFronts
 
     /// <summary>Copies of models put together into one mesh: each copy's surfaces moved into place, its colour into the vertex
     /// colour, one surface per material (a worn copy's paint surfaces on the worn paint material).</summary>
-    private static ArrayMesh Merge(IEnumerable<(Mesh Mesh, Transform3D At, Color Colour, Material? Paint)> copies)
+    private static ArrayMesh Merge(IEnumerable<(Mesh Mesh, Transform3D At, Color Colour, Material? Paint)> copies, Dictionary<(Mesh, int), (Vector3[] P, Vector3[] N, Vector2[] Uv, Color[] C, int[] I)> cache)
     {
         var parts = new Dictionary<Material, (List<Vector3> P, List<Vector3> N, List<Vector2> Uv, List<Color> C, List<int> I)>();
-        var cache = new Dictionary<(Mesh, int), (Vector3[] P, Vector3[] N, Vector2[] Uv, Color[] C, int[] I)>();
         foreach (var (mesh, at, colour, paint) in copies)
         {
             for (int s = 0; s < mesh.GetSurfaceCount(); s++)

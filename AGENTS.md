@@ -1,3 +1,39 @@
+# Mandatory startup optimization on every game build
+
+- Every game build includes a startup optimization pass, even when the requested change is unrelated to performance.
+  Do this without waiting for another request; compilation alone does not complete the build task.
+- Target (Steve, 2026-11-07): launch to playable under 60 s on a warm cache. Report the gap until it is met.
+- Profile the resulting build through actual playable gameplay using `--startup-proof`, with the same isolated save,
+  layouts and renderer as the comparison run. Inspect the largest remaining measured delays and optimize avoidable work.
+- Validate the final build after optimization. Compare three repeat launches by median when claiming a speedup; record
+  cache-miss launches separately. Keep timings and checks in `.scratch/startup-perf/`; explain material run variability.
+- Fix startup regressions before declaring the build complete. If a remaining delay cannot safely be improved in this
+  pass, record the measured bottleneck and concrete reason; never assume that the previous pass reached the limit.
+- Preserve visual detail, authored placements and IDs, collision, navigation, gameplay and unsaved editor work. Verify
+  affected geometry/cache behavior and unchanged non-timing world reports; run `native-godot/scripts/test-icons.ps1 -Full`.
+- Keep valid geometry caches across unrelated builds. Construction or asset changes must invalidate affected caches;
+  corrupt caches must rebuild safely. Do not replace content checks with file timestamps alone or require a manual bake.
+
+# Adding to the start
+
+Anything new that runs before the game is playable follows these rules (details: `docs/startup.md`).
+
+- Time it: wrap the new step in `Dev.StartupTiming.Measure(...)` and compare `--startup-proof` runs before and after.
+- Fixed geometry is built once and cached by content (`RuienGeometryCache`, `RuienEntrance.Cached`, `NativeCutCache`
+  pattern). List a new construction source in its project's `StartupGeometrySource`; keep other code out of that list.
+- Read a mesh's arrays once per pass and convert Godot arrays to C# arrays once, never inside a loop. A read from the
+  loading thread waits for a main-thread frame. Search nearby triangles only, in their original order.
+- Upload copies in one go (`MultiMeshData.Write`), not instance by instance.
+- Files a part loads at start are declared in `World/StartupResources` so the prefetch reads them beside the town.
+- Pure computation may run on workers (`Task`, `Parallel`) on arrays captured on the main thread; no scene, physics or
+  part calls off the main thread. Parallel results must not depend on order.
+- Ruien builders run on the Ruien worker ([Start-up](docs/ruien-native.md#start-up)): no scene-tree, physics or
+  `Ruien.I` calls in them; lay nodes in through `place(...)`.
+- Every collision triangle is built on the main thread at start (about 0.6 s per million). Keep collision to what
+  people and the player touch, within the edge rules below.
+- Prove the town is unchanged: the proof's `town digest`, `map digest`, `ruien pieces` and world report must match a
+  `--no-startup-cache --ruien-in-order` run.
+
 # Model edges and materials
 
 - Give exposed edges a material-appropriate geometric bevel or radius. Keep an edge sharp only for an intentional
@@ -32,3 +68,11 @@ permanent object IDs and unsaved editor work during resource repairs.
 - Reviewer scores and automated checks are evidence, not acceptance. A visible geometry, junction, drainage, material
   alignment or wear defect blocks an overall environment pass. Record unresolved defects explicitly; never call a
   texture-only improvement a finished high-detail asset or exempt known defects by narrowing the review after the fact.
+
+# Ruien street access
+
+- Entrances belong in a square clear of traffic, or behind a doorway. Never put an open hatch, stairwell, moving lid
+  or access house in a carriageway, cart route or tram route. A walkable map pixel is not evidence of a safe site.
+- Align entrances with the adjacent facade, boundary and paving courses. Include the surround, open leaves, landing
+  and approach in the clearance review. Doors should open inward. Street ventilation grates stay closed to access.
+- Review the actual native street and underground connection together; restore paving and collision at retired openings.

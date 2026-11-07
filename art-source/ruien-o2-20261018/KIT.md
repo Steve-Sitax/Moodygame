@@ -6,7 +6,7 @@ O2 (vliet sluice, giant gallery, Vleeshuis hall) is the first use. All scripts r
 
 ## Shared conventions (the same for every piece and stretch)
 
-- Native polish: `RuienPaving` reuses the town quay setts (`r000033` colour, `r000035` height, 2.5 m tile), with 16 mm geometric relief, dirty joints and shared `ruien_setts` masonry material. Dressed waterside coping stays separate. Run `convert.tscn -- --ruien-paving-textures` once to pack the normal/HRA maps; the colour resource is shared directly.
+- Native polish: `RuienPaving` reuses the town quay-sett grain (`r000033` colour, `r000035` height, 2.5 m tile), with a darker underground tint, sediment in joints, damp at wall feet and 16 mm geometric relief. The 50 cm wide, 32 cm deep waterside coping stays separate: the paving stops at its inner arris. Run `convert.tscn -- --ruien-paving-textures` once to pack the normal/HRA maps; the colour resource is shared directly.
 - Paving UVs follow each ledge centre line, using offset arc length through bends. Rectangular treads and landings use their own orthonormal chart. `pavingSeams` adds dressed stone bonds 10 mm above the sett crowns; the keeper path uses mitred slabs and one bond at each turn. Procedural stone UVs are measured in metres and divided by the family tile, including risers and bevels.
 - `RuienUv` audits physical texture scale and repairs narrow-face charts while retaining their phase and direction. Repaired meshes keep full-precision attributes: quantized UVs collapse millimetre bevel charts. Severe repairs discard the streaked baked colour at those vertices; weather masks remain. Run `convert.tscn -- --ruien-uv-audit <resource folder> --report <outside-repo JSON>` for both LODs.
 - Native `RuienStair` builds A1 from `keeperStairs`: dark bluestone treads, a lined inclined barrel behind the gallery wall, a vaulted side niche and a continuous ledge route. `RuienHatch` supplies two full-length cast lids, with 85-degree hinge travel and collision on the leaves; `NativeRuienAccess` saves their state and the maintenance crew's route progress. `channelLadderSpacing` adds staggered escape irons. All use existing material families and the fixed lamp pool.
@@ -283,3 +283,8 @@ Antigoon can wade through. One model everywhere; the export places it, the game 
   by part (weather colour); occlusion per part.
 - **Kit checks** (in the native proof): metric UVs (RuienUv audit, 0 m2 stretched), closed meshes (no odd edges),
   only `ruien_iron` and `ruien_bluestone`, the raised and half-raised leaves clear the masonry, the giant capsule clear.
+
+Native access repair (2026-11-05): the original O2 study’s `vleeshuis_hatch` and `o2_keeper` are retired by
+`native-godot/world/ruien/areas.json`; their underground geometry remains beneath masonry closures, with no road
+opening or lid. The live O2 access is the surveyed `o2_vleeshuis_door` facade stair. The street grate ventilates only.
+Keep the native retirement configuration when reconverting the historical study; do not copy its road access into new rooms.

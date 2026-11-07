@@ -27,7 +27,7 @@ namespace Scheldemist.Native.World;
 ///   of brick and lime, both in the town's facade material (its brick and plaster pictures), so no new shader kind.
 /// (dev: --no-square-dressing leaves the squares as the razing left them, for a before-and-after)
 /// </summary>
-public static class NativeSquareDressing
+public static partial class NativeSquareDressing
 {
     public const string File = "res://world/town/square-dressing.json";
     /// <summary>Marks this dressing's nodes: they bring their own collision (Solid leaves them).</summary>
@@ -75,7 +75,7 @@ public static class NativeSquareDressing
     /// The dirt mask drawn again on the cut plots and set as the paving's global picture (any thread: an image and the
     /// rendering server). Returns the pixels drawn.
     /// </summary>
-    public static int Ground(Plan plan, NativeRazedHouses.Result razed, string mapsDir)
+    private static int BuildGround(Plan plan, NativeRazedHouses.Result razed, string mapsDir)
     {
         if (razed.Razed.Count == 0) return 0;
         string png = System.IO.Path.Combine(mapsDir, "dirt.png"), box = System.IO.Path.Combine(mapsDir, "dirt.json");
@@ -106,7 +106,8 @@ public static class NativeSquareDressing
                 {
                     var q = new Vector2(x0 + (i + 0.5f) * px, z0 + (j + 0.5f) * pz);
                     // (inside a standing house or a church: not ground)
-                    if (standing.Any(s => Inside(s, q)) || churches.Any(c => Inside(c, q))) continue;
+                    // nearWalls includes every footprint overlapping this plot and its margin.
+                    if (nearWalls.Any(s => Inside(s, q))) continue;
                     float inPlot = Inside(outline, q) ? 1 : 1 - SmoothStep(0.9f, Reach, EdgeDistance(outline, q));
                     if (inPlot <= 0) continue;
                     // (a pixel another cut plot already drew fully stays as drawn)
@@ -298,7 +299,11 @@ public static class NativeSquareDressing
         if (Scheldemist.Main.I.Flag("bared-list"))
             foreach (var w in walls)
                 GD.Print($"bared wall {w.Standing}/{w.Razed}: A {w.A.X:0.00},{w.A.Y:0.00} B {w.B.X:0.00},{w.B.Y:0.00} out {w.Out.X:0.00},{w.Out.Y:0.00} len {(w.B - w.A).Length():0.0} standing {w.StandingHeight:0.0} razed {w.RazedHeight:0.0} storeys {w.Storeys} flue {w.Flue}");
+        SurfaceCache.Clear();
         int bricked = Brick(town, walls);
+        frontMeshes = BakedWorld.All(town).OfType<MeshInstance3D>()
+            .Where(m => m.Mesh is ArrayMesh && m.Name.ToString().StartsWith("city_", StringComparison.Ordinal))
+            .Select(m => { var xf=WorldOf(m); return (m,xf,xf*m.GetAabb()); }).ToArray();
         var decal = ResourceLoader.Load<Material>(GrimeDecalMaterial);
         var iron = ResourceLoader.Load<Material>(IronMaterial);
         int quads = 0, anchors = 0;
@@ -382,6 +387,8 @@ public static class NativeSquareDressing
         }
         foreach (var n in holder.GetChildren()) ((Node)n).SetMeta(Meta, true);
         GD.Print($"square dressing: joist sockets {walls.Sum(w => Sockets(w).Count)}, cut into the brick {SocketCut.Values.Sum(c => c.Count)}");
+        SurfaceCache.Clear();
+        frontMeshes = Array.Empty<(MeshInstance3D, Transform3D, Aabb)>();
         return (walls.Count, bricked, quads, anchors);
     }
 
@@ -399,7 +406,10 @@ public static class NativeSquareDressing
 
     /// <summary>The front's own finish at a corner: its picture and paint (CUSTOM0), place in the atlas and colour.</summary>
     private sealed record Look(Color Custom, Vector2 Uv, Vector2 Cell, Color Tone);
-    private static readonly Dictionary<(ulong, int), Godot.Collections.Array> SurfaceCache = new();
+    private static (MeshInstance3D Mesh, Transform3D Frame, Aabb Box)[] frontMeshes = Array.Empty<(MeshInstance3D, Transform3D, Aabb)>();
+    private sealed record FrontSurface(Vector3[] Vertices, Vector3[] Normals, float[] Custom,
+        Color[] Colors, Vector2[] Uv, Vector2[] Uv2, int[] Indices);
+    private static readonly Dictionary<(ulong, int), FrontSurface?> SurfaceCache = new();
 
     /// <summary>The front's facade triangle nearest the corner, 1.2 to 3 m up, on the front's own plane (null: none).</summary>
     private static Look? FrontLook(Node3D town, Vector2 corner, Vector2 front)
@@ -407,28 +417,35 @@ public static class NativeSquareDressing
         var facade = ResourceLoader.Load<Material>(FacadeMaterial);
         Look? best = null;
         float bestD = 0.9f;
-        foreach (var mesh in BakedWorld.All(town).OfType<MeshInstance3D>().Where(m => m.Mesh is ArrayMesh && m.Name.ToString().StartsWith("city_", StringComparison.Ordinal)))
+        foreach (var (mesh, xf, box) in frontMeshes)
         {
-            var xf = WorldOf(mesh);
-            var box = xf * mesh.GetAabb();
             if (corner.X < box.Position.X - 1 || corner.X > box.End.X + 1 || corner.Y < box.Position.Z - 1 || corner.Y > box.End.Z + 1) continue;
             var am = (ArrayMesh)mesh.Mesh;
             for (int s = 0; s < am.GetSurfaceCount(); s++)
             {
                 if (am.SurfaceGetMaterial(s) != facade) continue;
                 var key = (mesh.GetInstanceId(), s);
-                if (!SurfaceCache.TryGetValue(key, out var arrays)) SurfaceCache[key] = arrays = am.SurfaceGetArrays(s);
-                if (arrays[(int)Mesh.ArrayType.Custom0].VariantType != Variant.Type.PackedFloat32Array || arrays[(int)Mesh.ArrayType.Color].VariantType != Variant.Type.PackedColorArray
-                    || arrays[(int)Mesh.ArrayType.TexUV2].VariantType != Variant.Type.PackedVector2Array) continue;
-                var v = arrays[(int)Mesh.ArrayType.Vertex].AsVector3Array();
-                var nrm = arrays[(int)Mesh.ArrayType.Normal].AsVector3Array();
-                var c0 = arrays[(int)Mesh.ArrayType.Custom0].AsFloat32Array();
-                var col = arrays[(int)Mesh.ArrayType.Color].AsColorArray();
-                var uv = arrays[(int)Mesh.ArrayType.TexUV].AsVector2Array();
-                var uv2 = arrays[(int)Mesh.ArrayType.TexUV2].AsVector2Array();
+                if (!SurfaceCache.TryGetValue(key, out var surface))
+                {
+                    using var arrays = am.SurfaceGetArrays(s);
+                    surface = null;
+                    if (arrays[(int)Mesh.ArrayType.Custom0].VariantType == Variant.Type.PackedFloat32Array
+                        && arrays[(int)Mesh.ArrayType.Color].VariantType == Variant.Type.PackedColorArray
+                        && arrays[(int)Mesh.ArrayType.TexUV2].VariantType == Variant.Type.PackedVector2Array)
+                    {
+                        var vertices = arrays[(int)Mesh.ArrayType.Vertex].AsVector3Array();
+                        surface = new(vertices, arrays[(int)Mesh.ArrayType.Normal].AsVector3Array(),
+                            arrays[(int)Mesh.ArrayType.Custom0].AsFloat32Array(), arrays[(int)Mesh.ArrayType.Color].AsColorArray(),
+                            arrays[(int)Mesh.ArrayType.TexUV].AsVector2Array(), arrays[(int)Mesh.ArrayType.TexUV2].AsVector2Array(),
+                            arrays[(int)Mesh.ArrayType.Index].VariantType == Variant.Type.PackedInt32Array
+                                ? arrays[(int)Mesh.ArrayType.Index].AsInt32Array() : Enumerable.Range(0, vertices.Length).ToArray());
+                    }
+                    SurfaceCache[key] = surface;
+                }
+                if (surface == null) continue;
+                var (v, nrm, c0, col, uv, uv2, index) = surface;
                 int stride = v.Length == 0 ? 0 : c0.Length / v.Length;
                 if (stride < 2) continue;
-                var index = arrays[(int)Mesh.ArrayType.Index].VariantType == Variant.Type.PackedInt32Array ? arrays[(int)Mesh.ArrayType.Index].AsInt32Array() : Enumerable.Range(0, v.Length).ToArray();
                 for (int t = 0; t + 2 < index.Length; t += 3)
                 {
                     var p = (xf * v[index[t]] + xf * v[index[t + 1]] + xf * v[index[t + 2]]) / 3;
@@ -1792,12 +1809,17 @@ public static class NativeSquareDressing
     {
         var holder = Holder(town);
         int placed = 0;
+        using var installTrace = Scheldemist.Dev.StartupTiming.Split("native.square-install");
         var (fills, faces) = Mend(town, plan.Paving?.KeepOut);
         GD.Print($"square dressing: the old pavements' broken ends mended: {fills} flag pieces laid, {faces} open edges faced");
+        installTrace?.Next("mend");
         AuthorAsset? pump = null;
         Mesh? guard = null; float guardFoot = 0;
+        string doing = "start";
         foreach (var t in plan.Things)
         {
+            installTrace?.Next(doing);
+            doing = t.Kind.Split(':')[0] + "-" + t.Id;
             var at = new Vector3(t.At[0], 0, t.At[1]);
             switch (t.Kind.Split(':')[0])
             {
@@ -1870,6 +1892,7 @@ public static class NativeSquareDressing
                     break;
             }
         }
+        installTrace?.Next(doing);
         return placed;
     }
 

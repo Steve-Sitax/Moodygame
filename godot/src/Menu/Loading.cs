@@ -299,6 +299,8 @@ public partial class Loading : Control
 
     public override void _Process(double delta)
     {
+        // (a proof's long frame at the end of the load: which step held the screen)
+        if (main.Loaded && delta > 0.25 && main.Flag("startup-proof")) GD.Print($"loading: a frame of {delta * 1000:0} ms at {Time.GetTicksMsec()} ms, {(drawFrom >= 0 ? "drawing the town" : Scheldemist.Audio.Soundscape.I is { Prepared: false } ? "sound" : "server")}");
         age += delta;
         stepAge += delta;
         QueueRedraw();
@@ -335,6 +337,7 @@ public partial class Loading : Control
             float t = (float)Math.Min(1, fade / (Kit.Calm ? 0.2 : 1.1));
             Modulate = new Color(1, 1, 1, 1 - t * t);
             if (t < 1) return;
+            Dev.StartupTiming.Mark("loading.finished");
             I = null;
             QueueFree();
             Done?.Invoke();
@@ -402,13 +405,13 @@ public partial class Loading : Control
             return;
         }
         // 5: the town is drawn behind this screen; its shaders are built by those first frames
-        if (drawFrom < 0) drawFrom = age;
+        if (drawFrom < 0) { drawFrom = age;Dev.StartupTiming.Mark("loading.shader-settle"); }
         if (readyAt < 0)
         {
             evenFrames = delta < 0.05 ? evenFrames + 1 : 0;
             double t = age - drawFrom;
             ShowStep("Preparing the shaders", "", 0.82f + 0.16f * (float)Math.Min(1, t / 1.5), "Building every picture program once, now, so the first walk does not stutter.");
-            if ((t > 0.8 && evenFrames >= 20) || t > 6) readyAt = age;
+            if ((t > 0.8 && evenFrames >= 20) || t > 6) { readyAt = age; Dev.StartupTiming.Mark("loading.shaders-settled"); }
             return;
         }
         ShowStep("Ready", "", 1, "The town is ready.");

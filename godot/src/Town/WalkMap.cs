@@ -194,6 +194,16 @@ public sealed class WalkMap
     public string[] BrowserUnreachable = Array.Empty<string>();
     public double BrowserX0, BrowserZ0;
     public int BrowserW, BrowserD;
+    /// <summary>A digest of the grids (open, free, heights): the same map gives the same digest.</summary>
+    public string ContentHash()
+    {
+        using var hash = System.Security.Cryptography.IncrementalHash.CreateHash(System.Security.Cryptography.HashAlgorithmName.SHA256);
+        hash.AppendData(open); hash.AppendData(free);
+        hash.AppendData(System.Runtime.InteropServices.MemoryMarshal.AsBytes(ground.AsSpan()));
+        hash.AppendData(System.Runtime.InteropServices.MemoryMarshal.AsBytes(nativeQuarterHeights.AsSpan()));
+        return Convert.ToHexString(hash.GetHashAndReset())[..16];
+    }
+
     private byte[] open = Array.Empty<byte>();
     private byte[] free = Array.Empty<byte>();
     private short[] ground = Array.Empty<short>();
@@ -475,8 +485,23 @@ public sealed class WalkMap
     /// Clip before projecting so a high beam or deck underside does not close the space beneath/above it.</summary>
     public void AddTriangles(Vector3[] faces)
     {
+        BeginStamp();
+        Stamp(faces);
+    }
+
+    /// <summary>The map's routes are to be worked out again: call once before a batch of <see cref="Stamp"/>.</summary>
+    public void BeginStamp()
+    {
         TopologyRevision++;
         routeLinks = Array.Empty<byte>();
+    }
+
+    /// <summary>
+    /// The body-height part of each triangle closes the cells it stands in. Only ever closes a cell, from the map's
+    /// fixed heights, so several threads may stamp at once and the result is the same in any order.
+    /// </summary>
+    public void Stamp(Vector3[] faces)
+    {
         var a = new Vector3[8]; var b = new Vector3[8];
         int Clip(Vector3[] input, int n, Vector3[] output, float y, bool above)
         {

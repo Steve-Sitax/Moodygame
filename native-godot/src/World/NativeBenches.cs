@@ -70,6 +70,8 @@ public static class NativeBenches
     private sealed class Surface
     {
         public MeshInstance3D Mesh = null!; public int Index; public Vector3[] V = null!; public int[] I = null!; public Transform3D Xf;
+        /// <summary>The surface's arrays as read once from the graphics card (Rebuild reuses them).</summary>
+        public Godot.Collections.Array Arrays = null!;
         public readonly HashSet<int> Cut = new();
         private Dictionary<(int, int), List<int>>? cells;
         /// <summary>The triangles whose bounds reach into 2 m cells near a point (built once per surface).</summary>
@@ -121,7 +123,7 @@ public static class NativeBenches
                         var arrays = mesh.SurfaceGetArrays(si);
                         var v = arrays[(int)Mesh.ArrayType.Vertex].AsVector3Array();
                         var idx = arrays[(int)Mesh.ArrayType.Index].VariantType == Variant.Type.Nil ? Enumerable.Range(0, v.Length).ToArray() : arrays[(int)Mesh.ArrayType.Index].AsInt32Array();
-                        s = surfaces[(m.GetInstanceId(), si)] = new Surface { Mesh = m, Index = si, V = v.Select(p => xf * p).ToArray(), I = idx, Xf = xf };
+                        s = surfaces[(m.GetInstanceId(), si)] = new Surface { Mesh = m, Index = si, V = v.Select(p => xf * p).ToArray(), I = idx, Xf = xf, Arrays = arrays };
                     }
                     pieces.AddRange(Pieces(s, centre, b.Y));
                 }
@@ -261,8 +263,8 @@ public static class NativeBenches
         var mesh = new ArrayMesh { ResourceName = src.ResourceName };
         for (int si = 0; si < src.GetSurfaceCount(); si++)
         {
-            var arrays = src.SurfaceGetArrays(si);
             var s = cut.FirstOrDefault(c => c.Index == si);
+            var arrays = s?.Arrays ?? src.SurfaceGetArrays(si);
             if (s != null)
             {
                 var keep = new List<int>(s.I.Length);

@@ -48,26 +48,33 @@ public sealed class RuienArea
                 int l = Math.Clamp(int.Parse(lod.Name[3..]), 0, 2);
                 foreach (var e in lod.Value.EnumerateArray())
                 {
-                    var mesh = ResourceLoader.Load<ArrayMesh>(area.Export + "/" + e.GetProperty("file").GetString());
-                    if (mesh == null) continue;
-                    if(mesh.GetAabb().End.Y>RuienSurround.Bottom-.015f)
+                    string source=area.Export + "/" + e.GetProperty("file").GetString();
+                    var mesh=RuienGeometryCache.Get(source,area.Id,()=>
+                    {
+                    var original = ResourceLoader.Load<ArrayMesh>(source) ?? new ArrayMesh();
+                    if(original.GetAabb().End.Y>RuienSurround.Bottom-.015f || RuienEntrance.All.Any(s=>s.ConnectArea==area.Id))
                     {
                         var repaired=new ArrayMesh();
-                        for(int s=0;s<mesh.GetSurfaceCount();s++)
+                        for(int s=0;s<original.GetSurfaceCount();s++)
                         {
-                            var arrays=mesh.SurfaceGetArrays(s);
-                            string family=mesh.SurfaceGetName(s);
+                            var arrays=original.SurfaceGetArrays(s);
+                            string family=original.SurfaceGetName(s);
+                            RuienStreetClosure.Trim(arrays,area);
+                            RuienConnections.TrimImported(arrays,area.Id);
+                            RuienEntrance.TrimConnected(arrays,area.Id);
                             // Keep the hall's continuous handrail; only the masonry lining is replaced by the new cap.
                             if(family.Contains("brick")||family.Contains("bluestone"))RuienSurround.Trim(arrays,area);
                             // The export's thick hall leaves give way to RuienSurround.Leaves; the handrail stays.
                             RuienSurround.DropExportLeaves(arrays,area,family);
                             if(arrays[(int)Mesh.ArrayType.Index].AsInt32Array().Length==0)continue;
-                            repaired.AddSurfaceFromArrays(Mesh.PrimitiveType.Triangles,arrays,null,null,mesh.SurfaceGetFormat(s)&~Mesh.ArrayFormat.FlagCompressAttributes);
-                            repaired.SurfaceSetName(repaired.GetSurfaceCount()-1,mesh.SurfaceGetName(s));
+                            repaired.AddSurfaceFromArrays(Mesh.PrimitiveType.Triangles,arrays,null,null,original.SurfaceGetFormat(s)&~Mesh.ArrayFormat.FlagCompressAttributes);
+                            repaired.SurfaceSetName(repaired.GetSurfaceCount()-1,original.SurfaceGetName(s));
                         }
-                        if(repaired.GetSurfaceCount()==0)continue;
-                        mesh=repaired;
+                        return repaired;
                     }
+                    return original;
+                    });
+                    if(mesh.GetSurfaceCount()==0)continue;
                     for (int s = 0; s < mesh.GetSurfaceCount(); s++) mesh.SurfaceSetMaterial(s, RuienMaterials.Get(mesh.SurfaceGetName(s)));
                     var mi = new MeshInstance3D { Name = e.GetProperty("file").GetString()!.Replace(".res", ""), Mesh = mesh, Layers = Ruien.Layer, CastShadow = GeometryInstance3D.ShadowCastingSetting.Off, Visible = false };
                     a.Root.AddChild(mi);
@@ -83,18 +90,25 @@ public sealed class RuienArea
             a.Keys.Add(key);
         }
         string col = area.Export + "/collision.res";
-        a.Shape = ResourceLoader.Exists(col) ? ResourceLoader.Load<ConcavePolygonShape3D>(col) : null;
-        if(a.Shape!=null)
+        if(ResourceLoader.Exists(col))
         {
-            var arrays=new Godot.Collections.Array();arrays.Resize((int)Mesh.ArrayType.Max);
-            arrays[(int)Mesh.ArrayType.Vertex]=a.Shape.Data;
-            bool trimmed=RuienSurround.Trim(arrays,area);
+            a.Shape=RuienGeometryCache.Get(col,area.Id,()=>
+            {
+            var original=ResourceLoader.Load<ConcavePolygonShape3D>(col);
+            using var arrays=new Godot.Collections.Array();arrays.Resize((int)Mesh.ArrayType.Max);
+            arrays[(int)Mesh.ArrayType.Vertex]=original.Data;
+            bool trimmed=RuienStreetClosure.Trim(arrays,area);
+            trimmed|=RuienConnections.TrimImported(arrays,area.Id);
+            trimmed|=RuienEntrance.TrimConnected(arrays,area.Id);
+            trimmed|=RuienSurround.Trim(arrays,area);
             trimmed|=RuienSurround.DropExportLeaves(arrays,area,null);
             if(trimmed)
             {
                 var p=arrays[(int)Mesh.ArrayType.Vertex].AsVector3Array();var ix=arrays[(int)Mesh.ArrayType.Index].AsInt32Array();
-                a.Shape=new ConcavePolygonShape3D{Data=ix.Select(i=>p[i]).ToArray(),BackfaceCollision=true};
+                return new ConcavePolygonShape3D{Data=ix.Select(i=>p[i]).ToArray(),BackfaceCollision=true};
             }
+            return original;
+            });
         }
         return a;
     }

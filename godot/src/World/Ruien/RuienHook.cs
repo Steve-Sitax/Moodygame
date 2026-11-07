@@ -28,6 +28,7 @@ public static class RuienHook
     /// </summary>
     public static int Fit(RuienData.Area area, RuienArea export, Node3D root)
     {
+        using var profile=Dev.StartupTiming.Measure("ruien.hooks."+area.Id);
         int fitted = 0;
         var lod0 = export.Keys.SelectMany(k => k.Lods[0]).ToList();
         var all = export.Keys.SelectMany(k => k.Lods.SelectMany(l => l)).ToList();
@@ -77,6 +78,7 @@ public static class RuienHook
     /// </summary>
     public static bool Place(Node3D root, Node3D piece, IEnumerable<ArrayMesh> walls, Vector3 lanternTop, string id)
     {
+        using var profile=Dev.StartupTiming.Measure("ruien.hook.place");
         var dir = piece.Basis * Vector3.Right; dir.Y = 0; dir = dir.Normalized();
         var light = piece.Transform * lanternTop - Vector3.Up * TopAboveLight;
         if (Fitting(walls, light, dir) is not { } fit) { GD.PushWarning($"ruien hook: no wall behind {id}"); return false; }
@@ -108,6 +110,11 @@ public static class RuienHook
     private static (Vector3 at, Vector3 normal)? Wall(List<ArrayMesh> walls, Vector3 at, Vector3 dir)
     {
         var from = at - dir * .8f; const float reach = 1.8f; float best = reach; var normal = -dir;
+        var end=from+dir*reach;
+        // A conservative short-ray box rejects distant triangles before the native exact intersection.
+        // Keep a centimetre of margin around the box for floating-point boundary cases.
+        var lo=new Vector3(Math.Min(from.X,end.X)-.01f,Math.Min(from.Y,end.Y)-.01f,Math.Min(from.Z,end.Z)-.01f);
+        var hi=new Vector3(Math.Max(from.X,end.X)+.01f,Math.Max(from.Y,end.Y)+.01f,Math.Max(from.Z,end.Z)+.01f);
         foreach (var mesh in walls)
         {
             if (!mesh.GetAabb().Grow(.1f).IntersectsSegment(from, from + dir * reach)) continue;
@@ -120,6 +127,9 @@ public static class RuienHook
                 for (int t = 0; t + 2 < ix.Length; t += 3)
                 {
                     Vector3 a = p[ix[t]], b = p[ix[t + 1]], c = p[ix[t + 2]];
+                    if(Math.Max(a.X,Math.Max(b.X,c.X))<lo.X || Math.Min(a.X,Math.Min(b.X,c.X))>hi.X
+                        || Math.Max(a.Y,Math.Max(b.Y,c.Y))<lo.Y || Math.Min(a.Y,Math.Min(b.Y,c.Y))>hi.Y
+                        || Math.Max(a.Z,Math.Max(b.Z,c.Z))<lo.Z || Math.Min(a.Z,Math.Min(b.Z,c.Z))>hi.Z)continue;
                     if (Geometry3D.RayIntersectsTriangle(from, dir, a, b, c).Obj is not Vector3 hit) continue;
                     float d = from.DistanceTo(hit);
                     if (d >= best) continue;
@@ -149,50 +159,61 @@ public static class RuienHook
     public static ArrayMesh? Without(ArrayMesh mesh, Func<string, bool> family, Func<Vector3, bool> drop, List<Vector3>? removed = null)
     {
         bool any = false;
-        var done = new ArrayMesh();
+        var selected=new Dictionary<int,Godot.Collections.Array?>();
         for (int s = 0; s < mesh.GetSurfaceCount(); s++)
         {
-            var arrays = mesh.SurfaceGetArrays(s);
             string name = mesh.SurfaceGetName(s);
-            if (family(name))
+            if(!family(name))continue;
+            var arrays=mesh.SurfaceGetArrays(s);
+            var p=arrays[(int)Mesh.ArrayType.Vertex].AsVector3Array();
+            var ix=arrays[(int)Mesh.ArrayType.Index].AsInt32Array();
+            if(ix.Length==0)ix=Enumerable.Range(0,p.Length).ToArray();
+            var keep=new List<int>(ix.Length);
+            for(int t=0;t<ix.Length;t+=3)
             {
-                var p = arrays[(int)Mesh.ArrayType.Vertex].AsVector3Array();
-                var ix = arrays[(int)Mesh.ArrayType.Index].AsInt32Array();
-                if (ix.Length == 0) ix = Enumerable.Range(0, p.Length).ToArray();
-                var keep = new List<int>(ix.Length);
-                for (int t = 0; t < ix.Length; t += 3)
+                var c=(p[ix[t]]+p[ix[t+1]]+p[ix[t+2]])/3;
+                if(drop(c))
                 {
-                    var c = (p[ix[t]] + p[ix[t + 1]] + p[ix[t + 2]]) / 3;
-                    if (drop(c)) { any = true; removed?.AddRange(new[] { p[ix[t]], p[ix[t + 1]], p[ix[t + 2]] }); }
-                    else keep.AddRange(new[] { ix[t], ix[t + 1], ix[t + 2] });
+                    any=true;
+                    if(removed!=null){removed.Add(p[ix[t]]);removed.Add(p[ix[t+1]]);removed.Add(p[ix[t+2]]);}
                 }
-                if (keep.Count == 0) continue;
-                arrays[(int)Mesh.ArrayType.Index] = keep.ToArray();
+                else {keep.Add(ix[t]);keep.Add(ix[t+1]);keep.Add(ix[t+2]);}
             }
-            Copy(done, mesh, s, arrays, name);
+            arrays[(int)Mesh.ArrayType.Index]=keep.ToArray();
+            selected[s]=keep.Count==0?null:arrays;
         }
-        return any ? done : null;
+        if(!any)return null;
+        // Most meshes near a lamp contain no bracket. Never rebuild their unrelated masonry surfaces.
+        var done=new ArrayMesh();
+        for(int s=0;s<mesh.GetSurfaceCount();s++)
+        {
+            var arrays=selected.TryGetValue(s,out var picked)?picked:mesh.SurfaceGetArrays(s);
+            if(arrays!=null)Copy(done,mesh,s,arrays,mesh.SurfaceGetName(s));
+        }
+        return done;
     }
 
     // The lantern's parts round its light (brass pot and cap, glass, gauze, flame) moved by shift.
     private static ArrayMesh? Moved(ArrayMesh mesh, Vector3 light, Vector3 shift)
     {
-        bool any = false;
-        var done = new ArrayMesh();
-        for (int s = 0; s < mesh.GetSurfaceCount(); s++)
+        bool any=false;
+        var selected=new Dictionary<int,Godot.Collections.Array>();
+        for(int s=0;s<mesh.GetSurfaceCount();s++)
         {
-            var arrays = mesh.SurfaceGetArrays(s);
-            string name = mesh.SurfaceGetName(s);
-            if (name.Contains("Brass_lamp") || name.Contains("Lamp_"))
-            {
-                var p = arrays[(int)Mesh.ArrayType.Vertex].AsVector3Array();
-                for (int i = 0; i < p.Length; i++)
-                    if (new Vector2(p[i].X - light.X, p[i].Z - light.Z).Length() < .09f && p[i].Y > light.Y - .14f && p[i].Y < light.Y + .2f) { p[i] += shift; any = true; }
-                arrays[(int)Mesh.ArrayType.Vertex] = p;
-            }
-            Copy(done, mesh, s, arrays, name);
+            string name=mesh.SurfaceGetName(s);
+            if(!name.Contains("Brass_lamp") && !name.Contains("Lamp_"))continue;
+            var arrays=mesh.SurfaceGetArrays(s);
+            var p=arrays[(int)Mesh.ArrayType.Vertex].AsVector3Array();
+            for(int i=0;i<p.Length;i++)
+                if(new Vector2(p[i].X-light.X,p[i].Z-light.Z).Length()<.09f && p[i].Y>light.Y-.14f && p[i].Y<light.Y+.2f)
+                {p[i]+=shift;any=true;}
+            arrays[(int)Mesh.ArrayType.Vertex]=p;selected[s]=arrays;
         }
-        return any ? done : null;
+        if(!any)return null;
+        var done=new ArrayMesh();
+        for(int s=0;s<mesh.GetSurfaceCount();s++)
+            Copy(done,mesh,s,selected.TryGetValue(s,out var arrays)?arrays:mesh.SurfaceGetArrays(s),mesh.SurfaceGetName(s));
+        return done;
     }
 
     private static void Copy(ArrayMesh done, ArrayMesh mesh, int s, Godot.Collections.Array arrays, string name)

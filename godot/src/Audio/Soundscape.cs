@@ -261,6 +261,7 @@ public partial class Soundscape : Godot.Node
         if (!IsInstanceValid(this) || !IsInsideTree()) return;
         WarmPlayers();
         double loadMs = sw.Elapsed.TotalMilliseconds;
+        Dev.StartupTiming.Mark("audio.recordings");
 
         // water bed: sits on the quay edge nearest the player (panner 4 m, rolloff 1.2)
         waterSpot = new Spot { Raw = true, Ref = 4, Rolloff = 1.2, Out = "Ambience", Hold = true, Level = 0.5, LevelT = 0.5, LevelTau = 0.8 };
@@ -330,6 +331,7 @@ public partial class Soundscape : Godot.Node
         });
 
         if (!IsInstanceValid(this) || !IsInsideTree()) return;
+        Dev.StartupTiming.Mark("audio.beds");
         while (ready.TryDequeue(out var fn)) { using var callbackCost = Dev.FrameCost.Callback(fn); fn(); }
         StartHowl();
         now = 0;
@@ -2145,7 +2147,22 @@ public partial class Soundscape : Godot.Node
 
     // ------------------------------------------------------------------ loading
 
-    private AudioStream? Decode(string rel)
+    /// <summary>A recording as decoded: its stream, its level record when it was unpacked, its playback scale.</summary>
+    private readonly record struct Decoded(AudioStream? Stream, object? Level, double Scale);
+
+    private AudioStream? Decode(string rel) => Commit(rel, DecodeQuiet(rel));
+
+    /// <summary>The decoded recording joins the loaded ones (in a fixed order, whatever thread decoded it).</summary>
+    private AudioStream? Commit(string rel, Decoded d)
+    {
+        if (d.Level != null) { decodeLevels.Add(d.Level); unpacked++; }
+        if (d.Stream != null && d.Scale != 1) recordingScales[d.Stream] = d.Scale;
+        if (d.Stream == null) failed.Add(rel);
+        return d.Stream;
+    }
+
+    /// <summary>Read and unpack one recording; touches no shared state, so several run at once.</summary>
+    private Decoded DecodeQuiet(string rel)
     {
         string path = Path.Combine(AudioPaths.Audio, rel);
         try
@@ -2158,25 +2175,24 @@ public partial class Soundscape : Godot.Node
                     ".wav" => AudioStreamWav.LoadFromFile(path),
                     _ => AudioStreamOggVorbis.LoadFromFile(path),
                 };
-                if (s != null && Unpacked(s, rel) is { } pcm) return pcm;
+                if (s != null && Unpacked(s, rel) is { Stream: not null } pcm) return pcm;
             }
         }
         catch (Exception e)
         {
             GD.PrintErr($"[sound] {rel}: {e.Message}");
         }
-        failed.Add(rel);
-        return null;
+        return default;
     }
 
     /// <summary>
     /// Decode recordings during loading: no Ogg/MP3 decoder setup in a gameplay frame. Keep loop points and
     /// native sample rates for long recordings; the original short one-shots keep their existing PCM exactly.
     /// </summary>
-    private AudioStream? Unpacked(AudioStream s, string rel)
+    private Decoded Unpacked(AudioStream s, string rel)
     {
         double len = s.GetLength();
-        if (len <= 0 || s is AudioStreamWav) return s;
+        if (len <= 0 || s is AudioStreamWav) return new(s, null, 1);
         bool loop = rel.Contains("-loop");
         // Keep the old short one-shots exactly as they were. For longer recordings keep their native rate,
         // avoiding an extra resampling pass when pitch or playback position changes.
@@ -2203,7 +2219,7 @@ public partial class Soundscape : Godot.Node
                 n += block.Length;
             }
             pb.Stop();
-            if (n < rate / 100) return null;
+            if (n < rate / 100) return default;
             // Ogg can decode above full scale. Newly unpacked recordings must keep that headroom: store them
             // lower and restore it on the voice. Existing short PCM retains its original quantization/clipping.
             double scale = !legacy && sourcePeak > 1 ? sourcePeak / 0.95 : 1;
@@ -2220,22 +2236,20 @@ public partial class Soundscape : Godot.Node
             }
             double DbRound(double value) => Math.Round(20 * Math.Log10(Math.Max(value, 1e-12)), 1);
             double beforePeak = legacy ? pcmPeak : sourcePeak, beforeSum = legacy ? pcmSum : sourceSum;
-            decodeLevels.Add(new { file = rel, rate, seconds = len, wasPcmBefore = legacy, playbackScale = scale,
+            var level = new { file = rel, rate, seconds = len, wasPcmBefore = legacy, playbackScale = scale,
                 sourcePeakDb = DbRound(beforePeak), pcmPeakDb = DbRound(pcmPeak),
                 sourceRmsDb = DbRound(Math.Sqrt(beforeSum / n)), pcmRmsDb = DbRound(Math.Sqrt(pcmSum / n)),
                 peakDifferenceDb = 20 * Math.Log10(pcmPeak / Math.Max(beforePeak, 1e-12)),
-                rmsDifferenceDb = 10 * Math.Log10(pcmSum / Math.Max(beforeSum, 1e-24)) });
-            unpacked++;
+                rmsDifferenceDb = 10 * Math.Log10(pcmSum / Math.Max(beforeSum, 1e-24)) };
             var stream = new AudioStreamWav { Format = AudioStreamWav.FormatEnum.Format16Bits, MixRate = rate, Stereo = false,
                 Data = bytes, LoopMode = loop ? AudioStreamWav.LoopModeEnum.Forward : AudioStreamWav.LoopModeEnum.Disabled,
                 LoopBegin = 0, LoopEnd = n };
-            if (scale != 1) recordingScales[stream] = scale;
-            return stream;
+            return new(stream, level, scale);
         }
         catch (Exception e)
         {
             GD.PrintErr($"[sound] {rel}: could not prepare PCM ({e.Message})");
-            return null;
+            return default;
         }
     }
     private int unpacked;
@@ -2245,6 +2259,18 @@ public partial class Soundscape : Godot.Node
     /// <summary>The recordings. A file that fails stays silent. The "-loop" files loop cleanly.</summary>
     private void LoadAll()
     {
+        // Every recording read and unpacked on several cores at once, then taken in below in the old order.
+        var wanted = Samples.Files.Select(f => f.Value)
+            .Concat(new[] { "stone", "wood" }.SelectMany(surface => Enumerable.Range(0, 5).Select(n => Samples.StepFile(surface, n))))
+            .Concat(Samples.Fx.SelectMany(f => f.Value))
+            .Concat(Samples.ThunderNear.Concat(Samples.ThunderFar).Select(id => Samples.ThunderFile(id)))
+            .Distinct().ToArray();
+        var decoded = new System.Collections.Concurrent.ConcurrentDictionary<string, Decoded>();
+        System.Threading.Tasks.Parallel.ForEach(wanted, new System.Threading.Tasks.ParallelOptions { MaxDegreeOfParallelism = Math.Clamp(System.Environment.ProcessorCount / 2, 2, 12) },
+            rel => decoded[rel] = DecodeQuiet(rel));
+        // (a file listed twice is unpacked once, and each listing gets its own copy of the result, as before)
+        var used = new HashSet<string>();
+        AudioStream? Decode(string rel) => Commit(rel, used.Add(rel) && decoded.TryGetValue(rel, out var d) ? d : DecodeQuiet(rel));
         foreach (var (name, rel) in Samples.Files)
         {
             var s = Decode(rel);

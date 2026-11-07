@@ -19,7 +19,7 @@ namespace Scheldemist.World.Ruien;
 /// Layout "L": the door in the tunnel's side wall, the tunnel along the wall behind it (a rampart bank); "I": the door in
 /// its end wall, the tunnel straight in (a gate house). A tunnel is top landing, one straight flight, bottom landing.
 /// </summary>
-public static class RuienEntrance
+public static partial class RuienEntrance
 {
     public const string File = "res://world/ruien/entrances.json";
 
@@ -33,6 +33,10 @@ public static class RuienEntrance
     public sealed class Spec
     {
         public string Id = "", Name = "", Host = "rampart", Line = "", Layout = "L", Flight = "right", Closure = "grille", ClosureSide = "street", Head = "arch", Frame = "bluestone";
+        public string ConnectArea = "";
+        public float ConnectLength;
+        public bool LowerSill;
+        public WalkUnderpass? Underpass;
         public int Survey;
         public Vector2 Door, Out;
         public float Street, Depth = -3.6f, Wall = .9f, Width = 1.3f, DoorWidth = 1.2f, DoorHeight = 2.0f, Post = .08f, KeepAbove;
@@ -112,6 +116,9 @@ public static class RuienEntrance
                 Id = S(e, "id", ""), Name = S(e, "name", ""), Host = S(e, "host", "rampart"), Line = S(e, "line", ""), Layout = S(e, "layout", "L"),
                 Flight = S(e, "flight", "right"), Closure = S(e, "closure", "grille"), ClosureSide = S(e, "closureSide", "street"), Head = S(e, "head", "arch"), Frame = S(e, "frame", "bluestone"),
                 Survey = e.TryGetProperty("survey", out var sv) ? sv.GetInt32() : 0,
+                ConnectArea=S(e,"connectArea",""), ConnectLength=F(e,"connectLength",0),
+                LowerSill=e.TryGetProperty("lowerSill",out var ls)&&ls.GetBoolean(),
+                Underpass=e.TryGetProperty("underpass",out var under)?ReadUnderpass(under):null,
                 Door = new Vector2(e.GetProperty("door")[0].GetSingle(), e.GetProperty("door")[1].GetSingle()),
                 Out = new Vector2(e.GetProperty("out")[0].GetSingle(), e.GetProperty("out")[1].GetSingle()).Normalized(),
                 Street = F(e, "street", 0), Depth = F(e, "depth", -3.6f), Wall = F(e, "wall", .9f), Width = F(e, "width", 1.3f),
@@ -252,6 +259,11 @@ public static class RuienEntrance
             var floorLo = new Vector3(-o.H, -.45f, -s.Wall - .01f);
             var floorHi = new Vector3(o.H, .05f, -.01f);
             airRegions.Add(new QuayNotch.Region(Box(s, floorLo, floorHi), Planes(s.Local, floorLo, floorHi)));
+            if(s.LowerSill)
+            {
+                var sl=new Vector3(-o.H+.015f,-.45f,-s.Wall-.02f);var sh=new Vector3(o.H-.015f,.36f,.5f);
+                airRegions.Add(new QuayNotch.Region(Box(s,sl,sh),Planes(s.Local,sl,sh)));
+            }
             foreach (var (lo, hi, frame) in AirBoxes(s))
                 airRegions.Add(new QuayNotch.Region(BoxOf(s.Local * frame, lo, hi), Planes(s.Local * frame, lo, hi)));
             int air = QuayNotch.CutRegions(town, _ => true, _ => true, airRegions);
@@ -267,17 +279,28 @@ public static class RuienEntrance
                 var plinth = new Vector3(.012f, 0, .012f);
                 air += QuayNotch.CutRegion(town, _ => true, Box(s, lo + plinth, hi - plinth), _ => true, Planes(s.Local, lo + plinth, hi - plinth));
                 leaves += HidePlants(town, s, inv, new Aabb(lo - new Vector3(.25f, 0, .25f), hi - lo + new Vector3(.5f, 0, .5f)));
+                foreach(float side in new[]{-1f,1f})
+                {
+                    float x=side*(RuienStairHouse.Half+.56f),z=-RuienStairHouse.Length(s)+.35f;
+                    var gl=new Vector3(x-.145f,-1.02f,z-.14f);var gh=new Vector3(x+.145f,.04f,z+.14f);
+                    air+=QuayNotch.CutRegion(town,_=>true,Box(s,gl,gh),_=>true,Planes(s.Local,gl,gh));
+                }
             }
             // 4. a gate house's drawn door (frame, leaf and recess) under its hood: whole pieces.
             var drawn = new Aabb(new Vector3(-o.H - .03f, -.1f, -1.7f), new Vector3(2 * o.H + .06f, s.KeepAbove + .1f, 2.1f));
             int cleared = s.Clear.Length == 0 ? 0 : Drop(town, mi => s.Clear.Any(c => mi.Name.ToString().StartsWith(c, StringComparison.Ordinal)), Array.Empty<string>(), inv, drawn, s.KeepAbove);
             notes.Add($"entrance {s.Id}: {wall} wall, {air} inside, {leaves} plant and {cleared} drawn-door triangles cut");
         }
+        foreach(var s in All.Where(s=>s.ConnectLength>0))
+        {
+            var f=LinkFrame(s);var lo=new Vector3(-.6f,-.25f,-.02f);var hi=new Vector3(.6f,2.2f,s.ConnectLength+.02f);
+            QuayNotch.CutRegion(town,_=>true,BoxOf(f,lo,hi),_=>true,Planes(f,lo,hi));
+        }
         return notes;
     }
 
     /// <summary>The convex air of the tunnel and the closure's niche, as boxes in their frames (relative to local).</summary>
-    private static IEnumerable<(Vector3 lo, Vector3 hi, Transform3D frame)> AirBoxes(Spec s)
+    private static IEnumerable<(Vector3 lo, Vector3 hi, Transform3D frame)> AirBoxes(Spec s,bool surroundings=true)
     {
         float top = s.Spring + s.VaultRise + .25f;
         float across = s.Width / 2 + s.Lining;
@@ -293,10 +316,13 @@ public static class RuienEntrance
         else
             // (a buried stair: the masonry's own steps down, so the street over its lower end stays whole)
             foreach (var (u0, u1) in Steps(s))
-                yield return (new Vector3(u0, -s.Drop - .45f, -across), new Vector3(u1, s.Ceiling(u0) - .01f, across), s.Run);
+                // Consecutive cuts overlap: a coplanar triangle on their common plane otherwise survives both
+                // strict half-space tests as a thin collision sliver across the stair.
+                yield return (new Vector3(u0-.003f, -s.Drop - .45f, -across), new Vector3(u1+.003f, s.Ceiling(u0) - .01f, across), s.Run);
+        if(!surroundings)yield break;
         // the closure's niche and the stub behind a grille
         var c = s.ClosureOpening;
-        yield return (new Vector3(c.C - c.H - s.Lining, c.Floor - .45f, -.05f), new Vector3(c.C + c.H + s.Lining, c.Top + c.Ring + .2f, s.Lining + 1.3f), s.ClosureWall);
+        yield return (new Vector3(c.C - c.H - s.Lining, c.Floor - .45f, -.05f), new Vector3(c.C + c.H + s.Lining, c.Top + c.Ring + .2f, s.ConnectLength>0?s.ConnectLength+.03f:s.Lining+1.3f), s.ClosureWall);
         // the reveal through the host wall
         var o = s.DoorOpening;
         float m = s.RevealMargin;
@@ -327,19 +353,20 @@ public static class RuienEntrance
     private static int HidePlants(Node3D town, Spec s, Transform3D inv, Aabb local)
     {
         int hidden = 0;
-        foreach (var node in BakedWorld.All(town))
+        foreach (var node in QuayNotch.BatchNodes(town))
         {
             if (node is not MultiMeshInstance3D { Multimesh: { } mm } mmi) continue;
             if (mmi.GetParent()?.Name.ToString() != "vegetation" && !s.Foliage.Any(c => mmi.Name.ToString().StartsWith(c, StringComparison.Ordinal))) continue;
             var xf = Transform3D.Identity;
             for (Node? n = mmi; n is Node3D n3; n = n.GetParent()) xf = n3.Transform * xf;
+            var data=MultiMeshData.Read(mm);int stride=MultiMeshData.Stride(mm);bool changed=false;
             for (int i = 0; i < mm.InstanceCount; i++)
             {
-                var t = mm.GetInstanceTransform(i);
-                if (!local.HasPoint(inv * (xf * t.Origin))) continue;
-                mm.SetInstanceTransform(i, new Transform3D(new Basis(Vector3.Zero, Vector3.Zero, Vector3.Zero), t.Origin));
+                if (!local.HasPoint(inv * (xf * MultiMeshData.Origin(data,i*stride)))) continue;
+                MultiMeshData.Collapse(data,i*stride);changed=true;
                 hidden++;
             }
+            if(changed)MultiMeshData.Write(mm,data);
         }
         return hidden;
     }
@@ -348,7 +375,7 @@ public static class RuienEntrance
     private static int Drop(Node3D town, Func<MeshInstance3D, bool> pick, string[] materials, Transform3D inv, Aabb local, float keepAbove = 0)
     {
         int dropped = 0;
-        foreach (var node in BakedWorld.All(town))
+        foreach (var node in QuayNotch.Candidates(town,new[]{inv.AffineInverse()*local}))
         {
             if (node is not MeshInstance3D { Mesh: ArrayMesh mesh } mi) continue;
             bool byName = pick(mi);
@@ -358,20 +385,24 @@ public static class RuienEntrance
             var to = inv * xf;
             var box = to * mesh.GetAabb();
             if (!box.Intersects(local)) continue;
-            ArrayMesh? cut = null; int here = 0;
+            int here = 0;
+            var edits=new Dictionary<int,Godot.Collections.Array>();
             for (int si = 0; si < mesh.GetSurfaceCount(); si++)
             {
-                var arrays = mesh.SurfaceGetArrays(si);
                 string mat = mesh.SurfaceGetMaterial(si)?.ResourceName ?? "";
                 bool take = byName || materials.Any(m => mat.Contains(m, StringComparison.Ordinal));
-                if (take && mesh.SurfaceGetPrimitiveType(si) == Mesh.PrimitiveType.Triangles)
-                    here += RuienPatch.Drop(arrays, c => { var q = to * c; return local.HasPoint(q) && (keepAbove <= 0 || q.Y < keepAbove); });
-                cut ??= new ArrayMesh { ResourceName = mesh.ResourceName };
-                cut.AddSurfaceFromArrays(mesh.SurfaceGetPrimitiveType(si), arrays, null, null, mesh.SurfaceGetFormat(si));
-                cut.SurfaceSetMaterial(si, mesh.SurfaceGetMaterial(si));
-                cut.SurfaceSetName(si, mesh.SurfaceGetName(si));
+                if(!take || mesh.SurfaceGetPrimitiveType(si)!=Mesh.PrimitiveType.Triangles)continue;
+                var arrays=mesh.SurfaceGetArrays(si);
+                int count=RuienPatch.Drop(arrays,c=>{var q=to*c;return local.HasPoint(q)&&(keepAbove<=0||q.Y<keepAbove);});
+                if(count>0){here+=count;edits[si]=arrays;}
             }
-            if (here == 0 || cut == null) continue;
+            if(here==0)continue;
+            var cut=new ArrayMesh{ResourceName=mesh.ResourceName};
+            for(int si=0;si<mesh.GetSurfaceCount();si++)
+            {
+                cut.AddSurfaceFromArrays(mesh.SurfaceGetPrimitiveType(si),edits.TryGetValue(si,out var arrays)?arrays:mesh.SurfaceGetArrays(si),null,null,mesh.SurfaceGetFormat(si));
+                cut.SurfaceSetMaterial(si,mesh.SurfaceGetMaterial(si));cut.SurfaceSetName(si,mesh.SurfaceGetName(si));
+            }
             foreach (var key in mesh.GetMetaList()) cut.SetMeta(key, mesh.GetMeta(key));
             mi.Mesh = cut;
             dropped += here;
@@ -430,19 +461,32 @@ public static class RuienEntrance
     /// <summary>Everything of one entrance, under a node placed at its local frame.</summary>
     public static Node3D Build(Spec s)
     {
+        using var trace=Scheldemist.Dev.StartupTiming.Split("ruien.entrance."+s.Id);
+        var root = CachedStructure(s);
+        trace?.Next("structure");
+        var leaf = new RuienEntranceDoor { Spec = s, Name = "door" };
+        leaf.PrepareParts();
+        root.AddChild(leaf);
+        // (far off nothing of it shows: the street sees the door, the rest is behind walls)
+        foreach (var mi in root.FindChildren("*", "MeshInstance3D", true, false).OfType<MeshInstance3D>())
+        { mi.VisibilityRangeEnd = 90; mi.VisibilityRangeEndMargin = 6; }
+        // (a stair-house stands on the square: its shell is seen from as far as the town's houses)
+        trace?.Next("door");
+        if (s.House && Main.I?.Flag("no-stair-house-shell") != true) root.AddChild(RuienStairHouse.Build(s));
+        trace?.Next("house");
+        return root;
+    }
+
+    internal static Node3D BuildStructure(Spec s)
+    {
         var root = new Node3D { Name = "entrance_" + s.Id, Transform = s.Local };
         var k = new Kit(s);
         k.Tunnel();
         k.DoorWall();
         k.Closure();
         k.Commit(root);
-        var leaf = new RuienEntranceDoor { Spec = s, Name = "door" };
-        root.AddChild(leaf);
-        // (far off nothing of it shows: the street sees the door, the rest is behind walls)
-        foreach (var mi in root.FindChildren("*", "MeshInstance3D", true, false).OfType<MeshInstance3D>())
-        { mi.VisibilityRangeEnd = 90; mi.VisibilityRangeEndMargin = 6; }
-        // (a stair-house stands on the square: its shell is seen from as far as the town's houses)
-        if (s.House && Main.I?.Flag("no-stair-house-shell") != true) root.AddChild(RuienStairHouse.Build(s));
+        if(s.ConnectLength>0)root.AddChild(BuildLink(s));
+        if(s.Underpass!=null)root.AddChild(BuildUnderpass(s));
         return root;
     }
 
@@ -504,7 +548,9 @@ public static class RuienEntrance
                         if (q.Z < f0 - .3f || q.Z > f1 + .3f || q.Y < op.Spring - .3f || MathF.Abs(q.X - op.C) > op.H + op.Ring + .3f) return -1;
                         float kx = (q.X - op.C) / (op.H + op.Ring), ky = (q.Y - op.Spring) / (op.Rise + op.Ring);
                         float e = (1 - MathF.Sqrt(kx * kx + ky * ky)) * Math.Min(op.H, op.Rise + op.Ring);
-                        return Math.Min(Math.Min(e, q.Y - op.Spring), Math.Min(q.Z - f0 + .0005f, f1 + .0005f - q.Z));
+                        // Include the box's bottom face at spring height. Leaving air==0 there makes an invisible
+                        // flat ceiling across the arch: a centre ray passes, but a person's head hits it.
+                        return Math.Min(Math.Min(e, q.Y - op.Spring + .001f), Math.Min(q.Z - f0 + .0005f, f1 + .0005f - q.Z));
                     });
                 }
             }
@@ -686,6 +732,12 @@ public static class RuienEntrance
                 Box(FaceStone, Transform3D.Identity, new Vector3(-o.H - .1f, -.2f, -.02f), new Vector3(o.H + .1f, .01f, .17f), .010f);
                 OakFrame(o, -.30f, -.18f);
             }
+            else if (s.Frame == "existing")
+            {
+                // Retain the surveyed town surround and fanlight; replace only its recessed oak frame and leaf.
+                OakFrame(o, -.30f, -.18f);
+                if(s.LowerSill)Box(Stone,Transform3D.Identity,new Vector3(-o.H+.01f,-.2f,-s.Wall-.02f),new Vector3(o.H-.01f,.025f,.5f),.012f);
+            }
             else
             {
                 // the gate house: an oak frame where the drawn one was, its head an oak lintel up to the hood
@@ -736,6 +788,12 @@ public static class RuienEntrance
             // The opening's ring through the wall's depth, and on into the niche behind a grille.
             float deep = s.Closure == "grille" ? L + 1.0f : L;
             Ring(w, o, -.0f, deep);
+            if (s.Closure == "open")
+            {
+                // Connected area supplies the passage beyond this reveal, including its collision and cover.
+                Box(Stone, w, new Vector3(o.C-o.H-.02f,o.Floor-.24f,-.002f), new Vector3(o.C+o.H+.02f,o.Floor,L+.01f),.008f);
+                return;
+            }
             if (s.Closure == "grille")
             {
                 // the niche: its floor, side walls and the temporary brick wall that ends it ("closed for works")
@@ -804,15 +862,17 @@ public static class RuienEntrance
         public void Commit(Node3D root)
         {
             Func<Vector3, float>? trim = trims.Count == 0 ? null : p => { float best = -1e9f; foreach (var t in trims) best = Math.Max(best, t(p)); return best; };
+            Func<Vector3,float>? keep=s.Underpass==null?null:p=>UnderpassAir(s,s.World(p));
+            Func<Vector3,float>? brickTrim=keep==null?trim:p=>Math.Max(trim?.Invoke(p)??-1e9f,keep(p));
             // (a stair-house's stair under its own node: the door shows or hides it, its collision stays)
             var inside = root;
             if (s.House) { inside = new Node3D { Name = "inside" }; root.AddChild(inside); }
             // (the treads and flags: bluestone worn to a dark grey on top, its own grain over that colour)
-            RuienStair.Add(inside, Stone, "ruien_bluestone", true, bake: new Color(.07f, .072f, .075f));
-            RuienStair.Add(inside, Brick, "ruien_brick_stretcher", true, trim: trim);
-            RuienStair.Add(inside, Vault, "ruien_brick_stretcher", true, barrel: true);
-            RuienStair.Add(root, DoorBrick, "ruien_brick_stretcher", true, trim: trim);
-            RuienStair.Add(root, DoorVault, "ruien_brick_stretcher", true, barrel: true);
+            RuienStair.Add(inside, Stone, "ruien_bluestone", true, trim:keep, bake: new Color(.07f, .072f, .075f));
+            RuienStair.Add(inside, Brick, "ruien_brick_stretcher", true, trim: brickTrim);
+            RuienStair.Add(inside, Vault, "ruien_brick_stretcher", true, trim:keep, barrel: true);
+            RuienStair.Add(root, DoorBrick, "ruien_brick_stretcher", true, trim: brickTrim);
+            RuienStair.Add(root, DoorVault, "ruien_brick_stretcher", true, trim:keep, barrel: true);
             // (new brick: clean, a lighter and warmer red than the old lining, its mortar still pale)
             RuienStair.Add(inside, FreshBrick, "ruien_brick_stretcher", true, trim: freshTrim, colour: new Color(.06f, .12f, .02f, 0), bake: new Color(.30f, .13f, .075f));
             RuienStair.Add(root, Iron, "ruien_iron", false);

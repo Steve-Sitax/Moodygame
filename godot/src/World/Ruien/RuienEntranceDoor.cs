@@ -41,25 +41,47 @@ public partial class RuienEntranceDoor : Node3D
     public override void _Ready()
     {
         All[Spec.Id] = this;
+        // The leaf and its fixed iron depend only on the Spec: kept packed, then laid in as built.
+        var parts = prepared ?? RuienEntrance.Cached("entrance-door:", Spec, BuildParts);
+        prepared = null;
+        foreach (var part in parts.GetChildren())
+        {
+            parts.RemoveChild(part);
+            part.Owner = null;
+            AddChild(part);
+        }
+        parts.Free();
+        hinge = GetNode<Node3D>("hinge");
+        inside = GetParent()?.GetNodeOrNull<Node3D>("inside");
+        CallDeferred(MethodName.Install);
+    }
+
+    private Node3D? prepared;
+
+    /// <summary>Make the leaf's parts now, off the tree (the Ruien's worker), so entering the tree only lays them in.</summary>
+    public void PrepareParts() => prepared ??= RuienEntrance.Cached("entrance-door:", Spec, BuildParts);
+
+    private Node3D BuildParts()
+    {
+        var parts = new Node3D { Name = "parts" };
         var o = Spec.DoorOpening;
         // The hinge: the left post's inner edge, at the planks' inner face; the leaf runs +x from it. Hung on the right
         // post (Spec.HingeRight) the same leaf is mirrored and runs -x.
-        hinge = new Node3D { Name = "hinge", Position = new Vector3(Side * (-o.H + Spec.Post + .004f), .012f, Spec.LeafFace - Planks) };
-        AddChild(hinge);
-        Leaf(hinge, LeafWidth, LeafHeight);
-        if (Side < 0) Mirror(hinge);
+        var leafHinge = new Node3D { Name = "hinge", Position = new Vector3(Side * (-o.H + Spec.Post + .004f), .012f, Spec.LeafFace - Planks) };
+        parts.AddChild(leafHinge);
+        Leaf(leafHinge, LeafWidth, LeafHeight);
+        if (Side < 0) Mirror(leafHinge);
         // the pintles on the post, fixed
         var fixedIron = new SurfaceTool(); fixedIron.Begin(Mesh.PrimitiveType.Triangles);
         var ironMat = RuienMaterials.Get("ruien_iron");
         foreach (float y in Straps(LeafHeight))
         {
-            fixedIron.AppendFrom(BevelMesh.Box(new Vector3(.05f, .07f, .012f), .002f, ironMat), 0, new Transform3D(Basis.Identity, hinge.Position + new Vector3(-.03f * Side, y, -.006f)));
+            fixedIron.AppendFrom(BevelMesh.Box(new Vector3(.05f, .07f, .012f), .002f, ironMat), 0, new Transform3D(Basis.Identity, leafHinge.Position + new Vector3(-.03f * Side, y, -.006f)));
             var pin = new SurfaceTool(); pin.CreateFrom(new CylinderMesh { TopRadius = .011f, BottomRadius = .011f, Height = .12f, RadialSegments = 16 }, 0); pin.Deindex();
-            fixedIron.AppendFrom(pin.Commit(), 0, new Transform3D(Basis.Identity, hinge.Position + new Vector3(0, y, -.012f)));
+            fixedIron.AppendFrom(pin.Commit(), 0, new Transform3D(Basis.Identity, leafHinge.Position + new Vector3(0, y, -.012f)));
         }
-        RuienStair.Add(this, fixedIron, "ruien_iron", false);
-        inside = GetParent()?.GetNodeOrNull<Node3D>("inside");
-        CallDeferred(MethodName.Install);
+        RuienStair.Add(parts, fixedIron, "ruien_iron", false);
+        return parts;
     }
 
     private static float[] Straps(float height) => new[] { .28f, height - .28f };
@@ -225,6 +247,7 @@ public partial class RuienEntranceDoor : Node3D
     /// <summary>Down at the landing: the closure says why the way on is shut.</summary>
     private Offers? Closure(float x, float z)
     {
+        if (Spec.Closure == "open") return null;
         var j = Jef.I!;
         var c = RuienEntrance.ClosureFront(Spec, 0);
         var at = c + Vector3.Up * 1.2f;
