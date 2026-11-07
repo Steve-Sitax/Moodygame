@@ -11,6 +11,7 @@ Bugs and loose ends are tracked as [issues](https://github.com/Steve-Sitax/Moody
 
 ## [Unreleased]
 
+- The thin see-through slit at the corner of the brick bastion by the river is closed, and so are the same slits at the town wall's west end by the river and at four other corners where a sloping wall face met a straight one. All other wall corners and the four gates were checked and left as they were.
 - Trees no longer grow inside the town wall, its gates, the windmill bastion or the prison, with only their crowns showing through the wall walk. The trees on the bare earth by the wall that stood too close were moved to open ground nearby; those with no open ground near were taken away (57 of 98). The trees on the church squares are unchanged.
 - At night the water no longer shows lamp glints that flicker at the foot of a quay wall or a bastion when the lamp itself is hidden behind that wall. Lamps you can see still shine on the water.
 - The canals and vlieten no longer show big pale grey patches that looked like clouds on the water. Their dirty skin is now small, dull flecks a shade darker than the water.
