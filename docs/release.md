@@ -95,6 +95,10 @@ The generated `.itch.toml` chooses the native executable and Forward+ renderer i
 Public descriptions use the game name and Steve's first name, without company names. GitHub account names in
 source links may remain visible. Keep the work-in-progress label prominent.
 
+The cover picture is `docs/media/itch-cover.jpg` (1260 x 1000, JPEG). `art-source/itch-cover/make_cover.py`
+rebuilds it from the art and the game's title fonts. Upload it on the project's edit page, then check the
+thumbnail and the `og:image` address of the public page: itch.io's picture server can answer 502 for a new picture.
+
 ```powershell
 butler push <verified-package-folder> drstaf/scheldemist:windows-preview --userversion <source-commit>
 ```

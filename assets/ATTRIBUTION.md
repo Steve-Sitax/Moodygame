@@ -3,6 +3,16 @@
 Every third-party asset and package in Scheldemist is listed here with its licence.
 Nothing enters the repo without a clear licence. See CLAUDE.md.
 
+## itch.io cover picture (2026-11-12)
+
+`art-source/itch-cover/quay-etching-seedream.png` was generated on 2026-11-12 with Seedream 5.0 Pro
+(`bytedance-seed/seedream-5-0-pro` on OpenRouter, seed 1, aspect 5:4) at Steve's request. Input: the prompt in
+`art-source/itch-cover/quay-etching-prompt.txt` and three of the game's own pictures as references
+(`native-godot/ui/loading.jpg`, `docs/media/godot-cathedral-day.png`, `docs/media/godot-rijnkaai.png`);
+no third-party image. PNG SHA-256: `3f0350a961623b4d7b4322fcc49d0f45919927f26f2fc01c7792d141bcde1a4e`.
+`art-source/itch-cover/make_cover.py` adds the title in the game's fonts (Alfa Slab One, Old Standard TT);
+`docs/media/itch-cover.jpg` is the published result.
+
 ## Small tree and vegetation pass (2026-09-26)
 
 The revised `client/public/models/trees.glb` and `trees_bark_surface.png` are original procedural
