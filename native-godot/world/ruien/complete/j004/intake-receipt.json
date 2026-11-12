@@ -1,0 +1,18 @@
+{
+  "key": "f4f1978a8e22b6a8e69df61e65744df7bf0804938349b1478b558a7e8d0bcc05",
+  "files": {
+    "area.json": "de1ce41110daef81efd75a9b7daf3fad3bf3eb1510b7ebfffd1f0bae5a429512",
+    "collision.res": "ba15b412b89964e640bf4d6005d982b3d80e01d63298597b92bd83aed53abad2",
+    "markers.json": "37b07be0ccc322adbc6005d0e738b44d9686c4c852a2259658bbcd8cd902f68b",
+    "mesh_mouth_L3_lod0_00.res": "32c2b9e3feaeef5d7984e957eaf66e40e7190526a37204713e0d2008cc25149a",
+    "mesh_mouth_L3_lod1_00.res": "d1c1ed0b547e9d015791e0ee64bd3b205f4023ada0f0d6c167c1dc18feea488f",
+    "mesh_mouth_L8_lod0_00.res": "7802d9d87aa599c8467555ed1911bcd337b883e555a053edcafa21868d0b7119",
+    "mesh_mouth_L8_lod1_00.res": "798f251d1953424447a732d6ebf702d5446166eb5e9fb4aba0c3da3e26369f92",
+    "mesh_mouth_L9_lod0_00.res": "1f77296152b7788e50fe6fa7434c4afa4425fff1e1ff3e44ee23f17e93bfac2a",
+    "mesh_mouth_L9_lod1_00.res": "d410b95ade2fcafdcc493c4f56bd0b33be44b2e1ef44477a4326e59f256c7994",
+    "mesh_room_lod0_00.res": "9aa3563831d6ec303f885437646ca0eb47f6dd77e64de59dc6b8da70096f6abd",
+    "mesh_room_lod0_01.res": "90886c40dd0efe262676633b28ff2b0d4015e6ee5cefedb1b329d3d14f82fb3d",
+    "mesh_room_lod1_00.res": "a7174de4a6aac7c1615076d2539a82f5ebcd654b48352bf9cfc28213db62acdf"
+  },
+  "seconds": 5.403069499996491
+}

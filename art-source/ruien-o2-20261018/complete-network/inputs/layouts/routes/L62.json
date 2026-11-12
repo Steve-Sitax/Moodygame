@@ -1,0 +1,85 @@
+{
+  "id": "L62",
+  "cls": "G",
+  "name": "Keizersrui",
+  "pts": [
+    [
+      63.0,
+      334.3
+    ],
+    [
+      63.0,
+      331.8
+    ],
+    [
+      63.46116135138184,
+      316.8058067569092
+    ],
+    [
+      61.5,
+      307.0
+    ]
+  ],
+  "walkwaySide": 1,
+  "start": "room",
+  "end": "auto",
+  "joins": [
+    "J071",
+    null
+  ],
+  "retained": null,
+  "grates": [
+    [
+      62.0,
+      319.0
+    ]
+  ],
+  "lamps": [],
+  "construction": {
+    "originalPoints": [
+      [
+        63.0,
+        341.0
+      ],
+      [
+        61.5,
+        307.0
+      ]
+    ],
+    "startBinding": {
+      "id": "J071",
+      "rect": [
+        58.0,
+        336.0,
+        68.0,
+        346.0
+      ],
+      "mouth": {
+        "route": "L62",
+        "cls": "G",
+        "wall": "z0",
+        "bay": 0,
+        "tc": 63.0,
+        "width": 6.0,
+        "at": [
+          63.0,
+          336.0
+        ],
+        "end": [
+          63.0,
+          334.3
+        ],
+        "dir": [
+          0,
+          -1
+        ],
+        "walkway_side": 1,
+        "depth": 1.7,
+        "legacyC2": false
+      },
+      "installed": false
+    },
+    "endBinding": null
+  },
+  "planOverride": "${RUIEN_STAGE}/layouts/compiled-network-plan.json"
+}

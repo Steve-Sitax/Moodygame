@@ -8,7 +8,7 @@ using Scheldemist.Dev;
 namespace Scheldemist.World.Ruien;
 
 /// <summary>Proof-only complete rendered frames. Inventories run after the timing window.</summary>
-internal sealed class RuienFrameProfile : IDisposable
+public sealed class RuienFrameProfile : IDisposable
 {
     private readonly SceneTree tree;
     private readonly bool parts;

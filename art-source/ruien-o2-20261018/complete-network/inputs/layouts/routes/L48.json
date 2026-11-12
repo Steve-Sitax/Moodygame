@@ -1,0 +1,85 @@
+{
+  "id": "L48",
+  "cls": "G",
+  "name": "Kipdorprui",
+  "pts": [
+    [
+      -141.5,
+      216.7
+    ],
+    [
+      -141.5,
+      219.2
+    ],
+    [
+      -142.35418446747804,
+      226.73293924968277
+    ],
+    [
+      -144.5,
+      236.5
+    ]
+  ],
+  "walkwaySide": 1,
+  "start": "room",
+  "end": "auto",
+  "joins": [
+    "J058_J060",
+    null
+  ],
+  "retained": null,
+  "grates": [
+    [
+      -144.5,
+      231.0
+    ]
+  ],
+  "lamps": [],
+  "construction": {
+    "originalPoints": [
+      [
+        -144.5,
+        209.0
+      ],
+      [
+        -144.5,
+        236.5
+      ]
+    ],
+    "startBinding": {
+      "id": "J058_J060",
+      "rect": [
+        -152.75,
+        192.5,
+        -137.75,
+        215.0
+      ],
+      "mouth": {
+        "route": "L48",
+        "cls": "G",
+        "wall": "z1",
+        "bay": 1,
+        "tc": -141.5,
+        "width": 6.0,
+        "at": [
+          -141.5,
+          215.0
+        ],
+        "end": [
+          -141.5,
+          216.7
+        ],
+        "dir": [
+          0,
+          1
+        ],
+        "walkway_side": 1,
+        "depth": 1.7,
+        "legacyC2": false
+      },
+      "installed": false
+    },
+    "endBinding": null
+  },
+  "planOverride": "${RUIEN_STAGE}/layouts/compiled-network-plan.json"
+}

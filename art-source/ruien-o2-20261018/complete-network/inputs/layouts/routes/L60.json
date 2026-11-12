@@ -1,0 +1,95 @@
+{
+  "id": "L60",
+  "cls": "G",
+  "name": "Zuiderrui",
+  "pts": [
+    [
+      -303.5,
+      272.5
+    ],
+    [
+      -308.5,
+      158.2
+    ],
+    [
+      -308.5,
+      155.7
+    ]
+  ],
+  "walkwaySide": 1,
+  "start": "auto",
+  "end": "room",
+  "joins": [
+    null,
+    "J070_J079"
+  ],
+  "retained": null,
+  "grates": [
+    [
+      -303.9,
+      250.5
+    ],
+    [
+      -304.6,
+      205.5
+    ]
+  ],
+  "lamps": [
+    [
+      -305.1,
+      176.5
+    ],
+    [
+      -304.2,
+      228.5
+    ]
+  ],
+  "construction": {
+    "originalPoints": [
+      [
+        -303.5,
+        272.5
+      ],
+      [
+        -305.5,
+        149.0
+      ]
+    ],
+    "startBinding": null,
+    "endBinding": {
+      "id": "J070_J079",
+      "rect": [
+        -312.25,
+        139.0,
+        -297.25,
+        154.0
+      ],
+      "mouth": {
+        "route": "L60",
+        "cls": "G",
+        "wall": "z1",
+        "bay": 0,
+        "tc": -308.5,
+        "width": 6.0,
+        "at": [
+          -308.5,
+          154.0
+        ],
+        "end": [
+          -308.5,
+          155.7
+        ],
+        "dir": [
+          0,
+          1
+        ],
+        "walkway_side": -1,
+        "depth": 1.7,
+        "legacyC2": false
+      },
+      "installed": false
+    }
+  },
+  "planOverride": "${RUIEN_STAGE}/layouts/compiled-network-plan.json",
+  "repairLamps": true
+}

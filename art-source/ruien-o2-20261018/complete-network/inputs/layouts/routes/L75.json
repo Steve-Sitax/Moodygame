@@ -1,0 +1,121 @@
+{
+  "id": "L75",
+  "cls": "G",
+  "name": "Kanaalrui",
+  "pts": [
+    [
+      -66.256,
+      171.0
+    ],
+    [
+      -66.256,
+      173.5
+    ],
+    [
+      -62.65,
+      200.794
+    ],
+    [
+      -62.65,
+      203.294
+    ]
+  ],
+  "walkwaySide": 1,
+  "start": "room",
+  "end": "room",
+  "joins": [
+    "J056",
+    "J051_J059"
+  ],
+  "retained": null,
+  "grates": [],
+  "lamps": [
+    [
+      -65.1,
+      185.5
+    ]
+  ],
+  "construction": {
+    "originalPoints": [
+      [
+        -63.6,
+        161.8
+      ],
+      [
+        -65.5,
+        169.5
+      ],
+      [
+        -64.5,
+        206.5
+      ]
+    ],
+    "startBinding": {
+      "id": "J056",
+      "rect": [
+        -70.006,
+        154.3,
+        -47.506,
+        169.3
+      ],
+      "mouth": {
+        "route": "L75",
+        "cls": "G",
+        "wall": "z1",
+        "bay": 0,
+        "tc": -66.256,
+        "width": 6.0,
+        "at": [
+          -66.256,
+          169.3
+        ],
+        "end": [
+          -66.256,
+          171.0
+        ],
+        "dir": [
+          0,
+          1
+        ],
+        "walkway_side": 1,
+        "depth": 1.7,
+        "legacyC2": false
+      },
+      "installed": false
+    },
+    "endBinding": {
+      "id": "J051_J059",
+      "rect": [
+        -81.4,
+        204.9939,
+        -58.9,
+        219.9939
+      ],
+      "mouth": {
+        "route": "L75",
+        "cls": "G",
+        "wall": "z0",
+        "bay": 2,
+        "tc": -62.65,
+        "width": 6.0,
+        "at": [
+          -62.65,
+          204.9939
+        ],
+        "end": [
+          -62.65,
+          203.294
+        ],
+        "dir": [
+          0,
+          -1
+        ],
+        "walkway_side": -1,
+        "depth": 1.7,
+        "legacyC2": false
+      },
+      "installed": false
+    }
+  },
+  "repairLamps": true
+}

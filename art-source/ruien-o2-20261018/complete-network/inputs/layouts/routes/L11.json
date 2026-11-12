@@ -1,0 +1,99 @@
+{
+  "id": "L11",
+  "cls": "M",
+  "name": "Entrepotrui",
+  "pts": [
+    [
+      135.0,
+      197.6
+    ],
+    [
+      135.0,
+      200.1
+    ],
+    [
+      145.677,
+      236.9
+    ],
+    [
+      145.677,
+      239.4
+    ]
+  ],
+  "walkwaySide": 1,
+  "start": "room",
+  "end": "room",
+  "joins": [
+    "J014",
+    "J016"
+  ],
+  "retained": null,
+  "grates": [
+    [
+      139.0,
+      213.5
+    ]
+  ],
+  "lamps": [],
+  "construction": {
+    "originalPoints": [
+      [
+        135.0,
+        192.5
+      ],
+      [
+        135.0,
+        197.0
+      ],
+      [
+        146.5,
+        244.5
+      ]
+    ],
+    "startBinding": {
+      "id": "J014",
+      "rect": [
+        131.6,
+        189.1,
+        138.4,
+        195.9
+      ],
+      "mouth": {
+        "route": "L11",
+        "end": [
+          135.0,
+          197.6
+        ],
+        "dir": [
+          0.0,
+          1.0
+        ],
+        "walkway_side": 1
+      },
+      "installed": false
+    },
+    "endBinding": {
+      "id": "J016",
+      "rect": [
+        143.1,
+        241.1,
+        149.9,
+        247.9
+      ],
+      "mouth": {
+        "route": "L11",
+        "end": [
+          145.677,
+          239.4
+        ],
+        "dir": [
+          0.0,
+          -1.0
+        ],
+        "walkway_side": -1
+      },
+      "installed": false
+    }
+  },
+  "closeCoping": true
+}

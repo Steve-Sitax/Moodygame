@@ -1,0 +1,18 @@
+{
+  "key": "b7c8a98b1f49e9e385e01f39d9a134cf7cc0e1abcaac3484d1dfc8ab1996c036",
+  "files": {
+    "area.json": "8952bc857fac56687b00b8ccc36646504a191191eb6753b27ddc6fc822485e05",
+    "collision.res": "2ccb8abf7f1a80f8760fb884828a5aa01d4b318d297514d0be472837f5783f41",
+    "markers.json": "efba8a9a09e78fafbc44940ad023ae0c0498514b4db01372a48822c1af68bc73",
+    "mesh_s0_lod0_00.res": "75007006ee4ce526130dfa90142eb4719fed792046505d3d683132da562aeee3",
+    "mesh_s0_lod0_01.res": "0742d1b7f04c33286dcfd11c17354ff15c27222a62d8840ade028a2279a0a57f",
+    "mesh_s0_lod1_00.res": "dfd1009c8e8818150c7ddb0fb5fea46271e76a1acf4d1f92b4f9db9c96a09b08",
+    "mesh_s1_lod0_00.res": "9a74e3eb21159ec376e03c333d45ee0a8e18ad65e08402b7402eba9c3ddb8f71",
+    "mesh_s1_lod0_01.res": "ed3dad819a34ee5bf6f830522e40c977474e974527ac1e917eefac18c91ef694",
+    "mesh_s1_lod1_00.res": "a884ab169a9dc68088efeff5d85f6422606888ec22e44174ce21aace35278b86",
+    "mesh_s2_lod0_00.res": "ccbfdc87b6be28c97e4fb1769ca3e114ed96cf9d44deb5de7705dace6fcb0c40",
+    "mesh_s2_lod0_01.res": "bdc9fb9407f12c2ce8f6f2b30ab002f88cbaccae31725c26b2b02d9f2c40bfaa",
+    "mesh_s2_lod1_00.res": "3d2806421b1df2c1ce0431debd5074b1eebb888049c88e0369a7de91c5c30af6"
+  },
+  "seconds": 39.06998770002974
+}

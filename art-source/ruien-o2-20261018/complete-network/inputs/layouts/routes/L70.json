@@ -1,0 +1,102 @@
+{
+  "id": "L70",
+  "cls": "M",
+  "name": "Paulusrui",
+  "pts": [
+    [
+      31.84,
+      113.6
+    ],
+    [
+      31.84,
+      116.1
+    ],
+    [
+      43.362,
+      146.4
+    ],
+    [
+      43.362,
+      148.9
+    ]
+  ],
+  "walkwaySide": 1,
+  "start": "room",
+  "end": "room",
+  "joins": [
+    "J078",
+    "J067"
+  ],
+  "retained": null,
+  "grates": [
+    [
+      36.9,
+      128.7
+    ]
+  ],
+  "lamps": [],
+  "construction": {
+    "originalPoints": [
+      [
+        31.5,
+        108.5
+      ],
+      [
+        32.0,
+        113.5
+      ],
+      [
+        42.5,
+        146.0
+      ],
+      [
+        44.0,
+        154.0
+      ]
+    ],
+    "startBinding": {
+      "id": "J078",
+      "rect": [
+        28.1,
+        105.1,
+        34.9,
+        111.9
+      ],
+      "mouth": {
+        "route": "L70",
+        "end": [
+          31.84,
+          113.6
+        ],
+        "dir": [
+          0.0,
+          1.0
+        ],
+        "walkway_side": 1
+      },
+      "installed": false
+    },
+    "endBinding": {
+      "id": "J067",
+      "rect": [
+        40.6,
+        150.6,
+        47.4,
+        157.4
+      ],
+      "mouth": {
+        "route": "L70",
+        "end": [
+          43.362,
+          148.9
+        ],
+        "dir": [
+          0.0,
+          -1.0
+        ],
+        "walkway_side": -1
+      },
+      "installed": false
+    }
+  }
+}

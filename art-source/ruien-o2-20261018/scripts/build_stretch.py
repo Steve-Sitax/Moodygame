@@ -21,6 +21,8 @@ argv = sys.argv[sys.argv.index('--') + 1:] if '--' in sys.argv else []
 def arg(k, d=None):
     return argv[argv.index(k) + 1] if k in argv else d
 RID = arg('--route', 'L105')
+JOB = json.load(open(arg('--job'))) if arg('--job') else None
+if JOB and JOB['id'] != RID:raise ValueError('Construction job and route ID disagree')
 OUT = os.path.join(ROOT, arg('--out', 'export/stretches/' + RID)) if not os.path.isabs(arg('--out', '')) else arg('--out')
 os.makedirs(OUT, exist_ok=True)
 T0 = time.time()
@@ -31,8 +33,10 @@ bpy.ops.wm.read_factory_settings(use_empty=True)
 import spec
 from rlib import util as U, mats as M, mats2 as M2, wax as WX, scene as SC, props as PR
 from kit import sweep as KS, meet as KM
+KS.REPAIR_LAMPS = bool(JOB and JOB.get('repairLamps'))
+KS.CLOSE_COPING_ENDS = bool(JOB and JOB.get('closeCoping'))
 M.set_root(ROOT)
-routes = json.load(open(os.path.join(REPO, 'docs', 'plans', 'ruien', 'ruien-routes.json')))
+routes = json.load(open(arg('--plan') or os.path.join(REPO, 'docs', 'plans', 'ruien', 'ruien-routes.json')))
 R_ALL = routes['routes']
 r = R_ALL[RID]
 cls = r['class']
@@ -51,6 +55,7 @@ def clip_pts(P, a, b):
     return [at(a)] + inner + [at(b)]
 full_pts = [tuple(p) for p in r['pts']]
 FROM_ROOM = json.load(open(arg('--from-room'))) if arg('--from-room') else None
+TO_ROOM = json.load(open(arg('--to-room'))) if arg('--to-room') else None
 LEAD = 2.5
 if FROM_ROOM:
     lay_ = FROM_ROOM['layout']; rect_ = lay_['rect']
@@ -62,10 +67,25 @@ if FROM_ROOM:
     full_pts = [tuple(e_), tuple(e_ + d_ * LEAD)] + [tuple(p) for p in seq_ if not inside_(p, 5.0)]
     if '--walkway' not in argv:
         WALKWAYS[RID] = int(mouth_['walkway_side'])
+if TO_ROOM:
+    target_layout=TO_ROOM['layout']; target_rect=target_layout['rect']
+    target_mouth=next(m for m in target_layout['mouths'] if m['route']==RID)
+    def inside_target(p, margin):
+        return target_rect[0]-margin<=p[0]<=target_rect[2]+margin and target_rect[1]-margin<=p[1]<=target_rect[3]+margin
+    if not FROM_ROOM and inside_target(full_pts[0],.6):
+        full_pts=full_pts[::-1]
+        WALKWAYS[RID]=-WALKWAYS[RID]
+    target_end=np.array(target_mouth['end'],float); target_dir=np.array(target_mouth['dir'],float)
+    full_pts=[p for p in full_pts if not inside_target(p,5.0)]+[tuple(target_end+target_dir*LEAD),tuple(target_end)]
+    if WALKWAYS[RID] != -int(target_mouth['walkway_side']):
+        raise RuntimeError('Walkway side disagrees with far room; solve the route globally before exporting')
+if JOB:
+    full_pts=[tuple(p) for p in JOB['pts']]
+    WALKWAYS[RID]=int(JOB['walkwaySide'])
 CLIP = [float(x) for x in arg('--clip', '').split(',')] if arg('--clip') else None
 pts = clip_pts(full_pts, *CLIP) if CLIP else full_pts
 # from a room, only meetings at the piece built count (the plan's far end may lie beyond a clipped piece)
-R_TEE = dict(R_ALL, **{RID: dict(r, pts=[list(p) for p in pts])}) if FROM_ROOM else R_ALL
+R_TEE = dict(R_ALL, **{RID: dict(r, pts=[list(p) for p in pts])}) if FROM_ROOM or TO_ROOM or JOB else R_ALL
 TEES = KM.find_tees(R_TEE, RID, path_of, section_of) + KM.find_throats(R_TEE, RID, path_of, section_of)
 # a gallery that ends in a throat runs on past the node, so the wall plane square to the rui cuts it everywhere
 for t in TEES:
@@ -79,6 +99,8 @@ def end_kind(which, asked):
     if asked != 'auto':
         return asked
     if FROM_ROOM and which == 'start':
+        return 'room'
+    if TO_ROOM and which == 'end':
         return 'room'
     full_len = float(np.sum(np.linalg.norm(np.diff(np.array(full_pts), axis=0), axis=1)))
     if CLIP and ((which == 'start' and CLIP[0] > 1e-6) or (which == 'end' and min(CLIP[1], full_len) < full_len - 1e-3)):
@@ -98,7 +120,9 @@ def end_kind(which, asked):
                 if np.dot(mine, theirs) < -0.94 * np.linalg.norm(mine) * np.linalg.norm(theirs):
                     return 'through'
     return 'open'
-START, END = end_kind('start', arg('--start', 'auto')), end_kind('end', arg('--end', 'auto'))
+START, END = end_kind('start', arg('--start', JOB['start'] if JOB else 'auto')), end_kind('end', arg('--end', JOB['end'] if JOB else 'auto'))
+if JOB and ('open' in (START,END) or 'junction' in (START,END)):
+    raise ValueError('A complete-network job has an unresolved passage end: '+str((START,END)))
 def near_route(p, tol=4.0):
     P = np.array(pts)
     for a, b in zip(P[:-1], P[1:]):
@@ -106,8 +130,8 @@ def near_route(p, tol=4.0):
         if np.linalg.norm(np.array(p) - (a + t * ab)) < tol:
             return True
     return False
-grates = [tuple(g) for g in routes['grates'] if near_route(g)]
-lamps = [tuple(l) for l in routes['lamps'] if near_route(l)]
+grates = [tuple(g) for g in (JOB['grates'] if JOB else routes['grates']) if near_route(g)]
+lamps = [tuple(l) for l in (JOB['lamps'] if JOB else routes['lamps']) if near_route(l)]
 if FROM_ROOM:
     # the room's own crown grate and lamps are the room's
     grates = [g for g in grates if not inside_(g, 0.0)]
@@ -133,7 +157,10 @@ zones0 = [t.keep_out() for t in TEES if getattr(t, 'bpath', None) is not None an
 # a stub end's wall: no drain, ring, curtain, lamp or grate in its last metre and a half
 STUB_CLEAR = [(path0.length - 1.5, path0.length + 1.0)] if END == 'stub' else []
 zones0 += STUB_CLEAR
-drains = KD.find(routes, path0, sec0, shafts0, FIT['drainCrossing'], log=log, zones=zones0) if FIT.get('drainCrossing') else []
+# The complete network installs connected drains together, including chamber mouths
+# and shared heads. The sample-piece fittings terminate their barrels behind a dark
+# card, so they cannot also be exported as full-network drain connections.
+drains = KD.find(routes, path0, sec0, shafts0, FIT['drainCrossing'], log=log, zones=zones0) if FIT.get('drainCrossing') and not JOB else []
 # a plan lamp never hangs on a drain's header rings: move it along the wall
 for i, (lx, lz) in enumerate(lamps):
     lu, _ = path0.u_near(lx, lz)
@@ -211,6 +238,7 @@ if '--no-export' not in argv:
         return EG.area_keys(Cg, path)
     manifest = dict(route=RID, name=r.get('name'), cls=cls, built_with='scripts/build_stretch.py + scripts/kit/sweep.py', files={}, info=info, waterMin=sec.water, movers=EG.prepare_movers(sec),
                     coordinates='glTF +Y up; glTF (x, y, z) = (game x, game y, game z)', textures='shared: ../../textures (see ../../manifest.json)')
+    if JOB:manifest['construction']=dict(joins=JOB['joins'],retained=JOB['retained'],connectedDrains='native-network')
     stretch_objs = [o for o in coll.all_objects if o.type == 'MESH']
     EG.SEAMS[:] = [(np.array([s['pos'][0], 0, s['pos'][2]]), np.array([s['tangent'][0], 0, s['tangent'][1]])) for s in info.get('seams', [])]
     # Native paving must follow the actual swept path, including its bends and walkway side.

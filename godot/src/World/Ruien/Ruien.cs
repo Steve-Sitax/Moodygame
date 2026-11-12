@@ -39,7 +39,7 @@ public partial class Ruien : Node
     {
         public RuienData.Area Area = null!;
         public Node3D Root = null!;
-        public readonly List<MeshInstance3D> Water = new();
+        public readonly List<(MeshInstance3D Mesh,float Offset)> Water = new();
         public readonly List<(MeshInstance3D mesh, ShaderMaterial material, RuienData.Gate gate)> Outflows = new();
         public readonly List<(MeshInstance3D mesh, ShaderMaterial material, RuienData.MistBox box)> Mists = new();
         public readonly List<(ShaderMaterial m, RuienData.Source s)> Beams = new();
@@ -52,6 +52,8 @@ public partial class Ruien : Node
 
     private readonly List<Drawn> drawn = new();
     private readonly HashSet<string> groupShown = new();
+    private RuienNetworkGates networkGates=new();
+    private RuienArea? drainNetwork;
     /// <summary>The entrances' doors (plan), for lighting their stairs when the eye is near one.</summary>
     private readonly List<Vector2> entranceDoors = new();
     private readonly List<RuienData.Source> sources = new();
@@ -104,7 +106,11 @@ public partial class Ruien : Node
         // (two frames first: the globals and the cover picture made just now reach the renderer before the worker's
         // materials use them)
         var go = new System.Threading.Tasks.TaskCompletionSource();
-        beside = go.Task.ContinueWith(_ => BuildPieces(), System.Threading.Tasks.TaskScheduler.Default);
+        beside = go.Task.ContinueWith(_ =>
+        {
+            try{return BuildPieces();}
+            catch(Exception e){GD.PrintErr("Ruien construction worker failed: "+e);throw;}
+        }, System.Threading.Tasks.TaskScheduler.Default);
         var tree = Main.I.GetTree();
         int frames = 0;
         void Tick() { if (++frames < 2) return; tree.ProcessFrame -= Tick; go.SetResult(); }
@@ -142,14 +148,21 @@ public partial class Ruien : Node
                 using (Dev.StartupTiming.Measure("ruien.attach"))
                 {
                     var slow = new List<(double Ms, string Name)>();
+                    bool proof=Main.I.Flag("startup-proof");
+                    using var process=proof?System.Diagnostics.Process.GetCurrentProcess():null;
+                    var cpu=process?.TotalProcessorTime??TimeSpan.Zero;
+                    int gc0=GC.CollectionCount(0),gc1=GC.CollectionCount(1),gc2=GC.CollectionCount(2);
                     foreach (var node in placed)
                     {
                         long t0 = System.Diagnostics.Stopwatch.GetTimestamp();
                         Main.I.View.AddChild(node);
                         slow.Add((System.Diagnostics.Stopwatch.GetElapsedTime(t0).TotalMilliseconds, node.Name));
                     }
-                    if (Main.I.Flag("startup-proof"))
+                    if (proof)
+                    {
                         GD.Print("ruien: slowest to lay in: " + string.Join(", ", slow.OrderByDescending(x => x.Ms).Take(12).Select(x => $"{x.Name} {x.Ms:0} ms")) + $"; all {slow.Sum(x => x.Ms):0} ms");
+                        GD.Print($"ruien: lay-in processor {(process!.TotalProcessorTime-cpu).TotalMilliseconds:0} ms; collections {GC.CollectionCount(0)-gc0}/{GC.CollectionCount(1)-gc1}/{GC.CollectionCount(2)-gc2}");
+                    }
                 }
             else
             {
@@ -193,7 +206,9 @@ public partial class Ruien : Node
                 if (!at.Contains("ruien", StringComparison.OrdinalIgnoreCase) && !at.StartsWith("entrance_", StringComparison.Ordinal)) continue;
                 nodes++;
                 Add(Main.I.View.GetPathTo(n) + " " + n.GetClass() + (n is Node3D n3 ? " " + n3.Transform : ""));
-                if (n is MeshInstance3D { Mesh: { } m }) { meshes++; Add(m.GetSurfaceCount() + " " + m.GetAabb()); }
+                if(n is MeshInstance3D streamed && streamed.HasMeta("ruien_source"))
+                {meshes++;Add(streamed.GetMeta("ruien_source")+" "+streamed.GetMeta("ruien_tris")+" "+streamed.GetMeta("ruien_bounds")+" "+streamed.GetMeta("ruien_geometry"));}
+                else if (n is MeshInstance3D { Mesh: { } m }) { meshes++; Add(m.GetSurfaceCount() + " " + m.GetAabb()); }
                 if (n is CollisionShape3D { Shape: ConcavePolygonShape3D c }) { var f = c.Data; faces += f.Length / 3; Add(Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Runtime.InteropServices.MemoryMarshal.AsBytes(f.AsSpan())))); }
             }
         if (lines != null) System.IO.File.WriteAllLines(Main.I.Arg("ruien-pieces-out"), lines);
@@ -202,7 +217,22 @@ public partial class Ruien : Node
 
     private void Prepare()
     {
-        Data = RuienData.Load();
+        Data = RuienData.Load();RuienIds.Apply(Data);
+        using(Dev.StartupTiming.Measure("ruien.drain-data"))RuienDrainNetwork.Active=Main.I.Flag("no-ruien-drain-network")?null:RuienDrainNetwork.Installed(Data);
+        using(Dev.StartupTiming.Measure("ruien.network-gate-data"))networkGates=RuienNetworkGates.Read();
+        StartupResources.Declare(()=>Data.Areas.Where(a=>a.Exported).Select(a=>(Area:a.Id,Source:a.Export+"/collision.res"))
+            .Where(p=>Godot.FileAccess.FileExists(p.Source)).Select(p=>RuienGeometryCache.Prefetch(p.Source,p.Area))
+            .Concat(networkGates.StartupFiles()).Concat(new[]{"res://world/ruien/textures/brick_stretcher_hra.res",RuienStairHouse.HeightTexture}));
+        using(Dev.StartupTiming.Measure("ruien.connection-prefetch"))
+        {
+            // Resolve these definitions on this thread before the town prefetch
+            // and the Ruien worker can both ask for them.
+            var connectionFiles=RuienConnections.StartupFiles(Data).ToArray();
+            StartupResources.Declare(()=>connectionFiles);
+            var ceilingFiles=RuienEntrance.All.Select(RuienPassage.CeilingSource).OfType<string>().Distinct().ToArray();
+            StartupResources.Declare(()=>ceilingFiles);
+        }
+        if(RuienDrainNetwork.Active is {} drainage)StartupResources.Declare(()=>RuienDrainNetwork.StartupFiles(drainage));
         EnsureGlobals();
         // the light list and the cover map, as global pictures
         lightImage = Image.CreateEmpty(MaxLights, 4, false, Image.Format.Rgbaf);
@@ -227,6 +257,16 @@ public partial class Ruien : Node
     /// <summary>The entrances' and areas' nodes, laid by <see cref="place"/>; false when there are no areas to draw.</summary>
     private bool BuildPieces()
     {
+        if(networkGates.Specs.Count>0){place(networkGates.Build());soundPoints.AddRange(networkGates.SoundPoints);}
+        if(RuienDrainNetwork.Active is {} drainage)
+        {
+            drainNetwork=RuienDrainNetwork.Prepare(drainage);place(drainNetwork.Root);
+            foreach(var h in drainage.Heads)
+            {
+                var section=h.Host.Zone.S;var at=h.Map(new Vector3(0,section.Water,-(section.Width/2-section.Ledge)));
+                soundPoints.Add(new(){Kind="spill",At=at,Reach=6,Gain=h.Crossing?.38:.20});
+            }
+        }
         foreach (var e in entrances)
         {
             using var entranceTrace=Dev.StartupTiming.Split("ruien.entrance-add."+e.Id);
@@ -361,11 +401,24 @@ public partial class Ruien : Node
         using var dressTrace=Scheldemist.Dev.StartupTiming.Split("ruien."+area.Id+".dress");
         foreach (var w in area.Water)
         {
+            var current = new RuienWaterFlow(w);
             var st = new SurfaceTool();
             st.Begin(Mesh.PrimitiveType.Triangles);
-            void V(Vector2 p) { st.SetUV(p); st.AddVertex(new Vector3(p.X, 0, p.Y)); }
+            void V(Vector2 p) { st.SetUV(p); st.SetUV2(current.At(p)); st.AddVertex(new Vector3(p.X, 0, p.Y)); }
+            void Triangle(Vector2 a, Vector2 b, Vector2 c)
+            {
+                // Rooms need enough samples for a current to turn toward a portal.
+                // Subdivision preserves the original flat footprint and has no collision.
+                int count = current.Varying ? Math.Max(1, (int)MathF.Ceiling(Math.Max(a.DistanceTo(b), Math.Max(b.DistanceTo(c), c.DistanceTo(a))) / 1.5f)) : 1;
+                Vector2 Point(int i, int j) => a + (b - a) * (i / (float)count) + (c - a) * (j / (float)count);
+                for (int i = 0; i < count; i++) for (int j = 0; j < count - i; j++)
+                {
+                    V(Point(i, j)); V(Point(i + 1, j)); V(Point(i, j + 1));
+                    if (i + j + 1 < count) { V(Point(i + 1, j)); V(Point(i + 1, j + 1)); V(Point(i, j + 1)); }
+                }
+            }
             if (w.Outline.Length >= 3)
-                for (int i = 1; i + 1 < w.Outline.Length; i++) { V(w.Outline[0]); V(w.Outline[i]); V(w.Outline[i + 1]); }
+                for (int i = 1; i + 1 < w.Outline.Length; i++) Triangle(w.Outline[0], w.Outline[i], w.Outline[i + 1]);
             else if ((w.Line.Length >= 2 ? w.Line : area.Zones.FirstOrDefault(z => z.Id == w.Zone && z.Kind == "line")?.Path) is { Length: >= 2 } path)
             {
                 var section=area.Line(w.Zone)?.S;
@@ -386,10 +439,12 @@ public partial class Ruien : Node
             var mesh = st.Commit();
             var m = (ShaderMaterial)RuienMaterials.Get("ruien_misc_water").Duplicate();
             m.SetShaderParameter("flow", w.Flow);
+            m.SetShaderParameter("flow_vertices", current.Varying ? 1.0f : 0.0f);
             mesh.SurfaceSetMaterial(0, m);
             var mi = new MeshInstance3D { Name = "water_" + w.Id, Mesh = mesh, Layers = Layer, CastShadow = GeometryInstance3D.ShadowCastingSetting.Off, Position = new Vector3(0, area.WaterMin, 0) };
             root.AddChild(mi);
-            d.Water.Add(mi);
+            mi.Position+=Vector3.Up*w.LevelOffset;
+            d.Water.Add((mi,w.LevelOffset));
         }
         dressTrace?.Next("water");
         foreach (var s in area.Sources)
@@ -403,7 +458,7 @@ public partial class Ruien : Node
             if (s.Beam <= 0) continue; // (an outlet: its light comes in level, no shaft of it)
             float len = s.Beam;
             float r = Math.Max(s.HalfU, s.HalfV) * (s.Round ? 0.95f : 0.7f);
-            var m = RuienMaterials.Beam(new Color(0.75f, 0.82f, 0.95f), s.At, s.Dir, len, r);
+            var m = RuienMaterials.Beam(new Color(0.75f, 0.82f, 0.95f), s.At, s.Dir, len, r,s.Bars);
             var box = new BoxMesh { Size = new Vector3(r * 2 + len * 0.3f + 0.6f, len + 0.6f, r * 2 + len * 0.3f + 0.6f) };
             var mi = new MeshInstance3D { Name = "beam_" + s.Id, Mesh = box, MaterialOverride = m, Layers = Layer, CastShadow = GeometryInstance3D.ShadowCastingSetting.Off };
             mi.Position = s.At + s.Dir * (len / 2);
@@ -448,6 +503,7 @@ public partial class Ruien : Node
         }
         foreach (var gate in area.Gates)
         {
+            if(networkGates.IsFlush(gate.Id))continue;
             var st = new SurfaceTool(); st.Begin(Mesh.PrimitiveType.Triangles);
             var across = new Vector2(-gate.Normal.Y, gate.Normal.X);
             Vector3 Point(float along, float side)
@@ -495,7 +551,7 @@ public partial class Ruien : Node
         liveStamp = stamp;
         try
         {
-            var fresh = RuienData.Load();
+            var fresh = RuienData.Load();RuienIds.Apply(fresh);
             Data.Air = fresh.Air; Data.Fill = fresh.Fill; Data.Haze = fresh.Haze; Data.AirNear = fresh.AirNear; Data.AirFar = fresh.AirFar; Data.Exposure = fresh.Exposure;
             UniformUpdates.Global("ruien_air", new Vector4(Data.Air.R, Data.Air.G, Data.Air.B, Data.Haze));
             if (Daylight.I != null) { Daylight.I.BelowAir = Data.Air; Daylight.I.BelowNear = Data.AirNear; Daylight.I.BelowFar = Data.AirFar; Daylight.I.BelowExposure = Data.Exposure; Daylight.I.Restep(); }
@@ -531,8 +587,9 @@ public partial class Ruien : Node
             {
                 var rel = p - g.Origin;
                 float u = rel.Dot(g.Normal);
+                if(u>=-.02f && networkGates.ClosedBoundary(g.Id))continue;
                 if (u >= -1.6f && u <= 2f && MathF.Abs(rel.Cross(g.Normal)) < g.WaterWidth(u)/2)
-                    return Mathf.Lerp(d.Level, Math.Min(d.Level, Math.Max(Tide.River, g.Sill + 0.015f)), Mathf.SmoothStep(-1.6f, 2, u));
+                    return Mathf.Lerp(d.Level, Math.Min(d.Level, Math.Max(networkGates.ExternalLevel(g.Id), g.Sill + 0.015f)), Mathf.SmoothStep(-1.6f, 2, u));
             }
             foreach (var w in d.Area.Water)
             {
@@ -542,18 +599,27 @@ public partial class Ruien : Node
                 // (each sheet's own bounds first: the streets over a rui ask this for every walker, gull and cart)
                 w.Bounds ??= SheetBounds(w.Outline.Length >= 3 ? w.Outline : line ?? Array.Empty<Vector2>(), half + Math.Abs(((section?.ChannelLow??0)+(section?.ChannelHigh??0))/2) + 0.1f);
                 if (!w.Bounds.Value.HasPoint(p)) continue;
-                if (w.Outline.Length >= 3 && Geometry2D.IsPointInPolygon(p, w.Outline)) return d.Level;
+                if (w.Outline.Length >= 3 && Geometry2D.IsPointInPolygon(p, w.Outline)) return d.Level+w.LevelOffset;
                 if (line == null) continue;
                 float centre=w.Line.Length>=2?0:((section?.ChannelLow??-half)+(section?.ChannelHigh??half))/2;
                 for (int i = 0; i + 1 < line.Length; i++)
                 {
                     var ab = line[i + 1] - line[i];
                     float t = (p - line[i]).Dot(ab) / Math.Max(ab.LengthSquared(), 1e-6f);
-                    if (t >= 0 && t <= 1 && MathF.Abs((p-line[i]).Dot(new Vector2(ab.Y,-ab.X).Normalized())-centre) < half) return d.Level;
+                    if (t >= 0 && t <= 1 && MathF.Abs((p-line[i]).Dot(new Vector2(ab.Y,-ab.X).Normalized())-centre) < half) return d.Level+w.LevelOffset;
                 }
             }
         }
         return null;
+    }
+
+    /// <summary>Incomplete visual reads for the active view; all physical solids already exist before play.</summary>
+    public IEnumerable<string> PendingVisuals(Vector3 eye)
+    {
+        foreach(var d in drawn.Where(d=>d.Shown&&d.Export!=null))
+            foreach(string key in d.Export!.PendingVisuals(eye))yield return d.Area.Id+"/"+key;
+        if(drainNetwork is {Root.Visible:true})
+            foreach(string key in drainNetwork.PendingVisuals(eye))yield return "drainage/"+key;
     }
 
     private void Update(float dt)
@@ -574,9 +640,17 @@ public partial class Ruien : Node
         UniformUpdates.Global("ruien_fill", new Vector4(Data.Fill.R, Data.Fill.G, Data.Fill.B, below));
         Near = null;
         lodT -= dt;
+        // (after the timer's step: read before it, the quarter-second tick was never seen here, and in play the
+        // drain mouths, gutters and collectors were never drawn: every drain showed as a black cut)
+        if(drainNetwork!=null)
+        {
+            bool visible=eye.Y<-.5f||Main.I.Flag("ruien-always");drainNetwork.Root.Visible=visible;
+            if(visible&&(lodT<=0||!Main.I.Loaded))drainNetwork.Lod(eye);else if(lodT<=0)drainNetwork.ReleaseVisuals();
+        }
         // which areas the eye calls for: underground in an area's box its whole group shows (a room and the ruien built
         // from its mouths are seen from one another); before a gate or at a street opening only that area itself
         groupShown.Clear();
+        bool joined = drawn.Count > 0 && drawn[^1].Area.Id.StartsWith("network_", StringComparison.Ordinal);
         foreach (var d in drawn)
         {
             var a = d.Area;
@@ -590,20 +664,26 @@ public partial class Ruien : Node
             var a = d.Area;
             bool inBox = d.InBox, atGate = d.AtGate;
             bool show = Main.I.Flag("ruien-always") || groupShown.Contains(a.Group) || atGate || d.AtOpening;
+            if(a.Id.StartsWith("network_",StringComparison.Ordinal) && !Main.I.Flag("ruien-always"))
+                show=(Below>.01f && a.Box.Grow(100).HasPoint(eye)) || atGate || d.AtOpening;
+            // Joined to the network, an older area is seen through the mouths of its neighbours: from hall J035
+            // the first section's branch stood undrawn, and the town above showed through the arch.
+            else if(joined && Below>.01f && a.Box.Grow(60).HasPoint(eye)) show=true;
             if (show != d.Shown) { d.Shown = show; d.Root.Visible = show; }
             if (inBox || atGate) Near = a;
             // the export's levels of detail, four times a second
             if (show && d.Export != null && (lodT <= 0 || d.Export.Keys.All(k => k.Shown < 0))) d.Export.Lod(eye);
+            if(!show && lodT<=0)d.Export?.ReleaseVisuals();
             // the water inside: the river lets it down to the sill's level and no lower; behind shut doors it is held and
             // rises a little with what the drains bring
             float river = Tide.River;
             float target = river < a.WaterMin ? a.WaterMin : a.WaterMin + a.WaterRise * Mathf.Clamp((river - a.WaterMin) / 3.5f, 0, 1);
             d.Level += (target - d.Level) * Math.Min(1, dt * 0.05f + (dt <= 0 ? 1 : 0));
-            foreach (var w in d.Water) w.Position = new Vector3(0, d.Level, 0);
+            foreach (var w in d.Water) w.Mesh.Position = new Vector3(0, d.Level+w.Offset, 0);
             foreach (var (mesh, material, gate) in d.Outflows)
             {
                 mesh.Position = new Vector3(0, d.Level, 0);
-                float drop = Math.Min(d.Level, Math.Max(river, gate.Sill + 0.015f)) - d.Level;
+                float drop = Math.Min(d.Level, Math.Max(networkGates.ExternalLevel(gate.Id), gate.Sill + 0.015f)) - d.Level;
                 material.SetShaderParameter("outfall_drop", drop);
             }
             foreach (var (mesh, material, box) in d.Mists)
@@ -631,6 +711,7 @@ public partial class Ruien : Node
                 if (body != null) body.Transform = xf;
             }
         }
+        networkGates.Update(dt,Tide.River,id=>drawn.FirstOrDefault(d=>d.Area.Gates.Any(g=>g.Id==id))?.Level);
         if (lodT <= 0) lodT = 0.25f;
         SendLights(eye, day);
     }
@@ -690,8 +771,10 @@ public partial class Ruien : Node
         foreach (var d in drawn)
             foreach (var (m, s) in d.Beams)
             {
-                float p = d.Shown ? Strength(s, day, out var c) : 0;
-                UniformUpdates.Material(m, "strength", p * 0.06f);
+                var colour=Colors.Black;
+                float p = d.Shown ? Strength(s, day, out colour) : 0;
+                UniformUpdates.Material(m, "colour", colour.LinearToSrgb());
+                UniformUpdates.Material(m, "strength", p * 0.022f);
             }
         // the real lights' pool: the nearest lamps, for the arms and the body
         int k = 0;

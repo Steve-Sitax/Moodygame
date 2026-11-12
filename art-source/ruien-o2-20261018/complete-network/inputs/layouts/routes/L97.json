@@ -1,0 +1,87 @@
+{
+  "id": "L97",
+  "cls": "M",
+  "name": "Entrepotrui",
+  "pts": [
+    [
+      161.6,
+      194.811
+    ],
+    [
+      164.1,
+      194.811
+    ],
+    [
+      165.5,
+      194.5
+    ],
+    [
+      183.5,
+      197.5
+    ],
+    [
+      204.0,
+      197.5
+    ]
+  ],
+  "walkwaySide": 1,
+  "start": "room",
+  "end": "auto",
+  "joins": [
+    "J015",
+    null
+  ],
+  "retained": null,
+  "grates": [],
+  "lamps": [
+    [
+      179.3,
+      196.8
+    ]
+  ],
+  "construction": {
+    "originalPoints": [
+      [
+        156.5,
+        195.0
+      ],
+      [
+        165.5,
+        194.5
+      ],
+      [
+        183.5,
+        197.5
+      ],
+      [
+        204.0,
+        197.5
+      ]
+    ],
+    "startBinding": {
+      "id": "J015",
+      "rect": [
+        153.1,
+        191.6,
+        159.9,
+        198.4
+      ],
+      "mouth": {
+        "route": "L97",
+        "end": [
+          161.6,
+          194.811
+        ],
+        "dir": [
+          1.0,
+          0.0
+        ],
+        "walkway_side": 1
+      },
+      "installed": false
+    },
+    "endBinding": null
+  },
+  "planOverride": "${RUIEN_STAGE}/layouts/compiled-network-plan.json",
+  "repairLamps": true
+}

@@ -1,0 +1,99 @@
+{
+  "id": "L8",
+  "cls": "M",
+  "name": "Bassinrui",
+  "pts": [
+    [
+      84.039,
+      127.1
+    ],
+    [
+      84.039,
+      129.6
+    ],
+    [
+      82.21,
+      160.8
+    ],
+    [
+      82.21,
+      163.3
+    ]
+  ],
+  "walkwaySide": 1,
+  "start": "room",
+  "end": "room",
+  "joins": [
+    "J004",
+    "R2"
+  ],
+  "retained": null,
+  "grates": [],
+  "lamps": [
+    [
+      84.3,
+      146.0
+    ]
+  ],
+  "construction": {
+    "originalPoints": [
+      [
+        84.0,
+        122.0
+      ],
+      [
+        84.5,
+        165.5
+      ],
+      [
+        79.7,
+        172.0
+      ]
+    ],
+    "startBinding": {
+      "id": "J004",
+      "rect": [
+        80.6,
+        118.6,
+        87.4,
+        125.4
+      ],
+      "mouth": {
+        "route": "L8",
+        "end": [
+          84.039,
+          127.1
+        ],
+        "dir": [
+          0.0,
+          1.0
+        ],
+        "walkway_side": 1
+      },
+      "installed": false
+    },
+    "endBinding": {
+      "id": "R2",
+      "rect": [
+        74.5,
+        165.0,
+        84.5,
+        179.0
+      ],
+      "mouth": {
+        "route": "L8",
+        "end": [
+          82.21,
+          163.3
+        ],
+        "dir": [
+          0.0,
+          -1.0
+        ],
+        "walkway_side": -1
+      },
+      "installed": false
+    }
+  },
+  "repairLamps": true
+}

@@ -1,0 +1,107 @@
+{
+  "id": "L33",
+  "cls": "M",
+  "name": "rui by Rijnkaai",
+  "pts": [
+    [
+      34.7,
+      32.875
+    ],
+    [
+      37.2,
+      32.875
+    ],
+    [
+      48.9,
+      14.35
+    ],
+    [
+      51.4,
+      14.35
+    ]
+  ],
+  "walkwaySide": 1,
+  "start": "room",
+  "end": "room",
+  "joins": [
+    "R3",
+    "J026"
+  ],
+  "retained": null,
+  "grates": [],
+  "lamps": [
+    [
+      35.9,
+      31.1
+    ]
+  ],
+  "construction": {
+    "originalPoints": [
+      [
+        14.6,
+        37.4
+      ],
+      [
+        32.5,
+        33.0
+      ],
+      [
+        34.5,
+        32.5
+      ],
+      [
+        52.5,
+        14.5
+      ],
+      [
+        56.5,
+        13.5
+      ]
+    ],
+    "startBinding": {
+      "id": "R3",
+      "rect": [
+        -6.5,
+        30.5,
+        33.0,
+        43.0
+      ],
+      "mouth": {
+        "route": "L33",
+        "end": [
+          34.7,
+          32.875
+        ],
+        "dir": [
+          1.0,
+          0.0
+        ],
+        "walkway_side": 1
+      },
+      "installed": false
+    },
+    "endBinding": {
+      "id": "J026",
+      "rect": [
+        53.1,
+        10.1,
+        59.9,
+        16.9
+      ],
+      "mouth": {
+        "route": "L33",
+        "end": [
+          51.4,
+          14.35
+        ],
+        "dir": [
+          -1.0,
+          0.0
+        ],
+        "walkway_side": -1
+      },
+      "installed": false
+    }
+  },
+  "repairLamps": true
+}

@@ -1,0 +1,108 @@
+{
+  "id": "L44",
+  "cls": "M",
+  "name": "rui by Cathedral",
+  "pts": [
+    [
+      -219.0,
+      272.6
+    ],
+    [
+      -219.0,
+      274.55178
+    ],
+    [
+      -223.227,
+      278.44822
+    ],
+    [
+      -223.227,
+      280.4
+    ]
+  ],
+  "walkwaySide": 1,
+  "start": "room",
+  "end": "room",
+  "joins": [
+    "J054",
+    "J055_J085"
+  ],
+  "retained": null,
+  "grates": [],
+  "lamps": [],
+  "construction": {
+    "originalPoints": [
+      [
+        -219.0,
+        267.0
+      ],
+      [
+        -220.5,
+        274.0
+      ],
+      [
+        -223.5,
+        278.0
+      ],
+      [
+        -223.0,
+        285.5
+      ]
+    ],
+    "startBinding": {
+      "id": "J054",
+      "rect": [
+        -224.0,
+        262.0,
+        -214.0,
+        272.0
+      ],
+      "mouth": {
+        "route": "L44",
+        "cls": "M",
+        "wall": "z1",
+        "bay": 0,
+        "tc": -219.0,
+        "width": 3.6,
+        "at": [
+          -219.0,
+          272.0
+        ],
+        "end": [
+          -219.0,
+          272.6
+        ],
+        "dir": [
+          0,
+          1
+        ],
+        "walkway_side": 1,
+        "depth": 0.6,
+        "legacyC2": false
+      },
+      "installed": false
+    },
+    "endBinding": {
+      "id": "J055_J085",
+      "rect": [
+        -234.9,
+        282.1,
+        -219.6,
+        299.4
+      ],
+      "mouth": {
+        "route": "L44",
+        "end": [
+          -223.227,
+          280.4
+        ],
+        "dir": [
+          0.0,
+          -1.0
+        ],
+        "walkway_side": -1
+      },
+      "installed": false
+    }
+  }
+}

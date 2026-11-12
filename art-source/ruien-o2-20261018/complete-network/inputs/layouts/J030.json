@@ -1,0 +1,25 @@
+{
+  "stair": {
+    "kind": "network",
+    "wall": "z0",
+    "end": "lo",
+    "t": 0.6
+  },
+  "crown_grate": false,
+  "grates": [
+    [
+      -218.0,
+      340.0
+    ]
+  ],
+  "L24": {
+    "side": 1
+  },
+  "L34": {
+    "side": -1
+  },
+  "L35": {
+    "side": 1
+  },
+  "repairLamps": true
+}

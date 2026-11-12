@@ -7,6 +7,8 @@
     <Optimize>true</Optimize>
     <RootNamespace>Scheldemist</RootNamespace>
   </PropertyGroup>
-  <ItemGroup><StartupGeometrySource Include="src/World/**/*.cs;src/Models/**/*.cs;src/Render/**/*.cs;src/Main.cs;src/Paths.cs" /></ItemGroup>
+  <!-- Offline intake changes invalidate their generated resources by content. They
+       cannot change startup geometry until those resources are converted again. -->
+  <ItemGroup><StartupGeometrySource Include="src/World/**/*.cs;src/Models/**/*.cs;src/Render/**/*.cs;src/Paths.cs" Exclude="src/World/StartupCachePrune.cs;src/World/StartupResources.cs;src/World/Ruien/RuienGeometryCache.cs;src/World/Ruien/RuienFoldBridge.Cache.cs;src/World/Ruien/RuienArea.Streaming.cs;src/World/Ruien/RuienCover.Cache.cs;src/World/Ruien/RuienProof*.cs;src/World/Ruien/RuienFrameProfile.cs;src/World/Ruien/RuienImport.cs;src/World/Ruien/RuienGlb.cs;src/World/Ruien/RuienRepair.cs;src/World/Ruien/RuienRepairFix.cs;src/World/Ruien/RuienDepositRepair.cs" /></ItemGroup>
   <Import Project="../tools/build/StartupGeometry.targets" />
 </Project>

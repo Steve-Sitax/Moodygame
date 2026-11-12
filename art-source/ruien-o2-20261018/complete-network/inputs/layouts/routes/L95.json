@@ -1,0 +1,93 @@
+{
+  "id": "L95",
+  "cls": "M",
+  "name": "rui by Rijnkaai",
+  "pts": [
+    [
+      66.75,
+      1.1973
+    ],
+    [
+      66.75,
+      3.13573
+    ],
+    [
+      56.925,
+      6.46157
+    ],
+    [
+      56.925,
+      8.4
+    ]
+  ],
+  "walkwaySide": 1,
+  "start": "room",
+  "end": "room",
+  "joins": [
+    "GATE_O9",
+    "J026"
+  ],
+  "retained": null,
+  "grates": [],
+  "lamps": [],
+  "construction": {
+    "originalPoints": [
+      [
+        57.0,
+        0.1
+      ],
+      [
+        57.5,
+        5.5
+      ],
+      [
+        56.5,
+        13.5
+      ]
+    ],
+    "startBinding": {
+      "id": "GATE_O9",
+      "rect": [
+        56.3,
+        -0.6,
+        67.45,
+        1.8973
+      ],
+      "mouth": {
+        "route": "L95",
+        "end": [
+          66.75,
+          1.1973
+        ],
+        "dir": [
+          0,
+          1
+        ],
+        "walkway_side": 1
+      },
+      "installed": false
+    },
+    "endBinding": {
+      "id": "J026",
+      "rect": [
+        53.1,
+        10.1,
+        59.9,
+        16.9
+      ],
+      "mouth": {
+        "route": "L95",
+        "end": [
+          56.925,
+          8.4
+        ],
+        "dir": [
+          0.0,
+          -1.0
+        ],
+        "walkway_side": -1
+      },
+      "installed": false
+    }
+  }
+}

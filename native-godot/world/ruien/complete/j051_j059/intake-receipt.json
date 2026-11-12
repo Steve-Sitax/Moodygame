@@ -1,0 +1,28 @@
+{
+  "key": "2398b16446a0d35318ce4ea0092fb5f7e5d94c37a404fa80e4e02d0698b51ffe",
+  "files": {
+    "area.json": "cab7f16dfe8abb71b7d0a7ca2e51ddc567a7bda8864ff58debe6af4d8c215b04",
+    "collision.res": "c224fd5df612c4a0315d8686e7c4d602d056cbd5c91cde66d128f444a77fe050",
+    "markers.json": "d04c39d1c1514df1077ea998e662a8b332c7d4376581590defd5acbc81d426ab",
+    "mesh_room_lod0_00.res": "4b1689fe320d88942590fdf4c04352ca0ffdb825cd6467856b2ad0784c355c35",
+    "mesh_room_lod0_01.res": "de58ed4e8c7410238662946664f63afea4a5866d7c5cd8e2e8845b5ac49758e5",
+    "mesh_room_lod0_02.res": "fafd78d7153ded7e5efae4ff6a8761297565901bad05bc45c9aa7aa9d2a428ec",
+    "mesh_room_lod0_03.res": "45ce105ab774ab9a0a31a5d97225ad072a295f7032d25a05c464020d152709fc",
+    "mesh_room_lod0_04.res": "c17c1a69fbe70d2a83c88d3cff891ab8f9a2ae35590510b3f34911523d60934c",
+    "mesh_room_lod0_05.res": "ffc4f4bbdb6fcd256d389f5757c4c7776f7f7e5265746c070b47f7f1d45a4eb5",
+    "mesh_room_lod0_06.res": "8fd27b33978c452af9ec677238b81cb7adfaaaaab470eec6f56ca8b6a7b079ad",
+    "mesh_room_lod0_07.res": "d34d68657611dadd897ed56701bcb90a2f977421577d942ac818b2c0b936c21f",
+    "mesh_room_lod0_08.res": "bfc1600a4bf047109fc1aba49eb7017e44d6f54182f76233a42aea03fd82a34b",
+    "mesh_room_lod0_09.res": "d5d142eaa2fce8398d8f9fbe7cf6799caf14c3c1ccf11494bf56b38162e4fba9",
+    "mesh_room_lod0_10.res": "aa44fe06c7178b00abba906d4e1a10485d0ae78f6f4a164c64b98765c0f793f1",
+    "mesh_room_lod0_11.res": "921abe65783bcaf9986652c4cdd9d03ed778236c536294466458c0417e23b30d",
+    "mesh_room_lod0_12.res": "92a885d352b62fa8324b6c9cd4e05d6cfd6c492760bbfa72f681ee1e5f546c64",
+    "mesh_room_lod0_13.res": "455c303f63c143080395e154af60b4131887fc72f4326019a87e3c1b20e17406",
+    "mesh_room_lod0_14.res": "c0dea5ea7d34d2ea768899425210b1ec88317d2f472acccc317ab3421a769ce7",
+    "mesh_room_lod1_00.res": "b38b24b1a6b7885e711c1b2c70db0ec662923456f01698e1dd4edab87487266e",
+    "mesh_room_lod1_01.res": "7f26c0f3fbe245e7584186d07f359970869e9ddb8c0747d2f6f8a9c5aa0aedad",
+    "mesh_room_lod1_02.res": "36aaa8ed89ca3652298773a521c09b09d6cbbbbbd9c5cdaae0329b61af5c1ec4",
+    "mesh_room_lod1_03.res": "415179d5884a0922832fc0ad57b41a91f0f67e2d06a363030f9f1cdb083097de"
+  },
+  "seconds": 25.739301799971145
+}

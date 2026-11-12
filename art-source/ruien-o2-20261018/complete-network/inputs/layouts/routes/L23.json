@@ -1,0 +1,98 @@
+{
+  "id": "L23",
+  "cls": "M",
+  "name": "rui by Kipdorppoort",
+  "pts": [
+    [
+      -181.106,
+      336.4
+    ],
+    [
+      -181.106,
+      333.9
+    ],
+    [
+      -181.833,
+      311.7
+    ],
+    [
+      -181.833,
+      309.2
+    ]
+  ],
+  "walkwaySide": 1,
+  "start": "room",
+  "end": "room",
+  "joins": [
+    "J027",
+    "R6"
+  ],
+  "retained": null,
+  "grates": [
+    [
+      -181.7,
+      319.5
+    ]
+  ],
+  "lamps": [],
+  "construction": {
+    "originalPoints": [
+      [
+        -181.0,
+        341.5
+      ],
+      [
+        -182.0,
+        309.5
+      ],
+      [
+        -181.6,
+        304.7
+      ]
+    ],
+    "startBinding": {
+      "id": "J027",
+      "rect": [
+        -184.4,
+        338.1,
+        -177.6,
+        344.9
+      ],
+      "mouth": {
+        "route": "L23",
+        "end": [
+          -181.106,
+          336.4
+        ],
+        "dir": [
+          0.0,
+          -1.0
+        ],
+        "walkway_side": 1
+      },
+      "installed": false
+    },
+    "endBinding": {
+      "id": "R6",
+      "rect": [
+        -185.5,
+        302.0,
+        -178.0,
+        307.5
+      ],
+      "mouth": {
+        "route": "L23",
+        "end": [
+          -181.833,
+          309.2
+        ],
+        "dir": [
+          0.0,
+          1.0
+        ],
+        "walkway_side": -1
+      },
+      "installed": false
+    }
+  }
+}

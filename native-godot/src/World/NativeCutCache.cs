@@ -40,6 +40,7 @@ public static class NativeCutCache
         Add("street-cuts-v1"); Add(StartupCacheCode.Revision(typeof(NativeCutCache).Assembly));
         Add(StartupCacheCode.Revision(typeof(QuayNotch).Assembly)); Add(Engine.GetVersionInfo().ToString()); Add(DisplayServer.GetName()); Add(RenderingServer.GetCurrentRenderingMethod());
         Add(werf.ToString()); Add(gates.ToString()); Add(Scheldemist.Main.I.Flag("no-ruien-entrances").ToString());
+        Add(Scheldemist.Main.I.Flag("no-stair-holes").ToString());
         var direct = new List<string>();
         void Resource(string path)
         {
@@ -77,7 +78,7 @@ public static class NativeCutCache
         try
         {
             key = Key(town, werf, gates);
-            folder = Path.Combine(ProjectSettings.GlobalizePath("user://"), "startup-cache", "cuts", key);
+            folder = Path.Combine(Scheldemist.World.StartupCachePrune.Root, "cuts", key);
         }
         catch (Exception e)
         {

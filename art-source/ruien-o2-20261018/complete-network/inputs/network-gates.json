@@ -1,0 +1,642 @@
+{
+  "gates": [
+    {
+      "id": "O10",
+      "name": "Noorder gate",
+      "origin": [
+        205.0,
+        -0.0027
+      ],
+      "normal": [
+        0,
+        -1
+      ],
+      "variant": "g_narrow",
+      "kit": "res://world/ruien/gate-kit/g_narrow",
+      "area": "network_l18",
+      "width": 3.0,
+      "sill": -5.05,
+      "bed": -6.1,
+      "channel": 2.1,
+      "incomingChannel": 3,
+      "water": -4.6,
+      "incomingOffset": 0,
+      "held": false,
+      "flush": false,
+      "planned": [
+        200.3,
+        0.5
+      ],
+      "reason": "Measured native quay returns and fenders retained; opening and outward leaf sweep checked together. Narrow gallery gate at Noorder keeps the planned giant channel clearance.",
+      "cut": {
+        "id": "O10",
+        "origin": [
+          205.0,
+          -0.0027
+        ],
+        "normal": [
+          0,
+          -1
+        ],
+        "depth": 1.2,
+        "sill": -5.05,
+        "channel": 2.1,
+        "outletWidth": 2.1,
+        "opening": [
+          [
+            -2.28,
+            -5.4
+          ],
+          [
+            2.28,
+            -5.4
+          ],
+          [
+            2.28,
+            -0.285
+          ],
+          [
+            -2.28,
+            -0.285
+          ]
+        ],
+        "meshes": [
+          "quay_walls"
+        ],
+        "clear": [
+          "outfall_stones",
+          "outfall_dark",
+          "outfall_runs",
+          "quayfurniture_3,0,1"
+        ]
+      }
+    },
+    {
+      "id": "P1",
+      "name": "Bassin boat door",
+      "origin": [
+        153.8,
+        109.9986
+      ],
+      "normal": [
+        0,
+        -1
+      ],
+      "variant": "m",
+      "kit": "res://world/ruien/gate-kit/m",
+      "area": "network_l2",
+      "width": 3.6,
+      "sill": -4.85,
+      "bed": -4.9,
+      "channel": 2,
+      "incomingChannel": 2.8,
+      "water": -4.4,
+      "incomingOffset": -0.4,
+      "held": true,
+      "flush": false,
+      "planned": [
+        153.8,
+        109.2
+      ],
+      "reason": "Measured native quay plane; full door surround and sweep clear existing steps and ladders.",
+      "cut": {
+        "id": "P1",
+        "origin": [
+          153.8,
+          109.9986
+        ],
+        "normal": [
+          0,
+          -1
+        ],
+        "depth": 1.2,
+        "sill": -4.85,
+        "channel": 2,
+        "outletWidth": 2,
+        "opening": [
+          [
+            -2.58,
+            -5.199999999999999
+          ],
+          [
+            2.58,
+            -5.199999999999999
+          ],
+          [
+            2.58,
+            -0.285
+          ],
+          [
+            -2.58,
+            -0.285
+          ]
+        ],
+        "meshes": [
+          "quay_walls"
+        ],
+        "clear": [
+          "outfall_stones",
+          "outfall_dark",
+          "outfall_runs",
+          "quayfurniture_2,1,1"
+        ]
+      }
+    },
+    {
+      "id": "O9",
+      "name": "Paulus gate",
+      "origin": [
+        66.75,
+        -0.0027
+      ],
+      "normal": [
+        0,
+        -1
+      ],
+      "variant": "m_narrow",
+      "kit": "res://world/ruien/gate-kit/m_narrow",
+      "area": "network_l95",
+      "width": 3.0,
+      "sill": -4.85,
+      "bed": -4.9,
+      "channel": 2.0,
+      "incomingChannel": 2.8,
+      "water": -4.4,
+      "incomingOffset": -0.4,
+      "held": false,
+      "flush": false,
+      "planned": [
+        57.0,
+        0.1
+      ],
+      "reason": "Narrow outlet between retained quay fittings and surveyed live boat hulls. Jans relocated within its chamber bay; Paulus has a compact one-course apron. Full assembled proof required.",
+      "cut": {
+        "id": "O9",
+        "origin": [
+          66.75,
+          -0.0027
+        ],
+        "normal": [
+          0,
+          -1
+        ],
+        "depth": 1.2,
+        "sill": -4.85,
+        "channel": 2.0,
+        "outletWidth": 2.0,
+        "opening": [
+          [
+            -2.28,
+            -5.199999999999999
+          ],
+          [
+            2.28,
+            -5.199999999999999
+          ],
+          [
+            2.28,
+            -0.285
+          ],
+          [
+            -2.28,
+            -0.285
+          ]
+        ],
+        "meshes": [
+          "quay_walls"
+        ],
+        "clear": [
+          "outfall_stones",
+          "outfall_dark",
+          "outfall_runs",
+          "quayfurniture_0,0,1",
+          "quayfurniture_1,0,1"
+        ]
+      }
+    },
+    {
+      "id": "O8",
+      "name": "Rijnkaai gate",
+      "origin": [
+        13.0,
+        -0.0027
+      ],
+      "normal": [
+        0,
+        -1
+      ],
+      "variant": "m",
+      "kit": "res://world/ruien/gate-kit/m",
+      "area": "network_l118",
+      "width": 3.6,
+      "sill": -4.85,
+      "bed": -4.9,
+      "channel": 2,
+      "incomingChannel": 2.8,
+      "water": -4.4,
+      "incomingOffset": -0.4,
+      "held": false,
+      "flush": false,
+      "planned": [
+        -2.0,
+        0.1
+      ],
+      "reason": "Native leaf sweep checked against pier timbers, fenders, steps and quay hardware; existing quay structures preserved.",
+      "cut": {
+        "id": "O8",
+        "origin": [
+          13.0,
+          -0.0027
+        ],
+        "normal": [
+          0,
+          -1
+        ],
+        "depth": 1.2,
+        "sill": -4.85,
+        "channel": 2,
+        "outletWidth": 2,
+        "opening": [
+          [
+            -2.58,
+            -5.199999999999999
+          ],
+          [
+            2.58,
+            -5.199999999999999
+          ],
+          [
+            2.58,
+            -0.285
+          ],
+          [
+            -2.58,
+            -0.285
+          ]
+        ],
+        "meshes": [
+          "quay_walls"
+        ],
+        "clear": [
+          "outfall_stones",
+          "outfall_dark",
+          "outfall_runs",
+          "quayfurniture_0,0,1"
+        ]
+      }
+    },
+    {
+      "id": "O7",
+      "name": "Jans gate",
+      "origin": [
+        -70.006,
+        156.75
+      ],
+      "normal": [
+        -1,
+        0
+      ],
+      "variant": "g_narrow",
+      "kit": "res://world/ruien/gate-kit/g_narrow",
+      "area": "network_j056",
+      "width": 3.0,
+      "sill": -5.05,
+      "bed": -6.1,
+      "channel": 2.1,
+      "incomingChannel": 3,
+      "water": -4.6,
+      "incomingOffset": 0,
+      "held": false,
+      "flush": false,
+      "planned": [
+        -63.6,
+        161.8
+      ],
+      "reason": "Narrow outlet between retained quay fittings and surveyed live boat hulls. Jans relocated within its chamber bay; Paulus has a compact one-course apron. Full assembled proof required.",
+      "cut": {
+        "id": "O7",
+        "origin": [
+          -70.006,
+          156.75
+        ],
+        "normal": [
+          -1,
+          0
+        ],
+        "depth": 1.2,
+        "sill": -5.05,
+        "channel": 2.1,
+        "outletWidth": 2.1,
+        "opening": [
+          [
+            -2.28,
+            -5.3999999999999995
+          ],
+          [
+            2.28,
+            -5.3999999999999995
+          ],
+          [
+            2.28,
+            -0.285
+          ],
+          [
+            -2.28,
+            -0.285
+          ]
+        ],
+        "meshes": [
+          "quay_walls"
+        ],
+        "clear": [
+          "outfall_stones",
+          "outfall_dark",
+          "outfall_runs",
+          "quayfurniture_-2,2,1",
+          "quay_iron2"
+        ]
+      }
+    },
+    {
+      "id": "O6",
+      "name": "Canal head gate",
+      "origin": [
+        -77.65,
+        204.9939
+      ],
+      "normal": [
+        0,
+        -1
+      ],
+      "variant": "g",
+      "kit": "res://world/ruien/gate-kit/g",
+      "area": "network_j051_j059",
+      "width": 6,
+      "sill": -5.05,
+      "bed": -6.1,
+      "channel": 3,
+      "incomingChannel": 3,
+      "water": -4.6,
+      "incomingOffset": 0,
+      "held": false,
+      "flush": false,
+      "planned": [
+        -75.8,
+        205.3
+      ],
+      "reason": "Measured native quay plane; full door surround and sweep clear existing steps and ladders.",
+      "cut": {
+        "id": "O6",
+        "origin": [
+          -77.65,
+          204.9939
+        ],
+        "normal": [
+          0,
+          -1
+        ],
+        "depth": 1.2,
+        "sill": -5.05,
+        "channel": 3,
+        "outletWidth": 3,
+        "opening": [
+          [
+            -3.7800000000000002,
+            -5.3999999999999995
+          ],
+          [
+            3.7800000000000002,
+            -5.3999999999999995
+          ],
+          [
+            3.7800000000000002,
+            -0.285
+          ],
+          [
+            -3.7800000000000002,
+            -0.285
+          ]
+        ],
+        "meshes": [
+          "quay_walls"
+        ],
+        "clear": [
+          "outfall_stones",
+          "outfall_dark",
+          "outfall_runs",
+          "quayfurniture_-2,3,1",
+          "quay_iron2"
+        ]
+      }
+    },
+    {
+      "id": "O4",
+      "name": "Brouwers sluice",
+      "origin": [
+        -82.0032,
+        111.9106
+      ],
+      "normal": [
+        1,
+        0
+      ],
+      "variant": "g_narrow",
+      "kit": "res://world/ruien/gate-kit/g_narrow",
+      "area": "network_j042",
+      "width": 3,
+      "sill": -5.05,
+      "bed": -6.1,
+      "channel": 2.1,
+      "incomingChannel": 3,
+      "water": -4.6,
+      "incomingOffset": 0,
+      "held": false,
+      "flush": false,
+      "planned": [
+        -83.0,
+        114.3
+      ],
+      "reason": "Measured native quay plane; full door surround and sweep clear existing steps and ladders.",
+      "cut": {
+        "id": "O4",
+        "origin": [
+          -82.0032,
+          111.9106
+        ],
+        "normal": [
+          1,
+          0
+        ],
+        "depth": 1.2,
+        "sill": -5.05,
+        "channel": 2.1,
+        "outletWidth": 2.1,
+        "opening": [
+          [
+            -2.2800000000000002,
+            -5.3999999999999995
+          ],
+          [
+            2.2800000000000002,
+            -5.3999999999999995
+          ],
+          [
+            2.2800000000000002,
+            -0.285
+          ],
+          [
+            -2.2800000000000002,
+            -0.285
+          ]
+        ],
+        "meshes": [
+          "quay_walls"
+        ],
+        "clear": [
+          "outfall_stones",
+          "outfall_dark",
+          "outfall_runs",
+          "quayfurniture_-2,1,1",
+          "quay_iron2"
+        ]
+      }
+    },
+    {
+      "id": "O1",
+      "name": "Steen gate",
+      "origin": [
+        -209.5,
+        -0.0027
+      ],
+      "normal": [
+        0,
+        -1
+      ],
+      "variant": "g",
+      "kit": "res://world/ruien/gate-kit/g",
+      "area": "network_l28",
+      "width": 6,
+      "sill": -5.05,
+      "bed": -6.1,
+      "channel": 3,
+      "incomingChannel": 3,
+      "water": -4.6,
+      "incomingOffset": 0,
+      "held": false,
+      "flush": false,
+      "planned": [
+        -195.0,
+        0.4
+      ],
+      "reason": "Measured native quay returns and fenders retained; opening and outward leaf sweep checked together. Narrow gallery gate at Noorder keeps the planned giant channel clearance.",
+      "cut": {
+        "id": "O1",
+        "origin": [
+          -209.5,
+          -0.0027
+        ],
+        "normal": [
+          0,
+          -1
+        ],
+        "depth": 1.2,
+        "sill": -5.05,
+        "channel": 3,
+        "outletWidth": 3,
+        "opening": [
+          [
+            -3.7800000000000002,
+            -5.3999999999999995
+          ],
+          [
+            3.7800000000000002,
+            -5.3999999999999995
+          ],
+          [
+            3.7800000000000002,
+            -0.285
+          ],
+          [
+            -3.7800000000000002,
+            -0.285
+          ]
+        ],
+        "meshes": [
+          "quay_walls"
+        ],
+        "clear": [
+          "outfall_stones",
+          "outfall_dark",
+          "outfall_runs",
+          "quayfurniture_-4,0,1",
+          "quayfurniture_-4,-1,1"
+        ]
+      }
+    },
+    {
+      "id": "F1",
+      "name": "Kipdorp flush sluice",
+      "origin": [
+        -146.79681,
+        370.2555
+      ],
+      "normal": [
+        -0.04360614,
+        0.99904877
+      ],
+      "variant": "flush",
+      "kit": "res://world/ruien/gate-kit/flush",
+      "area": "network_flush_f1",
+      "width": 1,
+      "sill": -1.55,
+      "bed": -4.9,
+      "channel": 1,
+      "incomingChannel": 2.8,
+      "water": -4.4,
+      "incomingOffset": -0.4,
+      "held": false,
+      "flush": true,
+      "planned": [
+        -146,
+        352
+      ],
+      "reason": "Measured native quay plane; full door surround and sweep clear existing steps and ladders.",
+      "cut": {
+        "id": "F1",
+        "origin": [
+          -146.79681,
+          370.2555
+        ],
+        "normal": [
+          -0.04360614,
+          0.99904877
+        ],
+        "depth": 1.2,
+        "sill": -1.55,
+        "channel": 1,
+        "outletWidth": 1,
+        "opening": [
+          [
+            -0.54,
+            -1.57
+          ],
+          [
+            0.54,
+            -1.57
+          ],
+          [
+            0.54,
+            -0.95
+          ],
+          [
+            -0.54,
+            -0.95
+          ]
+        ],
+        "meshes": [
+          "quay_walls"
+        ]
+      }
+    }
+  ]
+}

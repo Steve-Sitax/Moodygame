@@ -1,0 +1,123 @@
+{
+  "id": "L78",
+  "cls": "M",
+  "name": "rui by Sint-Jorispoort",
+  "pts": [
+    [
+      -352.5,
+      155.1
+    ],
+    [
+      -352.5,
+      157.6
+    ],
+    [
+      -358.979,
+      203.3
+    ],
+    [
+      -358.979,
+      205.8
+    ]
+  ],
+  "walkwaySide": 1,
+  "start": "room",
+  "end": "room",
+  "joins": [
+    "J081",
+    "R8"
+  ],
+  "retained": null,
+  "grates": [
+    [
+      -356.1,
+      169.0
+    ]
+  ],
+  "lamps": [
+    [
+      -357.9,
+      191.9
+    ]
+  ],
+  "construction": {
+    "originalPoints": [
+      [
+        -352.5,
+        149.5
+      ],
+      [
+        -354.5,
+        151.0
+      ],
+      [
+        -355.0,
+        154.0
+      ],
+      [
+        -359.0,
+        207.0
+      ],
+      [
+        -358.5,
+        218.7
+      ]
+    ],
+    "startBinding": {
+      "id": "J081",
+      "rect": [
+        -357.5,
+        144.5,
+        -347.5,
+        154.5
+      ],
+      "mouth": {
+        "route": "L78",
+        "cls": "M",
+        "wall": "z1",
+        "bay": 0,
+        "tc": -352.5,
+        "width": 3.6,
+        "at": [
+          -352.5,
+          154.5
+        ],
+        "end": [
+          -352.5,
+          155.1
+        ],
+        "dir": [
+          0,
+          1
+        ],
+        "walkway_side": 1,
+        "depth": 0.6,
+        "legacyC2": false
+      },
+      "installed": false
+    },
+    "endBinding": {
+      "id": "R8",
+      "rect": [
+        -363.5,
+        207.5,
+        -353.5,
+        228.5
+      ],
+      "mouth": {
+        "route": "L78",
+        "end": [
+          -358.979,
+          205.8
+        ],
+        "dir": [
+          0.0,
+          -1.0
+        ],
+        "walkway_side": -1
+      },
+      "installed": false
+    }
+  },
+  "repairLamps": true
+}

@@ -1,0 +1,175 @@
+{
+  "about": "Made by RuienImport from the export markers (docs/ruien-native.md). Do not edit; convert again.",
+  "sources": [
+    {
+      "id": "R5_lamp_0",
+      "kind": "lamp",
+      "at": [
+        -31.174973,
+        -1.9536245,
+        259.7102
+      ],
+      "color": "#ffbd85",
+      "power": 6.75,
+      "range": 11
+    },
+    {
+      "id": "R5_lamp_1",
+      "kind": "lamp",
+      "at": [
+        -32.790016,
+        -1.9536245,
+        264.41003
+      ],
+      "color": "#ffbd85",
+      "power": 6.75,
+      "range": 11
+    },
+    {
+      "id": "crown_0",
+      "kind": "shaft",
+      "at": [
+        -29,
+        -1.0241299,
+        262
+      ],
+      "dir": [
+        0,
+        -1,
+        0
+      ],
+      "size": [
+        0.6,
+        0.6
+      ],
+      "round": true,
+      "bars": 5,
+      "power": 5,
+      "range": 14,
+      "beam": 3.4258702
+    }
+  ],
+  "mist": [
+    {
+      "id": "rot_mist_room",
+      "min": [
+        -33,
+        -4.4,
+        259.5
+      ],
+      "max": [
+        -25,
+        -3.8,
+        266
+      ],
+      "density": 0.038
+    }
+  ],
+  "water": [
+    {
+      "id": "R5",
+      "levelOffset": 0,
+      "outline": [
+        [
+          -33,
+          259.5
+        ],
+        [
+          -25,
+          259.5
+        ],
+        [
+          -25,
+          266
+        ],
+        [
+          -33,
+          266
+        ]
+      ],
+      "flow": [
+        0,
+        -0.01
+      ]
+    },
+    {
+      "id": "R5_L66",
+      "levelOffset": 0,
+      "line": [
+        [
+          -28.845455,
+          265.7
+        ],
+        [
+          -28.845455,
+          267.7
+        ]
+      ],
+      "width": 2.8,
+      "flow": [
+        0,
+        -0.04
+      ]
+    },
+    {
+      "id": "R5_L68",
+      "levelOffset": 0,
+      "line": [
+        [
+          -25.3,
+          264.11
+        ],
+        [
+          -23.3,
+          264.11
+        ]
+      ],
+      "width": 2.8,
+      "flow": [
+        0,
+        -0.04
+      ]
+    },
+    {
+      "id": "R5_L99",
+      "levelOffset": 0,
+      "line": [
+        [
+          -32.7,
+          261.39
+        ],
+        [
+          -34.7,
+          261.39
+        ]
+      ],
+      "width": 2.8,
+      "flow": [
+        0,
+        -0.04
+      ]
+    }
+  ],
+  "movers": null,
+  "bridges": [
+    {
+      "id": "R5_L99",
+      "a": [
+        -32.5,
+        -3.9,
+        259.85
+      ],
+      "b": [
+        -32.5,
+        -3.9,
+        262.93
+      ],
+      "gear": [
+        1,
+        -0
+      ]
+    }
+  ],
+  "ladders": [],
+  "stairs": []
+}

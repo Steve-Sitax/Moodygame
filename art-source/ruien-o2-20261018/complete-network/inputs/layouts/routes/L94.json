@@ -1,0 +1,113 @@
+{
+  "id": "L94",
+  "cls": "M",
+  "name": "rui by Canal des Brasseurs",
+  "pts": [
+    [
+      -17.1,
+      154.463
+    ],
+    [
+      -25.1,
+      154.463
+    ],
+    [
+      -58.756,
+      145.7
+    ],
+    [
+      -58.756,
+      153.7
+    ]
+  ],
+  "walkwaySide": 1,
+  "start": "room",
+  "end": "room",
+  "joins": [
+    "J083",
+    "J056"
+  ],
+  "retained": null,
+  "grates": [
+    [
+      -34.0,
+      154.3
+    ]
+  ],
+  "lamps": [],
+  "construction": {
+    "originalPoints": [
+      [
+        -12.0,
+        154.5
+      ],
+      [
+        -58.5,
+        154.0
+      ],
+      [
+        -60.0,
+        155.0
+      ],
+      [
+        -63.6,
+        161.8
+      ]
+    ],
+    "startBinding": {
+      "id": "J083",
+      "rect": [
+        -15.4,
+        151.1,
+        -8.6,
+        157.9
+      ],
+      "mouth": {
+        "route": "L94",
+        "end": [
+          -17.1,
+          154.463
+        ],
+        "dir": [
+          -1.0,
+          0.0
+        ],
+        "walkway_side": 1
+      },
+      "installed": false
+    },
+    "endBinding": {
+      "id": "J056",
+      "rect": [
+        -70.006,
+        154.3,
+        -47.506,
+        169.3
+      ],
+      "mouth": {
+        "route": "L94",
+        "cls": "M",
+        "wall": "z0",
+        "bay": 1,
+        "tc": -58.756,
+        "width": 3.6,
+        "at": [
+          -58.756,
+          154.3
+        ],
+        "end": [
+          -58.756,
+          153.7
+        ],
+        "dir": [
+          0,
+          -1
+        ],
+        "walkway_side": -1,
+        "depth": 0.6,
+        "legacyC2": false
+      },
+      "installed": false
+    }
+  }
+}

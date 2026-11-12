@@ -46,25 +46,58 @@ public static class RuienHook
             // The bracket's far end is at the wall: its direction from the lantern, level.
             var far = removed.OrderByDescending(p => new Vector2(p.X - light.X, p.Z - light.Z).Length()).First();
             var dir = new Vector3(far.X - light.X, 0, far.Z - light.Z).Normalized();
+            var target=light;
+            if(area.RepairLampClearance)
+            {
+                var zone=area.Zones[0];
+                if(zone.Kind=="line")
+                {
+                    zone.Inside(new Vector2(light.X,light.Z),out float u);var(at,t)=zone.Frame(u);
+                    var outward=new Vector2(t.Y,-t.X)*-zone.S.WalkwaySide;
+                    var xy=at+outward*(zone.S.Shell(light.Y+.2536222f)-.27f);
+                    target=new Vector3(xy.X,light.Y,xy.Y);dir=new Vector3(outward.X,0,outward.Y);
+                }
+                else target+=Vector3.Up*.4f;
+            }
             walls = lod0.Select(m => m.Mesh).OfType<ArrayMesh>().ToList();
-            if (Fitting(walls, light, dir) is not { } fit) { GD.PushWarning($"ruien hook: no wall behind {s.Id}"); continue; }
-            if (fit.shift.LengthSquared() > 0)
+            if (Fitting(walls, target, dir) is not { } fit)
+            {
+                if(area.RepairLampClearance)throw new InvalidOperationException("No safe lamp fixing at "+s.Id);
+                GD.PushWarning($"ruien hook: no wall behind {s.Id}"); continue;
+            }
+            var move=target-light+fit.shift;
+            if (move.LengthSquared() > 0)
             {
                 // The lantern (brass, glass, gauze, flame) moves out with its light.
                 foreach (var mi in all)
-                    if (mi.Mesh is ArrayMesh mesh && mesh.GetAabb().Grow(.6f).HasPoint(light) && Moved(mesh, light, fit.shift) is { } moved) mi.Mesh = moved;
-                s.At += fit.shift;
+                    if (mi.Mesh is ArrayMesh mesh && mesh.GetAabb().Grow(.6f).HasPoint(light) && Moved(mesh, light, move) is { } moved) mi.Mesh = moved;
+                s.At += move;
             }
-            GD.Print($"ruien hook: {s.Id} arm {(fit.wall - fit.hang).Length():0.000} m, moved out {fit.shift.Length():0.000} m");
-            root.AddChild(Build(fit.wall, fit.normal, fit.hang, dir, s.Id));
+            GD.Print($"ruien hook: {s.Id} arm {(fit.wall - fit.hang).Length():0.000} m, moved {move.Length():0.000} m");
+            if(area.RepairLampClearance)
+            {
+                var packed=RuienGeometryCache.Get(RuienData.AreasFile,area.Id+"/clear-lamp-hook/"+s.Id,()=>
+                {
+                    var node=Build(fit.wall,fit.normal,fit.hang,dir,s.Id,true);
+                    foreach(var child in BakedWorld.All(node))if(child!=node)child.Owner=node;
+                    var scene=new PackedScene();if(scene.Pack(node)!=Error.Ok)throw new InvalidOperationException("Cannot cache lamp hook "+s.Id);
+                    node.Free();return scene;
+                });
+                root.AddChild(packed.Instantiate<Node3D>());
+            }
+            else root.AddChild(Build(fit.wall, fit.normal, fit.hang, dir, s.Id));
             // The old bracket's collision goes (the hook and the lantern are overhead and thin).
             if (export.Shape != null)
             {
                 var data = export.Shape.Data;
                 var keep = new List<Vector3>(data.Length);
                 for (int i = 0; i + 2 < data.Length; i += 3)
+                {
                     if (!Enumerable.Range(i, 3).All(k => Near(data[k], light, far)))
                     { keep.Add(data[i]); keep.Add(data[i + 1]); keep.Add(data[i + 2]); }
+                    else if(area.RepairLampClearance&&Enumerable.Range(i,3).All(k=>new Vector2(data[k].X-light.X,data[k].Z-light.Z).Length()<.09f&&data[k].Y>light.Y-.14f&&data[k].Y<light.Y+.2f))
+                    {keep.Add(data[i]+move);keep.Add(data[i+1]+move);keep.Add(data[i+2]+move);}
+                }
                 if (keep.Count != data.Length) export.Shape.Data = keep.ToArray();
             }
             fitted++;
@@ -224,7 +257,7 @@ public static class RuienHook
     }
 
     /// <summary>The hook: wall plate on the brick at wall (its normal), a level arm out to hang, the ring there.</summary>
-    public static Node3D Build(Vector3 wall, Vector3 normal, Vector3 hang, Vector3 dir, string id)
+    public static Node3D Build(Vector3 wall, Vector3 normal, Vector3 hang, Vector3 dir, string id,bool solid=false)
     {
         var st = new SurfaceTool(); st.Begin(Mesh.PrimitiveType.Triangles);
         var iron = RuienMaterials.Get("ruien_iron");
@@ -257,7 +290,7 @@ public static class RuienHook
         var ry = dir; var rx = Vector3.Up.Cross(ry).Normalized(); var rz = rx.Cross(ry);
         st.AppendFrom(ring.Commit(), 0, new Transform3D(new Basis(rx, ry, rz), hang + Vector3.Down * (RingR - RingTube - BarR)));
         var node = new Node3D { Name = "lamp_hook_" + id };
-        RuienStair.Add(node, st, "ruien_iron", false);
+        RuienStair.Add(node, st, "ruien_iron", solid);
         return node;
     }
 }

@@ -1,0 +1,74 @@
+{
+  "id": "L41",
+  "cls": "M",
+  "name": "Lijnwaadrui",
+  "pts": [
+    [
+      -218.5,
+      209.5
+    ],
+    [
+      -171.1,
+      209.5
+    ],
+    [
+      -168.6,
+      209.5
+    ]
+  ],
+  "walkwaySide": 1,
+  "start": "auto",
+  "end": "room",
+  "joins": [
+    null,
+    "J053"
+  ],
+  "retained": null,
+  "grates": [
+    [
+      -196.5,
+      209.5
+    ],
+    [
+      -212.5,
+      209.5
+    ]
+  ],
+  "lamps": [],
+  "construction": {
+    "originalPoints": [
+      [
+        -218.5,
+        209.5
+      ],
+      [
+        -163.5,
+        209.5
+      ]
+    ],
+    "startBinding": null,
+    "endBinding": {
+      "id": "J053",
+      "rect": [
+        -166.9,
+        206.1,
+        -160.1,
+        212.9
+      ],
+      "mouth": {
+        "route": "L41",
+        "end": [
+          -168.6,
+          209.5
+        ],
+        "dir": [
+          -1.0,
+          0.0
+        ],
+        "walkway_side": -1
+      },
+      "installed": false
+    }
+  },
+  "planOverride": "${RUIEN_STAGE}/layouts/compiled-network-plan.json"
+}

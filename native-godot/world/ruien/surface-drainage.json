@@ -1,215 +1,219 @@
 {
- "about": "Native stair-house roof drainage and reserved onward Ruien connections. Metres; y street=0. Do not treat reserved stubs as completed network.",
- "inlets": [
-  {
-   "id": "re24_steenplein_left",
-   "entrance": "re24_steenplein",
-   "inlet": [
-    -207.02103470883836,
-    0.015,
-    21.082111324065316
-   ],
-   "invert": -0.95,
-   "pipeDiameter": 0.1,
-   "connectionId": "surface_re24_steenplein_L",
-   "receivingLine": "L28",
-   "status": "inlet and downpipe built; onward connection reserved",
-   "note": "Roof to open gutter, hollow downpipe/shoe, sloped stone channel and grated gully. No completed underground sewer connection claimed."
-  },
-  {
-   "id": "re24_steenplein_right",
-   "entrance": "re24_steenplein",
-   "inlet": [
-    -210.2197978924328,
-    0.015,
-    20.993150123080998
-   ],
-   "invert": -0.95,
-   "pipeDiameter": 0.1,
-   "connectionId": "surface_re24_steenplein_R",
-   "receivingLine": "L28",
-   "status": "inlet and downpipe built; onward connection reserved",
-   "note": "Roof to open gutter, hollow downpipe/shoe, sloped stone channel and grated gully. No completed underground sewer connection claimed."
-  },
-  {
-   "id": "re27_werf_left",
-   "entrance": "re27_werf",
-   "inlet": [
-    -295.0036825785528,
-    0.015,
-    57.25994302673318
-   ],
-   "invert": -0.95,
-   "pipeDiameter": 0.1,
-   "connectionId": "surface_re27_werf_L",
-   "receivingLine": "L7",
-   "status": "inlet and downpipe built; onward connection reserved",
-   "note": "Roof to open gutter, hollow downpipe/shoe, sloped stone channel and grated gully. No completed underground sewer connection claimed."
-  },
-  {
-   "id": "re27_werf_right",
-   "entrance": "re27_werf",
-   "inlet": [
-    -295.1489580634609,
-    0.015,
-    60.45664367482094
-   ],
-   "invert": -0.95,
-   "pipeDiameter": 0.1,
-   "connectionId": "surface_re27_werf_R",
-   "receivingLine": "L7",
-   "status": "inlet and downpipe built; onward connection reserved",
-   "note": "Roof to open gutter, hollow downpipe/shoe, sloped stone channel and grated gully. No completed underground sewer connection claimed."
-  },
-  {
-   "id": "re28_rijnkaai_left",
-   "entrance": "re28_rijnkaai",
-   "inlet": [
-    45.88,
-    0.015,
-    30.29
-   ],
-   "invert": -0.95,
-   "pipeDiameter": 0.1,
-   "connectionId": "surface_re28_rijnkaai_L",
-   "receivingLine": "L33",
-   "status": "inlet and downpipe built; onward connection reserved",
-   "note": "Roof to open gutter, hollow downpipe/shoe, sloped stone channel and grated gully. No completed underground sewer connection claimed."
-  },
-  {
-   "id": "re28_rijnkaai_right",
-   "entrance": "re28_rijnkaai",
-   "inlet": [
-    45.88,
-    0.015,
-    33.49
-   ],
-   "invert": -0.95,
-   "pipeDiameter": 0.1,
-   "connectionId": "surface_re28_rijnkaai_R",
-   "receivingLine": "L33",
-   "status": "inlet and downpipe built; onward connection reserved",
-   "note": "Roof to open gutter, hollow downpipe/shoe, sloped stone channel and grated gully. No completed underground sewer connection claimed."
-  },
-  {
-   "id": "re30_hanseatic_left",
-   "entrance": "re30_hanseatic",
-   "inlet": [
-    72.38121607357917,
-    0.015,
-    200.10210170673727
-   ],
-   "invert": -0.95,
-   "pipeDiameter": 0.1,
-   "connectionId": "surface_re30_hanseatic_L",
-   "receivingLine": "L51",
-   "status": "inlet and downpipe built; onward connection reserved",
-   "note": "Roof to open gutter, hollow downpipe/shoe, sloped stone channel and grated gully. No completed underground sewer connection claimed."
-  },
-  {
-   "id": "re30_hanseatic_right",
-   "entrance": "re30_hanseatic",
-   "inlet": [
-    72.69962797444637,
-    0.015,
-    196.9179826980653
-   ],
-   "invert": -0.95,
-   "pipeDiameter": 0.1,
-   "connectionId": "surface_re30_hanseatic_R",
-   "receivingLine": "L51",
-   "status": "inlet and downpipe built; onward connection reserved",
-   "note": "Roof to open gutter, hollow downpipe/shoe, sloped stone channel and grated gully. No completed underground sewer connection claimed."
-  },
-  {
-   "id": "re31_kipdorp_left",
-   "entrance": "re31_kipdorp",
-   "inlet": [
-    -176.9040978546784,
-    0.015,
-    283.6199674053402
-   ],
-   "invert": -0.95,
-   "pipeDiameter": 0.1,
-   "connectionId": "surface_re31_kipdorp_L",
-   "receivingLine": "L57",
-   "status": "inlet and downpipe built; onward connection reserved",
-   "note": "Roof to open gutter, hollow downpipe/shoe, sloped stone channel and grated gully. No completed underground sewer connection claimed."
-  },
-  {
-   "id": "re31_kipdorp_right",
-   "entrance": "re31_kipdorp",
-   "inlet": [
-    -173.71118110244294,
-    0.015,
-    283.4071702876576
-   ],
-   "invert": -0.95,
-   "pipeDiameter": 0.1,
-   "connectionId": "surface_re31_kipdorp_R",
-   "receivingLine": "L57",
-   "status": "inlet and downpipe built; onward connection reserved",
-   "note": "Roof to open gutter, hollow downpipe/shoe, sloped stone channel and grated gully. No completed underground sewer connection claimed."
-  },
-  {
-   "id": "re32_stadspark_left",
-   "entrance": "re32_stadspark",
-   "inlet": [
-    -219.86784805476626,
-    0.015,
-    325.2419533145054
-   ],
-   "invert": -0.95,
-   "pipeDiameter": 0.1,
-   "connectionId": "surface_re32_stadspark_L",
-   "receivingLine": "L34",
-   "status": "inlet and downpipe built; onward connection reserved",
-   "note": "Roof to open gutter, hollow downpipe/shoe, sloped stone channel and grated gully. No completed underground sewer connection claimed."
-  },
-  {
-   "id": "re32_stadspark_right",
-   "entrance": "re32_stadspark",
-   "inlet": [
-    -223.06715577850517,
-    0.015,
-    325.1753944020692
-   ],
-   "invert": -0.95,
-   "pipeDiameter": 0.1,
-   "connectionId": "surface_re32_stadspark_R",
-   "receivingLine": "L34",
-   "status": "inlet and downpipe built; onward connection reserved",
-   "note": "Roof to open gutter, hollow downpipe/shoe, sloped stone channel and grated gully. No completed underground sewer connection claimed."
-  },
-  {
-   "id": "re33_lijnwaadmarkt_left",
-   "entrance": "re33_lijnwaadmarkt",
-   "inlet": [
-    -212.61263746284664,
-    0.015,
-    153.16012613611244
-   ],
-   "invert": -0.95,
-   "pipeDiameter": 0.1,
-   "connectionId": "surface_re33_lijnwaadmarkt_L",
-   "receivingLine": "L42",
-   "status": "inlet and downpipe built; onward connection reserved",
-   "note": "Roof to open gutter, hollow downpipe/shoe, sloped stone channel and grated gully. No completed underground sewer connection claimed."
-  },
-  {
-   "id": "re33_lijnwaadmarkt_right",
-   "entrance": "re33_lijnwaadmarkt",
-   "inlet": [
-    -215.81257792850806,
-    0.015,
-    153.17964577295297
-   ],
-   "invert": -0.95,
-   "pipeDiameter": 0.1,
-   "connectionId": "surface_re33_lijnwaadmarkt_R",
-   "receivingLine": "L42",
-   "status": "inlet and downpipe built; onward connection reserved",
-   "note": "Roof to open gutter, hollow downpipe/shoe, sloped stone channel and grated gully. No completed underground sewer connection claimed."
-  }
- ]
+  "about": "Native stair-house roof inlets connected to the complete Ruien drainage network. Metres; y street=0.",
+  "inlets": [
+    {
+      "id": "re24_steenplein_left",
+      "entrance": "re24_steenplein",
+      "inlet": [
+        -207.02103470883836,
+        0.015,
+        21.082111324065316
+      ],
+      "invert": -0.95,
+      "pipeDiameter": 0.1,
+      "connectionId": "surface_re24_steenplein_L",
+      "receivingLine": "L28",
+      "status": "connected to the native Ruien drainage network",
+      "note": "Roof gutter, hollow downpipe, stone channel, grated gully and buried onward connection."
+    },
+    {
+      "id": "re24_steenplein_right",
+      "entrance": "re24_steenplein",
+      "inlet": [
+        -210.2197978924328,
+        0.015,
+        20.993150123080998
+      ],
+      "invert": -0.95,
+      "pipeDiameter": 0.1,
+      "connectionId": "surface_re24_steenplein_R",
+      "receivingLine": "L28",
+      "status": "connected to the native Ruien drainage network",
+      "note": "Roof gutter, hollow downpipe, stone channel, grated gully and buried onward connection."
+    },
+    {
+      "id": "re27_werf_left",
+      "entrance": "re27_werf",
+      "inlet": [
+        -295.0036825785528,
+        0.015,
+        57.25994302673318
+      ],
+      "invert": -0.95,
+      "pipeDiameter": 0.1,
+      "connectionId": "surface_re27_werf_L",
+      "receivingLine": "L7",
+      "status": "connected to the native Ruien drainage network",
+      "note": "Roof gutter, hollow downpipe, stone channel, grated gully and buried onward connection."
+    },
+    {
+      "id": "re27_werf_right",
+      "entrance": "re27_werf",
+      "inlet": [
+        -295.1489580634609,
+        0.015,
+        60.45664367482094
+      ],
+      "invert": -0.95,
+      "pipeDiameter": 0.1,
+      "connectionId": "surface_re27_werf_R",
+      "receivingLine": "L7",
+      "status": "connected to the native Ruien drainage network",
+      "note": "Roof gutter, hollow downpipe, stone channel, grated gully and buried onward connection."
+    },
+    {
+      "id": "re28_rijnkaai_left",
+      "entrance": "re28_rijnkaai",
+      "inlet": [
+        45.88,
+        0.015,
+        30.29
+      ],
+      "invert": -0.95,
+      "pipeDiameter": 0.1,
+      "connectionId": "surface_re28_rijnkaai_L",
+      "receivingLine": "L33",
+      "status": "connected to the native Ruien drainage network",
+      "note": "Roof gutter, hollow downpipe, stone channel, grated gully and buried onward connection."
+    },
+    {
+      "id": "re28_rijnkaai_right",
+      "entrance": "re28_rijnkaai",
+      "inlet": [
+        45.88,
+        0.015,
+        33.49
+      ],
+      "invert": -0.95,
+      "pipeDiameter": 0.1,
+      "connectionId": "surface_re28_rijnkaai_R",
+      "receivingLine": "L33",
+      "status": "connected to the native Ruien drainage network",
+      "note": "Roof gutter, hollow downpipe, stone channel, grated gully and buried onward connection."
+    },
+    {
+      "id": "re30_hanseatic_left",
+      "entrance": "re30_hanseatic",
+      "inlet": [
+        72.38121607357917,
+        0.015,
+        200.10210170673727
+      ],
+      "invert": -0.38,
+      "pipeDiameter": 0.1,
+      "connectionId": "surface_re30_hanseatic_L",
+      "receivingLine": "L51",
+      "status": "connected to the native Ruien drainage network",
+      "note": "Roof gutter, hollow downpipe, stone channel, grated gully and buried onward connection.",
+      "previousReservedInvert": -0.95,
+      "depthReason": "Shallow buried connection clears the completed main-vault crown without moving the surface gully"
+    },
+    {
+      "id": "re30_hanseatic_right",
+      "entrance": "re30_hanseatic",
+      "inlet": [
+        72.69962797444637,
+        0.015,
+        196.9179826980653
+      ],
+      "invert": -0.95,
+      "pipeDiameter": 0.1,
+      "connectionId": "surface_re30_hanseatic_R",
+      "receivingLine": "L51",
+      "status": "connected to the native Ruien drainage network",
+      "note": "Roof gutter, hollow downpipe, stone channel, grated gully and buried onward connection."
+    },
+    {
+      "id": "re31_kipdorp_left",
+      "entrance": "re31_kipdorp",
+      "inlet": [
+        -176.9040978546784,
+        0.015,
+        283.6199674053402
+      ],
+      "invert": -0.95,
+      "pipeDiameter": 0.1,
+      "connectionId": "surface_re31_kipdorp_L",
+      "receivingLine": "L57",
+      "status": "connected to the native Ruien drainage network",
+      "note": "Roof gutter, hollow downpipe, stone channel, grated gully and buried onward connection."
+    },
+    {
+      "id": "re31_kipdorp_right",
+      "entrance": "re31_kipdorp",
+      "inlet": [
+        -173.71118110244294,
+        0.015,
+        283.4071702876576
+      ],
+      "invert": -0.95,
+      "pipeDiameter": 0.1,
+      "connectionId": "surface_re31_kipdorp_R",
+      "receivingLine": "L57",
+      "status": "connected to the native Ruien drainage network",
+      "note": "Roof gutter, hollow downpipe, stone channel, grated gully and buried onward connection."
+    },
+    {
+      "id": "re32_stadspark_left",
+      "entrance": "re32_stadspark",
+      "inlet": [
+        -219.86784805476626,
+        0.015,
+        325.2419533145054
+      ],
+      "invert": -0.95,
+      "pipeDiameter": 0.1,
+      "connectionId": "surface_re32_stadspark_L",
+      "receivingLine": "L34",
+      "status": "connected to the native Ruien drainage network",
+      "note": "Roof gutter, hollow downpipe, stone channel, grated gully and buried onward connection."
+    },
+    {
+      "id": "re32_stadspark_right",
+      "entrance": "re32_stadspark",
+      "inlet": [
+        -223.06715577850517,
+        0.015,
+        325.1753944020692
+      ],
+      "invert": -0.95,
+      "pipeDiameter": 0.1,
+      "connectionId": "surface_re32_stadspark_R",
+      "receivingLine": "L34",
+      "status": "connected to the native Ruien drainage network",
+      "note": "Roof gutter, hollow downpipe, stone channel, grated gully and buried onward connection."
+    },
+    {
+      "id": "re33_lijnwaadmarkt_left",
+      "entrance": "re33_lijnwaadmarkt",
+      "inlet": [
+        -212.61263746284664,
+        0.015,
+        153.16012613611244
+      ],
+      "invert": -0.95,
+      "pipeDiameter": 0.1,
+      "connectionId": "surface_re33_lijnwaadmarkt_L",
+      "receivingLine": "L42",
+      "status": "connected to the native Ruien drainage network",
+      "note": "Roof gutter, hollow downpipe, stone channel, grated gully and buried onward connection."
+    },
+    {
+      "id": "re33_lijnwaadmarkt_right",
+      "entrance": "re33_lijnwaadmarkt",
+      "inlet": [
+        -215.81257792850806,
+        0.015,
+        153.17964577295297
+      ],
+      "invert": -0.38,
+      "pipeDiameter": 0.1,
+      "connectionId": "surface_re33_lijnwaadmarkt_R",
+      "receivingLine": "L42",
+      "status": "connected to the native Ruien drainage network",
+      "note": "Roof gutter, hollow downpipe, stone channel, grated gully and buried onward connection.",
+      "previousReservedInvert": -0.95,
+      "depthReason": "Shallow buried connection clears the completed main-vault crown without moving the surface gully"
+    }
+  ]
 }

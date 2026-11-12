@@ -1,0 +1,133 @@
+{
+  "id": "L110",
+  "cls": "G",
+  "name": "Vleeshuisrui",
+  "pts": [
+    [
+      -228.45,
+      124.0
+    ],
+    [
+      -230.95,
+      124.0
+    ],
+    [
+      -235.8,
+      110.5
+    ],
+    [
+      -238.3,
+      110.5
+    ]
+  ],
+  "walkwaySide": 1,
+  "start": "room",
+  "end": "room",
+  "joins": [
+    "J034_J037",
+    "C1"
+  ],
+  "retained": null,
+  "grates": [
+    [
+      -235.4,
+      118.6
+    ]
+  ],
+  "lamps": [],
+  "construction": {
+    "originalPoints": [
+      [
+        -219.0,
+        128.0
+      ],
+      [
+        -222.5,
+        127.5
+      ],
+      [
+        -226.5,
+        124.0
+      ],
+      [
+        -230.5,
+        123.5
+      ],
+      [
+        -243.0,
+        111.0
+      ],
+      [
+        -255.0,
+        100.0
+      ]
+    ],
+    "startBinding": {
+      "id": "J034_J037",
+      "rect": [
+        -226.75,
+        120.25,
+        -196.75,
+        135.25
+      ],
+      "mouth": {
+        "route": "L110",
+        "cls": "G",
+        "wall": "x0",
+        "bay": 0,
+        "tc": 124.0,
+        "width": 6.0,
+        "at": [
+          -226.75,
+          124.0
+        ],
+        "end": [
+          -228.45,
+          124.0
+        ],
+        "dir": [
+          -1,
+          0
+        ],
+        "walkway_side": 1,
+        "depth": 1.7,
+        "legacyC2": false
+      },
+      "installed": false
+    },
+    "endBinding": {
+      "id": "C1",
+      "rect": [
+        -270.0,
+        86.0,
+        -240.0,
+        114.0
+      ],
+      "mouth": {
+        "route": "L110",
+        "cls": "G",
+        "wall": "x1",
+        "bay": 3,
+        "tc": 110.5,
+        "width": 6.0,
+        "at": [
+          -240.0,
+          110.5
+        ],
+        "end": [
+          -238.3,
+          110.5
+        ],
+        "dir": [
+          1,
+          0
+        ],
+        "walkway_side": -1,
+        "depth": 1.7,
+        "legacyC2": false
+      },
+      "installed": false
+    }
+  },
+  "closeCoping": true
+}

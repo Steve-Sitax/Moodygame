@@ -1,0 +1,32 @@
+{
+  "stair": {
+    "kind": "network",
+    "wall": "z0",
+    "end": "lo",
+    "t": 0.6
+  },
+  "crown_grate": false,
+  "grates": [
+    [
+      -223.0,
+      286.0
+    ],
+    [
+      -232.0,
+      296.0
+    ]
+  ],
+  "L44": {
+    "side": 1
+  },
+  "L85": {
+    "side": 1
+  },
+  "L86": {
+    "side": -1
+  },
+  "L106": {
+    "side": 1
+  },
+  "repairLamps": true
+}

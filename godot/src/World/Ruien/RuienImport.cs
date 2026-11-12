@@ -65,8 +65,13 @@ public static class RuienImport
             // the area within the repository's budget; --lods 0,1 keeps both)
             if (!lods.Split(',').Contains(lod.ToString())) continue;
             var t0 = Time.GetTicksMsec();
+            using var fileTrace=Dev.StartupTiming.Split("ruien.import."+f.Name);
             var objects = RuienGlb.Read(Path.Combine(exportDir, f.Name)).ToArray();
+            fileTrace?.Next("read-glb");
+            if (uvRepair) RuienDepositRepair.Apply(objects);
+            fileTrace?.Next("deposit-edges");
             if (uvRepair) ChartBricks(objects);
+            fileTrace?.Next("chart-bricks");
             foreach (var obj in objects)
             {
                 string name = obj.Name.StartsWith(prefix) ? obj.Name[prefix.Length..] : obj.Name;
@@ -74,10 +79,12 @@ public static class RuienImport
                 string key = m.Success ? m.Groups["key"].Value : name;
                 if (skip.Contains(key)) continue; // (the area's skipKeys: the town draws its own there)
                 var mesh = Build(obj, out int n, uvRepair, pave, lod, charted: uvRepair, pavingFaces: lod == 0 ? pavingFaces : null);
+                fileTrace?.Next("build."+key);
                 if (mesh == null) continue;
                 string file = $"mesh_{key}_lod{lod}_{(m.Success ? m.Groups["n"].Value : "00")}.res";
                 var err = ResourceSaver.Save(mesh, $"{outRes}/{file}", ResourceSaver.SaverFlags.Compress);
                 if (err != Error.Ok) throw new IOException($"could not write {file}: {err}");
+                fileTrace?.Next("save."+key);
                 if (!keys.TryGetValue(key, out var byLod)) keys[key] = byLod = new();
                 if (!byLod.TryGetValue(lod, out var list)) byLod[lod] = list = new();
                 list.Add((file, mesh.GetAabb(), n));
@@ -168,11 +175,12 @@ public static class RuienImport
         foreach (var p in obj.Prims)
         {
             // (a family the game leaves out: the study's patches of street paving, where the town has its own street)
-            if (RuienMaterials.Skipped(p.Material)) continue;
+            if (RuienMaterials.Skipped(p.Material) || (uvRepair && p.Material.Contains("Runoff_", StringComparison.Ordinal))) continue;
             int n = p.Idx.Length - p.Idx.Length % 3;
             int t = 0;
             while (t < n)
             {
+                using var surfaceTrace=Dev.StartupTiming.Split("ruien.import.surface."+p.Material);
                 var map = new Dictionary<int, int>();
                 var idx = new List<int>();
                 for (; t < n; t += 3)
@@ -214,13 +222,18 @@ public static class RuienImport
                 // Quantized UVs collapse millimetre bevel charts, so a repaired surface keeps full-precision attributes.
                 if (uvRepair)
                 {
+                    surfaceTrace?.Next("capture-arrays");
                     if (RuienUnfold.Bricks(p.Material))
                     {
                         if (pave) paved |= RuienPaving.Extract(arrays, paving, lod == 0 ? .045f : .075f);
+                        surfaceTrace?.Next("paving");
                         if (arrays[(int)Mesh.ArrayType.Index].AsInt32Array().Length == 0) continue;
                         if (!charted) RuienUnfold.Apply(arrays, p.Material);
+                        surfaceTrace?.Next("unfold");
                     }
                     RuienUv.Repair(arrays, p.Material, localPhase: true);
+                    if(RuienUnfold.Bricks(p.Material))RuienSurfaceRepair.VaryLime(arrays);
+                    surfaceTrace?.Next("uv-repair");
                     format &= ~Mesh.ArrayFormat.FlagCompressAttributes;
                 }
                 mesh.AddSurfaceFromArrays(Mesh.PrimitiveType.Triangles, arrays, null, null, format);
@@ -247,7 +260,10 @@ public static class RuienImport
     // connected geometry, then return each triangle to its original object, preserving keys and LOD bounds.
     private static void ChartBricks(IEnumerable<RuienGlb.Obj> objects)
     {
-        foreach (var group in objects.SelectMany(o => o.Prims).Where(p => RuienUnfold.Bricks(p.Material)).GroupBy(p => p.Material))
+        // Arch headers already have the export's metric arc-length chart. Stone
+        // voussoirs disconnect their islands; unfolding them independently resets
+        // the bond at each stone. Keep that authored chart and repair only slivers.
+        foreach (var group in objects.SelectMany(o => o.Prims).Where(p => RuienUnfold.Bricks(p.Material) && p.Material!="ruien_brick_header").GroupBy(p => p.Material))
         {
             var parts = group.ToArray();
             var triangles = new RuienPatch.Tris();
@@ -396,8 +412,9 @@ public static class RuienImport
         {
             string id = w.GetProperty("name").GetString()!;
             if (id == "vliet") continue; // (outside: the town's own water)
-            if (w.TryGetProperty("outline", out var ol)) water.Add(new { id, outline = ol.EnumerateArray().Select(V).ToArray(), flow = new[] { 0f, -0.01f } });
-            else water.Add(new { id, line = w.GetProperty("centre_line").EnumerateArray().Select(V).ToArray(), width = w.GetProperty("width").GetSingle(), flow = new[] { 0f, -0.04f } });
+            float levelOffset=w.TryGetProperty("height",out var height)?height.GetSingle()-waterMin:0;
+            if (w.TryGetProperty("outline", out var ol)) water.Add(new { id, levelOffset, outline = ol.EnumerateArray().Select(V).ToArray(), flow = new[] { 0f, -0.01f } });
+            else water.Add(new { id, levelOffset, line = w.GetProperty("centre_line").EnumerateArray().Select(V).ToArray(), width = w.GetProperty("width").GetSingle(), flow = new[] { 0f, -0.04f } });
         }
         return JsonSerializer.Serialize(new { about = "Made by RuienImport from the export markers (docs/ruien-native.md). Do not edit; convert again.", sources, mist, water,
             movers = movers.ValueKind == JsonValueKind.Object ? movers.EnumerateObject().Select(m => new

@@ -1,0 +1,115 @@
+{
+  "id": "L67",
+  "cls": "G",
+  "name": "rui by Kipdorppoort",
+  "pts": [
+    [
+      -24.5,
+      345.5
+    ],
+    [
+      -34.497639613814435,
+      345.7172605631227
+    ],
+    [
+      -132.0,
+      344.0
+    ],
+    [
+      -134.8,
+      342.0
+    ],
+    [
+      -137.3,
+      342.0
+    ]
+  ],
+  "walkwaySide": 1,
+  "start": "auto",
+  "end": "room",
+  "joins": [
+    null,
+    "J028"
+  ],
+  "retained": null,
+  "grates": [
+    [
+      -38.5,
+      345.3
+    ],
+    [
+      -91.5,
+      344.6
+    ],
+    [
+      -136.0,
+      343.8
+    ]
+  ],
+  "lamps": [
+    [
+      -64.5,
+      344.9
+    ],
+    [
+      -114.5,
+      344.2
+    ]
+  ],
+  "construction": {
+    "originalPoints": [
+      [
+        -24.5,
+        345.5
+      ],
+      [
+        -132.0,
+        344.0
+      ],
+      [
+        -142.0,
+        343.5
+      ],
+      [
+        -144.0,
+        342.0
+      ]
+    ],
+    "startBinding": null,
+    "endBinding": {
+      "id": "J028",
+      "rect": [
+        -149.0,
+        337.0,
+        -139.0,
+        347.0
+      ],
+      "mouth": {
+        "route": "L67",
+        "cls": "G",
+        "wall": "x1",
+        "bay": 0,
+        "tc": 342.0,
+        "width": 6.0,
+        "at": [
+          -139.0,
+          342.0
+        ],
+        "end": [
+          -137.3,
+          342.0
+        ],
+        "dir": [
+          1,
+          0
+        ],
+        "walkway_side": -1,
+        "depth": 1.7,
+        "legacyC2": false
+      },
+      "installed": false
+    }
+  },
+  "planOverride": "${RUIEN_STAGE}/layouts/compiled-network-plan.json",
+  "repairLamps": true
+}

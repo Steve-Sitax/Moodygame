@@ -1,0 +1,35 @@
+{
+  "about": "Made by RuienImport from the export markers (docs/ruien-native.md). Do not edit; convert again.",
+  "sources": [],
+  "mist": [],
+  "water": [],
+  "movers": [
+    {
+      "id": "outlet_door_n",
+      "kind": "tide_door_leaf",
+      "pivot": [
+        1.68,
+        -4.85,
+        -0.2
+      ],
+      "openDeg": -40,
+      "travel": null,
+      "collision": "collision_outlet_door_n.res"
+    },
+    {
+      "id": "outlet_door_s",
+      "kind": "tide_door_leaf",
+      "pivot": [
+        -1.68,
+        -4.85,
+        -0.2
+      ],
+      "openDeg": 40,
+      "travel": null,
+      "collision": "collision_outlet_door_s.res"
+    }
+  ],
+  "bridges": null,
+  "ladders": [],
+  "stairs": []
+}

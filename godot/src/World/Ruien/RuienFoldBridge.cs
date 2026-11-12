@@ -27,6 +27,8 @@ public partial class RuienFoldBridge : Node3D
     public const float AxisDrop = .03f, Knuckle = .028f;
     /// <summary>A leaf's plain heel over the seat (hinge axis to the coping nose), before its girders start.</summary>
     public const float Heel = .18f;
+    /// <summary>Where the rails start on a leaf whose pivot stands in a room corner (from the hinge axis).</summary>
+    public const float OpenHeel = .55f;
     public RuienData.FoldBridge Spec = null!;
     public RuienData.FoldBridgeKit Kit = null!;
     /// <summary>Drawn phase 0 (down) .. 1 (standing); the server's last phase, target and hold.</summary>
@@ -64,29 +66,77 @@ public partial class RuienFoldBridge : Node3D
     /// <summary>A leaf's length from its hinge axis to the meeting joint (12 mm apart).</summary>
     public float LeafLength => Span / 2 - .006f;
 
+    /// <summary>The drawn parts of one bridge shape (span, gear side, open heels), built once: the complete network
+    /// has over a hundred bridges of a handful of shapes. Meshes also survive launches in the content cache.</summary>
+    private sealed record Model(Mesh[] LeafA, Mesh[] LeafB, Mesh[] Fixed);
+    private static readonly Dictionary<string, Model> Models = new();
+
     private void Make()
     {
         float gs = GearSign, L = LeafLength;
         hingeA = new Node3D { Name = "leaf_a", Position = new Vector3(0, -AxisDrop, 0) };
         hingeB = new Node3D { Name = "leaf_b", Position = new Vector3(Span, -AxisDrop, 0), Rotation = new Vector3(0, Mathf.Pi, 0) };
         AddChild(hingeA); AddChild(hingeB);
-        foreach (var (hinge, cover) in new[] { (hingeA, false), (hingeB, true) })
+        // (a pivot 0.35 to 1.15 m from a room's corner wall: rails from the hinge left no body's width between
+        // their ends and that wall, and cut the corner landing off from the walkway along it)
+        float RailFrom(bool cover) => Math.Max(cover?Spec.RailStartB:Spec.RailStartA,(cover ? Spec.OpenHeelB : Spec.OpenHeelA) ? OpenHeel : .10f);
+        string key = FormattableString.Invariant($"{Span:0.0000}|{gs:0}|{Spec.OpenHeelA}|{Spec.OpenHeelB}|{Kit.RailHalf:0.0000}|{RailFrom(false):0.0000}|{RailFrom(true):0.0000}");
+        if (!Models.TryGetValue(key, out var model))
         {
-            var iron = new Parts(); Leaf(iron, L, cover);
-            iron.Add(hinge, "ruien_iron");
-            Solid(hinge, LeafSolid(L), "ruien_bridge_" + Spec.Id + "_" + hinge.Name);
+            Model Draw()
+            {
+                using var timing = Dev.StartupTiming.Measure("ruien.bridge-model.build");
+                Mesh[] Drawn(Node3D under, Action draw)
+                {
+                    // the model keeps the meshes (shared resources), never a node: a node held past the tree's end
+                    // is a leak the engine reports as a fault when the game closes
+                    draw(); var made = under.GetChildren().OfType<MeshInstance3D>().ToArray();
+                    var meshes = made.Select(mi => mi.Mesh).ToArray();
+                    foreach (var mi in made) { under.RemoveChild(mi); mi.Free(); }
+                    return meshes;
+                }
+                var leafA = Drawn(hingeA, () => { var iron = new Parts(); Leaf(iron, L, false, RailFrom(false)); iron.Add(hingeA, "ruien_iron"); });
+                var leafB = Drawn(hingeB, () => { var iron = new Parts(); Leaf(iron, L, true, RailFrom(true)); iron.Add(hingeB, "ruien_iron"); });
+                var fixedParts = Drawn(this, () =>
+                {
+                    // the fixed parts at both pivots (pivot B's frame is turned half round: its leaf runs towards -x)
+                    var stone = new Parts(); var fixedIron = new Parts(); var unused = new List<Vector3>();
+                    foreach (var (px, dir) in new[] { (0f, 1f), (Span, -1f) })
+                    {
+                        // in pivot B's turned frame the gear side is -gs
+                        var at = new Transform3D(dir > 0 ? Basis.Identity : new Basis(Vector3.Up, Mathf.Pi), new Vector3(px, 0, 0));
+                        Seat(stone, fixedIron, unused, at, dir > 0 ? gs : -gs, dir > 0 ? Spec.OpenHeelA : Spec.OpenHeelB);
+                    }
+                    stone.Add(this, "ruien_bluestone");
+                    fixedIron.Add(this, "ruien_iron");
+                });
+                return new Model(leafA, leafB, fixedParts);
+            }
+            Models[key] = model = CachedModel(key, Draw);
         }
-        // the fixed parts at both pivots (pivot B's frame is turned half round: its leaf runs towards -x)
-        var stone = new Parts(); var fixedIron = new Parts(); var solid = new List<Vector3>();
+        static MeshInstance3D Show(Mesh mesh) => new() { Mesh = mesh, Layers = Ruien.Layer, CastShadow = GeometryInstance3D.ShadowCastingSetting.Off };
+        foreach (var mesh in model.LeafA) hingeA.AddChild(Show(mesh));
+        foreach (var mesh in model.LeafB) hingeB.AddChild(Show(mesh));
+        foreach (var mesh in model.Fixed) AddChild(Show(mesh));
+        Solid(hingeA, LeafSolid(L, RailFrom(false)), "ruien_bridge_" + Spec.Id + "_" + hingeA.Name);
+        Solid(hingeB, LeafSolid(L, RailFrom(true)), "ruien_bridge_" + Spec.Id + "_" + hingeB.Name);
+        var solid = new List<Vector3>();
         foreach (var (px, dir) in new[] { (0f, 1f), (Span, -1f) })
         {
-            // in pivot B's turned frame the gear side is -gs
             var at = new Transform3D(dir > 0 ? Basis.Identity : new Basis(Vector3.Up, Mathf.Pi), new Vector3(px, 0, 0));
-            Seat(stone, fixedIron, solid, at, dir > 0 ? gs : -gs);
+            SeatSolid(solid, at, dir > 0 ? gs : -gs, dir > 0 ? Spec.OpenHeelA : Spec.OpenHeelB);
         }
-        stone.Add(this, "ruien_bluestone");
-        fixedIron.Add(this, "ruien_iron");
         Solid(this, solid.ToArray(), "ruien_bridge_" + Spec.Id + "_seats");
+    }
+
+    /// <summary>A seat's collision: its walking top (over the groove too, where the knuckles fill it) and, unless
+    /// the gear lies under a flush cover, the gear box.</summary>
+    private static void SeatSolid(List<Vector3> solid, Transform3D at, float g, bool flush)
+    {
+        const float top = -.012f, bed = -.112f, back = -.32f, front = Heel - .004f;
+        float near = -.42f * g, far = .62f * g, zc = .495f * g;
+        BoxFaces(solid, at * Mid(back, front, bed, top, Math.Min(near, far), Math.Max(near, far)));
+        if (!flush) BoxFaces(solid, at * Mid(-.11f, .11f, top, .35f, zc - .085f, zc + .085f));
     }
 
     private void Solid(Node3D at, Vector3[] faces, string name)
@@ -103,7 +153,7 @@ public partial class RuienFoldBridge : Node3D
     public static float GirderBottom(float x, float L) => -.21f + .085f * Math.Clamp((x - Heel) / Math.Max(L - Heel, .1f), 0, 1);
     private static readonly Color Bloom = new(.30f, .07f, .22f, 0), Salt = new(.22f, .11f, .12f, 0), Sooty = new(.28f, .03f, .32f, 0);
 
-    private void Leaf(Parts p, float L, bool cover)
+    private void Leaf(Parts p, float L, bool cover, float railFrom)
     {
         float W = .36f, girder = .29f, rail = Kit.RailHalf;
         // flush knuckle hinge: the leaf's three knuckles (the seat holds the two between), forged straps under the plate
@@ -149,8 +199,8 @@ public partial class RuienFoldBridge : Node3D
             p.Box(new Vector3(x, DeckY(bot + .005f), 0), new Vector3(.05f, .010f, 2 * girder - .012f), .0015f, Sooty, .45f);
         }
         // the hand rails: round posts in cast shoes outside the toe boards, two rails (the R2 edge rail's sizes)
-        int n = Math.Max(2, (int)MathF.Ceiling((L - .16f) / .75f) + 1);
-        var posts = Enumerable.Range(0, n).Select(i => .10f + (L - .16f) * i / (n - 1)).ToArray();
+        int n = Math.Max(2, (int)MathF.Ceiling((L - .06f - railFrom) / .75f) + 1);
+        var posts = Enumerable.Range(0, n).Select(i => railFrom + (L - .06f - railFrom) * i / (n - 1)).ToArray();
         foreach (float s in new[] { -1f, 1f })
         {
             float z = s * rail;
@@ -175,12 +225,12 @@ public partial class RuienFoldBridge : Node3D
     }
 
     /// <summary>The leaf's collision: the deck, its girders and one slab along each rail (as R2: the bars carry none).</summary>
-    private Vector3[] LeafSolid(float L)
+    private Vector3[] LeafSolid(float L, float railFrom)
     {
         var f = new List<Vector3>();
         BoxFaces(f, new Vector3((.02f + L) / 2, DeckY(-.015f), 0), new Vector3(L - .02f, .03f, .74f));
         BoxFaces(f, new Vector3((Heel + L) / 2, DeckY(-.11f), 0), new Vector3(L - Heel, .19f, .66f));
-        foreach (float s in new[] { -1f, 1f }) BoxFaces(f, new Vector3((.08f + L - .03f) / 2, DeckY(.55f), s * Kit.RailHalf), new Vector3(L - .11f, 1.1f, .04f));
+        foreach (float s in new[] { -1f, 1f }) BoxFaces(f, new Vector3((railFrom - .02f + L - .03f) / 2, DeckY(.55f), s * Kit.RailHalf), new Vector3(L - .03f - (railFrom - .02f), 1.1f, .04f));
         return f.ToArray();
     }
 
@@ -193,7 +243,7 @@ public partial class RuienFoldBridge : Node3D
 
     // ------------------------------------------------------------------ a pivot's seat (pivot frame, deck coordinates:
     // the leaf runs towards +x, the axis at (0, -AxisDrop), gear side g = +1/-1 on z)
-    private void Seat(Parts stone, Parts iron, List<Vector3> solid, Transform3D at, float g)
+    private void Seat(Parts stone, Parts iron, List<Vector3> solid, Transform3D at, float g, bool flush = false)
     {
         const float top = -.012f, bed = -.112f, groove = .04f, floor = -.075f, back = -.32f, front = Heel - .004f;
         float near = -.42f * g, far = .62f * g, gear = .58f * g;
@@ -218,6 +268,19 @@ public partial class RuienFoldBridge : Node3D
         float zc = .495f * g;
         iron.Box(Mid(-.035f, .035f, floor, top, zc - .075f, zc + .075f), .003f, Sooty, .4f);
         iron.Tube(new Vector3(0, -AxisDrop, .372f * g), new Vector3(0, -AxisDrop, .42f * g), .022f, 16, .002f, Bloom, .45f);
+        if (flush)
+        {
+            // An open heel stands where people turn the corner beside the pivot: its worm gear lies in a pit under
+            // a cast cover let flush into the seat, the windlass socket a low boss in its middle. Nothing to walk into.
+            iron.Box(Mid(-.11f, .11f, top, top + .008f, zc - .085f, zc + .085f), .003f, Sooty, .8f);
+            iron.Box(Mid(-.09f, .09f, top + .008f, top + .011f, zc - .065f, zc + .065f), .0015f, Bloom, .85f);
+            iron.Box(new Vector3(0, top + .017f, zc), new Vector3(.05f, .012f, .05f), .003f, Bloom, .9f);
+            iron.Box(new Vector3(0, top + .0245f, zc), new Vector3(.03f, .003f, .03f), .001f, Sooty, .5f);
+            foreach (float x in new[] { -.095f, .095f })
+                foreach (float dz in new[] { -.07f, .07f })
+                    iron.Box(new Vector3(x, top + .011f, zc + dz), new Vector3(.02f, .007f, .02f), .003f, Salt, .8f);
+            return;
+        }
         iron.Box(Mid(-.11f, .11f, top, top + .018f, zc - .085f, zc + .085f), .004f, Bloom, .7f);
         iron.Box(Mid(-.085f, .085f, top + .018f, .19f, zc - .07f, zc + .07f), .005f, Bloom, .75f);
         iron.Box(Mid(-.075f, .075f, .19f, .205f, zc - .06f, zc + .06f), .004f, Salt, .85f);
@@ -239,9 +302,6 @@ public partial class RuienFoldBridge : Node3D
                 iron.Box(new Vector3(x, top + .023f, zc + dz), new Vector3(.024f, .010f, .024f), .004f, Salt, .8f);
                 iron.Box(new Vector3(x, top + .001f, zc + dz), new Vector3(.036f, .003f, .036f), .0008f, new Color(.4f, .25f, .2f, 0), .7f);
             }
-        // collision: the seat's walking top (over the groove too, where the knuckles fill it) and the gear box
-        BoxFaces(solid, at * Mid(back, front, bed, top, zLo, zHi));
-        BoxFaces(solid, at * Mid(-.11f, .11f, top, .35f, zc - .085f, zc + .085f));
     }
 
     private static Transform3D Mid(float x0, float x1, float y0, float y1, float z0, float z1)

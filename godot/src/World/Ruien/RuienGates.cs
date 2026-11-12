@@ -23,6 +23,7 @@ public static class RuienGates
                 int n = QuayNotch.CutConvex(town, g.Meshes, g.Origin, g.Normal, g.Opening, -0.6f, g.Depth + 0.4f, g.Clear);
                 notes.Add($"gate {g.Id} of {area.Id}: {n} triangles cut from {string.Join(", ", g.Meshes)}");
             }
+        notes.Add($"gate aprons: {RuienGateBed.Scour(town,data)} tidal bed triangles scoured");
         // the street's holes over the ways down (a grate's shaft, a hatch's stair)
         foreach (var area in data.Areas)
             foreach (var w in area.Ways.Where(w => !w.Retired && w.Kind is "ladder" or "grate" or "stair" or "keeper_stair"))

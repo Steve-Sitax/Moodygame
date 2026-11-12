@@ -26,10 +26,11 @@ import spec
 from rlib import util as U, mats as M, mats2 as M2, wax as WX, scene as SC
 from kit import junction_gen as JG
 M.set_root(ROOT)
-plan = json.load(open(os.path.join(REPO, 'docs', 'plans', 'ruien', 'ruien-routes.json')))
+plan = json.load(open(arg('--plan') or os.path.join(REPO, 'docs', 'plans', 'ruien', 'ruien-routes.json')))
 room = next(r for r in plan['rooms'] if r['id'] == RID)
 over_file = arg('--over') or os.path.join(ROOT, 'config', RID + '.json')
 over = json.load(open(over_file)) if os.path.isfile(over_file) else {}
+JG.REPAIR_LAMPS = bool(over.get('repairLamps'))
 
 # the street mask (native-godot/world/data/public/city/walk.png: R wall, G water, B outside; black is street)
 city = json.load(open(os.path.join(REPO, 'native-godot', 'world', 'data', 'shared', 'city.json')))['walk']

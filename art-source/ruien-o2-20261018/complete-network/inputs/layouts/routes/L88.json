@@ -1,0 +1,126 @@
+{
+  "id": "L88",
+  "cls": "G",
+  "name": "Kipdorprui",
+  "pts": [
+    [
+      -144.0,
+      335.3
+    ],
+    [
+      -144.0,
+      332.8
+    ],
+    [
+      -140.75,
+      273.95
+    ],
+    [
+      -140.75,
+      271.45
+    ]
+  ],
+  "walkwaySide": 1,
+  "start": "room",
+  "end": "room",
+  "joins": [
+    "J028",
+    "J087_J089"
+  ],
+  "retained": null,
+  "grates": [
+    [
+      -144.1,
+      320.0
+    ],
+    [
+      -144.4,
+      275.0
+    ]
+  ],
+  "lamps": [
+    [
+      -144.3,
+      298.0
+    ]
+  ],
+  "construction": {
+    "originalPoints": [
+      [
+        -144.0,
+        342.0
+      ],
+      [
+        -144.5,
+        263.5
+      ]
+    ],
+    "startBinding": {
+      "id": "J028",
+      "rect": [
+        -149.0,
+        337.0,
+        -139.0,
+        347.0
+      ],
+      "mouth": {
+        "route": "L88",
+        "cls": "G",
+        "wall": "z0",
+        "bay": 0,
+        "tc": -144.0,
+        "width": 6.0,
+        "at": [
+          -144.0,
+          337.0
+        ],
+        "end": [
+          -144.0,
+          335.3
+        ],
+        "dir": [
+          0,
+          -1
+        ],
+        "walkway_side": 1,
+        "depth": 1.7,
+        "legacyC2": false
+      },
+      "installed": false
+    },
+    "endBinding": {
+      "id": "J087_J089",
+      "rect": [
+        -152.0,
+        254.75,
+        -137.0,
+        269.75
+      ],
+      "mouth": {
+        "route": "L88",
+        "cls": "G",
+        "wall": "z1",
+        "bay": 1,
+        "tc": -140.75,
+        "width": 6.0,
+        "at": [
+          -140.75,
+          269.75
+        ],
+        "end": [
+          -140.75,
+          271.45
+        ],
+        "dir": [
+          0,
+          1
+        ],
+        "walkway_side": -1,
+        "depth": 1.7,
+        "legacyC2": false
+      },
+      "installed": false
+    }
+  },
+  "repairLamps": true
+}

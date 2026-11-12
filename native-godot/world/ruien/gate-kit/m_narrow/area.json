@@ -1,0 +1,96 @@
+{
+  "about": "Made by RuienImport from the Blender export (docs/ruien-native.md). Do not edit; convert again.",
+  "piece": "network_gate_kit",
+  "keys": {
+    "outlet_door_n": {
+      "lod0": [
+        {
+          "file": "mesh_outlet_door_n_lod0_00.res",
+          "tris": 15504,
+          "box": [
+            0.0024367957,
+            -4.823255,
+            -0.25,
+            1.7287464,
+            -0.8085804,
+            0.10935718
+          ]
+        }
+      ],
+      "lod1": [
+        {
+          "file": "mesh_outlet_door_n_lod1_00.res",
+          "tris": 6644,
+          "box": [
+            0.0024237928,
+            -4.823255,
+            -0.24895056,
+            1.7309921,
+            -0.8089762,
+            0.10878222
+          ]
+        }
+      ]
+    },
+    "outlet_door_s": {
+      "lod0": [
+        {
+          "file": "mesh_outlet_door_s_lod0_00.res",
+          "tris": 15626,
+          "box": [
+            -1.7287464,
+            -4.8374286,
+            -0.25,
+            -0.0023964643,
+            -0.8076601,
+            0.10889423
+          ]
+        }
+      ],
+      "lod1": [
+        {
+          "file": "mesh_outlet_door_s_lod1_00.res",
+          "tris": 6696,
+          "box": [
+            -1.7309921,
+            -4.8374286,
+            -0.24895056,
+            -0.0024061203,
+            -0.80759716,
+            0.10894887
+          ]
+        }
+      ]
+    },
+    "outlet_gate": {
+      "lod0": [
+        {
+          "file": "mesh_outlet_gate_lod0_00.res",
+          "tris": 75648,
+          "box": [
+            -2.2800565,
+            -5.2000237,
+            -1.2291665,
+            2.2800212,
+            -0.28495932,
+            1.5190423
+          ]
+        }
+      ],
+      "lod1": [
+        {
+          "file": "mesh_outlet_gate_lod1_00.res",
+          "tris": 32069,
+          "box": [
+            -2.2800534,
+            -5.2000237,
+            -1.2289295,
+            2.280012,
+            -0.28495932,
+            1.5186636
+          ]
+        }
+      ]
+    }
+  }
+}

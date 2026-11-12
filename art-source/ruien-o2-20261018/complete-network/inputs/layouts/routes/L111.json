@@ -1,0 +1,80 @@
+{
+  "id": "L111",
+  "cls": "G",
+  "name": "rui by Handschoenmarkt",
+  "pts": [
+    [
+      -323.0,
+      149.0
+    ],
+    [
+      -320.50839,
+      149.2047
+    ],
+    [
+      -315.95,
+      150.25
+    ],
+    [
+      -313.95,
+      150.25
+    ]
+  ],
+  "walkwaySide": 1,
+  "start": "auto",
+  "end": "room",
+  "joins": [
+    null,
+    "J070_J079"
+  ],
+  "retained": null,
+  "grates": [],
+  "lamps": [],
+  "construction": {
+    "originalPoints": [
+      [
+        -323.0,
+        149.0
+      ],
+      [
+        -305.5,
+        149.0
+      ]
+    ],
+    "startBinding": null,
+    "endBinding": {
+      "id": "J070_J079",
+      "rect": [
+        -312.25,
+        139.0,
+        -297.25,
+        154.0
+      ],
+      "mouth": {
+        "route": "L111",
+        "cls": "G",
+        "wall": "x0",
+        "bay": 1,
+        "tc": 150.25,
+        "width": 6.0,
+        "at": [
+          -312.25,
+          150.25
+        ],
+        "end": [
+          -313.95,
+          150.25
+        ],
+        "dir": [
+          -1,
+          0
+        ],
+        "walkway_side": -1,
+        "depth": 1.7,
+        "legacyC2": false
+      },
+      "installed": false
+    }
+  },
+  "planOverride": "${RUIEN_STAGE}/layouts/compiled-network-plan.json"
+}

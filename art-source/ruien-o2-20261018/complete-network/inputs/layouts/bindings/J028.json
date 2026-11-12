@@ -1,0 +1,103 @@
+{
+  "layout": {
+    "rect": [
+      -149.0,
+      337.0,
+      -139.0,
+      347.0
+    ],
+    "mouths": [
+      {
+        "route": "L22",
+        "cls": "M",
+        "wall": "x0",
+        "bay": 0,
+        "tc": 342.0,
+        "width": 3.6,
+        "at": [
+          -149.0,
+          342.0
+        ],
+        "end": [
+          -149.6,
+          342.0
+        ],
+        "dir": [
+          -1,
+          0
+        ],
+        "walkway_side": -1,
+        "depth": 0.6,
+        "legacyC2": false
+      },
+      {
+        "route": "L67",
+        "cls": "G",
+        "wall": "x1",
+        "bay": 0,
+        "tc": 342.0,
+        "width": 6.0,
+        "at": [
+          -139.0,
+          342.0
+        ],
+        "end": [
+          -137.3,
+          342.0
+        ],
+        "dir": [
+          1,
+          0
+        ],
+        "walkway_side": -1,
+        "depth": 1.7,
+        "legacyC2": false
+      },
+      {
+        "route": "L88",
+        "cls": "G",
+        "wall": "z0",
+        "bay": 0,
+        "tc": -144.0,
+        "width": 6.0,
+        "at": [
+          -144.0,
+          337.0
+        ],
+        "end": [
+          -144.0,
+          335.3
+        ],
+        "dir": [
+          0,
+          -1
+        ],
+        "walkway_side": 1,
+        "depth": 1.7,
+        "legacyC2": false
+      },
+      {
+        "route": "FLUSH_F1",
+        "cls": "M",
+        "wall": "z1",
+        "bay": 0,
+        "tc": -144.0,
+        "width": 3.6,
+        "at": [
+          -144.0,
+          347.0
+        ],
+        "end": [
+          -144.0,
+          347.6
+        ],
+        "dir": [
+          0,
+          1
+        ],
+        "walkway_side": 1,
+        "depth": 0.6
+      }
+    ]
+  }
+}

@@ -1,0 +1,96 @@
+{
+  "id": "L114",
+  "cls": "M",
+  "name": "Keizersrui",
+  "pts": [
+    [
+      127.182,
+      296.948
+    ],
+    [
+      124.77998314822784,
+      297.6410476490131
+    ],
+    [
+      102.0,
+      304.0
+    ],
+    [
+      61.5,
+      307.0
+    ]
+  ],
+  "walkwaySide": -1,
+  "start": "room",
+  "end": "auto",
+  "joins": [
+    "R1",
+    null
+  ],
+  "retained": {
+    "area": "r1_l114",
+    "metres": 24.992,
+    "removeChannelEnd": "L114_stub"
+  },
+  "grates": [
+    [
+      93.0,
+      304.7
+    ]
+  ],
+  "lamps": [
+    [
+      111.77708945257524,
+      301.270759258912
+    ]
+  ],
+  "construction": {
+    "originalPoints": [
+      [
+        156.8,
+        290.5
+      ],
+      [
+        152.0,
+        292.5
+      ],
+      [
+        127.0,
+        297.0
+      ],
+      [
+        102.0,
+        304.0
+      ],
+      [
+        61.5,
+        307.0
+      ]
+    ],
+    "startBinding": {
+      "id": "R1",
+      "rect": [
+        153.0,
+        287.5,
+        160.5,
+        293.0
+      ],
+      "mouth": {
+        "route": "L114",
+        "end": [
+          151.3,
+          290.71
+        ],
+        "dir": [
+          -1.0,
+          0.0
+        ],
+        "walkway_side": -1
+      },
+      "installed": false
+    },
+    "endBinding": null
+  },
+  "planOverride": "${RUIEN_STAGE}/layouts/compiled-network-plan.json",
+  "repairLamps": true
+}

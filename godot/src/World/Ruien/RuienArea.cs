@@ -11,7 +11,7 @@ namespace Scheldemist.World.Ruien;
 /// detail switched together by the eye's distance to the key's box (no hole and no double where two levels' pieces
 /// differ), every surface given its family's shared material, and its collision.
 /// </summary>
-public sealed class RuienArea
+public sealed partial class RuienArea
 {
     /// <summary>The nearest a key is drawn in full detail (m from the eye to its box); past it the lighter level.</summary>
     public const float Near = 16;
@@ -30,7 +30,6 @@ public sealed class RuienArea
     public Node3D Root = null!;
     public ConcavePolygonShape3D? Shape;
     public int Triangles0, Triangles1;
-
     public static RuienArea? Load(RuienData.Area area)
     {
         if (!area.Exported) return null;
@@ -49,19 +48,25 @@ public sealed class RuienArea
                 foreach (var e in lod.Value.EnumerateArray())
                 {
                     string source=area.Export + "/" + e.GetProperty("file").GetString();
-                    var mesh=RuienGeometryCache.Get(source,area.Id,()=>
+                    ArrayMesh BuildMesh()
                     {
                     var original = ResourceLoader.Load<ArrayMesh>(source) ?? new ArrayMesh();
-                    if(original.GetAabb().End.Y>RuienSurround.Bottom-.015f || RuienEntrance.All.Any(s=>s.ConnectArea==area.Id))
+                    if(area.SeamProfiles.Count>0 || area.OpenEndCards.Contains(k.Name) || RuienConnections.NeedsTrim(area.Id) || original.GetAabb().End.Y>RuienSurround.Bottom-.015f || RuienEntrance.All.Any(s=>s.ConnectArea==area.Id) || RuienDrainNetwork.Active?.ByArea.ContainsKey(area.Id)==true)
                     {
                         var repaired=new ArrayMesh();
                         for(int s=0;s<original.GetSurfaceCount();s++)
                         {
                             var arrays=original.SurfaceGetArrays(s);
                             string family=original.SurfaceGetName(s);
+                            // The retained side channels ended in four-vertex black cards. A connected
+                            // end has real masonry beyond it; the old visual plug must not survive there.
+                            if(family=="ruien_misc_Soot_black"&&area.OpenEndCards.Contains(k.Name))continue;
+                            RuienSeams.Apply(arrays,area);
+                            RuienConnections.ClearBedBanks(arrays,area.Id,family);
                             RuienStreetClosure.Trim(arrays,area);
                             RuienConnections.TrimImported(arrays,area.Id);
                             RuienEntrance.TrimConnected(arrays,area.Id);
+                            if(RuienDrainNetwork.Active is {} drainage)RuienDrainNetwork.Trim(drainage,arrays,area.Id,original.GetAabb());
                             // Keep the hall's continuous handrail; only the masonry lining is replaced by the new cap.
                             if(family.Contains("brick")||family.Contains("bluestone"))RuienSurround.Trim(arrays,area);
                             // The export's thick hall leaves give way to RuienSurround.Leaves; the handrail stays.
@@ -73,10 +78,23 @@ public sealed class RuienArea
                         return repaired;
                     }
                     return original;
-                    });
-                    if(mesh.GetSurfaceCount()==0)continue;
-                    for (int s = 0; s < mesh.GetSurfaceCount(); s++) mesh.SurfaceSetMaterial(s, RuienMaterials.Get(mesh.SurfaceGetName(s)));
+                    }
+                    bool stream=area.Id.StartsWith("network_",StringComparison.Ordinal);
+                    ArrayMesh? mesh=null;string? prepared=null;
+                    if(stream)prepared=RuienGeometryCache.Prepare(source,area.Id,BuildMesh);
+                    else
+                    {
+                        mesh=RuienGeometryCache.Get(source,area.Id,BuildMesh);
+                        if(mesh.GetSurfaceCount()==0)continue;
+                        for(int s=0;s<mesh.GetSurfaceCount();s++)mesh.SurfaceSetMaterial(s,RuienMaterials.Get(mesh.SurfaceGetName(s)));
+                    }
                     var mi = new MeshInstance3D { Name = e.GetProperty("file").GetString()!.Replace(".res", ""), Mesh = mesh, Layers = Ruien.Layer, CastShadow = GeometryInstance3D.ShadowCastingSetting.Off, Visible = false };
+                    if(prepared!=null)
+                    {
+                        a.deferred[mi]=prepared;mi.SetMeta("ruien_geometry",RuienGeometryCache.PreparedDigest(prepared));
+                        mi.SetMeta("ruien_source",source);mi.SetMeta("ruien_tris",e.GetProperty("tris").GetInt32());
+                        mi.SetMeta("ruien_bounds",e.GetProperty("box").GetRawText());
+                    }
                     a.Root.AddChild(mi);
                     key.Lods[l].Add(mi);
                     int tris = e.GetProperty("tris").GetInt32();
@@ -96,16 +114,23 @@ public sealed class RuienArea
             {
             var original=ResourceLoader.Load<ConcavePolygonShape3D>(col);
             using var arrays=new Godot.Collections.Array();arrays.Resize((int)Mesh.ArrayType.Max);
-            arrays[(int)Mesh.ArrayType.Vertex]=original.Data;
-            bool trimmed=RuienStreetClosure.Trim(arrays,area);
+            var faces=original.Data;arrays[(int)Mesh.ArrayType.Vertex]=faces;
+            bool trimmed=RuienSeams.Apply(arrays,area);
+            trimmed|=RuienStreetClosure.Trim(arrays,area);
             trimmed|=RuienConnections.TrimImported(arrays,area.Id);
+            trimmed|=RuienConnections.TrimCollisionMouths(arrays,area.Id);
             trimmed|=RuienEntrance.TrimConnected(arrays,area.Id);
+            if(RuienDrainNetwork.Active is {} drainage && drainage.ByArea.ContainsKey(area.Id) && faces.Length>0)
+            {
+                var bounds=new Aabb(faces[0],Vector3.Zero);foreach(var face in faces)bounds=bounds.Expand(face);
+                trimmed|=RuienDrainNetwork.Trim(drainage,arrays,area.Id,bounds)>0;
+            }
             trimmed|=RuienSurround.Trim(arrays,area);
             trimmed|=RuienSurround.DropExportLeaves(arrays,area,null);
             if(trimmed)
             {
                 var p=arrays[(int)Mesh.ArrayType.Vertex].AsVector3Array();var ix=arrays[(int)Mesh.ArrayType.Index].AsInt32Array();
-                return new ConcavePolygonShape3D{Data=ix.Select(i=>p[i]).ToArray(),BackfaceCollision=true};
+                return new ConcavePolygonShape3D{Data=(ix.Length>0?ix.Select(i=>p[i]).ToArray():p),BackfaceCollision=true};
             }
             return original;
             });
@@ -113,20 +138,4 @@ public sealed class RuienArea
         return a;
     }
 
-    /// <summary>Each key at the level of detail its distance from the eye asks for.</summary>
-    public void Lod(Vector3 eye)
-    {
-        foreach (var k in Keys)
-        {
-            float d = k.Box.HasPoint(eye) ? 0 : (eye - Closest(k.Box, eye)).Length();
-            int want = d < Near || k.Lods[1].Count == 0 ? 0 : 1;
-            if (Forced >= 0) want = k.Lods[Math.Min(Forced, 2)].Count > 0 ? Math.Min(Forced, 2) : want;
-            if (want == k.Shown) continue;
-            k.Shown = want;
-            for (int l = 0; l < k.Lods.Length; l++)
-                foreach (var mi in k.Lods[l]) mi.Visible = l == want;
-        }
-    }
-
-    private static Vector3 Closest(Aabb b, Vector3 p) => new(Math.Clamp(p.X, b.Position.X, b.End.X), Math.Clamp(p.Y, b.Position.Y, b.End.Y), Math.Clamp(p.Z, b.Position.Z, b.End.Z));
 }

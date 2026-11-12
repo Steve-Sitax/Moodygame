@@ -1,0 +1,87 @@
+{
+  "id": "L39",
+  "cls": "M",
+  "name": "Kanaalrui",
+  "pts": [
+    [
+      -49.5,
+      216.5
+    ],
+    [
+      -51.5,
+      215.0
+    ],
+    [
+      -55.8,
+      216.244
+    ],
+    [
+      -58.3,
+      216.244
+    ]
+  ],
+  "walkwaySide": 1,
+  "start": "cap",
+  "end": "room",
+  "joins": [
+    null,
+    "J051_J059"
+  ],
+  "retained": null,
+  "grates": [],
+  "lamps": [],
+  "construction": {
+    "originalPoints": [
+      [
+        -49.5,
+        216.5
+      ],
+      [
+        -51.5,
+        215.0
+      ],
+      [
+        -57.0,
+        215.0
+      ],
+      [
+        -63.0,
+        209.0
+      ]
+    ],
+    "startBinding": null,
+    "endBinding": {
+      "id": "J051_J059",
+      "rect": [
+        -81.4,
+        204.9939,
+        -58.9,
+        219.9939
+      ],
+      "mouth": {
+        "route": "L39",
+        "cls": "M",
+        "wall": "x1",
+        "bay": 1,
+        "tc": 216.2439,
+        "width": 3.6,
+        "at": [
+          -58.9,
+          216.2439
+        ],
+        "end": [
+          -58.3,
+          216.244
+        ],
+        "dir": [
+          1,
+          0
+        ],
+        "walkway_side": -1,
+        "depth": 0.6,
+        "legacyC2": false
+      },
+      "installed": false
+    }
+  }
+}

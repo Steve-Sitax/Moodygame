@@ -1,0 +1,97 @@
+{
+  "id": "FLUSH_F1",
+  "cls": "M",
+  "name": "Kipdorp flush connection",
+  "pts": [
+    [
+      -144.0,
+      347.6
+    ],
+    [
+      -144.0,
+      350.1
+    ],
+    [
+      -146.63547,
+      366.55902
+    ],
+    [
+      -146.74448,
+      369.05664
+    ]
+  ],
+  "walkwaySide": 1,
+  "start": "room",
+  "end": "through",
+  "joins": [
+    "J028",
+    "GATE_F1"
+  ],
+  "retained": null,
+  "grates": [],
+  "lamps": [],
+  "planOverride": "${RUIEN_STAGE}/layouts/flush-plan.json",
+  "construction": {
+    "originalPoints": [
+      [
+        -144.0,
+        342.0
+      ],
+      [
+        -146.79681,
+        370.2555
+      ]
+    ],
+    "startBinding": {
+      "id": "J028",
+      "rect": [
+        -149.0,
+        337.0,
+        -139.0,
+        347.0
+      ],
+      "mouth": {
+        "route": "FLUSH_F1",
+        "cls": "M",
+        "wall": "z1",
+        "bay": 0,
+        "tc": -144.0,
+        "width": 3.6,
+        "at": [
+          -144.0,
+          347.0
+        ],
+        "end": [
+          -144.0,
+          347.6
+        ],
+        "dir": [
+          0,
+          1
+        ],
+        "walkway_side": 1,
+        "depth": 0.6
+      }
+    },
+    "endBinding": {
+      "id": "GATE_F1",
+      "rect": [
+        -147.49680999999998,
+        369.5555,
+        -146.09681,
+        370.9555
+      ],
+      "mouth": {
+        "end": [
+          -146.744482632,
+          369.056641476
+        ],
+        "dir": [
+          0.04360614,
+          -0.99904877
+        ],
+        "walkway_side": -1
+      }
+    }
+  }
+}

@@ -18,6 +18,7 @@ uniform vec3 beam_from = vec3(0.0);
 uniform vec3 beam_dir = vec3(0.0, -1.0, 0.0);
 uniform float beam_len = 4.0;
 uniform float beam_r = 0.35;
+uniform float beam_bars = 0.0;
 // mist: the box (world), how thick at the bottom, how fast it thins upward (m), how it drifts
 uniform vec3 box_min = vec3(0.0);
 uniform vec3 box_max = vec3(1.0);
@@ -91,7 +92,16 @@ void fragment() {
 			float r = beam_r * (1.0 + 0.12 * s);
 			float dist = length(q - beam_dir * s);
 			float ends = smoothstep(0.0, 0.04, s) * (1.0 - smoothstep(beam_len * 0.75, beam_len, s));
-			g += exp(-dist * dist / (r * r * 0.55)) * ends * (1.0 - 0.6 * along) * dt;
+			float grate = 1.0;
+			if (beam_bars > 0.5) {
+				vec3 u, v; ruien_axes(beam_dir, u, v);
+				vec2 aperture = vec2(dot(q, u), dot(q, v)) / (1.0 + 0.12 * s);
+				float spacing = 2.0 * beam_r / beam_bars;
+				vec2 gap = abs(fract(aperture / spacing + 0.5) - 0.5) * spacing;
+				float bars = smoothstep(0.009, 0.012 + s * 0.007, gap.x) * smoothstep(0.009, 0.012 + s * 0.007, gap.y);
+				grate = mix(0.35 + 0.65 * bars, 0.72, smoothstep(0.0, 2.0, s));
+			}
+			g += exp(-dist * dist / (r * r * 0.55)) * ends * (1.0 - 0.6 * along) * grate * dt;
 		}
 		// dust: brighter specks and slow-turning motes along the stretch
 		vec3 mid = ro + rd * (t0 + t1) * 0.5;

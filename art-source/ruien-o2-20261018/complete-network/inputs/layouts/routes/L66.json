@@ -1,0 +1,84 @@
+{
+  "id": "L66",
+  "cls": "M",
+  "name": "Jacobsrui",
+  "pts": [
+    [
+      -24.5,
+      345.5
+    ],
+    [
+      -29.245,
+      270.2
+    ],
+    [
+      -29.245,
+      267.7
+    ]
+  ],
+  "walkwaySide": 1,
+  "start": "auto",
+  "end": "room",
+  "joins": [
+    null,
+    "R5"
+  ],
+  "retained": null,
+  "grates": [
+    [
+      -25.9,
+      323.5
+    ],
+    [
+      -28.8,
+      278.6
+    ]
+  ],
+  "lamps": [
+    [
+      -27.3,
+      301.6
+    ]
+  ],
+  "construction": {
+    "originalPoints": [
+      [
+        -24.5,
+        345.5
+      ],
+      [
+        -29.5,
+        268.0
+      ],
+      [
+        -28.8,
+        262.5
+      ]
+    ],
+    "startBinding": null,
+    "endBinding": {
+      "id": "R5",
+      "rect": [
+        -33.0,
+        259.5,
+        -25.0,
+        266.0
+      ],
+      "mouth": {
+        "route": "L66",
+        "end": [
+          -29.245,
+          267.7
+        ],
+        "dir": [
+          0.0,
+          1.0
+        ],
+        "walkway_side": -1
+      },
+      "installed": false
+    }
+  },
+  "planOverride": "${RUIEN_STAGE}/layouts/compiled-network-plan.json",
+  "repairLamps": true
+}

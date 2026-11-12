@@ -57,8 +57,8 @@ public static partial class RuienStairHouse
     /// <summary>The house over an entrance: the shared shell (mesh and collision) under a node at the entrance's frame.</summary>
     public static Node3D Build(RuienEntrance.Spec s)
     {
-        string key = FormattableString.Invariant($"{s.Wall:0.000}/{s.HouseBack:0.000}/{s.DoorOpening.H:0.000}/{s.DoorOpening.Spring:0.000}/{s.DoorOpening.Rise:0.000}/{s.Width:0.000}/{s.Lining:0.000}");
-        if (!made.TryGetValue(key, out var m)) made[key] = m = Make(s);
+        string key = FormattableString.Invariant($"{s.Wall:0.000}/{s.HouseBack:0.000}/{s.DoorOpening.H:0.000}/{s.DoorOpening.Spring:0.000}/{s.DoorOpening.Rise:0.000}/{s.Width:0.000}/{s.Lining:0.000}/{s.RoofDrainLeft:0.000}/{s.RoofDrainRight:0.000}");
+        if (!made.TryGetValue(key, out var m)) made[key] = m = CachedShell(s,key);
         var root = new Node3D { Name = "stair_house" };
         root.AddChild(new MeshInstance3D { Name = "shell", Mesh = m.Mesh, VisibilityRangeEnd = 260, VisibilityRangeEndMargin = 10 });
         var body = new StaticBody3D { Name = "shell_solid", CollisionLayer = Solid.Layer, CollisionMask = 0 };
@@ -75,16 +75,10 @@ public static partial class RuienStairHouse
         private static SurfaceTool Begin() { var t = new SurfaceTool(); t.Begin(Mesh.PrimitiveType.Triangles); return t; }
     }
 
-    private static Made Make(RuienEntrance.Spec s)
+    private static ArrayMesh Make(RuienEntrance.Spec s)
     {
         var p = new Parts();
-        var brick = (ShaderMaterial)ResourceLoader.Load<Material>(BrickMaterial).Duplicate();
-        brick.SetShaderParameter("relief_depth",0f);
-        brick.SetShaderParameter("foot",1f);brick.SetShaderParameter("foot_wear",1f);
-        var stone = (ShaderMaterial)ResourceLoader.Load<Material>(StoneMaterial).Duplicate();
-        stone.SetShaderParameter("foot",.6f);stone.SetShaderParameter("foot_wear",1f);
-        var slate = ResourceLoader.Load<Material>(SlateMaterial);
-        var iron = ResourceLoader.Load<Material>(IronMaterial);
+        var (brick,stone,slate,iron,wood)=ShellMaterials();
         float len = Length(s), back = -len, inner = s.Width / 2 + s.Lining, tan = MathF.Tan(Mathf.DegToRad(PitchDeg));
         void Box(SurfaceTool t, Material mat, Vector3 lo, Vector3 hi, float bevel, Basis? turn = null, Vector3? pivot = null)
         {
@@ -94,7 +88,6 @@ public static partial class RuienStairHouse
             if (turn is Basis b) { var pv = pivot ?? Vector3.Zero; at = new Transform3D(b, pv) * new Transform3D(Basis.Identity, (lo + hi) / 2 - pv); }
             t.AppendFrom(BevelMesh.Box(size, bevel, mat), 0, at);
         }
-        var wood=ResourceLoader.Load<Material>("res://assets/materials/town-facades-20261018/shutter-paint-worn.tres");
         var o = s.DoorOpening;
 
         // ---- the brick: side walls (full length, their ends in the gables' faces), the front skin round the doorway,
@@ -194,7 +187,7 @@ public static partial class RuienStairHouse
             Tube(p.Iron, new Vector3(px, .32f, pz), new Vector3(px + sd * .14f, .1f, pz), .045f);
             foreach (float y in new[] { .8f, 1.9f })
                 Box(p.Iron, iron, new Vector3(sd < 0 ? -Half - .15f : Half - .005f, y - .02f, pz - .055f), new Vector3(sd < 0 ? -Half + .005f : Half + .15f, y + .02f, pz + .055f), .002f);
-            Drain(p,stone,iron,sd,pz);
+            Drain(p,stone,iron,sd,pz,sd<0?s.RoofDrainLeft:s.RoofDrainRight);
             // tie anchors: the roof's tie beams held to the side walls (an iron plate and its wedge)
             foreach (float z in new[] { -s.Wall - 1.4f, back + BackWall + 1.4f })
             {
@@ -223,9 +216,7 @@ public static partial class RuienStairHouse
         Commit(p.Wood, wood, new Vector2(.6f,.6f), "house_boarding", true);
         Commit(p.Iron, iron, IronTile, "house_iron", true);
         mesh.ResourceName = "ruien_stair_house";
-        // Collision: the walls, plinth, stone and roof as drawn (the thin iron too: it is up out of reach or hard by a wall).
-        var shape = new ConcavePolygonShape3D { Data = mesh.GetFaces(), BackfaceCollision = true };
-        return new Made(mesh, shape);
+        return mesh;
     }
 
     /// <summary>A gable's brick between z0 and z1: the wall plate (Eaves) up to `side` at the faces and `apex` in the middle.</summary>

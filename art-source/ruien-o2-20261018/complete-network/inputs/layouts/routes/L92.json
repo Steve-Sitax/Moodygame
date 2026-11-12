@@ -1,0 +1,86 @@
+{
+  "id": "L92",
+  "cls": "G",
+  "name": "Kipdorprui",
+  "pts": [
+    [
+      -144.5,
+      236.5
+    ],
+    [
+      -146.64581553252196,
+      246.26706075031723
+    ],
+    [
+      -148.25,
+      250.55
+    ],
+    [
+      -148.25,
+      253.05
+    ]
+  ],
+  "walkwaySide": 1,
+  "start": "auto",
+  "end": "room",
+  "joins": [
+    null,
+    "J087_J089"
+  ],
+  "retained": null,
+  "grates": [],
+  "lamps": [
+    [
+      -144.5,
+      252.5
+    ]
+  ],
+  "construction": {
+    "originalPoints": [
+      [
+        -144.5,
+        236.5
+      ],
+      [
+        -144.5,
+        261.0
+      ]
+    ],
+    "startBinding": null,
+    "endBinding": {
+      "id": "J087_J089",
+      "rect": [
+        -152.0,
+        254.75,
+        -137.0,
+        269.75
+      ],
+      "mouth": {
+        "route": "L92",
+        "cls": "G",
+        "wall": "z0",
+        "bay": 0,
+        "tc": -148.25,
+        "width": 6.0,
+        "at": [
+          -148.25,
+          254.75
+        ],
+        "end": [
+          -148.25,
+          253.05
+        ],
+        "dir": [
+          0,
+          -1
+        ],
+        "walkway_side": -1,
+        "depth": 1.7,
+        "legacyC2": false
+      },
+      "installed": false
+    }
+  },
+  "planOverride": "${RUIEN_STAGE}/layouts/compiled-network-plan.json",
+  "repairLamps": true
+}

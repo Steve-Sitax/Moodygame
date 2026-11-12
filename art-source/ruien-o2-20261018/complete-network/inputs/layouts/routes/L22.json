@@ -1,0 +1,105 @@
+{
+  "id": "L22",
+  "cls": "M",
+  "name": "rui by Kipdorppoort",
+  "pts": [
+    [
+      -175.9,
+      341.676
+    ],
+    [
+      -149.6,
+      342.0
+    ]
+  ],
+  "walkwaySide": 1,
+  "start": "room",
+  "end": "room",
+  "joins": [
+    "J027",
+    "J028"
+  ],
+  "retained": null,
+  "grates": [
+    [
+      -159.0,
+      342.6
+    ]
+  ],
+  "lamps": [],
+  "construction": {
+    "originalPoints": [
+      [
+        -181.0,
+        341.5
+      ],
+      [
+        -152.0,
+        343.0
+      ],
+      [
+        -145.0,
+        343.0
+      ],
+      [
+        -144.0,
+        342.0
+      ]
+    ],
+    "startBinding": {
+      "id": "J027",
+      "rect": [
+        -184.4,
+        338.1,
+        -177.6,
+        344.9
+      ],
+      "mouth": {
+        "route": "L22",
+        "end": [
+          -175.9,
+          341.676
+        ],
+        "dir": [
+          1.0,
+          0.0
+        ],
+        "walkway_side": 1
+      },
+      "installed": false
+    },
+    "endBinding": {
+      "id": "J028",
+      "rect": [
+        -149.0,
+        337.0,
+        -139.0,
+        347.0
+      ],
+      "mouth": {
+        "route": "L22",
+        "cls": "M",
+        "wall": "x0",
+        "bay": 0,
+        "tc": 342.0,
+        "width": 3.6,
+        "at": [
+          -149.0,
+          342.0
+        ],
+        "end": [
+          -149.6,
+          342.0
+        ],
+        "dir": [
+          -1,
+          0
+        ],
+        "walkway_side": -1,
+        "depth": 0.6,
+        "legacyC2": false
+      },
+      "installed": false
+    }
+  }
+}

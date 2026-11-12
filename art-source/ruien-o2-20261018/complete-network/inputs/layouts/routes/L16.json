@@ -1,0 +1,131 @@
+{
+  "id": "L16",
+  "cls": "M",
+  "name": "Rode Poort rui",
+  "pts": [
+    [
+      211.6,
+      78.5
+    ],
+    [
+      214.1,
+      78.5
+    ],
+    [
+      218.5,
+      89.5
+    ],
+    [
+      220.0,
+      97.0
+    ],
+    [
+      224.5,
+      188.5
+    ],
+    [
+      221.5,
+      240.5
+    ]
+  ],
+  "walkwaySide": 1,
+  "start": "room",
+  "end": "auto",
+  "joins": [
+    "J022",
+    null
+  ],
+  "retained": null,
+  "grates": [
+    [
+      219.5,
+      94.4
+    ],
+    [
+      222.2,
+      141.9
+    ],
+    [
+      224.3,
+      183.9
+    ],
+    [
+      222.2,
+      228.4
+    ]
+  ],
+  "lamps": [
+    [
+      223.5,
+      206.5
+    ],
+    [
+      223.27194862435786,
+      163.52963150021338
+    ]
+  ],
+  "construction": {
+    "originalPoints": [
+      [
+        206.0,
+        78.5
+      ],
+      [
+        212.0,
+        82.0
+      ],
+      [
+        218.5,
+        89.5
+      ],
+      [
+        220.0,
+        97.0
+      ],
+      [
+        224.5,
+        188.5
+      ],
+      [
+        221.5,
+        240.5
+      ]
+    ],
+    "startBinding": {
+      "id": "J022",
+      "rect": [
+        201.0,
+        73.5,
+        211.0,
+        83.5
+      ],
+      "mouth": {
+        "route": "L16",
+        "cls": "M",
+        "wall": "x1",
+        "bay": 0,
+        "tc": 78.5,
+        "width": 3.6,
+        "at": [
+          211.0,
+          78.5
+        ],
+        "end": [
+          211.6,
+          78.5
+        ],
+        "dir": [
+          1,
+          0
+        ],
+        "walkway_side": 1,
+        "depth": 0.6,
+        "legacyC2": false
+      },
+      "installed": false
+    },
+    "endBinding": null
+  },
+  "planOverride": "${RUIEN_STAGE}/layouts/compiled-network-plan.json",
+  "repairLamps": true
+}

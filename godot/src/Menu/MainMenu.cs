@@ -62,7 +62,8 @@ public partial class MainMenu : Node
     /// <summary>A self-test that works the menus by script (no benchmark, no pause when its window loses focus).</summary>
     public static bool ScriptedRun => Main.I.Arg("antigoon-size-proof") != "" || Main.I.Arg("conversation-proof") != "" || Main.I.Arg("story-proof") != "" || Main.I.Arg("antigoon-event-proof") != "" || Main.I.Arg("menutest") != "" || Main.I.Arg("aiswitchtest") != "" || Main.I.Arg("devsheettest") != "" || Main.I.Arg("flytest") != "" || Main.I.Arg("native-play-proof") != "" || Main.I.Arg("native-smoke") != "" || Main.I.Arg("native-extras-proof") != "" || Main.I.Arg("native-journey-proof") != "" || Main.I.Arg("native-package-smoke") != "" || Main.I.Arg("dialog-pause-proof") != ""
         // (#184: a picture check must not pause when another window takes the focus: its night views came out dark)
-        || Main.I.Arg("stone-corners-proof") != "" || Main.I.Arg("wake-proof") != "";
+        || Main.I.Arg("stone-corners-proof") != "" || Main.I.Arg("wake-proof") != ""
+        || Main.I.Flag("startup-proof") || Main.I.Arg("ruien-network-review") != "";
 
     /// <summary>Do the menus belong in this run? Not in one that takes its own pictures or tests another part.</summary>
     public static bool Wanted(Main main)

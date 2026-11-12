@@ -251,6 +251,9 @@ public static partial class RuienStair
         // Trimmed after the brick is charted: the cut's split triangles take the chart's courses as they are. Charted
         // after the cut, its T-junctions broke the surface into islands and a vault's crown took courses of its own (#217).
         if(trim!=null)RuienPatch.Trim(a,trim);
+        // Godot treats an empty index array as an unindexed surface. Reusing the
+        // old vertices would put a completely removed lining back into the air.
+        if(a[(int)Mesh.ArrayType.Index].VariantType!=Variant.Type.Nil&&a[(int)Mesh.ArrayType.Index].AsInt32Array().Length==0)return;
         RuienUv.Repair(a,family);
         var done=new ArrayMesh();done.AddSurfaceFromArrays(Mesh.PrimitiveType.Triangles,a);done.SurfaceSetMaterial(0,RuienMaterials.Get(family));
         done.SurfaceSetName(0,family);

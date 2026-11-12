@@ -5,24 +5,31 @@ import numpy as np
 import spec
 from rlib import util as U
 
-def pier_lines(a, b, bay=6.5):
+def pier_lines(a, b, bay=6.5, phase=0):
     n = max(1, int(round((b - a) / bay)))
+    if phase:
+        return [a+(b-a)*(k+phase)/n for k in range(n) if 0<k+phase<n]
     return [a + (b - a) * k / n for k in range(1, n)]
 
-def build_hall(room, mats, coll, rng, mouths=(), stair_corner='x0z1', air=True, walkway=1.5):
+def build_hall(room, mats, coll, rng, mouths=(), stair_corner='x0z1', air=True, walkway=1.5, surface_stair=False, configure=None):
     """room: dict with 'id' and 'rect' [x0, z0, x1, z1]. mouths: list of (wall, bay index) with wall in
     'z0', 'z1', 'x0', 'x1'. Returns the hall objects. Bays come out 6 to 7 m; springing and crown as O2."""
     x0, z0, x1, z1 = room['rect']
     spec.HALL_X0, spec.HALL_X1, spec.HALL_Z0, spec.HALL_Z1 = x0, x1, z0, z1
-    spec.HALL_XL, spec.HALL_ZL = pier_lines(x0, x1), pier_lines(z0, z1)
+    bay=room.get('baySize',6.5)
+    spec.HALL_XL, spec.HALL_ZL = pier_lines(x0, x1, bay, room.get('pierPhaseX',0)), pier_lines(z0, z1, bay)
     from rlib import hall as H
     importlib.reload(H)
-    H.MOUTHS = {('m%d' % i): dict(wall=w, bay=b) for i, (w, b) in enumerate(mouths)}
+    H.MOUTHS = {('m%d' % i): dict(m) if isinstance(m,dict) else dict(wall=m[0],bay=m[1]) for i,m in enumerate(mouths)}
     H.WALL_DRAIN_HOLES = []
     sx = (x0, x0 + 1.2) if 'x0' in stair_corner else (x1 - 1.2, x1)
     H.STAIR = dict(x0=sx[0], x1=sx[1], z_open=z1 - 4.45, hatch_z0=z1 - 3.15, hatch_z1=z1 - 0.1)
+    if not surface_stair:
+        H.STAIR = dict(x0=1e6,x1=1e6+1.2,z_open=1e6,hatch_z0=1e6,hatch_z1=1e6+3)
     xe, ze = [x0] + spec.HALL_XL + [x1], [z0] + spec.HALL_ZL + [z1]
     H.AIR = ((xe[len(xe) // 2 - 1] + xe[len(xe) // 2]) / 2, (ze[len(ze) // 2 - 1] + ze[len(ze) // 2]) / 2, 0.3) if air else (1e6, 1e6, 0.0)
+    if configure is not None:
+        configure(H)
     # walkways along the four walls, broken where a mouth opens
     def gaps(wall):
         out = []
@@ -58,7 +65,8 @@ def build_hall(room, mats, coll, rng, mouths=(), stair_corner='x0z1', air=True, 
     obs += H.walkways(mats, coll, rng)
     fl, groundfn = H.floor(mats, coll, rng)
     obs += fl
-    obs += H.stair(mats, coll, rng)
+    if surface_stair:
+        obs += H.stair(mats, coll, rng)
     if air:
         obs += H.air_shaft(mats, coll)
     from rlib import wax as WX

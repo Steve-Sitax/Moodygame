@@ -9,6 +9,10 @@ import spec
 from rlib import util as U, gallery as G, props as PR, wax as WX, debris as D
 
 # ------------------------------------------------------------------ sections
+REPAIR_LAMPS = False
+# A coping run stopped when less than 0.2 m was left: a slot of up to 24 cm at 17 route ends of the joined
+# network. A job that sets closeCoping carries its last stone on to the seam.
+CLOSE_COPING_ENDS = False
 class Section:
     def __init__(self, cls='M', walkway_side=1):
         self.cls = cls
@@ -58,6 +62,20 @@ class RoutePath(G.Path):
     where the legs are short), so the sweep never folds over itself."""
     def __init__(self, pts, r=4.0, step=0.01):
         K = np.array(pts, float)
+        lengths=np.linalg.norm(np.diff(K,axis=0),axis=1)
+        if np.any(lengths<1e-6):raise ValueError('A sweep path contains coincident points')
+        cuts=np.zeros(len(K))
+        for i in range(1,len(K)-1):
+            d0=(K[i]-K[i-1])/lengths[i-1];d1=(K[i+1]-K[i])/lengths[i]
+            angle=np.arccos(np.clip(np.dot(d0,d1),-1,1))
+            if angle>np.pi-.001:raise ValueError('A sweep path doubles back on itself')
+            cuts[i]=r*np.tan(angle/2)
+        # Allocate the actual shared straight length between neighboring fillets.
+        # The old 45% limit also halved a terminal straight, forcing needless tight
+        # bends at room stubs even where the full safe turning radius fits.
+        for i,available in enumerate(lengths*.995):
+            used=cuts[i]+cuts[i+1]
+            if used>available:cuts[i:i+2]*=available/used
         D_ = [K[0]]
         for i in range(1, len(K) - 1):
             a, b, c = K[i - 1], K[i], K[i + 1]
@@ -65,7 +83,7 @@ class RoutePath(G.Path):
             ang = np.arccos(np.clip(np.dot(d0, d1), -1, 1))
             if ang < 1e-3:
                 D_.append(b); continue
-            cut = min(r * np.tan(ang / 2), np.linalg.norm(b - a) * 0.45, np.linalg.norm(c - b) * 0.45)
+            cut = cuts[i]
             p0 = b - d0 * cut
             r_eff = cut / np.tan(ang / 2)
             turn = np.sign(d0[0] * d1[1] - d0[1] * d1[0])
@@ -108,12 +126,12 @@ class RoutePath(G.Path):
 def seed_of(route_id, seg=0):
     return zlib.crc32(('%s/%d' % (route_id, seg)).encode()) & 0x7fffffff
 
-def build_stretch(route_id, pts, cls, mats, coll, grates=(), lamps=(), start='junction', end='open', walkway_side=1, bend_r=None, tees=(), keep_clear=()):
+def build_stretch(route_id, pts, cls, mats, coll, grates=(), lamps=(), start='junction', end='open', walkway_side=1, bend_r=None, tees=(), keep_clear=(), section=None):
     """Builds one route. Returns (objects, info) with info['placements'] for the kit pieces it used.
     tees: kit/meet.py Tee objects at this route: as the branch (an end of this route opens into a gallery side;
     that end's kind is 'tee') or as the host (a rui opens into this gallery's side).
     keep_clear: more (u0, u1) spans without rings, curtains, grates or lamps (a 'stub' end's bricked-up wall)."""
-    sec = Section(cls, walkway_side)
+    sec = section or Section(cls, walkway_side)
     path = RoutePath(pts, r=bend_r or (sec.W * 1.2))
     rng = np.random.default_rng(seed_of(route_id))
     profile = lambda dv=0.09, foot=None: sec.profile(dv)
@@ -331,6 +349,8 @@ def build_lower(g, sec, mats, coll, rng, branch=(), host=(), seams=()):
                 L = min(rng.uniform(0.7, 1.1), rb - u)
                 if gaps and rb - (u + L) < 0.3:
                     L = rb - u
+                if CLOSE_COPING_ENDS and not gaps and rb - (u + L) < 0.2:
+                    L = rb - u
                 V, F = U.chipped_block(L - 0.003, 0.32, 0.5, r=rng.uniform(0.008, 0.014), res=0.055, seed=g.seed * 1000 + k, chips=int(rng.integers(5, 11)),
                                        chip_size=(0.02, 0.07), wear_top=0.012, corners=int(rng.integers(0, 3)), wobble=0.0009)
                 Pw = path.world(u + L / 2 + V[:, 0], edge + side * (0.25 - 0.04) + side * V[:, 2], sec.ledge_y - 0.16 + V[:, 1])
@@ -464,11 +484,27 @@ def grate_shaft(path, sec, u, s_c, mats, coll, top=-0.28, h=0.33):
 
 def place_lamp(path, sec, u, mats, coll, rng, name='kit_lamp'):
     wy = -2.3
-    side = sec.sides[0]
+    # A bracket over a 0.8 m ledge consumes the person's clear width. Mount
+    # repaired M lamps over the channel, on the wall opposite that ledge.
+    side = -sec.sides[0] if REPAIR_LAMPS and sec.cls == 'M' else sec.sides[0]
     ws = float(sec.wall_s_at_y(wy))
     wall_pt = path.world(np.array(u), np.array(side * ws), np.array(wy))
     inner = path.world(np.array(u), np.array(side * (ws - 1.0)), np.array(wy))
     parts, hook = PR.lamp_bracket('lamp_bracket', wall_pt, inner - wall_pt, 0.3, mats['iron'], coll)
+    if REPAIR_LAMPS:
+        # Seat the back plate and the stay's foot on the actual curved lining;
+        # the straight bracket recipe otherwise floats below its fixing point.
+        inward=inner-wall_pt;inward/=np.linalg.norm(inward)
+        for ob in parts:
+            co=np.empty(len(ob.data.vertices)*3);ob.data.vertices.foreach_get('co',co);co=co.reshape(-1,3)
+            matrix=np.asarray(ob.matrix_world,float);world=co@matrix[:3,:3].T+matrix[:3,3]
+            points=np.stack([world[:,0],world[:,2],-world[:,1]],-1)
+            depth=(points-wall_pt)@inward
+            weight=1-U.smoothstep(.015,.18,depth)
+            correction=(sec.wall_s_at_y(points[:,1])-ws)*weight
+            points-=inward[None]*correction[:,None]
+            blender=U.g2b(points);local=(blender-matrix[:3,3])@np.linalg.inv(matrix[:3,:3]).T
+            ob.data.vertices.foreach_set('co',local.astype(np.float32).ravel());ob.data.update()
     lo, ll = PR.safety_lamp(name, mats, coll, light_power=150.0)
     lo.location = U.gv(*hook)
     return parts + [lo]

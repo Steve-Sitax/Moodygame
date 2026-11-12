@@ -332,6 +332,7 @@ public partial class NativeTownGame : Scheldemist.Main
             if (Arg("native-extras-proof") is { Length: > 0 } extrasProof) _ = RunExtrasProof(Paths.Absolute(extrasProof));
             if (Arg("antigoon-size-proof") is { Length: > 0 } sizeProof) _ = NativeAntigoonSizeProof.Run(this, Paths.Absolute(sizeProof));
             if (Arg("ruien-bridge-proof") is { Length: > 0 } bridgeProof) _ = NativeRuienBridgeProof.Run(this, Paths.Absolute(bridgeProof));
+            if (!Flag("startup-proof") && Arg("ruien-network-review") is { Length: > 0 } networkReview) _ = NativeRuienNetworkReview.Run(this, Paths.Absolute(networkReview));
             if (Arg("antigoon-event-proof") is { Length: > 0 } antigoonProof) _ = NativeAntigoonEventProof.Run(this, Paths.Absolute(antigoonProof));
             if (Arg("antigoon-story-map") is { Length: > 0 } storyMap) _ = NativeAntigoonStoryMap.Run(this, Paths.Absolute(storyMap));
             if (Arg("story-proof") is { Length: > 0 } storyProof) _ = NativeStoryProof.Run(this, Paths.Absolute(storyProof));

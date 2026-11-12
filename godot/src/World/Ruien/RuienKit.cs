@@ -189,8 +189,10 @@ public static class RuienKit
                 float v=0;for(int k=0;k<j;k++)v+=profile[k].DistanceTo(profile[(k+1)%profile.Length]);
                 float dv=profile[j].DistanceTo(profile[(j+1)%profile.Length]);
                 float du=Mathf.Tau/128*(profile[j].X+profile[(j+1)%profile.Length].X)/2,u=i*du;
-                foreach(var (p,uv) in new[]{(a,new Vector2(u,v)),(b,new Vector2(u+du,v)),(c,new Vector2(u+du,v+dv)),
-                    (a,new Vector2(u,v)),(c,new Vector2(u+du,v+dv)),(d,new Vector2(u,v+dv))})
+                // Godot's front faces wind clockwise. Keep the outward normals and matching UVs;
+                // the reverse winding made the two-sided shader light the top as an underside.
+                foreach(var (p,uv) in new[]{(a,new Vector2(u,v)),(c,new Vector2(u+du,v+dv)),(b,new Vector2(u+du,v)),
+                    (a,new Vector2(u,v)),(d,new Vector2(u,v+dv)),(c,new Vector2(u+du,v+dv))})
                 {st.SetNormal(n);st.SetUV(uv/.9f);st.SetColor(new Color(.15f,0,.12f,0));st.AddVertex(p);}
             }
             for(float offset=-r+.055f;offset<r-.035f;offset+=.085f)

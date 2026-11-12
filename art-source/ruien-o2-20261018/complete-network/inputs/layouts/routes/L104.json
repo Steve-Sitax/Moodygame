@@ -1,0 +1,95 @@
+{
+  "id": "L104",
+  "cls": "G",
+  "name": "rui by Sint-Pauluskerk",
+  "pts": [
+    [
+      204.0,
+      197.5
+    ],
+    [
+      204.53091837593433,
+      207.48589633824102
+    ],
+    [
+      210.75,
+      260.8
+    ],
+    [
+      210.75,
+      263.3
+    ]
+  ],
+  "walkwaySide": 1,
+  "start": "auto",
+  "end": "room",
+  "joins": [
+    null,
+    "C3"
+  ],
+  "retained": null,
+  "grates": [
+    [
+      204.63620352647078,
+      203.46617507895047
+    ]
+  ],
+  "lamps": [
+    [
+      208.87756062273272,
+      243.2406755782964
+    ]
+  ],
+  "construction": {
+    "originalPoints": [
+      [
+        204.0,
+        197.5
+      ],
+      [
+        204.5,
+        265.5
+      ],
+      [
+        210.7,
+        271.7
+      ]
+    ],
+    "startBinding": null,
+    "endBinding": {
+      "id": "C3",
+      "rect": [
+        203.0,
+        265.0,
+        218.5,
+        278.5
+      ],
+      "mouth": {
+        "route": "L104",
+        "cls": "G",
+        "wall": "z0",
+        "bay": 1,
+        "tc": 210.75,
+        "width": 6.0,
+        "at": [
+          210.75,
+          265.0
+        ],
+        "end": [
+          210.75,
+          263.3
+        ],
+        "dir": [
+          0,
+          -1
+        ],
+        "walkway_side": -1,
+        "depth": 1.7,
+        "legacyC2": false
+      },
+      "installed": false
+    }
+  },
+  "planOverride": "${RUIEN_STAGE}/layouts/compiled-network-plan.json",
+  "repairLamps": true
+}

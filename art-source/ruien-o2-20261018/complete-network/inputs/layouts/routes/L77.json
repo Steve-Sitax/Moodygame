@@ -1,0 +1,81 @@
+{
+  "id": "L77",
+  "cls": "G",
+  "name": "rui by Sint-Jorispoort",
+  "pts": [
+    [
+      -345.8,
+      149.5
+    ],
+    [
+      -343.3,
+      149.5
+    ],
+    [
+      -332.96642066057836,
+      148.18118425980163
+    ],
+    [
+      -323.0,
+      149.0
+    ]
+  ],
+  "walkwaySide": 1,
+  "start": "room",
+  "end": "auto",
+  "joins": [
+    "J081",
+    null
+  ],
+  "retained": null,
+  "grates": [],
+  "lamps": [],
+  "construction": {
+    "originalPoints": [
+      [
+        -352.5,
+        149.5
+      ],
+      [
+        -323.0,
+        149.0
+      ]
+    ],
+    "startBinding": {
+      "id": "J081",
+      "rect": [
+        -357.5,
+        144.5,
+        -347.5,
+        154.5
+      ],
+      "mouth": {
+        "route": "L77",
+        "cls": "G",
+        "wall": "x1",
+        "bay": 0,
+        "tc": 149.5,
+        "width": 6.0,
+        "at": [
+          -347.5,
+          149.5
+        ],
+        "end": [
+          -345.8,
+          149.5
+        ],
+        "dir": [
+          1,
+          0
+        ],
+        "walkway_side": 1,
+        "depth": 1.7,
+        "legacyC2": false
+      },
+      "installed": false
+    },
+    "endBinding": null
+  },
+  "planOverride": "${RUIEN_STAGE}/layouts/compiled-network-plan.json",
+  "closeCoping": true
+}

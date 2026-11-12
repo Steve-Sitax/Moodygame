@@ -1,0 +1,130 @@
+{
+  "id": "L116",
+  "cls": "G",
+  "name": "rui by Handschoenmarkt",
+  "pts": [
+    [
+      -295.55,
+      142.75
+    ],
+    [
+      -293.05,
+      142.75
+    ],
+    [
+      -274.2,
+      110.5
+    ],
+    [
+      -271.7,
+      110.5
+    ]
+  ],
+  "walkwaySide": 1,
+  "start": "room",
+  "end": "room",
+  "joins": [
+    "J070_J079",
+    "C1"
+  ],
+  "retained": null,
+  "grates": [],
+  "lamps": [
+    [
+      -276.9,
+      120.9
+    ]
+  ],
+  "construction": {
+    "originalPoints": [
+      [
+        -304.0,
+        144.0
+      ],
+      [
+        -300.0,
+        143.0
+      ],
+      [
+        -291.0,
+        135.0
+      ],
+      [
+        -267.0,
+        111.0
+      ],
+      [
+        -255.0,
+        100.0
+      ]
+    ],
+    "startBinding": {
+      "id": "J070_J079",
+      "rect": [
+        -312.25,
+        139.0,
+        -297.25,
+        154.0
+      ],
+      "mouth": {
+        "route": "L116",
+        "cls": "G",
+        "wall": "x1",
+        "bay": 0,
+        "tc": 142.75,
+        "width": 6.0,
+        "at": [
+          -297.25,
+          142.75
+        ],
+        "end": [
+          -295.55,
+          142.75
+        ],
+        "dir": [
+          1,
+          0
+        ],
+        "walkway_side": 1,
+        "depth": 1.7,
+        "legacyC2": false
+      },
+      "installed": false
+    },
+    "endBinding": {
+      "id": "C1",
+      "rect": [
+        -270.0,
+        86.0,
+        -240.0,
+        114.0
+      ],
+      "mouth": {
+        "route": "L116",
+        "cls": "G",
+        "wall": "x0",
+        "bay": 3,
+        "tc": 110.5,
+        "width": 6.0,
+        "at": [
+          -270.0,
+          110.5
+        ],
+        "end": [
+          -271.7,
+          110.5
+        ],
+        "dir": [
+          -1,
+          0
+        ],
+        "walkway_side": -1,
+        "depth": 1.7,
+        "legacyC2": false
+      },
+      "installed": false
+    }
+  },
+  "repairLamps": true,
+  "closeCoping": true
+}

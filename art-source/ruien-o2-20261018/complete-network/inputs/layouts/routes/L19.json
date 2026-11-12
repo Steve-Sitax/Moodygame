@@ -1,0 +1,90 @@
+{
+  "id": "L19",
+  "cls": "G",
+  "name": "Noorderrui",
+  "pts": [
+    [
+      206.0,
+      85.2
+    ],
+    [
+      206.0,
+      87.7
+    ],
+    [
+      203.8141557467846,
+      111.50493590982218
+    ],
+    [
+      203.5,
+      121.5
+    ]
+  ],
+  "walkwaySide": 1,
+  "start": "room",
+  "end": "auto",
+  "joins": [
+    "J022",
+    null
+  ],
+  "retained": null,
+  "grates": [],
+  "lamps": [
+    [
+      204.56160281599455,
+      107.14713660767414
+    ]
+  ],
+  "construction": {
+    "originalPoints": [
+      [
+        206.0,
+        78.5
+      ],
+      [
+        203.5,
+        86.5
+      ],
+      [
+        203.5,
+        121.5
+      ]
+    ],
+    "startBinding": {
+      "id": "J022",
+      "rect": [
+        201.0,
+        73.5,
+        211.0,
+        83.5
+      ],
+      "mouth": {
+        "route": "L19",
+        "cls": "G",
+        "wall": "z1",
+        "bay": 0,
+        "tc": 206.0,
+        "width": 6.0,
+        "at": [
+          206.0,
+          83.5
+        ],
+        "end": [
+          206.0,
+          85.2
+        ],
+        "dir": [
+          0,
+          1
+        ],
+        "walkway_side": 1,
+        "depth": 1.7,
+        "legacyC2": false
+      },
+      "installed": false
+    },
+    "endBinding": null
+  },
+  "planOverride": "${RUIEN_STAGE}/layouts/compiled-network-plan.json",
+  "repairLamps": true
+}

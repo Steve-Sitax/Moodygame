@@ -10,7 +10,7 @@
       "postBelow": 0.3,
       "shoe": [0.1, 0.2, 0.014],
       "standoff": 0.012,
-      "ladderGap": 0.95,
+      "ladderGap": 1.7,
       "mouthClear": 0.35,
       "crossingFlank": 0.56,
       "collisionHeight": 1.1

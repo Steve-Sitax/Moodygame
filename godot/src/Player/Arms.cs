@@ -24,7 +24,8 @@ public partial class Arms : Node
     public float WallClearance { get; private set; } = 1;
     public float ReachScale { get; private set; } = 1;
     internal string? ProofPose;
-    internal bool ProofLantern;
+    // Native scene proofs live in the client assembly and use the real carried light.
+    public bool ProofLantern;
     internal Node3D? ProofLoad;
     private HumanLayers handIK = null!, bodyIK = null!;
     private float clock, gesture;

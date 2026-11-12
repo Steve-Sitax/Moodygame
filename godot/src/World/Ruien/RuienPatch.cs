@@ -101,7 +101,8 @@ public static class RuienPatch
         {
             var q0=p[ix[t]];var q1=p[ix[t+1]];var q2=p[ix[t+2]];
             float f0=air(q0),f1=air(q1),f2=air(q2),l=Math.Max(q0.DistanceTo(q1),Math.Max(q1.DistanceTo(q2),q2.DistanceTo(q0)));
-            any=Math.Min(f0,Math.Min(f1,f2))<3*l && Math.Max(f0,Math.Max(f1,f2))> -3*l;
+            // A surface wholly inside the removed air still needs the cut.
+            any=Math.Max(f0,Math.Max(f1,f2))> -3*l;
         }
         if(!any)return 0;
         // Every channel as rows of floats, interpolated at the new corners like QuayNotch's cut does.

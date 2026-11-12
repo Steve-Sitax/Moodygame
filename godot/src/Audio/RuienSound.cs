@@ -20,6 +20,8 @@ public partial class Soundscape
         /// <summary>Metres: full level at the source, fading from 0.6 of it, silent beyond (Spot.Max).</summary>
         public double Reach = 6;
         public double Gain = 1;
+        /// <summary>Intermittent pours, such as the flushing sluice, are silent while dry.</summary>
+        public Func<bool>? Flowing;
         /// <summary>Drips: seconds between drops, at least and at most.</summary>
         public double Min = 2.5, Max = 8;
         internal double Next;
@@ -65,7 +67,7 @@ public partial class Soundscape
             double d = muted ? double.PositiveInfinity : DistTo(p.At.X, p.At.Y, p.At.Z);
             if (p.Kind == "spill")
             {
-                bool want = Auto && d < p.Reach + 1 && buf.ContainsKey("ruienSpill");
+                bool want = Auto && d < p.Reach + 1 && (p.Flowing?.Invoke() ?? true) && buf.ContainsKey("ruienSpill");
                 bool have = ruienPours.TryGetValue(p, out var pour);
                 if (have && (!want || pour.bus != bus))
                 {

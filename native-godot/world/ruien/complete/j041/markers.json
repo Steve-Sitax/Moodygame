@@ -1,0 +1,115 @@
+{
+  "about": "Made by RuienImport from the export markers (docs/ruien-native.md). Do not edit; convert again.",
+  "sources": [
+    {
+      "id": "J041_lamp_0",
+      "kind": "lamp",
+      "at": [
+        -326.57477,
+        -1.9536245,
+        307.30966
+      ],
+      "color": "#ffbd85",
+      "power": 6.75,
+      "range": 11
+    },
+    {
+      "id": "J041_lamp_1",
+      "kind": "lamp",
+      "at": [
+        -328.1904,
+        -1.9536245,
+        312.30026
+      ],
+      "color": "#ffbd85",
+      "power": 6.75,
+      "range": 11
+    }
+  ],
+  "mist": [
+    {
+      "id": "rot_mist_room",
+      "min": [
+        -328.4,
+        -4.4,
+        307.1
+      ],
+      "max": [
+        -321.6,
+        -3.8,
+        313.9
+      ],
+      "density": 0.038
+    }
+  ],
+  "water": [
+    {
+      "id": "J041",
+      "levelOffset": 0,
+      "outline": [
+        [
+          -328.4,
+          307.1
+        ],
+        [
+          -321.6,
+          307.1
+        ],
+        [
+          -321.6,
+          313.9
+        ],
+        [
+          -328.4,
+          313.9
+        ]
+      ],
+      "flow": [
+        0,
+        -0.01
+      ]
+    },
+    {
+      "id": "J041_L31",
+      "levelOffset": 0,
+      "line": [
+        [
+          -328.1,
+          310.764
+        ],
+        [
+          -330.1,
+          310.764
+        ]
+      ],
+      "width": 2.8,
+      "flow": [
+        0,
+        -0.04
+      ]
+    },
+    {
+      "id": "J041_L59",
+      "levelOffset": 0,
+      "line": [
+        [
+          -323.8287,
+          307.4
+        ],
+        [
+          -323.8287,
+          305.4
+        ]
+      ],
+      "width": 2.8,
+      "flow": [
+        0,
+        -0.04
+      ]
+    }
+  ],
+  "movers": null,
+  "bridges": [],
+  "ladders": [],
+  "stairs": []
+}

@@ -1,0 +1,81 @@
+{
+  "layout": {
+    "rect": [
+      150.5,
+      322.0,
+      160.5,
+      332.0
+    ],
+    "mouths": [
+      {
+        "route": "L61",
+        "cls": "G",
+        "wall": "x0",
+        "bay": 0,
+        "tc": 327.0,
+        "width": 6.0,
+        "at": [
+          150.5,
+          327.0
+        ],
+        "end": [
+          148.8,
+          327.0
+        ],
+        "dir": [
+          -1,
+          0
+        ],
+        "walkway_side": -1,
+        "depth": 1.7,
+        "legacyC2": false
+      },
+      {
+        "route": "L64",
+        "cls": "G",
+        "wall": "x1",
+        "bay": 0,
+        "tc": 327.0,
+        "width": 6.0,
+        "at": [
+          160.5,
+          327.0
+        ],
+        "end": [
+          162.2,
+          327.0
+        ],
+        "dir": [
+          1,
+          0
+        ],
+        "walkway_side": 1,
+        "depth": 1.7,
+        "legacyC2": false
+      },
+      {
+        "route": "L65",
+        "cls": "M",
+        "wall": "z0",
+        "bay": 0,
+        "tc": 155.5,
+        "width": 3.6,
+        "at": [
+          155.5,
+          322.0
+        ],
+        "end": [
+          155.5,
+          321.4
+        ],
+        "dir": [
+          0,
+          -1
+        ],
+        "walkway_side": -1,
+        "depth": 0.6,
+        "legacyC2": false
+      }
+    ]
+  }
+}

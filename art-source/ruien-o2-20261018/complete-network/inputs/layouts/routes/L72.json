@@ -1,0 +1,95 @@
+{
+  "id": "L72",
+  "cls": "M",
+  "name": "Werfrui",
+  "pts": [
+    [
+      -306.0,
+      63.0
+    ],
+    [
+      -308.5,
+      135.9
+    ],
+    [
+      -308.5,
+      138.4
+    ]
+  ],
+  "walkwaySide": 1,
+  "start": "auto",
+  "end": "room",
+  "joins": [
+    null,
+    "J070_J079"
+  ],
+  "retained": null,
+  "grates": [
+    [
+      -306.0,
+      85.0
+    ],
+    [
+      -306.0,
+      130.0
+    ]
+  ],
+  "lamps": [
+    [
+      -306.0,
+      107.0
+    ]
+  ],
+  "construction": {
+    "originalPoints": [
+      [
+        -306.0,
+        63.0
+      ],
+      [
+        -306.0,
+        141.5
+      ],
+      [
+        -304.0,
+        144.0
+      ]
+    ],
+    "startBinding": null,
+    "endBinding": {
+      "id": "J070_J079",
+      "rect": [
+        -312.25,
+        139.0,
+        -297.25,
+        154.0
+      ],
+      "mouth": {
+        "route": "L72",
+        "cls": "M",
+        "wall": "z0",
+        "bay": 0,
+        "tc": -308.5,
+        "width": 3.6,
+        "at": [
+          -308.5,
+          139.0
+        ],
+        "end": [
+          -308.5,
+          138.4
+        ],
+        "dir": [
+          0,
+          -1
+        ],
+        "walkway_side": -1,
+        "depth": 0.6,
+        "legacyC2": false
+      },
+      "installed": false
+    }
+  },
+  "planOverride": "${RUIEN_STAGE}/layouts/compiled-network-plan.json",
+  "repairLamps": true
+}

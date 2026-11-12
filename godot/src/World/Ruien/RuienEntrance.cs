@@ -21,7 +21,10 @@ namespace Scheldemist.World.Ruien;
 /// </summary>
 public static partial class RuienEntrance
 {
-    public const string File = "res://world/ruien/entrances.json";
+    public static string File
+    {
+        get{var args=OS.GetCmdlineUserArgs();int i=Array.IndexOf(args,"--ruien-entrances");return i>=0?args[i+1]:"res://world/ruien/entrances.json";}
+    }
 
     public sealed class Opening
     {
@@ -34,7 +37,8 @@ public static partial class RuienEntrance
     {
         public string Id = "", Name = "", Host = "rampart", Line = "", Layout = "L", Flight = "right", Closure = "grille", ClosureSide = "street", Head = "arch", Frame = "bluestone";
         public string ConnectArea = "";
-        public float ConnectLength;
+        public float ConnectLength,ConnectHead;
+        public Vector3[] ConnectPath=Array.Empty<Vector3>();
         public bool LowerSill;
         public WalkUnderpass? Underpass;
         public int Survey;
@@ -71,6 +75,7 @@ public static partial class RuienEntrance
         public bool House => Host == "stair_house";
         /// <summary>A stair-house: along the run (u) where its back wall stands, the flight's vault being under the paving from there.</summary>
         public float HouseBack;
+        public float RoofDrainLeft=-.95f,RoofDrainRight=-.95f;
         /// <summary>Local (see the class) to world.</summary>
         public Transform3D Local;
         /// <summary>The tunnel's frame (u, y, v) to local.</summary>
@@ -116,8 +121,10 @@ public static partial class RuienEntrance
                 Id = S(e, "id", ""), Name = S(e, "name", ""), Host = S(e, "host", "rampart"), Line = S(e, "line", ""), Layout = S(e, "layout", "L"),
                 Flight = S(e, "flight", "right"), Closure = S(e, "closure", "grille"), ClosureSide = S(e, "closureSide", "street"), Head = S(e, "head", "arch"), Frame = S(e, "frame", "bluestone"),
                 Survey = e.TryGetProperty("survey", out var sv) ? sv.GetInt32() : 0,
-                ConnectArea=S(e,"connectArea",""), ConnectLength=F(e,"connectLength",0),
+                ConnectArea=S(e,"connectArea",""), ConnectLength=F(e,"connectLength",0),ConnectHead=F(e,"connectHead",0),
+                ConnectPath=e.TryGetProperty("connectPath",out var cp)?cp.EnumerateArray().Select(p=>new Vector3(p[0].GetSingle(),p[1].GetSingle(),p[2].GetSingle())).ToArray():Array.Empty<Vector3>(),
                 LowerSill=e.TryGetProperty("lowerSill",out var ls)&&ls.GetBoolean(),
+                RoofDrainLeft=F(e,"roofDrainLeft",-.95f),RoofDrainRight=F(e,"roofDrainRight",-.95f),
                 Underpass=e.TryGetProperty("underpass",out var under)?ReadUnderpass(under):null,
                 Door = new Vector2(e.GetProperty("door")[0].GetSingle(), e.GetProperty("door")[1].GetSingle()),
                 Out = new Vector2(e.GetProperty("out")[0].GetSingle(), e.GetProperty("out")[1].GetSingle()).Normalized(),
@@ -293,6 +300,7 @@ public static partial class RuienEntrance
         }
         foreach(var s in All.Where(s=>s.ConnectLength>0))
         {
+            if(s.ConnectPath.Length>1){RuienPassage.CutTown(town,s);continue;}
             var f=LinkFrame(s);var lo=new Vector3(-.6f,-.25f,-.02f);var hi=new Vector3(.6f,2.2f,s.ConnectLength+.02f);
             QuayNotch.CutRegion(town,_=>true,BoxOf(f,lo,hi),_=>true,Planes(f,lo,hi));
         }
@@ -322,7 +330,7 @@ public static partial class RuienEntrance
         if(!surroundings)yield break;
         // the closure's niche and the stub behind a grille
         var c = s.ClosureOpening;
-        yield return (new Vector3(c.C - c.H - s.Lining, c.Floor - .45f, -.05f), new Vector3(c.C + c.H + s.Lining, c.Top + c.Ring + .2f, s.ConnectLength>0?s.ConnectLength+.03f:s.Lining+1.3f), s.ClosureWall);
+        yield return (new Vector3(c.C - c.H - s.Lining, c.Floor - .45f, -.05f), new Vector3(c.C + c.H + s.Lining, c.Top + c.Ring + .2f, s.ConnectLength>0&&s.ConnectPath.Length<2?s.ConnectLength+.03f:s.Lining+1.3f), s.ClosureWall);
         // the reveal through the host wall
         var o = s.DoorOpening;
         float m = s.RevealMargin;
@@ -430,6 +438,19 @@ public static partial class RuienEntrance
             foreach (var (u0, u1) in Steps(s))
                 yield return (s.Local * s.Run, new Vector2(u0, -across), new Vector2(u1, across), s.Street + s.Ceiling(u0));
         var c = s.ClosureOpening;
+        if(s.ConnectPath.Length>1)
+            foreach(var segment in RuienPassage.Segments(s.ConnectPath))
+                // Consecutive short segments share covered air. Their internal
+                // seams must overlap the raster filter, rather than fade at every
+                // 15 cm sample of a curved passage.
+                yield return(segment.Frame,new Vector2(-1f,-.65f),new Vector2(1f,segment.Length+.65f),segment.Frame.Origin.Y+2.5f);
+        else if(s.ConnectArea.Length>0&&s.ConnectLength>0)
+        {
+            // A straight barrel is covered just like a curved one. Omitting its
+            // middle made the whole receiving tunnel disappear from that passage.
+            var frame=LinkFrame(s);
+            yield return(frame,new Vector2(-1f,-.65f),new Vector2(1f,s.ConnectLength+s.ConnectHead+.65f),frame.Origin.Y+2.5f);
+        }
         yield return (s.Local * s.ClosureWall, new Vector2(c.C - c.H - s.Lining, 0), new Vector2(c.C + c.H + s.Lining, s.Lining + 1.25f), s.Buried ? s.Street + c.Top + c.Ring + .3f : every);
         var o = s.DoorOpening;
         if (!s.House) yield return (s.Local, new Vector2(-o.H - .2f, -s.Wall - .1f), new Vector2(o.H + .2f, -.45f), s.Buried ? s.Street + s.Top : every);

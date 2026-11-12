@@ -60,6 +60,21 @@ public partial class HomeDoorTest : Node
         _ = Run();
     }
 
+    /// <summary>Run the existing player walk from a native visual proof, without quitting its scene.</summary>
+    public async Task RunWalkProof(string output, string room)
+    {
+        dir = Path.GetFullPath(output);
+        Directory.CreateDirectory(dir);
+        string error = "";
+        try { await WalkRoom(room, await Start()); }
+        catch (Exception e) { error = e.ToString(); throw; }
+        finally
+        {
+            File.WriteAllText(Path.Combine(dir, "homedoortest.json"), JsonSerializer.Serialize(new { ok = error == "" && failures == 0, error, failures, steps, pictures }, new JsonSerializerOptions(ReportJson) { WriteIndented = true }));
+        }
+        if (failures > 0) throw new InvalidOperationException($"Player walk failed {failures} checks");
+    }
+
     private async Task Run()
     {
         string error = "";

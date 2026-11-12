@@ -69,6 +69,17 @@ public static class Psx
                 int cb = current.IndexOf(end, ca, StringComparison.Ordinal);
                 shader.Code = shader.Code[..a] + current[ca..cb] + shader.Code[b..];
             }
+            // Stored town shaders predate the world-space Ruien exclusion. Stencil alone
+            // leaves river fragments across underground walls at the tide's height.
+            // Bring native water up to the same rule as newly generated water shaders.
+            if (!shader.Code.Contains("psx_ruien_cover", StringComparison.Ordinal))
+                shader.Code = shader.Code.Replace("void fragment() {", @"
+global uniform sampler2D psx_ruien_cover : filter_linear, repeat_disable;
+global uniform vec4 psx_ruien_box;
+void fragment() {
+    vec2 underground_uv = (world.xz - psx_ruien_box.xy) / psx_ruien_box.zw;
+    if (all(greaterThanEqual(underground_uv, vec2(0.0))) && all(lessThanEqual(underground_uv, vec2(1.0))) && textureLod(psx_ruien_cover, underground_uv, 0.0).r > 0.01) discard;
+", StringComparison.Ordinal);
         }
         Kinds[shader] = kind;
     }

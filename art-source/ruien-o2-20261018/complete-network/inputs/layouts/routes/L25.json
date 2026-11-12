@@ -1,0 +1,67 @@
+{
+  "id": "L25",
+  "cls": "M",
+  "name": "rui by Sint-Jorispoort",
+  "pts": [
+    [
+      -332.0,
+      129.0
+    ],
+    [
+      -329.0,
+      133.5
+    ],
+    [
+      -323.5,
+      135.5
+    ],
+    [
+      -323.0,
+      149.0
+    ]
+  ],
+  "walkwaySide": 1,
+  "start": "cap",
+  "end": "auto",
+  "joins": [
+    null,
+    null
+  ],
+  "retained": null,
+  "grates": [
+    [
+      -323.2591806430009,
+      142.00212447445398
+    ]
+  ],
+  "lamps": [
+    [
+      -332.0,
+      129.0
+    ]
+  ],
+  "construction": {
+    "originalPoints": [
+      [
+        -332.0,
+        129.0
+      ],
+      [
+        -329.0,
+        133.5
+      ],
+      [
+        -323.5,
+        135.5
+      ],
+      [
+        -323.0,
+        149.0
+      ]
+    ],
+    "startBinding": null,
+    "endBinding": null
+  },
+  "planOverride": "${RUIEN_STAGE}/layouts/compiled-network-plan.json",
+  "repairLamps": true
+}

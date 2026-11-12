@@ -85,6 +85,8 @@ public static class QuayExits
         new float[] { 90, 46, 1, 0 }, // the Petit Bassin, south quay
         new float[] { 116, 110, 1, 0 }, // the Petit Bassin, north quay
     };
+    /// <summary>The immutable authored runs, for construction clearance surveys without starting gameplay.</summary>
+    public static IEnumerable<(Vector2 From,Vector2 To)> AuthoredFlightRuns=>FlightList.Select(f=>(new Vector2(f[0],f[1]),new Vector2(f[0]+f[2]*End,f[1]+f[3]*End)));
 
     /// <summary>
     /// What the baked ground has to leave free for the Werf flight (FlightList[0]; the water side is -z there): s down the

@@ -12,11 +12,19 @@ public static class RuienPaving
     public const string Height = "res://world/town/resources/r000035.res";
     public const float Tile = 2.5f, Relief = .016f;
     private static Image? height;
+    private static float[]? heightRed;
+    private static int heightWidth,heightRows;
     private static RuienData.Zone[] paths=Array.Empty<RuienData.Zone>();
     private static float? uniformFloor;
     private static RuienData.Zone[] rooms=Array.Empty<RuienData.Zone>();
+    private static readonly Dictionary<RuienData.Zone,RuienPavingSearch> pathSearch=new();
+    private static readonly Dictionary<(RuienData.Zone,float),RuienPavingSearch> offsetSearch=new();
+    private static readonly Dictionary<Vector3,Vector2> chartMemo=new();
+    /// <summary>Proof switch: compare the same construction with the original full searches.</summary>
+    public static bool FullSearchProof;
     public static void Layout(RuienData.Area area,IReadOnlyDictionary<string,RuienData.Zone>? built=null)
     {
+        pathSearch.Clear();offsetSearch.Clear();chartMemo.Clear();offsets.Clear();
         // The export was swept along its own smoothed key line; rows must turn where its walls turn, not where the
         // plan's coarser line bends (that put a phantom bend into the straight walk by the gate and smeared the setts).
         // `built` holds each line zone's repair path by zone id.
@@ -24,11 +32,19 @@ public static class RuienPaving
             z=>built!=null&&built.TryGetValue(z.Id,out var b)?b:z));
         uniformFloor=System.Linq.Enumerable.All(area.Zones,z=>z.S.WalkwaySide==0 && z.S.LedgeY==area.Zones[0].S.LedgeY) && area.Zones.Count>0 ? area.Zones[0].S.LedgeY : null;
         rooms=System.Linq.Enumerable.ToArray(System.Linq.Enumerable.Where(area.Zones,z=>z.Kind=="room"));
+        foreach(var path in paths)pathSearch[path]=new RuienPavingSearch(path.Path);
     }
+    private static float Inside(RuienData.Zone z,Vector2 p,out float along)=>FullSearchProof?z.Inside(p,out along):z.Inside(p,out along,pathSearch[z].Candidates(p));
 
     // Coordinates follow the ledge's own centre line. Offset arc length accounts for the shorter inside
     // and longer outside of a bend; the logarithmic transverse coordinate keeps the rows locally square.
     public static Vector2 Coordinates(Vector3 p)
+    {
+        if(FullSearchProof)return FindCoordinates(p);
+        if(chartMemo.TryGetValue(p,out var hit))return hit;
+        return chartMemo[p]=FindCoordinates(p);
+    }
+    private static Vector2 FindCoordinates(Vector3 p)
     {
         var q=new Vector2(p.X,p.Z);
         foreach(var room in rooms)
@@ -42,7 +58,7 @@ public static class RuienPaving
         RuienData.Zone? best=null;float distance=float.MaxValue,u=0;
         foreach(var path in paths)
         {
-            float inside=path.Inside(q,out float at);
+            float inside=Inside(path,q,out float at);
             if(inside>=-1.1f && path.S.Width/2-inside<distance){best=path;distance=path.S.Width/2-inside;u=at;}
         }
         if(best==null)return new Vector2(p.X,p.Z);
@@ -59,9 +75,13 @@ public static class RuienPaving
         // Arc length on that line is metric for every vertex of the walk, at bends and sharp corners alike
         // (a sharp corner meets under its dressed seam stone).
         var line=Offset(z,centre);
+        if(!offsetSearch.TryGetValue((z,centre),out var lookup))offsetSearch[(z,centre)]=lookup=new RuienPavingSearch(line.points);
+        var candidates=FullSearchProof?null:lookup.Candidates(q);
         float bestD=float.MaxValue,along=0,across=0;
-        for(int i=0;i+1<line.points.Length;i++)
+        int count=candidates?.Length??Math.Max(0,line.points.Length-1);
+        for(int k=0;k<count;k++)
         {
+            int i=candidates==null?k:candidates[k];
             var a=line.points[i];var b=line.points[i+1];var ab=b-a;float len=ab.Length();if(len<1e-5f)continue;
             // Past the line's ends the rows run straight on (the throat and the gate seam), not smeared at one u.
             float t=Math.Clamp((q-a).Dot(ab)/(len*len),i==0?-4f:0,i+2==line.points.Length?4f:1);var c=a+ab*t;
@@ -100,9 +120,18 @@ public static class RuienPaving
     public static float Sample(float x, float z)
     {
         var im=Heights;
-        float u=Mathf.PosMod(x/Tile,1)*im.GetWidth(), v=Mathf.PosMod(z/Tile,1)*im.GetHeight();
+        if(!FullSearchProof && heightRed==null)
+        {
+            heightWidth=im.GetWidth();heightRows=im.GetHeight();heightRed=new float[heightWidth*heightRows];
+            // Capture the engine's exact red floats once, including its source format
+            // conversion. Repeated relief samples then stay on managed arrays.
+            for(int row=0;row<heightRows;row++)for(int column=0;column<heightWidth;column++)
+                heightRed[row*heightWidth+column]=im.GetPixel(column,row).R;
+        }
+        int width=FullSearchProof?im.GetWidth():heightWidth,rows=FullSearchProof?im.GetHeight():heightRows;
+        float u=Mathf.PosMod(x/Tile,1)*width, v=Mathf.PosMod(z/Tile,1)*rows;
         int ix=(int)u, iz=(int)v;
-        float H(int a,int b)=>im.GetPixel(a%im.GetWidth(),b%im.GetHeight()).R;
+        float H(int a,int b)=>FullSearchProof?im.GetPixel(a%width,b%rows).R:heightRed![(b%rows)*width+a%width];
         return Mathf.Lerp(Mathf.Lerp(H(ix,iz),H(ix+1,iz),u-ix),Mathf.Lerp(H(ix,iz+1),H(ix+1,iz+1),u-ix),v-iz);
     }
     public static void Triangle(SurfaceTool st,Vector3 a,Vector3 b,Vector3 c,float spacing=.045f,Vector3 origin=default,Func<Vector3,Vector2>? chart=null)
@@ -134,7 +163,7 @@ public static class RuienPaving
             float wall=0;
             var q=new Vector2(world.X,world.Z);
             foreach(var z in paths)
-                if(z.Inside(q,out _)>=-.1f)wall=Math.Max(wall,Math.Clamp(1-MathF.Abs(z.Inside(q,out _))/.22f,0,1));
+                if(Inside(z,q,out _)>=-.1f)wall=Math.Max(wall,Math.Clamp(1-MathF.Abs(Inside(z,q,out _))/.22f,0,1));
             foreach(var z in rooms)
                 if(z.Rect.HasPoint(q))wall=Math.Max(wall,Math.Clamp(1-Math.Min(Math.Min(q.X-z.Rect.Position.X,z.Rect.End.X-q.X),Math.Min(q.Y-z.Rect.Position.Y,z.Rect.End.Y-q.Y))/.22f,0,1));
             float patch=.5f+.5f*MathF.Sin(world.X*1.37f+MathF.Sin(world.Z*.81f))*MathF.Sin(world.Z*1.13f);
@@ -222,7 +251,7 @@ public static class RuienPaving
         RuienData.Zone? best=null;float distance=float.MaxValue;
         foreach(var z in paths)
         {
-            float inside=z.Inside(q,out _);
+            float inside=Inside(z,q,out _);
             if(z.S.Width/2-inside<distance){best=z;distance=z.S.Width/2-inside;}
         }
         foreach(var z in rooms) if(z.Rect.HasPoint(q)) { best=z;break; }
@@ -230,7 +259,7 @@ public static class RuienPaving
         var s=best.S;
         if(best.Kind=="line" && s.WalkwaySide!=0)
         {
-            best.Inside(q,out float u);var(c,t)=best.Frame(u);
+            Inside(best,q,out float u);var(c,t)=best.Frame(u);
             float across=(q-c).Dot(new Vector2(t.Y,-t.X))*s.WalkwaySide;
             if(across<s.Edge(s.WalkwaySide)-.06f || across>s.Width/2+.06f)return null;
         }

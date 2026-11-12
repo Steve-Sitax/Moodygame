@@ -1,0 +1,12 @@
+{
+  "key": "1dab47bbcc8538ee64136de180e238e8cba64fb4190b190b4ae651679d689d82",
+  "files": {
+    "area.json": "a3d82eec9f0948041ceadfe3cd3290725448d6e63e5f4ae60a88aa34ca64fd02",
+    "collision.res": "109ecb6335b42c0d3380ec3cc41c5780925f239c4249091e9ece49fe44c49866",
+    "markers.json": "e00749cb1d6626e3d689aab9f19989cf609cae2e99896152ca7fa3ba15b2a1f9",
+    "mesh_s0_lod0_00.res": "0bb795f1151feaaf6b639ce7c18f4011a8662bdc1edeb2be47ae87f9a9d921e4",
+    "mesh_s0_lod0_01.res": "4263452c085f1f040fe28cc73370590dfdca3244a63130871b93194162048eb2",
+    "mesh_s0_lod1_00.res": "4c31e49acf4542fa509b07c9f1479ad622df839fdfd61d5826867c84d2dc3b2e"
+  },
+  "seconds": 13.335083099955227
+}

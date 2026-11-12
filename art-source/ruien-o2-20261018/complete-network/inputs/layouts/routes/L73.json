@@ -1,0 +1,93 @@
+{
+  "id": "L73",
+  "cls": "G",
+  "name": "Werfrui",
+  "pts": [
+    [
+      -306.0,
+      63.0
+    ],
+    [
+      -315.99742101796835,
+      62.77290312753139
+    ],
+    [
+      -337.8,
+      63.0
+    ],
+    [
+      -340.3,
+      63.0
+    ]
+  ],
+  "walkwaySide": 1,
+  "start": "auto",
+  "end": "room",
+  "joins": [
+    null,
+    "J080"
+  ],
+  "retained": null,
+  "grates": [
+    [
+      -328.0,
+      61.9
+    ]
+  ],
+  "lamps": [],
+  "construction": {
+    "originalPoints": [
+      [
+        -306.0,
+        63.0
+      ],
+      [
+        -345.0,
+        61.0
+      ],
+      [
+        -346.5,
+        61.0
+      ],
+      [
+        -347.0,
+        63.0
+      ]
+    ],
+    "startBinding": null,
+    "endBinding": {
+      "id": "J080",
+      "rect": [
+        -352.0,
+        58.0,
+        -342.0,
+        68.0
+      ],
+      "mouth": {
+        "route": "L73",
+        "cls": "G",
+        "wall": "x1",
+        "bay": 0,
+        "tc": 63.0,
+        "width": 6.0,
+        "at": [
+          -342.0,
+          63.0
+        ],
+        "end": [
+          -340.3,
+          63.0
+        ],
+        "dir": [
+          1,
+          0
+        ],
+        "walkway_side": -1,
+        "depth": 1.7,
+        "legacyC2": false
+      },
+      "installed": false
+    }
+  },
+  "planOverride": "${RUIEN_STAGE}/layouts/compiled-network-plan.json"
+}

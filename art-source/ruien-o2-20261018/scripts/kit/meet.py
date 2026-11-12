@@ -200,9 +200,17 @@ class Tee:
     def host_silt_hole(self, hpath, cu, cs):
         return np.zeros(np.shape(cu), bool)
 
+    def host_side(self, hpath):
+        """The tee's side of the host in that host path's own lateral frame. sigma is measured against t_h. Where
+        the branch meets the seam of two galleries, one of them is built running against t_h: its left is the
+        tee's right. (It kept its coping across the culvert and lost it on the far ledge.)"""
+        un, _ = hpath.u_near(*self.O)
+        px, pz, tx, tz, nx, nz = hpath.frame(np.array(un))
+        return self.sigma if float(nx) * self.nh[0] + float(nz) * self.nh[1] >= 0 else -self.sigma
+
     def host_coping_gap(self, hpath, side=None):
         """Host u range the ledge coping leaves open: it butts against the two return copings."""
-        if side is not None and side != self.sigma:
+        if side is not None and side != self.host_side(hpath):
             return None
         lo, hi = self.cl
         pts = self.world(self.q_at(np.array([lo - 0.36, hi + 0.36]), self.ch + 0.16), np.array([lo - 0.36, hi + 0.36]), self.hsec.ledge_y)
@@ -210,9 +218,9 @@ class Tee:
         return us[0], us[1]
 
     def host_walkface_hole(self, hpath, cu, cy, side=None):
-        if side is not None and side != self.sigma:
+        if side is not None and side != self.host_side(hpath):
             return np.zeros(np.shape(cu), bool)
-        s = self.sigma * self.ch
+        s = self.host_side(hpath) * self.ch
         q, l, y, sh = self._host_local(hpath, cu, np.full(np.shape(cu), s), cy)
         lo, hi = self.cl
         return (l > lo - 0.1) & (l < hi + 0.1) & (cy > self.bsec.bed - 0.1)

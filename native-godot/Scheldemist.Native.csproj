@@ -34,6 +34,6 @@
       </Reference>
     </ItemGroup>
   </Target>
-  <ItemGroup><StartupGeometrySource Include="src/World/NativeTown.cs;src/World/NativeCutCache.cs;src/World/NativeRazedHouses.cs;src/World/NativeSquareDressing*.cs" /></ItemGroup>
+  <ItemGroup><StartupGeometrySource Include="src/World/NativeTown.cs;src/World/NativeCutCache.cs;src/World/NativeCellarOpenings.cs;src/World/NativePavingBacking.cs;src/World/NativeRazedHouses.cs;src/World/NativeSquareDressing*.cs" /></ItemGroup>
   <Import Project="../tools/build/StartupGeometry.targets" />
 </Project>

@@ -169,6 +169,10 @@ def hall_wax(mats, c, rng):
                                             ('z1', spec.HALL_Z1, np.array([0, 0, -1.0]), spec.HALL_X0 + 3, spec.HALL_X1 - 6.5)):
         for k in range(3):
             t = rng.uniform(tmin, tmax)
+            # A curtain hangs from masonry. In a network hall this wall may hold a mouth: there it hung in the
+            # open arch and stopped Antigoon at head height.
+            if any(m.get('wall') == wname and abs(t - H.mouth_geom(key)[0]) < H.mouth_geom(key)[1] + 0.75 for key, m in H.MOUTHS.items()):
+                continue
             if wname[0] == 'x':
                 yt = H.ceiling(np.array([fixed + inward[0] * 0.01]), np.array([t]))[0]
                 top = np.array([fixed, yt - 0.04, t])

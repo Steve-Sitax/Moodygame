@@ -1,0 +1,119 @@
+{
+  "id": "L90",
+  "cls": "G",
+  "name": "Vlietrui",
+  "pts": [
+    [
+      -143.1,
+      147.05
+    ],
+    [
+      -143.1,
+      149.55
+    ],
+    [
+      -149.0,
+      188.3
+    ],
+    [
+      -149.0,
+      190.8
+    ]
+  ],
+  "walkwaySide": 1,
+  "start": "room",
+  "end": "room",
+  "joins": [
+    "C2_L90",
+    "J058_J060"
+  ],
+  "retained": null,
+  "grates": [
+    [
+      -146.0,
+      145.0
+    ],
+    [
+      -146.0,
+      190.0
+    ]
+  ],
+  "lamps": [
+    [
+      -146.0,
+      167.0
+    ]
+  ],
+  "construction": {
+    "originalPoints": [
+      [
+        -149.1,
+        124.1
+      ],
+      [
+        -146.0,
+        139.0
+      ],
+      [
+        -146.0,
+        198.5
+      ]
+    ],
+    "startBinding": {
+      "id": "C2_L90",
+      "rect": [
+        -159,
+        110,
+        -140,
+        138
+      ],
+      "mouth": {
+        "route": "L90",
+        "end": [
+          -143.1,
+          147.05
+        ],
+        "dir": [
+          0,
+          1
+        ],
+        "walkway_side": 1
+      },
+      "installed": true
+    },
+    "endBinding": {
+      "id": "J058_J060",
+      "rect": [
+        -152.75,
+        192.5,
+        -137.75,
+        215.0
+      ],
+      "mouth": {
+        "route": "L90",
+        "cls": "G",
+        "wall": "z0",
+        "bay": 0,
+        "tc": -149.0,
+        "width": 6.0,
+        "at": [
+          -149.0,
+          192.5
+        ],
+        "end": [
+          -149.0,
+          190.8
+        ],
+        "dir": [
+          0,
+          -1
+        ],
+        "walkway_side": -1,
+        "depth": 1.7,
+        "legacyC2": false
+      },
+      "installed": false
+    }
+  },
+  "repairLamps": true
+}

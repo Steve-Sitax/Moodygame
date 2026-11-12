@@ -1,0 +1,70 @@
+{
+  "id": "L1",
+  "cls": "M",
+  "name": "Noorderrui",
+  "pts": [
+    [
+      158.6,
+      121.5
+    ],
+    [
+      161.1,
+      121.5
+    ],
+    [
+      203.5,
+      121.5
+    ]
+  ],
+  "walkwaySide": 1,
+  "start": "room",
+  "end": "auto",
+  "joins": [
+    "J001",
+    null
+  ],
+  "retained": null,
+  "grates": [
+    [
+      175.5,
+      121.5
+    ]
+  ],
+  "lamps": [],
+  "construction": {
+    "originalPoints": [
+      [
+        153.5,
+        121.5
+      ],
+      [
+        203.5,
+        121.5
+      ]
+    ],
+    "startBinding": {
+      "id": "J001",
+      "rect": [
+        150.1,
+        118.1,
+        156.9,
+        124.9
+      ],
+      "mouth": {
+        "route": "L1",
+        "end": [
+          158.6,
+          121.5
+        ],
+        "dir": [
+          1.0,
+          0.0
+        ],
+        "walkway_side": 1
+      },
+      "installed": false
+    },
+    "endBinding": null
+  },
+  "planOverride": "${RUIEN_STAGE}/layouts/compiled-network-plan.json"
+}

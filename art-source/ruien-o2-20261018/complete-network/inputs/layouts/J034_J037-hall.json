@@ -1,0 +1,136 @@
+{
+  "room": {
+    "id": "J034_J037",
+    "name": "Joined gallery confluence J034 / J037",
+    "class": "G",
+    "rect": [
+      -226.75,
+      120.25,
+      -196.75,
+      135.25
+    ],
+    "centre": [
+      -211.75,
+      127.75
+    ],
+    "baySize": 7.5,
+    "nodeAliases": [
+      "J034",
+      "J037"
+    ],
+    "requiredRoutes": [
+      "L110",
+      "L27",
+      "L28",
+      "L29",
+      "L42"
+    ],
+    "grates": [
+      [
+        -204.0,
+        128.0
+      ],
+      [
+        -219.0,
+        128.0
+      ]
+    ]
+  },
+  "mouths": [
+    {
+      "route": "L27",
+      "cls": "G",
+      "wall": "x1",
+      "bay": 0,
+      "tc": 124.0,
+      "width": 6.0,
+      "at": [
+        -196.75,
+        124.0
+      ],
+      "end": [
+        -195.05,
+        124.0
+      ],
+      "dir": [
+        1,
+        0
+      ],
+      "walkway_side": 1,
+      "depth": 1.7,
+      "legacyC2": false
+    },
+    {
+      "route": "L28",
+      "cls": "G",
+      "wall": "z0",
+      "bay": 2,
+      "tc": -208.0,
+      "width": 6.0,
+      "at": [
+        -208.0,
+        120.25
+      ],
+      "end": [
+        -208.0,
+        118.55
+      ],
+      "dir": [
+        0,
+        -1
+      ],
+      "walkway_side": 1,
+      "depth": 1.7,
+      "legacyC2": false
+    },
+    {
+      "route": "L42",
+      "cls": "G",
+      "wall": "z1",
+      "bay": 1,
+      "tc": -215.5,
+      "width": 6.0,
+      "at": [
+        -215.5,
+        135.25
+      ],
+      "end": [
+        -215.5,
+        136.95
+      ],
+      "dir": [
+        0,
+        1
+      ],
+      "walkway_side": -1,
+      "depth": 1.7,
+      "legacyC2": false
+    },
+    {
+      "route": "L110",
+      "cls": "G",
+      "wall": "x0",
+      "bay": 0,
+      "tc": 124.0,
+      "width": 6.0,
+      "at": [
+        -226.75,
+        124.0
+      ],
+      "end": [
+        -228.45,
+        124.0
+      ],
+      "dir": [
+        -1,
+        0
+      ],
+      "walkway_side": 1,
+      "depth": 1.7,
+      "legacyC2": false
+    }
+  ],
+  "absorbedRoutes": [
+    "L29"
+  ]
+}

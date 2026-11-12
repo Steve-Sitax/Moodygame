@@ -1,0 +1,99 @@
+{
+  "id": "L59",
+  "cls": "M",
+  "name": "rui by Stadspark",
+  "pts": [
+    [
+      -324.229,
+      305.4
+    ],
+    [
+      -324.229,
+      302.9
+    ],
+    [
+      -306.5,
+      288.0
+    ],
+    [
+      -306.0,
+      279.0
+    ],
+    [
+      -304.0,
+      277.0
+    ],
+    [
+      -303.5,
+      272.5
+    ]
+  ],
+  "walkwaySide": 1,
+  "start": "room",
+  "end": "auto",
+  "joins": [
+    "J041",
+    null
+  ],
+  "retained": null,
+  "grates": [],
+  "lamps": [
+    [
+      -306.2,
+      282.0
+    ]
+  ],
+  "construction": {
+    "originalPoints": [
+      [
+        -325.0,
+        310.5
+      ],
+      [
+        -324.6,
+        307.5
+      ],
+      [
+        -306.5,
+        288.0
+      ],
+      [
+        -306.0,
+        279.0
+      ],
+      [
+        -304.0,
+        277.0
+      ],
+      [
+        -303.5,
+        272.5
+      ]
+    ],
+    "startBinding": {
+      "id": "J041",
+      "rect": [
+        -328.4,
+        307.1,
+        -321.6,
+        313.9
+      ],
+      "mouth": {
+        "route": "L59",
+        "end": [
+          -324.229,
+          305.4
+        ],
+        "dir": [
+          0.0,
+          -1.0
+        ],
+        "walkway_side": 1
+      },
+      "installed": false
+    },
+    "endBinding": null
+  },
+  "planOverride": "${RUIEN_STAGE}/layouts/compiled-network-plan.json",
+  "repairLamps": true
+}

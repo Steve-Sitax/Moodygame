@@ -25,7 +25,7 @@ public static partial class RuienStairHouse
     {
         if(brickHeight==null)
         {
-            brickHeight=ResourceLoader.Load<Texture2D>("res://assets/materials/environment-20261013/wall-brick-height-texture.res").GetImage();
+            brickHeight=ResourceLoader.Load<Texture2D>(HeightTexture).GetImage();
             if(brickHeight.IsCompressed())brickHeight.Decompress();
         }
         var im=brickHeight;
@@ -128,7 +128,7 @@ public static partial class RuienStairHouse
         // Lead soakers up the parapets, capped by the existing stone rake. Thin sheet edges: 1 mm radius.
     }
 
-    private static void Drain(Parts p,Material stone,Material iron,float side,float z)
+    private static void Drain(Parts p,Material stone,Material iron,float side,float z,float invert)
     {
         void Box(SurfaceTool t,Material m,Vector3 at,Vector3 size,float r)
             =>t.AppendFrom(BevelMesh.Box(size,r,m),0,new Transform3D(Basis.Identity,at));
@@ -148,8 +148,8 @@ public static partial class RuienStairHouse
             else Box(p.Stone,stone,new Vector3(x+sd*.18f,-.015f,z),new Vector3(.08f,.15f,.46f),.010f);
             Box(p.Stone,stone,new Vector3(x,-.015f,z+sd*.19f),new Vector3(.29f,.15f,.08f),.010f);
         }
-        // Dark well and a 100 mm down connection end below the surface. The network register marks its onward stub reserved.
-        Tube(p.Iron,new Vector3(x,-.02f,z),new Vector3(x,-.95f,z),.05f);
+        // The buried connection depth follows the receiving network, above any main-vault crown.
+        Tube(p.Iron,new Vector3(x,-.02f,z),new Vector3(x,invert,z),.05f);
         foreach(float dz in new[]{-.14f,.14f})
             Box(p.Iron,iron,new Vector3(x,.015f,z+dz),new Vector3(.31f,.025f,.026f),.002f);
         for(int i=0;i<7;i++)

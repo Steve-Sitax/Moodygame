@@ -1,0 +1,100 @@
+{
+  "room": {
+    "id": "J009",
+    "name": "Gallery confluence J009",
+    "class": "G",
+    "centre": [
+      184.5,
+      317.5
+    ],
+    "rect": [
+      179.5,
+      312.5,
+      189.5,
+      322.5
+    ],
+    "baySize": 20,
+    "requiredRoutes": [
+      "L6",
+      "L26"
+    ],
+    "grates": [
+      [
+        189.0,
+        317.4
+      ]
+    ]
+  },
+  "mouths": [
+    {
+      "route": "L6",
+      "cls": "G",
+      "wall": "x1",
+      "bay": 0,
+      "tc": 317.5,
+      "width": 6.0,
+      "at": [
+        189.5,
+        317.5
+      ],
+      "end": [
+        191.2,
+        317.5
+      ],
+      "dir": [
+        1,
+        0
+      ],
+      "walkway_side": -1,
+      "depth": 1.7,
+      "legacyC2": false
+    },
+    {
+      "route": "L26",
+      "cls": "M",
+      "wall": "z0",
+      "bay": 0,
+      "tc": 184.5,
+      "width": 3.6,
+      "at": [
+        184.5,
+        312.5
+      ],
+      "end": [
+        184.5,
+        311.9
+      ],
+      "dir": [
+        0,
+        -1
+      ],
+      "walkway_side": 1,
+      "depth": 0.6,
+      "legacyC2": false
+    },
+    {
+      "route": "L64",
+      "cls": "G",
+      "wall": "x0",
+      "bay": 0,
+      "tc": 317.5,
+      "width": 6.0,
+      "at": [
+        179.5,
+        317.5
+      ],
+      "end": [
+        177.8,
+        317.5
+      ],
+      "dir": [
+        -1,
+        0
+      ],
+      "walkway_side": -1,
+      "depth": 1.7,
+      "legacyC2": false
+    }
+  ],
+  "absorbedRoutes": []
+}

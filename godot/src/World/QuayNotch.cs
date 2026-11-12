@@ -13,7 +13,7 @@ namespace Scheldemist.World;
 /// footprint (a box in the flight's own frame: s down the flight, u out from the wall line), so the visible stone and the
 /// collision built from it agree with the steps. Everything outside the box is as it was.
 /// </summary>
-public static class QuayNotch
+public static partial class QuayNotch
 {
     // Entrance cuts only remove geometry. During a batch, the original world bounds
     // conservatively cover every later version, including collision stand-ins.

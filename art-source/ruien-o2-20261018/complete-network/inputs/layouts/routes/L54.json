@@ -1,0 +1,97 @@
+{
+  "id": "L54",
+  "cls": "M",
+  "name": "Vestrui",
+  "pts": [
+    [
+      -187.2,
+      304.568
+    ],
+    [
+      -189.7,
+      304.568
+    ],
+    [
+      -210.8,
+      305.867
+    ],
+    [
+      -213.3,
+      305.867
+    ]
+  ],
+  "walkwaySide": 1,
+  "start": "room",
+  "end": "room",
+  "joins": [
+    "R6",
+    "R7"
+  ],
+  "retained": null,
+  "grates": [],
+  "lamps": [],
+  "construction": {
+    "originalPoints": [
+      [
+        -181.6,
+        304.7
+      ],
+      [
+        -187.5,
+        304.5
+      ],
+      [
+        -213.5,
+        305.5
+      ],
+      [
+        -218.4,
+        306.7
+      ]
+    ],
+    "startBinding": {
+      "id": "R6",
+      "rect": [
+        -185.5,
+        302.0,
+        -178.0,
+        307.5
+      ],
+      "mouth": {
+        "route": "L54",
+        "end": [
+          -187.2,
+          304.568
+        ],
+        "dir": [
+          -1.0,
+          0.0
+        ],
+        "walkway_side": 1
+      },
+      "installed": false
+    },
+    "endBinding": {
+      "id": "R7",
+      "rect": [
+        -222.0,
+        303.0,
+        -215.0,
+        311.5
+      ],
+      "mouth": {
+        "route": "L54",
+        "end": [
+          -213.3,
+          305.867
+        ],
+        "dir": [
+          1.0,
+          0.0
+        ],
+        "walkway_side": -1
+      },
+      "installed": false
+    }
+  }
+}

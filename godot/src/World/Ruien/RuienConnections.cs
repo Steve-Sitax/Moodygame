@@ -13,15 +13,57 @@ public static partial class RuienConnections
     public static Node3D Build(JsonElement spec,RuienData.Area area)
     {
         var root=new Node3D{Name="ruien_connections_"+area.Id};
+        AddExportFloors(root,area);
         var stone=new SurfaceTool();var iron=new SurfaceTool();var paving=new SurfaceTool();var brick=new SurfaceTool();
         foreach(var s in new[]{stone,iron,paving,brick})s.Begin(Mesh.PrimitiveType.Triangles);
         bool hasStone=false,hasIron=false,hasPaving=false,hasBrick=false;
+        if(spec.TryGetProperty("landingBlocks",out var landingBlocks))
+        {
+            int index=0;
+            foreach(var block in landingBlocks.EnumerateArray())
+            {
+                Vector3 V(JsonElement v)=>new(v[0].GetSingle(),v[1].GetSingle(),v[2].GetSingle());
+                var across=block.GetProperty("across");var along=block.GetProperty("along");
+                var lateral=new Vector3(across[0].GetSingle(),0,across[1].GetSingle());
+                var basis=new Basis(lateral,Vector3.Up,lateral.Cross(Vector3.Up));
+                var size=V(block.GetProperty("size"));
+                bool isBrick=block.TryGetProperty("brick",out var material)&&material.GetBoolean();
+                string family=isBrick?"ruien_brick_stretcher":"ruien_bluestone";
+                var mesh=RuienGeometryCache.Get(RuienData.AreasFile,area.Id+"/portal-landing/"+index++,()=>BevelMesh.Box(size,.010f,RuienMaterials.Get(family)));
+                (isBrick?brick:stone).AppendFrom(mesh,0,new Transform3D(basis,V(block.GetProperty("at"))));
+                if(isBrick)hasBrick=true;else hasStone=true;
+            }
+        }
         void Box(SurfaceTool s,Vector3 p,Vector3 size,float radius,Basis? basis=null)
         {
             var m=BevelMesh.Box(size,radius,RuienMaterials.Get(s==iron?"ruien_iron":s==brick?"ruien_brick_stretcher":"ruien_bluestone"));
             s.AppendFrom(m,0,new Transform3D(basis??Basis.Identity,p));
             if(s==iron)hasIron=true;else if(s==brick)hasBrick=true;else hasStone=true;
         }
+        if(spec.TryGetProperty("bridgeRailPosts",out var railPosts))
+            foreach(var p in railPosts.EnumerateArray())
+            {
+                var at=new Vector3(p[0].GetSingle(),p[1].GetSingle(),p[2].GetSingle());
+                Box(iron,at+Vector3.Up*.54f,new Vector3(.065f,1.08f,.065f),.003f);
+                Box(iron,at+Vector3.Up*.021f,new Vector3(.13f,.032f,.13f),.003f);
+                Box(iron,at+Vector3.Up*1.087f,new Vector3(.083f,.025f,.083f),.003f);
+            }
+        if(spec.TryGetProperty("landingRails",out var landingRails))
+            foreach(var rail in landingRails.EnumerateArray())
+            {
+                Vector3 V(JsonElement v)=>new(v[0].GetSingle(),v[1].GetSingle(),v[2].GetSingle());
+                var a=V(rail.GetProperty("from"));var b=V(rail.GetProperty("to"));float length=a.DistanceTo(b);
+                if(length<.05f)continue;
+                var basis=Basis.LookingAt((b-a).Normalized());
+                Box(iron,(a+b)/2+Vector3.Up*1.03f,new Vector3(.035f,.035f,length),.003f,basis);
+                int count=Math.Max(1,(int)MathF.Ceiling(length/.75f));
+                for(int i=0;i<=count;i++)
+                {
+                    var p=a.Lerp(b,i/(float)count);
+                    Box(iron,p+Vector3.Up*.525f,new Vector3(.032f,1.02f,.032f),.002f,basis);
+                    Box(iron,p+Vector3.Up*.021f,new Vector3(.11f,.028f,.10f),.002f,basis);
+                }
+            }
         if(spec.TryGetProperty("walkConnections",out var walks))
         {
             Vector3 V(JsonElement v)=>new(v[0].GetSingle(),v[1].GetSingle(),v[2].GetSingle());

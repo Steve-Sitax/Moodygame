@@ -1,0 +1,97 @@
+{
+  "room": {
+    "id": "C1",
+    "name": "Hall under the Grote Markt (Antigoon's refuge)",
+    "class": "G",
+    "centre": [
+      -255.0,
+      100.0
+    ],
+    "rect": [
+      -270.0,
+      86.0,
+      -240.0,
+      114.0
+    ],
+    "baySize": 7.5,
+    "pierPhaseX": 0.5,
+    "grates": [
+      [
+        -255.0,
+        100.0
+      ]
+    ]
+  },
+  "mouths": [
+    {
+      "route": "L7",
+      "cls": "G",
+      "wall": "z0",
+      "bay": 1,
+      "tc": -262.5,
+      "width": 6.0,
+      "at": [
+        -262.5,
+        86.0
+      ],
+      "end": [
+        -262.5,
+        84.3
+      ],
+      "dir": [
+        0,
+        -1
+      ],
+      "walkway_side": 1,
+      "depth": 1.7,
+      "legacyC2": false
+    },
+    {
+      "route": "L110",
+      "cls": "G",
+      "wall": "x1",
+      "bay": 3,
+      "tc": 110.5,
+      "width": 6.0,
+      "at": [
+        -240.0,
+        110.5
+      ],
+      "end": [
+        -238.3,
+        110.5
+      ],
+      "dir": [
+        1,
+        0
+      ],
+      "walkway_side": -1,
+      "depth": 1.7,
+      "legacyC2": false
+    },
+    {
+      "route": "L116",
+      "cls": "G",
+      "wall": "x0",
+      "bay": 3,
+      "tc": 110.5,
+      "width": 6.0,
+      "at": [
+        -270.0,
+        110.5
+      ],
+      "end": [
+        -271.7,
+        110.5
+      ],
+      "dir": [
+        -1,
+        0
+      ],
+      "walkway_side": -1,
+      "depth": 1.7,
+      "legacyC2": false
+    }
+  ],
+  "absorbedRoutes": []
+}

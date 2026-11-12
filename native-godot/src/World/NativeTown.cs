@@ -346,6 +346,8 @@ public partial class NativeTown : BakedWorld
     /// </summary>
     internal static int CutBeforeRazing(Node3D town, bool werf, bool gates, Action<string> note)
     {
+        NativePavingBacking.Lay(town,note);
+        NativeCellarOpenings.Cut(town, note);
         int werfCut = werf ? QuayNotch.Cut(town, "city_-4_0_3", QuayExits.WerfFrame, QuayExits.WerfNotchS0, QuayExits.WerfNotchS1, QuayExits.WerfNotchU0, QuayExits.WerfNotchU1) : 0;
         if (gates) foreach (var line in Scheldemist.World.Ruien.RuienGates.Cut(town)) note(line);
         return werfCut;

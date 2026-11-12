@@ -1,0 +1,80 @@
+{
+  "id": "L87",
+  "cls": "G",
+  "name": "Brouwersrui",
+  "pts": [
+    [
+      -87.003,
+      118.611
+    ],
+    [
+      -87.003,
+      121.111
+    ],
+    [
+      -86.0,
+      126.0
+    ]
+  ],
+  "walkwaySide": 1,
+  "start": "room",
+  "end": "cap",
+  "joins": [
+    "J042",
+    null
+  ],
+  "retained": null,
+  "grates": [],
+  "lamps": [],
+  "construction": {
+    "originalPoints": [
+      [
+        -83.0,
+        114.3
+      ],
+      [
+        -85.5,
+        120.0
+      ],
+      [
+        -86.0,
+        126.0
+      ]
+    ],
+    "startBinding": {
+      "id": "J042",
+      "rect": [
+        -92.0032,
+        106.9106,
+        -82.0032,
+        116.9106
+      ],
+      "mouth": {
+        "route": "L87",
+        "cls": "G",
+        "wall": "z1",
+        "bay": 0,
+        "tc": -87.0032,
+        "width": 6.0,
+        "at": [
+          -87.0032,
+          116.9106
+        ],
+        "end": [
+          -87.003,
+          118.611
+        ],
+        "dir": [
+          0,
+          1
+        ],
+        "walkway_side": 1,
+        "depth": 1.7,
+        "legacyC2": false
+      },
+      "installed": false
+    },
+    "endBinding": null
+  },
+  "closeCoping": true
+}

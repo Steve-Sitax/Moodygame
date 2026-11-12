@@ -1,0 +1,81 @@
+{
+  "layout": {
+    "rect": [
+      35.5,
+      239.0,
+      45.5,
+      249.0
+    ],
+    "mouths": [
+      {
+        "route": "L45",
+        "cls": "G",
+        "wall": "x0",
+        "bay": 0,
+        "tc": 244.0,
+        "width": 6.0,
+        "at": [
+          35.5,
+          244.0
+        ],
+        "end": [
+          33.8,
+          244.0
+        ],
+        "dir": [
+          -1,
+          0
+        ],
+        "walkway_side": -1,
+        "depth": 1.7,
+        "legacyC2": false
+      },
+      {
+        "route": "L49",
+        "cls": "M",
+        "wall": "x1",
+        "bay": 0,
+        "tc": 244.0,
+        "width": 3.6,
+        "at": [
+          45.5,
+          244.0
+        ],
+        "end": [
+          46.1,
+          244.0
+        ],
+        "dir": [
+          1,
+          0
+        ],
+        "walkway_side": 1,
+        "depth": 0.6,
+        "legacyC2": false
+      },
+      {
+        "route": "L50",
+        "cls": "G",
+        "wall": "z1",
+        "bay": 0,
+        "tc": 40.5,
+        "width": 6.0,
+        "at": [
+          40.5,
+          249.0
+        ],
+        "end": [
+          40.5,
+          250.7
+        ],
+        "dir": [
+          0,
+          1
+        ],
+        "walkway_side": 1,
+        "depth": 1.7,
+        "legacyC2": false
+      }
+    ]
+  }
+}

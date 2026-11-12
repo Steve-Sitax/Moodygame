@@ -1,0 +1,77 @@
+{
+  "id": "L14",
+  "cls": "G",
+  "name": "Brouwersrui",
+  "pts": [
+    [
+      -135.28,
+      113.75
+    ],
+    [
+      -132.78,
+      113.75
+    ],
+    [
+      -125.9928,
+      113.2685
+    ],
+    [
+      -121.0,
+      113.0
+    ]
+  ],
+  "walkwaySide": 1,
+  "start": "room",
+  "end": "auto",
+  "joins": [
+    "C2_L14",
+    null
+  ],
+  "retained": null,
+  "grates": [
+    [
+      -134.0,
+      112.7
+    ]
+  ],
+  "lamps": [],
+  "construction": {
+    "originalPoints": [
+      [
+        -149.1,
+        124.1
+      ],
+      [
+        -142.0,
+        112.5
+      ],
+      [
+        -121.0,
+        113.0
+      ]
+    ],
+    "startBinding": {
+      "id": "C2_L14",
+      "rect": [
+        -159,
+        110,
+        -140,
+        138
+      ],
+      "mouth": {
+        "route": "L14",
+        "end": [
+          -135.28,
+          113.75
+        ],
+        "dir": [
+          1,
+          0
+        ],
+        "walkway_side": 1
+      },
+      "installed": true
+    },
+    "endBinding": null
+  }
+}

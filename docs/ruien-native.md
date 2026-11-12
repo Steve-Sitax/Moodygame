@@ -4,12 +4,51 @@ The sewers under the town (plan: [plans/ruien](plans/ruien/README.md)). Everythi
 can follow area by area; the first area is O2: the vliet sluice outlet, the 38 m Vlietrui and the Vleeshuis hall C2.
 Code: `godot/src/World/Ruien/`. Data and resources: `native-godot/world/ruien/`.
 
+## Complete network
+
+The full construction is installed in `native-godot/world/ruien`; `.scratch/ruien-complete` retains its construction
+and review evidence. It has 167 areas: five retained O2/R1 areas and 162 new exports, comprising
+109 stretches and 53 rooms/halls. It connects 24 additional street entrances, for 26 active entrances in total.
+The original road hatches stay closed under continuous paving; street grates provide ventilation only.
+
+Drainage connects all 918 surveyed inlets through 844 collectors and 572 main-vault outlets. The final bank routing
+keeps buried collectors out of open canals and the lock, and retains every inlet's surveyed position and ID.
+Actual native entrance foundations and full-width burial checks supplement the route-envelope checks.
+Small gaps between the Rond's original paving rings have recessed bedding on the existing mesh; the street-cut
+cache captures it, and the visible paving and authored placement remain intact.
+
+`tools/ruien/` contains the plan, export, intake, clearance and installation tools. Export receipts hash their source
+and output bytes. `install_network.py` requires matching full-game physics and visual acceptance, joined route and
+entrance proofs, gate motion/clearance, and drainage/foundation/burial evidence before promoting any configuration.
+It preserves the five retained areas, verifies every copied native resource and backs up the installed configuration.
+The assembled physics and native visual review passed before installation. Installed playable launches, the
+uncached in-order reference and all desktop launcher checks passed. The physical sweep covers 1,085,148 samples;
+the burial check covers 141,600 and the water-current check 19,102, with no errors. All 42,372 fingerprint rows agree
+after independent full mesh-data checks resolve binary serialization differences; original raw hashes are retained.
+Evidence is in `.scratch/ruien-complete/installed33-validation-complete.json` and `.scratch/startup-perf/ruien-installed33-*`.
+Warm startup is 175.740 s by three-run median, still 115.740 s above target; see [startup measurements](startup.md).
+
+The final editable layouts and configuration are preserved in
+[`art-source/ruien-o2-20261018/complete-network`](../art-source/ruien-o2-20261018/complete-network/README.md).
+Its inventory hashes 232 active inputs; the restore tool rebases paths and refuses to overwrite existing work.
+
+The new construction includes opening tidal gates, the held Bassin boat door, a flush sluice, folding footbridges,
+lamp and grate lighting, water sounds, and channel clearance for the upright giant. Antigoon's autonomous encounter
+still uses street navigation; physical underground clearance does not implement an underground AI route.
+
+### Existing O2 access
+
 O2 access uses the existing house doorway at (-157.787, 132.000), an inward-opening leaf and a buried cellar stair.
 A vaulted side passage and supported maintenance walk join the hall bridge; a barrel under the new stair keeps the
 existing bridge route open. Both former road hatches are retired under continuous paving, and the street grate is
 closed ventilation. Deep channel water uses Jef's existing swimming controls, with `E` at the escape irons. Ladder
 spacing, local offsets, gate channel widths and keeper landing paths are area data. The water query follows the
 rendered sheets, leaving the street navigation map dry.
+
+`NativeCellarOpenings` also clears the drawn paving and floor lining above existing cellar stairs, including Poesje
+and the home cellar. It follows the tread footprints and Poesje's open railing well; the original stairs remain.
+`CellarSurfaceProof` checks the Poesje approach, stair top, underside and railing side in daylight, rain and night,
+then walks through its doorway. This covers the visible cobble layer separately from walking collision.
 
 The original [construction options](plans/ruien/ideas/README.md) were A1/B2/C1/D1. A1's road lids are now retired;
 its underground flight and vaulted niche remain. B2's side drains cross the walkway in recessed grated gutters.
@@ -50,7 +89,7 @@ Inside inspection repairs (#212), all reusable for the other areas:
 
 Follow-ups (#217, #213, #202): the keeper niche meets the gallery with a 3 cm rounded brick arris (`RuienStair.ArrisCut`: the exported lining is trimmed offline by RuienRepair, the native reveal at load, and `ArrisStrip` lays the rounded brick). Native kit bricks are charted before any trim, and `RuienUnfold.Apply(carrySmooth)` carries the frame across smooth edges of sloped faces, so an inclined barrel's crown no longer turns its courses into the level vault (the crown band). `throatFills` in areas.json put hidden brick behind the C1 backing's right extrados. The ambient rain skips drops below the street under the cover map. Down the street grate's ladder Jef turns to face its rungs (`Jef.FaceDuringClimb`).
 
-The town's broad river sheet is excluded beneath the Ruien by a world-space cover texture, including masonry and side galleries. This replaces the old water-level stencil lid, which could be clipped out at particular camera heights. The air volumes clip against sampled scene depth themselves, so the hardware depth test must not discard their enclosing box at the shaft rim. Neither fix adds a shader kind or a real light.
+The town's broad river sheet is excluded beneath the Ruien by a world-space cover texture, including masonry and side galleries. `Psx.RegisterNative` applies the exclusion to stored native water shaders as well as newly generated shaders; the stored version previously left black bands through walls at the tide's height. This replaces reliance on the old water-level stencil lid, which could be clipped out at particular camera heights. The air volumes clip against sampled scene depth themselves, so the hardware depth test must not discard their enclosing box at the shaft rim. Neither fix adds a shader kind or a real light.
 
 Street entrance, lamps and wall repairs (RU-ruien2, 2026-11-02): the hall hatch's leaves are native
 (`RuienSurround.Leaves`): two ledged and braced oak leaves of four 42 mm planks with 3 mm eased arrises and joints,
@@ -69,12 +108,12 @@ the flight's side wall ends where the near jamb starts (they shared a face) and 
 ceiling's free edge closes the slot under the niche's sloping vault (no lower than that edge: the headroom stays). The keeper crew face the way they walk.
 
 
-## The R1 sample (#272)
+## The retained R1 core (#272)
 
-The first playable piece of the full network, installed next to O2: junction room R1 by Sint-Pauluskerk and the first
+The first playable piece of the full network was installed next to O2: junction room R1 by Sint-Pauluskerk and the first
 22-26 m of the three ruien that meet in it (L65 22 m, L100 26 m, L114 25 m). Each shows a street grate with its ladder,
-plan lamps and the plan's side-drain crossings, and ends at a bricked-up stub (`RuienEnd`, barred culvert) where the
-next area joins. Reach it through the neighbouring house's existing doorway at (162.714, 301.475), whose inward-opening
+plan lamps and the plan's side-drain crossings. The complete network removes their former bricked-up stub ends
+and joins the onward stretches. Reach it through the neighbouring house's existing doorway at (162.714, 301.475), whose inward-opening
 leaf leads to a facade-parallel cellar stair and a vaulted passage into the room, or with the kit command `ruien r1`.
 The former road hatch is retired: the town's paving and collision remain whole there. The three street grates are
 ventilation only (`streetGrates: "ventilation"`), with no climb prompt or moving lid in the carriageway.
@@ -219,6 +258,13 @@ water film (`ruien_misc_Water_film`, no collision) carries it down to the galler
     in world space, not per pixel.
   - **water**: murk with depth absorption over the bed seen through it, drifting ripples, drip rings, scum, screen-space
     reflections of the vault and lamps, and the walls' thin films.
+    `plan_water_flow.py` routes currents along the authored channels to the gravity outlets, including side-channel
+    T-junctions; the held Bassin and flush supply are not drainage sinks. It changes flow metadata only.
+    `RuienWaterFlow` samples the local tangent and outlet distances into UV2, so currents follow bends and split
+    where a loop drains both ways. Room currents aim through open portals. Flat water subdivision adds no collision.
+    The shader advects ripple layers in world space with overlapping phases, strengthens distortion with speed,
+    and derives outlet speed from the real drop. Closed, level gates have no outward translation. Fine bubbles
+    replace the old coarse pale foam; drip rings cross cell boundaries without rectangular clipping.
   - **air** (premultiplied): daylight beams down shafts, the low rot mist (lit by the lamps), flames and lamp glass.
 - **Light**: a list of the 32 sources nearest the eye (`ruien_lights`, 4 texels each): oil lamps (flicker, soft core) and
   openings (outlet, grates, shafts, hatches) whose light is the day's sky, cold, or at night a trace of street glow.
@@ -242,9 +288,9 @@ collision, clearance, reach and world-space pose offsets use `AntigoonSize`. His
 0.5 m of water surrounds his legs, leaving 0.15 m below a 4 m crown. The raised human walkway is too low for him.
 The red gallery gives 1.35 m above his head on its bed; its maximum 2.4 m water is now above his waist.
 
-**Route limit:** only O2/C2 and the R1 sample are built. C1 under the Grote Markt and the connecting galleries are plan data, and
-Antigoon's live encounter still uses a street-only X/Z route map that excludes water. A complete refuge-to-Ruien
-route is not implemented or accepted. It needs separate underground footing/navigation and the missing areas.
+**Route limit:** the physical network is installed, but Antigoon's live encounter still uses a street-only X/Z route
+map that excludes water. A complete refuge-to-Ruien
+route is not implemented or accepted. It needs separate underground footing/navigation through the installed areas.
 The selected C1 arch clears a 3.86 m tall, 0.928 m wide capsule over the actual channel bed at all four throat
 samples (x -149.5, z 109.5–111). This checks the local opening, not an autonomous underground route.
 `--antigoon-size-proof <output>` captures him in daylight and on O2's bed, measures the model/collision, checks a
@@ -272,9 +318,9 @@ view at its own place in the start, and later parts see the same Ruien as before
   on the next start; an edit to any Ruien JSON rebuilds every Ruien entry once.
 - Proofs: `--startup-proof` prints `ruien pieces: ... <digest>`; it must match a `--ruien-in-order --no-startup-cache`
   run. `--ruien-in-order` builds on the main thread at the part's place, as before.
-- Cost now (2026-11-07, 5 areas, 26 entrances): about 7 s on the worker, hidden behind the town's load, plus about
-  4.5 s on the main thread to lay the pieces in (mostly collision shapes). Lay-in time grows with the network; past
-  roughly twice today's size, lay far areas in by distance instead of all at the start.
+- All collision is built and attached before play, including distant areas. Only finished visual resources stream
+  by distance; their construction and content validation happen before play. Capture tools wait for `PendingVisuals`
+  after moving the camera. See [startup measurement](startup.md) for warm-run comparisons and cache-miss reporting.
 
 ### Frame costs per view
 
@@ -331,6 +377,11 @@ on a folding iron footbridge (#286, #283; the kit: `art-source/ruien-o2-20261018
 Data: an area's `bridges` (in areas.json or the export's markers: `id`, pivots `a` and `b`, `gear`) and the shared
 engine numbers in areas.json `foldBridge` (timing, angle, distances, sweep zone).
 
+- **Fixed meshes.** `RuienFoldBridge.Cache.cs` stores each shared bridge shape through `RuienGeometryCache`; loading
+  reconnects its live materials. Hinges, collision and server state are created per bridge. `RuienBridgeCacheProof`
+  compares every planned bridge's vertex attributes, materials, collision and three opening phases with uncached
+  construction; run it in fresh processes for cold, warm and deliberately damaged cache entries. For timing, alternate
+  three normal warm launches with three `--uncached-bridge-models` launches of the same build and compare medians.
 - **The engine owns it.** Rest is down. Both leaves rise (90 degrees in 14 s) when Antigoon comes nearer than
   `giantRaise` (9 m) to the bridge's middle at its level (`giantHeight` 3.5 m: a giant on the street above does not
   count), and come down when he is further than `giantLower` (10.5 m). He waits `giantHold` (4.5 m) short of the
@@ -427,14 +478,31 @@ moving grate or access house may occupy a cart or tram route. `frame: "existing"
 and fanlight while replacing its recessed oak frame and leaf. Review findings: [entrance audit](ruien-entrance-audit.md).
 
 **Connected/retired access.** `connectArea` and `connectLength` link a native bottom arch to an imported area: the
-stair’s air and passage are clipped from copies of both imported LODs and collision. The passage cut follows the
-barrel's inner facets, leaving masonry over its crown and beside the lining; its far end overlaps the cut. O2’s new facade door uses this
+stair’s air and passage are clipped from copies of both imported LODs and collision. The stair cut follows its sloping
+elliptic bore rather than the larger construction envelope. Passage cuts follow the barrel's inner facets; replacement
+lining meets the host room's actual vault profile, sampled from its original collision, rather than a flat crown plane.
+This leaves masonry above the connection and beside the lining. Where a passage's crown ends above the side of the
+receiving vault, `RuienPassage.EndWeb` closes the exposed crescent with brick trimmed to the host's actual air. Its
+outer edges mate inside the barrel; it starts above the continuous stone floor so it adds no brick threshold.
+The lining and web end 5 mm inside the host roof backing; a trim below the vault face would leave a projecting strip.
+O2’s new facade door uses this
 connection, with `lowerSill` replacing the projecting threshold inside the retained surround. `retiredWays` in
 `areas.json` preserves an old underground flight/niche under a solid stone closure, restores the street by leaving
 its original paving/collision whole, removes exported material above the closure, and disables lids and their service.
 Disable its opening sources as well. O2’s street grate is ventilation-only. Historical source exports retain their
 markers; the native retirement configuration is mandatory and survives reconversion. The stone closure bears beyond
 the lid rectangle onto the flared lining, closing the sky sightlines visible from the hall walk below.
+
+Straight and curved connecting barrels both contribute to `RuienEntrance.Footprint`. Short curve segments overlap
+the cover map's filtering margin: an internal construction seam must not fade the underground lighting or hide the
+receiving tunnel. `RuienCoverProof` compares full-search, indexed, warm and corrupt-cache results and samples every
+connection at walking eye height. The assembled network proof repeats those coverage samples in the town.
+
+Walking clearance and drainage clearance are checked separately. `NativeRuienDrainClearance` samples the heads'
+mapped egg bores, collector profiles and the inlets' actual rounded paths against all assembled entrance foundations.
+Its temporary collision layer is restored after the check. Surveyed surface outlet positions and permanent drain IDs
+stay fixed when buried routes move around a foundation. `install_network.py` requires the current assembled physics,
+hydraulic and visual proofs before promoting staged resources.
 
 O2's `walkConnections` have jointed stone decks on iron I-girders, bearing plates, crossheads and masonry piers down
 to the bed. Rail spans open where another deck joins. `trimImported` replaces the joining bank/coping strip in both
@@ -468,7 +536,7 @@ feed grated gullies. Ground damp is a conforming transparent film without collis
 
 `surface-reservations.json` records full footprints, including the roof, gullies and 1.6 m door approaches.
 `surface-drainage.json` records all 14 inlets, -0.95 m inverts, 100 mm diameters and unique onward connection IDs.
-The roof-to-gully path is built; the onward Ruien connections remain reserved. Preserve these strips when adding traffic.
+The roof-to-gully paths and their onward Ruien connections are built. Preserve these strips when adding traffic.
 
 - **One model.** The shell is one mesh and one collision shape, built once and shared by every stair-house: brick in
   the town's own wall brick on a bluestone plinth in stones with real joints, parapet gables under bluestone coping
@@ -484,8 +552,9 @@ The roof-to-gully path is built; the onward Ruien connections remain reserved. P
   under the paving is cut.
 - **The town gives way** inside the plinth's outline (ground, plants, decals, leaves): the crowd's walk map has no
   ground there, so people and carts go round the house, and the street's collision stops at the plinth.
-- **Drawn when seen.** The stair inside (its landings, flight, lining, vault and closure) is drawn only while the door is
-  open or the eye is in the tunnel; the door wall and its arch, seen in the doorway, always. Its collision always stays.
+- **Drawn when seen.** The stair inside (its landings, flight, lining, vault and closure) is drawn while the door is
+  open, the eye is in the stair, or a nearby underground passage can see it. Closing the street door must not hide
+  lining behind a cut in the main vault. The door wall and its arch are always drawn; collision always stays.
 - **Cover.** A stair-house's closed (green) footprint starts at its door wall's inner face, so the door, its surround
   and the house's outside stay in the open.
 - **Placing one.** Run the tunnel parallel to its Ruien line, its line-side wall just clear of the vault's outer face
@@ -497,6 +566,7 @@ Mouth bearing stones and hall hatch (#267): `scripts/ruien-mouth-repair.tscn` pa
 after checking source hashes and making external `--backup` copies. Paired 20 cm stones have 8 mm recessed
 mortar joints and 10–13 mm arrises; both LODs and collision share the replacement. The hatch uses owned
 timber artwork through `oak_hatch`, with aligned grain and relief. Native access/tide/state checks passed
-143/143; captures cover day, rain and night. Diagnostic fill exposes the stone joints; normal underground
-views limit fine underside inspection. Upper quoins/corbels, coping and material junctions remain unfinished.
-This is a partial repair, not overall Ruien or connected-environment acceptance.
+143/143; that checkpoint was a partial repair, with upper quoins/corbels, coping and material junctions still
+awaiting completion and acceptance. The later complete-network review includes the retained mouth's front,
+back, underside, coping, return and upper views in day, rain and night (`review-final31-*` catalogs in
+`.scratch/ruien-complete`); its acceptance record is `network-visual-review.json`.

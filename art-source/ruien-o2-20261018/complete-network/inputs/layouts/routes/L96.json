@@ -1,0 +1,59 @@
+{
+  "id": "L96",
+  "cls": "G",
+  "name": "Noorderrui",
+  "pts": [
+    [
+      203.5,
+      121.5
+    ],
+    [
+      203.1858442532154,
+      131.49506409017783
+    ],
+    [
+      204.0074,
+      162.0
+    ],
+    [
+      204.0,
+      167.0
+    ]
+  ],
+  "walkwaySide": 1,
+  "start": "auto",
+  "end": "auto",
+  "joins": [
+    null,
+    null
+  ],
+  "retained": null,
+  "grates": [
+    [
+      203.56593001896522,
+      127.49963775843636
+    ]
+  ],
+  "lamps": [
+    [
+      203.82965010388102,
+      151.4981887920823
+    ]
+  ],
+  "construction": {
+    "originalPoints": [
+      [
+        203.5,
+        121.5
+      ],
+      [
+        204.0,
+        167.0
+      ]
+    ],
+    "startBinding": null,
+    "endBinding": null
+  },
+  "planOverride": "${RUIEN_STAGE}/layouts/compiled-network-plan.json",
+  "repairLamps": true
+}

@@ -14,7 +14,10 @@ namespace Scheldemist.World;
 public static class StartupCachePrune
 {
     private static readonly TimeSpan Unused = TimeSpan.FromDays(3);
-    private static string Root => Path.Combine(ProjectSettings.GlobalizePath("user://"), "startup-cache");
+    /// <summary>All startup caches live below this folder. SCHELDEMIST_STARTUP_CACHE moves it: a proof run on staged
+    /// content then fills its own folder, not the player's (each staged revision spools gigabytes of new keys).</summary>
+    public static string Root => System.Environment.GetEnvironmentVariable("SCHELDEMIST_STARTUP_CACHE") is { Length: > 0 } moved
+        ? Path.GetFullPath(moved) : Path.Combine(ProjectSettings.GlobalizePath("user://"), "startup-cache");
 
     /// <summary>Mark a cache file as used now (a failure only means it may be pruned and rebuilt).</summary>
     public static void Touch(string file)
@@ -36,8 +39,18 @@ public static class StartupCachePrune
                 // single-file entries (the Ruien's): an entry and its receipt go together
                 string ruien = Path.Combine(root, "ruien");
                 if (Directory.Exists(ruien))
-                    foreach (string file in Directory.EnumerateFiles(ruien).Where(f => f.EndsWith(".res", StringComparison.Ordinal) || f.EndsWith(".scn", StringComparison.Ordinal)).ToArray())
+                    foreach (string file in Directory.EnumerateFiles(ruien).Where(f => f.EndsWith(".res", StringComparison.Ordinal) || f.EndsWith(".scn", StringComparison.Ordinal) || f.EndsWith(".bin",StringComparison.Ordinal)).ToArray())
                         if (File.GetLastWriteTimeUtc(file) < before) { Drop(file); if (File.Exists(file + ".sha256")) Drop(file + ".sha256"); }
+                // Uncached proofs spool finished visuals into a unique directory.
+                // Only expired, named run directories immediately below this cache qualify.
+                if(Directory.Exists(ruien))
+                    foreach(string entry in Directory.EnumerateDirectories(ruien,"transient-*").ToArray())
+                    {
+                        var newest=Directory.EnumerateFiles(entry).Select(File.GetLastWriteTimeUtc).DefaultIfEmpty(DateTime.MinValue).Max();
+                        if(newest>=before)continue;
+                        foreach(string file in Directory.EnumerateFiles(entry).ToArray())Drop(file);
+                        try{Directory.Delete(entry);}catch(Exception){}
+                    }
                 // folder entries (the street cuts' and squares'): the folder goes when its receipt is old
                 foreach (string kind in new[] { "cuts", "square-ground", "square-walls" })
                 {

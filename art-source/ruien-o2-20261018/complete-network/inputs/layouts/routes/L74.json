@@ -1,0 +1,120 @@
+{
+  "id": "L74",
+  "cls": "M",
+  "name": "Werfrui",
+  "pts": [
+    [
+      -347.0,
+      68.6
+    ],
+    [
+      -347.0,
+      71.1
+    ],
+    [
+      -352.5,
+      141.4
+    ],
+    [
+      -352.5,
+      143.9
+    ]
+  ],
+  "walkwaySide": 1,
+  "start": "room",
+  "end": "room",
+  "joins": [
+    "J080",
+    "J081"
+  ],
+  "retained": null,
+  "grates": [
+    [
+      -348.5,
+      87.0
+    ],
+    [
+      -350.6,
+      118.9
+    ]
+  ],
+  "lamps": [],
+  "construction": {
+    "originalPoints": [
+      [
+        -347.0,
+        63.0
+      ],
+      [
+        -352.5,
+        149.5
+      ]
+    ],
+    "startBinding": {
+      "id": "J080",
+      "rect": [
+        -352.0,
+        58.0,
+        -342.0,
+        68.0
+      ],
+      "mouth": {
+        "route": "L74",
+        "cls": "M",
+        "wall": "z1",
+        "bay": 0,
+        "tc": -347.0,
+        "width": 3.6,
+        "at": [
+          -347.0,
+          68.0
+        ],
+        "end": [
+          -347.0,
+          68.6
+        ],
+        "dir": [
+          0,
+          1
+        ],
+        "walkway_side": 1,
+        "depth": 0.6,
+        "legacyC2": false
+      },
+      "installed": false
+    },
+    "endBinding": {
+      "id": "J081",
+      "rect": [
+        -357.5,
+        144.5,
+        -347.5,
+        154.5
+      ],
+      "mouth": {
+        "route": "L74",
+        "cls": "M",
+        "wall": "z0",
+        "bay": 0,
+        "tc": -352.5,
+        "width": 3.6,
+        "at": [
+          -352.5,
+          144.5
+        ],
+        "end": [
+          -352.5,
+          143.9
+        ],
+        "dir": [
+          0,
+          -1
+        ],
+        "walkway_side": -1,
+        "depth": 0.6,
+        "legacyC2": false
+      },
+      "installed": false
+    }
+  }
+}

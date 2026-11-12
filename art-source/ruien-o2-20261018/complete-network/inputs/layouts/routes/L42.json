@@ -1,0 +1,95 @@
+{
+  "id": "L42",
+  "cls": "G",
+  "name": "Lijnwaadrui",
+  "pts": [
+    [
+      -218.5,
+      209.5
+    ],
+    [
+      -218.3671,
+      204.5018
+    ],
+    [
+      -215.5,
+      139.45
+    ],
+    [
+      -215.5,
+      136.95
+    ]
+  ],
+  "walkwaySide": 1,
+  "start": "auto",
+  "end": "room",
+  "joins": [
+    null,
+    "J034_J037"
+  ],
+  "retained": null,
+  "grates": [
+    [
+      -218.6,
+      187.5
+    ],
+    [
+      -218.9,
+      142.5
+    ]
+  ],
+  "lamps": [
+    [
+      -218.8,
+      165.5
+    ]
+  ],
+  "construction": {
+    "originalPoints": [
+      [
+        -218.5,
+        209.5
+      ],
+      [
+        -219.0,
+        128.0
+      ]
+    ],
+    "startBinding": null,
+    "endBinding": {
+      "id": "J034_J037",
+      "rect": [
+        -226.75,
+        120.25,
+        -196.75,
+        135.25
+      ],
+      "mouth": {
+        "route": "L42",
+        "cls": "G",
+        "wall": "z1",
+        "bay": 1,
+        "tc": -215.5,
+        "width": 6.0,
+        "at": [
+          -215.5,
+          135.25
+        ],
+        "end": [
+          -215.5,
+          136.95
+        ],
+        "dir": [
+          0,
+          1
+        ],
+        "walkway_side": -1,
+        "depth": 1.7,
+        "legacyC2": false
+      },
+      "installed": false
+    }
+  },
+  "planOverride": "${RUIEN_STAGE}/layouts/compiled-network-plan.json",
+  "repairLamps": true
+}

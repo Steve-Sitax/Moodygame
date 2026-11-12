@@ -1,0 +1,89 @@
+{
+  "id": "L93",
+  "cls": "M",
+  "name": "rui by Canal des Brasseurs",
+  "pts": [
+    [
+      -6.9,
+      154.421
+    ],
+    [
+      -4.41286,
+      154.421
+    ],
+    [
+      1.91286,
+      154.079
+    ],
+    [
+      4.4,
+      154.079
+    ]
+  ],
+  "walkwaySide": 1,
+  "start": "room",
+  "end": "room",
+  "joins": [
+    "J083",
+    "J047"
+  ],
+  "retained": null,
+  "grates": [],
+  "lamps": [],
+  "construction": {
+    "originalPoints": [
+      [
+        -12.0,
+        154.5
+      ],
+      [
+        9.5,
+        154.0
+      ]
+    ],
+    "startBinding": {
+      "id": "J083",
+      "rect": [
+        -15.4,
+        151.1,
+        -8.6,
+        157.9
+      ],
+      "mouth": {
+        "route": "L93",
+        "end": [
+          -6.9,
+          154.421
+        ],
+        "dir": [
+          1.0,
+          0.0
+        ],
+        "walkway_side": 1
+      },
+      "installed": false
+    },
+    "endBinding": {
+      "id": "J047",
+      "rect": [
+        6.1,
+        150.6,
+        12.9,
+        157.4
+      ],
+      "mouth": {
+        "route": "L93",
+        "end": [
+          4.4,
+          154.079
+        ],
+        "dir": [
+          -1.0,
+          0.0
+        ],
+        "walkway_side": -1
+      },
+      "installed": false
+    }
+  }
+}

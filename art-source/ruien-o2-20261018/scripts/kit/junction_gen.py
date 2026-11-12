@@ -21,6 +21,7 @@ from kit.sweep import Section
 from kit import arch_rim as AR
 
 SEC = Section('M', 1)
+REPAIR_LAMPS = False
 P = dict(
     wall=0.5,            # room wall thickness (two bricks)
     walk=0.8,            # walkway width, as the rui's
@@ -80,7 +81,10 @@ def exit_point(a, b, rect):
         if abs(d[ax]) < 1e-9:
             continue
         s = (val - a[ax]) / d[ax]
-        if s <= 1e-6:
+        # An authored vertex may lie exactly on the wall. It is a valid exit when
+        # the segment heads outward; rejecting t=0 silently omitted its mouth.
+        outward = -1 if w in ('x0', 'z0') else 1
+        if s < -1e-6 or d[ax] * outward <= 0:
             continue
         p = a + d * s
         if inside(p, rect, 1e-6) and (best is None or s < best[0]):
@@ -122,7 +126,12 @@ def plan_bays(rect):
         arch_ok = n == 1 or (arch_top - P['corner_y']) / short >= P['min_arch']
         if flat_ok and arch_ok:
             break
-    edges = [(rect[1] if along == 'z' else rect[0]) + long_ * k / n for k in range(n + 1)]
+    else:
+        # No proportion fits a very wide chamber. The old fall-through always took eight bays, narrower than
+        # a mouth, and fit_mouths then pushed the mouths past the wall's end (J055_J085). Take the most bays
+        # that still hold a mouth with its ring and margin between two transverse arches.
+        n = max(1, min(8, int(long_ / (2 * (P['hw'] + P['ring_w'] + 0.4)))))
+    edges =[(rect[1] if along == 'z' else rect[0]) + long_ * k / n for k in range(n + 1)]
     bays = []
     for k in range(n):
         r = [rect[0], edges[k], rect[2], edges[k + 1]] if along == 'z' else [edges[k], rect[1], edges[k + 1], rect[3]]
@@ -157,7 +166,9 @@ def fit_mouths(rect, mouths, bays, over):
                 e -= off
                 if abs(m['t'] - e) < P['hw'] + P['ring_w'] + 0.4:
                     m['t'] = e - (P['hw'] + P['ring_w'] + 0.4) if m['t'] < e else e + (P['hw'] + P['ring_w'] + 0.4)
-        m['side'] = over.get(m['route'], {}).get('side', 0)
+        if lo <= hi and not lo - 1e-6 <= m['t'] <= hi + 1e-6:
+            raise ValueError('Mouth %s does not fit between the bay arches on wall %s' % (m['route'], m['wall']))
+        m['side'] =over.get(m['route'], {}).get('side', 0)
     return mouths
 
 def stair_numbers():
@@ -215,6 +226,11 @@ def stair_fits(rect, c, mouths, routes, on_street):
 def plan_stair(rect, mouths, routes, on_street, over):
     """Try every wall end for the corner arch; a mouth on the same wall may move up to 3 m off its line to make room."""
     access = over.get('stair', {})
+    if access.get('kind') == 'network':
+        # An ordinary buried junction has no independent street access. This point only anchors
+        # the perimeter walk solver; it must never become a wall hole, stair or hatch marker.
+        return dict(kind='network', wall=access.get('wall', 'z0'), end=access.get('end', 'lo'),
+                    t=access.get('t', 0.6))
     if access.get('connection'):
         if access.get('kind') != 'door' or not access.get('entrance'):
             raise RuntimeError('a door connection needs its surveyed entrance id')
@@ -509,13 +525,18 @@ def cdt(polys, holes=(), steiner=None, spacing=0.1):
             d = np.min([seg_dist(S, p) for p in list(polys) + list(holes)], 0)
             S = S[d > spacing * 0.35]
         verts += [tuple(p) for p in S]
-    out = MG.delaunay_2d_cdt([Vector(v) for v in verts], edges, [], 0, 1e-7)
-    V = np.array([tuple(v) for v in out[0]], float)
+    # Blender's vectors are single precision. Triangulate near the origin: millimetre
+    # constraints at world coordinates +/-350 m otherwise collapse at coarse-grid joins.
+    origin = np.mean(np.asarray(verts, float), axis=0)
+    out = MG.delaunay_2d_cdt([Vector(np.asarray(v)-origin) for v in verts], edges, [], 0, 1e-7)
+    V = np.array([tuple(v) for v in out[0]], float) + origin
     orig = out[3]
     for i, o in enumerate(orig):
         if len(o) and o[0] < len(verts):
             V[i] = verts[o[0]]
-    F = np.array([f for f in out[2] if len(f) == 3], np.int64)
+    F = np.array([f for f in out[2] if len(f) == 3], np.int64).reshape(-1, 3)
+    if len(F) == 0:
+        raise ValueError('Constrained triangulation produced no faces (%d vertices, %d edges)' % (len(verts), len(edges)))
     C = V[F].mean(1)
     keep = np.zeros(len(F), bool)
     for poly in polys:
@@ -592,7 +613,7 @@ def hole_top(room, w, t):
         e = P['spring'] + rr * np.sqrt(np.clip(1 - (s / hh) ** 2, 0, 1))
         y = np.where(np.abs(s) < hh, np.maximum(e, P['spring']), y)       # (#292) beside the feet too: the reveal stays open
     st = room.lay['stair']
-    if st['wall'] == w:
+    if st.get('kind') != 'network' and st['wall'] == w:
         s = t - st['t']; r = P['stair_w'] / 2 - 0.012 + P['hole']
         e = P['stair_spring'] + np.sqrt(np.clip(r * r - s * s, 0, None))
         y = np.where(np.abs(s) < r, np.maximum(e, P['stair_spring']), y)
@@ -608,7 +629,7 @@ def walk_covers(room, w, t):
             a, b = walk_part(m)
             on |= (t > a - 1e-6) & (t < b + 1e-6)
     st = room.lay['stair']
-    if st['wall'] == w:
+    if st.get('kind') != 'network' and st['wall'] == w:
         on |= np.abs(t - st['t']) < P['stair_w'] / 2 + 1e-6
     return on
 
@@ -619,7 +640,7 @@ def wall_breaks(room, w):
             b += [m['t'] - P['hw'], m['t'] + P['hw']] + list(walk_part(m))
             b += [m['t'] - P['hw'] + 0.01 - P['hole'], m['t'] + P['hw'] - 0.01 + P['hole']]
     st = room.lay['stair']
-    if st['wall'] == w:
+    if st.get('kind') != 'network' and st['wall'] == w:
         b += [st['t'] - P['stair_w'] / 2, st['t'] + P['stair_w'] / 2]
         b += [st['t'] - P['stair_w'] / 2 + 0.012 - P['hole'], st['t'] + P['stair_w'] / 2 - 0.012 + P['hole']]
     for r in room.lay['runs']:
@@ -724,7 +745,7 @@ def ceiling(room, T, mats, coll, rng, col):
     ob = mesh('%s_dome' % room.lay['room'], V, F, uv, coll, mats['brick_hallvault'], {'wxA': A, 'wxB': B, 'wxC': Cc})
     # collision: the same surface on a coarse grid (the dome is smooth; groins within a centimetre)
     Sg = grid_points(lo, hi, 0.15)
-    V2c, Fc = cdt([bound[::4]], holes, np.concatenate([Sg, Fq[::6]]), 0.15)
+    V2c, Fc = cdt([bound], holes, np.concatenate([Sg, Fq[::6]]), 0.15)
     yc, _, _ = room.ceil(V2c[:, 0], V2c[:, 1])
     col.append(('dome', np.stack([V2c[:, 0], yc, V2c[:, 1]], -1), Fc))
     return [ob]
@@ -798,7 +819,7 @@ def walls(room, T, mats, coll, rng, col):
         # down to its feet; below the springing the wall goes on behind the imposts and jambs
         spans = [(m['t'], P['hw'], P['hw'] - 0.01 + P['hole'], P['spring']) for m in room.mouths if m['wall'] == w]
         st = room.lay['stair']
-        if st['wall'] == w:
+        if st.get('kind') != 'network' and st['wall'] == w:
             spans.append((st['t'], P['stair_w'] / 2, P['stair_w'] / 2 - 0.012 + P['hole'], P['stair_spring']))
         for tc, h0, h1, ys in spans:
             for sd in (-1, 1):
@@ -1161,6 +1182,11 @@ def flat_quad(rect, w, t0, t1, d0, d1, y=None):
 def stair(room, mats, coll, rng, col, info):
     obs = []
     st = room.lay['stair']; rect = room.rect; rid = room.lay['room']
+    if st.get('kind') == 'network':
+        q = wpt(rect, st['wall'], st['t'], P['walk'] / 2)
+        anchor = [float(q[0]), SEC.ledge_y, float(q[1])]
+        info['stair'] = dict(kind='network', bottom=anchor, top=anchor, wall=st['wall'], t=st['t'])
+        return []
     w = st['wall']; p0, tv, n, L = wall_frame(rect, w)
     hw = P['stair_w'] / 2
     def pt(a, l, y):
@@ -1386,12 +1412,30 @@ def shafts(room, mats, coll, info):
     profile = [(.30, -.025), (.30, -.64), (.32, -.79), (.36, -.91), (.43, -1.01), (.52, -1.055),
                (.58, -1.05), (.60, -1.02), (.60, -.94), (.51, -.86), (.48, -.74), (.48, -.025)]
     for i, (gx, gz) in enumerate(room.lay['grates']):
-        dy = float(room.ceil(np.array([gx]), np.array([gz]))[0][0]) - P['apex_y']
-        prof = [(r, y + dy * U.smoothstep(-0.5, -0.94, y)) for r, y in profile]
-        n = 128; pts = []
-        for radius, y in prof:
+        ceil_c = float(room.ceil(np.array([gx]), np.array([gz]))[0][0])
+        dy = ceil_c - P['apex_y']
+        # Antigoon's 3.86 m capsule tops out at -1.02 over a rui bed. The authored rim hangs 15.5 cm under the
+        # vault and stopped him under every shaft near a mouth. In a rui room the rim now stops at the line
+        # below; where the whole vault round it lies lower it keeps more. A hall (bed -6.1) keeps the full rim.
+        line = getattr(room, 'shaft_rim_line', -0.975)
+        n = 128; angles = np.arange(n) * 2 * np.pi / n
+        drop = 0.155
+        if line is not None:
+            # under the highest vault the rim spans, where he passes, the rim stops at the line
+            high = max(ceil_c, float(np.max(room.ceil(gx + 0.6 * np.cos(angles), gz + 0.6 * np.sin(angles))[0])))
+            drop = float(np.clip(high - line, 0.012, 0.155))
+        scale = drop / 0.155
+        prof = [(r, (y if y > -0.9 else -0.9 + (y + 0.9) * scale) + dy * U.smoothstep(-0.5, -0.94, y)) for r, y in profile]
+        pts = []
+        for (radius, y), (_, y0) in zip(prof, profile):
+            # a rui room's rim follows the vault round the shaft (a lunette falls away beside its crown), so the
+            # rim hangs the same few centimetres under the masonry all round
+            ys = np.full(n, y)
+            if line is not None:
+                local = room.ceil(gx + radius * np.cos(angles), gz + radius * np.sin(angles))[0] - P['apex_y']
+                ys = y + (local - dy) * U.smoothstep(-0.5, -0.94, y0)
             for k in range(n):
-                a = k * 2 * np.pi / n; pts.append([gx + radius * np.cos(a), y, gz + radius * np.sin(a)])
+                a = angles[k]; pts.append([gx + radius * np.cos(a), float(ys[k]), gz + radius * np.sin(a)])
         faces = []; uv = []; down = 0
         for j, (radius, y) in enumerate(prof):
             k2 = (j + 1) % len(prof); r1, y1 = prof[k2]; step = math.hypot(r1 - radius, y1 - y)
@@ -1415,9 +1459,34 @@ def lamps(room, mats, coll, rng, info):
     for r in sorted(room.lay['runs'], key=lambda r: -(r['tb'] - r['ta'])):
         if r['wall'] != w and r['tb'] - r['ta'] > 1.2:
             spots.append((r['wall'], (r['ta'] + r['tb']) / 2)); break
+    repaired_spots=[]
     for k, (w, t) in enumerate(spots):
+        if REPAIR_LAMPS:
+            # Retain each lamp ID and use the nearest solid wall station that
+            # carries its bracket above a person's head, below the sail vault.
+            original=frame3(room,w,t,0,-1.7);candidates=[]
+            # (a two-mouth bend room has walkway only round one low corner: then any wall carries the lamp,
+            # over the water, as a rui's lamp faces its channel)
+            spans=[(run['wall'],run['ta'],run['tb'])for run in room.lay['runs']]
+            for attempt in (0,1):
+              if attempt and candidates:break
+              if attempt:spans=[(wall,0.0,wall_frame(rect,wall)[3])for wall in ('z0','x1','z1','x0')]
+              for wall,ta,tb in spans:
+                L=wall_frame(rect,wall)[3]
+                for tt in np.arange(max(.2,ta+.12),min(L-.2,tb-.12)+.001,.125):
+                      if any(m['wall']==wall and abs(tt-m['t'])<P['hw']+.13 for m in room.mouths):continue
+                      clear=True
+                      for depth in(.01,.15,.30):
+                          point=frame3(room,wall,tt,depth,0)
+                          if float(room.ceil(point[0],point[2])[0])< -1.67:clear=False;break
+                      if not clear:continue
+                      point=frame3(room,wall,tt,0,-1.7)
+                      if any(np.linalg.norm(point-p)<1.0 for p in repaired_spots):continue
+                      candidates.append((float(np.linalg.norm(point-original)),wall,float(tt),point))
+            if not candidates:raise ValueError('No overhead safety-lamp mounting station in '+room.lay['room'])
+            _,w,t,point=min(candidates,key=lambda v:v[0]);repaired_spots.append(point)
         p0, tv, n, L = wall_frame(rect, w)
-        yw = -2.0                     # the lantern hangs above head height over the walkway
+        yw = -1.7 if REPAIR_LAMPS else -2.0
         wall_pt = frame3(room, w, t, 0.0, yw)
         parts, hook = PR.lamp_bracket('%s_lamp_bracket_%d' % (room.lay['room'], k), wall_pt, np.array([-n[0], 0, -n[1]]), 0.24, mats['iron'], coll)
         lo, ll = PR.safety_lamp('%s_lamp_%d' % (room.lay['room'], k), mats, coll, light_power=150.0)
@@ -1524,7 +1593,7 @@ def markers(room, sources, info):
         out['daylight_openings'].append(dict(name='crown_%d' % i, kind='round_shaft', centre=[gx, -0.005, gz], radius_m=0.3,
                                              vault_opening=[gx, yv - 0.05, gz]))
     s = info['stair']
-    if s.get('kind') != 'door':
+    if s.get('kind') not in ('door', 'network'):
         out['daylight_openings'].append(dict(name='stair_hatch', kind='hatch', centre=[(s['hatch'][0] + s['hatch'][1]) / 2, 0.0, (s['hatch'][2] + s['hatch'][3]) / 2],
                                              size_m=[s['hatch'][1] - s['hatch'][0], s['hatch'][3] - s['hatch'][2]]))
         out['stairs'].append(dict(name='%s_stair' % room.lay['room'], bottom=s['bottom'], top=s['top'], hatch=s['hatch']))
@@ -1546,7 +1615,8 @@ def key_of(room, C):
     st = room.lay['stair']; p0, tv, n, L = wall_frame(rect, st['wall'])
     q = C[:, [0, 2]] - p0
     a = q @ n; l = q @ tv - st['t']
-    keys[(a > 0.05) & (np.abs(l) < 1.2)] = 'stair'
+    if st.get('kind') != 'network':
+        keys[(a > 0.05) & (np.abs(l) < 1.2)] = 'stair'
     for m in room.mouths:
         p0, tv, n, L = wall_frame(rect, m['wall'])
         q = C[:, [0, 2]] - p0

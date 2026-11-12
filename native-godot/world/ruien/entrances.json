@@ -1,1058 +1,4065 @@
 {
- "about": "Ways down into the Ruien from the street (docs/ruien-native.md, Entrances). One entry per entrance: the kit (RuienEntrance.cs) builds the door, the stair and the closed landing from it. World metres, +x north, +z east. 'door' is the middle of the doorway on the wall's face at street level, 'out' the face's normal toward the street. Chosen by Steve 2026-11-02 from the RE-entrances survey (its number is 'survey').",
- "defaults": {
-  "riser": 0.18,
-  "pitchDeg": 35,
-  "topLanding": 1.5,
-  "bottomLanding": 1.5,
-  "lining": 0.28,
-  "spring": 2.25,
-  "vaultRise": 0.32
- },
- "entrances": [
-  {
-   "id": "re06_rode_poort",
-   "survey": 6,
-   "name": "Rode Poort gate house door",
-   "host": "gate_house",
-   "door": [
-    223.366,
-    127.455
-   ],
-   "out": [
-    -0.9986,
-    0.0528
-   ],
-   "street": 0.0,
-   "depth": -3.9,
-   "line": "L16",
-   "layout": "I",
-   "flight": "in",
-   "closure": "grille",
-   "closureSide": "right",
-   "wall": 1.2,
-   "width": 1.5,
-   "doorWidth": 1.49,
-   "doorHeight": 2.45,
-   "post": 0.11,
-   "head": "flat",
-   "frame": "oak",
-   "spring": 2.85,
-   "keepAbove": 2.76,
-   "cut": [
-    "gate_rode_poort_"
-   ],
-   "clear": [
-    "gate_rode_poort_7"
-   ],
-   "foliage": [
-    "wall_climbers_",
-    "rampart_plants_",
-    "rampart_leaves_"
-   ],
-   "foliageMaterials": [
-    "park_leaves"
-   ],
-   "note": "Carts pass through the gate passage 4 m away: the door must open inward.; the drawn door is replaced by the kit's oak frame and leaf under the old hood"
+  "about": "Ways down into the Ruien from the street (docs/ruien-native.md, Entrances). One entry per entrance: the kit (RuienEntrance.cs) builds the door, the stair and the closed landing from it. World metres, +x north, +z east. 'door' is the middle of the doorway on the wall's face at street level, 'out' the face's normal toward the street. Chosen by Steve 2026-11-02 from the RE-entrances survey (its number is 'survey').",
+  "defaults": {
+    "riser": 0.18,
+    "pitchDeg": 35,
+    "topLanding": 1.5,
+    "bottomLanding": 1.5,
+    "lining": 0.28,
+    "spring": 2.25,
+    "vaultRise": 0.32
   },
-  {
-   "id": "re07_entrepot",
-   "survey": 7,
-   "name": "Rampart door by the Entrepot",
-   "host": "rampart",
-   "door": [
-    209.939,
-    12.499
-   ],
-   "out": [
-    -0.987,
-    0.161
-   ],
-   "street": 0.0,
-   "depth": -3.6,
-   "line": "L18",
-   "layout": "L",
-   "flight": "right",
-   "closure": "grille",
-   "closureSide": "street",
-   "wall": 0.9,
-   "width": 1.3,
-   "doorWidth": 1.2,
-   "doorHeight": 2.0,
-   "post": 0.08,
-   "head": "arch",
-   "frame": "bluestone",
-   "cut": [
-    "wall_chunk_"
-   ],
-   "foliage": [
-    "wall_climbers_",
-    "rampart_plants_",
-    "rampart_leaves_"
-   ],
-   "note": "nothing else uses this wall"
-  },
-  {
-   "id": "re08_north_hall",
-   "survey": 8,
-   "name": "Rampart door by the north hall",
-   "host": "rampart",
-   "door": [
-    220.671,
-    271.78
-   ],
-   "out": [
-    -0.992,
-    -0.123
-   ],
-   "street": 0.0,
-   "depth": -3.6,
-   "line": "L17",
-   "layout": "L",
-   "flight": "right",
-   "closure": "grille",
-   "closureSide": "street",
-   "wall": 0.9,
-   "width": 1.3,
-   "doorWidth": 1.2,
-   "doorHeight": 2.0,
-   "post": 0.08,
-   "head": "arch",
-   "frame": "bluestone",
-   "cut": [
-    "wall_chunk_"
-   ],
-   "foliage": [
-    "wall_climbers_",
-    "rampart_plants_",
-    "rampart_leaves_"
-   ],
-   "note": "nothing else uses this wall"
-  },
-  {
-   "id": "re09_keizerspoort",
-   "survey": 9,
-   "name": "Rampart door west of the Keizerspoort",
-   "host": "rampart",
-   "door": [
-    37.273,
-    348.617
-   ],
-   "out": [
-    -0.045,
-    -0.999
-   ],
-   "street": 0.0,
-   "depth": -3.6,
-   "line": "L63",
-   "layout": "L",
-   "flight": "right",
-   "closure": "bricked",
-   "closureSide": "street",
-   "wall": 0.9,
-   "width": 1.3,
-   "doorWidth": 1.2,
-   "doorHeight": 2.0,
-   "post": 0.08,
-   "head": "arch",
-   "frame": "bluestone",
-   "cut": [
-    "wall_chunk_"
-   ],
-   "foliage": [
-    "wall_climbers_",
-    "rampart_plants_",
-    "rampart_leaves_"
-   ],
-   "note": "The rampart steps land 2.4 m north of the door: keep their foot clear."
-  },
-  {
-   "id": "re10_kipdorppoort",
-   "survey": 10,
-   "name": "Kipdorppoort gate house door",
-   "host": "gate_house",
-   "door": [
-    -149.699,
-    347.612
-   ],
-   "out": [
-    0.0432,
-    -0.9991
-   ],
-   "street": 0.0,
-   "depth": -3.9,
-   "line": "L22",
-   "layout": "I",
-   "flight": "in",
-   "closure": "bricked",
-   "closureSide": "right",
-   "wall": 1.2,
-   "width": 1.5,
-   "doorWidth": 1.49,
-   "doorHeight": 2.45,
-   "post": 0.11,
-   "head": "flat",
-   "frame": "oak",
-   "spring": 2.85,
-   "keepAbove": 2.76,
-   "cut": [
-    "gate_kipdorppoort_"
-   ],
-   "clear": [
-    "gate_kipdorppoort_7"
-   ],
-   "foliage": [
-    "wall_climbers_",
-    "rampart_plants_",
-    "rampart_leaves_"
-   ],
-   "foliageMaterials": [
-    "park_leaves"
-   ],
-   "note": "Ruien gate F1 Kipdorp flush sluice (7.3 m); The Kipdorppoort passage is 6 m away (carts): the door opens inward.; the drawn door is replaced by the kit's oak frame and leaf under the old hood"
-  },
-  {
-   "id": "re11_werf",
-   "survey": 11,
-   "name": "Rampart door by the Werf",
-   "host": "rampart",
-   "door": [
-    -352.787,
-    56.185
-   ],
-   "out": [
-    0.996,
-    0.085
-   ],
-   "street": 0.0,
-   "depth": -3.6,
-   "line": "L73",
-   "layout": "L",
-   "flight": "right",
-   "closure": "bricked",
-   "closureSide": "street",
-   "wall": 0.9,
-   "width": 1.3,
-   "doorWidth": 1.2,
-   "doorHeight": 2.0,
-   "post": 0.08,
-   "head": "arch",
-   "frame": "bluestone",
-   "cut": [
-    "wall_chunk_"
-   ],
-   "foliage": [
-    "wall_climbers_",
-    "rampart_plants_",
-    "rampart_leaves_"
-   ],
-   "note": "nothing else uses this wall"
-  },
-  {
-   "id": "re12_prison",
-   "survey": 12,
-   "name": "Rampart door behind the prison",
-   "host": "rampart",
-   "door": [
-    -360.455,
-    253.551
-   ],
-   "out": [
-    0.993,
-    -0.116
-   ],
-   "street": 0.0,
-   "depth": -3.9,
-   "line": "L31",
-   "layout": "L",
-   "flight": "right",
-   "closure": "grille",
-   "closureSide": "street",
-   "wall": 0.9,
-   "width": 1.3,
-   "doorWidth": 1.2,
-   "doorHeight": 2.0,
-   "post": 0.08,
-   "head": "arch",
-   "frame": "bluestone",
-   "cut": [
-    "wall_chunk_"
-   ],
-   "foliage": [
-    "wall_climbers_",
-    "rampart_plants_",
-    "rampart_leaves_"
-   ],
-   "note": "nothing else uses this wall"
-  },
-  {
-   "id": "re13_vestrui",
-   "survey": 13,
-   "name": "Rampart door on the Vestrui",
-   "host": "rampart",
-   "door": [
-    -223.35,
-    345.922
-   ],
-   "out": [
-    0.043,
-    -0.999
-   ],
-   "street": 0.0,
-   "depth": -3.9,
-   "line": "L35",
-   "layout": "L",
-   "flight": "right",
-   "closure": "bricked",
-   "closureSide": "street",
-   "wall": 0.9,
-   "width": 1.3,
-   "doorWidth": 1.2,
-   "doorHeight": 2.0,
-   "post": 0.08,
-   "head": "arch",
-   "frame": "bluestone",
-   "cut": [
-    "wall_chunk_"
-   ],
-   "foliage": [
-    "wall_climbers_",
-    "rampart_plants_",
-    "rampart_leaves_"
-   ],
-   "note": "nothing else uses this wall"
-  },
-  {
-   "id": "re14_rode_poort_rui",
-   "survey": 14,
-   "name": "Rampart door on the Rode Poort rui",
-   "host": "rampart",
-   "door": [
-    228.412,
-    194.139
-   ],
-   "out": [
-    -0.999,
-    0.053
-   ],
-   "street": 0.0,
-   "depth": -3.9,
-   "line": "L16",
-   "layout": "L",
-   "flight": "right",
-   "closure": "grille",
-   "closureSide": "street",
-   "wall": 0.9,
-   "width": 1.3,
-   "doorWidth": 1.2,
-   "doorHeight": 2.0,
-   "post": 0.08,
-   "head": "arch",
-   "frame": "bluestone",
-   "cut": [
-    "wall_chunk_"
-   ],
-   "foliage": [
-    "wall_climbers_",
-    "rampart_plants_",
-    "rampart_leaves_"
-   ],
-   "note": "nothing else uses this wall"
-  },
-  {
-   "street": 0.0,
-   "width": 1.3,
-   "doorWidth": 1.1,
-   "doorHeight": 2.0,
-   "post": 0.08,
-   "head": "flat",
-   "cut": [
-    "city_",
-    "streetlife_",
-    "posters_",
-    "clutter_decals",
-    "ambient_windows"
-   ],
-   "id": "re01_sint_joris_poort",
-   "survey": 1,
-   "name": "Side door in the Sint-Jorispoort passage",
-   "host": "passage",
-   "frame": "passage",
-   "door": [
-    -312.5,
-    142.96
-   ],
-   "out": [
-    0.0,
-    -1.0
-   ],
-   "depth": -3.6,
-   "line": "L111",
-   "layout": "L",
-   "flight": "right",
-   "closure": "grille",
-   "closureSide": "back",
-   "wall": 0.4,
-   "approach": 0.9,
-   "house": 677,
-   "from": [
-    [
-     -305.8,
-     142.06
-    ],
-    [
-     -309.4,
-     142.06
-    ]
-   ],
-   "note": "In the passage's north wall (house 677, no interior); the stair runs west inside the house, the landing's grille faces the gallery 5 m north. The leaf opens into the stair: the passage stays clear."
-  },
-  {
-   "street": 0.0,
-   "width": 1.3,
-   "doorWidth": 1.1,
-   "doorHeight": 2.0,
-   "post": 0.08,
-   "head": "flat",
-   "cut": [
-    "city_",
-    "streetlife_",
-    "posters_",
-    "clutter_decals",
-    "ambient_windows"
-   ],
-   "id": "re02_keizerspoort_poort",
-   "survey": 2,
-   "name": "Side door in the passage by the Keizerspoort",
-   "host": "passage",
-   "frame": "passage",
-   "door": [
-    49.5,
-    326.68
-   ],
-   "out": [
-    -0.0645,
-    -0.9979
-   ],
-   "depth": -3.6,
-   "line": "L62",
-   "layout": "L",
-   "flight": "left",
-   "closure": "grille",
-   "closureSide": "end",
-   "wall": 0.4,
-   "approach": 0.9,
-   "house": 308,
-   "from": [
-    [
-     60.0,
-     323.0
-    ],
-    [
-     58.4,
-     325.2
-    ]
-   ],
-   "note": "In the passage's north wall (house 308, no interior); the stair runs east toward the Keizersrui gallery under the street (5 m from the landing's grille); the sluice keeper's stair S18 is 16 m north."
-  },
-  {
-   "street": 0.0,
-   "width": 1.3,
-   "doorWidth": 1.1,
-   "doorHeight": 2.0,
-   "post": 0.08,
-   "head": "flat",
-   "cut": [
-    "city_",
-    "streetlife_",
-    "posters_",
-    "clutter_decals",
-    "ambient_windows"
-   ],
-   "id": "re03_kanaalrui_poort",
-   "survey": 3,
-   "name": "Side door in the gateway on the Kanaalrui",
-   "host": "passage",
-   "frame": "passage",
-   "door": [
-    -81.21,
-    220.0
-   ],
-   "out": [
-    -1.0,
-    0.0
-   ],
-   "depth": -3.6,
-   "line": "L46",
-   "layout": "L",
-   "flight": "left",
-   "closure": "bricked",
-   "closureSide": "end",
-   "wall": 0.4,
-   "approach": 0.9,
-   "house": 395,
-   "from": [
-    [
-     -82.11,
-     208.6
-    ],
-    [
-     -82.11,
-     211.6
-    ]
-   ],
-   "note": "In the passage's east wall (house 395, no interior); the stair runs south toward the Kanaalrui gallery under the canal street, the landing bricked up facing it."
-  },
-  {
-   "street": 0.0,
-   "width": 1.3,
-   "doorWidth": 1.1,
-   "doorHeight": 2.0,
-   "post": 0.08,
-   "head": "flat",
-   "cut": [
-    "city_",
-    "streetlife_",
-    "posters_",
-    "clutter_decals",
-    "ambient_windows"
-   ],
-   "id": "re04_sint_jansplein_poort",
-   "survey": 4,
-   "name": "Side door in the covered passage by Sint-Jansplein",
-   "host": "passage",
-   "frame": "passage",
-   "door": [
-    -17.0,
-    289.14
-   ],
-   "out": [
-    -0.0575,
-    -0.9983
-   ],
-   "depth": -3.9,
-   "line": "L66",
-   "layout": "L",
-   "flight": "right",
-   "closure": "grille",
-   "closureSide": "end",
-   "wall": 0.4,
-   "approach": 0.9,
-   "house": 287,
-   "from": [
-    [
-     -29.4,
-     288.9
-    ],
-    [
-     -26.4,
-     288.75
-    ]
-   ],
-   "note": "In the passage's north wall (house 287, no interior); the stair runs west toward the Jacobsrui under the street; the inn's cellar hatch on the pavement (x -26) stays clear north of the stair."
-  },
-  {
-   "street": 0.0,
-   "width": 1.3,
-   "doorWidth": 0.92,
-   "doorHeight": 1.95,
-   "post": 0.065,
-   "head": "flat",
-   "cut": [
-    "city_",
-    "streetlife_",
-    "posters_",
-    "clutter_decals",
-    "ambient_windows"
-   ],
-   "id": "re17_kipdorprui_cottage",
-   "survey": 17,
-   "name": "Cellar door in a cottage gable on the Kipdorprui",
-   "door": [
-    -169.65,
-    230.07
-   ],
-   "out": [
-    -0.844,
-    0.537
-   ],
-   "line": "L84",
-   "closureSide": "left",
-   "house": [
-    1063,
-    568
-   ],
-   "note": "Between the gable's two windows; a steep cellar stair straight in across the cottage (no interior); its top runs on into the empty house behind (568, no interior); the landing bricked up facing the Kipdorprui under the front street.",
-   "host": "house",
-   "frame": "house",
-   "layout": "I",
-   "flight": "in",
-   "depth": -3.9,
-   "wall": 0.5,
-   "pitchDeg": 45,
-   "topLanding": 0.7,
-   "bottomLanding": 1.3,
-   "spring": 2.15,
-   "vaultRise": 0.3,
-   "openDeg": 96,
-   "closure": "bricked"
-  },
-  {
-   "street": 0.0,
-   "width": 1.3,
-   "doorWidth": 1.1,
-   "doorHeight": 2.0,
-   "post": 0.08,
-   "head": "flat",
-   "cut": [
-    "city_",
-    "streetlife_",
-    "posters_",
-    "clutter_decals",
-    "ambient_windows"
-   ],
-   "id": "re18_paulusrui_house",
-   "survey": 18,
-   "name": "Side door in a house wall on the Paulusrui",
-   "host": "house",
-   "frame": "house",
-   "door": [
-    28.11,
-    115.07
-   ],
-   "out": [
-    0.992,
-    0.129
-   ],
-   "depth": -3.9,
-   "line": "L70",
-   "layout": "L",
-   "flight": "left",
-   "closure": "grille",
-   "closureSide": "street",
-   "wall": 0.4,
-   "house": 755,
-   "note": "On the plain side wall round the corner from the wine shop front (house 755, no interior); the stair runs north inside the house, the landing's grille faces the Paulusrui under the street."
-  },
-  {
-   "street": 0.0,
-   "width": 1.3,
-   "doorWidth": 0.92,
-   "doorHeight": 1.95,
-   "post": 0.065,
-   "head": "flat",
-   "cut": [
-    "city_",
-    "streetlife_",
-    "posters_",
-    "clutter_decals",
-    "ambient_windows"
-   ],
-   "id": "re20_kanaalrui_cottage",
-   "survey": 20,
-   "name": "Cellar door in a cottage gable on the Kanaalrui",
-   "door": [
-    -45.68,
-    221.7
-   ],
-   "out": [
-    0.961,
-    0.276
-   ],
-   "line": "L39",
-   "closureSide": "right",
-   "house": 1057,
-   "note": "Between the gable's two windows, the pump 4 m off; a steep cellar stair straight in (no interior), the landing bricked up facing the Kanaalrui to the south.",
-   "host": "house",
-   "frame": "house",
-   "layout": "I",
-   "flight": "in",
-   "depth": -3.9,
-   "wall": 0.5,
-   "pitchDeg": 45,
-   "topLanding": 0.7,
-   "bottomLanding": 1.3,
-   "spring": 2.15,
-   "vaultRise": 0.3,
-   "openDeg": 96,
-   "closure": "bricked"
-  },
-  {
-   "street": 0.0,
-   "width": 1.3,
-   "doorWidth": 0.92,
-   "doorHeight": 1.95,
-   "post": 0.065,
-   "head": "flat",
-   "cut": [
-    "city_",
-    "streetlife_",
-    "posters_",
-    "clutter_decals",
-    "ambient_windows"
-   ],
-   "id": "re21_entrepotrui_cottage",
-   "survey": 21,
-   "name": "Cellar door in a cottage gable on the Entrepotrui",
-   "door": [
-    179.8,
-    250.55
-   ],
-   "out": [
-    0.566,
-    0.825
-   ],
-   "line": "L98",
-   "closureSide": "right",
-   "house": [
-    1022,
-    1021
-   ],
-   "note": "Between the gable's two windows; the cottage is 3.7 m deep, so the stair's top runs on into the empty cottage behind (1021, no interior); the landing bricked up facing the Entrepotrui.",
-   "host": "house",
-   "frame": "house",
-   "layout": "I",
-   "flight": "in",
-   "depth": -3.9,
-   "wall": 0.5,
-   "pitchDeg": 45,
-   "topLanding": 0.7,
-   "bottomLanding": 1.3,
-   "spring": 2.15,
-   "vaultRise": 0.3,
-   "openDeg": 96,
-   "closure": "bricked"
-  },
-  {
-   "id": "re24_steenplein",
-   "survey": 24,
-   "name": "Stair-house on the Steenplein",
-   "host": "stair_house",
-   "door": [
-    -208.45,
-    14.91
-   ],
-   "out": [
-    0.0278,
-    -0.9996
-   ],
-   "street": 0.0,
-   "depth": -3.6,
-   "line": "L28",
-   "layout": "I",
-   "flight": "in",
-   "closure": "grille",
-   "closureSide": "left",
-   "wall": 0.34,
-   "width": 1.3,
-   "doorWidth": 1.1,
-   "doorHeight": 2.0,
-   "post": 0.08,
-   "head": "arch",
-   "frame": "bluestone",
-   "topLanding": 1.2,
-   "note": "On the Steenplein by the trees, 6 m from the Suikerrui gallery (room for the gate's niche); the door faces the square, clear of the quay lanes and goods piles; the Werf watch walks round it."
-  },
-  {
-   "id": "re27_werf",
-   "survey": 27,
-   "name": "Stair-house on the Werf",
-   "host": "stair_house",
-   "door": [
-    -301.2,
-    58.58
-   ],
-   "out": [
-    -0.999,
-    -0.0454
-   ],
-   "street": 0.0,
-   "depth": -3.6,
-   "line": "L7",
-   "layout": "I",
-   "flight": "in",
-   "closure": "bricked",
-   "closureSide": "right",
-   "wall": 0.34,
-   "width": 1.3,
-   "doorWidth": 1.1,
-   "doorHeight": 2.0,
-   "post": 0.08,
-   "head": "arch",
-   "frame": "bluestone",
-   "topLanding": 1.2,
-   "note": "On the Werf square, the stair along the Werfrui gallery; the door faces the open square."
-  },
-  {
-   "id": "re28_rijnkaai",
-   "survey": 28,
-   "name": "Stair-house on the Rijnkaai",
-   "host": "stair_house",
-   "door": [
-    39.75,
-    31.89
-   ],
-   "out": [
-    -1,
-    0
-   ],
-   "street": 0.0,
-   "depth": -3.9,
-   "line": "L33",
-   "layout": "I",
-   "flight": "in",
-   "closure": "bricked",
-   "closureSide": "left",
-   "wall": 0.34,
-   "width": 1.3,
-   "doorWidth": 1.1,
-   "doorHeight": 2.0,
-   "post": 0.08,
-   "head": "arch",
-   "frame": "bluestone",
-   "topLanding": 1.2,
-   "note": "Aligned with the quay flagstone courses. Reserved city-works apron; the full roof, drainage and 1.6 m door approach stay outside railways, crane tracks and the fixed vehicle corridors."
-  },
-  {
-   "id": "re29_sint_paulus",
-   "survey": 29,
-   "name": "Stair-house by Sint-Paulus",
-   "host": "stair_house",
-   "door": [
-    150.7,
-    272.92
-   ],
-   "out": [
-    0.2195,
-    0.9756
-   ],
-   "street": 0.0,
-   "depth": -3.9,
-   "line": "L100",
-   "layout": "I",
-   "flight": "in",
-   "closure": "bricked",
-   "closureSide": "right",
-   "wall": 0.34,
-   "width": 1.3,
-   "doorWidth": 1.1,
-   "doorHeight": 2.0,
-   "post": 0.08,
-   "head": "arch",
-   "frame": "bluestone",
-   "topLanding": 1.2,
-   "note": "Retired street obstruction. The connected R1 facade doorway serves Sint-Paulus; retain this permanent survey ID.",
-   "enabled": false,
-   "supersededBy": "r1_paulus"
-  },
-  {
-   "id": "re30_hanseatic",
-   "survey": 30,
-   "name": "Stair-house on the green by the Hanseatic House",
-   "host": "stair_house",
-   "door": [
-    78.64,
-    199.12
-   ],
-   "out": [
-    0.995,
-    0.0995
-   ],
-   "street": 0.0,
-   "depth": -3.9,
-   "line": "L51",
-   "layout": "I",
-   "flight": "in",
-   "closure": "bricked",
-   "closureSide": "left",
-   "wall": 0.34,
-   "width": 1.3,
-   "doorWidth": 1.1,
-   "doorHeight": 2.0,
-   "post": 0.08,
-   "head": "arch",
-   "frame": "bluestone",
-   "topLanding": 1.2,
-   "note": "Turned to the south side of the rui and moved 6 m: the survey spot was hard by an elm. The door faces north onto the green."
-  },
-  {
-   "id": "re31_kipdorp",
-   "survey": 31,
-   "name": "Stair-house on the Kipdorp green",
-   "host": "stair_house",
-   "door": [
-    -174.9,
-    289.63
-   ],
-   "out": [
-    0.0665,
-    0.9978
-   ],
-   "street": 0.0,
-   "depth": -3.9,
-   "line": "L57",
-   "layout": "I",
-   "flight": "in",
-   "closure": "bricked",
-   "closureSide": "left",
-   "wall": 0.34,
-   "width": 1.3,
-   "doorWidth": 1.1,
-   "doorHeight": 2.0,
-   "post": 0.08,
-   "head": "arch",
-   "frame": "bluestone",
-   "topLanding": 1.2,
-   "note": "On the Kipdorp green, the stair along the Kipdorprui; the door faces east, clear of the elm; the children's chalk pitch finds free green beside it."
-  },
-  {
-   "id": "re32_stadspark",
-   "survey": 32,
-   "name": "Stair-house on the green by the Stadspark",
-   "host": "stair_house",
-   "door": [
-    -221.34,
-    319.08
-   ],
-   "out": [
-    0.0208,
-    -0.9998
-   ],
-   "street": 0.0,
-   "depth": -3.9,
-   "line": "L34",
-   "layout": "I",
-   "flight": "in",
-   "closure": "bricked",
-   "closureSide": "left",
-   "wall": 0.34,
-   "width": 1.3,
-   "doorWidth": 1.1,
-   "doorHeight": 2.0,
-   "post": 0.08,
-   "head": "arch",
-   "frame": "bluestone",
-   "topLanding": 1.2,
-   "note": "On the green by the Stadspark, the stair along the Vestrui; the door faces west onto the path; the children's chalk pitch finds free green beside it."
-  },
-  {
-   "id": "re33_lijnwaadmarkt",
-   "survey": 33,
-   "name": "Stair-house on the Lijnwaadmarkt",
-   "host": "stair_house",
-   "door": [
-    -214.25,
-    147.04
-   ],
-   "out": [
-    -0.0061,
-    -1.0
-   ],
-   "street": 0.0,
-   "depth": -3.6,
-   "line": "L42",
-   "layout": "I",
-   "flight": "in",
-   "closure": "bricked",
-   "closureSide": "right",
-   "wall": 0.34,
-   "width": 1.3,
-   "doorWidth": 1.1,
-   "doorHeight": 2.0,
-   "post": 0.08,
-   "head": "arch",
-   "frame": "bluestone",
-   "topLanding": 1.2,
-   "note": "On the Lijnwaadmarkt, the stair along the Lijnwaadrui gallery, off the paths and benches."
-  },
-  {
-   "id": "r1_paulus",
-   "name": "R1 city-works cellar door",
-   "host": "house",
-   "line": "R1",
-   "layout": "L",
-   "flight": "left",
-   "closure": "open",
-   "closureSide": "street",
-   "head": "flat",
-   "frame": "existing",
-   "door": [
-    162.71388638799573,
-    301.475
-   ],
-   "out": [
-    -0.97022,
-    -0.24224
-   ],
-   "street": 0,
-   "depth": -3.9,
-   "wall": 0.42,
-   "width": 1.3,
-   "doorWidth": 1.08,
-   "doorHeight": 2.0,
-   "topLanding": 1.5,
-   "bottomLanding": 1.5,
-   "cut": [
-    "city_"
-   ],
-   "approach": 0.9,
-   "openDeg": 86,
-   "notes": "Reuses the decorative doorway of house 82, outside the bakery shopfront. Native house 82 has no authored interior. Original stone surround and fanlight retained; inward-opening oak leaf replaces the closed decorative leaf."
-  },
-  {
-   "id": "o2_vleeshuis_door",
-   "name": "O2 cellar door beside Vleeshuis",
-   "host": "house",
-   "line": "C2",
-   "layout": "I",
-   "flight": "in",
-   "closure": "open",
-   "closureSide": "left",
-   "head": "flat",
-   "frame": "existing",
-   "door": [
-    -157.78735,
-    132.0
-   ],
-   "out": [
-    0,
-    -1
-   ],
-   "street": 0,
-   "depth": -3.6,
-   "wall": 0.42,
-   "width": 1.3,
-   "doorWidth": 1.08,
-   "doorHeight": 2,
-   "pitchDeg": 45,
-   "topLanding": 0.8,
-   "bottomLanding": 1.5,
-   "cut": [
-    "city_"
-   ],
-   "approach": 0.9,
-   "openDeg": 86,
-   "connectArea": "o2",
-   "connectLength": 1.8,
-   "house": [
-    579
-   ],
-   "notes": "Existing decorative house 579 doorway, outside the neighbouring shop. Inward leaf and buried stair; side arch opens onto a supported maintenance walk joining the existing hall bridge. Replaces both unsafe road hatches. The projecting 260 mm threshold is lowered to a 25 mm worn sill within the retained surround.",
-   "lowerSill": true,
-   "underpass": {
-    "from": [
-     -158.8,
-     -3.6,
-     132.3
-    ],
-    "to": [
-     -156.6,
-     -3.6,
-     132.3
-    ],
-    "width": 1.13,
-    "bed": -5.85
-   }
-  }
- ]
+  "entrances": [
+    {
+      "id": "re06_rode_poort",
+      "survey": 6,
+      "name": "Rode Poort gate house door",
+      "host": "gate_house",
+      "door": [
+        223.366,
+        127.455
+      ],
+      "out": [
+        -0.9986,
+        0.0528
+      ],
+      "street": 0.0,
+      "depth": -3.9,
+      "line": "L16",
+      "layout": "I",
+      "flight": "in",
+      "closure": "open",
+      "closureSide": "right",
+      "wall": 1.2,
+      "width": 1.5,
+      "doorWidth": 1.49,
+      "doorHeight": 2.45,
+      "post": 0.11,
+      "head": "flat",
+      "frame": "oak",
+      "spring": 2.85,
+      "keepAbove": 2.76,
+      "cut": [
+        "gate_rode_poort_"
+      ],
+      "clear": [
+        "gate_rode_poort_7"
+      ],
+      "foliage": [
+        "wall_climbers_",
+        "rampart_plants_",
+        "rampart_leaves_"
+      ],
+      "foliageMaterials": [
+        "park_leaves"
+      ],
+      "note": "Carts pass through the gate passage 4 m away: the door must open inward.; the drawn door is replaced by the kit's oak frame and leaf under the old hood",
+      "connectArea": "network_l16",
+      "connectLength": 11.56932,
+      "connectPath": [
+        [
+          232.4128,
+          -3.9,
+          127.72771
+        ],
+        [
+          232.4211330325071,
+          -3.9,
+          127.885312422855
+        ],
+        [
+          232.42946606501417,
+          -3.9,
+          128.04291484571
+        ],
+        [
+          232.43779909752126,
+          -3.9,
+          128.20051726856494
+        ],
+        [
+          232.44613213002836,
+          -3.9,
+          128.35811969141994
+        ],
+        [
+          232.45446516253546,
+          -3.9,
+          128.51572211427492
+        ],
+        [
+          232.46279819504252,
+          -3.9,
+          128.6733245371299
+        ],
+        [
+          232.46911086140926,
+          -3.9,
+          128.83099106018815
+        ],
+        [
+          232.4560188758688,
+          -3.9,
+          128.98811264838977
+        ],
+        [
+          232.41954625220518,
+          -3.9,
+          129.14150223856166
+        ],
+        [
+          232.36051545169298,
+          -3.9,
+          129.28770077152558
+        ],
+        [
+          232.280257638621,
+          -3.9,
+          129.42341134740323
+        ],
+        [
+          232.180582662386,
+          -3.9,
+          129.54557357276445
+        ],
+        [
+          232.06373824498132,
+          -3.9,
+          129.6514325745397
+        ],
+        [
+          231.93235929420288,
+          -3.9,
+          129.73860112440133
+        ],
+        [
+          231.789408485563,
+          -3.9,
+          129.80511347267787
+        ],
+        [
+          231.63810945279803,
+          -3.9,
+          129.8494696778153
+        ],
+        [
+          231.4823025999732,
+          -3.9,
+          129.8743828830211
+        ],
+        [
+          231.32609695811271,
+          -3.9,
+          129.89691642627295
+        ],
+        [
+          231.16989131625223,
+          -3.9,
+          129.9194499695248
+        ],
+        [
+          231.01368567439175,
+          -3.9,
+          129.9419835127766
+        ],
+        [
+          230.8574800325313,
+          -3.9,
+          129.96451705602846
+        ],
+        [
+          230.70127439067082,
+          -3.9,
+          129.9870505992803
+        ],
+        [
+          230.54506874881034,
+          -3.9,
+          130.00958414253216
+        ],
+        [
+          230.38886310694986,
+          -3.9,
+          130.03211768578402
+        ],
+        [
+          230.2326574650894,
+          -3.9,
+          130.05465122903584
+        ],
+        [
+          230.07645182322892,
+          -3.9,
+          130.0771847722877
+        ],
+        [
+          229.92024618136844,
+          -3.9,
+          130.09971831553952
+        ],
+        [
+          229.76404053950796,
+          -3.9,
+          130.12225185879137
+        ],
+        [
+          229.6078348976475,
+          -3.9,
+          130.14478540204323
+        ],
+        [
+          229.45162925578703,
+          -3.9,
+          130.16731894529508
+        ],
+        [
+          229.29542361392654,
+          -3.9,
+          130.18985248854693
+        ],
+        [
+          229.1392179720661,
+          -3.9,
+          130.2123860317988
+        ],
+        [
+          228.9830123302056,
+          -3.9,
+          130.23491957505064
+        ],
+        [
+          228.82680668834513,
+          -3.9,
+          130.25745311830244
+        ],
+        [
+          228.67060104648465,
+          -3.9,
+          130.2799866615543
+        ],
+        [
+          228.51439540462417,
+          -3.9,
+          130.30252020480614
+        ],
+        [
+          228.35818976276374,
+          -3.9,
+          130.325053748058
+        ],
+        [
+          228.20198412090326,
+          -3.9,
+          130.34758729130982
+        ],
+        [
+          228.04577847904278,
+          -3.9,
+          130.37012083456167
+        ],
+        [
+          227.8895728371823,
+          -3.9,
+          130.39265437781353
+        ],
+        [
+          227.73336719532185,
+          -3.9,
+          130.41518792106535
+        ],
+        [
+          227.57716155346137,
+          -3.9,
+          130.4377214643172
+        ],
+        [
+          227.42095591160088,
+          -3.9,
+          130.46025500756903
+        ],
+        [
+          227.2647502697404,
+          -3.9,
+          130.48278855082089
+        ],
+        [
+          227.10854462787995,
+          -3.9,
+          130.50532209407274
+        ],
+        [
+          226.95233898601947,
+          -3.9,
+          130.5278556373246
+        ],
+        [
+          226.796133344159,
+          -3.9,
+          130.55038918057642
+        ],
+        [
+          226.6399277022985,
+          -3.9,
+          130.57292272382827
+        ],
+        [
+          226.48372206043805,
+          -3.9,
+          130.5954562670801
+        ],
+        [
+          226.32751641857757,
+          -3.9,
+          130.61798981033198
+        ],
+        [
+          226.1713107767171,
+          -3.9,
+          130.6405233535838
+        ],
+        [
+          226.0151051348566,
+          -3.9,
+          130.66305689683566
+        ],
+        [
+          225.85889949299616,
+          -3.9,
+          130.6855904400875
+        ],
+        [
+          225.70269385113568,
+          -3.9,
+          130.70812398333936
+        ],
+        [
+          225.5464882092752,
+          -3.9,
+          130.7306575265912
+        ],
+        [
+          225.39028256741474,
+          -3.9,
+          130.753191069843
+        ],
+        [
+          225.23407692555426,
+          -3.9,
+          130.77572461309487
+        ],
+        [
+          225.07787128369378,
+          -3.9,
+          130.79825815634672
+        ],
+        [
+          224.92063422261504,
+          -3.9,
+          130.8108633507184
+        ],
+        [
+          224.76300220406378,
+          -3.9,
+          130.8186164048252
+        ],
+        [
+          224.60537018551253,
+          -3.9,
+          130.826369458932
+        ],
+        [
+          224.44773816696127,
+          -3.9,
+          130.8341225130388
+        ],
+        [
+          224.29010614841005,
+          -3.9,
+          130.84187556714562
+        ],
+        [
+          224.13247412985876,
+          -3.9,
+          130.8496286212524
+        ],
+        [
+          223.9748421113075,
+          -3.9,
+          130.8573816753592
+        ],
+        [
+          223.81721009275628,
+          -3.9,
+          130.86513472946598
+        ],
+        [
+          223.659578074205,
+          -3.9,
+          130.8728877835728
+        ],
+        [
+          223.50194605565378,
+          -3.9,
+          130.88064083767958
+        ],
+        [
+          223.34431403710252,
+          -3.9,
+          130.8883938917864
+        ],
+        [
+          223.18668201855127,
+          -3.9,
+          130.8961469458932
+        ],
+        [
+          223.02905,
+          -3.9,
+          130.9039
+        ]
+      ],
+      "connectionRadius": 1.05
+    },
+    {
+      "id": "re07_entrepot",
+      "survey": 7,
+      "name": "Rampart door by the Entrepot",
+      "host": "rampart",
+      "door": [
+        209.939,
+        12.499
+      ],
+      "out": [
+        -0.987,
+        0.161
+      ],
+      "street": 0.0,
+      "depth": -3.6,
+      "line": "L18",
+      "layout": "L",
+      "flight": "right",
+      "closure": "open",
+      "closureSide": "street",
+      "wall": 0.9,
+      "width": 1.3,
+      "doorWidth": 1.2,
+      "doorHeight": 2.0,
+      "post": 0.08,
+      "head": "arch",
+      "frame": "bluestone",
+      "cut": [
+        "wall_chunk_"
+      ],
+      "foliage": [
+        "wall_climbers_",
+        "rampart_plants_",
+        "rampart_leaves_"
+      ],
+      "note": "nothing else uses this wall",
+      "connectArea": "network_l18",
+      "connectLength": 5.9773
+    },
+    {
+      "id": "re08_north_hall",
+      "survey": 8,
+      "name": "Rampart door by the north hall",
+      "host": "rampart",
+      "door": [
+        220.671,
+        271.78
+      ],
+      "out": [
+        -0.992,
+        -0.123
+      ],
+      "street": 0.0,
+      "depth": -3.6,
+      "line": "L17",
+      "layout": "L",
+      "flight": "right",
+      "closure": "open",
+      "closureSide": "street",
+      "wall": 0.9,
+      "width": 1.3,
+      "doorWidth": 1.2,
+      "doorHeight": 2.0,
+      "post": 0.08,
+      "head": "arch",
+      "frame": "bluestone",
+      "cut": [
+        "wall_chunk_"
+      ],
+      "foliage": [
+        "wall_climbers_",
+        "rampart_plants_",
+        "rampart_leaves_"
+      ],
+      "note": "nothing else uses this wall",
+      "connectArea": "network_c3",
+      "connectLength": 11.14269,
+      "connectPath": [
+        [
+          220.74695,
+          -3.6,
+          278.4816
+        ],
+        [
+          220.59009316294777,
+          -3.6,
+          278.4621509534469
+        ],
+        [
+          220.43323632589554,
+          -3.6,
+          278.4427019068939
+        ],
+        [
+          220.2763794888433,
+          -3.6,
+          278.42325286034077
+        ],
+        [
+          220.1195226517911,
+          -3.6,
+          278.4038038137877
+        ],
+        [
+          219.96266581473887,
+          -3.6,
+          278.3843547672346
+        ],
+        [
+          219.80580897768664,
+          -3.6,
+          278.3649057206815
+        ],
+        [
+          219.6489521406344,
+          -3.6,
+          278.34545667412846
+        ],
+        [
+          219.49209530358218,
+          -3.6,
+          278.3260076275754
+        ],
+        [
+          219.33523846652994,
+          -3.6,
+          278.3065585810223
+        ],
+        [
+          219.1783816294777,
+          -3.6,
+          278.2871095344692
+        ],
+        [
+          219.02156746303606,
+          -3.6,
+          278.26733627983185
+        ],
+        [
+          218.86745182585713,
+          -3.6,
+          278.2329744344191
+        ],
+        [
+          218.72023174693678,
+          -3.6,
+          278.1758886928102
+        ],
+        [
+          218.58323708002382,
+          -3.6,
+          278.09737005468565
+        ],
+        [
+          218.4595683938974,
+          -3.6,
+          277.99919219126485
+        ],
+        [
+          218.3520170785226,
+          -3.6,
+          277.8835817482935
+        ],
+        [
+          218.26302170073575,
+          -3.6,
+          277.75314720930294
+        ],
+        [
+          218.19459335835498,
+          -3.6,
+          277.61084068433877
+        ],
+        [
+          218.14829683749824,
+          -3.6,
+          277.45987700293705
+        ],
+        [
+          218.1251378994533,
+          -3.6,
+          277.30368107537913
+        ],
+        [
+          218.12566509183915,
+          -3.6,
+          277.1457763078669
+        ],
+        [
+          218.14987565234316,
+          -3.6,
+          276.9897361462878
+        ],
+        [
+          218.19555708438543,
+          -3.6,
+          276.83850259086904
+        ],
+        [
+          218.24566202800588,
+          -3.6,
+          276.6885965290615
+        ],
+        [
+          218.29576697162636,
+          -3.6,
+          276.538690467254
+        ],
+        [
+          218.34587191524687,
+          -3.6,
+          276.3887844054465
+        ],
+        [
+          218.39597685886733,
+          -3.6,
+          276.238878343639
+        ],
+        [
+          218.44608180248784,
+          -3.6,
+          276.08897228183145
+        ],
+        [
+          218.4961867461083,
+          -3.6,
+          275.9390662200239
+        ],
+        [
+          218.54629168972878,
+          -3.6,
+          275.78916015821636
+        ],
+        [
+          218.5963966333493,
+          -3.6,
+          275.6392540964089
+        ],
+        [
+          218.64650157696974,
+          -3.6,
+          275.48934803460133
+        ],
+        [
+          218.69660652059022,
+          -3.6,
+          275.3394419727938
+        ],
+        [
+          218.7467114642107,
+          -3.6,
+          275.18953591098625
+        ],
+        [
+          218.7968164078312,
+          -3.6,
+          275.03962984917877
+        ],
+        [
+          218.8469213514517,
+          -3.6,
+          274.8897237873713
+        ],
+        [
+          218.89702629507215,
+          -3.6,
+          274.73981772556374
+        ],
+        [
+          218.94713123869263,
+          -3.6,
+          274.5899116637562
+        ],
+        [
+          218.99723618231312,
+          -3.6,
+          274.44000560194866
+        ],
+        [
+          219.0473411259336,
+          -3.6,
+          274.2900995401411
+        ],
+        [
+          219.09744606955408,
+          -3.6,
+          274.14019347833363
+        ],
+        [
+          219.14755101317456,
+          -3.6,
+          273.9902874165261
+        ],
+        [
+          219.19765595679505,
+          -3.6,
+          273.84038135471855
+        ],
+        [
+          219.24776090041553,
+          -3.6,
+          273.690475292911
+        ],
+        [
+          219.297865844036,
+          -3.6,
+          273.5405692311035
+        ],
+        [
+          219.34794531599448,
+          -3.6,
+          273.3906547291131
+        ],
+        [
+          219.38561520709408,
+          -3.6,
+          273.2373059904672
+        ],
+        [
+          219.39986649570204,
+          -3.6,
+          273.0800432809869
+        ],
+        [
+          219.4,
+          -3.6,
+          272.92198607409784
+        ],
+        [
+          219.4,
+          -3.6,
+          272.7639280697391
+        ],
+        [
+          219.4,
+          -3.6,
+          272.60587006538043
+        ],
+        [
+          219.4,
+          -3.6,
+          272.44781206102175
+        ],
+        [
+          219.4,
+          -3.6,
+          272.28975405666307
+        ],
+        [
+          219.4,
+          -3.6,
+          272.13169605230433
+        ],
+        [
+          219.4,
+          -3.6,
+          271.97363804794566
+        ],
+        [
+          219.4,
+          -3.6,
+          271.815580043587
+        ],
+        [
+          219.4,
+          -3.6,
+          271.6575220392283
+        ],
+        [
+          219.4,
+          -3.6,
+          271.49946403486956
+        ],
+        [
+          219.4,
+          -3.6,
+          271.3414060305109
+        ],
+        [
+          219.4,
+          -3.6,
+          271.1833480261522
+        ],
+        [
+          219.4,
+          -3.6,
+          271.0252900217935
+        ],
+        [
+          219.4,
+          -3.6,
+          270.8672320174348
+        ],
+        [
+          219.4,
+          -3.6,
+          270.7091740130761
+        ],
+        [
+          219.4,
+          -3.6,
+          270.55111600871743
+        ],
+        [
+          219.4,
+          -3.6,
+          270.3930580043587
+        ],
+        [
+          219.4,
+          -3.6,
+          270.235
+        ]
+      ],
+      "connectionRadius": 1.05
+    },
+    {
+      "id": "re09_keizerspoort",
+      "survey": 9,
+      "name": "Rampart door west of the Keizerspoort",
+      "host": "rampart",
+      "door": [
+        37.273,
+        348.617
+      ],
+      "out": [
+        -0.045,
+        -0.999
+      ],
+      "street": 0.0,
+      "depth": -3.6,
+      "line": "L63",
+      "layout": "L",
+      "flight": "right",
+      "closure": "open",
+      "closureSide": "street",
+      "wall": 0.9,
+      "width": 1.3,
+      "doorWidth": 1.2,
+      "doorHeight": 2.0,
+      "post": 0.08,
+      "head": "arch",
+      "frame": "bluestone",
+      "cut": [
+        "wall_chunk_"
+      ],
+      "foliage": [
+        "wall_climbers_",
+        "rampart_plants_",
+        "rampart_leaves_"
+      ],
+      "note": "The rampart steps land 2.4 m north of the door: keep their foot clear.",
+      "connectArea": "network_l63",
+      "connectLength": 5.4916
+    },
+    {
+      "id": "re10_kipdorppoort",
+      "survey": 10,
+      "name": "Kipdorppoort gate house door",
+      "host": "gate_house",
+      "door": [
+        -149.699,
+        347.612
+      ],
+      "out": [
+        0.0432,
+        -0.9991
+      ],
+      "street": 0.0,
+      "depth": -3.9,
+      "line": "L22",
+      "layout": "I",
+      "flight": "in",
+      "closure": "open",
+      "closureSide": "street",
+      "wall": 1.2,
+      "width": 1.5,
+      "doorWidth": 1.49,
+      "doorHeight": 2.45,
+      "post": 0.11,
+      "head": "flat",
+      "frame": "oak",
+      "spring": 2.85,
+      "keepAbove": 2.76,
+      "cut": [
+        "gate_kipdorppoort_"
+      ],
+      "clear": [
+        "gate_kipdorppoort_7"
+      ],
+      "foliage": [
+        "wall_climbers_",
+        "rampart_plants_",
+        "rampart_leaves_"
+      ],
+      "foliageMaterials": [
+        "park_leaves"
+      ],
+      "note": "Ruien gate F1 Kipdorp flush sluice (7.3 m); The Kipdorppoort passage is 6 m away (carts): the door opens inward.; the drawn door is replaced by the kit's oak frame and leaf under the old hood",
+      "connectArea": "network_j028",
+      "connectLength": 17.718536658076918,
+      "connectPath": [
+        [
+          -150.83794,
+          -3.9,
+          356.59094
+        ],
+        [
+          -150.99677534413144,
+          -3.8971698113207545,
+          356.5840721319723
+        ],
+        [
+          -151.1556106882629,
+          -3.8943396226415095,
+          356.57720426394457
+        ],
+        [
+          -151.31444603239433,
+          -3.891509433962264,
+          356.57033639591685
+        ],
+        [
+          -151.47328137652576,
+          -3.888679245283019,
+          356.5634685278892
+        ],
+        [
+          -151.6321167206572,
+          -3.8858490566037736,
+          356.5566006598615
+        ],
+        [
+          -151.79095206478866,
+          -3.883018867924528,
+          356.5497327918338
+        ],
+        [
+          -151.9497874089201,
+          -3.880188679245283,
+          356.5428649238061
+        ],
+        [
+          -152.10862275305155,
+          -3.8773584905660377,
+          356.53599705577835
+        ],
+        [
+          -152.26744523584222,
+          -3.874528301886792,
+          356.52887227151484
+        ],
+        [
+          -152.42478543058712,
+          -3.871698113207547,
+          356.5072106430737
+        ],
+        [
+          -152.57705728618654,
+          -3.8688679245283017,
+          356.4620515315401
+        ],
+        [
+          -152.72076145487318,
+          -3.8660377358490567,
+          356.3944174758516
+        ],
+        [
+          -152.85265622572607,
+          -3.8632075471698113,
+          356.3059313287351
+        ],
+        [
+          -152.96963299860658,
+          -3.860377358490566,
+          356.1984975244507
+        ],
+        [
+          -153.0691281253017,
+          -3.857547169811321,
+          356.0746994791842
+        ],
+        [
+          -153.14875975846587,
+          -3.8547169811320754,
+          355.9372797964093
+        ],
+        [
+          -153.20681939326283,
+          -3.85188679245283,
+          355.7894467717044
+        ],
+        [
+          -153.24184293408626,
+          -3.849056603773585,
+          355.63452897155844
+        ],
+        [
+          -153.25313256458716,
+          -3.8462264150943395,
+          355.47610652676593
+        ],
+        [
+          -153.24358194113302,
+          -3.8433962264150945,
+          355.317456798415
+        ],
+        [
+          -153.23106787692925,
+          -3.840566037735849,
+          355.1589663180898
+        ],
+        [
+          -153.21855381272553,
+          -3.8377358490566036,
+          355.00047583776467
+        ],
+        [
+          -153.2060397485218,
+          -3.8349056603773586,
+          354.84198535743946
+        ],
+        [
+          -153.19352568431805,
+          -3.832075471698113,
+          354.6834948771143
+        ],
+        [
+          -153.18101162011433,
+          -3.8292452830188677,
+          354.52500439678914
+        ],
+        [
+          -153.1684975559106,
+          -3.8264150943396227,
+          354.36651391646393
+        ],
+        [
+          -153.15598349170682,
+          -3.8235849056603772,
+          354.20802343613883
+        ],
+        [
+          -153.14346942750308,
+          -3.8207547169811322,
+          354.0495329558136
+        ],
+        [
+          -153.13095536329936,
+          -3.8179245283018868,
+          353.89104247548846
+        ],
+        [
+          -153.11844129909562,
+          -3.8150943396226413,
+          353.7325519951633
+        ],
+        [
+          -153.1059272348919,
+          -3.8122641509433963,
+          353.5740615148381
+        ],
+        [
+          -153.09341317068814,
+          -3.809433962264151,
+          353.41557103451294
+        ],
+        [
+          -153.0808991064844,
+          -3.8066037735849054,
+          353.2570805541878
+        ],
+        [
+          -153.06838504228068,
+          -3.8037735849056604,
+          353.09859007386257
+        ],
+        [
+          -153.05587097807694,
+          -3.800943396226415,
+          352.9400995935374
+        ],
+        [
+          -153.0433569138732,
+          -3.79811320754717,
+          352.78160911321226
+        ],
+        [
+          -153.03084284966945,
+          -3.7952830188679245,
+          352.62311863288704
+        ],
+        [
+          -153.01832878546574,
+          -3.792452830188679,
+          352.4646281525619
+        ],
+        [
+          -153.00581472126197,
+          -3.789622641509434,
+          352.3061376722367
+        ],
+        [
+          -152.99330065705823,
+          -3.7867924528301886,
+          352.1476471919115
+        ],
+        [
+          -152.9807865928545,
+          -3.783962264150943,
+          351.98915671158636
+        ],
+        [
+          -152.96827252865077,
+          -3.781132075471698,
+          351.83066623126115
+        ],
+        [
+          -152.95575846444706,
+          -3.7783018867924527,
+          351.672175750936
+        ],
+        [
+          -152.94324440024332,
+          -3.7754716981132077,
+          351.51368527061084
+        ],
+        [
+          -152.93073033603955,
+          -3.7726415094339623,
+          351.3551947902857
+        ],
+        [
+          -152.9182162718358,
+          -3.769811320754717,
+          351.1967043099605
+        ],
+        [
+          -152.9057022076321,
+          -3.766981132075472,
+          351.03821382963537
+        ],
+        [
+          -152.89318814342835,
+          -3.7641509433962264,
+          350.87972334931015
+        ],
+        [
+          -152.88067407922463,
+          -3.761320754716981,
+          350.721232868985
+        ],
+        [
+          -152.86816001502086,
+          -3.758490566037736,
+          350.5627423886598
+        ],
+        [
+          -152.85564595081712,
+          -3.7556603773584905,
+          350.40425190833463
+        ],
+        [
+          -152.84313188661338,
+          -3.7528301886792454,
+          350.2457614280095
+        ],
+        [
+          -152.83061782240966,
+          -3.75,
+          350.08727094768426
+        ],
+        [
+          -152.81810375820592,
+          -3.7471698113207546,
+          349.9287804673591
+        ],
+        [
+          -152.80558969400218,
+          -3.7443396226415095,
+          349.77028998703395
+        ],
+        [
+          -152.79307562979844,
+          -3.741509433962264,
+          349.61179950670873
+        ],
+        [
+          -152.7805615655947,
+          -3.7386792452830186,
+          349.4533090263836
+        ],
+        [
+          -152.76804750139095,
+          -3.7358490566037736,
+          349.29481854605837
+        ],
+        [
+          -152.75553343718724,
+          -3.733018867924528,
+          349.1363280657332
+        ],
+        [
+          -152.7430193729835,
+          -3.730188679245283,
+          348.97783758540805
+        ],
+        [
+          -152.73050530877978,
+          -3.7273584905660377,
+          348.81934710508284
+        ],
+        [
+          -152.717991244576,
+          -3.7245283018867923,
+          348.66085662475774
+        ],
+        [
+          -152.70547718037227,
+          -3.7216981132075473,
+          348.5023661444326
+        ],
+        [
+          -152.69296311616853,
+          -3.718867924528302,
+          348.3438756641074
+        ],
+        [
+          -152.6804490519648,
+          -3.7160377358490564,
+          348.1853851837822
+        ],
+        [
+          -152.66793498776107,
+          -3.7132075471698114,
+          348.02689470345706
+        ],
+        [
+          -152.65542092355736,
+          -3.710377358490566,
+          347.86840422313185
+        ],
+        [
+          -152.64290685935356,
+          -3.707547169811321,
+          347.7099137428067
+        ],
+        [
+          -152.63039279514982,
+          -3.7047169811320755,
+          347.5514232624815
+        ],
+        [
+          -152.6178787309461,
+          -3.70188679245283,
+          347.3929327821563
+        ],
+        [
+          -152.6053646667424,
+          -3.699056603773585,
+          347.23444230183117
+        ],
+        [
+          -152.59285060253865,
+          -3.6962264150943396,
+          347.07595182150595
+        ],
+        [
+          -152.5803365383349,
+          -3.6933962264150946,
+          346.9174613411808
+        ],
+        [
+          -152.56219131007092,
+          -3.690566037735849,
+          346.7596117404605
+        ],
+        [
+          -152.52167368398767,
+          -3.6877358490566037,
+          346.60603552045626
+        ],
+        [
+          -152.45844288614205,
+          -3.6849056603773587,
+          346.4603314943838
+        ],
+        [
+          -152.37395747194523,
+          -3.6820754716981132,
+          346.32583174100165
+        ],
+        [
+          -152.27013735383633,
+          -3.6792452830188678,
+          346.2056273926278
+        ],
+        [
+          -152.14937637229644,
+          -3.6764150943396228,
+          346.1024585751821
+        ],
+        [
+          -152.01443867490062,
+          -3.6735849056603773,
+          346.0186833416145
+        ],
+        [
+          -151.86841085292951,
+          -3.670754716981132,
+          345.95621747285804
+        ],
+        [
+          -151.71463302870208,
+          -3.667924528301887,
+          345.9164894832073
+        ],
+        [
+          -151.55662250538566,
+          -3.6650943396226414,
+          345.90040797310076
+        ],
+        [
+          -151.39764259634887,
+          -3.6622641509433964,
+          345.9
+        ],
+        [
+          -151.2386588419694,
+          -3.659433962264151,
+          345.9
+        ],
+        [
+          -151.0796750875899,
+          -3.6566037735849055,
+          345.9
+        ],
+        [
+          -150.92069133321039,
+          -3.6537735849056605,
+          345.9
+        ],
+        [
+          -150.7617075788309,
+          -3.650943396226415,
+          345.9
+        ],
+        [
+          -150.6027238244514,
+          -3.64811320754717,
+          345.9
+        ],
+        [
+          -150.44374007007193,
+          -3.6452830188679246,
+          345.9
+        ],
+        [
+          -150.28475631569242,
+          -3.642452830188679,
+          345.9
+        ],
+        [
+          -150.1257725613129,
+          -3.639622641509434,
+          345.9
+        ],
+        [
+          -149.96678880693344,
+          -3.6367924528301887,
+          345.9
+        ],
+        [
+          -149.80780505255393,
+          -3.6339622641509433,
+          345.9
+        ],
+        [
+          -149.64882129817445,
+          -3.6311320754716983,
+          345.9
+        ],
+        [
+          -149.48983754379495,
+          -3.628301886792453,
+          345.9
+        ],
+        [
+          -149.33085378941544,
+          -3.6254716981132074,
+          345.9
+        ],
+        [
+          -149.17187003503597,
+          -3.6226415094339623,
+          345.9
+        ],
+        [
+          -149.01288628065646,
+          -3.619811320754717,
+          345.9
+        ],
+        [
+          -148.85390252627698,
+          -3.616981132075472,
+          345.9
+        ],
+        [
+          -148.69491877189748,
+          -3.6141509433962264,
+          345.9
+        ],
+        [
+          -148.53593501751797,
+          -3.611320754716981,
+          345.9
+        ],
+        [
+          -148.3769512631385,
+          -3.608490566037736,
+          345.9
+        ],
+        [
+          -148.217967508759,
+          -3.6056603773584905,
+          345.9
+        ],
+        [
+          -148.05898375437948,
+          -3.6028301886792455,
+          345.9
+        ],
+        [
+          -147.9,
+          -3.6,
+          345.9
+        ]
+      ],
+      "connectionRadius": 1.05
+    },
+    {
+      "id": "re11_werf",
+      "survey": 11,
+      "name": "Rampart door by the Werf",
+      "host": "rampart",
+      "door": [
+        -352.787,
+        56.185
+      ],
+      "out": [
+        0.996,
+        0.085
+      ],
+      "street": 0.0,
+      "depth": -3.6,
+      "line": "L73",
+      "layout": "L",
+      "flight": "right",
+      "closure": "open",
+      "closureSide": "street",
+      "wall": 0.9,
+      "width": 1.3,
+      "doorWidth": 1.2,
+      "doorHeight": 2.0,
+      "post": 0.08,
+      "head": "arch",
+      "frame": "bluestone",
+      "cut": [
+        "wall_chunk_"
+      ],
+      "foliage": [
+        "wall_climbers_",
+        "rampart_plants_",
+        "rampart_leaves_"
+      ],
+      "note": "nothing else uses this wall",
+      "connectArea": "network_j080",
+      "connectLength": 11.52352,
+      "connectPath": [
+        [
+          -353.119,
+          -3.6,
+          49.49119
+        ],
+        [
+          -352.9608497453922,
+          -3.6,
+          49.50468637301963
+        ],
+        [
+          -352.8026994907844,
+          -3.6,
+          49.51818274603927
+        ],
+        [
+          -352.6445492361766,
+          -3.6,
+          49.53167911905889
+        ],
+        [
+          -352.4863989815688,
+          -3.6,
+          49.54517549207853
+        ],
+        [
+          -352.32824872696096,
+          -3.6,
+          49.558671865098155
+        ],
+        [
+          -352.1700984723532,
+          -3.6,
+          49.57216823811779
+        ],
+        [
+          -352.0119482177454,
+          -3.6,
+          49.58566461113742
+        ],
+        [
+          -351.85433102742513,
+          -3.6,
+          49.60372260804952
+        ],
+        [
+          -351.7008401528459,
+          -3.6,
+          49.643538598811666
+        ],
+        [
+          -351.55510680110723,
+          -3.6,
+          49.70603532129257
+        ],
+        [
+          -351.4204242042319,
+          -3.6,
+          49.78972906093322
+        ],
+        [
+          -351.29990196259917,
+          -3.6,
+          49.89277643862061
+        ],
+        [
+          -351.1962717687979,
+          -3.6,
+          50.01279533929898
+        ],
+        [
+          -351.1118669301013,
+          -3.6,
+          50.14703378919418
+        ],
+        [
+          -351.04865459586733,
+          -3.6,
+          50.2924620405337
+        ],
+        [
+          -351.00810770209836,
+          -3.6,
+          50.445760274307936
+        ],
+        [
+          -350.9837188598419,
+          -3.6,
+          50.602593879946824
+        ],
+        [
+          -350.9599583798891,
+          -3.6,
+          50.759530474498945
+        ],
+        [
+          -350.93619789993636,
+          -3.6,
+          50.91646706905106
+        ],
+        [
+          -350.9124374199837,
+          -3.6,
+          51.07340366360317
+        ],
+        [
+          -350.8886769400309,
+          -3.6,
+          51.23034025815529
+        ],
+        [
+          -350.8649164600782,
+          -3.6,
+          51.38727685270741
+        ],
+        [
+          -350.84115598012545,
+          -3.6,
+          51.54421344725952
+        ],
+        [
+          -350.8173955001728,
+          -3.6,
+          51.701150041811644
+        ],
+        [
+          -350.79363502022,
+          -3.6,
+          51.85808663636375
+        ],
+        [
+          -350.7698745402673,
+          -3.6,
+          52.01502323091587
+        ],
+        [
+          -350.74611406031454,
+          -3.6,
+          52.17195982546799
+        ],
+        [
+          -350.7223535803618,
+          -3.6,
+          52.32889642002011
+        ],
+        [
+          -350.6985931004091,
+          -3.6,
+          52.48583301457222
+        ],
+        [
+          -350.67483262045636,
+          -3.6,
+          52.64276960912434
+        ],
+        [
+          -350.65107214050363,
+          -3.6,
+          52.79970620367646
+        ],
+        [
+          -350.6273116605509,
+          -3.6,
+          52.95664279822857
+        ],
+        [
+          -350.6035511805982,
+          -3.6,
+          53.11357939278069
+        ],
+        [
+          -350.57979070064545,
+          -3.6,
+          53.27051598733281
+        ],
+        [
+          -350.5560302206927,
+          -3.6,
+          53.42745258188493
+        ],
+        [
+          -350.53226974074,
+          -3.6,
+          53.584389176437035
+        ],
+        [
+          -350.50850926078726,
+          -3.6,
+          53.741325770989164
+        ],
+        [
+          -350.48474878083454,
+          -3.6,
+          53.89826236554128
+        ],
+        [
+          -350.46098830088175,
+          -3.6,
+          54.05519896009339
+        ],
+        [
+          -350.4372278209291,
+          -3.6,
+          54.21213555464551
+        ],
+        [
+          -350.4134673409763,
+          -3.6,
+          54.36907214919762
+        ],
+        [
+          -350.3897068610236,
+          -3.6,
+          54.52600874374974
+        ],
+        [
+          -350.3659463810709,
+          -3.6,
+          54.682945338301856
+        ],
+        [
+          -350.34218590111817,
+          -3.6,
+          54.839881932853984
+        ],
+        [
+          -350.3184254211654,
+          -3.6,
+          54.9968185274061
+        ],
+        [
+          -350.2946649412127,
+          -3.6,
+          55.15375512195821
+        ],
+        [
+          -350.27090446126,
+          -3.6,
+          55.31069171651033
+        ],
+        [
+          -350.24714398130726,
+          -3.6,
+          55.46762831106245
+        ],
+        [
+          -350.22338350135453,
+          -3.6,
+          55.62456490561456
+        ],
+        [
+          -350.19962302140175,
+          -3.6,
+          55.78150150016668
+        ],
+        [
+          -350.175862541449,
+          -3.6,
+          55.938438094718805
+        ],
+        [
+          -350.1521020614963,
+          -3.6,
+          56.09537468927091
+        ],
+        [
+          -350.1283415815436,
+          -3.6,
+          56.25231128382303
+        ],
+        [
+          -350.10458110159084,
+          -3.6,
+          56.40924787837514
+        ],
+        [
+          -350.08082062163817,
+          -3.6,
+          56.56618447292726
+        ],
+        [
+          -350.0570601416854,
+          -3.6,
+          56.723121067479376
+        ],
+        [
+          -350.03329966173266,
+          -3.6,
+          56.88005766203149
+        ],
+        [
+          -350.00965706144444,
+          -3.6,
+          57.03701146283474
+        ],
+        [
+          -350.0,
+          -3.6,
+          57.195298885158955
+        ],
+        [
+          -350.0,
+          -3.6,
+          57.35402397806238
+        ],
+        [
+          -350.0,
+          -3.6,
+          57.512749070965796
+        ],
+        [
+          -350.0,
+          -3.6,
+          57.67147416386922
+        ],
+        [
+          -350.0,
+          -3.6,
+          57.83019925677264
+        ],
+        [
+          -350.0,
+          -3.6,
+          57.98892434967606
+        ],
+        [
+          -350.0,
+          -3.6,
+          58.147649442579485
+        ],
+        [
+          -350.0,
+          -3.6,
+          58.3063745354829
+        ],
+        [
+          -350.0,
+          -3.6,
+          58.46509962838632
+        ],
+        [
+          -350.0,
+          -3.6,
+          58.62382472128974
+        ],
+        [
+          -350.0,
+          -3.6,
+          58.78254981419316
+        ],
+        [
+          -350.0,
+          -3.6,
+          58.941274907096584
+        ],
+        [
+          -350.0,
+          -3.6,
+          59.1
+        ]
+      ],
+      "connectionRadius": 1.05
+    },
+    {
+      "id": "re12_prison",
+      "survey": 12,
+      "name": "Rampart door behind the prison",
+      "host": "rampart",
+      "door": [
+        -360.455,
+        253.551
+      ],
+      "out": [
+        0.993,
+        -0.116
+      ],
+      "street": 0.0,
+      "depth": -3.9,
+      "line": "L31",
+      "layout": "L",
+      "flight": "right",
+      "closure": "open",
+      "closureSide": "end",
+      "wall": 0.9,
+      "width": 1.3,
+      "doorWidth": 1.2,
+      "doorHeight": 2.0,
+      "post": 0.08,
+      "head": "arch",
+      "frame": "bluestone",
+      "cut": [
+        "wall_chunk_"
+      ],
+      "foliage": [
+        "wall_climbers_",
+        "rampart_plants_",
+        "rampart_leaves_"
+      ],
+      "note": "nothing else uses this wall",
+      "connectArea": "network_r8",
+      "connectLength": 17.87876,
+      "connectPath": [
+        [
+          -362.90182,
+          -3.9,
+          245.96388
+        ],
+        [
+          -362.9203412733917,
+          -3.9,
+          245.80532857740678
+        ],
+        [
+          -362.9388625467834,
+          -3.9,
+          245.6467771548136
+        ],
+        [
+          -362.95738382017515,
+          -3.9,
+          245.48822573222043
+        ],
+        [
+          -362.97590509356684,
+          -3.9,
+          245.32967430962725
+        ],
+        [
+          -362.9944263669586,
+          -3.9,
+          245.17112288703407
+        ],
+        [
+          -363.01294764035026,
+          -3.9,
+          245.01257146444087
+        ],
+        [
+          -363.031468913742,
+          -3.9,
+          244.8540200418477
+        ],
+        [
+          -363.04999018713374,
+          -3.9,
+          244.6954686192545
+        ],
+        [
+          -363.06844167828785,
+          -3.9,
+          244.53690936583996
+        ],
+        [
+          -363.0734211697745,
+          -3.9,
+          244.37749750821604
+        ],
+        [
+          -363.0693886853685,
+          -3.9,
+          244.2179189061295
+        ],
+        [
+          -363.06535620096247,
+          -3.9,
+          244.05834030404299
+        ],
+        [
+          -363.06132371655644,
+          -3.9,
+          243.89876170195646
+        ],
+        [
+          -363.0572912321504,
+          -3.9,
+          243.73918309986996
+        ],
+        [
+          -363.0532587477444,
+          -3.9,
+          243.5796044977834
+        ],
+        [
+          -363.0492262633383,
+          -3.9,
+          243.42002589569688
+        ],
+        [
+          -363.0451937789323,
+          -3.9,
+          243.26044729361038
+        ],
+        [
+          -363.04116129452626,
+          -3.9,
+          243.10086869152386
+        ],
+        [
+          -363.0371288101202,
+          -3.9,
+          242.94129008943736
+        ],
+        [
+          -363.03309632571415,
+          -3.9,
+          242.7817114873508
+        ],
+        [
+          -363.02906384130813,
+          -3.9,
+          242.62213288526428
+        ],
+        [
+          -363.0250313569021,
+          -3.9,
+          242.46255428317778
+        ],
+        [
+          -363.020998872496,
+          -3.9,
+          242.30297568109125
+        ],
+        [
+          -363.01696638809,
+          -3.9,
+          242.14339707900473
+        ],
+        [
+          -363.012933903684,
+          -3.9,
+          241.9838184769182
+        ],
+        [
+          -363.00890141927795,
+          -3.9,
+          241.82423987483168
+        ],
+        [
+          -363.0048689348719,
+          -3.9,
+          241.66466127274518
+        ],
+        [
+          -363.0008364504659,
+          -3.9,
+          241.50508267065865
+        ],
+        [
+          -362.9968039660599,
+          -3.9,
+          241.34550406857213
+        ],
+        [
+          -362.9927714816538,
+          -3.9,
+          241.1859254664856
+        ],
+        [
+          -362.98873899724776,
+          -3.9,
+          241.02634686439907
+        ],
+        [
+          -362.9847065128417,
+          -3.9,
+          240.86676826231255
+        ],
+        [
+          -362.98067402843566,
+          -3.9,
+          240.70718966022602
+        ],
+        [
+          -362.97664154402963,
+          -3.9,
+          240.54761105813952
+        ],
+        [
+          -362.9726090596236,
+          -3.9,
+          240.388032456053
+        ],
+        [
+          -362.9685765752175,
+          -3.9,
+          240.22845385396647
+        ],
+        [
+          -362.96454409081156,
+          -3.9,
+          240.06887525187994
+        ],
+        [
+          -362.96051160640553,
+          -3.9,
+          239.90929664979342
+        ],
+        [
+          -362.95647912199945,
+          -3.9,
+          239.74971804770692
+        ],
+        [
+          -362.9524466375934,
+          -3.9,
+          239.5901394456204
+        ],
+        [
+          -362.9484141531874,
+          -3.9,
+          239.43056084353387
+        ],
+        [
+          -362.9443816687814,
+          -3.9,
+          239.27098224144734
+        ],
+        [
+          -362.94034918437535,
+          -3.9,
+          239.11140363936082
+        ],
+        [
+          -362.93631669996927,
+          -3.9,
+          238.95182503727432
+        ],
+        [
+          -362.93228421556324,
+          -3.9,
+          238.79224643518776
+        ],
+        [
+          -362.9282517311572,
+          -3.9,
+          238.63266783310127
+        ],
+        [
+          -362.92421924675114,
+          -3.9,
+          238.47308923101474
+        ],
+        [
+          -362.9201867623451,
+          -3.9,
+          238.3135106289282
+        ],
+        [
+          -362.9161542779391,
+          -3.9,
+          238.15393202684172
+        ],
+        [
+          -362.91212179353306,
+          -3.9,
+          237.99435342475516
+        ],
+        [
+          -362.90808930912704,
+          -3.9,
+          237.83477482266866
+        ],
+        [
+          -362.904056824721,
+          -3.9,
+          237.67519622058214
+        ],
+        [
+          -362.9000243403149,
+          -3.9,
+          237.5156176184956
+        ],
+        [
+          -362.89599185590896,
+          -3.9,
+          237.35603901640908
+        ],
+        [
+          -362.8919593715029,
+          -3.9,
+          237.19646041432256
+        ],
+        [
+          -362.8879268870968,
+          -3.9,
+          237.03688181223606
+        ],
+        [
+          -362.88389440269077,
+          -3.9,
+          236.87730321014953
+        ],
+        [
+          -362.87986191828475,
+          -3.9,
+          236.717724608063
+        ],
+        [
+          -362.8758294338787,
+          -3.9,
+          236.55814600597648
+        ],
+        [
+          -362.8717969494727,
+          -3.9,
+          236.39856740388996
+        ],
+        [
+          -362.8677644650666,
+          -3.9,
+          236.23898880180346
+        ],
+        [
+          -362.8637319806606,
+          -3.9,
+          236.0794101997169
+        ],
+        [
+          -362.8596994962546,
+          -3.9,
+          235.91983159763038
+        ],
+        [
+          -362.85566701184854,
+          -3.9,
+          235.76025299554388
+        ],
+        [
+          -362.8516345274425,
+          -3.9,
+          235.60067439345735
+        ],
+        [
+          -362.8476020430365,
+          -3.9,
+          235.44109579137086
+        ],
+        [
+          -362.8435695586304,
+          -3.9,
+          235.2815171892843
+        ],
+        [
+          -362.83953707422444,
+          -3.9,
+          235.12193858719777
+        ],
+        [
+          -362.83550458981836,
+          -3.9,
+          234.96235998511128
+        ],
+        [
+          -362.8314721054123,
+          -3.9,
+          234.80278138302475
+        ],
+        [
+          -362.82743962100625,
+          -3.9,
+          234.64320278093822
+        ],
+        [
+          -362.8234071366002,
+          -3.9,
+          234.4836241788517
+        ],
+        [
+          -362.8193746521942,
+          -3.9,
+          234.32404557676517
+        ],
+        [
+          -362.8153421677882,
+          -3.9,
+          234.16446697467867
+        ],
+        [
+          -362.81130968338215,
+          -3.9,
+          234.00488837259215
+        ],
+        [
+          -362.80727719897607,
+          -3.9,
+          233.84530977050562
+        ],
+        [
+          -362.8032447145701,
+          -3.9,
+          233.6857311684191
+        ],
+        [
+          -362.799212230164,
+          -3.9,
+          233.52615256633257
+        ],
+        [
+          -362.795179745758,
+          -3.9,
+          233.36657396424604
+        ],
+        [
+          -362.79114726135197,
+          -3.9,
+          233.20699536215952
+        ],
+        [
+          -362.7871147769459,
+          -3.9,
+          233.04741676007302
+        ],
+        [
+          -362.78308229253986,
+          -3.9,
+          232.8878381579865
+        ],
+        [
+          -362.77904980813383,
+          -3.9,
+          232.72825955589997
+        ],
+        [
+          -362.77501732372775,
+          -3.9,
+          232.56868095381344
+        ],
+        [
+          -362.7709848393217,
+          -3.9,
+          232.40910235172692
+        ],
+        [
+          -362.7669523549157,
+          -3.9,
+          232.24952374964042
+        ],
+        [
+          -362.7629198705097,
+          -3.9,
+          232.0899451475539
+        ],
+        [
+          -362.75888738610365,
+          -3.9,
+          231.93036654546736
+        ],
+        [
+          -362.7548549016976,
+          -3.9,
+          231.77078794338084
+        ],
+        [
+          -362.7508224172916,
+          -3.9,
+          231.6112093412943
+        ],
+        [
+          -362.7467899328855,
+          -3.9,
+          231.45163073920781
+        ],
+        [
+          -362.7427574484795,
+          -3.9,
+          231.2920521371213
+        ],
+        [
+          -362.73872496407347,
+          -3.9,
+          231.13247353503473
+        ],
+        [
+          -362.73469247966744,
+          -3.9,
+          230.97289493294824
+        ],
+        [
+          -362.73065999526136,
+          -3.9,
+          230.8133163308617
+        ],
+        [
+          -362.72662751085534,
+          -3.9,
+          230.65373772877518
+        ],
+        [
+          -362.7225950264493,
+          -3.9,
+          230.4941591266887
+        ],
+        [
+          -362.7185625420433,
+          -3.9,
+          230.33458052460213
+        ],
+        [
+          -362.7145300576372,
+          -3.9,
+          230.17500192251563
+        ],
+        [
+          -362.71049757323124,
+          -3.9,
+          230.0154233204291
+        ],
+        [
+          -362.70646508882515,
+          -3.9,
+          229.85584471834258
+        ],
+        [
+          -362.70243260441913,
+          -3.9,
+          229.69626611625606
+        ],
+        [
+          -362.7,
+          -3.9,
+          229.53666589196104
+        ],
+        [
+          -362.7,
+          -3.9,
+          229.37703634840983
+        ],
+        [
+          -362.7,
+          -3.9,
+          229.2174068048586
+        ],
+        [
+          -362.7,
+          -3.9,
+          229.05777726130736
+        ],
+        [
+          -362.7,
+          -3.9,
+          228.89814771775613
+        ],
+        [
+          -362.7,
+          -3.9,
+          228.7385181742049
+        ],
+        [
+          -362.7,
+          -3.9,
+          228.57888863065367
+        ],
+        [
+          -362.7,
+          -3.9,
+          228.41925908710243
+        ],
+        [
+          -362.7,
+          -3.9,
+          228.25962954355123
+        ],
+        [
+          -362.7,
+          -3.9,
+          228.1
+        ]
+      ],
+      "connectionRadius": 1.05
+    },
+    {
+      "id": "re13_vestrui",
+      "survey": 13,
+      "name": "Rampart door on the Vestrui",
+      "host": "rampart",
+      "door": [
+        -223.35,
+        345.922
+      ],
+      "out": [
+        0.043,
+        -0.999
+      ],
+      "street": 0.0,
+      "depth": -3.9,
+      "line": "L35",
+      "layout": "L",
+      "flight": "right",
+      "closure": "open",
+      "closureSide": "street",
+      "wall": 0.9,
+      "width": 1.3,
+      "doorWidth": 1.2,
+      "doorHeight": 2.0,
+      "post": 0.08,
+      "head": "arch",
+      "frame": "bluestone",
+      "cut": [
+        "wall_chunk_"
+      ],
+      "foliage": [
+        "wall_climbers_",
+        "rampart_plants_",
+        "rampart_leaves_"
+      ],
+      "note": "nothing else uses this wall",
+      "connectArea": "network_l35",
+      "connectLength": 5.16193
+    },
+    {
+      "id": "re14_rode_poort_rui",
+      "survey": 14,
+      "name": "Rampart door on the Rode Poort rui",
+      "host": "rampart",
+      "door": [
+        228.412,
+        194.139
+      ],
+      "out": [
+        -0.999,
+        0.053
+      ],
+      "street": 0.0,
+      "depth": -3.9,
+      "line": "L16",
+      "layout": "L",
+      "flight": "right",
+      "closure": "open",
+      "closureSide": "street",
+      "wall": 0.9,
+      "width": 1.3,
+      "doorWidth": 1.2,
+      "doorHeight": 2.0,
+      "post": 0.08,
+      "head": "arch",
+      "frame": "bluestone",
+      "cut": [
+        "wall_chunk_"
+      ],
+      "foliage": [
+        "wall_climbers_",
+        "rampart_plants_",
+        "rampart_leaves_"
+      ],
+      "note": "nothing else uses this wall",
+      "connectArea": "network_l16",
+      "connectLength": 4.5733
+    },
+    {
+      "street": 0.0,
+      "width": 1.3,
+      "doorWidth": 1.1,
+      "doorHeight": 2.0,
+      "post": 0.08,
+      "head": "flat",
+      "cut": [
+        "city_",
+        "streetlife_",
+        "posters_",
+        "clutter_decals",
+        "ambient_windows"
+      ],
+      "id": "re01_sint_joris_poort",
+      "survey": 1,
+      "name": "Side door in the Sint-Jorispoort passage",
+      "host": "passage",
+      "frame": "passage",
+      "door": [
+        -312.5,
+        142.96
+      ],
+      "out": [
+        0.0,
+        -1.0
+      ],
+      "depth": -3.6,
+      "line": "L111",
+      "layout": "L",
+      "flight": "right",
+      "closure": "open",
+      "closureSide": "back",
+      "wall": 0.4,
+      "approach": 0.9,
+      "house": 677,
+      "from": [
+        [
+          -305.8,
+          142.06
+        ],
+        [
+          -309.4,
+          142.06
+        ]
+      ],
+      "note": "In the passage's north wall (house 677, no interior); the stair runs west inside the house, the landing's grille faces the gallery 5 m north. The leaf opens into the stair: the passage stays clear.",
+      "connectArea": "network_l111",
+      "connectLength": 2.94991
+    },
+    {
+      "street": 0.0,
+      "width": 1.3,
+      "doorWidth": 1.1,
+      "doorHeight": 2.0,
+      "post": 0.08,
+      "head": "flat",
+      "cut": [
+        "city_",
+        "streetlife_",
+        "posters_",
+        "clutter_decals",
+        "ambient_windows"
+      ],
+      "id": "re02_keizerspoort_poort",
+      "survey": 2,
+      "name": "Side door in the passage by the Keizerspoort",
+      "host": "passage",
+      "frame": "passage",
+      "door": [
+        49.5,
+        326.68
+      ],
+      "out": [
+        -0.0645,
+        -0.9979
+      ],
+      "depth": -3.6,
+      "line": "L62",
+      "layout": "L",
+      "flight": "left",
+      "closure": "open",
+      "closureSide": "end",
+      "wall": 0.4,
+      "approach": 0.9,
+      "house": 308,
+      "from": [
+        [
+          60.0,
+          323.0
+        ],
+        [
+          58.4,
+          325.2
+        ]
+      ],
+      "note": "In the passage's north wall (house 308, no interior); the stair runs east toward the Keizersrui gallery under the street (5 m from the landing's grille); the sluice keeper's stair S18 is 16 m north.",
+      "connectArea": "network_l62",
+      "connectLength": 4.35306
+    },
+    {
+      "street": 0.0,
+      "width": 1.3,
+      "doorWidth": 1.1,
+      "doorHeight": 2.0,
+      "post": 0.08,
+      "head": "flat",
+      "cut": [
+        "city_",
+        "streetlife_",
+        "posters_",
+        "clutter_decals",
+        "ambient_windows"
+      ],
+      "id": "re03_kanaalrui_poort",
+      "survey": 3,
+      "name": "Side door in the gateway on the Kanaalrui",
+      "host": "passage",
+      "frame": "passage",
+      "door": [
+        -81.21,
+        220.0
+      ],
+      "out": [
+        -1.0,
+        0.0
+      ],
+      "depth": -3.6,
+      "line": "L46",
+      "layout": "L",
+      "flight": "left",
+      "closure": "open",
+      "closureSide": "back",
+      "wall": 0.4,
+      "approach": 0.9,
+      "house": 395,
+      "from": [
+        [
+          -82.11,
+          208.6
+        ],
+        [
+          -82.11,
+          211.6
+        ]
+      ],
+      "note": "In the passage's east wall (house 395, no interior); the stair runs south toward the Kanaalrui gallery under the canal street, the landing bricked up facing it.",
+      "connectArea": "network_j051_j059",
+      "connectLength": 0.96,
+      "connectHead": 0
+    },
+    {
+      "street": 0.0,
+      "width": 1.3,
+      "doorWidth": 1.1,
+      "doorHeight": 2.0,
+      "post": 0.08,
+      "head": "flat",
+      "cut": [
+        "city_",
+        "streetlife_",
+        "posters_",
+        "clutter_decals",
+        "ambient_windows"
+      ],
+      "id": "re04_sint_jansplein_poort",
+      "survey": 4,
+      "name": "Side door in the covered passage by Sint-Jansplein",
+      "host": "passage",
+      "frame": "passage",
+      "door": [
+        -17.0,
+        289.14
+      ],
+      "out": [
+        -0.0575,
+        -0.9983
+      ],
+      "depth": -3.9,
+      "line": "L66",
+      "layout": "L",
+      "flight": "right",
+      "closure": "open",
+      "closureSide": "end",
+      "wall": 0.4,
+      "approach": 0.9,
+      "house": 287,
+      "from": [
+        [
+          -29.4,
+          288.9
+        ],
+        [
+          -26.4,
+          288.75
+        ]
+      ],
+      "note": "In the passage's north wall (house 287, no interior); the stair runs west toward the Jacobsrui under the street; the inn's cellar hatch on the pavement (x -26) stays clear north of the stair.",
+      "connectArea": "network_l66",
+      "connectLength": 1.5243173606014486,
+      "connectHead": 0.8
+    },
+    {
+      "street": 0.0,
+      "width": 1.3,
+      "doorWidth": 0.92,
+      "doorHeight": 1.95,
+      "post": 0.065,
+      "head": "flat",
+      "cut": [
+        "city_",
+        "streetlife_",
+        "posters_",
+        "clutter_decals",
+        "ambient_windows"
+      ],
+      "id": "re17_kipdorprui_cottage",
+      "survey": 17,
+      "name": "Cellar door in a cottage gable on the Kipdorprui",
+      "door": [
+        -169.65,
+        230.07
+      ],
+      "out": [
+        -0.844,
+        0.537
+      ],
+      "line": "L84",
+      "closureSide": "back",
+      "house": [
+        1063,
+        568
+      ],
+      "note": "Between the gable's two windows; a steep cellar stair straight in across the cottage (no interior); its top runs on into the empty house behind (568, no interior); the landing bricked up facing the Kipdorprui under the front street.",
+      "host": "house",
+      "frame": "house",
+      "layout": "I",
+      "flight": "in",
+      "depth": -3.9,
+      "wall": 0.5,
+      "pitchDeg": 45,
+      "topLanding": 0.7,
+      "bottomLanding": 1.3,
+      "spring": 2.15,
+      "vaultRise": 0.3,
+      "openDeg": 96,
+      "closure": "open",
+      "connectArea": "network_l84",
+      "connectLength": 2.438142856514969,
+      "connectHead": 0.8
+    },
+    {
+      "street": 0.0,
+      "width": 1.3,
+      "doorWidth": 1.1,
+      "doorHeight": 2.0,
+      "post": 0.08,
+      "head": "flat",
+      "cut": [
+        "city_",
+        "streetlife_",
+        "posters_",
+        "clutter_decals",
+        "ambient_windows"
+      ],
+      "id": "re18_paulusrui_house",
+      "survey": 18,
+      "name": "Side door in a house wall on the Paulusrui",
+      "host": "house",
+      "frame": "house",
+      "door": [
+        28.11,
+        115.07
+      ],
+      "out": [
+        0.992,
+        0.129
+      ],
+      "depth": -3.9,
+      "line": "L70",
+      "layout": "L",
+      "flight": "left",
+      "closure": "open",
+      "closureSide": "street",
+      "wall": 0.4,
+      "house": 755,
+      "note": "On the plain side wall round the corner from the wine shop front (house 755, no interior); the stair runs north inside the house, the landing's grille faces the Paulusrui under the street.",
+      "connectArea": "network_l70",
+      "connectLength": 5.830197970208223,
+      "connectHead": 0.8
+    },
+    {
+      "street": 0.0,
+      "width": 1.3,
+      "doorWidth": 0.92,
+      "doorHeight": 1.95,
+      "post": 0.065,
+      "head": "flat",
+      "cut": [
+        "city_",
+        "streetlife_",
+        "posters_",
+        "clutter_decals",
+        "ambient_windows"
+      ],
+      "id": "re20_kanaalrui_cottage",
+      "survey": 20,
+      "name": "Cellar door in a cottage gable on the Kanaalrui",
+      "door": [
+        -45.68,
+        221.7
+      ],
+      "out": [
+        0.961,
+        0.276
+      ],
+      "line": "L39",
+      "closureSide": "end",
+      "house": 1057,
+      "note": "Between the gable's two windows, the pump 4 m off; a steep cellar stair straight in (no interior), the landing bricked up facing the Kanaalrui to the south.",
+      "host": "house",
+      "frame": "house",
+      "layout": "I",
+      "flight": "in",
+      "depth": -3.9,
+      "wall": 0.5,
+      "pitchDeg": 45,
+      "topLanding": 0.7,
+      "bottomLanding": 1.3,
+      "spring": 2.15,
+      "vaultRise": 0.3,
+      "openDeg": 96,
+      "closure": "open",
+      "connectArea": "network_l39",
+      "connectLength": 4.02122,
+      "connectPath": [
+        [
+          -51.83133,
+          -3.9,
+          219.93333
+        ],
+        [
+          -51.984334139396644,
+          -3.9,
+          219.8893874217195
+        ],
+        [
+          -52.13733827879328,
+          -3.9,
+          219.845444843439
+        ],
+        [
+          -52.29034241818992,
+          -3.9,
+          219.8015022651585
+        ],
+        [
+          -52.44334655758657,
+          -3.9,
+          219.75755968687798
+        ],
+        [
+          -52.59635069698321,
+          -3.9,
+          219.71361710859748
+        ],
+        [
+          -52.74935483637985,
+          -3.9,
+          219.66967453031697
+        ],
+        [
+          -52.902222181267405,
+          -3.9,
+          219.62527340874294
+        ],
+        [
+          -53.04961433728641,
+          -3.9,
+          219.5655414692241
+        ],
+        [
+          -53.186292597109315,
+          -3.9,
+          219.48422934481297
+        ],
+        [
+          -53.30911810832591,
+          -3.9,
+          219.38320232605113
+        ],
+        [
+          -53.415274192297424,
+          -3.9,
+          219.26478284678439
+        ],
+        [
+          -53.502814202612086,
+          -3.9,
+          219.1319714698125
+        ],
+        [
+          -53.584035695529096,
+          -3.9,
+          218.9950616967984
+        ],
+        [
+          -53.66525718844609,
+          -3.9,
+          218.85815192378425
+        ],
+        [
+          -53.74578834808036,
+          -3.9,
+          218.7208448370131
+        ],
+        [
+          -53.81077677819045,
+          -3.9,
+          218.57569347353962
+        ],
+        [
+          -53.85704149177482,
+          -3.9,
+          218.42340768912038
+        ],
+        [
+          -53.90128130530297,
+          -3.9,
+          218.27048922798033
+        ],
+        [
+          -53.94552111883112,
+          -3.9,
+          218.1175707668403
+        ],
+        [
+          -53.98976093235927,
+          -3.9,
+          217.96465230570024
+        ],
+        [
+          -54.03400074588742,
+          -3.9,
+          217.8117338445602
+        ],
+        [
+          -54.07824055941556,
+          -3.9,
+          217.65881538342015
+        ],
+        [
+          -54.1224803729437,
+          -3.9,
+          217.5058969222801
+        ],
+        [
+          -54.16672018647185,
+          -3.9,
+          217.35297846114005
+        ],
+        [
+          -54.21096,
+          -3.9,
+          217.20006
+        ]
+      ],
+      "connectionRadius": 1.05
+    },
+    {
+      "street": 0.0,
+      "width": 1.3,
+      "doorWidth": 0.92,
+      "doorHeight": 1.95,
+      "post": 0.065,
+      "head": "flat",
+      "cut": [
+        "city_",
+        "streetlife_",
+        "posters_",
+        "clutter_decals",
+        "ambient_windows"
+      ],
+      "id": "re21_entrepotrui_cottage",
+      "survey": 21,
+      "name": "Cellar door in a cottage gable on the Entrepotrui",
+      "door": [
+        179.8,
+        250.55
+      ],
+      "out": [
+        0.566,
+        0.825
+      ],
+      "line": "L98",
+      "closureSide": "street",
+      "house": [
+        1022,
+        1021
+      ],
+      "note": "Between the gable's two windows; the cottage is 3.7 m deep, so the stair's top runs on into the empty cottage behind (1021, no interior); the landing bricked up facing the Entrepotrui.",
+      "host": "house",
+      "frame": "house",
+      "layout": "I",
+      "flight": "in",
+      "depth": -3.9,
+      "wall": 0.5,
+      "pitchDeg": 45,
+      "topLanding": 0.7,
+      "bottomLanding": 1.3,
+      "spring": 2.15,
+      "vaultRise": 0.3,
+      "openDeg": 96,
+      "closure": "open",
+      "connectArea": "network_l98",
+      "connectLength": 1.5373616190476391,
+      "connectHead": 0.8
+    },
+    {
+      "id": "re24_steenplein",
+      "survey": 24,
+      "name": "Stair-house on the Steenplein",
+      "host": "stair_house",
+      "door": [
+        -208.45,
+        14.91
+      ],
+      "out": [
+        0.0278,
+        -0.9996
+      ],
+      "street": 0.0,
+      "depth": -3.6,
+      "line": "L28",
+      "layout": "I",
+      "flight": "in",
+      "closure": "open",
+      "closureSide": "left",
+      "wall": 0.34,
+      "width": 1.3,
+      "doorWidth": 1.1,
+      "doorHeight": 2.0,
+      "post": 0.08,
+      "head": "arch",
+      "frame": "bluestone",
+      "topLanding": 1.2,
+      "note": "On the Steenplein by the trees, 6 m from the Suikerrui gallery (room for the gate's niche); the door faces the square, clear of the quay lanes and goods piles; the Werf watch walks round it.",
+      "connectArea": "network_l28",
+      "connectLength": 3.68986,
+      "connectPath": [
+        [
+          -208.00685,
+          -3.6,
+          22.35653
+        ],
+        [
+          -207.85317123722257,
+          -3.6,
+          22.36080392218846
+        ],
+        [
+          -207.69949247444515,
+          -3.6,
+          22.365077844376916
+        ],
+        [
+          -207.54581371166773,
+          -3.6,
+          22.369351766565376
+        ],
+        [
+          -207.39213494889032,
+          -3.6,
+          22.373625688753837
+        ],
+        [
+          -207.2384561861129,
+          -3.6,
+          22.377899610942293
+        ],
+        [
+          -207.08477742333548,
+          -3.6,
+          22.38217353313075
+        ],
+        [
+          -206.93109866055806,
+          -3.6,
+          22.38644745531921
+        ],
+        [
+          -206.77741989778065,
+          -3.6,
+          22.390721377507663
+        ],
+        [
+          -206.62374113500323,
+          -3.6,
+          22.394995299696124
+        ],
+        [
+          -206.47009196120325,
+          -3.6,
+          22.400061055731882
+        ],
+        [
+          -206.31653831044056,
+          -3.6,
+          22.40759131981222
+        ],
+        [
+          -206.16298465967787,
+          -3.6,
+          22.415121583892553
+        ],
+        [
+          -206.0094310089152,
+          -3.6,
+          22.422651847972883
+        ],
+        [
+          -205.85589285691805,
+          -3.6,
+          22.43045386827939
+        ],
+        [
+          -205.70362729429561,
+          -3.6,
+          22.451128228626896
+        ],
+        [
+          -205.55197648381832,
+          -3.6,
+          22.476376203223907
+        ],
+        [
+          -205.40032567334103,
+          -3.6,
+          22.50162417782092
+        ],
+        [
+          -205.24867486286374,
+          -3.6,
+          22.52687215241793
+        ],
+        [
+          -205.09702405238647,
+          -3.6,
+          22.552120127014938
+        ],
+        [
+          -204.94537324190918,
+          -3.6,
+          22.577368101611956
+        ],
+        [
+          -204.7937224314319,
+          -3.6,
+          22.602616076208964
+        ],
+        [
+          -204.6420716209546,
+          -3.6,
+          22.627864050805975
+        ],
+        [
+          -204.4904208104773,
+          -3.6,
+          22.65311202540299
+        ],
+        [
+          -204.33877,
+          -3.6,
+          22.67836
+        ]
+      ],
+      "connectionRadius": 1.05
+    },
+    {
+      "id": "re27_werf",
+      "survey": 27,
+      "name": "Stair-house on the Werf",
+      "host": "stair_house",
+      "door": [
+        -301.2,
+        58.58
+      ],
+      "out": [
+        -0.999,
+        -0.0454
+      ],
+      "street": 0.0,
+      "depth": -3.6,
+      "line": "L7",
+      "layout": "I",
+      "flight": "in",
+      "closure": "open",
+      "closureSide": "right",
+      "wall": 0.34,
+      "width": 1.3,
+      "doorWidth": 1.1,
+      "doorHeight": 2.0,
+      "post": 0.08,
+      "head": "arch",
+      "frame": "bluestone",
+      "topLanding": 1.2,
+      "note": "On the Werf square, the stair along the Werfrui gallery; the door faces the open square.",
+      "connectArea": "network_l7",
+      "connectLength": 1.93434
+    },
+    {
+      "id": "re28_rijnkaai",
+      "survey": 28,
+      "name": "Stair-house on the Rijnkaai",
+      "host": "stair_house",
+      "door": [
+        39.75,
+        31.89
+      ],
+      "out": [
+        -1,
+        0
+      ],
+      "street": 0.0,
+      "depth": -3.9,
+      "line": "L33",
+      "layout": "I",
+      "flight": "in",
+      "closure": "open",
+      "closureSide": "left",
+      "wall": 0.34,
+      "width": 1.3,
+      "doorWidth": 1.1,
+      "doorHeight": 2.0,
+      "post": 0.08,
+      "head": "arch",
+      "frame": "bluestone",
+      "topLanding": 1.2,
+      "note": "Aligned with the quay flagstone courses. Reserved city-works apron; the full roof, drainage and 1.6 m door approach stay outside railways, crane tracks and the fixed vehicle corridors.",
+      "connectArea": "network_j026",
+      "connectLength": 16.31895,
+      "connectPath": [
+        [
+          47.60978,
+          -3.9,
+          31.24
+        ],
+        [
+          47.60978,
+          -3.9,
+          31.080219542676108
+        ],
+        [
+          47.60978,
+          -3.9,
+          30.920439085352218
+        ],
+        [
+          47.60978,
+          -3.9,
+          30.760658628028327
+        ],
+        [
+          47.60978,
+          -3.9,
+          30.60087817070444
+        ],
+        [
+          47.60978,
+          -3.9,
+          30.44109771338055
+        ],
+        [
+          47.60978,
+          -3.9,
+          30.281317256056656
+        ],
+        [
+          47.60978,
+          -3.9,
+          30.121536798732766
+        ],
+        [
+          47.610622900580445,
+          -3.9,
+          29.961767673130616
+        ],
+        [
+          47.62908917751333,
+          -3.9,
+          29.80321469795776
+        ],
+        [
+          47.67137219989997,
+          -3.9,
+          29.649292612158956
+        ],
+        [
+          47.73647399696392,
+          -3.9,
+          29.503545599901468
+        ],
+        [
+          47.81193198575019,
+          -3.9,
+          29.36270567441086
+        ],
+        [
+          47.88739244765403,
+          -3.9,
+          29.221867067374685
+        ],
+        [
+          47.962852909557874,
+          -3.9,
+          29.08102846033851
+        ],
+        [
+          48.03831337146172,
+          -3.9,
+          28.940189853302336
+        ],
+        [
+          48.113773833365556,
+          -3.9,
+          28.79935124626616
+        ],
+        [
+          48.1892342952694,
+          -3.9,
+          28.65851263922998
+        ],
+        [
+          48.26469475717324,
+          -3.9,
+          28.517674032193806
+        ],
+        [
+          48.34015521907708,
+          -3.9,
+          28.37683542515763
+        ],
+        [
+          48.41561568098093,
+          -3.9,
+          28.235996818121457
+        ],
+        [
+          48.491076142884765,
+          -3.9,
+          28.095158211085277
+        ],
+        [
+          48.5665366047886,
+          -3.9,
+          27.954319604049104
+        ],
+        [
+          48.64199706669245,
+          -3.9,
+          27.813480997012928
+        ],
+        [
+          48.717457528596285,
+          -3.9,
+          27.672642389976748
+        ],
+        [
+          48.79291799050012,
+          -3.9,
+          27.53180378294057
+        ],
+        [
+          48.86837845240397,
+          -3.9,
+          27.390965175904398
+        ],
+        [
+          48.94383891430781,
+          -3.9,
+          27.250126568868225
+        ],
+        [
+          49.01929937621165,
+          -3.9,
+          27.109287961832045
+        ],
+        [
+          49.09475983811549,
+          -3.9,
+          26.96844935479587
+        ],
+        [
+          49.17022030001934,
+          -3.9,
+          26.827610747759696
+        ],
+        [
+          49.245680761923175,
+          -3.9,
+          26.68677214072352
+        ],
+        [
+          49.32114122382701,
+          -3.9,
+          26.545933533687343
+        ],
+        [
+          49.39660168573086,
+          -3.9,
+          26.405094926651167
+        ],
+        [
+          49.4720621476347,
+          -3.9,
+          26.26425631961499
+        ],
+        [
+          49.54752260953853,
+          -3.9,
+          26.123417712578814
+        ],
+        [
+          49.62298307144238,
+          -3.9,
+          25.982579105542637
+        ],
+        [
+          49.69844353334622,
+          -3.9,
+          25.841740498506464
+        ],
+        [
+          49.77390399525006,
+          -3.9,
+          25.700901891470288
+        ],
+        [
+          49.8493644571539,
+          -3.9,
+          25.560063284434108
+        ],
+        [
+          49.92482491905774,
+          -3.9,
+          25.41922467739793
+        ],
+        [
+          50.000285380961586,
+          -3.9,
+          25.278386070361755
+        ],
+        [
+          50.07574584286543,
+          -3.9,
+          25.13754746332558
+        ],
+        [
+          50.15120630476927,
+          -3.9,
+          24.996708856289406
+        ],
+        [
+          50.22666676667311,
+          -3.9,
+          24.85587024925323
+        ],
+        [
+          50.30212722857696,
+          -3.9,
+          24.715031642217053
+        ],
+        [
+          50.37758769048079,
+          -3.9,
+          24.574193035180873
+        ],
+        [
+          50.45304815238463,
+          -3.9,
+          24.433354428144696
+        ],
+        [
+          50.52850861428848,
+          -3.9,
+          24.29251582110852
+        ],
+        [
+          50.603969076192314,
+          -3.9,
+          24.151677214072347
+        ],
+        [
+          50.67942953809615,
+          -3.9,
+          24.010838607036167
+        ],
+        [
+          50.75489,
+          -3.9,
+          23.869999999999994
+        ],
+        [
+          50.83035046190384,
+          -3.9,
+          23.729161392963817
+        ],
+        [
+          50.90581092380768,
+          -3.9,
+          23.58832278592764
+        ],
+        [
+          50.98127138571152,
+          -3.9,
+          23.447484178891468
+        ],
+        [
+          51.05673184761537,
+          -3.9,
+          23.30664557185529
+        ],
+        [
+          51.132192309519205,
+          -3.9,
+          23.165806964819115
+        ],
+        [
+          51.20765277142304,
+          -3.9,
+          23.024968357782935
+        ],
+        [
+          51.28311323332689,
+          -3.9,
+          22.884129750746762
+        ],
+        [
+          51.35857369523073,
+          -3.9,
+          22.743291143710586
+        ],
+        [
+          51.43403415713456,
+          -3.9,
+          22.60245253667441
+        ],
+        [
+          51.509494619038406,
+          -3.9,
+          22.461613929638233
+        ],
+        [
+          51.58495508094225,
+          -3.9,
+          22.32077532260206
+        ],
+        [
+          51.660415542846096,
+          -3.9,
+          22.179936715565884
+        ],
+        [
+          51.73587600474993,
+          -3.9,
+          22.039098108529704
+        ],
+        [
+          51.81133646665378,
+          -3.9,
+          21.89825950149353
+        ],
+        [
+          51.886796928557615,
+          -3.9,
+          21.757420894457358
+        ],
+        [
+          51.96225739046146,
+          -3.9,
+          21.616582287421178
+        ],
+        [
+          52.0377178523653,
+          -3.9,
+          21.475743680385
+        ],
+        [
+          52.113178314269135,
+          -3.9,
+          21.33490507334883
+        ],
+        [
+          52.18863877617298,
+          -3.9,
+          21.194066466312652
+        ],
+        [
+          52.264099238076824,
+          -3.9,
+          21.053227859276475
+        ],
+        [
+          52.33955969998066,
+          -3.9,
+          20.9123892522403
+        ],
+        [
+          52.4150201618845,
+          -3.9,
+          20.771550645204126
+        ],
+        [
+          52.49048062378835,
+          -3.9,
+          20.63071203816795
+        ],
+        [
+          52.56594108569218,
+          -3.9,
+          20.48987343113177
+        ],
+        [
+          52.641401547596026,
+          -3.9,
+          20.349034824095597
+        ],
+        [
+          52.71686200949987,
+          -3.9,
+          20.20819621705942
+        ],
+        [
+          52.792322471403715,
+          -3.9,
+          20.067357610023247
+        ],
+        [
+          52.86778293330755,
+          -3.9,
+          19.926519002987067
+        ],
+        [
+          52.94324339521139,
+          -3.9,
+          19.78568039595089
+        ],
+        [
+          53.018703857115234,
+          -3.9,
+          19.644841788914714
+        ],
+        [
+          53.09416431901907,
+          -3.9,
+          19.504003181878538
+        ],
+        [
+          53.16962478092291,
+          -3.9,
+          19.36316457484236
+        ],
+        [
+          53.245085242826754,
+          -3.9,
+          19.22232596780619
+        ],
+        [
+          53.3205457047306,
+          -3.9,
+          19.081487360770012
+        ],
+        [
+          53.396006166634436,
+          -3.9,
+          18.940648753733836
+        ],
+        [
+          53.47146662853828,
+          -3.9,
+          18.799810146697663
+        ],
+        [
+          53.54692709044212,
+          -3.9,
+          18.658971539661486
+        ],
+        [
+          53.62238755234596,
+          -3.9,
+          18.51813293262531
+        ],
+        [
+          53.6978480142498,
+          -3.9,
+          18.37729432558913
+        ],
+        [
+          53.77330600303607,
+          -3.9,
+          18.236454400098527
+        ],
+        [
+          53.83840780010002,
+          -3.9,
+          18.09070738784104
+        ],
+        [
+          53.88069082248666,
+          -3.9,
+          17.936785302042235
+        ],
+        [
+          53.89915709941955,
+          -3.9,
+          17.778232326869382
+        ],
+        [
+          53.89999999999999,
+          -3.9,
+          17.618463201267232
+        ],
+        [
+          53.89999999999999,
+          -3.9,
+          17.458682743943342
+        ],
+        [
+          53.89999999999999,
+          -3.9,
+          17.298902286619448
+        ],
+        [
+          53.89999999999999,
+          -3.9,
+          17.13912182929556
+        ],
+        [
+          53.9,
+          -3.9,
+          16.979341371971667
+        ],
+        [
+          53.9,
+          -3.9,
+          16.81956091464778
+        ],
+        [
+          53.9,
+          -3.9,
+          16.65978045732389
+        ],
+        [
+          53.9,
+          -3.9,
+          16.5
+        ]
+      ],
+      "connectionRadius": 1.05
+    },
+    {
+      "id": "re29_sint_paulus",
+      "survey": 29,
+      "name": "Stair-house by Sint-Paulus",
+      "host": "stair_house",
+      "door": [
+        150.7,
+        272.92
+      ],
+      "out": [
+        0.2195,
+        0.9756
+      ],
+      "street": 0.0,
+      "depth": -3.9,
+      "line": "L100",
+      "layout": "I",
+      "flight": "in",
+      "closure": "bricked",
+      "closureSide": "right",
+      "wall": 0.34,
+      "width": 1.3,
+      "doorWidth": 1.1,
+      "doorHeight": 2.0,
+      "post": 0.08,
+      "head": "arch",
+      "frame": "bluestone",
+      "topLanding": 1.2,
+      "note": "Retired street obstruction. The connected R1 facade doorway serves Sint-Paulus; retain this permanent survey ID.",
+      "enabled": false,
+      "supersededBy": "r1_paulus"
+    },
+    {
+      "id": "re30_hanseatic",
+      "survey": 30,
+      "name": "Stair-house on the green by the Hanseatic House",
+      "host": "stair_house",
+      "door": [
+        78.64,
+        199.12
+      ],
+      "out": [
+        0.995,
+        0.0995
+      ],
+      "street": 0.0,
+      "depth": -3.9,
+      "line": "L51",
+      "layout": "I",
+      "flight": "in",
+      "closure": "open",
+      "closureSide": "left",
+      "wall": 0.34,
+      "width": 1.3,
+      "doorWidth": 1.1,
+      "doorHeight": 2.0,
+      "post": 0.08,
+      "head": "arch",
+      "frame": "bluestone",
+      "topLanding": 1.2,
+      "note": "Turned to the south side of the rui and moved 6 m: the survey spot was hard by an elm. The door faces north onto the green.",
+      "connectArea": "network_j064",
+      "connectLength": 1.0706132393844248,
+      "connectHead": 0,
+      "roofDrainLeft": -0.38
+    },
+    {
+      "id": "re31_kipdorp",
+      "survey": 31,
+      "name": "Stair-house on the Kipdorp green",
+      "host": "stair_house",
+      "door": [
+        -174.9,
+        289.63
+      ],
+      "out": [
+        0.0665,
+        0.9978
+      ],
+      "street": 0.0,
+      "depth": -3.9,
+      "line": "L57",
+      "layout": "I",
+      "flight": "in",
+      "closure": "open",
+      "closureSide": "back",
+      "wall": 0.34,
+      "width": 1.3,
+      "doorWidth": 1.1,
+      "doorHeight": 2.0,
+      "post": 0.08,
+      "head": "arch",
+      "frame": "bluestone",
+      "topLanding": 1.2,
+      "note": "On the Kipdorp green, the stair along the Kipdorprui; the door faces east, clear of the elm; the children's chalk pitch finds free green beside it.",
+      "connectArea": "network_l57",
+      "connectLength": 1.742340377104704,
+      "connectHead": 0.8
+    },
+    {
+      "id": "re32_stadspark",
+      "survey": 32,
+      "name": "Stair-house on the green by the Stadspark",
+      "host": "stair_house",
+      "door": [
+        -221.34,
+        319.08
+      ],
+      "out": [
+        0.0208,
+        -0.9998
+      ],
+      "street": 0.0,
+      "depth": -3.9,
+      "line": "L34",
+      "layout": "I",
+      "flight": "in",
+      "closure": "open",
+      "closureSide": "left",
+      "wall": 0.34,
+      "width": 1.3,
+      "doorWidth": 1.1,
+      "doorHeight": 2.0,
+      "post": 0.08,
+      "head": "arch",
+      "frame": "bluestone",
+      "topLanding": 1.2,
+      "note": "On the green by the Stadspark, the stair along the Vestrui; the door faces west onto the path; the children's chalk pitch finds free green beside it.",
+      "connectArea": "network_l34",
+      "connectLength": 1.41762
+    },
+    {
+      "id": "re33_lijnwaadmarkt",
+      "survey": 33,
+      "name": "Stair-house on the Lijnwaadmarkt",
+      "host": "stair_house",
+      "door": [
+        -214.25,
+        147.04
+      ],
+      "out": [
+        -0.0061,
+        -1.0
+      ],
+      "street": 0.0,
+      "depth": -3.6,
+      "line": "L42",
+      "layout": "I",
+      "flight": "in",
+      "closure": "open",
+      "closureSide": "end",
+      "wall": 0.34,
+      "width": 1.3,
+      "doorWidth": 1.1,
+      "doorHeight": 2.0,
+      "post": 0.08,
+      "head": "arch",
+      "frame": "bluestone",
+      "topLanding": 1.2,
+      "note": "On the Lijnwaadmarkt, the stair along the Lijnwaadrui gallery, off the paths and benches.",
+      "connectArea": "network_l42",
+      "connectLength": 1.35,
+      "connectHead": 0,
+      "roofDrainRight": -0.38
+    },
+    {
+      "id": "r1_paulus",
+      "name": "R1 city-works cellar door",
+      "host": "house",
+      "line": "R1",
+      "layout": "L",
+      "flight": "left",
+      "closure": "open",
+      "closureSide": "street",
+      "head": "flat",
+      "frame": "existing",
+      "door": [
+        162.71388638799573,
+        301.475
+      ],
+      "out": [
+        -0.97022,
+        -0.24224
+      ],
+      "street": 0,
+      "depth": -3.9,
+      "wall": 0.42,
+      "width": 1.3,
+      "doorWidth": 1.08,
+      "doorHeight": 2.0,
+      "topLanding": 1.5,
+      "bottomLanding": 1.5,
+      "cut": [
+        "city_"
+      ],
+      "approach": 0.9,
+      "openDeg": 86,
+      "notes": "Reuses the decorative doorway of house 82, outside the bakery shopfront. Native house 82 has no authored interior. Original stone surround and fanlight retained; inward-opening oak leaf replaces the closed decorative leaf."
+    },
+    {
+      "id": "o2_vleeshuis_door",
+      "name": "O2 cellar door beside Vleeshuis",
+      "host": "house",
+      "line": "C2",
+      "layout": "I",
+      "flight": "in",
+      "closure": "open",
+      "closureSide": "left",
+      "head": "flat",
+      "frame": "existing",
+      "door": [
+        -157.78735,
+        132.0
+      ],
+      "out": [
+        0,
+        -1
+      ],
+      "street": 0,
+      "depth": -3.6,
+      "wall": 0.42,
+      "width": 1.3,
+      "doorWidth": 1.08,
+      "doorHeight": 2,
+      "pitchDeg": 45,
+      "topLanding": 0.8,
+      "bottomLanding": 1.5,
+      "cut": [
+        "city_"
+      ],
+      "approach": 0.9,
+      "openDeg": 86,
+      "connectArea": "o2",
+      "connectLength": 1.8,
+      "house": [
+        579
+      ],
+      "notes": "Existing decorative house 579 doorway, outside the neighbouring shop. Inward leaf and buried stair; side arch opens onto a supported maintenance walk joining the existing hall bridge. Replaces both unsafe road hatches. The projecting 260 mm threshold is lowered to a 25 mm worn sill within the retained surround.",
+      "lowerSill": true,
+      "underpass": {
+        "from": [
+          -158.8,
+          -3.6,
+          132.3
+        ],
+        "to": [
+          -156.6,
+          -3.6,
+          132.3
+        ],
+        "width": 1.13,
+        "bed": -5.85
+      }
+    }
+  ]
 }

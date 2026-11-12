@@ -1,0 +1,117 @@
+{
+  "id": "L49",
+  "cls": "M",
+  "name": "Jansrui",
+  "pts": [
+    [
+      46.1,
+      244.0
+    ],
+    [
+      48.6,
+      244.0
+    ],
+    [
+      84.0,
+      234.0
+    ],
+    [
+      88.4,
+      234.0
+    ],
+    [
+      90.9,
+      234.0
+    ]
+  ],
+  "walkwaySide": 1,
+  "start": "room",
+  "end": "room",
+  "joins": [
+    "J057",
+    "J062"
+  ],
+  "retained": null,
+  "grates": [
+    [
+      61.1,
+      238.8
+    ]
+  ],
+  "lamps": [],
+  "construction": {
+    "originalPoints": [
+      [
+        40.5,
+        244.0
+      ],
+      [
+        43.5,
+        242.5
+      ],
+      [
+        84.0,
+        234.0
+      ],
+      [
+        96.0,
+        234.0
+      ]
+    ],
+    "startBinding": {
+      "id": "J057",
+      "rect": [
+        35.5,
+        239.0,
+        45.5,
+        249.0
+      ],
+      "mouth": {
+        "route": "L49",
+        "cls": "M",
+        "wall": "x1",
+        "bay": 0,
+        "tc": 244.0,
+        "width": 3.6,
+        "at": [
+          45.5,
+          244.0
+        ],
+        "end": [
+          46.1,
+          244.0
+        ],
+        "dir": [
+          1,
+          0
+        ],
+        "walkway_side": 1,
+        "depth": 0.6,
+        "legacyC2": false
+      },
+      "installed": false
+    },
+    "endBinding": {
+      "id": "J062",
+      "rect": [
+        92.6,
+        230.6,
+        99.4,
+        237.4
+      ],
+      "mouth": {
+        "route": "L49",
+        "end": [
+          90.9,
+          234.0
+        ],
+        "dir": [
+          -1.0,
+          0.0
+        ],
+        "walkway_side": -1
+      },
+      "installed": false
+    }
+  }
+}

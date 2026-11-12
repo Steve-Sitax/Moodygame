@@ -19,7 +19,7 @@ public static class InputFiles
     private sealed record Known(string Sha256, string[] Dependencies);
     private static readonly object gate = new();
     private static Dictionary<string, Known>? known;
-    private static string MemoFile => Path.Combine(ProjectSettings.GlobalizePath("user://"), "startup-cache", "dependencies.json");
+    private static string MemoFile => Path.Combine(StartupCachePrune.Root, "dependencies.json");
     private static int Cores => Math.Clamp(System.Environment.ProcessorCount / 2, 2, 16);
 
     /// <summary>The SHA-256 (upper-case hex) of each file, in order. A file outside the disk (an exported pack) is

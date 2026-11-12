@@ -1,0 +1,97 @@
+{
+  "id": "L37",
+  "cls": "M",
+  "name": "Rijnrui",
+  "pts": [
+    [
+      -0.61,
+      98.9
+    ],
+    [
+      -0.61,
+      96.4
+    ],
+    [
+      -3.5,
+      84.5
+    ],
+    [
+      -3.911,
+      73.1
+    ],
+    [
+      -3.911,
+      70.6
+    ]
+  ],
+  "walkwaySide": 1,
+  "start": "room",
+  "end": "room",
+  "joins": [
+    "J046",
+    "J021"
+  ],
+  "retained": null,
+  "grates": [],
+  "lamps": [],
+  "construction": {
+    "originalPoints": [
+      [
+        0.0,
+        104.0
+      ],
+      [
+        -3.5,
+        84.5
+      ],
+      [
+        -4.0,
+        65.5
+      ]
+    ],
+    "startBinding": {
+      "id": "J046",
+      "rect": [
+        -3.4,
+        100.6,
+        3.4,
+        107.4
+      ],
+      "mouth": {
+        "route": "L37",
+        "end": [
+          -0.61,
+          98.9
+        ],
+        "dir": [
+          0.0,
+          -1.0
+        ],
+        "walkway_side": 1
+      },
+      "installed": false
+    },
+    "endBinding": {
+      "id": "J021",
+      "rect": [
+        -7.4,
+        62.1,
+        -0.6000000000000001,
+        68.9
+      ],
+      "mouth": {
+        "route": "L37",
+        "end": [
+          -3.911,
+          70.6
+        ],
+        "dir": [
+          0.0,
+          1.0
+        ],
+        "walkway_side": -1
+      },
+      "installed": false
+    }
+  }
+}

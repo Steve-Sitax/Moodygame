@@ -1,0 +1,93 @@
+{
+  "id": "L17",
+  "cls": "G",
+  "name": "rui by Sint-Pauluskerk",
+  "pts": [
+    [
+      221.5,
+      240.5
+    ],
+    [
+      224.2,
+      268.375
+    ],
+    [
+      220.2,
+      268.375
+    ]
+  ],
+  "walkwaySide": 1,
+  "start": "auto",
+  "end": "room",
+  "joins": [
+    null,
+    "C3"
+  ],
+  "retained": null,
+  "grates": [
+    [
+      219.6,
+      261.5
+    ]
+  ],
+  "lamps": [],
+  "construction": {
+    "originalPoints": [
+      [
+        221.5,
+        240.5
+      ],
+      [
+        220.0,
+        246.5
+      ],
+      [
+        219.5,
+        264.0
+      ],
+      [
+        218.0,
+        267.0
+      ],
+      [
+        210.7,
+        271.7
+      ]
+    ],
+    "startBinding": null,
+    "endBinding": {
+      "id": "C3",
+      "rect": [
+        203.0,
+        265.0,
+        218.5,
+        278.5
+      ],
+      "mouth": {
+        "route": "L17",
+        "cls": "G",
+        "wall": "x1",
+        "bay": 0,
+        "tc": 268.375,
+        "width": 6.0,
+        "at": [
+          218.5,
+          268.375
+        ],
+        "end": [
+          220.2,
+          268.375
+        ],
+        "dir": [
+          1,
+          0
+        ],
+        "walkway_side": -1,
+        "depth": 1.7,
+        "legacyC2": false
+      },
+      "installed": false
+    }
+  },
+  "planOverride": "${RUIEN_STAGE}/layouts/compiled-network-plan.json"
+}

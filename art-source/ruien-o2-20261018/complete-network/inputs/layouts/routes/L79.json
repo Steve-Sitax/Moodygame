@@ -1,0 +1,40 @@
+{
+  "id": "L79",
+  "cls": "M",
+  "name": "Kipdorprui",
+  "pts": [
+    [
+      -134.0,
+      237.0
+    ],
+    [
+      -144.5,
+      236.5
+    ]
+  ],
+  "walkwaySide": 1,
+  "start": "cap",
+  "end": "auto",
+  "joins": [
+    null,
+    null
+  ],
+  "retained": null,
+  "grates": [],
+  "lamps": [],
+  "construction": {
+    "originalPoints": [
+      [
+        -134.0,
+        237.0
+      ],
+      [
+        -144.5,
+        236.5
+      ]
+    ],
+    "startBinding": null,
+    "endBinding": null
+  },
+  "planOverride": "${RUIEN_STAGE}/layouts/compiled-network-plan.json"
+}

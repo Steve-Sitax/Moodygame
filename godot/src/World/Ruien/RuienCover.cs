@@ -11,7 +11,7 @@ namespace Scheldemist.World.Ruien;
 /// in from the street (an entrance's stair and landing behind its door, RuienEntrance), covered up to the height in blue
 /// (-8 m at 0 to +8 m at 1: every height for a stair in a bank, the masonry's top for one that runs on under a street).
 /// </summary>
-public sealed class RuienCover
+public sealed partial class RuienCover
 {
     private const float Px = 0.5f;
     public Vector4 Box { get; private set; }
@@ -21,10 +21,13 @@ public sealed class RuienCover
     public const float CeilingSpan = 8;
     private int w, h;
     public ImageTexture? Texture { get; private set; }
+    public static bool FullSearchProof;
 
     public static float ZoneCover(RuienData.Zone z, Vector2 p)
+        =>ZoneCover(z,p,ReadOnlySpan<int>.Empty);
+    private static float ZoneCover(RuienData.Zone z,Vector2 p,ReadOnlySpan<int> candidates)
     {
-        float inside = z.Inside(p, out float along);
+        float inside = z.Inside(p, out float along,candidates);
         // The zone describes the clear interior. Its wall, vault haunch and relief are covered too.
         float c = Mathf.SmoothStep(-z.Wall-0.35f, -z.Wall+0.15f, inside);
         if (z.Kind == "line")
@@ -39,6 +42,9 @@ public sealed class RuienCover
     {
         entrances ??= Array.Empty<RuienEntrance.Spec>();
         if (data.Areas.Count == 0 && entrances.Count == 0) return;
+        using var timing=Dev.StartupTiming.Measure("ruien.cover");
+        string? cache=CoverCacheFile(data,entrances);
+        if(cache!=null&&ReadCoverCache(cache))return;
         Aabb? merged = null;
         foreach (var a in data.Areas) merged = merged is { } m ? m.Merge(a.Box) : a.Box;
         foreach (var e in entrances)
@@ -59,6 +65,10 @@ public sealed class RuienCover
         var deepest = new float[w * h];
         Array.Fill(deepest, float.NegativeInfinity);
         var bytes = new byte[w * h * 3];
+        var searches=new Dictionary<RuienData.Zone,RuienPavingSearch>();
+        using(Dev.StartupTiming.Measure("ruien.cover-index"))
+            if(!FullSearchProof)foreach(var area in data.Areas)foreach(var zone in area.Zones)
+                if(zone.Kind=="line")searches[zone]=new RuienPavingSearch(zone.Path);
         foreach (var a in data.Areas)
             foreach (var z in a.Zones)
             {
@@ -70,7 +80,7 @@ public sealed class RuienCover
                     for (int i = i0; i <= i1; i++)
                     {
                         var p = new Vector2(Box.X + (i + 0.5f) * Px, Box.Y + (j + 0.5f) * Px);
-                        float c = ZoneCover(z, p);
+                        float c = searches.TryGetValue(z,out var search)?ZoneCover(z,p,search.Candidates(p)):ZoneCover(z,p);
                         if (c > map[j * w + i]) map[j * w + i] = c;
                     }
             }
@@ -110,6 +120,13 @@ public sealed class RuienCover
         // (x across the picture, z down it: the shaders' uv is (x - x0, z - z0) / size)
         var im = Image.CreateFromData(w, h, false, Image.Format.Rgb8, bytes);
         Texture = ImageTexture.CreateFromImage(im);
+        if(cache!=null)WriteCoverCache(cache,bytes);
+    }
+    public string CoverageDigest()
+    {
+        using var hash=System.Security.Cryptography.IncrementalHash.CreateHash(System.Security.Cryptography.HashAlgorithmName.SHA256);
+        foreach(var values in new[]{map,closed,ceiling})hash.AppendData(System.Runtime.InteropServices.MemoryMarshal.AsBytes(values.AsSpan()));
+        return Convert.ToHexString(hash.GetHashAndReset());
     }
 
     private static Rect2 Bounds(Vector2[] pts)

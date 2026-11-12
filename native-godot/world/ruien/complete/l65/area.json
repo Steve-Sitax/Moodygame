@@ -1,0 +1,36 @@
+{
+  "about": "Made by RuienImport from the Blender export (docs/ruien-native.md). Do not edit; convert again.",
+  "piece": "",
+  "keys": {
+    "s0": {
+      "lod0": [
+        {
+          "file": "mesh_s0_lod0_00.res",
+          "tris": 134652,
+          "box": [
+            153.3199,
+            -5.0500073,
+            316.55856,
+            157.36003,
+            -0.89870024,
+            321.40012
+          ]
+        }
+      ],
+      "lod1": [
+        {
+          "file": "mesh_s0_lod1_00.res",
+          "tris": 39201,
+          "box": [
+            153.32045,
+            -5.0500073,
+            316.55856,
+            157.36002,
+            -0.89870024,
+            321.40002
+          ]
+        }
+      ]
+    }
+  }
+}

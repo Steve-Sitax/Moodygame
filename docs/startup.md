@@ -12,10 +12,51 @@ pwsh -File native-godot/scripts/measure-startup.ps1 -Name base -Runs 3
 
 Each run writes `.scratch/startup-perf/<name>-<n>.json` (every `StartupTiming` stage) and `.log`. Compare medians of
 three runs taken close together: the same build varies about 15% over a day on the test PC. The first run after a change to a
-`StartupGeometrySource` file rebuilds the caches (about 5 min); time it separately. `ref` must print the same
-`town digest`, `map digest` and `ruien pieces` as a cached run.
+`StartupGeometrySource` file rebuilds the caches; time it separately. The old five-area sample took about 5 min;
+the complete network's first installed launch took 37 min 31 s. Compare `town digest`, `map digest`, every
+`ruien pieces` fingerprint row and the non-timing world report with the reference. A differing stored-resource
+hash requires a full mesh-data comparison; counts and bounds alone cannot establish equivalence.
 
-## Where the time goes (2026-11-07, warm, about 87 s)
+## Complete Ruien network (2026-11-12)
+
+Six interleaved actual playable launches of the same installed build, isolated save/layouts and Forward+ renderer,
+with `--disable-vsync`: three normal launches and three with `--uncached-bridge-models`. The fixed bridge mesh cache
+reduced the median from **187.152 s to 175.740 s**, saving **11.412 s (6.1%)**. Cached runs were 176.646, 175.740 and
+173.892 s; comparison runs were 186.179, 187.152 and 188.115 s. The **gap to the 60 s target is 115.740 s**.
+
+| Largest measured steps | Warm median, s | Notes |
+|---|---:|---|
+| Ruien collision/node attachment | 57.951 | Main thread; 78,543,196 collision triangles |
+| Town load | 38.540 | Loading thread with prefetch workers |
+| Ruien entrance preparation | 35.778 | Worker; overlaps town loading |
+| Ruien area preparation | 17.878 | Worker; overlaps town loading |
+| Wait for remaining Ruien preparation | 15.115 | After town load, with loading frames uncapped |
+| Town collision (`part.Solid`) | 11.065 | Main thread |
+| Town ready passes | 10.549 | Main thread |
+
+Stages overlap and nest; do not sum this table. Attachment's processor time matches its elapsed time, with zero
+collections in all three generations: this remaining delay is physics construction, rather than garbage collection
+or a wait for disk. All collision must exist before play. Deferring it would change required remote ray tests;
+reducing the detailed collision requires a separate validated proxy redesign to preserve contact and giant clearance.
+
+All six runs kept the town/map/Ruien digests and non-timing world reports identical. A parallel film render was
+active throughout; host snapshots record its process and memory usage. The cached range was 2.754 s. The first
+installed cache build took 2250.803 s and also overlapped Git staging; it is excluded from the warm comparison.
+The uncached, in-order reference reached play in 2162.838 s; the full desktop launcher check passed.
+
+The reference's town/map digests and world report match. Raw Ruien storage digests differ after serialization:
+independent Godot checks verified all stored vertex, attribute, index and LOD buffers, formats, bounds and effective
+material names for 7,202 staged/installed and 7,046 cached/reference mesh pairs. All 42,372 fingerprint rows then
+match exactly, with only those proven storage identities and known staged/installed source paths normalized.
+Original logs and raw hashes are retained. Normal validation runs exited successfully with the same two ObjectDB
+teardown warnings; the separate water-layer diagnostic's teardown errors are excluded from acceptance.
+
+Evidence: `.scratch/startup-perf/ruien-installed33-result.json`, `ruien-installed33-bridge-cache-comparison.json`,
+the two `ruien-installed33-*mesh-equivalence.json` records, per-run JSON and host snapshots
+under `.scratch/ruien-complete/runs`. The bridge geometry/cache proof covers 138 bridges, 25 shared shapes, and
+cold, warm and corrupt-cache recovery. Live hinges, collision and state remain per bridge.
+
+## Earlier five-area sample (2026-11-07, warm, about 87 s)
 
 | Step | Thread | s | Notes |
 |---|---|---|---|

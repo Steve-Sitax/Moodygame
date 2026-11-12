@@ -1,0 +1,27 @@
+{
+  "key": "b6f8d717e085937c5cff57c74119b207fa1f692c95ed8190453ee64d13590734",
+  "files": {
+    "area.json": "ccfff5e6f45b82d02ae9807d9833d32113cf9fdfddf49c7187ee98b047893473",
+    "collision.res": "bb37990187e82b272cb2a5b07b39c07b408d24cc25035551c71061e0a8c41dbd",
+    "markers.json": "411eb42e7ccd55e563107ad9aa6ce6c23ad195613e92a6714279837319f1c6de",
+    "mesh_s0_lod0_00.res": "1e62ee9285401a479caccf670558fcf6397f4fd385ac9dd0b7fc19346b2466b0",
+    "mesh_s0_lod0_01.res": "ad344302e26fcdc7fdfb717bc378a131e038b1c36b4b19df21e823d2f9e6300e",
+    "mesh_s0_lod1_00.res": "6c90d5bc10f0582ac26c4ff965e1d38753ca3fb3b7f83575d1fa61571e5e7ff3",
+    "mesh_s1_lod0_00.res": "ccb9c283dddef818c1dda52f2ea15e3d7c81fd3b0fe4d29bc5a1833cf9dd8b9b",
+    "mesh_s1_lod0_01.res": "7aabc1b84b1a8181691b9a680360358f9146bb82d0e4d9a9b5eb5b6bd564d491",
+    "mesh_s1_lod1_00.res": "d5063e7013e5c269d6857db279c0fa2df2d78c34cbd7cba82b7f2069964b46a2",
+    "mesh_s2_lod0_00.res": "d15a02fb72cc6e40ad643772c0692f65aed54292c475cfc318f1c49217bebff6",
+    "mesh_s2_lod0_01.res": "676ed3172852fe1649f098889d71f7f18c924621c5c4b66e488e1301dbe71ca5",
+    "mesh_s2_lod1_00.res": "8ff006f69afe8644f312819a97d58e2f39e35671604dde16eccc0b3411525782",
+    "mesh_s3_lod0_00.res": "edebd3dfacec81e0da37da3b1c950a6a038f712d413418a8fcbe0ab0901dd58e",
+    "mesh_s3_lod0_01.res": "be30e2f6ee584da77dfbc5a5260c0f6112a9558106d9ddb689e78fee14c68796",
+    "mesh_s3_lod1_00.res": "a5b851e3518e915c4d2a9e634a0062527c7bfcad8f67d5bf4338d372b26e0bab",
+    "mesh_s4_lod0_00.res": "63a4e94cfb5208744b18a4db30bdb8989f265e47a654171be9c1a883baa12cac",
+    "mesh_s4_lod0_01.res": "1e11d817ef8848d2331cfc690cee566c82062815310f3afbc2e905e85e3942b8",
+    "mesh_s4_lod1_00.res": "5db6c9e37482d65dff3fb65a1cb546f2bd8e5408bbecd95f2c875125663d05a0",
+    "mesh_s5_lod0_00.res": "e87d0196c71da06fedc56be7eb16c38f234dcdfba1fd67e9888ccb126abd8459",
+    "mesh_s5_lod0_01.res": "0b58ad70417471c497f1f5048695864783cc939dcb6a5beb429ffcdef2ee92f5",
+    "mesh_s5_lod1_00.res": "018c567e9ab4438a6176b58576f3f4493f18e0879bcb903efd48abcb8b6f8fc8"
+  },
+  "seconds": 99.19629069999792
+}

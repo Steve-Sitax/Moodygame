@@ -1,0 +1,94 @@
+{
+  "id": "L30",
+  "cls": "M",
+  "name": "rui by Hanseatic House",
+  "pts": [
+    [
+      28.269,
+      164.8
+    ],
+    [
+      28.269,
+      163.76581
+    ],
+    [
+      28.179,
+      161.13419
+    ],
+    [
+      28.179,
+      160.1
+    ]
+  ],
+  "walkwaySide": 1,
+  "start": "room",
+  "end": "room",
+  "joins": [
+    "R4",
+    "J039"
+  ],
+  "retained": null,
+  "grates": [],
+  "lamps": [],
+  "construction": {
+    "originalPoints": [
+      [
+        27.6,
+        172.3
+      ],
+      [
+        28.5,
+        164.5
+      ],
+      [
+        28.0,
+        155.0
+      ]
+    ],
+    "startBinding": {
+      "id": "R4",
+      "rect": [
+        23.5,
+        166.5,
+        32.0,
+        179.0
+      ],
+      "mouth": {
+        "route": "L30",
+        "end": [
+          28.269,
+          164.8
+        ],
+        "dir": [
+          0.0,
+          -1.0
+        ],
+        "walkway_side": 1
+      },
+      "installed": false
+    },
+    "endBinding": {
+      "id": "J039",
+      "rect": [
+        24.6,
+        151.6,
+        31.4,
+        158.4
+      ],
+      "mouth": {
+        "route": "L30",
+        "end": [
+          28.179,
+          160.1
+        ],
+        "dir": [
+          0.0,
+          1.0
+        ],
+        "walkway_side": -1
+      },
+      "installed": false
+    }
+  },
+  "closeCoping": true
+}

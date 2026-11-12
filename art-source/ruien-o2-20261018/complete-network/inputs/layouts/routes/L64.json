@@ -1,0 +1,119 @@
+{
+  "id": "L64",
+  "cls": "G",
+  "name": "rui by Sint-Pauluskerk",
+  "pts": [
+    [
+      162.2,
+      327.0
+    ],
+    [
+      164.7,
+      327.0
+    ],
+    [
+      175.3,
+      317.5
+    ],
+    [
+      177.8,
+      317.5
+    ]
+  ],
+  "walkwaySide": 1,
+  "start": "room",
+  "end": "room",
+  "joins": [
+    "J072",
+    "J009"
+  ],
+  "retained": null,
+  "grates": [],
+  "lamps": [],
+  "construction": {
+    "originalPoints": [
+      [
+        155.5,
+        327.0
+      ],
+      [
+        163.5,
+        326.0
+      ],
+      [
+        183.0,
+        320.0
+      ],
+      [
+        184.0,
+        318.5
+      ]
+    ],
+    "startBinding": {
+      "id": "J072",
+      "rect": [
+        150.5,
+        322.0,
+        160.5,
+        332.0
+      ],
+      "mouth": {
+        "route": "L64",
+        "cls": "G",
+        "wall": "x1",
+        "bay": 0,
+        "tc": 327.0,
+        "width": 6.0,
+        "at": [
+          160.5,
+          327.0
+        ],
+        "end": [
+          162.2,
+          327.0
+        ],
+        "dir": [
+          1,
+          0
+        ],
+        "walkway_side": 1,
+        "depth": 1.7,
+        "legacyC2": false
+      },
+      "installed": false
+    },
+    "endBinding": {
+      "id": "J009",
+      "rect": [
+        179.5,
+        312.5,
+        189.5,
+        322.5
+      ],
+      "mouth": {
+        "route": "L64",
+        "cls": "G",
+        "wall": "x0",
+        "bay": 0,
+        "tc": 317.5,
+        "width": 6.0,
+        "at": [
+          179.5,
+          317.5
+        ],
+        "end": [
+          177.8,
+          317.5
+        ],
+        "dir": [
+          -1,
+          0
+        ],
+        "walkway_side": -1,
+        "depth": 1.7,
+        "legacyC2": false
+      },
+      "installed": false
+    }
+  }
+}

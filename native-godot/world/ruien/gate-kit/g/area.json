@@ -1,0 +1,96 @@
+{
+  "about": "Made by RuienImport from the Blender export (docs/ruien-native.md). Do not edit; convert again.",
+  "piece": "network_gate_kit",
+  "keys": {
+    "outlet_door_n": {
+      "lod0": [
+        {
+          "file": "mesh_outlet_door_n_lod0_00.res",
+          "tris": 30566,
+          "box": [
+            0.0024074828,
+            -5.036874,
+            -0.25,
+            3.2287464,
+            -0.80466557,
+            0.109089285
+          ]
+        }
+      ],
+      "lod1": [
+        {
+          "file": "mesh_outlet_door_n_lod1_00.res",
+          "tris": 13100,
+          "box": [
+            0.0024054938,
+            -5.0367265,
+            -0.250193,
+            3.230992,
+            -0.80463886,
+            0.10907608
+          ]
+        }
+      ]
+    },
+    "outlet_door_s": {
+      "lod0": [
+        {
+          "file": "mesh_outlet_door_s_lod0_00.res",
+          "tris": 30634,
+          "box": [
+            -3.2287464,
+            -5.0375423,
+            -0.25,
+            -0.0023899078,
+            -0.80373716,
+            0.10889441
+          ]
+        }
+      ],
+      "lod1": [
+        {
+          "file": "mesh_outlet_door_s_lod1_00.res",
+          "tris": 13128,
+          "box": [
+            -3.230992,
+            -5.0379095,
+            -0.250193,
+            -0.0023396015,
+            -0.8040142,
+            0.1089707
+          ]
+        }
+      ]
+    },
+    "outlet_gate": {
+      "lod0": [
+        {
+          "file": "mesh_outlet_gate_lod0_00.res",
+          "tris": 133847,
+          "box": [
+            -3.780064,
+            -5.400017,
+            -3.4790432,
+            3.780023,
+            -0.2849803,
+            1.5188973
+          ]
+        }
+      ],
+      "lod1": [
+        {
+          "file": "mesh_outlet_gate_lod1_00.res",
+          "tris": 58719,
+          "box": [
+            -3.7800393,
+            -5.400017,
+            -3.4784422,
+            3.7800136,
+            -0.2849803,
+            1.5187116
+          ]
+        }
+      ]
+    }
+  }
+}

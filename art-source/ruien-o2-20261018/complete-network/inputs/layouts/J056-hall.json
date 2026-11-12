@@ -1,0 +1,148 @@
+{
+  "room": {
+    "id": "J056",
+    "name": "Gallery confluence J056",
+    "class": "G",
+    "centre": [
+      -58.756,
+      161.8
+    ],
+    "rect": [
+      -70.006,
+      154.3,
+      -47.506,
+      169.3
+    ],
+    "baySize": 7.5,
+    "requiredRoutes": [
+      "L45",
+      "L75",
+      "L94",
+      "L108"
+    ],
+    "grates": [
+      [
+        -64.0,
+        162.0
+      ]
+    ]
+  },
+  "mouths": [
+    {
+      "route": "L45",
+      "cls": "G",
+      "wall": "z1",
+      "bay": 1,
+      "tc": -58.756,
+      "width": 6.0,
+      "at": [
+        -58.756,
+        169.3
+      ],
+      "end": [
+        -58.756,
+        171.0
+      ],
+      "dir": [
+        0,
+        1
+      ],
+      "walkway_side": 1,
+      "depth": 1.7,
+      "legacyC2": false
+    },
+    {
+      "route": "L75",
+      "cls": "G",
+      "wall": "z1",
+      "bay": 0,
+      "tc": -66.256,
+      "width": 6.0,
+      "at": [
+        -66.256,
+        169.3
+      ],
+      "end": [
+        -66.256,
+        171.0
+      ],
+      "dir": [
+        0,
+        1
+      ],
+      "walkway_side": 1,
+      "depth": 1.7,
+      "legacyC2": false
+    },
+    {
+      "route": "L94",
+      "cls": "M",
+      "wall": "z0",
+      "bay": 1,
+      "tc": -58.756,
+      "width": 3.6,
+      "at": [
+        -58.756,
+        154.3
+      ],
+      "end": [
+        -58.756,
+        153.7
+      ],
+      "dir": [
+        0,
+        -1
+      ],
+      "walkway_side": -1,
+      "depth": 0.6,
+      "legacyC2": false
+    },
+    {
+      "route": "L108",
+      "cls": "M",
+      "wall": "z0",
+      "bay": 0,
+      "tc": -66.256,
+      "width": 3.6,
+      "at": [
+        -66.256,
+        154.3
+      ],
+      "end": [
+        -66.256,
+        153.7
+      ],
+      "dir": [
+        0,
+        -1
+      ],
+      "walkway_side": 1,
+      "depth": 0.6,
+      "legacyC2": false
+    },
+    {
+      "route": "GATE_O7",
+      "cls": "G",
+      "wall": "x0",
+      "bay": 0,
+      "tc": 156.75,
+      "width": 3.0,
+      "at": [
+        -70.006,
+        156.75
+      ],
+      "end": [
+        -70.006,
+        156.75
+      ],
+      "dir": [
+        -1,
+        0
+      ],
+      "walkway_side": 1,
+      "depth": 0,
+      "gate": "O7"
+    }
+  ],
+  "absorbedRoutes": []
+}

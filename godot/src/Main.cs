@@ -152,6 +152,15 @@ public partial class Main : Node
         try { await PrepareWorldLoad(); }
         catch (Exception e) { GD.PrintErr($"The shared town could not be loaded: {e.Message}"); GetTree().Quit(1); return; }
         Dev.StartupTiming.Mark("prepare-world-load.end");
+        async Task JoinRuien()
+        {
+            // Keep the loading frame uncapped until this worker is done too. Restoring
+            // VSync after only the town loaded made every remaining Ruien mesh read
+            // wait for a display frame (182 s in the complete network's warm proof).
+            using (Dev.StartupTiming.Measure("ruien.join"))
+                foreach (var early in parts.OfType<World.Ruien.Ruien>())
+                    while (!early.Beside.IsCompleted) await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+        }
         Error err;
         if (beside && !Flag("load-on-main"))
         {
@@ -170,6 +179,7 @@ public partial class Main : Node
             try
             {
                 using(Dev.StartupTiming.Measure("world.load")) err = await Task.Run(() => world.Load(town));
+                if(err==Error.Ok&&!Flag("startup-capped-ruien-join"))await JoinRuien();
             }
             catch (Exception e)
             {
@@ -181,8 +191,10 @@ public partial class Main : Node
                 Engine.MaxFps=frameCap;
                 if(display)DisplayServer.WindowSetVsyncMode(vsync);
             }
+            // Diagnostic comparison only: reproduce the former loading-frame cap.
+            if(err==Error.Ok&&Flag("startup-capped-ruien-join"))await JoinRuien();
         }
-        else { using(Dev.StartupTiming.Measure("world.load")) err = world.Load(town); }
+        else { using(Dev.StartupTiming.Measure("world.load")) err = world.Load(town); if(err==Error.Ok)await JoinRuien(); }
         if (err != Error.Ok)
         {
             GD.PrintErr($"The town did not load ({err}): {town}");
@@ -191,9 +203,6 @@ public partial class Main : Node
         }
         // The Ruien's worker only ever runs beside the town's loading thread: the main thread's own loads and the
         // town's scripts (from world.ready on) must not run while it still loads (World/Ruien/Ruien.StartBeside).
-        using (Dev.StartupTiming.Measure("ruien.join"))
-            foreach (var early in parts.OfType<World.Ruien.Ruien>())
-                while (!early.Beside.IsCompleted) await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
         using(Dev.StartupTiming.Measure("world.ready")) view.AddChild(world);
         using(Dev.StartupTiming.Measure("prepare-world")) await PrepareWorld();
         GD.Print($"town in: {JsonSerializer.Serialize(world.Report)}");

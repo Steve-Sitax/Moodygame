@@ -160,7 +160,7 @@ public static class RuienMaterials
         return m;
     }
 
-    public static ShaderMaterial Beam(Color c, Vector3 from, Vector3 dir, float len, float r)
+    public static ShaderMaterial Beam(Color c, Vector3 from, Vector3 dir, float len, float r,float bars=0)
     {
         var m = new ShaderMaterial { Shader = AirShader, RenderPriority = 2, ResourceName = "ruien_beam" };
         m.SetShaderParameter("mode", 0);
@@ -169,6 +169,7 @@ public static class RuienMaterials
         m.SetShaderParameter("beam_dir", dir);
         m.SetShaderParameter("beam_len", len);
         m.SetShaderParameter("beam_r", r);
+        m.SetShaderParameter("beam_bars",bars);
         m.SetShaderParameter("strength", 0f);
         return m;
     }

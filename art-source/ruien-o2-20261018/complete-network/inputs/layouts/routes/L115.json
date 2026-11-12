@@ -1,0 +1,40 @@
+{
+  "id": "L115",
+  "cls": "G",
+  "name": "Keizersrui",
+  "pts": [
+    [
+      61.5,
+      307.0
+    ],
+    [
+      60.5,
+      302.0
+    ]
+  ],
+  "walkwaySide": 1,
+  "start": "auto",
+  "end": "auto",
+  "joins": [
+    null,
+    null
+  ],
+  "retained": null,
+  "grates": [],
+  "lamps": [],
+  "construction": {
+    "originalPoints": [
+      [
+        61.5,
+        307.0
+      ],
+      [
+        60.5,
+        302.0
+      ]
+    ],
+    "startBinding": null,
+    "endBinding": null
+  },
+  "planOverride": "${RUIEN_STAGE}/layouts/compiled-network-plan.json"
+}
