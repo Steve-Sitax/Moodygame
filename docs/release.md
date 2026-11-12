@@ -55,6 +55,8 @@ user paths or private data. Never include game saves, user layouts, provider set
 The project belongs to `drstaf`, and the Windows channel is `windows-preview`.
 Use itch.io's Butler uploader for the complete exported folder; GitHub keeps the matching source revision.
 The generated `.itch.toml` chooses the native executable and Forward+ renderer in the itch app.
+Public descriptions use the game name and Steve's first name, without company names. GitHub account names in
+source links may remain visible. Keep the work-in-progress label prominent.
 
 ```powershell
 butler push <verified-package-folder> drstaf/scheldemist:windows-preview --userversion <source-commit>

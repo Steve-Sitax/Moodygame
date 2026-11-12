@@ -117,7 +117,7 @@ No web build or bake step belongs in the game startup. See [service checks](nati
 
 ## Made with AI
 
-Scheldemist is an experiment: the whole game was made by AI, steered by one person. Steve (Sitax)
+Scheldemist is an experiment: the whole game was made by AI, steered by one person. Steve
 designed it, played it and decided; Claude (Anthropic's Claude Code, mostly Claude Opus 5.5) wrote the
 code, the Blender scripts that build every model, the tests and the docs. Most textures and concept
 pictures were made with OpenAI's image tool through Codex. The sounds are CC0 recordings and the fonts
@@ -141,7 +141,7 @@ into native resources and C#. The figures above describe the original 0.1.0 deve
 
 ## Licence
 
-Copyright (C) 2026 Steve (Sitax)
+Copyright (C) 2026 Steve
 
 Scheldemist is free software under the GNU Affero General Public License, version 3 or (at your
 option) any later version. The full text is in `LICENSE`.
