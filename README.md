@@ -71,8 +71,8 @@ weather and game rules run in Godot; no Godot editor, .NET installation, Node or
 The old browser downloads and web demo are retired. Native macOS and Linux packages are not provided yet.
 
 This is a development preview. Startup still exceeds the 60-second target: the exported Windows build takes
-about 2 minutes 21 seconds with a warm geometry cache. The first launch takes substantially longer while
-it prepares geometry; leave the loading window open. Hardware and background work affect these times.
+about 2 minutes 21 seconds. The download brings its prepared geometry along (the `startup-cache` folder), so
+the first launch takes about as long as later ones. Hardware and background work affect these times.
 See [startup measurements](docs/startup.md) and [release notes](docs/release.md) for current limitations.
 In a source checkout, use `native-godot/Start Native Town Game.cmd`.
 

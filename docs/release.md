@@ -19,10 +19,12 @@ are required by the supplied Forward+ launcher. No Godot editor, .NET installati
 Native Linux and macOS exports have not been validated or published.
 
 This is a development preview. The exported Windows build's three-run warm startup median is 140.689 seconds,
-80.689 seconds above the target. The first launch takes substantially longer while geometry is prepared;
-leave the loading window open. Hardware and background work affect these times. See [measured delays](startup.md).
+80.689 seconds above the target. The package brings its prepared geometry along (the `startup-cache` folder):
+a first launch with empty user data reached play in 147.017 seconds. Without that folder the first launch prepares
+the geometry itself (863.973 seconds, one observation). Hardware and background work affect these times.
+See [measured delays](startup.md).
 Antigoon's autonomous encounter routing remains on the street; underground AI navigation is not implemented.
-User saves, edited district layouts, provider credentials and generated geometry caches are not shipped.
+User saves, edited district layouts and provider credentials are not shipped.
 
 ## Windows preview receipt — 2026-11-12
 
@@ -41,6 +43,17 @@ The new surface screenshots are captured from this Windows package; the Ruien im
 network from its construction review. The old browser-era cathedral picture
 and other historical README screenshots are no longer used to present the current build. Camera/time controls and
 the game's own resident/lock commands stage the views; the images are unretouched game renders.
+
+### Package with prepared geometry: 2026-11-12
+
+The `windows-preview` channel now contains **0.3.0-wip+90f385c53**, built from source
+`90f385c53`. Its game content equals the receipt above; the code adds the read-only `startup-cache` folder
+beside the executable, and the package holds that folder: 10.85 GB in 15,598 files. The download grows by about
+7.5 GB. Package fingerprint `19c862072af785cd40e3f6c2a7cbc6182f84e6b3772877968ee18fb6d37e7c95`; the content
+verifier passed 168,095 checks; the relocated copy passed all 28 gameplay/render checks; all seven desktop-launcher
+checks passed. Starts with empty user data and an empty own cache reached play in 147.017 s and, with the invariant
+number format, in 136.298 s; each built no cache entry and left the package folder unchanged.
+The warm three-run median above was measured on the earlier binary and was not repeated.
 
 ## Build from source
 

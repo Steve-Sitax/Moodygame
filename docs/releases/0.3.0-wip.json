@@ -221,5 +221,24 @@
     ],
     "aggregateHarnessPassed": false,
     "note": "All three lock movement checks passed. The broader mover harness exceeded its 1 ms mean and 16 ms frame budgets during the screenshot run; this is not part of the 28-check package acceptance result."
+  },
+  "preparedCachePackage": {
+    "version": "0.3.0-wip+90f385c53",
+    "binarySourceCommit": "90f385c53",
+    "channel": "windows-preview",
+    "fingerprint": "19c862072af785cd40e3f6c2a7cbc6182f84e6b3772877968ee18fb6d37e7c95",
+    "packageContentChecks": 168095,
+    "startupCache": {
+      "bytes": 11649715034,
+      "files": 15598,
+      "gigabytes": 10.85
+    },
+    "firstStartEmptyUserDataMs": 147017,
+    "firstStartInvariantNumberFormatMs": 136298,
+    "firstStartWithoutPreparedCacheMs": 863973,
+    "cacheEntriesBuiltByFirstStart": 0,
+    "relocatedGameplayChecksPassed": 28,
+    "desktopLauncherChecksPassed": 7,
+    "note": "Game content equals the 2bd9167ea package. The three-run warm median was not repeated on this binary. The 863973 ms start without prepared caches is one observation taken while an export also ran."
   }
 }
