@@ -1,4 +1,4 @@
-param([Parameter(Mandatory)][string]$Package,[switch]$Server,[int]$Port=18800)
+param([Parameter(Mandatory)][string]$Package,[switch]$Server,[int]$Port=18800,[ValidateRange(1,90)][int]$StartupMinutes=60)
 $ErrorActionPreference = 'Stop'
 $Package=[IO.Path]::GetFullPath($Package)
 $project=[IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
@@ -27,7 +27,7 @@ if($Server){$start.ArgumentList.Add('--headless')}else{$start.ArgumentList.Add('
 $liveLog=Join-Path $proof 'live-engine.log'
 $start.ArgumentList.Add('--log-file');$start.ArgumentList.Add($liveLog)
 $start.ArgumentList.Add('--')
-foreach($argument in @('--no-ai','--scene-seed','--author-root',(Join-Path $proof 'layouts'),'--native-data-proof',(Join-Path $proof 'data-result.json'),'--port',$Port.ToString())){$start.ArgumentList.Add($argument)}
+foreach($argument in @('--no-ai','--scene-seed','--startup-profile','--author-root',(Join-Path $proof 'layouts'),'--native-data-proof',(Join-Path $proof 'data-result.json'),'--port',$Port.ToString(),'--startup-timeout-minutes',$StartupMinutes.ToString())){$start.ArgumentList.Add($argument)}
 if($Server){foreach($argument in @('--dedicated','--server-ready',(Join-Path $proof 'server-ready.json'))){$start.ArgumentList.Add($argument)}}
 else{foreach($argument in @('--native-package-smoke',$proof)){$start.ArgumentList.Add($argument)}}
 $child=[Diagnostics.Process]::new()
@@ -37,7 +37,7 @@ try {
     [void]$child.Start()
     $started=$true
     $stdout=$child.StandardOutput.ReadToEndAsync();$stderr=$child.StandardError.ReadToEndAsync()
-    $deadline=[DateTime]::UtcNow.AddSeconds(180)
+    $deadline=[DateTime]::UtcNow.AddMinutes($StartupMinutes+2)
     if($Server){
         $ready=Join-Path $proof 'server-ready.json'
         while(-not (Test-Path -LiteralPath $ready) -and -not $child.HasExited -and [DateTime]::UtcNow -lt $deadline){Start-Sleep -Milliseconds 250}

@@ -410,9 +410,9 @@ Ways down from the street, built before the network they will join (Steve chose 
 2026-11-02; 25 survey entries were built: nine wall doors, four gateway side doors, four house side doors, eight stair-houses).
 RE29 is now retired in favour of R1. With the connected R1 and O2 facade doors there are 26 active entries (19 wall/house doors and seven stair-houses). Each entrance is a
 street door in a wall that is already there, one straight
-bluestone flight down to the level of its Ruien line, and a small landing that ends at a locked iron grille or a
-bricked-up arch ("closed for works") where the Ruien join later. Nothing leads nowhere and there is nothing to fall
-into. Code: `RuienEntrance.cs` (data, frames, town cuts, model), `RuienEntranceDoor.cs` (the door and the closure's
+bluestone flight down to the level of its Ruien line, and a landing connected to the built network.
+The former temporary grilles and "closed for works" ends have been replaced by the surveyed connections.
+Code: `RuienEntrance.cs` (data, frames, town cuts, model), `RuienEntranceDoor.cs` (the door and the closure's
 prompt). Data: `native-godot/world/ruien/entrances.json`.
 
 **One entry is one entrance.** The kit builds everything from it, so a stair is moved, turned or deepened by editing

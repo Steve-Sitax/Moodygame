@@ -30,7 +30,9 @@ public static class NativePackageProof
             string data = System.Environment.GetEnvironmentVariable("SCHELDEMIST_USER_DATA") ?? throw new Exception("Proof needs isolated writable data.");
             string dataRoot = Path.GetFullPath(data) + Path.DirectorySeparatorChar;
             Check("raw runtime data extracted into isolated cache", Scheldemist.Paths.NativeDataRoot!.StartsWith(dataRoot, StringComparison.OrdinalIgnoreCase));
-            var deadline = DateTime.UtcNow.AddSeconds(100);
+            // A first launch builds the complete Ruien cache. Keep a bounded proof deadline,
+            // configurable like --startup-proof, without treating the old partial-town time as a limit.
+            var deadline = DateTime.UtcNow.AddMinutes(int.TryParse(game.Arg("startup-timeout-minutes"), out int minutes) ? Math.Clamp(minutes, 1, 90) : 60);
             while (!game.Loaded || Loading.Busy || ServerLink.I?.Up != true || !GameState.I.Live || game.GetNodeOrNull<Townspeople>("Townspeople")?.Sims.Count is not > 0)
             {
                 if (DateTime.UtcNow > deadline) throw new TimeoutException("Exported native backend and population did not become ready.");

@@ -1,6 +1,6 @@
 # Standalone Windows game and server
 
-Build from `D:/Code/MoodyGame-native-authoring/native-godot`. The game entry point is `town.tscn`; workshop
+Build from the checkout's `native-godot` directory. The game entry point is `town.tscn`; workshop
 launchers explicitly open `main.tscn` or a district. Coordinate build/export with any running editor or proof:
 Godot export publishes both C# projects, including the referenced `godot/Scheldemist.csproj` core.
 
@@ -75,7 +75,10 @@ supported handcart loading and bicycle pose. Earlier export attempts caught reso
 `.tres.remap` names; `NativeDistrictLayouts` now uses `ResourceLoader.ListDirectory`. Those earlier attempts are
 historical evidence, rather than the final downloadable package.
 
-The final portable identity is `58dd5812d2b9b777f71736c2046210bdb2f8b7bf421032be55d5c20469c558db`,
+The following receipts describe the historical October 12 conversion export, not the current download.
+Current release details are in [Windows packaging](../../../docs/release.md).
+
+The October portable identity is `58dd5812d2b9b777f71736c2046210bdb2f8b7bf421032be55d5c20469c558db`,
 from 14,069 content/code inputs. Client: `D:/Code/ScheldemistPackages/final-client-20261012-portable`.
 Server: `D:/Code/ScheldemistPackages/final-server-20261012-portable` (57,498 package checks).
 The portable client passed 28 relocated checks with clean shutdown and no engine/API errors in

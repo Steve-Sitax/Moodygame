@@ -1,5 +1,8 @@
 # Scheldemist: native world and authoring
 
+**Work in progress.** The downloadable Godot build is an unfinished development preview with known
+startup delays and incomplete features. See [release limitations](../docs/release.md).
+
 The whole town now loads from editable Godot resources, with native C# gameplay rules and SQLite. Double-click
 `Start Native Town Game.cmd` for the game, or `Start Workshop.cmd` for the object editor. The game uses Forward+
 and its real title menu. Its native services run inside Godot, without a browser, Node process or runtime bake.
@@ -35,12 +38,11 @@ for tested rules. Rendered native hosting/guest play, actor authority, a host bu
 have passed. Dedicated servers also expose the native HTTPS/WebSocket transport.
 In the Godot editor, F5 runs the whole native game. Open a district and press F6 to run its editing scene.
 
-The tested standalone Windows client is `D:/Code/ScheldemistPackages/final-client-20261012-portable`;
-open `Play Scheldemist.cmd`. The matching server is `D:/Code/ScheldemistPackages/final-server-20261012-portable`;
-open `Start Server.cmd`, optionally with `--port 8800`. Keep every file in each package together. Both include
-their .NET/ASP.NET runtime and need no editor or source checkout. Their final exports passed 57,497/57,498
-package checks; the client passed 28 relocated game/render checks and the server passed cold boot/API/data checks.
-See [the exact receipts](world/notes/standalone-receipts.json) and [packaging procedure](world/notes/standalone-export.md).
+The [Windows Godot preview on itch.io](https://drstaf.itch.io/scheldemist)
+includes the completed Ruien: 167 areas, 26 entrances and 918 drainage inlets. Open `Play Scheldemist.cmd`.
+Keep all package files together; the .NET/ASP.NET runtime is included. See [current packaging and limitations](../docs/release.md)
+and [Ruien construction](../docs/ruien-native.md). The October conversion checks in
+[standalone receipts](world/notes/standalone-receipts.json) are historical evidence for that earlier export.
 
 Old game-save compatibility was explicitly waived by Steve. The thirteen identified legacy game database,
 WAL/SHM and save-slot files were removed after the old game server stopped. Native play starts a new game.

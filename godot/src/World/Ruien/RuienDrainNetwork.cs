@@ -175,8 +175,8 @@ public static partial class RuienDrainNetwork
     private static string S(JsonElement e,string key)=>e.GetProperty(key).GetString()!;
     public static Network Read(string source,string kit,RuienData data)
     {
-        using var doc=JsonDocument.Parse(System.IO.File.ReadAllText(ProjectSettings.GlobalizePath(source)));
-        using var td=JsonDocument.Parse(System.IO.File.ReadAllText(ProjectSettings.GlobalizePath(kit+"/templates.json")));
+        using var doc=JsonDocument.Parse(Godot.FileAccess.GetFileAsString(source));
+        using var td=JsonDocument.Parse(Godot.FileAccess.GetFileAsString(kit+"/templates.json"));
         var root=doc.RootElement;var net=new Network{Source=source,Kit=kit};
         if(root.GetProperty("failures").GetArrayLength()!=0)throw new InvalidDataException("Unresolved drainage construction failures");
         foreach(var e in td.RootElement.EnumerateObject())

@@ -22,8 +22,9 @@ if($Server){
     [IO.File]::WriteAllText((Join-Path $Output 'Start Server.cmd'),"@echo off`r`ncd /d `"%~dp0`"`r`nScheldemistServer.console.exe --headless -- --dedicated %*`r`n")
     [IO.File]::WriteAllText((Join-Path $Output 'README.txt'),"Scheldemist native Godot dedicated server.`r`nRun Start Server.cmd. Optional: --port 8800`r`nNo Node, browser, Godot editor or .NET installation is needed. Keep every file in this folder together.`r`n")
 }else{
+    [IO.File]::WriteAllText((Join-Path $Output '.itch.toml'),"[[actions]]`nname = `"play`"`npath = `"Scheldemist.exe`"`nargs = [`"--rendering-method`", `"forward_plus`"]`n")
     [IO.File]::WriteAllText((Join-Path $Output 'Play Scheldemist.cmd'),"@echo off`r`ncd /d `"%~dp0`"`r`nstart `"Scheldemist`" `"%~dp0Scheldemist.exe`" --rendering-method forward_plus -- %*`r`n")
-    [IO.File]::WriteAllText((Join-Path $Output 'README.txt'),"Scheldemist native Godot game.`r`nRun Play Scheldemist.cmd. Keep every file in this folder together.`r`nNo Node, browser, Godot editor or .NET installation is needed.`r`n")
+    [IO.File]::WriteAllText((Join-Path $Output 'README.txt'),"Scheldemist - WORK IN PROGRESS`r`nUnfinished native Godot development preview. Expect bugs, incomplete features and long loading times.`r`nRun Play Scheldemist.cmd. Keep every file in this folder together.`r`nNo Node, browser, Godot editor or .NET installation is needed.`r`nThe first geometry-cache build can take tens of minutes; later starts are faster but still exceed the 60-second target.`r`nUpdates and known limitations: https://drstaf.itch.io/scheldemist`r`n")
 }
 $repository=[IO.Path]::GetFullPath((Join-Path $project '..'))
 Copy-Item -LiteralPath (Join-Path $repository 'LICENSE') -Destination (Join-Path $Output 'LICENSE.txt')

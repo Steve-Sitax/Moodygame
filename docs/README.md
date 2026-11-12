@@ -11,6 +11,8 @@ Start with the [native game/editor instructions](../native-godot/README.md), [na
 | [Native game/editor](../native-godot/README.md) | Current launch, editing, native resources and worktree status |
 | [Native checks](../native-godot/services/README.md) | Current rule, gameplay and multiplayer evidence; workshop checks are in the native project README |
 | [Native packages](release.md) | Current standalone Windows client/server export and relocation checks |
+| [Ruien](ruien-native.md) | Completed underground network, street connections, drainage and water |
+| [Startup](startup.md) | Measured playable startup, geometry caches and remaining delays |
 | [01-game-design.md](01-game-design.md) | Setting, player, needs, jobs, trust, NPCs, events |
 | [Antigoon story and quests](antigoon-story.md) | Refined six-quest script, pacing, dialogue, failure rules and required gameplay support; [Opus and Astra review](antigoon-story-review.md) |
 | [02-tech-stack.md](02-tech-stack.md) | Engine, server, database, why each one |

@@ -4,12 +4,15 @@
 
 <h1 align="center">Scheldemist</h1>
 
+<p align="center"><b>WORK IN PROGRESS — an unfinished Godot development preview.</b><br>
+Expect bugs, incomplete features and long loading times. This is not a finished release.</p>
+
 <p align="center">
   <i>Antwerp, autumn 1873. Fog on the Scheldt, work on the quays, and a town that remembers you.</i>
 </p>
 
 <p align="center">
-  <a href="#play-it"><b>Play in Godot</b></a>
+  <a href="https://drstaf.itch.io/scheldemist"><b>Download for Windows</b></a>
   &nbsp;·&nbsp; <a href="native-godot/README.md"><b>Edit the town yourself</b></a>
   &nbsp;·&nbsp; <a href="docs/README.md">Design notes</a>
   &nbsp;·&nbsp; <a href="#made-with-ai">Made with AI</a>
@@ -30,6 +33,8 @@ proposes their words and plans, and the game engine checks every proposal and ow
   tall ships, cranes, opening bridges and a working lock.
 - **Real rooms.** Every building you can enter is built inside, at its true size. You see the street
   from inside and the room from the street.
+- **The Ruien.** Explore the connected underground network: 167 areas, 26 street entrances,
+  working gates and bridges, and water flowing from 918 surveyed street drains.
 - **Play alone, or with the people in your house.** Godot runs the town's rules and multiplayer server.
   With AI disabled, the game uses written dialogue and engine-controlled events.
 
@@ -50,11 +55,17 @@ proposes their words and plans, and the game engine checks every proposal and ow
 
 ## Play it
 
-In this checkout, open `native-godot/Start Native Town Game.cmd` and choose **Walk into town**.
-The full town, menus, residents, interiors, weather and game rules run in Godot. The Windows standalone
-package opens with `Play Scheldemist.cmd`; keep its executable, PCK and runtime folder together. It needs
-no Node, browser, source checkout or runtime bake. Export and multiplayer test evidence is recorded in
-[native project notes](native-godot/README.md) and [packaging notes](native-godot/world/notes/standalone-export.md).
+Get the [Windows Godot preview on itch.io](https://drstaf.itch.io/scheldemist),
+follow the download instructions there, and open `Play Scheldemist.cmd`. Choose **Walk into town**.
+GitHub hosts the source and technical documentation; itch.io hosts playable downloads.
+Keep the executable, PCK and runtime folder together. The full town, menus, residents, interiors,
+weather and game rules run in Godot; no Godot editor, .NET installation, Node or browser is needed.
+The old browser downloads and web demo are retired. Native macOS and Linux packages are not provided yet.
+
+This is a development preview. Startup still exceeds the 60-second target: the tested source build takes
+about 3 minutes with a warm geometry cache, and its first cache build took about 38 minutes.
+See [startup measurements](docs/startup.md) and [release notes](docs/release.md) for current limitations.
+In a source checkout, use `native-godot/Start Native Town Game.cmd`.
 
 WASD moves, Shift runs, Space jumps, E interacts, I opens pockets, J opens the quest book, M opens the map,
 P pauses and Esc opens the menu. For object placement, open `native-godot/Start Workshop.cmd`; place, move,
@@ -65,14 +76,9 @@ Native game data uses `%APPDATA%/ScheldemistWorkshop/native-playtest`; dedicated
 old game-save compatibility, and the identified legacy game saves were removed. Layouts, preferences and
 provider credentials were retained.
 
-Steve authorized integrating the completed Godot conversion into `main` on 2026-10-12. Automated checks
-are recorded separately from his manual testing. The final standalone folders are
-`D:/Code/ScheldemistPackages/final-client-20261012-portable` and
-`D:/Code/ScheldemistPackages/final-server-20261012-portable`; open their Play or Start Server shortcut.
-The old browser/server/bake entrypoints have been removed from the active project, with original art and useful
-historical references checksum-archived under `art-source` and `docs/archive`.
-The leftover web dependencies and builds were deleted on 2026-10-19. The root `data/` folder retains
-only protected AI/multiplayer configuration and TLS keys; native play uses the locations above.
+The Godot conversion and completed Ruien network are on `main`. Original art and useful historical
+references are retained under `art-source` and `docs/archive`; archived browser instructions are historical.
+Current build and export instructions are in [Windows packaging](docs/release.md).
 
 Multiplayer uses the same native rules in an in-game host or a headless Godot process. Development server:
 `native-godot/Start Native Server.cmd -Port 8800`. Exported server: `Start Server.cmd --port 8800`.
