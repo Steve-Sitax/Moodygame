@@ -41,7 +41,8 @@ public static class NativePackageProof
             ServerLink.I!.Api!.Failed += error => callbackErrors.Add(error.ToString());
             Check("game rules run inside exported Godot process", game.UsesLocalBackend && ServerLink.I.Api.IsLocal);
             var town = (NativeTown)game.World;
-            Check("all editable districts load from resource pack", town.Layouts.Districts.Count == 11);
+            // 10 street districts, 45 room districts and the reviewed Rijnkaai district.
+            Check("all 56 editable districts load from resource pack", town.Layouts.Districts.Count == 56);
             Check("proof uses isolated district layouts", town.Layouts.Districts.All(d => d.Store.File.StartsWith(Path.GetFullPath(game.Arg("author-root")) + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase)));
             Check("native resident models load", game.GetNode<Townspeople>("Townspeople").Sims.Count > 500);
             foreach (string endpoint in new[] { "api/trade", "api/mills", "api/lively", "api/settings/population", "api/mp/info" })
