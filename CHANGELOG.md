@@ -1,15 +1,28 @@
 # Changelog
 
-- People2 gains period clothing for Peeters, Tuur, Fientje, both sailors, the stranger, thief, foreman, delivery recipient, street boy, urchin and old man, with separate ledger, pipe and walking-stick models.
-
-- People2 now uses independent clothes and full-square face pictures with close-up fabric and skin grain, sharing one compressed layered material.
-
 What changed in each version of Scheldemist, for players first. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow [Semantic Versioning](https://semver.org/).
-Each release on the [Releases page](https://github.com/Steve-Sitax/Moodygame/releases) carries its part of this file.
+Playable Windows previews are on [itch.io](https://drstaf.itch.io/scheldemist); GitHub hosts the source.
 Bugs and loose ends are tracked as [issues](https://github.com/Steve-Sitax/Moodygame/issues).
 
-## [Unreleased]
+## 0.3.0 Godot preview — work in progress (2026-11-12)
+
+- The native Windows game includes the full town, interiors, residents and game rules, with its runtime included.
+  The browser downloads and web demo are retired. This remains an unfinished development preview.
+- The complete Ruien network connects 167 underground areas to 26 street entrances and 918 drainage inlets.
+  Covered surface entrances and the Poesje cobble obstruction were repaired. Water distortion follows the channels
+  and local flow direction. Antigoon's autonomous encounter routing still stays on the streets.
+- Exported resource reads and geometry-cache inputs now work inside the Windows package. Three warm launches
+  had a median of 2 minutes 21 seconds; the first cache-building launch is much longer. The one-minute target
+  remains unmet. See [startup evidence and limitations](docs/startup.md).
+
+## Earlier development notes
+
+These entries describe intermediate builds. Partial Ruien construction and startup timings below are historical;
+the current preview and measurements are described above.
+
+- People2 gains period clothing for Peeters, Tuur, Fientje, both sailors, the stranger, thief, foreman, delivery recipient, street boy, urchin and old man, with separate ledger, pipe and walking-stick models.
+- People2 now uses independent clothes and full-square face pictures with close-up fabric and skin grain, sharing one compressed layered material.
 
 - The thin see-through slit at the corner of the brick bastion by the river is closed, and so are the same slits at the town wall's west end by the river and at four other corners where a sloping wall face met a straight one. All other wall corners and the four gates were checked and left as they were.
 - Trees no longer grow inside the town wall, its gates, the windmill bastion or the prison, with only their crowns showing through the wall walk. The trees on the bare earth by the wall that stood too close were moved to open ground nearby; those with no open ground near were taken away (57 of 98). The trees on the church squares are unchanged.

@@ -1,0 +1,225 @@
+{
+  "date": "2026-11-12",
+  "status": "work-in-progress",
+  "version": "0.3.0-wip+2bd9167ea",
+  "binarySourceCommit": "2bd9167eacf09dad4abb36b4a7c99579b72489cf",
+  "download": "https://drstaf.itch.io/scheldemist",
+  "channel": "windows-preview",
+  "platform": "Windows x64",
+  "renderer": "Forward+",
+  "package": {
+    "engine": "4.7.2",
+    "pckFormat": 4,
+    "packedResources": 27800,
+    "staticFiles": 324,
+    "staticVersion": "native-pack-6ef63d850e4e69ae67375a913d8ff64533c2248904a41adeae92599594a5ffcc",
+    "fingerprint": "4ba4bf7dc2a86594acaae0addef529ba1baacd11fc8c4b2f524adf6d93bd3b3d"
+  },
+  "pckBytes": 11360824691,
+  "packageContentChecks": 168095,
+  "relocatedGameplayChecks": [
+    {
+      "name": "release runs from exported resources",
+      "passed": true
+    },
+    {
+      "name": "legacy source root is unavailable",
+      "passed": true
+    },
+    {
+      "name": "raw runtime data extracted into isolated cache",
+      "passed": true
+    },
+    {
+      "name": "game rules run inside exported Godot process",
+      "passed": true
+    },
+    {
+      "name": "all 56 editable districts load from resource pack",
+      "passed": true
+    },
+    {
+      "name": "proof uses isolated district layouts",
+      "passed": true
+    },
+    {
+      "name": "native resident models load",
+      "passed": true
+    },
+    {
+      "name": "native endpoint api/trade",
+      "passed": true
+    },
+    {
+      "name": "native endpoint api/mills",
+      "passed": true
+    },
+    {
+      "name": "native endpoint api/lively",
+      "passed": true
+    },
+    {
+      "name": "native endpoint api/settings/population",
+      "passed": true
+    },
+    {
+      "name": "native endpoint api/mp/info",
+      "passed": true
+    },
+    {
+      "name": "real menu enters playable game",
+      "passed": true
+    },
+    {
+      "name": "day renderer follows authoritative weather",
+      "passed": true
+    },
+    {
+      "name": "day screenshot captured",
+      "passed": true
+    },
+    {
+      "name": "rain renderer follows authoritative weather",
+      "passed": true
+    },
+    {
+      "name": "rain screenshot captured",
+      "passed": true
+    },
+    {
+      "name": "night renderer follows authoritative weather",
+      "passed": true
+    },
+    {
+      "name": "night screenshot captured",
+      "passed": true
+    },
+    {
+      "name": "native floor routing completes in release",
+      "passed": true
+    },
+    {
+      "name": "frozen event pump is absent from rendering and physics",
+      "passed": true
+    },
+    {
+      "name": "actual event pump lantern has an unlit native material",
+      "passed": true
+    },
+    {
+      "name": "actual event pump has source-sized additive lantern glow",
+      "passed": true
+    },
+    {
+      "name": "pump lantern is framed in real viewport",
+      "passed": true
+    },
+    {
+      "name": "pump lantern sightline is clear of real scenery",
+      "passed": true
+    },
+    {
+      "name": "actual pump lantern render captured",
+      "passed": true
+    },
+    {
+      "name": "pump lantern actually renders bright after dark",
+      "passed": true
+    },
+    {
+      "name": "release callbacks complete without errors",
+      "passed": true
+    }
+  ],
+  "fullLauncherChecksPassed": 7,
+  "startup": {
+    "warmSeconds": [
+      140.689,
+      137.751,
+      142.824
+    ],
+    "warmMedianSeconds": 140.689,
+    "gapTo60Seconds": 80.689,
+    "uncachedOrderedSeconds": 834.155,
+    "conditions": "Relocated exported Windows game, Forward+, disabled VSync, same isolated save/layouts and scene seed. No AI. Warm runs use the same content-addressed cache; uncached reference uses a separate transient cache and builds Ruien in order.",
+    "comparisonCaveat": "The earlier broken-cache launch is one diagnostic observation, not a three-run speedup baseline. Source-editor timings are not an export speedup comparison."
+  },
+  "geometry": {
+    "worldReportDifferences": {},
+    "fingerprintRows": 42372,
+    "independentlyVerifiedMeshPairs": 7046,
+    "rawRuienDigestsMatch": false,
+    "meshProofSha256": "7edfafff4eb075b11454e38763e0f62bf75b9369479344b309a2bcbcdc010da3"
+  },
+  "digests": {
+    "export-fixed-warm-1": {
+      "town": [
+        "town digest: 23859 nodes, 6708C2C47D62FFC7"
+      ],
+      "map": [
+        "native navigation: map digest E974ACD7CB9257EE"
+      ],
+      "ruien": [
+        "ruien pieces: 15292 nodes, 11682 meshes, 78543196 collision triangles, 167 areas, 462 sources, 600 sound points, F1983C52C7785999"
+      ]
+    },
+    "export-fixed-warm-2": {
+      "town": [
+        "town digest: 23859 nodes, 6708C2C47D62FFC7"
+      ],
+      "map": [
+        "native navigation: map digest E974ACD7CB9257EE"
+      ],
+      "ruien": [
+        "ruien pieces: 15292 nodes, 11682 meshes, 78543196 collision triangles, 167 areas, 462 sources, 600 sound points, F1983C52C7785999"
+      ]
+    },
+    "export-fixed-warm-3": {
+      "town": [
+        "town digest: 23859 nodes, 6708C2C47D62FFC7"
+      ],
+      "map": [
+        "native navigation: map digest E974ACD7CB9257EE"
+      ],
+      "ruien": [
+        "ruien pieces: 15292 nodes, 11682 meshes, 78543196 collision triangles, 167 areas, 462 sources, 600 sound points, F1983C52C7785999"
+      ]
+    },
+    "export-fixed-reference-1": {
+      "town": [
+        "town digest: 23859 nodes, 6708C2C47D62FFC7"
+      ],
+      "map": [
+        "native navigation: map digest E974ACD7CB9257EE"
+      ],
+      "ruien": [
+        "ruien pieces: 15292 nodes, 11682 meshes, 78543196 collision triangles, 167 areas, 462 sources, 600 sound points, 9E7551C496757235"
+      ]
+    }
+  },
+  "limits": [
+    "Startup exceeds the 60-second warm target.",
+    "Uncached reference overlapped promotional captures; it is not a performance comparison.",
+    "Antigoon autonomous encounter routing remains on the streets.",
+    "Linux and macOS downloads are not validated."
+  ],
+  "captureNotes": "Unretouched surface renders from the Windows package, staged with its camera, time, resident and lock commands. The Ruien pictures are from the completed native construction review.",
+  "supplementaryLockCapture": {
+    "movementChecks": [
+      {
+        "name": "lock_bridge",
+        "passed": true
+      },
+      {
+        "name": "lock_gates",
+        "passed": true
+      },
+      {
+        "name": "lock_boat",
+        "passed": true
+      }
+    ],
+    "aggregateHarnessPassed": false,
+    "note": "All three lock movement checks passed. The broader mover harness exceeded its 1 ms mean and 16 ms frame budgets during the screenshot run; this is not part of the 28-check package acceptance result."
+  }
+}

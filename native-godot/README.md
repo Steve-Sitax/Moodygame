@@ -26,7 +26,8 @@ the export did not retain all individual object boundaries. New objects must hav
 with a fresh temporary layout. The default main scene and F5 now open the full native town; workshop launchers
 explicitly select their editing scene.
 
-`Start Native Town Game.cmd` opens all eleven native districts, menus, residents, interiors and game systems.
+`Start Native Town Game.cmd` opens all 56 native districts (10 street districts, 45 rooms and the recovered
+Rijnkaai), menus, residents, interiors and game systems.
 The older `Start Native District Game.cmd` shortcut now opens this same town. Choose **Walk into town**.
 WASD/Shift/Space move; E interacts, I opens pockets, J the quest book, M the map, P pauses and Esc opens the menu.
 It reads saved workshop layouts, including Steve's lamp, without writing them. `Test Editor Changes In Game.cmd`

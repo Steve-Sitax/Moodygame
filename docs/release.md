@@ -18,11 +18,29 @@ Keep the executable, PCK and runtime folder together. Windows x64 and a Vulkan-c
 are required by the supplied Forward+ launcher. No Godot editor, .NET installation, Node or browser is needed.
 Native Linux and macOS exports have not been validated or published.
 
-This is a development preview. The source build's three-run warm startup median is 175.740 seconds,
-115.740 seconds above the target; the first full geometry-cache build took 37 minutes 31 seconds.
-Do not mistake that first loading pass for a finished startup. See [measured delays](startup.md).
+This is a development preview. The exported Windows build's three-run warm startup median is 140.689 seconds,
+80.689 seconds above the target. The first launch takes substantially longer while geometry is prepared;
+leave the loading window open. Hardware and background work affect these times. See [measured delays](startup.md).
 Antigoon's autonomous encounter routing remains on the street; underground AI navigation is not implemented.
 User saves, edited district layouts, provider credentials and generated geometry caches are not shipped.
+
+## Windows preview receipt — 2026-11-12
+
+The `windows-preview` channel contains **0.3.0-wip+2bd9167ea**, built from source
+`2bd9167eacf09dad4abb36b4a7c99579b72489cf`. Later documentation and screenshot updates do not change that binary.
+The 11,360,824,691-byte PCK contains 27,800 packed resources; its static-data pack contains 324 files.
+The content verifier passed 168,095 checks. A relocated copy, with the source checkout and external .NET paths
+unavailable, passed all 28 gameplay/render checks. All seven full desktop-launcher checks passed.
+
+Three warm launches and the uncached, in-order reference preserve the town/map digests and non-timing report.
+All 42,372 Ruien fingerprint rows agree after full data comparison of 7,046 differently serialized mesh pairs.
+See [startup evidence](startup.md#exported-windows-preview-2026-11-12) and the
+[machine-readable receipt](releases/0.3.0-wip.json). The startup target remains unmet.
+
+The new surface screenshots are captured from this Windows package; the Ruien images show the completed native
+network from its construction review. The old browser-era cathedral picture
+and other historical README screenshots are no longer used to present the current build. Camera/time controls and
+the game's own resident/lock commands stage the views; the images are unretouched game renders.
 
 ## Build from source
 

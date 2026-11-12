@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/media/hero.jpg" alt="Tall ships at night by the Rijnkaai, a gas lamp mirrored in a puddle" width="100%">
+  <img src="docs/media/godot-rijnkaai.png" alt="The current Godot waterfront: residents, cargo, cranes and tall ships along the Rijnkaai" width="100%">
 </p>
 
 <h1 align="center">Scheldemist</h1>
@@ -40,18 +40,24 @@ proposes their words and plans, and the game engine checks every proposal and ow
 
 <table>
   <tr>
-    <td width="50%"><img src="docs/media/alley-night.jpg" alt="A back alley at night: a woman with a lantern, men carrying loads, wet cobbles"><br><sub>A back alley at eight in the evening</sub></td>
-    <td width="50%"><img src="docs/media/cathedral-night.jpg" alt="The cathedral at night, gentlemen in top hats under a gas lamp"><br><sub>The cathedral from the Handschoenmarkt</sub></td>
+    <td width="50%"><img src="docs/media/godot-cathedral-day.png" alt="The cathedral and its tower above the square in the current Godot build"><br><sub>The cathedral in daylight</sub></td>
+    <td width="50%"><img src="docs/media/godot-rijnkaai.png" alt="Residents and tall ships on the Rijnkaai"><br><sub>Work on the Rijnkaai</sub></td>
   </tr>
   <tr>
-    <td width="50%"><img src="docs/media/vleeshuis.jpg" alt="The Vleeshuis over the canal, lit windows around it"><br><sub>The Vleeshuis over the canal</sub></td>
-    <td width="50%"><img src="docs/media/quay-night.jpg" alt="A dock crane and a gas lamp on the wet quay, a man mirrored in a puddle"><br><sub>After the rain on the Rijnkaai</sub></td>
+    <td width="50%"><img src="docs/media/godot-sint-jansplein.png" alt="People around the fountain and circular planted square on the Sint-Jansplein"><br><sub>People on the Sint-Jansplein</sub></td>
+    <td width="50%"><img src="docs/media/godot-lock.png" alt="The drawbridge opening over the working dock lock"><br><sub>The lock bridge opens</sub></td>
   </tr>
   <tr>
-    <td width="50%"><img src="docs/media/het-steen.jpg" alt="Het Steen at night beyond the fish market stalls"><br><sub>Het Steen beyond the fish market</sub></td>
-    <td width="50%"><img src="docs/media/talk.jpg" alt="Talking with a fishwife about work"><br><sub>"Where does a stranger find honest work in this fog?"</sub></td>
+    <td width="50%"><img src="docs/media/godot-lock-boat.png" alt="A boat approaching the open lock gates from the dock"><br><sub>A boat comes to the lock</sub></td>
+    <td width="50%"><img src="docs/media/godot-cathedral-night.png" alt="The current cathedral after dark, with lit stained glass and gas lamps"><br><sub>The cathedral after dark</sub></td>
+  </tr>
+  <tr>
+    <td width="50%"><img src="docs/media/godot-ruien.jpg" alt="The brick vaults, walkways and water of the completed native Ruien network"><br><sub>Below the streets: the Ruien</sub></td>
+    <td width="50%"><img src="docs/media/godot-ruien-entrance.jpg" alt="The native Ruien connection near the Rijnkaai"><br><sub>The Rijnkaai entrance below ground</sub></td>
   </tr>
 </table>
+
+Screenshots show the current Godot development preview, captured in November 2026.
 
 ## Play it
 
@@ -62,8 +68,9 @@ Keep the executable, PCK and runtime folder together. The full town, menus, resi
 weather and game rules run in Godot; no Godot editor, .NET installation, Node or browser is needed.
 The old browser downloads and web demo are retired. Native macOS and Linux packages are not provided yet.
 
-This is a development preview. Startup still exceeds the 60-second target: the tested source build takes
-about 3 minutes with a warm geometry cache, and its first cache build took about 38 minutes.
+This is a development preview. Startup still exceeds the 60-second target: the exported Windows build takes
+about 2 minutes 21 seconds with a warm geometry cache. The first launch takes substantially longer while
+it prepares geometry; leave the loading window open. Hardware and background work affect these times.
 See [startup measurements](docs/startup.md) and [release notes](docs/release.md) for current limitations.
 In a source checkout, use `native-godot/Start Native Town Game.cmd`.
 

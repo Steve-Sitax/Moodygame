@@ -17,7 +17,52 @@ the complete network's first installed launch took 37 min 31 s. Compare `town di
 `ruien pieces` fingerprint row and the non-timing world report with the reference. A differing stored-resource
 hash requires a full mesh-data comparison; counts and bounds alone cannot establish equivalence.
 
-## Complete Ruien network (2026-11-12)
+## Exported Windows preview (2026-11-12)
+
+The final package at source `2bd9167eacf09dad4abb36b4a7c99579b72489cf` reached actual playable gameplay in
+**140.689, 137.751 and 142.824 s**, a **140.689 s median** and a **80.689 s gap** to the 60 s target.
+These launches used the same relocated package, isolated save/layouts, Forward+ renderer, disabled VSync and
+content-addressed cache. The 5.073 s range is normal run variation; the uncached reference and promotional captures
+were started after this three-run measurement. These results do not establish a speedup over source-editor builds.
+
+The export initially converted authored `.tscn` and `.tres` inputs into remapped binary resources, preventing the
+street-cut cache from hashing its inputs. Keeping those small text resources addressable inside the PCK restores
+the existing content checks and cache reuse. The package verifier rejects these remaps. Large binary geometry
+resources remain unchanged. Warm runs reuse all 142 street-cut resources; the whole pass has a 3.795 s median.
+The earlier cache-miss launch is a single diagnostic observation, not a three-run speedup baseline.
+
+| Largest measured steps | Warm median, s |
+|---|---:|
+| Ruien collision/node attachment | 47.116 |
+| Town load | 29.180 |
+| Ruien entrance preparation | 24.278 |
+| Ruien area preparation | 22.756 |
+| Wait for remaining Ruien preparation | 17.944 |
+| Ruien visual preparation | 16.334 |
+| Town collision (`part.Solid`) | 7.533 |
+| Town ready passes | 6.492 |
+
+Stages overlap and nest. The largest remaining cost constructs collision for 78,543,196 triangles on the main
+thread. Deferring it violates the requirement that all collision exist before play; reducing it needs validated
+contact and clearance proxies across the network. That redesign is outside this packaging repair and cannot be
+claimed safe from counts alone. The startup target remains unmet.
+
+The first final-package launch with a missing street-cut cache took 251.643 s, but its Ruien geometry cache was
+already populated. It is not a fresh-install timing. An earlier export with empty geometry caches reached the menu
+in 901.590 s but then failed an obsolete smoke-test district count; that also is not an accepted playable timing.
+Keep first-cache observations separate from the warm median. Raw evidence is under
+`.scratch/startup-perf/export-fixed-*`.
+
+The final uncached, in-order run reached play in **834.155 s** while promotional captures were also running;
+its duration is not a clean performance baseline. Its town/map digests and non-timing world report match all
+three warm runs. All **42,372 Ruien fingerprint rows** match after independently comparing **7,046** serialized
+mesh pairs: every stored vertex/attribute/index/LOD buffer, format, bounds and effective material name agrees.
+Raw serialized hashes differ and are retained; only those proven storage identities are normalized. The relocated
+package passed all 28 gameplay/render checks, and `test-icons.ps1 -Full` passed all seven launcher checks.
+The comparison receipt is `.scratch/startup-perf/export-fixed-result.json`; the mesh proof's SHA-256 is
+`7edfafff4eb075b11454e38763e0f62bf75b9369479344b309a2bcbcdc010da3`.
+
+## Earlier complete-network source build (2026-11-12)
 
 Six interleaved actual playable launches of the same installed build, isolated save/layouts and Forward+ renderer,
 with `--disable-vsync`: three normal launches and three with `--uncached-bridge-models`. The fixed bridge mesh cache
