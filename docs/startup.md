@@ -17,6 +17,30 @@ the complete network's first installed launch took 37 min 31 s. Compare `town di
 `ruien pieces` fingerprint row and the non-timing world report with the reference. A differing stored-resource
 hash requires a full mesh-data comparison; counts and bounds alone cannot establish equivalence.
 
+## Prepared caches in the package (2026-11-12)
+
+A player's first start built every startup cache: 863.973 s on the test PC (one observation, taken while an
+export also ran). The package now brings those caches along. `native-godot/scripts/seed-startup-cache.ps1` starts
+the exported game once with an empty cache folder inside the package, names the result `startup-cache`, and then
+starts the game again with empty user data: that start must reach play without building one entry and without
+changing the package folder.
+
+- The game reads a `startup-cache` folder beside its executable as a second, read-only cache
+  (`StartupCachePrune.Seed`; `SCHELDEMIST_STARTUP_SEED` names another folder for a proof). A complete entry in the
+  player's own folder wins; else the package's entry is used; else the entry is built in the player's own folder as
+  before. Package entries have the same content keys and receipts, and every start checks their hashes the same way.
+  They are never touched or pruned.
+- Measured: 10.85 GB in 15,598 files (Ruien 10.05 GB, street cuts 0.79 GB). A start with empty user data and an empty
+  own cache reached play in **147.017 s** and wrote only the copied dependency notes. That is the warm time: the
+  prepared data removes the first-start build, it does not shorten a normal start.
+- The keys hold no path, user or PC name: the Ruien entries built by the 0.3.0 package served the next package
+  unchanged, from another folder. A start with the invariant number format (`DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=1`)
+  is part of the proof, because the test PC writes decimals with a comma.
+- Cost: the download grows by about 7.5 GB (the Ruien entries compress to about 73%, the pack itself hardly at all).
+  The disk use after the first start is the same as before: the 10.85 GB lay in the user's cache folder then.
+- A changed file in `StartupGeometrySource` gives new keys: build the package cache again for every release.
+  The cache code itself (`StartupCachePrune.cs`, `RuienGeometryCache.cs`, `RuienCover.Cache.cs`) is outside that list.
+
 ## Exported Windows preview (2026-11-12)
 
 The final package at source `2bd9167eacf09dad4abb36b4a7c99579b72489cf` reached actual playable gameplay in

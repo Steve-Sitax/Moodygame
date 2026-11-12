@@ -63,6 +63,8 @@ Screenshots show the current Godot development preview, captured in November 202
 
 Get the [Windows Godot preview on itch.io](https://drstaf.itch.io/scheldemist),
 follow the download instructions there, and open `Play Scheldemist.cmd`. Choose **Walk into town**.
+Install it with the free [itch app](https://itch.io/app) to get new versions automatically;
+a zip from the page stays as it is until you download the next one.
 GitHub hosts the source and technical documentation; itch.io hosts playable downloads.
 Keep the executable, PCK and runtime folder together. The full town, menus, residents, interiors,
 weather and game rules run in Godot; no Godot editor, .NET installation, Node or browser is needed.

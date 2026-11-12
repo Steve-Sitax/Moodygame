@@ -49,9 +49,15 @@ Godot 4.7.2 Mono exports a self-contained Windows x64 game and headless server. 
 ```powershell
 pwsh -File native-godot/scripts/export-native-windows.ps1 -Output D:/Code/ScheldemistPackages/client
 pwsh -File native-godot/scripts/export-native-windows.ps1 -Server -Output D:/Code/ScheldemistPackages/server
+pwsh -File native-godot/scripts/seed-startup-cache.ps1 -Package D:/Code/ScheldemistPackages/client
 pwsh -File native-godot/scripts/check-exported-native.ps1 -Package D:/Code/ScheldemistPackages/client
 pwsh -File native-godot/scripts/check-exported-native.ps1 -Server -Package D:/Code/ScheldemistPackages/server
 ```
+
+`seed-startup-cache.ps1` puts the prepared start-up geometry into the client package (a `startup-cache` folder,
+about 11 GB): it starts the game once to build it and once more to prove that a new player's start builds
+nothing. Without that folder a player's first start takes about a quarter of an hour longer. See
+[startup](startup.md#prepared-caches-in-the-package-2026-11-12).
 
 Use empty output directories. Keep the executable, PCK and self-contained runtime folder together. Run `Play Scheldemist.cmd` or `Start Server.cmd --port 8800`. Neither package needs a browser, Node, Godot editor, .NET installation, source checkout or runtime bake.
 

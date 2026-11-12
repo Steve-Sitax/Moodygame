@@ -37,7 +37,7 @@ public sealed partial class RuienCover
             }
         }
         string key=Convert.ToHexString(SHA256.HashData(inputs.ToArray())).ToLowerInvariant();
-        return CacheEntry=Path.Combine(StartupCachePrune.Root,"ruien","cover-"+key+".bin");
+        return CacheEntry=StartupCachePrune.Locate(Path.Combine("ruien","cover-"+key+".bin"),".sha256");
     }
     private bool ReadCoverCache(string file)
     {

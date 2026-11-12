@@ -78,7 +78,7 @@ public static class NativeCutCache
         try
         {
             key = Key(town, werf, gates);
-            folder = Path.Combine(Scheldemist.World.StartupCachePrune.Root, "cuts", key);
+            folder = Scheldemist.World.StartupCachePrune.Locate(Path.Combine("cuts", key), Path.DirectorySeparatorChar + "complete.json");
         }
         catch (Exception e)
         {

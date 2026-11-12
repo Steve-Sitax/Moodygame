@@ -25,7 +25,7 @@ public static partial class NativeSquareDressing
                 +"\n"+GroundHash(System.IO.Path.Combine(mapsDir,"dirt.png"))+"\n"+GroundHash(System.IO.Path.Combine(mapsDir,"dirt.json"))
                 +"\n"+(System.IO.File.Exists(squares)?GroundHash(squares):"missing");
             key=Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(identity))).ToLowerInvariant();
-            folder=System.IO.Path.Combine(Scheldemist.World.StartupCachePrune.Root,"square-ground",key);
+            folder=Scheldemist.World.StartupCachePrune.Locate(System.IO.Path.Combine("square-ground",key),System.IO.Path.DirectorySeparatorChar+"complete.json");
             manifest=System.IO.Path.Combine(folder,"complete.json");
         }
         catch(Exception e){GD.Print("startup cache: ground bypass: "+e.Message);return BuildGround(plan,razed,mapsDir);}

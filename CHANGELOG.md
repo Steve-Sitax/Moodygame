@@ -15,6 +15,10 @@ Bugs and loose ends are tracked as [issues](https://github.com/Steve-Sitax/Moody
 - Exported resource reads and geometry-cache inputs now work inside the Windows package. Three warm launches
   had a median of 2 minutes 21 seconds; the first cache-building launch is much longer. The one-minute target
   remains unmet. See [startup evidence and limitations](docs/startup.md).
+- The next Windows download brings its prepared geometry along (a `startup-cache` folder). The first start no
+  longer prepares it for about a quarter of an hour: it takes as long as every later start, about two and a half
+  minutes on the test PC. The download is about 7.5 GB larger; the game uses no more disk space than before.
+  Keep the folder with the game.
 
 ## Earlier development notes
 

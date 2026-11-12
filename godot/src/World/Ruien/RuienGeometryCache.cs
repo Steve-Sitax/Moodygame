@@ -84,7 +84,7 @@ internal static class RuienGeometryCache
                 work.Add((source,id,disk));
             }
         }
-        string root=StartupCachePrune.Root;
+        string root=StartupCachePrune.Root;string? seed=StartupCachePrune.Seed;
         _=Task.Run(()=>
         {
             using var validation=Dev.StartupTiming.Measure("ruien.cache-validation");
@@ -93,7 +93,7 @@ internal static class RuienGeometryCache
                 try
                 {
                     string key=Hash(Encoding.UTF8.GetBytes(config+"\n"+item.Source+"\n"+item.Area+"\n"+InputHash(item.Source)));
-                    string file=Path.Combine(root,"ruien",key+".res");
+                    string file=StartupCachePrune.Locate(root,seed,Path.Combine("ruien",key+".res"),".sha256");
                     if(System.IO.File.Exists(file)&&System.IO.File.Exists(file+".sha256"))_ = cacheHashes.GetOrAdd(file,p=>new Lazy<string>(()=>DiskHash(p))).Value;
                 }
                 catch(System.IO.IOException){inputHashes.TryRemove(item.Source,out _);}
@@ -104,7 +104,7 @@ internal static class RuienGeometryCache
     private static string CacheFile(string source,string area,string extension)
     {
         string key=Hash(Encoding.UTF8.GetBytes(Configuration()+"\n"+source+"\n"+area+"\n"+InputHash(source)));
-        return Path.Combine(StartupCachePrune.Root,"ruien",key+extension);
+        return StartupCachePrune.Locate(Path.Combine("ruien",key+extension),".sha256");
     }
     internal static string PreparedDigest(string file)=>System.IO.File.ReadAllText(file+".sha256");
     internal static string Prefetch(string source,string area)
@@ -151,8 +151,9 @@ internal static class RuienGeometryCache
         using var timing=Dev.StartupTiming.Measure("ruien.visual-prepare");
         bool uncached=Main.I?.Flag("no-startup-cache")==true;
         string key=Hash(Encoding.UTF8.GetBytes(Configuration()+"\n"+source+"\n"+area+"\n"+InputHash(source)));
-        string folder=Path.Combine(StartupCachePrune.Root,"ruien",uncached?"transient-"+transientRun:"");
-        string file=Path.Combine(folder,key+".res");
+        string file=uncached?Path.Combine(StartupCachePrune.Root,"ruien","transient-"+transientRun,key+".res")
+            :StartupCachePrune.Locate(Path.Combine("ruien",key+".res"),".sha256");
+        string folder=Path.GetDirectoryName(file)!;
         if(!uncached && System.IO.File.Exists(file+".sha256")&&System.IO.File.Exists(file)&&System.IO.File.ReadAllText(file+".sha256")==ValidatedHash(file))
         { StartupCachePrune.Touch(file);return file; }
         var resource=build();Directory.CreateDirectory(folder);

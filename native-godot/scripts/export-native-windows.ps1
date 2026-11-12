@@ -24,7 +24,7 @@ if($Server){
 }else{
     [IO.File]::WriteAllText((Join-Path $Output '.itch.toml'),"[[actions]]`nname = `"play`"`npath = `"Scheldemist.exe`"`nargs = [`"--rendering-method`", `"forward_plus`"]`n")
     [IO.File]::WriteAllText((Join-Path $Output 'Play Scheldemist.cmd'),"@echo off`r`ncd /d `"%~dp0`"`r`nstart `"Scheldemist`" `"%~dp0Scheldemist.exe`" --rendering-method forward_plus -- %*`r`n")
-    [IO.File]::WriteAllText((Join-Path $Output 'README.txt'),"Scheldemist - WORK IN PROGRESS`r`nUnfinished native Godot development preview. Expect bugs, incomplete features and long loading times.`r`nRun Play Scheldemist.cmd. Keep every file in this folder together.`r`nNo Node, browser, Godot editor or .NET installation is needed.`r`nThe first geometry-cache build can take tens of minutes; later starts are faster but still exceed the 60-second target.`r`nUpdates and known limitations: https://drstaf.itch.io/scheldemist`r`n")
+    [IO.File]::WriteAllText((Join-Path $Output 'README.txt'),"Scheldemist - WORK IN PROGRESS`r`nUnfinished native Godot development preview. Expect bugs, incomplete features and long loading times.`r`nRun Play Scheldemist.cmd. Keep every file in this folder together.`r`nNo Node, browser, Godot editor or .NET installation is needed.`r`nKeep the startup-cache folder with the game: it holds prepared geometry. Without it the first start prepares that geometry itself, which can take tens of minutes. A start still exceeds the 60-second target.`r`nUpdates and known limitations: https://drstaf.itch.io/scheldemist`r`n")
 }
 $repository=[IO.Path]::GetFullPath((Join-Path $project '..'))
 Copy-Item -LiteralPath (Join-Path $repository 'LICENSE') -Destination (Join-Path $Output 'LICENSE.txt')
