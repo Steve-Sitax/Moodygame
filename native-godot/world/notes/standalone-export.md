@@ -33,6 +33,10 @@ Godot import. A completion marker is written last; proof mode rechecks every ext
 data, so an unfinished package does not freeze development rules. `--native-pack-test` tests the packet with an
 editor build; `--native-data-proof <absolute.json>` writes a checksum-verified extraction receipt.
 
+Keep `editor/export/convert_text_resources_to_binary=false`. Startup caches hash the original scene/resource
+bytes and dependencies; export-only `.remap` files otherwise make street-cut caching bypass every launch.
+The package verifier rejects converted `.tscn`/`.tres` inputs. The large authored binary meshes stay unchanged.
+
 Preparation writes `world/network-content.json`. Its deterministic SHA256 covers sorted native resource/shader/
 static-data paths and content hashes plus runtime C# source and both build manifests. Code text normalizes BOM
 and line endings, so the same sources share identity across Debug/ExportRelease and different checkout locations.
@@ -60,16 +64,17 @@ shared framework from the game's runtimeconfig. Debug builds download the ASP.NE
 NuGet `PackageDownload`, then mark its actual managed assemblies as private references. This supplies copied
 DLLs and explicit `.deps.json` entries. Export configurations use normal self-contained framework publication.
 The isolated check uses the real csproj target with a stream-loading context, starts Kestrel and requests a page.
-It passed with 49 private dependencies; the raw-data proof passed 339 checks over the earlier 318-file packet. The current packet contains 319 files / 70,820,986 bytes; the relocated candidate checksum-verified its cold extraction.
+The earlier conversion passed with 49 private dependencies and 339 raw-data checks. The current packet contains
+324 files / 73,706,664 bytes; its cold relocated extraction is checksum-verified.
 
 Relocation proof copies only the exported folder into a fresh path, gives it isolated game/layout data, points
 legacy root/bake and .NET paths at nonexistent folders and removes Node/.NET from the child PATH. The client must
-enter its real menu, load eleven districts and residents, finish routes and render clear/rain/night views.
+enter its real menu, load all 56 districts and residents, finish routes and render clear/rain/night views.
 The server must boot its own authoritative backend and answer its native multiplayer endpoint. All proof files
 stay under ignored `proof/`; no player save, layout or provider setup is used. Runtime/export results are recorded
 after the coordinated engine tests rather than inferred from the source checks.
 
-The final client export passed 57,497 checks against its actual format-4 PCK: 14,075 resources, all 319 raw files,
+The earlier October client export passed 57,497 checks against its actual format-4 PCK: 14,075 resources, all 319 raw files,
 licence/attribution and self-contained dependencies. Its runtime includes the corrected native vehicle routing,
 supported handcart loading and bicycle pose. Earlier export attempts caught resource enumeration using physical
 `.tres.remap` names; `NativeDistrictLayouts` now uses `ResourceLoader.ListDirectory`. Those earlier attempts are

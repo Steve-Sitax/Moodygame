@@ -50,6 +50,7 @@ try {
         $entries.Add($path,[pscustomobject]@{offset=$offset;size=$size})
     }
     foreach($path in $entries.Keys) {
+        Assert-Package ($path -notmatch '\.(tscn|tres)\.remap$') "Startup cache input was replaced by an export-only binary resource: $path"
         Assert-Package ($path -notmatch '^main\.tscn(?:\.|$)|^furniture-kit-intake\.tscn(?:\.|$)|^src/Authoring/(WorkshopSession|WorkshopUi|WorkshopCamera|WorkshopProof|EditHistory|MapPromotion)\.cs(?:\.|$)|^src/Interiors/.*Intake\.cs(?:\.|$)') "Owner editor resource was shipped: $path"
     }
     $nativeAssembly=$all | Where-Object Name -eq 'Scheldemist.Native.dll' | Select-Object -First 1

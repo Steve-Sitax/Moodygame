@@ -28,6 +28,12 @@ window/size/min_height=840
 
 project/assembly_name="Scheldemist.Native"
 
+[editor]
+
+; Startup caches hash authored scene/resource bytes and their dependencies.
+; Keep those small text inputs addressable inside the exported resource pack.
+export/convert_text_resources_to_binary=false
+
 [editor_plugins]
 
 enabled=PackedStringArray("res://addons/native_game_globals/plugin.cfg")
