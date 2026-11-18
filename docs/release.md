@@ -33,7 +33,7 @@ The export hashes Godot's imported texture data so a first launch can reuse all 
 The complete 21,338,143,288-byte package passed 184,280 content checks, all 28 relocated gameplay
 and rendering checks, and all seven desktop launcher checks. The fresh-profile launch used the
 15,903-file packaged cache and created no geometry entries. Butler reused 94.54% of the preceding
-build and uploaded a 655.20 MiB patch. [Matching game source](https://github.com/Steve-Sitax/Moodygame/commit/770218e3032ffc8a6cfbe00973dd2bee7f48c29c).
+build and uploaded a 655.20 MiB patch. An uncached, in-order reference matched all 68 non-timing world fields and all 7,202 prepared Ruien meshes. [Matching game source](https://github.com/Steve-Sitax/Moodygame/commit/770218e3032ffc8a6cfbe00973dd2bee7f48c29c).
 
 ## Windows preview receipt — 2026-11-12
 
