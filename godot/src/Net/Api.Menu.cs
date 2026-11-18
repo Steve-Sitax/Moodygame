@@ -32,10 +32,13 @@ public sealed record GateReply(bool Paused, string? Mode, int InFlight);
 
 /// <summary>The game's own part of a save (server ClientStateSchema): the minute on screen, the place's name, where Jef stands.</summary>
 public sealed record ClientClock(int Day, int Hour, int Minute);
+public sealed record ClientWaypoint(float X, float Z);
 public sealed record ClientPose(double X, double Z, double Y, double Yaw, double Pitch, bool Swimming = false, bool Crouching = false);
 public sealed record ClientState(ClientClock? Clock, string? Place, ClientPose Pose)
 {
     public int V { get; init; } = 1;
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public ClientWaypoint? Waypoint { get; init; }
     /// <summary>What other parts add (a boat, the jobs in hand ...): written beside the rest as they are.</summary>
     [JsonExtensionData]
     public Dictionary<string, JsonElement>? More { get; init; }

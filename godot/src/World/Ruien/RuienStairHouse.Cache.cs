@@ -23,7 +23,7 @@ public static partial class RuienStairHouse
                 "house_iron"=>iron,"house_boarding"=>wood,
                 _=>mesh.SurfaceGetMaterial(i)
             });
-        ConcavePolygonShape3D Collision()=>new(){Data=mesh.GetFaces(),BackfaceCollision=true};
+        ConcavePolygonShape3D Collision()=>CollisionProxy.Shape(mesh.GetFaces());
         var shape=comparison?Collision():RuienGeometryCache.Get(HeightTexture,"stair-house-collision:"+dimensions,Collision);
         return new Made(mesh,shape);
     }

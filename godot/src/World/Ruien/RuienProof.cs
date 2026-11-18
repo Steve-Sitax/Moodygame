@@ -10,6 +10,17 @@ using Scheldemist.Play;
 
 namespace Scheldemist.World.Ruien;
 
+public partial class Ruien
+{
+    /// <summary>The exact cut meshes used by the area's automatic levels, including streamed-out mesh paths.</summary>
+    public RuienArea? MountingProofArea(string areaId) => drawn.FirstOrDefault(d => d.Area.Id == areaId)?.Export;
+}
+
+public sealed partial class RuienArea
+{
+    public string? MountingProofFile(MeshInstance3D part) => deferred.GetValueOrDefault(part);
+}
+
 /// <summary>Bounded native swimming and escape-ladder proof, with isolated data supplied by the caller.</summary>
 [GamePart(986)]
 public partial class RuienProof : Node

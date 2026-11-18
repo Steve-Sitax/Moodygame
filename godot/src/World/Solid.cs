@@ -41,6 +41,8 @@ public partial class Solid : Node
     private readonly Dictionary<Mesh, Vector3[]> faces = new();
     private readonly Dictionary<Shader, bool> seeThrough = new();
     private readonly List<ConcavePolygonShape3D> shapes = new();
+    private readonly Dictionary<(Mesh Mesh, Basis Basis), ConcavePolygonShape3D> sharedShapes = new();
+    private int reusedShapes;
     private readonly List<Rid> bodies = new();
     private Rid space;
     private Vector3 scannedAt = new(1e9f, 0, 0);
@@ -96,6 +98,7 @@ public partial class Solid : Node
             all = true;
             Ensure(Vector3.Zero, 1e9f);
             GD.Print($"solid: the whole town, {Built} shapes, {Triangles} triangles, in {BuildMs:0} ms (stair holes {CutMs:0.0} ms, faces {FacesMs:0} ms, shapes {ShapeMs:0} ms, add shape {AddShapeMs:0} ms, space {SpaceMs:0} ms)");
+            GD.Print($"solid: {shapes.Count} unique shapes, {reusedShapes} shared placements");
         }
         Main.I.World.Report["solidShapes"] = Built;
         Main.I.World.Report["solidTriangles"] = Triangles;
@@ -448,40 +451,67 @@ public partial class Solid : Node
     }
 
     private double FacesMs, ShapeMs, AddShapeMs, SpaceMs;
-    private void Build(Item it)
+    private void Build(Item it) => Build(it, Main.I?.Flag("solid-world-space") != true);
+
+    private void Build(Item it, bool share)
     {
         it.Built = true;
         long tFaces = System.Diagnostics.Stopwatch.GetTimestamp();
         var local = FacesOf(it.Mesh);
         if (local.Length < 3) return;
-        var pts = new Vector3[local.Length];
-        for (int i = 0; i < pts.Length; i++) pts[i] = it.Xf * local[i];
-        FacesMs += System.Diagnostics.Stopwatch.GetElapsedTime(tFaces).TotalMilliseconds;
-        if (holes.Count > 0 && (it.Name.Contains("ground", StringComparison.Ordinal) || it.Name.Contains("house_lining_", StringComparison.Ordinal)))
+        // Bake rotation/scale/shear into the shape once; only translation belongs to the body.
+        // This also handles mirrored/non-uniform bases without relying on physics shape scaling.
+        // Stair openings depend on world position and retain their original world-space path.
+        bool cut = holes.Count > 0 && (it.Name.Contains("ground", StringComparison.Ordinal) || it.Name.Contains("house_lining_", StringComparison.Ordinal));
+        bool reusable = share && !cut;
+        var key = (it.Mesh, it.Xf.Basis);
+        int triangleCount = local.Length / 3;
+        ConcavePolygonShape3D shape;
+        if (reusable && sharedShapes.TryGetValue(key, out var existing))
         {
-            ulong tCut = Time.GetTicksUsec();
-            pts = OpenStairHoles(pts, it.Box);
-            CutMs += (Time.GetTicksUsec() - tCut) / 1000.0;
+            shape = existing;
+            reusedShapes++;
+            FacesMs += System.Diagnostics.Stopwatch.GetElapsedTime(tFaces).TotalMilliseconds;
         }
-        long tShape = System.Diagnostics.Stopwatch.GetTimestamp();
-        var shape = new ConcavePolygonShape3D { BackfaceCollision = true };
-        shape.SetFaces(pts);
-        ShapeMs += System.Diagnostics.Stopwatch.GetElapsedTime(tShape).TotalMilliseconds;
+        else
+        {
+            Vector3[] pts;
+            if (reusable && it.Xf.Basis == Basis.Identity) pts = local;
+            else
+            {
+                pts = new Vector3[local.Length];
+                for (int i = 0; i < pts.Length; i++) pts[i] = reusable ? it.Xf.Basis * local[i] : it.Xf * local[i];
+            }
+            FacesMs += System.Diagnostics.Stopwatch.GetElapsedTime(tFaces).TotalMilliseconds;
+            if (cut)
+            {
+                ulong tCut = Time.GetTicksUsec();
+                pts = OpenStairHoles(pts, it.Box);
+                CutMs += (Time.GetTicksUsec() - tCut) / 1000.0;
+            }
+            triangleCount = pts.Length / 3;
+            long tShape = System.Diagnostics.Stopwatch.GetTimestamp();
+            shape = new ConcavePolygonShape3D { BackfaceCollision = true };
+            shape.SetFaces(pts);
+            ShapeMs += System.Diagnostics.Stopwatch.GetElapsedTime(tShape).TotalMilliseconds;
+            shapes.Add(shape);
+            if (reusable) sharedShapes.Add(key, shape);
+        }
         long tBody = System.Diagnostics.Stopwatch.GetTimestamp();
         var body = PhysicsServer3D.BodyCreate();
         PhysicsServer3D.BodySetMode(body, PhysicsServer3D.BodyMode.Static);
         PhysicsServer3D.BodyAddShape(body, shape.GetRid());
+        if (reusable) PhysicsServer3D.BodySetState(body, PhysicsServer3D.BodyState.Transform, new Transform3D(Basis.Identity, it.Xf.Origin));
         AddShapeMs += System.Diagnostics.Stopwatch.GetElapsedTime(tBody).TotalMilliseconds;
         long tSpace = System.Diagnostics.Stopwatch.GetTimestamp();
         PhysicsServer3D.BodySetCollisionLayer(body, Layer);
         PhysicsServer3D.BodySetCollisionMask(body, 0);
         PhysicsServer3D.BodySetSpace(body, space);
         SpaceMs += System.Diagnostics.Stopwatch.GetElapsedTime(tSpace).TotalMilliseconds;
-        shapes.Add(shape);
         bodies.Add(body);
         names[body] = it.Name;
         bounds[body] = it.Box;
-        Triangles += pts.Length / 3;
+        Triangles += triangleCount;
         Built++;
         BuiltAtTick = Engine.GetPhysicsFrames();
     }
@@ -543,6 +573,8 @@ public partial class Solid : Node
         foreach (var b in bodies) PhysicsServer3D.FreeRid(b);
         bodies.Clear();
         names.Clear(); bounds.Clear();
+        sharedShapes.Clear();
+        foreach (var shape in shapes) shape.Dispose();
         shapes.Clear();
     }
 }

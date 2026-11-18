@@ -57,6 +57,7 @@ public partial class TownMap : Node
     // ------------------------------------------------------------------ for the other parts
 
     public bool Open { get; private set; }
+    public Vector2? Waypoint { get; private set; }
     /// <summary>The window opened (true) or closed. The player's part stands still while it is open.</summary>
     public event Action<bool>? OpenChanged;
     /// <summary>May the M key open the map now (no talk, board or menu up)? Not set: always.</summary>
@@ -127,6 +128,7 @@ public partial class TownMap : Node
     // ------------------------------------------------------------------ what it holds
 
     private Task<MapBase>? making;
+    private RuienMapSurvey? underground;
     private MapBase city = null!;
     private ImageTexture baseTex = null!;
     private Control root = null!;
@@ -202,6 +204,8 @@ public partial class TownMap : Node
     }
     private void WorldReplaced(string how, ClientState? state)
     {
+        Waypoint = state?.Waypoint is { } pin && float.IsFinite(pin.X) && float.IsFinite(pin.Z)
+            ? new Vector2(pin.X,pin.Z) : null;
         Close(); ClearPlaces();
     }
     private void ClearPlaces()
@@ -237,6 +241,8 @@ public partial class TownMap : Node
             if (File.Exists(file))
             {
                 using var doc = JsonDocument.Parse(File.ReadAllText(file));
+                // Existing settings predate the optional underground sheet.
+                if (!doc.RootElement.TryGetProperty("version", out _)) hidden.Add("ruien");
                 foreach (var c in doc.RootElement.GetProperty("hidden").EnumerateArray())
                     if (c.GetString() is { } id && MapIcons.Cat.ContainsKey(id)) hidden.Add(id);
                 return;
@@ -257,7 +263,7 @@ public partial class TownMap : Node
         {
             string file = ProjectSettings.GlobalizePath(SettingsFile);
             Directory.CreateDirectory(Path.GetDirectoryName(file)!);
-            File.WriteAllText(file, JsonSerializer.Serialize(new { hidden = MapIcons.Cats.Where(c => hidden.Contains(c.Id)).Select(c => c.Id) }));
+            File.WriteAllText(file, JsonSerializer.Serialize(new { version = 2, hidden = MapIcons.Cats.Where(c => hidden.Contains(c.Id)).Select(c => c.Id) }));
         }
         catch (Exception e)
         {
@@ -387,7 +393,7 @@ public partial class TownMap : Node
         float sw = sideOn ? SideW : 0;
         mapW = MathF.Round(Math.Max(320, Math.Min(win.X * 0.86f - sw - 30, 1000)));
         mapH = MathF.Round(Math.Min(win.Y * 0.76f, 760));
-        keysText = "M, E or Esc close · WASD, the arrows or a drag move · + and - or the wheel zoom · C back to you · 1 to 9 find · point at a mark for its name · click the key to show or hide";
+        keysText = "Right-click to set or move a waypoint · right-click the pin or press Delete to clear · drag or WASD to pan · wheel or +/− to zoom · C to centre · 1–9 find work · M, E or Esc close";
         float inner = mapW + (sideOn ? 12 + SideW : 0);
         float keysH = Fonts.Hand.GetMultilineStringSize(keysText, HorizontalAlignment.Right, inner, 14).Y;
         paper.Size = new Vector2(12 + inner + 12, 12 + mapH + 6 + keysH + 6);
@@ -452,12 +458,39 @@ public partial class TownMap : Node
             if (!inkOn) mouse = mb.Position;
             if (mb.ButtonIndex == MouseButton.WheelUp && mb.Pressed) ZoomBy(1.25f);
             else if (mb.ButtonIndex == MouseButton.WheelDown && mb.Pressed) ZoomBy(1 / 1.25f);
+            else if (mb.ButtonIndex == MouseButton.Right && mb.Pressed) ClickWaypoint();
             else if (mb.ButtonIndex == MouseButton.Left)
             {
                 if (!mb.Pressed) dragging = false;
                 else if (!ClickKey()) dragging = true;
             }
         }
+    }
+
+    private static readonly Color WaypointInk = MapIcons.Ink("176069");
+    private static readonly Vector2 PinHeadOffset = new(0, -14);
+
+    private void ClickWaypoint()
+    {
+        var click = OnCanvas();
+        if (!new Rect2(Vector2.Zero, canvas.Size).HasPoint(click) || new Rect2(keyBox.Position, keyBox.Size).HasPoint(click)) return;
+        var me = Me();
+        float scale = zoom * .5f;
+        var pixel = city.Px(me.X, me.Y) + pan + (click - canvas.Size / 2) / scale;
+        Hover(true);
+        var selected = hotHit is { } hit ? new Vector2(hit.M.X, hit.M.Z) : city.WorldAtPixel(pixel);
+        if (Waypoint is { } pin)
+        {
+            var offset = (pixel - city.Px(pin.X, pin.Y)) * scale;
+            if (pin.IsEqualApprox(selected) || offset.Length() <= 8 || offset.DistanceTo(PinHeadOffset) <= 10)
+            {
+                Waypoint = null;
+                Render();
+                return;
+            }
+        }
+        Waypoint = selected;
+        Render();
     }
 
     /// <summary>A line is being typed somewhere (the talk's own words): M is a letter then.</summary>
@@ -481,6 +514,11 @@ public partial class TownMap : Node
         long ch = k.Unicode;
         if (ch == '+' || ch == '=' || k.Keycode is Key.Plus or Key.Equal or Key.KpAdd) ZoomBy(1.5f);
         else if (ch == '-' || k.Keycode is Key.Minus or Key.KpSubtract) ZoomBy(1 / 1.5f);
+        else if (code == Key.Delete)
+        {
+            Waypoint = null;
+            Render();
+        }
         else if (code == Key.C)
         {
             pan = Vector2.Zero;
@@ -761,6 +799,7 @@ public partial class TownMap : Node
         var all = AllMarks();
         var sights = city.Sights.Where(l => !all.Any(m => CatOf(m) == "sight" && new Vector2(m.X - l.X, m.Z - l.Z).Length() < 30)).ToList();
         all.AddRange(sights);
+        if (underground != null) all.AddRange(underground.Doors);
         return all;
     }
 
@@ -902,6 +941,16 @@ public partial class TownMap : Node
         g.DrawRect(new Rect2(0, 0, Math.Max(0, W / 2 - p0.X * k), H), River);
         g.DrawTextureRect(baseTex, new Rect2(W / 2 - p0.X * k, H / 2 - p0.Y * k, city.Width * k, city.Height * k), false);
         Vector2 S(float x, float z) => new Vector2(W / 2, H / 2) + (city.Px(x, z) - p0) * k;
+        bool showRuien = Shows("ruien") && World.Ruien.Ruien.I?.Data.NetworkRoot.ValueKind == JsonValueKind.Object;
+        if (showRuien)
+        {
+            underground ??= new RuienMapSurvey(World.Ruien.Ruien.I!.Data);
+            var ink = MapIcons.CatInk("ruien");
+            g.DrawRect(new Rect2(0,0,W,H), new Color(Paper, .52f));
+            Vector2[] Project(Vector2[] path) => Array.ConvertAll(path, p => S(p.X, p.Y));
+            foreach (var room in underground.Rooms) g.DrawColoredPolygon(Project(room), new Color(ink, .54f));
+            foreach (var passage in underground.Passages) g.DrawPolyline(Project(passage), ink, 2, true);
+        }
 
         double t0 = clock.Elapsed.TotalMilliseconds;
         var marks = ShownMarks();
@@ -959,13 +1008,23 @@ public partial class TownMap : Node
             var p = S(m.X, m.Z);
             if (Inside(p)) placed.Add(new Placed { M = m, At = p, S = 1 });
         }
-        foreach (var m in rest.OrderBy(m => m.Kind == "shop" ? 1 : 0))
+        foreach (var m in rest.OrderBy(m => m.Icon == "ruien-stair" ? -1 : m.Kind == "shop" ? 1 : 0))
         {
             var p = S(m.X, m.Z);
             if (!Inside(p)) continue;
+            if (showRuien && m.Icon != "ruien-stair")
+            {
+                placed.Add(new Placed { M = m, At = p, Dot = true });
+                continue;
+            }
             float s = m.Kind == "shop" ? 0.85f : 0.95f;
             float r = 11 * s;
             Vector2? at = Free(p, r) ? p : null;
+            if (m.Icon == "ruien-stair")
+            {
+                placed.Add(new Placed { M = m, At = p, S = s, Dot = at == null });
+                continue;
+            }
             for (int q = 0; at == null && q < 8; q++)
             {
                 float a = q * MathF.PI / 4;
@@ -979,10 +1038,39 @@ public partial class TownMap : Node
             float r = p.Dot ? 4 : 12 * p.S;
             taken.Add(Box(p.At.X - r, p.At.Y - r, p.At.X + r + (p.N > 0 ? 8 : 0), p.At.Y + r));
         }
+        if (Waypoint is { } target)
+        {
+            var at = S(target.X, target.Y);
+            if (Inside(at))
+            {
+                taken.Add(Box(at.X - 8, at.Y - 22, at.X + 8, at.Y));
+                Label("Waypoint", at + PinHeadOffset, Fonts.HandBold, 15, 11, WaypointInk);
+            }
+        }
         // your job's step, written by its mark
         foreach (var p in placed)
             if (p.M.Kind == "goal" && !p.Dot) Label(p.M.Label, p.At, Fonts.HandBold, 15, 17, KindInk["goal"]);
         // the squares, quays, water and gates, where there is room
+        if (showRuien)
+        {
+            var written = new HashSet<string>();
+            foreach (var (at, street) in underground!.Labels.OrderBy(l => l.At.DistanceSquaredTo(me)))
+            {
+                var p = S(at.X, at.Y);
+                if (!Inside(p) || written.Contains(street)) continue;
+                int before = taken.Count;
+                Label(street, p, Fonts.PrintBold, 12, 4, MapIcons.CatInk("ruien"));
+                if (taken.Count != before) written.Add(street);
+            }
+            foreach (var (at, route) in underground.RouteNames)
+            {
+                var p = S(at.X, at.Y);
+                if (!Inside(p) || written.Contains(route)) continue;
+                int before = taken.Count;
+                Label(route, p, PrintItalic, 12, 0, MapIcons.CatInk("ruien"), true);
+                if (taken.Count != before) written.Add(route);
+            }
+        }
         if (!hidden.Contains("names"))
             foreach (var (name, x, z, big) in city.PlaceNames)
             {
@@ -1011,7 +1099,8 @@ public partial class TownMap : Node
             if (p.N > 0) continue;
             if (p.Dot)
             {
-                g.DrawCircle(p.At, 3.5f, MapIcons.CatInk(CatOf(p.M)), true, -1, true);
+                bool surface = showRuien && p.M.Icon != "ruien-stair";
+                g.DrawCircle(p.At, surface ? 2 : 3.5f, new Color(MapIcons.CatInk(CatOf(p.M)), surface ? .55f : 1), true, -1, true);
                 hits.Add((p.At, 5, p.M));
             }
             else
@@ -1031,6 +1120,19 @@ public partial class TownMap : Node
                 g.DrawSetTransform(p.At + new Vector2(MathF.Cos(edge), MathF.Sin(edge)) * 18, edge, Vector2.One);
                 g.DrawColoredPolygon(new[] { new Vector2(7, 0), new Vector2(-4, -6), new Vector2(-4, 6) }, KindInk[p.M.Kind]);
                 g.DrawSetTransform(Vector2.Zero);
+            }
+        }
+        if (Waypoint is { } waypoint)
+        {
+            var at = S(waypoint.X,waypoint.Y);
+            if (Inside(at))
+            {
+                var head = at + PinHeadOffset;
+                g.DrawColoredPolygon(new[] { head + new Vector2(-8, 1), head + new Vector2(8, 1), at }, MapIcons.PaperDisc);
+                g.DrawCircle(head, 8, MapIcons.PaperDisc, true, -1, true);
+                g.DrawColoredPolygon(new[] { head + new Vector2(-6, 1), head + new Vector2(6, 1), at - new Vector2(0, 2) }, WaypointInk);
+                g.DrawCircle(head, 6, WaypointInk, true, -1, true);
+                g.DrawCircle(head, 2, MapIcons.PaperDisc, true, -1, true);
             }
         }
         // you: an arrow pointing where you look
@@ -1189,7 +1291,10 @@ public partial class TownMap : Node
             foreach (var h in hits)
             {
                 float d = h.At.DistanceTo(l);
-                if (d <= h.R && d < bd)
+                if (d > h.R) continue;
+                bool stair = h.M.Icon == "ruien-stair";
+                bool wasStair = hit?.M.Icon == "ruien-stair";
+                if (hit == null || (stair != wasStair ? stair : d <= bd))
                 {
                     bd = d;
                     hit = h;
@@ -1343,6 +1448,7 @@ public partial class TownMap : Node
             ["zoom"] = zoom,
             ["pan"] = new[] { pan.X, pan.Y },
             ["map_px"] = new[] { mapW, mapH },
+            ["cursor_px"] = new[] { mouse.X, mouse.Y },
             ["hidden"] = MapIcons.Cats.Where(c => hidden.Contains(c.Id)).Select(c => c.Id).ToArray(),
             ["places_per_kind"] = MapIcons.Cats.Where(c => c.Id != "names").ToDictionary(c => c.Id, c => all.Count(m => CatOf(m) == c.Id)),
             ["places"] = all.Count,

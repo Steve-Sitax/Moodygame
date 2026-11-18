@@ -93,7 +93,12 @@ public partial class Saves : Node
 
     private ClientState CaptureNow()
     {
-        if (Capture != null) return Capture();
+        var state = Capture?.Invoke() ?? CameraState();
+        return state with { Waypoint = TownMap.I?.Waypoint is { } pin ? new ClientWaypoint(pin.X,pin.Y) : null };
+    }
+
+    private ClientState CameraState()
+    {
         var st = GameState.I;
         var (h, m) = st.Shown;
         var cam = Main.I.Cam;

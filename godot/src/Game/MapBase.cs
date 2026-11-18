@@ -56,6 +56,12 @@ public sealed class MapBase
         return new Vector2((en.X - E0) * Scale, (N1 - en.Y) * Scale);
     }
 
+    public Vector2 WorldAtPixel(Vector2 pixel)
+    {
+        float east = E0 + pixel.X / Scale, north = N1 - pixel.Y / Scale;
+        return new Vector2(east * Sin + north * Cos, east * Cos - north * Sin);
+    }
+
     /// <summary>world/city.ts doorSpot: a place d metres out of a named door, `side` metres along the front.</summary>
     public Vector2 DoorSpot(string name, float d = 1.5f, float side = 0)
     {

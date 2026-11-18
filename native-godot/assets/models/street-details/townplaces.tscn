@@ -1,0 +1,31 @@
+[gd_scene format=3]
+
+[ext_resource type="PackedScene" path="res://world/town/roots/node-01479.scn" id="base"]
+[ext_resource type="Script" path="res://src/World/StreetFittings.cs" id="mount"]
+[ext_resource type="ArrayMesh" path="res://assets/models/street-details/rond-enamel.res" id="enamel"]
+
+[node name="townplaces" instance=ExtResource("base")]
+script = ExtResource("mount")
+
+[node name="place_lijnwaadmarkt_pl_atlas" parent="place_lijnwaadmarkt"]
+visible = false
+metadata/native_near_detail_no_collision = true
+
+[node name="place_stjacob_yard_pl_atlas" parent="place_stjacob_yard"]
+visible = false
+metadata/native_near_detail_no_collision = true
+
+[node name="place_stjacob_yard_pl_stone" parent="place_stjacob_yard"]
+visible = false
+metadata/native_near_detail_no_collision = true
+
+[node name="place_court_green_pl_atlas" parent="place_court_green"]
+visible = false
+metadata/native_near_detail_no_collision = true
+
+[node name="place_rond_pl_water" parent="place_rond"]
+visible = false
+metadata/native_near_detail_no_collision = true
+
+[node name="place_rond_pl_atlas" parent="place_rond"]
+mesh = ExtResource("enamel")

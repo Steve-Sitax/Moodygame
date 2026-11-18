@@ -26,6 +26,7 @@ public static class RuienKit
     }
 
     private static readonly Dictionary<string, ArrayMesh?> Pieces = new();
+    private static readonly Dictionary<ArrayMesh, ConcavePolygonShape3D> PieceShapes = new();
 
     /// <summary>The kit lamp's lantern top in its piece (lamp_bracket_safety_lamp: the brass cap over the glass).</summary>
     public static readonly Vector3 LampTop = new(-.277f, -.086f, -.144f);
@@ -56,8 +57,15 @@ public static class RuienKit
         n.AddChild(new MeshInstance3D { Mesh = mesh, Layers = Ruien.Layer, CastShadow = GeometryInstance3D.ShadowCastingSetting.Off });
         if(mesh.HasMeta("ruien_solid") && mesh.GetMeta("ruien_solid").AsBool())
         {
+            // The mesh is shared by every placement. Read its arrays and hash/build its collision once,
+            // rather than synchronizing a mesh read with the main thread for each placed copy.
+            if (!PieceShapes.TryGetValue(mesh, out var shape))
+            {
+                using var timing = Dev.StartupTiming.Measure("ruien.kit-collision");
+                PieceShapes[mesh] = shape = RuienGeometryCache.Proxy(mesh.GetFaces());
+            }
             var body=new StaticBody3D { CollisionLayer=Solid.Layer,CollisionMask=0 };
-            body.AddChild(new CollisionShape3D { Shape=new ConcavePolygonShape3D { Data=mesh.GetFaces(),BackfaceCollision=true } });
+            body.AddChild(new CollisionShape3D { Shape=shape });
             n.AddChild(body);
         }
         return n;

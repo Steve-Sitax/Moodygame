@@ -1,0 +1,17 @@
+{
+  "asset": "native-godot/assets/game-models/props.scn:barrel",
+  "mesh": "native-godot/assets/props/cargo-barrel-20261117/barrel-mesh.res",
+  "generator": "native-godot/scripts/CargoBarrelRepair.cs",
+  "bounds_metres": { "minimum": [-0.33, 0, -0.33], "size": [0.66, 0.95, 0.66], "original_tolerance": 0.00003 },
+  "visual_triangles": 15296,
+  "construction": { "staves": 24, "head_boards_per_end": 7, "head_recess_metres": 0.025, "wood_end_radius_metres": 0.002, "stave_edge_radius_metres": 0.0015, "hoop_edge_bevel_metres": 0.001 },
+  "edge_exceptions": ["Hidden mating faces below the closed wooden heads have no bevel.", "Thin hoop undersides meet the staves; hidden interior hoop faces are omitted."],
+  "materials": [
+    { "name": "wood_single", "source_manifest": "native-godot/assets/textures/plan-84/manifest.json", "row": 6, "donor": "dark_wooden_planks", "licence": "CC0-1.0 donors with original adaptation", "colour_size": [512, 128], "tile_metres": [2, 0.1171875] },
+    { "name": "iron_painted", "source_manifest": "native-godot/assets/textures/plan-84/manifest.json", "row": 10, "licence": "Original project artwork (generated/derived; project LICENSE)", "colour_size": [512, 512], "tile_metres": [0.5, 0.5] }
+  ],
+  "weathering": "Wood grain follows each stave; deterministic stave tint and slight damp darkening at the foot. Existing photographed painted iron has patchy corrosion. No raised ground stain.",
+  "collision": { "shape": "Existing Goods BoxShape3D", "shapes_per_item": 1, "added_physics_triangles": 0, "changed": false, "dimensions": "Existing 0.66 m footprint and GoodsRules.HeightOf(item) retained; no detail mesh enters physics." },
+  "preservation": "Only the standing barrel mesh was replaced. Other prop meshes/materials, nodes, transforms, metadata, placements and IDs are retained. Lying barrels and merged decorative heaps are outside this repair.",
+  "evidence": ".scratch/visual-quality/barrel/preservation.json and .scratch/visual-quality/barrel-game/result.json"
+}

@@ -51,7 +51,7 @@ public static partial class RuienDrainNetwork
                     if(!faces.TryGetValue(h.Template.Name,out var data))
                         faces[h.Template.Name]=data=ResourceLoader.Load<ConcavePolygonShape3D>($"{net.Kit}/{h.Template.Name}_collision.res").Data;
                     var pose=h.Curved?h:LocalVariant(h);
-                    return new ConcavePolygonShape3D{Data=data.Select(pose.Map).ToArray(),BackfaceCollision=true};
+                    return CollisionProxy.Shape(data.Select(pose.Map).ToArray());
                 });
                 if(!h.Curved)rigidShapes[descriptor]=shape;
             }

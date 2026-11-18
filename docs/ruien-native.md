@@ -11,6 +11,34 @@ and review evidence. It has 167 areas: five retained O2/R1 areas and 162 new exp
 109 stretches and 53 rooms/halls. It connects 24 additional street entrances, for 26 active entrances in total.
 The original road hatches stay closed under continuous paving; street grates provide ventilation only.
 
+On the paper map (`M`), turn on **Ruien, streets above & entrances** in the key. The layer traces the installed
+passages, halls and access stairs. Point at a stair symbol to identify the surface door. Uppercase street names
+match the blue enamel plaques underground. *Boven* on a plaque identifies the street overhead.
+Right-click a door or any point on the map to place a personal waypoint. Its teal arrow shows bearing and distance
+alongside the quest pointer. Right-click elsewhere to move the pin, or right-click the pin or press Delete to clear it.
+Mount each plaque on a continuous masonry panel, clear of the entire passage or drain opening and its surround.
+The full enamel plate and its fixings need backing at every visible level of detail. The plaques use vault lighting
+and add no collision.
+
+To refit plaques, run `native-godot/scripts/bake-ruien-signs.gd` headless with `-- --candidates <directory>`.
+Run the playable startup proof with `--fit-ruien-plaques <directory>` to check those fits against the finished
+walls and collision. Run the authoring script with `-- --publish <directory>` to write the accepted scene and map
+labels there. Install the pair in `native-godot/assets/models/ruien-wayfinding/` and run `--ruien-map-proof` on it.
+
+The junction below the Rijnkaai has a pale brick repair. Below the Hanseatic House, a blind brick arch marks
+the old branch above its barred culvert. At the Vlietrui sluice by the Vleeshuis, read the float against the
+centimetre scale on the east wall. Zero is the sluice sill. The float follows the water inside the gate.
+Under the Grote Markt grate, voices carry down when the market is active and people are present. Passing
+drays and handcarts are audible beneath nearby grates. Five rats patrol dry ledges near the Vleeshuis,
+Rode Poort, Entrepot, Steenplein and Lijnwaadmarkt entrances and flee when approached.
+
+On the L33 and L95 branches below the Rijnkaai and on L52 below the Hanseatic House, the approach rail
+ends over the stone coping so a standing player can turn from the lowered bridge onto the dry ledge.
+The bricked L51 branch has a separate stair bypass.
+
+Run the native playable proof with `--dev --ruien-life-review <directory>` to capture both junctions and tide
+levels, check wall backing and passage openings, test directional grate audio, and exercise the rat routes.
+
 Drainage connects all 918 surveyed inlets through 844 collectors and 572 main-vault outlets. The final bank routing
 keeps buried collectors out of open canals and the lock, and retains every inlet's surveyed position and ID.
 Actual native entrance foundations and full-width burial checks supplement the route-envelope checks.

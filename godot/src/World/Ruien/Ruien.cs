@@ -486,7 +486,7 @@ public partial class Ruien : Node
         foreach (var w in area.Ways)
         {
             using var wayTrace=Scheldemist.Dev.StartupTiming.Measure("ruien."+area.Id+".way."+w.Id);
-            if (RuienSurround.Applies(w)) place(RuienSurround.Build(w));
+            if (RuienSurround.Applies(w)) place(RuienSurround.CachedBuild(w));
             if (w.Kind is "ladder" or "grate") place(RuienKit.Grate(w));
             if (w.Kind == "rungs" && w.Irons) root.AddChild(RuienKit.StepIrons(w));
             if (w.Kind == "keeper_stair") place(RuienStair.CachedBuild(w, area.StairZone(w)));

@@ -895,6 +895,7 @@ public partial class Soundscape : Godot.Node
         }
         listenerPos = at;
         RuienWater();
+        if (soundingGrate != null && !UnderGrate(soundingGrate, at)) StopGrate();
 
         // water sits on the nearest quay edge; over the water (pier, deck, pontoon) all round you
         double px = listenerPos.X, pz = listenerPos.Z;
@@ -917,6 +918,7 @@ public partial class Soundscape : Godot.Node
         if (slow)
         {
             SlowTick();
+            RuienStreetSounds();
             nextSlow = now + 0.25;
         }
         MoveCarts(slow);

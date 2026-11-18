@@ -174,7 +174,7 @@ public static class RuienPipe
             if(part==iron)
             {
                 var body=new StaticBody3D{CollisionLayer=Solid.Layer,CollisionMask=0};
-                body.AddChild(new CollisionShape3D{Shape=new ConcavePolygonShape3D{Data=mesh.GetFaces(),BackfaceCollision=true}});root.AddChild(body);
+                body.AddChild(new CollisionShape3D{Shape=RuienGeometryCache.Proxy(mesh.GetFaces())});root.AddChild(body);
             }
         }
         return root;

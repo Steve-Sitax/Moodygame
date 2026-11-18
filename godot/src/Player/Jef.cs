@@ -470,20 +470,20 @@ public partial class Jef : Node, Mantle.IWorld
         if (pressed && !Laden && OnJump?.Invoke() == true) return;
         if (Grounded) jumpBase = Y;
         mantleWait = Math.Max(0, mantleWait - dt);
-        if (space && !Laden && !Crouching && (mantleWait == 0 || (pressed && !Grounded)))
+        if (space && len > 0 && fz < 0 && !Laden && !Crouching && !Grounded && (Blocked || vy <= 0) && (mantleWait == 0 || pressed))
         {
             mantleWait = .12f;
             var route = Mantle.Find(this, new Mantle.Point(X, Y, Z), -sin, -cos, jumpBase);
             if (route != null)
             {
-                bool air = !Grounded, wet = route[^1].Water || route[^1].Fall;
-                var keys = (wet ? route[..^1] : route).Select((p, i) => (new Vector3(p.X, p.Y, p.Z), i == 0 ? (air ? .2f : .32f) : i == 1 ? (air ? .32f : .4f) : .3f)).ToList();
+                bool wet = route[^1].Water || route[^1].Fall;
+                var keys = (wet ? route[..^1] : route).Select((p, i) => (new Vector3(p.X, p.Y, p.Z), i == 0 ? .16f : i == 1 ? .22f : .12f)).ToList();
                 // one swing up and over, carrying the run's speed in and out: no stop at the top of the rail
                 var v0 = new Vector3(vel.X, Grounded ? 0 : vy, vel.Y).LimitLength(2.5f);
                 var last = keys[^1].Item1;
                 var over = new Vector3(last.X - keys[0].Item1.X, 0, last.Z - keys[0].Item1.Z);
-                float carry = Math.Clamp(new Vector2(vel.X, vel.Y).Length(), wet ? 1.2f : 0.4f, Walk);
-                var v1 = over.LengthSquared() > 1e-4f ? over.Normalized() * carry * (wet ? 1 : 0.8f) : Vector3.Zero;
+                float carry = Math.Clamp(new Vector2(vel.X, vel.Y).Length(), wet ? 1.2f : .8f, Hurry);
+                var v1 = over.LengthSquared() > 1e-4f ? over.Normalized() * carry : Vector3.Zero;
                 ClimbTo(keys, () =>
                 {
                     vy = 0;
@@ -500,7 +500,7 @@ public partial class Jef : Node, Mantle.IWorld
                     }
                     Grounded = true;
                     Landed?.Invoke();
-                }, null, v0, v1, -1, 3.2f);
+                }, null, v0, v1, -1, 5.5f);
                 return;
             }
         }
@@ -525,8 +525,8 @@ public partial class Jef : Node, Mantle.IWorld
             wx = (fx * cos + fz * sin) * speed;
             wz = (-fx * sin + fz * cos) * speed;
         }
-        // heavy start and stop on the ground; in the air the speed he jumped with goes on, the keys steer a little
-        float a = Grounded ? 1 - MathF.Exp(-dt * (len > 0 ? 6 : 9)) : len > 0 ? 1 - MathF.Exp(-dt * AirControl) : 1 - MathF.Exp(-dt * 0.1f);
+        // Responsive starts and stops; in the air retain jump momentum while allowing steering.
+        float a = Grounded ? 1 - MathF.Exp(-dt * (len > 0 ? 12 : 16)) : len > 0 ? 1 - MathF.Exp(-dt * AirControl) : 1 - MathF.Exp(-dt * 0.1f);
         vel.X += (wx - vel.X) * a;
         vel.Y += (wz - vel.Y) * a;
 
@@ -560,7 +560,7 @@ public partial class Jef : Node, Mantle.IWorld
             }
             Y += (v0 + vy) * 0.5f * dt;
             if (LastJump.Frame > 0 && Y > LastJump.Top) LastJump = LastJump with { Top = Y };
-            if (Y <= level && Water.InAt(X, Z, Y) && ground < level - Tide.Wade)
+            if (Y <= level && Water.InAt(X, Z, Y) && ground < level - Tide.Wade && Scheldemist.Play.ShipWalk.I?.DryLanding(X, Y, Z) != true)
             {
                 float h = fallTop - Y;
                 fallTop = float.NegativeInfinity;

@@ -44,6 +44,7 @@ public static class MapIcons
         new("sight", "churches and sights", Ink("5a3a1a"), true),
         new("pump", "water pumps", Ink("2a5a6a"), false),
         new("names", "street and square names", Ink("2a2420"), true),
+        new("ruien", "Ruien, streets above & entrances", Ink("225565"), false),
     };
     public static readonly IReadOnlyDictionary<string, MapCat> Cat = Cats.ToDictionary(c => c.Id);
     public static Color CatInk(string cat) => Cat[cat].Ink;
@@ -79,6 +80,11 @@ public static class MapIcons
     /// <summary>Each icon by its name.</summary>
     public static readonly IReadOnlyDictionary<string, Icon> Icons = new Dictionary<string, Icon>
     {
+        ["ruien-stair"] = new("ruien", g =>
+        {
+            g.LineWidth = 1.8f;
+            Line(g, -7, 5, -3, 5, -3, 1, 1, 1, 1, -3, 5, -3, 5, -7);
+        }),
         ["goal"] = new("job", g =>
         {
             g.LineWidth = 2.6f;

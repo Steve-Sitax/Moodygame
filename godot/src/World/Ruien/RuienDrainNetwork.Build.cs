@@ -141,12 +141,12 @@ public static partial class RuienDrainNetwork
                 collisions[h.Template.Name]=faces=ResourceLoader.Load<ConcavePolygonShape3D>($"{net.Kit}/{h.Template.Name}_collision.res").Data;
             var body=new StaticBody3D{Name="drain_"+h.Id+"_solid",CollisionLayer=Solid.Layer,CollisionMask=0};
             ConcavePolygonShape3D shape;
-            if(h.Curved)shape=new ConcavePolygonShape3D{Data=faces.Select(h.Map).ToArray(),BackfaceCollision=true};
+            if(h.Curved)shape=CollisionProxy.Shape(faces.Select(h.Map).ToArray());
             else
             {
                 var variant=(h.Template.Name,h.Flat,h.Bend,h.Host.Zone.S);
                 if(!rigidShapes.TryGetValue(variant,out shape!))
-                    rigidShapes[variant]=shape=new ConcavePolygonShape3D{Data=faces.Select(LocalVariant(h).Map).ToArray(),BackfaceCollision=true};
+                    rigidShapes[variant]=shape=CollisionProxy.Shape(faces.Select(LocalVariant(h).Map).ToArray());
                 body.Transform=RigidFrame(h);
             }
             body.AddChild(new CollisionShape3D{Shape=shape});root.AddChild(body);

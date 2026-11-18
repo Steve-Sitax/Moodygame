@@ -97,6 +97,43 @@ public partial class StartupCacheProof : Node
             way.Top+=new Vector3(.05f,0,0);
             var changedStair=Stair();Check(Geometry(changedStair)!=stairGeometry,"Edited stair invalidates cache");changedStair.Free();
             GD.Print("STARTUP_STAIR_CACHE_PASS: exact structure/collision round trips, current hatch and shared materials, changed way invalidation");
+            var surroundWays=RuienData.Load().Areas.SelectMany(a=>a.Ways).Where(RuienSurround.Applies)
+                .GroupBy(w=>(w.Kind,w.Round)).Select(g=>g.First()).ToArray();
+            foreach(var surroundWay in surroundWays)
+            {
+                var original=RuienSurround.Build(surroundWay);string expectedSurround=Geometry(original);original.Free();
+                for(int i=0;i<2;i++)
+                {
+                    var cached=RuienSurround.CachedBuild(surroundWay);
+                    Check(Geometry(cached)==expectedSurround,"Surround cold/warm geometry and collision: "+surroundWay.Id);cached.Free();
+                }
+                var hole=surroundWay.Hole;surroundWay.Hole=new Rect2(hole.Position+Vector2.Right*.1f,hole.Size);
+                var moved=RuienSurround.CachedBuild(surroundWay);
+                Check(Geometry(moved)!=expectedSurround,"Moved surround invalidates: "+surroundWay.Id);moved.Free();surroundWay.Hole=hole;
+            }
+            // A damaged fixture receipt must rebuild safely, without touching any existing game cache.
+            var fixtureWay=surroundWays[0];string oldId=fixtureWay.Id;fixtureWay.Id="cache-proof-"+Guid.NewGuid().ToString("N");
+            var fixture=RuienSurround.CachedBuild(fixtureWay);string fixtureGeometry=Geometry(fixture);fixture.Free();
+            string fixtureIdentity=JsonSerializer.Serialize(fixtureWay,new JsonSerializerOptions{IncludeFields=true,IgnoreReadOnlyProperties=true});
+            var cacheType=typeof(Ruien).Assembly.GetType("Scheldemist.World.Ruien.RuienGeometryCache")!;
+            string fixtureFile=(string)cacheType.GetMethod("CacheFile",BindingFlags.NonPublic|BindingFlags.Static)!
+                .Invoke(null,new object[]{RuienData.AreasFile,"surround:"+fixtureIdentity,".scn"})!;
+            System.IO.File.WriteAllText(fixtureFile+".sha256","corrupt proof receipt");
+            var repaired=RuienSurround.CachedBuild(fixtureWay);
+            Check(Geometry(repaired)==fixtureGeometry,"Corrupt surround receipt safely rebuilt");repaired.Free();fixtureWay.Id=oldId;
+            Check(System.IO.File.ReadAllText(fixtureFile+".sha256")==Convert.ToHexString(SHA256.HashData(System.IO.File.ReadAllBytes(fixtureFile))).ToLowerInvariant(),"Rebuilt surround has a valid content receipt");
+            fixtureWay.Id="cache-proof-bytes-"+Guid.NewGuid().ToString("N");
+            var byteFixture=RuienSurround.CachedBuild(fixtureWay);string byteGeometry=Geometry(byteFixture);byteFixture.Free();
+            fixtureIdentity=JsonSerializer.Serialize(fixtureWay,new JsonSerializerOptions{IncludeFields=true,IgnoreReadOnlyProperties=true});
+            fixtureFile=(string)cacheType.GetMethod("CacheFile",BindingFlags.NonPublic|BindingFlags.Static)!
+                .Invoke(null,new object[]{RuienData.AreasFile,"surround:"+fixtureIdentity,".scn"})!;
+            System.IO.File.AppendAllText(fixtureFile,"corrupt proof bytes");
+            // A new process starts with an empty validation memo; emulate that without changing source files.
+            var memo=cacheType.GetField("cacheHashes",BindingFlags.NonPublic|BindingFlags.Static)!.GetValue(null)!;
+            memo.GetType().GetMethod("Clear")!.Invoke(memo,null);
+            repaired=RuienSurround.CachedBuild(fixtureWay);
+            Check(Geometry(repaired)==byteGeometry,"Corrupt surround bytes safely rebuilt");repaired.Free();fixtureWay.Id=oldId;
+            GD.Print("STARTUP_SURROUND_CACHE_PASS: cold/warm geometry, collision and placement identity; edits invalidate; corrupt receipt rebuilds");
             using var dirt=Image.CreateEmpty(48,48,false,Image.Format.Rgba8);dirt.Fill(new Color(.3f,.2f,.3f,1));
             dirt.SavePng(Path.Combine(folder,"dirt.png"));System.IO.File.WriteAllText(Path.Combine(folder,"dirt.json"),"{\"x0\":0,\"z0\":0,\"w\":12,\"h\":12}");
             var plan=new NativeSquareDressing.Plan("proof",new(.3f,.7f,2,.5f,Array.Empty<NativeSquareDressing.Area>(),Array.Empty<NativeSquareDressing.Path>(),Array.Empty<NativeSquareDressing.Spot>()),Array.Empty<NativeSquareDressing.Thing>());

@@ -1,0 +1,29 @@
+{
+  "change": "Replace the two overlapping baked net-mender figures and restrict player view arms to held objects.",
+  "netMenders": {
+    "sourceNodeIds": [
+      1746,
+      1765
+    ],
+    "replacementKinds": [
+      "old_woman",
+      "fishwife_b"
+    ],
+    "stoolTopMetres": 0.44,
+    "separationMetres": 1.5,
+    "preservation": "Original nodes, metadata, transforms, resource files and stool collision retained. Runtime visual figures follow the existing rack and occupy its two stools.",
+    "collisionAdded": 0,
+    "geometry": "Existing dressed, skinned character models; no newly built environment geometry."
+  },
+  "player": "Camera arms appear for carried cargo or a handheld lantern. Climbing, vaulting and swimming hide them immediately, including with a lantern equipped. Empty gestures, rowing, pushing and riding show no view arms. Full-body poses remain available to reflections and shadows.",
+  "verification": {
+    "gameplayChecks": 50,
+    "launcherChecks": 7,
+    "captures": 24,
+    "actualClimbingFrames": 186,
+    "maximumBodyLadderGripErrorMetres": 0.02,
+    "visualReview": "Native Forward+; daylight, rain and night; front, back, low and overhead views. Seated hips and feet align with the stools and paving.",
+    "evidence": ".scratch/character-repair/game/result.json"
+  },
+  "scope": "This repairs the quay pair and player arm visibility. Other crowd clothing and pose defects remain separate visual work; no city-wide character acceptance is claimed."
+}

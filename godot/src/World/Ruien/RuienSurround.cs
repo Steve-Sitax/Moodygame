@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text.Json;
 using Godot;
 using Scheldemist.Models;
 
@@ -22,6 +23,35 @@ public static class RuienSurround
         return w.Hole.GrowSide(end,.16f);
     }
     public static Rect2 Footprint(RuienData.Way w)=>Opening(w).Grow(Width(w)+.005f);
+
+    /// <summary>Cache the fixed surround, including its collision and permanently open leaves.
+    /// The complete way and construction/content revision preserve every authored placement.</summary>
+    public static Node3D CachedBuild(RuienData.Way w)
+    {
+        using var timing = Dev.StartupTiming.Measure("ruien.surround");
+        if (Main.I?.Flag("no-startup-cache") == true || Main.I?.Flag("no-surround-cache") == true ||
+            Main.I?.Flag("full-collision") == true) return Build(w);
+        string identity = JsonSerializer.Serialize(w, new JsonSerializerOptions { IncludeFields = true, IgnoreReadOnlyProperties = true });
+        var packed = RuienGeometryCache.Get(RuienData.AreasFile, "surround:" + identity, () =>
+        {
+            var root = Build(w);
+            try
+            {
+                foreach (var node in BakedWorld.All(root).Where(n => n != root)) node.Owner = root;
+                var scene = new PackedScene();
+                if (scene.Pack(root) != Error.Ok) throw new InvalidOperationException("Cannot pack surround " + w.Id);
+                return scene;
+            }
+            finally { root.Free(); }
+        });
+        var result = packed.Instantiate<Node3D>();
+        foreach (var node in BakedWorld.All(result).OfType<MeshInstance3D>())
+            if (node.Mesh is ArrayMesh mesh)
+                for (int surface = 0; surface < mesh.GetSurfaceCount(); surface++)
+                    if (mesh.SurfaceGetMaterial(surface) is { } material && material.ResourceName.StartsWith("ruien_", StringComparison.Ordinal))
+                        mesh.SurfaceSetMaterial(surface, RuienMaterials.Get(material.ResourceName));
+        return result;
+    }
 
     public static Node3D Build(RuienData.Way w)
     {
@@ -213,7 +243,7 @@ public static class RuienSurround
         done.SurfaceSetName(0,material);
         root.AddChild(new MeshInstance3D{Name=name??"hatch_leaf_"+(side>0?"e":"w"),Mesh=done,Layers=Ruien.Layer,CastShadow=GeometryInstance3D.ShadowCastingSetting.Off});
         var body=new StaticBody3D{CollisionLayer=Solid.Layer,CollisionMask=0};
-        body.AddChild(new CollisionShape3D{Shape=new ConcavePolygonShape3D{Data=done.GetFaces(),BackfaceCollision=true}});root.AddChild(body);
+        body.AddChild(new CollisionShape3D{Shape=RuienGeometryCache.Proxy(done.GetFaces())});root.AddChild(body);
     }
 
     /// <summary>The export's own hall hatch leaves (oak above the street beside the stair's opening), dropped for Leaves.

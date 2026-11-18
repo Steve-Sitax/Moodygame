@@ -85,6 +85,7 @@ public partial class Arms : Node
 
     [Flags] internal enum HandSlots { None = 0, Left = 1, Right = 2, Both = Left | Right }
     internal HandSlots Slots { get; private set; }
+    internal HandSlots ViewSlots { get; private set; }
     internal bool TwoHandedUse => Pose is not ("idle" or "walk" or "run" or "sleep" or "sit" or "lantern" or "knife_ready");
     internal bool LanternOnBelt => (Deeds.I?.Lit == true || ProofLantern) && TwoHandedUse;
     internal static string Kind(Profile p)
@@ -113,6 +114,7 @@ public partial class Arms : Node
         if (Figure != null) Figure.Dispose();
         if (Hands != null) Hands.Dispose();
         Figure = Make(Profile); Hands = Make(Profile, true); armReach = 0;
+        Hands.Root.Visible = false; HandLift = 0; ViewSlots = HandSlots.None;
         gripPoses.Clear();
         foreach (string size in new[] { "rope", "handle" }) for (int side = 0; side < 2; side++) gripPoses[(size, side)] = BuildGrip(Figure.Root.GetNode<Skeleton3D>("Skeleton3D"), side, size);
         Figure.Root.Name = "jef_mirror_body"; Hands.Root.Name = "jef_viewmodel";
@@ -145,6 +147,7 @@ public partial class Arms : Node
         if (Jef.I.Fly && ProofPose == null && !animateWhileFlying)
         {
             Hands.Root.Visible = Figure.Root.Visible = bodyLantern.Visible = false;
+            viewLantern.Visible = false; HandLift = 0; ViewSlots = HandSlots.None;
             lastAt = new Vector3(Jef.I.X, Jef.I.Y, Jef.I.Z); speed = 0;
             return;
         }
@@ -155,7 +158,8 @@ public partial class Arms : Node
         float measured = dt > 0 ? new Vector2(at.X - lastAt.X, at.Z - lastAt.Z).Length() / dt : 0;
         speed = Mathf.Lerp(speed, Math.Min(measured, Jef.Hurry), Math.Min(1, dt * 12)); lastAt = at;
         if (gesture > 0) gesture -= dt;
-        Pose = ProofPose ?? timingPose ?? (Day.I?.Asleep == true ? "sleep" : j.Climbing ? j.Vaulting ? "vault" : "climb" : CraneClimb.I?.OnLadder == true ? "climb" : j.Swimming ? "swim" : Rowing.I?.Boat != null ? "row" : Handcarts.I?.Held != null ? "push" : Velocipedes.I?.Ridden != null ? "velo" : j.Riding || Main.I.GetNodeOrNull<TavernSeats>("TavernSeats")?.Sitting != null || Main.I.GetNodeOrNull<CathedralComfort>("CathedralComfort")?.Sitting != null ? "sit" : gesture > 0 ? gestureKind! : Goods.I?.Carried != null ? "carry" : Deeds.I?.Lit == true || ProofLantern ? "lantern" : speed > 2 ? "run" : speed > .1 ? "walk" : "idle");
+        var carried = ProofLoad ?? Goods.I?.Carried?.Obj;
+        Pose = ProofPose ?? timingPose ?? (Day.I?.Asleep == true ? "sleep" : j.Climbing ? j.Vaulting ? "vault" : "climb" : CraneClimb.I?.OnLadder == true ? "climb" : j.Swimming ? "swim" : Rowing.I?.Boat != null ? "row" : Handcarts.I?.Held != null ? "push" : Velocipedes.I?.Ridden != null ? "velo" : j.Riding || Main.I.GetNodeOrNull<TavernSeats>("TavernSeats")?.Sitting != null || Main.I.GetNodeOrNull<CathedralComfort>("CathedralComfort")?.Sitting != null ? "sit" : carried != null ? "carry" : gesture > 0 ? gestureKind! : Deeds.I?.Lit == true || ProofLantern ? "lantern" : speed > 2 ? "run" : speed > .1 ? "walk" : "idle");
         // On a quay ladder the hands hold its rungs and hoops; once they would reach behind him he lets go.
         bool quayHeld = quayGrips != null;
         quayGrips = null;
@@ -172,8 +176,14 @@ public partial class Arms : Node
         beltBlend = Mathf.MoveToward(beltBlend, LanternOnBelt ? 1 : 0, dt * 4);
         // Lower the single-hand hold onto the belt before raising the two working hands.
         bool activeHands = Slots != HandSlots.None && (!LanternOnBelt || beltBlend == 1);
-        HandLift = Mathf.MoveToward(HandLift, activeHands ? 1 : 0, dt * 4);
-        Hands.Root.Visible = !j.Fly && HandLift > 0;
+        // Camera arms belong only to an object being held. Body poses still animate in mirrors and shadows.
+        bool traversing = j.Climbing || j.Swimming || CraneClimb.I?.OnLadder == true || Pose is "climb" or "vault" or "swim";
+        ViewSlots = traversing ? HandSlots.None : Pose == "carry" && carried != null ? HandSlots.Both
+            : !LanternOnBelt && (Deeds.I?.Lit == true || ProofLantern || Pose == "lantern") ? HandSlots.Left : HandSlots.None;
+        bool activeViewHands = activeHands && ViewSlots != HandSlots.None;
+        // Hide immediately on release or traversal, without showing a departing empty-arm animation.
+        HandLift = activeViewHands ? Mathf.MoveToward(HandLift, 1, dt * 4) : 0;
+        Hands.Root.Visible = !j.Fly && activeViewHands;
         string motion = Pose switch { "walk" or "run" => "walk", "lantern" or "knife_ready" when speed > .1f => "walk", "carry" => "carry", "push" => "push", "row" => "row", "sit" or "velo" => "sit", _ => j.Crouching ? "crouch" : "idle" };
         for (int figureIndex = 0; figureIndex < 2; figureIndex++)
         {
@@ -236,7 +246,7 @@ public partial class Arms : Node
         if (Pose is "push" or "velo") Hands.Root.Position += Vector3.Down * .30f * viewScale;
         if (animateWhileFlying && j.Fly) Hands.Root.GlobalTransform = Main.I.Cam.GlobalTransform * Hands.Root.Transform;
         float poseTime = Pose == "row" && Rowing.I?.Boat != null ? Rowing.I.Rower.Phase * MathF.Tau / 2.5f : clock;
-        if (HandLift > 0) PoseHands(Hands, handIK, poseTime, Pose, dt, handTargets, slots: Slots);
+        if (HandLift > 0) PoseHands(Hands, handIK, poseTime, Pose, dt, handTargets, slots: ViewSlots);
         if (activeHands) PoseHands(Figure, bodyIK, clock, Pose, dt, bodyTargets, true, Slots);
         if (Pose == "carry" && (ProofLoad ?? Goods.I?.Carried?.Obj) is { } obj) ContactLoad(obj);
         if (Pose == "push" && Handcarts.I?.PlayerGrip(0) is { } cartLeft && Handcarts.I.PlayerGrip(1) is { } cartRight) ContactPoints(cartLeft, cartRight);
@@ -252,7 +262,7 @@ public partial class Arms : Node
             ContactPoints(centre + side * .14f, centre - side * .14f);
         }
         else if (quayGrips is { } quay) ContactPoints(quay.Left, quay.Right, true);
-        // Lower the complete rig out of frame before hiding it; reverse the same eased lift on use.
+        // Ease held objects into view. Empty hands and traversal were hidden immediately above.
         Hands.Root.Position += Vector3.Down * (.9f * (1 - Mathf.SmoothStep(0, 1, HandLift)));
         bodyLantern.Visible = Deeds.I?.Lit == true || ProofLantern || Pose == "lantern";
         if (Figure.Socket(LanternOnBelt ? "hipL" : "gripL") is { } grip)

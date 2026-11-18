@@ -110,7 +110,9 @@ public sealed partial class RuienArea
         string col = area.Export + "/collision.res";
         if(ResourceLoader.Exists(col))
         {
-            a.Shape=RuienGeometryCache.Get(col,area.Id,()=>
+            // (dev: --full-collision keeps every drawn triangle solid, for a before-and-after; never from the cache)
+            bool fullCollision=Main.I?.Flag("full-collision")==true;
+            Func<ConcavePolygonShape3D> buildShape=()=>
             {
             var original=ResourceLoader.Load<ConcavePolygonShape3D>(col);
             using var arrays=new Godot.Collections.Array();arrays.Resize((int)Mesh.ArrayType.Max);
@@ -130,10 +132,16 @@ public sealed partial class RuienArea
             if(trimmed)
             {
                 var p=arrays[(int)Mesh.ArrayType.Vertex].AsVector3Array();var ix=arrays[(int)Mesh.ArrayType.Index].AsInt32Array();
-                return new ConcavePolygonShape3D{Data=(ix.Length>0?ix.Select(i=>p[i]).ToArray():p),BackfaceCollision=true};
+                faces=ix.Length>0?ix.Select(i=>p[i]).ToArray():p;
             }
-            return original;
-            });
+            if(fullCollision)return trimmed?new ConcavePolygonShape3D{Data=faces,BackfaceCollision=true}:original;
+            // The physics takes a simpler solid than the drawn bricks (CollisionProxy): after every cut, so each
+            // opening is cut from the full surface first.
+            var proxy=CollisionProxy.Simplify(faces);
+            GD.Print($"ruien: {area.Id} collision proxy: {proxy}");
+            return new ConcavePolygonShape3D{Data=proxy.Faces,BackfaceCollision=true};
+            };
+            a.Shape=fullCollision?buildShape():RuienGeometryCache.Get(col,area.Id,buildShape);
         }
         return a;
     }

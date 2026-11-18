@@ -941,6 +941,9 @@ public partial class Jobs : Node
     private Sheet? taskCard, note;
     private Label tickDist = null!;
     private Tick tick = null!;
+    private Tick? pinTick;
+    private Label? pinDist;
+    private int pinMetres = int.MinValue;
     private Control? ui;
     private double noteLeft;
     private OutcomeMsg? noteMsg;
@@ -967,6 +970,7 @@ public partial class Jobs : Node
     private void BuildUi()
     {
         ui?.QueueFree();
+        pinTick = null; pinDist = null; pinMetres = int.MinValue;
         ui = new Control { Name = "Jobs", MouseFilter = Control.MouseFilterEnum.Ignore };
         ui.SetAnchorsPreset(Control.LayoutPreset.FullRect);
         Main.I.Ui.AddChild(ui);
@@ -1174,6 +1178,25 @@ public partial class Jobs : Node
         if (glow == null) MakeGlow();
         var goal = PointerGoal();
         var jef = Jef.I;
+        if (TownMap.I?.Waypoint is { } pin && jef != null)
+        {
+            if (pinTick == null)
+            {
+                var colour = new Color("96e1e3");
+                pinTick = new Tick { Name = "WaypointArrow", Ink = colour, Size = tick.Size, MouseFilter = Control.MouseFilterEnum.Ignore };
+                pinDist = (Label)tickDist.Duplicate();
+                pinDist.LabelSettings = (LabelSettings)tickDist.LabelSettings.Duplicate();
+                pinDist.LabelSettings.FontColor = colour;
+                ui!.AddChild(pinTick);
+                ui.AddChild(pinDist);
+            }
+            pinTick.Visible = pinDist!.Visible = true;
+            UpdateBearing(pin, pinTick, pinDist, ref pinMetres, dt, true, goal.HasValue);
+        }
+        else if (pinTick != null)
+        {
+            pinTick.Visible = pinDist!.Visible = false;
+        }
         if (goal == null || jef == null)
         {
             glowMat!.AlbedoColor = new Color(glowMat.AlbedoColor, 0);
@@ -1190,9 +1213,15 @@ public partial class Jobs : Node
         glowMat!.AlbedoColor = new Color(glowMat.AlbedoColor, 0.35f * near * (0.85f + MathF.Sin((float)pulse * 2.1f) * 0.15f));
         glowLight!.Position = new Vector3(g.X, g.Y + 1.2f, g.Z);
         glowLight.LightEnergy = 2.5f / MathF.PI * near;
+        UpdateBearing(new Vector2(g.X,g.Z), tick, tickDist, ref tickMetres, dt, false, false);
+    }
 
+    private void UpdateBearing(Vector2 target, Tick arrow, Label distance, ref int lastMetres, float dt, bool waypoint, bool secondRow)
+    {
         // the ink tick slides along the top edge toward the goal, only when it is far or off screen
-        float ang = MathF.Atan2(g.X - jef.X, g.Z - jef.Z) - MathF.Atan2(-MathF.Sin(jef.Yaw), -MathF.Cos(jef.Yaw));
+        var jef = Jef.I;
+        float d = RunWords.Dist(target.X,target.Y,jef.X,jef.Z);
+        float ang = MathF.Atan2(target.X - jef.X, target.Y - jef.Z) - MathF.Atan2(-MathF.Sin(jef.Yaw), -MathF.Cos(jef.Yaw));
         float a = MathF.Atan2(MathF.Sin(ang), MathF.Cos(ang)); // -pi..pi, + is to the left
         float x = Math.Clamp(-a / (MathF.PI / 2), -1, 1);
         var win = GetViewport().GetVisibleRect().Size;
@@ -1202,20 +1231,21 @@ public partial class Jobs : Node
         if (ClockCard() is { } clock)
             paperRight = clock.Position.X + clock.Size.X;
         if (taskCard != null) paperRight = Math.Max(paperRight, taskCard.Card.Position.X + taskCard.Card.Size.X);
-        left = Math.Clamp(left, Math.Min(win.X / 2, paperRight + tickDist.Size.X / 2 + 12), win.X * 0.92f);
-        tick.Position = new Vector2(left - tick.Size.X / 2, 4);
-        tick.Turn = MathF.Abs(a) > MathF.PI / 2 ? (a > 0 ? 90 : -90) : 0;
-        tickDist.Position = new Vector2(left - tickDist.Size.X / 2, 4 + tick.Size.Y - 2);
+        left = Math.Clamp(left, Math.Min(win.X / 2, paperRight + distance.Size.X / 2 + 12), win.X * 0.92f);
+        float top = secondRow ? 6 + arrow.Size.Y + distance.Size.Y : 4;
+        arrow.Position = new Vector2(left - arrow.Size.X / 2, top);
+        arrow.Turn = MathF.Abs(a) > MathF.PI / 2 ? (a > 0 ? 90 : -90) : 0;
+        distance.Position = new Vector2(left - distance.Size.X / 2, top + arrow.Size.Y - 2);
         int metres = RoundedMetres(d);
-        if (!Scheldemist.Dev.SpeedComparison.Cached || !cacheHud || tickMetres != metres)
+        if (!Scheldemist.Dev.SpeedComparison.Cached || !cacheHud || lastMetres != metres)
         {
-            tickMetres = metres;
-            string words = Metres(d);
-            if (tickDist.Text != words) tickDist.Text = words;
+            lastMetres = metres;
+            string words = waypoint ? $"Waypoint · {Metres(d)}" : Metres(d);
+            if (distance.Text != words) distance.Text = words;
         }
-        bool windowUp = Dialogs.I is { Any: true };
-        float want = d > 6 && !windowUp ? 0.55f + 0.25f * Math.Min(1, MathF.Abs(a)) : 0;
-        tick.Modulate = tickDist.Modulate = new Color(1, 1, 1, Mathf.MoveToward(tick.Modulate.A, want, dt / 0.6f));
+        bool windowUp = Dialogs.I is { Any: true } || TownMap.I is { Open: true };
+        float want = d > (waypoint ? 1.5f : 6) && !windowUp ? 0.55f + 0.25f * Math.Min(1, MathF.Abs(a)) : 0;
+        arrow.Modulate = distance.Modulate = new Color(1, 1, 1, Mathf.MoveToward(arrow.Modulate.A, want, dt / 0.6f));
     }
 
     /// <summary>map.ts metres: a distance in round metres.</summary>

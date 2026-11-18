@@ -117,7 +117,7 @@ public partial class Rowing:Node,RowPhysics.IWorld
     {
         Data=data;Boats.I.PlayerShowSmall();var wanted=new HashSet<string>(Drawings.Keys.Where(k=>k.StartsWith("town:",StringComparison.Ordinal)));
         foreach(var l in data.Landings)
-        {Boats.I.PlayerHideSmall(l.X,l.Z,true);string key="berth:"+l.Id;wanted.Add(key);if(!Drawings.TryGetValue(key,out var d))d=Make(key,l.Kind,l.X,l.Z,l.Yaw);if(d!=Boat){d.X=l.X;d.Z=l.Z;d.Yaw=l.Yaw;}d.Root.Visible=!(Boat?.Key==key||data.On=="hire"&&data.Hire?.Landing==l.Id);}
+        {Boats.I.PlayerHideSmall(l.X,l.Z,true);string key="berth:"+l.Id;wanted.Add(key);if(!Drawings.TryGetValue(key,out var d))d=Make(key,l.Kind,l.X,l.Z,l.Yaw);if(d!=Boat){d.X=l.X;d.Z=l.Z;d.Yaw=l.Yaw;}d.Root.Visible=d==Boat||!(data.On=="hire"&&data.Hire?.Landing==l.Id);}
         foreach(var b in data.Boats)
         {
             // (issue 156) a wrecked boat is gone from her mooring; one somebody else has out is not at it either: rowed,
@@ -128,7 +128,7 @@ public partial class Rowing:Node,RowPhysics.IWorld
                 if(!b.Ridden&&new Vector2(b.X-b.Home.X,b.Z-b.Home.Z).Length()<.5f)continue;
                 Boats.I.PlayerHideSmall(b.Home.X,b.Home.Z,true);if(b.Ridden)continue;
                 wanted.Add(b.Id);if(!Drawings.TryGetValue(b.Id,out var other))other=Make(b.Id,b.Kind,b.X,b.Z,b.Yaw);if(other!=Boat&&!other.Drift){other.X=b.X;other.Z=b.Z;other.Yaw=b.Yaw;}other.Root.Visible=true;continue;
-            }Boats.I.PlayerHideSmall(b.Home.X,b.Home.Z,true);wanted.Add(b.Id);if(!Drawings.TryGetValue(b.Id,out var d))d=Make(b.Id,b.Kind,b.X,b.Z,b.Yaw);if(d!=Boat&&!d.Drift){d.X=b.X;d.Z=b.Z;d.Yaw=b.Yaw;}d.Root.Visible=!b.Ridden;
+            }Boats.I.PlayerHideSmall(b.Home.X,b.Home.Z,true);wanted.Add(b.Id);if(!Drawings.TryGetValue(b.Id,out var d))d=Make(b.Id,b.Kind,b.X,b.Z,b.Yaw);if(d!=Boat&&!d.Drift){d.X=b.X;d.Z=b.Z;d.Yaw=b.Yaw;}d.Root.Visible=d==Boat||!b.Ridden;
         }
         if(data.Hire?.Left is {} left&&data.On!="hire")
         {wanted.Add("mine");if(!Drawings.TryGetValue("mine",out var d))d=Make("mine",data.Hire.Kind,left.X,left.Z,0);}
@@ -206,9 +206,6 @@ public partial class Rowing:Node,RowPhysics.IWorld
     {float sx=MathF.Sin(d.Yaw),sz=MathF.Cos(d.Yaw),dx=x-d.X,dz=z-d.Z,along=Math.Clamp(dx*sx+dz*sz,-d.Hull.Half,d.Hull.Half);return Math.Max(0,new Vector2(dx-sx*along,dz-sz*along).Length()-d.Hull.Beam);}
     private bool Jump()
     {
-        var j=Jef.I;if(!j.Riding&&!j.Laden&&!j.Swimming&&!j.Climbing&&!Busy)
-            foreach(var d in Drawings.Values)if(!d.Key.StartsWith("berth:"))
-            {var at=SeatOf(d);float drop=j.Y-at.Y,dx=d.X-j.X,dz=d.Z-j.Z;if(drop>1.3f&&drop<=3.6f&&HullDistance(d,j.X,j.Z)<2.2f&&(-MathF.Sin(j.Yaw)*dx-MathF.Cos(j.Yaw)*dz)>new Vector2(dx,dz).Length()*.2f){_=Board(d,true);return true;}}
         return oldJump?.Invoke()??false;
     }
     public async Task Hire(RowLanding l)
@@ -238,7 +235,8 @@ public partial class Rowing:Node,RowPhysics.IWorld
     }
     public Exit? ExitHere()
     {
-        var seat=Rower.Seat;var exit=QuayExits.Near(seat.X,seat.Z,2.3f)??QuayExits.Near(Rower.X,Rower.Z,2);if(exit!=null)return exit;
+        if(Boat==null)return null;
+        var seat=Rower.Seat;var ownDeck=ShipWalk.I.Decks.FirstOrDefault(d=>d.Visible()&&d.World().Origin.DistanceTo(Boat!.Root.GlobalPosition)<.1f);if(ownDeck!=null&&ShipWalk.I.ExitBeside(ownDeck) is {} beside)return beside;var exit=QuayExits.Near(seat.X,seat.Z,2.3f)??QuayExits.Near(Rower.X,Rower.Z,2);if(exit!=null)return exit;
         if(Data.On=="hire")foreach(var l in Data.Landings)if(new Vector2(Rower.X-l.X,Rower.Z-l.Z).Length()<9){exit=QuayExits.Near(l.Landing[0],l.Landing[1],3);if(exit!=null)return exit;}
         // (issue 87) back at her own mooring: her ladder or her flight's landing lies beside her now, a step along her
         if(Data.Boats.FirstOrDefault(b=>b.Id==Data.On) is {Landing.Length:>=2} own&&new Vector2(Rower.X-own.Home.X,Rower.Z-own.Home.Z).Length()<6){exit=QuayExits.Near(own.Landing[0],own.Landing[1],3);if(exit!=null&&new Vector2(exit.Gx-seat.X,exit.Gz-seat.Z).Length()<6.5f)return exit;}
@@ -249,13 +247,16 @@ public partial class Rowing:Node,RowPhysics.IWorld
     public async Task Leave(Exit? exit)
     {
         var d=Boat;if(d==null||Busy)return;Busy=true;int e=++epoch;float x=Rower.X,z=Rower.Z,yaw=Rower.Heading;var seat=Rower.Seat;
+        var drawnDeck=ShipWalk.I.Decks.FirstOrDefault(q=>q.Visible()&&q.World().Origin.DistanceTo(d.Root.GlobalPosition)<.1f);
+        var water=exit==null&&drawnDeck!=null?ShipWalk.I.WaterBeside(drawnDeck):null;
+        if(exit==null&&water==null){Busy=false;return;}
         Clear();d.X=x;d.Z=z;d.Yaw=yaw;d.Oars.Visible=false;
         if(exit!=null)
         {var keys=new List<(Vector3,float)>();
             // a ladder or landing a few steps along her: first along her floor to her end nearest it
             if(new Vector2(exit.Gx-seat.X,exit.Gz-seat.Z).Length()>1.3f&&ShipWalk.I?.FloorFor(d.Kind) is {} deck){var hull=d.Root.GlobalTransform;var l=hull.AffineInverse()*new Vector3(exit.Gx,seat.Y,exit.Gz);var p=deck.Nearest(new(l.X,l.Z));var end=hull*new Vector3(p.X,deck.Floor(p.X,p.Y),p.Y);keys.Add((end,Math.Max(.5f,end.DistanceTo(seat-Vector3.Up*.4f)/1.2f)));}
             keys.Add((new(exit.Gx,seat.Y-.3f,exit.Gz),.5f));if(exit.Ladder)keys.Add((new(exit.Gx,exit.Ty+.15f,exit.Gz),Math.Max(.3f,(exit.Ty+.15f-seat.Y+.3f)/.9f)));keys.Add((new(exit.Tx,exit.Ty,exit.Tz),.7f));Jef.I.ClimbTo(keys,null);}
-        else{float side=d.Hull.Beam+.55f;for(int i=0;i<2;i++){float s=i==0?1:-1,xx=seat.X+MathF.Cos(yaw)*side*s,zz=seat.Z-MathF.Sin(yaw)*side*s;if(Jef.I.SwimFree(xx,zz)){Jef.I.DropFromBoat(new(xx,Water.Level(xx,zz)-.3f,zz));break;}}d.Drift=z<-1;}
+        else{Jef.I.DropFromBoat(water!.Value);d.Drift=z<-1;}
         try{var r=await ServerLink.I!.Api!.RowLeave(x,z,yaw,exit!=null);if(e!=epoch)return;GameState.I.Apply(r);if(r.Row.Hire?.Left!=null){Drawings.Remove(d.Key);if(Drawings.TryGetValue("mine",out var old)&&old!=d)old.Root.QueueFree();d.Key="mine";Drawings["mine"]=d;}Apply(r.Row);Answered?.Invoke("leave",r);if(r.Text!="")GameState.I.Say(r.Text);}
         catch(ApiException ex){GameState.I.Say(ex.Message);}finally{Busy=false;}
     }

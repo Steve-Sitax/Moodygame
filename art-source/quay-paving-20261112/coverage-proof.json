@@ -1,0 +1,9 @@
+{
+  "quayPositionsExact": true,
+  "quayUVGridExact": true,
+  "originalInfillArea": 2455.260627150738,
+  "retainedInfillArea": 2.1573582110771854,
+  "missingCoverageArea": 2.51710932097789e-05,
+  "outsideOriginalArea": 0.0,
+  "collisionStandInsExact": "See QuayPavingRepair reload assertions; skipped surfaces expanded to all three visual surfaces."
+}

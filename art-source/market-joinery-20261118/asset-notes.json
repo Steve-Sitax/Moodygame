@@ -1,0 +1,11 @@
+{
+  "area": "Outdoor market stalls and shopfront tables",
+  "sources": "Native stalls.scn meshes, build_stalls.py joinery and mounting dimensions. Original painted sign and its UV rectangle retained.",
+  "timber": "Seven separate boards on market counters, five on shop tables. The trestles have low ties across their legs, and market posts have diagonal braces below the eaves. The exposed wood has 2.5 mm bevels. Grain and height share local cut coordinates on long faces and edges.",
+  "cloth": "The two skins of the red, blue and patched open canopies follow the original sag and valance. A 2 mm offset in the vertical and front-to-back axes separates the skins, and narrow faces close the perimeter. The open sheets use backface culling. Tarpaulins keep two-sided rendering inside the skirt. Rolled covers retain their ropes and silhouettes.",
+  "materials": "The four canvas finishes retain the original patterns using plan-84 colour and height sources with detail_canvas_colour woven detail. Tarred cloth has less exposed weave. Packed colour and height maps include mipmaps and are shared by the shop and market variants.",
+  "contacts": "Tabletops remain 0.85 m and 0.80 m high. Existing table collision stays a single box per MarketStalls placement. The NativeMarket pitch system uses its existing footprint boxes. Plank gaps, cloth hems, joinery and braces add no physics surfaces.",
+  "edgeExceptions": "Fabric hems follow the original pinked thin-sheet silhouette. The original flat painted lettering sits on a beveled board. Timber end grain is approximated by a cross-section of the shared wood map.",
+  "bake": "Run res://scripts/market-joinery-repair.tscn in the native project with Forward+. The game loads the serialized models and materials.",
+  "scope": "Market furniture and coverings. Existing city cart wheels and the older cart-edge finding are outside these repaired meshes."
+}

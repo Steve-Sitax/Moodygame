@@ -5,11 +5,12 @@ using Godot;
 using Scheldemist.Net.Mp;
 using Scheldemist.Town;
 using Scheldemist.World;
+using Scheldemist.World.Ruien;
 
 namespace Scheldemist.People;
 
-/// <summary>Town sparrow flocks, roof jackdaws, rampart crows and eight wall-foot rats. Fixed native haunts,
-/// seeded from IDs while loading; bounded straight paths, no route searches or resource creation in an update.
+/// <summary>Town sparrow flocks, roof jackdaws, rampart crows, eight wall-foot rats and five underground rats.
+/// Town haunts are chosen on load. The separate rat batch is created on the first descent.
 /// These cosmetic populations are local deterministic detail; the multiplayer motion protocol is unchanged.</summary>
 [GamePart(208)]
 public partial class SmallLife : Node
@@ -28,6 +29,7 @@ public partial class SmallLife : Node
     internal readonly List<Beast> List = new();
     internal SmallLifeKit.Batch Batch = null!;
     private Townspeople town = null!;
+    private RuienRats? ruienRats;
     private bool built;
     public double LogicMs { get; private set; }
     public long AllocatedBytes { get; private set; }
@@ -153,7 +155,14 @@ public partial class SmallLife : Node
             var tr=new Transform3D(Basis.FromEuler(new Vector3(0,b.Yaw,0)).Scaled(Vector3.One*b.Size),b.At);
             Batch.Put(b.Kind,b.Motion,phase,tr);
         }
-        Batch.End();AllocatedBytes=GC.GetAllocatedBytesForCurrentThread()-bytes;LogicMs=(Time.GetTicksUsec()-start)/1000.0;
+        Batch.End();
+        if (eye.Y < -.25f && Ruien.I?.Near != null)
+        {
+            ruienRats ??= new RuienRats(Main.I.View);
+            ruienRats.Draw(eye,dt,time);
+        }
+        else ruienRats?.Hide();
+        AllocatedBytes=GC.GetAllocatedBytesForCurrentThread()-bytes;LogicMs=(Time.GetTicksUsec()-start)/1000.0;
     }
-    public override void _ExitTree(){town.PopulationChanged-=Reset;Batch.Root.QueueFree();if(I==this)I=null;}
+    public override void _ExitTree(){town.PopulationChanged-=Reset;ruienRats?.Free();Batch.Root.QueueFree();if(I==this)I=null;}
 }

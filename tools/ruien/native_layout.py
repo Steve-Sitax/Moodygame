@@ -73,6 +73,15 @@ def make():
         if manifest.exists():
             x0,z0,x1,z1=rect;heels=[]
             for bridge in load(manifest)['markers'].get('bridges',[]):
+                # These approach-side rail posts meet a low arch shoulder. Keep the rail
+                # end on its stone coping, 1 cm before the nose above the water.
+                rail_end={'J026_L33':'railStartA','J026_L95':'railStartB','J064_L52':'railStartB'}.get(bridge['id'])
+                if rail_end:
+                    # Match the converted marker's precision, including signed zero in the gear vector.
+                    fixed={**bridge,rail_end:.19}
+                    for field in ('a','b','gear'):
+                        fixed[field]=[int(v) if int(v)==v else round(v,6) for v in bridge[field]]
+                    a.setdefault('bridges',[]).append(fixed)
                 for end,other in (('a','b'),('b','a')):
                     p,q=bridge[end],bridge[other]
                     if abs(p[2]-q[2])>abs(p[0]-q[0]):reach=p[2]-z0 if p[2]<q[2] else z1-p[2]

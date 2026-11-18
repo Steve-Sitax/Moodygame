@@ -1,0 +1,72 @@
+{
+  "change": "Responsive jumps and ledges, safe boat exits and submerged hulls, continuous Scheldt bed and distant-bank scenery.",
+  "riverbed": {
+    "boundsXZMetres": [
+      -720,
+      -264,
+      492,
+      0
+    ],
+    "heightMetres": [
+      -14.97612,
+      -5.393277
+    ],
+    "gridMetres": 12,
+    "triangles": 4444,
+    "collision": "Same surface, double-sided; slopes join the original near-bank mud at z=-80 and the far-bank toe at z=-264. The central channel is approximately 14.5 m below datum; existing shore terrain, stairs and foundations remain.",
+    "navigation": "Water outlines and authored boat placements unchanged. Diver floor queries extend to the new bed."
+  },
+  "bank": {
+    "trees": 136,
+    "houses": 12,
+    "setbackFromQuayMetres": [
+      335,
+      530
+    ],
+    "materials": "Existing brick, slate, bluestone, wood, bark, foliage and earth textures; continuous building-space wall/gable UVs, one slate texture span per roof pitch excluding its metal edge strip, world-aligned ground detail, shared fog and daylight shaders.",
+    "construction": "Terrain-fitted stone foundations, closed gables, overhanging slate roofs, chimneys, window frames and sills, eaves and downpipe outlets at ground level.",
+    "edgesMm": {
+      "brick": 12,
+      "chimney": 8,
+      "stone": 12,
+      "wood": [
+        2,
+        3
+      ],
+      "slate": [
+        2,
+        3
+      ]
+    },
+    "edgeExceptions": "Buried and mating faces stay flat; slate sheet lips use 2 mm bevels; leaf cards remain thin sheets; the continuous soil surface has no exposed artificial rim within the water bounds.",
+    "collision": "One static body: one 4,444-triangle bed shape, 136 trunk cylinders and 12 simple convex building shells. Foliage, frames and drainage add no collision shapes. Trunks and crowns are kept clear of the houses.",
+    "preservation": "Original shore geometry, transforms, IDs and collision retained. Its material is overridden at runtime; new scenery is a separate scene."
+  },
+  "rebuild": "native-godot/scripts/river-scenery-build.tscn with Forward+ after dotnet build. The dummy renderer cannot serialize tree transforms; the builder rejects it and checks all four buffers before saving.",
+  "startup": "Serialized assets declared in StartupResources, timed as river.scenery.load, included in the native package content fingerprint. No runtime geometry generation or invalidation of unrelated town/Ruien geometry.",
+  "validation": {
+    "status": "passed",
+    "gameplayChecks": 42,
+    "finalSceneryChecks": 5,
+    "launcherChecks": 7,
+    "renderer": "Native Godot Forward+",
+    "weather": [
+      "clear daylight",
+      "rain",
+      "darkness"
+    ],
+    "views": [
+      "quay across the river",
+      "opposite bank",
+      "house front",
+      "house rear at low angle",
+      "riverbed",
+      "actual submerged hull"
+    ],
+    "evidence": [
+      ".scratch/river-traversal/game/result.json",
+      ".scratch/river-traversal/final-visual/result.json",
+      ".scratch/startup-perf/river-verification.json"
+    ]
+  }
+}

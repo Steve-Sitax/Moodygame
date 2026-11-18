@@ -22,6 +22,7 @@ internal partial class JefProof : Node
     private int maxDuplicateProps;
     private bool emptyHandsHidden = true;
     private float maxQuayGripError, maxQuayBodyError;
+    private bool quayViewHidden = true;
     private int quayHeld, quayLetGo;
     public override void _Process(double dt)
     {
@@ -33,8 +34,7 @@ internal partial class JefProof : Node
         await Frames(); await ToSignal(RenderingServer.Singleton, RenderingServer.SignalName.FramePostDraw);
         (menu ? Main.I.GetViewport().GetTexture() : Main.I.View.GetTexture()).GetImage().SavePng(Path.Combine(dir, name + ".png"));
         var arms = Arms.I!;
-        // (a quay-ladder climb lets go at the top for a moment: its pictures are not of empty hands at rest)
-        if (arms.Pose is "idle" or "walk" or "run" && !arms.ProofLantern && !Jef.I.Climbing)
+        if (Jef.I.Climbing || Jef.I.Swimming || arms.Pose is "climb" or "vault" or "swim" || arms.ViewSlots == Arms.HandSlots.None)
             emptyHandsHidden &= arms.HandLift == 0 && !arms.Hands.Root.Visible;
         if (arms.Pose == "carry") maxGripError = Math.Max(maxGripError, arms.LoadGripError);
         maxDuplicateProps = Math.Max(maxDuplicateProps, arms.Figure.ThingsShown + arms.Hands.ThingsShown);
@@ -46,7 +46,7 @@ internal partial class JefProof : Node
         }
         pictures.Add(new { name, arms.Pose, slots = arms.Slots.ToString(), arms.LanternOnBelt, kind = arms.Figure.Kind, arms.HandLift, handsVisible = arms.Hands.Root.Visible, arms.WallClearance, arms.ReachScale, arms.LoadGripError, arms.BodyGripError, arms.ViewGripError, skeletonFrame = arms.Hands.Root.GetNode<Skeleton3D>("Skeleton3D").Transform.ToString(), feet = new[] { Jef.I.X, Jef.I.Y, Jef.I.Z }, hour = Daylight.I.Hour, profile = Character.ToJson(arms.Profile), triangles = arms.Hands.Root.GetMeta("arm_triangles").AsInt32() });
     }
-    private bool QuayLadderOk => quayHeld > 30 && quayLetGo > 0 && maxQuayGripError < .01f && maxQuayBodyError < .03f;
+    private bool QuayLadderOk => quayHeld > 30 && quayLetGo > 0 && quayViewHidden && maxQuayBodyError < .03f;
     /// <summary>
     /// Down a quay ladder into the water and back up it, with pictures on the way: the hands hold the rungs and the
     /// hoops (never empty air in front of the face), and let go once the hoops are behind him.
@@ -71,6 +71,7 @@ internal partial class JefProof : Node
             {
                 await Frames(1);
                 if (!j.Climbing) break;
+                quayViewHidden &= !arms.Hands.Root.Visible && arms.HandLift == 0;
                 if (arms.OnQuayLadder) { quayHeld++; held = true; maxQuayGripError = Math.Max(maxQuayGripError, arms.ViewGripError); maxQuayBodyError = Math.Max(maxQuayBodyError, arms.BodyGripError); }
                 else if (held) quayLetGo++;
                 if (frame % 24 == 0) await Shot($"quay-ladder-{name}-{shot++:00}");

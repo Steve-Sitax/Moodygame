@@ -261,7 +261,7 @@ public static partial class RuienStair
         if(solid)
         {
             var body=new StaticBody3D{CollisionLayer=Solid.Layer,CollisionMask=0};
-            body.AddChild(new CollisionShape3D{Shape=new ConcavePolygonShape3D{Data=done.GetFaces(),BackfaceCollision=true}});root.AddChild(body);
+            body.AddChild(new CollisionShape3D{Shape=CollisionProxy.Shape(done.GetFaces())});root.AddChild(body);
         }
     }
 }

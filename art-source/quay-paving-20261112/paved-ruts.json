@@ -1,0 +1,16 @@
+{
+  "originalArea": 1885.6530927335007,
+  "retainedMudArea": 0.2889956427976608,
+  "pavedAreaRestored": 1885.364097090703,
+  "originalTriangles": 7522,
+  "remainingTriangles": 1224,
+  "coverageErrorM2": 0.00010937612538382586,
+  "sourceHashes": {
+    "res://world/town/resources/r000017.res": "c30b40facba870715c4dd299683b8cc6af2dd5898a349b24ae05d37305977384",
+    "res://world/town/resources/r000025.res": "5095a1bb490bf614b5ba40fd4970d0103f28a4625deb4c7086312600e9f3b731",
+    "res://world/town/resources/r000039.res": "095a51d7ee49acaae64f6913d119fb92e570fbe352db1b234ccce1961009d4bb",
+    "res://world/town/resources/r005279.res": "a5f7476aed764321e60fa17be39dc5465d763bc619abbe931187084f0f57feba"
+  },
+  "outputSha256": "54449ae07d8cb081458e7ef520314b5b5de0beeb45264e0d72ff4e46f5d39a99",
+  "barySha256": "461c51b78fd9292440812b6350b61957ac25185bfed2a10623d1ad79cce8e28e"
+}

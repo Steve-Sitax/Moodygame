@@ -14,12 +14,21 @@ public partial class Jef
     public float DrivenRoll;
     public bool Riding => Drive != null;
     public bool KeyDown(Key key) => K(key);
+    public bool RideJumpPressed()
+    {
+        bool down = K(Key.Space), pressed = down && !jumpHeld;
+        jumpHeld = down;
+        return pressed;
+    }
+    public void ExitBoatAt(World.Exit exit)
+    { Drive=null;DrivenEye=Eye;DrivenRoll=0;StartClimb(exit); }
     public void DropFromBoat(Vector3 at)
     {Drive=null;DrivenEye=Eye;DrivenRoll=0;X=at.X;Y=at.Y;Z=at.Z;placing=false;vy=-1.5f;climb=null;EnterWater();}
-    public void LaunchFromRide()
+    public void LaunchFromRide(Vector2 velocity = default)
     {
         Drive = null; DrivenEye = Eye; Grounded = false; Swimming = false;
         placing = false; fallTop = Y; vy = JumpV; jumpHeld = true;
+        vel = velocity; coyoteT = bufferT = 0; jumpedOff = true;
     }
     /// <summary>A ride lets go of him where he stands now (the foot of a ladder): on his feet, walking, the view as it is.</summary>
     public void StandOnFeet()

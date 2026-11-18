@@ -40,6 +40,12 @@ kit. `SmallLife` seeds three sparrow flocks, 26 jackdaws, 12 crows and eight rat
 roof ray hits and checked wall runs. Roof birds forage on native ground and fly back to shelter.
 These cosmetic haunts add no multiplayer fields or entries to `Humans.Motions`.
 
+Five additional rats patrol dry ledges in the Ruien near the Vleeshuis, Rode Poort, Entrepot, Steenplein
+and Lijnwaadmarkt entrances. They pause at the ends of their runs and scurry away when approached.
+They share the street rat mesh and animation. Their underground material takes its light from the vault lamps
+and grates. The game creates their draw batch on descent. The `--ruien-rats-proof` check follows each animal
+in the assembled galleries and checks ledge support, water clearance, movement and animated draw data.
+
 The existing people2 shader gains an optional bone-palette branch, disabled for ordinary people
 and the other animals. Small life uses its plain-picture path, linear anisotropic mipmapped BC7
 colour and BC5 normals. No lighting is added. Existing cotangent reconstruction follows the

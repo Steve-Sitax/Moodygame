@@ -32,6 +32,7 @@ public partial class ShipWalk:Node
     private Func<bool>? oldJump;
     private Func<float,float,float,float>? oldFloor;
     private float lastYaw;
+    private Vector2 walkVelocity;
     private int floats,epoch;
     public ShipWalk(){I=this;drive=Drive;rampDrive=WalkRamp;Solid.Leave.Add(IsBrigRamp);}
     public override void _Ready()
@@ -94,7 +95,7 @@ public partial class ShipWalk:Node
         {
             if(!On.Small)return new(){Only=new(){Act.Me(Key.E,"leave the ship's deck",Leave)}};
             // In a small boat E stays free for the boat itself (Rowing: take her, row her); getting out is the second choice.
-            var at=On.At(Local);var exit=QuayExits.Near(at.X,at.Z,2.5f);
+            var at=On.At(Local);var exit=ExitBeside(On);
             var options=new List<(float,Act)>{(1.5f,Act.Me(Key.E,exit==null?"go over the side into the water":exit.Ladder?"climb out up the ladder":"step out of the boat",Leave))};
             // up onto a ship or another boat lying alongside, by the deck in view
             if(Reach() is {} up)options.Add((new Vector2(Jef.I.X-up.Deck.At(up.Local).X,Jef.I.Z-up.Deck.At(up.Local).Z).Length()*.5f,Act.At(Key.E,up.Deck.Small?"step across into the boat":"climb up onto the ship",up.Deck.At(up.Local)+Vector3.Up*.2f,()=>Board(up.Deck,up.Local))));
@@ -104,19 +105,66 @@ public partial class ShipWalk:Node
         return new(){Options=new(){(new Vector2(Jef.I.X-r.Deck.At(r.Local).X,Jef.I.Z-r.Deck.At(r.Local).Z).Length(),Act.At(Key.E,Jef.I.Swimming?(small?"climb into the boat":"climb onto the ship"):small?"step down into the boat":"step or jump onto the ship",r.Deck.At(r.Local)+Vector3.Up*.2f,()=>Board(r.Deck,r.Local)))}};
     }
     private bool Jump()
-    {if(On!=null){var at=On.At(Local);Clear();Jef.I.Carry(at);Jef.I.LaunchFromRide();return true;}if(oldJump?.Invoke()==true)return true;var r=Reach();if(r!=null){Board(r.Value.Deck,r.Value.Local);return true;}return false;}
-    private void Leave()
+    {if(On!=null){var at=On.At(Local);Clear();Jef.I.Carry(at);Jef.I.LaunchFromRide(walkVelocity);return true;}return oldJump?.Invoke()??false;}
+    public bool DryLanding(float x,float y,float z)
     {
-        if(On==null)return;var at=On.At(Local);var exit=QuayExits.Near(at.X,at.Z,2.5f);Clear();
-        if(exit!=null)Jef.I.ClimbTo(new[]{(new Vector3(exit.Tx,exit.Ty,exit.Tz),.9f)},null);
-        else{var j=Jef.I;float fx=-MathF.Sin(j.Yaw),fz=-MathF.Cos(j.Yaw);for(float a=.5f;a<4;a+=.25f)if(j.SwimFree(at.X+fx*a,at.Z+fz*a)){j.DropFromBoat(new(at.X+fx*a,Water.Level(at.X,at.Z)-.3f,at.Z+fz*a));return;}j.LaunchFromRide();}
+        foreach(var d in Decks)
+        {
+            if(!d.Visible())continue;var xf=d.World();
+            if(Math.Abs(x-xf.Origin.X)>65||Math.Abs(z-xf.Origin.Z)>65)continue;
+            var p=xf.AffineInverse()*new Vector3(x,y,z);
+            if(d.Mesh.Stand(p.X,p.Z,.05f)&&p.Y>=d.Mesh.Floor(p.X,p.Z)-.35f)return true;
+        }
+        return false;
+    }
+    public Exit? ExitBeside(Deck d)
+    {
+        Exit? best=null;float distance=2.8f;
+        foreach(var e in QuayExits.Exits)
+        {
+            var local=d.World().AffineInverse()*new Vector3(e.Gx,0,e.Gz);
+            var p=d.At(d.Mesh.Nearest(new(local.X,local.Z)));
+            float gap=new Vector2(p.X-e.Gx,p.Z-e.Gz).Length();
+            if(gap<distance && Jef.I.StandFree(e.Tx,e.Tz,e.Ty)){distance=gap;best=e;}
+        }
+        return best;
+    }
+    public Vector3? WaterBeside(Deck d)
+    {
+        // Search the complete perimeter, not a short ray from the middle of a wide ship.
+        var j=Jef.I;Vector3? best=null;float distance=float.PositiveInfinity;
+        var xf=d.World();
+        for(float gap=.55f;gap<=2.05f;gap+=.5f)
+        for(int side=0;side<4;side++)for(int i=0;i<=24;i++)
+        {
+            float x=d.Mesh.MinX+i/24f*(d.Mesh.Nx-1)*d.Mesh.Cell;
+            float z=d.Mesh.MinZ+i/24f*(d.Mesh.Nz-1)*d.Mesh.Cell;
+            if(side<2)x=side==0?d.Mesh.MinX-gap:d.Mesh.MinX+(d.Mesh.Nx-1)*d.Mesh.Cell+gap;
+            else z=side==2?d.Mesh.MinZ-gap:d.Mesh.MinZ+(d.Mesh.Nz-1)*d.Mesh.Cell+gap;
+            var p=xf*new Vector3(x,0,z);float dist=new Vector2(p.X-j.X,p.Z-j.Z).LengthSquared();
+            if(dist<distance&&j.SwimFree(p.X,p.Z)){best=new(p.X,Water.Level(p.X,p.Z)-.3f,p.Z);distance=dist;}
+        }
+        return best;
+    }
+    public void Leave()
+    {
+        if(On is not {} d)return;
+        var exit=ExitBeside(d);var water=exit==null?WaterBeside(d):null;
+        // Remain aboard when both shore and water are obstructed.
+        if(exit==null&&water==null)return;
+        Clear();
+        if(exit!=null)Jef.I.ExitBoatAt(exit);
+        else Jef.I.DropFromBoat(water!.Value);
     }
     private bool Drive(float dt)
     {
         var d=On;if(d==null)return false;if(!d.Visible()){Clear();return false;}var j=Jef.I;var xf=d.World();float yaw=xf.Basis.GetEuler().Y,dr=MathF.Atan2(MathF.Sin(yaw-lastYaw),MathF.Cos(yaw-lastYaw));lastYaw=yaw;
         float x=(j.KeyDown(Key.D)?1:0)-(j.KeyDown(Key.A)?1:0),z=(j.KeyDown(Key.S)?1:0)-(j.KeyDown(Key.W)?1:0);if(j.Frozen)x=z=0;var step=new Vector2(x,z).LimitLength()*(j.KeyDown(Key.Shift)&&!j.Laden?Jef.Hurry:Jef.Walk)*j.SpeedFactor*j.Fatigue*dt;float a=j.Yaw-yaw,c=MathF.Cos(a),s=MathF.Sin(a);var want=Local+new Vector2(step.X*c+step.Y*s,-step.X*s+step.Y*c);
         var world=xf*new Vector3(want.X,d.Mesh.Floor(Local.X,Local.Y),want.Y);float ramp=RampFloor(world.X,world.Z);if(d==annaMaria&&float.IsFinite(ramp)){Clear();j.Place(world.X,world.Z,j.Yaw,j.Pitch,ramp);return false;}
-        var before=Local;Local=d.Mesh.Walk(Local,want);j.Carry(d.At(Local),dr);j.WalkedOn(before.DistanceTo(Local),j.KeyDown(Key.Shift));if(j.KeyDown(Key.Space)&&!j.Frozen)Jump();return true;
+        var before=Local;Local=d.Mesh.Walk(Local,want);
+        var movement=xf.Basis*new Vector3(Local.X-before.X,0,Local.Y-before.Y);
+        walkVelocity=dt>0?new Vector2(movement.X,movement.Z)/dt:Vector2.Zero;
+        j.Carry(d.At(Local),dr);j.WalkedOn(before.DistanceTo(Local),j.KeyDown(Key.Shift));if(j.RideJumpPressed())Jump();return true;
     }
     public override void _Process(double delta)
     {

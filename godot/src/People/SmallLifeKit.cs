@@ -127,6 +127,24 @@ internal static class SmallLifeKit
         internal readonly Node3D Root;
         private readonly Dictionary<string, Draw> draws = new();
         internal int Count { get; private set; }
+        // Called on the first descent. The rats reuse their existing textures and animation palettes
+        // while the underground instance reads the same lamps, grates and vault cover as the wall.
+        internal static Batch RuienRats(Node parent, int capacity)
+        {
+            var batch = new Batch(parent, "ruien_rats", capacity, "rat");
+            var draw = batch.Root.GetNode<MultiMeshInstance3D>("rat");
+            draw.Layers = Scheldemist.World.Ruien.Ruien.Layer;
+            var surface = Kinds["rat"].Material;
+            var material = new ShaderMaterial {
+                ResourceName = "ruien_rat",
+                Shader = new Shader { Code = "#define RUIEN_RAT\n" + surface.Shader.Code, ResourceName = "people2_ruien_rat" }
+            };
+            foreach (string uniform in new[] { "tex", "skin_normal", "normal_strength", "pose_positions", "pose_normals", "layered_pictures", "vertex_animation" })
+                material.SetShaderParameter(uniform, surface.GetShaderParameter(uniform));
+            draw.MaterialOverride = material;
+            return batch;
+        }
+
         internal Batch(Node parent, string name, int capacity, params string[] kinds)
         {
             if (!Ready) throw new IOException("Build and intake smalllife first");

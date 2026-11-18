@@ -113,6 +113,14 @@ internal static class RuienGeometryCache
         string file=CacheFile(source,area,".res");
         return System.IO.File.Exists(file+".sha256")&&System.IO.File.Exists(file)&&System.IO.File.ReadAllText(file+".sha256")==ValidatedHash(file)?file:source;
     }
+    /// <summary>The collision proxy of triangles a piece makes anew at every start (a surround, a kit piece, a pipe), kept
+    /// by those triangles' own content: the same triangles give the stored proxy, any other triangles a new one.</summary>
+    internal static ConcavePolygonShape3D Proxy(Vector3[] faces)
+    {
+        if(faces.Length/3<CollisionProxy.Least||Main.I?.Flag("full-collision")==true)return new ConcavePolygonShape3D{Data=faces,BackfaceCollision=true};
+        string content=Convert.ToHexString(SHA256.HashData(System.Runtime.InteropServices.MemoryMarshal.AsBytes(faces.AsSpan())));
+        return Get(RuienData.AreasFile,"collision-proxy:"+content,()=>CollisionProxy.Shape(faces));
+    }
     internal static T Get<T>(string source, string area, Func<T> build) where T:Resource
     {
         if(Main.I?.Flag("no-startup-cache")==true)return build();

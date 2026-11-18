@@ -313,8 +313,14 @@ public partial class NativeTownGame : Scheldemist.Main
             if (!DedicatedServer) NativeNetworkHost.Prewarm();
             // (files the start loads later on the main thread, read beside the town: World/StartupResources)
             Scheldemist.World.StartupResources.Declare(NativeTownMaterials.GameMaterialFiles);
+            Scheldemist.World.StartupResources.Declare(() => new[] { StreetFittings.ScenePath });
+            Scheldemist.World.StartupResources.Declare(() => Scheldemist.World.StartupResources.Folder("res://assets/market-joinery", ".res"));
+            Scheldemist.World.StartupResources.Declare(Scheldemist.People.NetMenders.Resources);
+            Scheldemist.World.StartupResources.Declare(Scheldemist.Play.ScheldtScenery.Resources);
             base._Ready(); initialized = true;
             if (Arg("startup-proof") is { Length: > 0 } startupProof) _ = NativeStartupProof.Run(this, Paths.Absolute(startupProof));
+            if (Arg("persistence-proof") is { Length: > 0 } persistenceProof) _ = NativePersistenceProof.Run(this, Paths.Absolute(persistenceProof));
+            if (Arg("visual-quality-audit") is { Length: > 0 } qualityAudit) _ = global::VisualQualityAudit.CaptureRuntime(this, Paths.Absolute(qualityAudit));
 #if DEBUG
             if(Arg("furniture-game-proof") is {Length:>0} furnitureProof) _ = Interiors.FurnitureGameProof.Run(this,Paths.Absolute(furnitureProof));
             if(Arg("room-route-audit") is {Length:>0} roomRoutes) _ = Interiors.RoomRouteAudit.Run(this,Paths.Absolute(roomRoutes));

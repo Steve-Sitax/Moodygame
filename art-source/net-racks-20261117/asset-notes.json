@@ -1,0 +1,51 @@
+{
+  "scope": "The quay net-mending rack, Vliet drying rack and their reusable model variants. This does not constitute whole-city environment acceptance.",
+  "generator": "native-godot/scripts/NetRackGeometry.cs; native-godot/scripts/NetRackRepair.cs",
+  "targets": [
+    "native-godot/world/town/resources/r001552.res",
+    "native-godot/world/town/resources/r001553.res",
+    "native-godot/assets/game-models/resources/r001374.res",
+    "native-godot/assets/game-models/resources/r001047.res",
+    "native-godot/assets/props/net-racks-20261117/vliet-net.res",
+    "native-godot/assets/props/net-racks-20261117/vliet-frame.res"
+  ],
+  "construction": {
+    "net": "Geometric diamond mesh, flattened crossing knots, bowed panels, hem ropes and header ties replace stretched alpha cards. Ground net has five folds instead of an opaque mound.",
+    "twine_diameter_metres": 0.0033,
+    "hem_diameter_metres": 0.0068,
+    "header_rope_diameter_metres": 0.012,
+    "post_bevel_metres": 0.003,
+    "spar_bevel_metres": 0.004,
+    "stool_leg_bevel_metres": 0.002,
+    "props": "Beveled posts and sign board, turned stool seats, splayed legs and a woven basket with rounded rim. Removed one duplicate visible crossbar from the drying rack."
+  },
+  "edge_exceptions": [
+    "Hidden mating ends of cords and wooden joints remain flat; exposed edges and silhouettes are rounded.",
+    "Unrelated triangles in the merged quay-furniture surface retain their original arrays, including pre-existing degeneracies; these were not newly generated."
+  ],
+  "materials": [
+    { "name": "wood_single", "manifest": "native-godot/assets/textures/plan-84/manifest.json", "row": 6, "colour_size": [512, 128], "tile_metres": [2, 0.1171875], "licence": "CC0-1.0 donors with original adaptation" },
+    { "name": "trades", "manifest": "native-godot/assets/textures/plan-84/manifest.json", "row": 13, "colour_size": [2048, 2048], "licence": "CC0-1.0 donors with original adaptation", "use": "Existing photographic sign substrate and authored wording, mapped on both board faces." },
+    { "name": "hemp and wicker", "licence": "Original project geometry and colours", "use": "Dark hemp cord and warmer basket reeds use the existing native weather/fog shader. No alpha atlas or new raster assets." }
+  ],
+  "collision": {
+    "mender_structure_triangles": 420,
+    "mender_structure": "Exact original coarse obstacle triangle positions retained. All new visual surfaces excluded from collision.",
+    "decorative_net_triangles": 0,
+    "vliet_before_triangles": 19436,
+    "vliet_after_triangles": 92,
+    "vliet": "48 curtain triangles follow the repaired hem; 44 original header triangles retained. Fine cords and knots never enter physics.",
+    "merged_quay_furniture_triangles": 7168,
+    "merged_quay_furniture": "Exact original obstacle triangle positions retained. Only 32 old visible post/header triangles were replaced; 7136 unrelated visible triangles remain.",
+    "drying_prototype_triangles": 156
+  },
+  "preservation": "Original node transforms, placements, IDs and metadata retained. Repacked quay root passed 151 scene/property/mesh preservation checks. Reusable prototypes were also repaired so new placements use the corrected assets.",
+  "navigation": "The thinner drying curtain opens seven quarter-metre cells at its edge (0.4375 square metres); it closes no cells. A local fixture with the original support frame reproduces the entire live-map free-cell increase. Other collision faces remain identical. The map digest therefore changes deliberately; it is not reported as unchanged.",
+  "startup": "All geometry is authored offline and saved as resources. Existing content-hash cache invalidation covers the changed assets; no new construction runs before play. General startup optimization remains paused at Steve's request.",
+  "remaining": [
+    "The permanent net-mender character snapshots retain their older faces, garments and poses; the rear/top views also show overlapping figures needing a separate character-placement review.",
+    "Other market timber, carts and barrel variants remain in the broader visual audit backlog.",
+    "Adjacent building drainage and the entire quay are not certified complete by this local rack repair."
+  ],
+  "evidence": ".scratch/net-repair/installed.json; preservation.json; ties.json; navigation.json; game/result.json; result.json"
+}

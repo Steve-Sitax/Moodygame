@@ -1,13 +1,17 @@
 shader_type spatial;
 render_mode ambient_light_disabled, cull_back;
+#ifdef RUIEN_RAT
+#include "res://shaders/ruien_common.gdshaderinc"
+#else
 global uniform vec4 psx_fog_color;
 global uniform float psx_fog_near;
 global uniform float psx_fog_far;
 global uniform vec4 psx_hemi_sky;
 global uniform vec4 psx_hemi_ground;
+global uniform float psx_wet;
+#endif
 global uniform vec4 psx_mir0;
 global uniform vec4 psx_mir1;
-global uniform float psx_wet;
 // Animals retain their own coat pictures while sharing this exact shader with layered people.
 uniform bool layered_pictures = true;
 uniform sampler2D tex : source_color, hint_default_white, filter_linear_mipmap_anisotropic, repeat_disable;
@@ -50,6 +54,7 @@ varying float sun_lit;
 varying float eye;
 varying float surface_roughness;
 
+#ifndef RUIEN_RAT
 global uniform sampler2D psx_sky_shade : filter_linear, repeat_disable;
 global uniform vec4 psx_sky_box;
 global uniform float psx_sky_on;
@@ -98,6 +103,7 @@ vec3 eye_lamp(vec4 lamp, vec3 n, vec3 v) {
     float cap = psx_lamp_cap(1.7, -l.y);
     return psx_lamp_color.rgb * lamp.w * cap * glint * 0.6 / (pow(max(dl, 0.05), 1.7) + 0.6) / PI;
 }
+#endif
 vec3 palette_point(sampler2D image, float bone, vec3 pose, vec4 point) {
     vec2 dimensions = vec2(textureSize(image, 0));
     vec2 a = vec2((bone * 3.0 + 0.5) / dimensions.x, (pose.x + 0.5) / dimensions.y);
@@ -182,6 +188,22 @@ void fragment() {
     vec3 nm = vec3(xy, sqrt(max(1.0 - dot(xy,xy), 0.001)));
     NORMAL = normalize(mat3(t * inv, b * inv, NORMAL) * normalize(nm));
     vec3 nw = normalize((INV_VIEW_MATRIX * vec4(NORMAL, 0.0)).xyz);
+    ALBEDO = c.rgb;
+    ROUGHNESS = surface_roughness;
+#ifdef RUIEN_RAT
+    vec3 ray = world - CAMERA_POSITION_WORLD;
+    float len = length(ray);
+    vec3 rd = ray / max(len, 1e-4);
+    float covered = ruien_covered(world);
+    sun_lit = 1.0 - covered;
+    vec3 diffuse, specular;
+    ruien_lights_at(world, nw, -rd, mix(0.18, 0.82, eye), 0.15, diffuse, specular);
+    vec3 sky = mix(psx_hemi_ground.rgb, psx_hemi_sky.rgb, nw.y * 0.5 + 0.5) * sun_lit;
+    vec3 halo = ruien_haze(CAMERA_POSITION_WORLD, rd, len);
+    EMISSION = c.rgb * (diffuse + sky + ruien_fill.rgb * covered) + specular + halo;
+    vec4 fog = ruien_fog(fog_depth, covered);
+    FOG = vec4(fog.rgb + halo, fog.a);
+#else
     vec3 sky = mix(psx_hemi_ground.rgb, psx_hemi_sky.rgb, nw.y * 0.5 + 0.5) * psx_sky_seen(world, nw);
     sun_lit = psx_sun_shadow(world, nw);
     vec3 spilt = psx_spill_n > 0 ? psx_spill_at(world, nw) / PI : vec3(0.0);
@@ -190,7 +212,6 @@ void fragment() {
     float len = length(ray);
     vec3 rd = ray / max(len, 1e-4);
     vec3 halo = psx_lamp_color.rgb * psx_glow(CAMERA_POSITION_WORLD, rd, glow_reach(len, psx_fog_far, rd)) * psx_scatter * (0.35 + 0.65 * fog_k);
-    ALBEDO = c.rgb;
     float occlusion = layered_pictures ? clamp(COLOR.b, 0.22, 1.0) : 1.0;
     EMISSION = c.rgb * (sky * occlusion + spilt) + halo;
     if (eye > 0.5) {
@@ -198,8 +219,8 @@ void fragment() {
         EMISSION += eye * (eye_lamp(psx_lamp0, nw, v) + eye_lamp(psx_lamp1, nw, v) + eye_lamp(psx_lamp2, nw, v) + eye_lamp(psx_lamp3, nw, v) + eye_lamp(psx_lamp4, nw, v) + eye_lamp(psx_lamp5, nw, v));
         if (layered_pictures) EMISSION += eye * psx_hemi_sky.rgb * pow(max(dot(nw, normalize(v + vec3(-0.3, 0.8, 0.4))), 0.0), 100.0) * 0.18;
     }
-    ROUGHNESS = surface_roughness;
     FOG = vec4(psx_fog_color.rgb + halo, fog_k);
+#endif
 }
 void light() {
     float a = ATTENUATION;

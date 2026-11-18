@@ -43,8 +43,6 @@ public partial class Jef
     private bool warned, warnedLast, toldDive;
     private Vector3? airAt;
     private float airSearchT, outOfBreathT, stuckUpT, bobIn = 1;
-    /// <summary>Just put in the water (perhaps inside a hull): a moment in which any way out is free.</summary>
-    private float hullGrace;
 
     /// <summary>The body's shape: 0 on foot, 1 swimming at the surface, 2 under water.</summary>
     private void SetShape(int mode)
@@ -78,7 +76,14 @@ public partial class Jef
     private static bool Hull(float x, float z, float r, float y0, float y1, out Transform3D frame)
     {
         frame = Transform3D.Identity;
-        return Scheldemist.Movers.Boats.I != null && Scheldemist.Movers.Boats.I.HullIn(x, z, r, y0, y1, out frame);
+        if (Scheldemist.Movers.Boats.I is not { } boats) return false;
+        if (boats.HullIn(x, z, r, y0, y1, out frame)) return true;
+        // Rowed and loose copies replace hidden moored boats and need the same submerged hull test.
+        if (Scheldemist.Play.Rowing.I is { } rowing)
+            foreach (var d in rowing.Drawings.Values)
+                if (GodotObject.IsInstanceValid(d.Root) && d.Root.IsVisibleInTree() && Math.Abs(x-d.X)<30 && Math.Abs(z-d.Z)<30
+                    && boats.Hits(d.Kind, d.Root.GlobalTransform, x,z,r,y0,y1)) { frame=d.Root.GlobalTransform; return true; }
+        return false;
     }
 
     /// <summary>Open water a swimmer fits in at the surface (rijnkaai.ts swimFree): in the water's outline, clear of walls, steps, piles and hulls.</summary>
@@ -129,13 +134,13 @@ public partial class Jef
         Hurrying = false;
         Blocked = false;
         SetShape(1);
-        hullGrace = 1;
         bobAmp = 0;
         Land(Math.Min(-vy, 6) * 0.5f);
         vy = Math.Max(vy, -7); // the plunge, then you come up
         vel *= 0.3f;
         // clear of the wall you fell from
         var spot = NearestSwim(X, Z);
+        if (spot == null && Hull(X,Z,Radius,Water.Level(X,Z)-SwimDeep,Water.Level(X,Z)+SwimTop,out _)) spot=NearestSwim(X,Z,40);
         if (spot != null) (X, Z) = spot.Value;
         strokeDist = 0;
         stepLag = 0;
@@ -210,16 +215,12 @@ public partial class Jef
             X = Water.InAt(nx, oz, Y) ? nx : ox;
             Z = Water.InAt(X, nz, Y) ? nz : oz;
         }
-        hullGrace = Math.Max(0, hullGrace - dt);
-        if (Hull(ox, oz, Radius, level - SwimDeep, level + SwimTop, out var inside))
+        if (Hull(ox, oz, Radius, level - SwimDeep, level + SwimTop, out _))
         {
-            // in a hull already (she rolled onto him, or he was put there): out across her beam, the nearer way
-            if (hullGrace <= 0)
-            {
-                var side = inside.Basis.X.Normalized();
-                float k = (new Vector3(ox, 0, oz) - inside.Origin).Dot(side) >= 0 ? 1 : -1;
-                (X, Z) = (ox + side.X * k * 0.6f * dt, oz + side.Z * k * 0.6f * dt);
-            }
+            // A moving hull can sweep into a stationary swimmer. Resolve the overlap this frame.
+            if (NearestSwim(ox, oz, 40) is {} free) (X, Z) = free;
+            else (X, Z) = (ox, oz);
+            vel = Vector2.Zero;
         }
         else if (Hull(X, Z, Radius, level - SwimDeep, level + SwimTop, out var hull))
         {
@@ -320,7 +321,7 @@ public partial class Jef
     /// <summary>The top of the bed under (x, z): the first solid straight down from `top`.</summary>
     private float BedUnder(float x, float z, float top)
     {
-        var hit = Space.IntersectRay(PhysicsRayQueryParameters3D.Create(new Vector3(x, top, z), new Vector3(x, Tide.LwMin - 8, z), Solid.Layer));
+        var hit = Space.IntersectRay(PhysicsRayQueryParameters3D.Create(new Vector3(x, top, z), new Vector3(x, -26, z), Solid.Layer));
         return hit.Count > 0 ? hit["position"].AsVector3().Y : float.NegativeInfinity;
     }
 
@@ -414,15 +415,13 @@ public partial class Jef
         }
         e = Body.GlobalPosition + new Vector3(0, Eye, 0);
         // the hulls: slide along her side or under her keel
-        hullGrace = Math.Max(0, hullGrace - dt);
         if (Hull(from.X, from.Z, DiveR, from.Y - DiveR, from.Y + DiveR, out _))
         {
-            // her keel came down onto him as she heaved: down and out from under it
-            if (hullGrace <= 0)
-            {
-                e = from + new Vector3(0, -0.5f * dt, 0);
-                dive3.Y = Math.Min(dive3.Y, 0);
-            }
+            // Her keel heaved down onto him: project fully clear, rather than leaving him in the hull.
+            e = from;
+            for (float depth = .025f; depth <= 6; depth += .025f)
+                if (DiveFree(from - Vector3.Up * depth)) { e = from - Vector3.Up * depth; break; }
+            dive3.Y = Math.Min(dive3.Y, 0);
         }
         else if (Hull(e.X, e.Z, DiveR, e.Y - DiveR, e.Y + DiveR, out var hull))
         {
@@ -435,7 +434,7 @@ public partial class Jef
         // of mud off a wall's foot stands for the bank under it: he does not go in beneath it), nor deeper than the
         // deepest dock. A bed that rises over his head is a bank before him: he stops at it (and is never lifted
         // into it from below).
-        float Bed(float x, float z) => Math.Max(BedUnder(x, z, level - 0.05f), Math.Max(Scheldemist.Movers.Boats.BedAt(x, z), Tide.LwMin - 6)) + DiveR;
+        float Bed(float x, float z) => Math.Max(BedUnder(x, z, level - 0.05f), Math.Max(Scheldemist.Movers.Boats.BedAt(x, z), (z < 0 ? -24 : Tide.LwMin - 6))) + DiveR;
         float bed = Bed(e.X, e.Z);
         if (e.Y < bed - 0.02f && bed > from.Y + 0.05f)
         {

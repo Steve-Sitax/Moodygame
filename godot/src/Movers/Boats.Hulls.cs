@@ -122,6 +122,8 @@ public partial class Boats
             {
                 int i = z * m.Nx + x;
                 if (!m.Has(x, z)) { m.Lo[i] = deep; m.Hi[i] = high; }
+                // Seal the air above bottom boards up to the surrounding hull's rim.
+                m.Hi[i] = Math.Max(m.Hi[i], high);
                 m.Columns++;
             }
         }
@@ -161,7 +163,7 @@ public partial class Boats
             float reach = d.Length / 2 + r + 1;
             for (int i = 0; i < row.N; i++)
             {
-                if (Math.Abs(row.X[i] - x) > reach || Math.Abs(row.Z[i] - z) > reach || playerHidden.Contains((row, i))) continue;
+                if (row.Gone[i] || Math.Abs(row.X[i] - x) > reach || Math.Abs(row.Z[i] - z) > reach || playerHidden.Contains((row, i))) continue;
                 if (Hits(row.Kind, row.World[i], x, z, r, y0, y1)) { frame = row.World[i]; return true; }
             }
         }
@@ -177,7 +179,7 @@ public partial class Boats
         return false;
     }
 
-    private bool Hits(string kind, Transform3D xf, float x, float z, float r, float y0, float y1)
+    public bool Hits(string kind, Transform3D xf, float x, float z, float r, float y0, float y1)
     {
         if (Math.Abs(xf.Basis.Determinant()) < 1e-6f) return false;
         var m = HullOf(kind);
