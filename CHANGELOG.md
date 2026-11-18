@@ -5,6 +5,17 @@ What changed in each version of Scheldemist, for players first. The format follo
 Playable Windows previews are on [itch.io](https://drstaf.itch.io/scheldemist); GitHub hosts the source.
 Bugs and loose ends are tracked as [issues](https://github.com/Steve-Sitax/Moodygame/issues).
 
+## 0.3.0 Windows preview — 2026-11-18
+
+- The Ruien map layer shows underground street names and surface entrances. Look for matching nameplates on solid tunnel walls.
+- Right-click the map to place or move a waypoint, then follow its arrow in game. Right-click the pin or press Delete on the map to clear it.
+- Rats patrol five dry ledges in the Ruien and scatter when startled. Look for one near the Vleeshuis cellar entrance. Distinctive masonry marks underground junctions, and a gauge at the Vlietrui sluice follows the water level.
+- You can jump aboard low boats. When you leave a boat, you use a nearby landing or ladder if available, or enter the water beside the hull. Hulls also block swimmers approaching from below.
+- Empty arms stay out of view while swimming, climbing and vaulting.
+- Two dressed net menders now sit on separate stools at the quay. Fishing nets, market woodwork and quay paving have more visible detail.
+
+[Windows preview build and test results](docs/release.md#windows-preview-receipt--2026-11-18)
+
 ## 0.3.0 Godot preview — work in progress (2026-11-12)
 
 - The native Windows game includes the full town, interiors, residents and game rules, with its runtime included.

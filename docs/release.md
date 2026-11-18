@@ -18,17 +18,26 @@ Keep the executable, PCK and runtime folder together. Windows x64 and a Vulkan-c
 are required by the supplied Forward+ launcher. No Godot editor, .NET installation, Node or browser is needed.
 Native Linux and macOS exports have not been validated or published.
 
-This is a development preview. The exported Windows build's three-run warm startup median is 140.689 seconds,
-80.689 seconds above the target. The package brings its prepared geometry along (the `startup-cache` folder):
-a first launch with empty user data reached play in 147.017 seconds. Without that folder the first launch prepares
-the geometry itself (863.973 seconds, one observation). Hardware and background work affect these times.
+The November 18 Windows preview reached play in 92.552 seconds on a fresh player profile using the
+packaged `startup-cache` folder, 32.552 seconds above the target. Building that cache from scratch
+took 857.807 seconds on the test PC. Each time is one observation.
 See [measured delays](startup.md).
 Antigoon's autonomous encounter routing remains on the street; underground AI navigation is not implemented.
 User saves, edited district layouts and provider credentials are not shipped.
 
+## Windows preview receipt — 2026-11-18
+
+The existing `windows-preview` upload received build **#2426289**, version **0.3.0-wip+770218e30**.
+It includes the Ruien rats, wayfinding and map changes, city asset repairs and river traversal changes.
+The export hashes Godot's imported texture data so a first launch can reuse all 141 street-cut resources.
+The complete 21,338,143,288-byte package passed 184,280 content checks, all 28 relocated gameplay
+and rendering checks, and all seven desktop launcher checks. The fresh-profile launch used the
+15,903-file packaged cache and created no geometry entries. Butler reused 94.54% of the preceding
+build and uploaded a 655.20 MiB patch. [Matching game source](https://github.com/Steve-Sitax/Moodygame/commit/770218e3032ffc8a6cfbe00973dd2bee7f48c29c).
+
 ## Windows preview receipt — 2026-11-12
 
-The `windows-preview` channel contains **0.3.0-wip+2bd9167ea**, built from source
+The November 12 build **0.3.0-wip+2bd9167ea** came from source
 `2bd9167eacf09dad4abb36b4a7c99579b72489cf`. Later documentation and screenshot updates do not change that binary.
 The 11,360,824,691-byte PCK contains 27,800 packed resources; its static-data pack contains 324 files.
 The content verifier passed 168,095 checks. A relocated copy, with the source checkout and external .NET paths
@@ -46,7 +55,7 @@ the game's own resident/lock commands stage the views; the images are unretouche
 
 ### Package with prepared geometry: 2026-11-12
 
-The `windows-preview` channel now contains **0.3.0-wip+90f385c53**, built from source
+The November 12 update **0.3.0-wip+90f385c53** came from source
 `90f385c53`. Its game content equals the receipt above; the code adds the read-only `startup-cache` folder
 beside the executable, and the package holds that folder: 10.85 GB in 15,598 files. The download grows by about
 7.5 GB. Package fingerprint `19c862072af785cd40e3f6c2a7cbc6182f84e6b3772877968ee18fb6d37e7c95`; the content
