@@ -37,10 +37,48 @@ public static class InputFiles
         });
         foreach (int i in packed)
         {
-            if (!Godot.FileAccess.FileExists(paths[i])) throw new IOException("Missing cache input " + paths[i]);
-            result[i] = Convert.ToHexString(SHA256.HashData(Godot.FileAccess.GetFileAsBytes(paths[i])));
+            result[i] = PackedHash(paths[i]);
         }
         return result;
+    }
+
+    private static byte[] PackedDigest(string path)
+    {
+        using var file = Godot.FileAccess.Open(path, Godot.FileAccess.ModeFlags.Read)
+            ?? throw new IOException("Cannot open cache input " + path);
+        using var hash = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
+        ulong remaining = file.GetLength();
+        while (remaining > 0)
+        {
+            var bytes = file.GetBuffer((long)Math.Min(remaining, 1UL << 20));
+            if (bytes.Length == 0) throw new EndOfStreamException(path);
+            hash.AppendData(bytes);
+            remaining -= (ulong)bytes.Length;
+        }
+        return hash.GetHashAndReset();
+    }
+
+    private static string PackedHash(string path)
+    {
+        if (Godot.FileAccess.FileExists(path)) return Convert.ToHexString(PackedDigest(path));
+
+        // Exported resources can retain their source name in dependency lists while the PCK
+        // contains only the import descriptor and converted payloads.
+        string descriptor = path + ".import";
+        if (!Godot.FileAccess.FileExists(descriptor)) descriptor = path + ".remap";
+        if (!Godot.FileAccess.FileExists(descriptor)) throw new IOException("Missing cache input " + path);
+        using var config = new ConfigFile();
+        if (config.Load(descriptor) != Error.Ok || !config.HasSection("remap"))
+            throw new IOException("Invalid cache input descriptor " + descriptor);
+        var payloads = config.GetSectionKeys("remap")
+            .Where(k => k == "path" || k.StartsWith("path.", StringComparison.Ordinal))
+            .Select(k => config.GetValue("remap", k).AsString())
+            .Distinct(StringComparer.Ordinal).OrderBy(p => p, StringComparer.Ordinal).ToArray();
+        if (payloads.Length == 0) throw new IOException("Missing imported payload for " + path);
+        using var hash = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
+        hash.AppendData(PackedDigest(descriptor));
+        foreach (string payload in payloads) hash.AppendData(PackedDigest(payload));
+        return Convert.ToHexString(hash.GetHashAndReset());
     }
 
     /// <summary>The files and every resource they depend on, each with its content hash, sorted by path.</summary>
