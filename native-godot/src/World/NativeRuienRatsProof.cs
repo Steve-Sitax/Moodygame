@@ -136,6 +136,114 @@ public static class NativeRuienRatsProof
         return -1;
     }
 
+    public static async Task Colony(NativeTownGame game,string output)
+    {
+        Directory.CreateDirectory(output);
+        var h=RuienDrainNetwork.Active!.Heads.First(h=>h.Crossing && h.U>12 && h.Host.Zone.Length-h.U>12);
+        var camera=new Camera3D { Near=.025f, Fov=80, CullMask=game.Cam.CullMask };
+        game.View.AddChild(camera); camera.MakeCurrent(); game.Cam=camera;
+        Jef.I.TestInput=true; Jef.I.Frozen=true;
+        void Place(Vector3 at,Vector3 target)
+        {
+            camera.LookAtFromPosition(at,target);
+            var rot=camera.GlobalBasis.GetEuler(EulerOrder.Yxz);
+            Jef.I.Place(at.X,at.Z,rot.Y,rot.X,at.Y-Jef.Eye);
+        }
+        var life=Scheldemist.People.SmallLife.I!;
+        var start=h.Map(new Vector3(0,h.Template.Walk,-h.Template.HalfWidth+.5f));
+        var tangent=h.Frame(h.U).tan;
+        var along=new Vector3(tangent.X,0,tangent.Y);
+        var eye=start+along*8+Vector3.Up*1.4f;
+        Place(eye,eye+along);
+        async Task Frame()=>await game.ToSignal(game.GetTree(),SceneTree.SignalName.ProcessFrame);
+        var deadline=Time.GetTicksMsec()+90000;
+        while(life.ColonyCentre==null && Time.GetTicksMsec()<deadline)await Frame();
+        var centre=life.ColonyCentre??throw new InvalidOperationException("No colony appeared behind the player");
+        var active=RuienDrainNetwork.Active.Heads.Where(x=>x.Crossing).MinBy(x=>
+            x.Map(new Vector3(0,x.Template.Walk,-x.Template.HalfWidth+.4f)).DistanceSquaredTo(centre))!;
+        var axis=active.Frame(active.U).tan;
+        var axis3=new Vector3(axis.X,0,axis.Y);
+        var viewpoint=centre+axis3*8.5f+Vector3.Up*1.0f;
+        Place(viewpoint,centre);
+        var settle=Time.GetTicksMsec()+12500;
+        while(Time.GetTicksMsec()<settle)await Frame();
+        var mesh=game.View.GetNode<MultiMeshInstance3D>(DrawPath);
+        int instances=mesh.Multimesh.VisibleInstanceCount;
+        var frames=new List<double>();var logic=new List<double>();
+        for(int i=0;i<90;i++){ulong before=Time.GetTicksUsec();await Frame();frames.Add((Time.GetTicksUsec()-before)/1000.0);logic.Add(life.LogicMs);}
+        if(instances<30)throw new InvalidOperationException("Swarm too small: "+instances);
+        var space=game.View.FindWorld3D().DirectSpaceState;
+        int SeenCount()
+        {
+            int n=0;
+            using var ray=new PhysicsRayQueryParameters3D {CollisionMask=Solid.Layer,From=camera.GlobalPosition};
+            for(int i=0;i<instances;i++)
+            {
+                var at=mesh.ToGlobal(mesh.Multimesh.GetInstanceTransform(i).Origin)+Vector3.Up*.095f;
+                ray.To=at;
+                if(camera.IsPositionInFrustum(at) && space.IntersectRay(ray).Count==0) n++;
+            }
+            return n;
+        }
+        int seen=SeenCount();
+        if(seen<30)
+        {
+            viewpoint=centre-axis3*8.5f+Vector3.Up;
+            Place(viewpoint,centre); await Frame(); await Frame();
+            seen=SeenCount();
+        }
+        var withoutRats=new List<double>();
+        mesh.Visible=false;
+        for(int i=0;i<90;i++){ulong before=Time.GetTicksUsec();await Frame();withoutRats.Add((Time.GetTicksUsec()-before)/1000.0);}
+        withoutRats.Sort();mesh.Visible=true;
+        var near=centre+(viewpoint-centre).Normalized()*3+Vector3.Up*.45f;
+        Place(near,centre);
+        deadline=Time.GetTicksMsec()+30000;
+        while(life.ColonyCentre.HasValue && Time.GetTicksMsec()<deadline)await Frame();
+        var remaining=mesh.Multimesh.VisibleInstanceCount;
+        frames.Sort();logic.Sort();
+        File.WriteAllText(Path.Combine(output,"colony.json"),JsonSerializer.Serialize(new{instances,seen,remaining,frameMedianMs=frames[45],sameViewHiddenMedianMs=withoutRats[45],wildlifeMedianMs=logic[45]}));
+        if(seen<30)throw new InvalidOperationException("Fewer than 30 colony rats in sight: "+seen);
+        if(remaining>5)throw new InvalidOperationException("Colony did not flee");
+        await Flood(game, output, h);
+    }
+
+    private static async Task Flood(NativeTownGame game,string output,RuienDrainNetwork.Head h)
+    {
+        var ruien=Ruien.I!;
+        var floor=h.Map(new Vector3(2,h.Template.Walk,-h.Template.HalfWidth+.38f));
+        const float crest=9.6f+2*Tide.Period;
+        // A sample before the crest must already cover the near walk while the
+        // same incoming tide is still lower in the distant connected corridors.
+        Tide.Hold(null);
+        Tide.Set(2,crest-24-1.5f);
+        float near=Tide.RuienFlood(0), far=Tide.RuienFlood(800);
+        if(near-far<.4f)throw new InvalidOperationException("No travelling flood front");
+        float previousHour=(float)GameState.I.HourF;
+        int previousDay=GameState.I.Day;
+        try
+        {
+            Scheldemist.Movers.MoverClock.Hold(crest-24,2);
+            Tide.Set(2,crest-24);
+            Tide.Advance(20);
+            ruien._Process(0);
+            float? at=ruien.WaterAt(floor.X,floor.Z);
+            if(at==null || at.Value-floor.Y<=Tide.Wade)
+                throw new InvalidOperationException("High tide did not submerge the drain ledge");
+            var j=Jef.I;
+            j.Place(floor.X,floor.Z,0,0,floor.Y+.03f);
+            j.Frozen=false;
+            for(int i=0;i<20;i++)await game.ToSignal(game.GetTree(),SceneTree.SignalName.PhysicsFrame);
+            if(!j.Swimming)throw new InvalidOperationException("Flooded ledge failed to start swimming");
+            Tide.Set(2,crest-24+Tide.Period-Tide.Rise+.25f);
+            ruien._Process(0);
+            if(ruien.WaterAt(floor.X,floor.Z) is float ebb && ebb>floor.Y)throw new InvalidOperationException("Ledge did not drain");
+            File.WriteAllText(Path.Combine(output,"flood.json"),JsonSerializer.Serialize(new{near,far,high=at,ledge=floor.Y,swimming=true,drained=true}));
+        }
+        finally {Scheldemist.Movers.MoverClock.Hold(previousHour,previousDay);}
+
+    }
+
     public static async Task Run(NativeTownGame game,string output)
     {
         Directory.CreateDirectory(output);

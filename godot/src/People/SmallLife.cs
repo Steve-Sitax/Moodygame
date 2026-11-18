@@ -30,6 +30,7 @@ public partial class SmallLife : Node
     internal SmallLifeKit.Batch Batch = null!;
     private Townspeople town = null!;
     private RuienRats? ruienRats;
+    public Vector3? ColonyCentre => ruienRats?.ColonyCentre;
     private bool built;
     public double LogicMs { get; private set; }
     public long AllocatedBytes { get; private set; }

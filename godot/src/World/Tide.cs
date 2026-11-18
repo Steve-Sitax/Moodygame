@@ -107,6 +107,17 @@ public static class Tide
     }
 
     // the lock chamber between its gates, the Petit Bassin with its quays (tide.ts CHAMBER, DOCK, LOCK_CHANNEL)
+    // Debris periodically catches the Noorder gate open for one tidal cycle.
+    // Sampling the saved game clock also restores the travelling surge after a reload.
+    public static float RuienFlood(float metres)
+    {
+        if (!float.IsFinite(metres) || Held.HasValue) return float.NegativeInfinity;
+        float hour = (clockDay-1)*24 + clockHour - metres/420f;
+        int cycle = (int)MathF.Floor((hour-Hw0+Rise)/Period);
+        if (cycle < 0 || cycle%5 != 2) return float.NegativeInfinity;
+        return At(1,hour);
+    }
+
     private const float ChMinX = 100, ChMaxX = 120, ChMinZ = 7, ChMaxZ = 42;
     private const float DkMinX = 62, DkMaxX = 178, DkMinZ = 42, DkMaxZ = 118;
     private const float LcMinX = 104, LcMaxX = 116;

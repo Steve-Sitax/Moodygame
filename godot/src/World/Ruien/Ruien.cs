@@ -44,6 +44,8 @@ public partial class Ruien : Node
         public readonly List<(MeshInstance3D mesh, ShaderMaterial material, RuienData.MistBox box)> Mists = new();
         public readonly List<(ShaderMaterial m, RuienData.Source s)> Beams = new();
         public float Level;
+        public float FloodDistance = float.PositiveInfinity;
+        public readonly List<(MeshInstance3D Mesh, float Sill)> FloodSheets = new();
         public bool Shown, InBox, AtGate, AtOpening;
         public RuienArea? Export;
         /// <summary>The tide doors: their meshes (every level), their own solid body, how open now (0 shut .. 1).</summary>
@@ -51,6 +53,8 @@ public partial class Ruien : Node
     }
 
     private readonly List<Drawn> drawn = new();
+    private readonly Dictionary<string,Drawn> gateAreas = new();
+    private float? ReceivingLevel(string id) => gateAreas.TryGetValue(id,out var region) ? region.Level : null;
     private readonly HashSet<string> groupShown = new();
     private RuienNetworkGates networkGates=new();
     private RuienArea? drainNetwork;
@@ -167,7 +171,7 @@ public partial class Ruien : Node
             else
             {
                 foreach (var node in placed) node.Free();
-                drawn.Clear(); sources.Clear(); entranceDoors.Clear(); soundPoints.Clear();
+                drawn.Clear(); gateAreas.Clear(); sources.Clear(); entranceDoors.Clear(); soundPoints.Clear();
             }
             placed.Clear();
             place = n => Main.I.View.AddChild(n);
@@ -282,11 +286,17 @@ public partial class Ruien : Node
         if (entrances.Count > 0) GD.Print($"ruien: {entrances.Count} entrances from the street");
         if (Data.Areas.Count == 0 || Main.I.Flag("no-ruien-draw")) return false;
         var spec = JsonDocument.Parse(Godot.FileAccess.GetFileAsString(RuienData.AreasFile)).RootElement.GetProperty("areas").EnumerateArray().ToDictionary(a => a.GetProperty("id").GetString()!, a => a);
+        const string floodFile = "res://world/ruien/flood-distances.json";
+        Dictionary<string,float> floodRoutes;
+        using (Dev.StartupTiming.Measure("ruien.flood-routes"))
+            floodRoutes = Godot.FileAccess.FileExists(floodFile)
+                ? JsonSerializer.Deserialize<Dictionary<string,float>>(Godot.FileAccess.GetFileAsString(floodFile))! : new();
         foreach (var area in Data.Areas)
         {
             using var areaTrace=Dev.StartupTiming.Split("ruien.area."+area.Id);
             ulong t0 = Time.GetTicksMsec();
             var d = new Drawn { Area = area, Level = area.WaterMin };
+            if (floodRoutes.TryGetValue(area.Id, out float distance)) d.FloodDistance = distance;
             Node3D root;
             ConcavePolygonShape3D? shape;
             string how;
@@ -342,6 +352,7 @@ public partial class Ruien : Node
                     d.Doors.Add((mv, key.Lods.SelectMany(l => l).ToList(), body, new[] { -1f }));
                 }
             drawn.Add(d);
+            foreach (var gate in area.Gates) gateAreas[gate.Id] = d;
             sources.AddRange(area.Sources);
             SoundPoints(area, spec[area.Id], pipes);
             GD.Print($"ruien: {area.Id} ({area.Name}) from the {how}: {root.GetChildCount()} parts, {area.Sources.Count} sources, {area.Zones.Count} zones in {Time.GetTicksMsec() - t0} ms");
@@ -583,6 +594,9 @@ public partial class Ruien : Node
         {
             var box=d.Area.Box.Grow(2);
             if(x<box.Position.X || x>box.End.X || z<box.Position.Z || z>box.End.Z)continue;
+            if (d.Level > d.Area.WaterMin + d.Area.WaterRise + .02f)
+                foreach (var zone in d.Area.Zones)
+                    if (d.Level > zone.S.LedgeY && zone.Inside(p, out _) >= 0) return d.Level;
             foreach (var g in d.Area.Gates)
             {
                 var rel = p - g.Origin;
@@ -620,6 +634,42 @@ public partial class Ruien : Node
             foreach(string key in d.Export!.PendingVisuals(eye))yield return d.Area.Id+"/"+key;
         if(drainNetwork is {Root.Visible:true})
             foreach(string key in drainNetwork.PendingVisuals(eye))yield return "drainage/"+key;
+    }
+
+    // Floodwater overtops the maintenance walks. These sheets follow the same surveyed
+    // room and corridor outlines as the depth query; the existing masonry supplies collision.
+    private static void BuildFloodSheets(Drawn d)
+    {
+        foreach (var zone in d.Area.Zones)
+        {
+            using var surface = new SurfaceTool();
+            surface.Begin(Mesh.PrimitiveType.Triangles);
+            void Vertex(Vector2 p) { surface.SetUV(p); surface.AddVertex(new Vector3(p.X,0,p.Y)); }
+            void Quad(Vector2 a, Vector2 b, Vector2 c, Vector2 e)
+            { Vertex(a); Vertex(b); Vertex(c); Vertex(a); Vertex(c); Vertex(e); }
+            if (zone.Path.Length >= 2)
+            {
+                var lo = Vector2.Zero; var hi = Vector2.Zero;
+                for (int i=0; i<zone.Path.Length; i++)
+                {
+                    var dir=(zone.Path[Math.Min(i+1,zone.Path.Length-1)]-zone.Path[Math.Max(i-1,0)]).Normalized();
+                    var side=new Vector2(dir.Y,-dir.X)*(zone.S.Width/2);
+                    var nextLo=zone.Path[i]-side; var nextHi=zone.Path[i]+side;
+                    if(i>0) Quad(lo,nextLo,nextHi,hi);
+                    lo=nextLo; hi=nextHi;
+                }
+            }
+            else if (zone.Rect.HasArea())
+            {
+                var a=zone.Rect.Position; var c=zone.Rect.End;
+                Quad(a,new Vector2(c.X,a.Y),c,new Vector2(a.X,c.Y));
+            }
+            else continue;
+            var film=new MeshInstance3D {Name="flood_"+zone.Id,Mesh=surface.Commit(),
+                MaterialOverride=d.Water[0].Mesh.Mesh.SurfaceGetMaterial(0),Layers=Layer,
+                CastShadow=GeometryInstance3D.ShadowCastingSetting.Off};
+            d.Root.AddChild(film); d.FloodSheets.Add((film,zone.S.LedgeY));
+        }
     }
 
     private void Update(float dt)
@@ -678,7 +728,16 @@ public partial class Ruien : Node
             // rises a little with what the drains bring
             float river = Tide.River;
             float target = river < a.WaterMin ? a.WaterMin : a.WaterMin + a.WaterRise * Mathf.Clamp((river - a.WaterMin) / 3.5f, 0, 1);
+            float surge = Tide.RuienFlood(d.FloodDistance);
+            target = Math.Max(target, surge);
             d.Level += (target - d.Level) * Math.Min(1, dt * 0.05f + (dt <= 0 ? 1 : 0));
+            if (show && surge > a.WaterMin && d.FloodSheets.Count == 0 && d.Water.Count > 0)
+                BuildFloodSheets(d);
+            foreach (var film in d.FloodSheets)
+            {
+                film.Mesh.Visible = d.Level > film.Sill;
+                if (film.Mesh.Visible) film.Mesh.Position = Vector3.Up * (d.Level + .004f);
+            }
             foreach (var w in d.Water) w.Mesh.Position = new Vector3(0, d.Level+w.Offset, 0);
             foreach (var (mesh, material, gate) in d.Outflows)
             {
@@ -691,6 +750,8 @@ public partial class Ruien : Node
                 float rise = d.Level - a.WaterMin;
                 var lo = new Vector3(box.Min.X, d.Level + 0.015f, box.Min.Z);
                 var hi = new Vector3(box.Max.X, Math.Min(a.Zones.Min(z => z.S.LedgeY) - 0.15f, box.Max.Y + rise), box.Max.Z);
+                mesh.Visible = hi.Y > lo.Y;
+                if (!mesh.Visible) continue;
                 material.SetShaderParameter("box_min", lo); material.SetShaderParameter("box_max", hi);
                 mesh.Position = (lo + hi) / 2;
                 ((BoxMesh)mesh.Mesh).Size = hi - lo + Vector3.One * 0.02f;
@@ -711,7 +772,7 @@ public partial class Ruien : Node
                 if (body != null) body.Transform = xf;
             }
         }
-        networkGates.Update(dt,Tide.River,id=>drawn.FirstOrDefault(d=>d.Area.Gates.Any(g=>g.Id==id))?.Level);
+        networkGates.Update(dt,Tide.River,ReceivingLevel);
         if (lodT <= 0) lodT = 0.25f;
         SendLights(eye, day);
     }

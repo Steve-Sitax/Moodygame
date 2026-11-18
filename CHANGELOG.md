@@ -5,6 +5,11 @@ What changed in each version of Scheldemist, for players first. The format follo
 Playable Windows previews are on [itch.io](https://drstaf.itch.io/scheldemist); GitHub hosts the source.
 Bugs and loose ends are tracked as [issues](https://github.com/Steve-Sitax/Moodygame/issues).
 
+## Unreleased
+
+- Colonies of 36 rats emerge from collector pipes and gather on nearby ledges. Approach a colony and watch the rats retreat into side drains or swim a short distance and dive.
+- Debris can hold the Noorder tide gate open. The incoming Scheldt tide reaches connected passages at different times, overtops maintenance walks and recedes on the ebb. Deep water forces you to swim.
+
 ## 0.3.0 Windows preview — 2026-11-18
 
 - The Ruien map layer shows underground street names and surface entrances. Look for matching nameplates on solid tunnel walls.

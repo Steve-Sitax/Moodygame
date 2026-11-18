@@ -18,7 +18,7 @@ def distance(a, b):
     return math.hypot(a[0] - b[0], a[1] - b[1])
 
 
-def plan(config):
+def plan(config, flood=False):
     areas = config['areas']
     nodes, edges, area_nodes, guides, rooms = [], [], {}, {}, {}
     network = json.loads((ROOT / 'native-godot/world/ruien/network.json').read_text())
@@ -47,9 +47,9 @@ def plan(config):
     def link(a, b, length=None):
         length = max(.001, distance(nodes[a]['point'], nodes[b]['point']) if length is None else length)
         # Water can descend into a deeper main; it cannot flow uphill out of it.
-        if nodes[a]['level'] >= nodes[b]['level'] - .015:
+        if flood or nodes[a]['level'] >= nodes[b]['level'] - .015:
             edges[a].append((b, length))
-        if nodes[b]['level'] >= nodes[a]['level'] - .015:
+        if flood or nodes[b]['level'] >= nodes[a]['level'] - .015:
             edges[b].append((a, length))
 
     for area in areas:
@@ -132,7 +132,8 @@ def plan(config):
                 raise ValueError(f"Outlet {gate['id']} is {gap:.3f} m from its channel")
             sink = node(area, gate['origin'], 'outlet:' + gate['id'])
             link(closest, sink)
-            sinks.append(sink)
+            if not flood or gate['id'] == 'O10':
+                sinks.append(sink)
 
     reverse = [[] for _ in nodes]
     for a, links in enumerate(edges):
@@ -153,6 +154,11 @@ def plan(config):
             if new < costs[a]:
                 costs[a], next_node[a] = new, b
                 heapq.heappush(queue, (new, a))
+
+    if flood:
+        # A jammed-open O10 admits water in either direction along connected passages.
+        return {area: round(min(costs[n] for n in indices), 2)
+                for area, indices in sorted(area_nodes.items()) if any(math.isfinite(costs[n]) for n in indices)}
 
     unresolved = sorted({n['area'] for i, n in enumerate(nodes) if not math.isfinite(costs[i])})
     report = dict(nodes=len(nodes), links=sum(map(len, edges)), joins=joins,
@@ -242,7 +248,13 @@ def plan(config):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--apply', action='store_true')
+    parser.add_argument('--flood-distances', action='store_true', help='Generate distances along installed passages from O10')
     args = parser.parse_args()
+    if args.flood_distances:
+        folder = ROOT / 'native-godot/world/ruien'
+        table = plan(json.loads((folder / 'areas.json').read_text()), flood=True)
+        (folder / 'flood-distances.json').write_text(json.dumps(table, indent=2) + '\n')
+        return
     source = STAGE / 'native-conversion-areas.json'
     result, report = plan(json.loads(source.read_text()))
     (STAGE / 'water-flow-plan33.json').write_text(json.dumps(report, indent=2) + '\n')

@@ -38,6 +38,8 @@ public static class NativeStartupProof
             GD.Print($"STARTUP_PLAYABLE: {Time.GetTicksMsec()} ms, menu {menuMs} ms");
             if(game.Arg("ruien-life-review") is {Length:>0} lifeReview)
             {await ReviewRuienLife(game,Paths.Absolute(lifeReview));return;}
+            if(game.Arg("colony-proof") is {Length:>0} colonyProof)
+            {await NativeRuienRatsProof.Colony(game,Paths.Absolute(colonyProof));await FinishRuienReview(game,0);return;}
             if(game.Arg("ruien-rats-proof") is {Length:>0} ratsProof)
             {await NativeRuienRatsProof.Run(game,Paths.Absolute(ratsProof));await FinishRuienReview(game,0);return;}
             if(game.Arg("ruien-landmarks-proof") is {Length:>0} landmarksProof)

@@ -189,7 +189,9 @@ public sealed class RuienNetworkGates
         }
         foreach(var d in doors)
         {
-            float target=!d.Spec.Held&&river<d.Spec.Water-.02f?1:0;
+            float inside = receivingLevel?.Invoke(d.Spec.Id) ?? d.Spec.Water;
+            bool wedged = d.Spec.Id == "O10" && float.IsFinite(Tide.RuienFlood(0));
+            float target = wedged || (!d.Spec.Held && river < inside-.02f) ? 1 : 0;
             float now=d.Open[0]<0||dt<=0||Tide.Held!=null?target:Mathf.MoveToward(d.Open[0],target,dt/60);
             if(now==d.Open[0])continue;d.Open[0]=now;
             var basis=new Basis(Vector3.Up,Mathf.DegToRad(d.Degrees*Mathf.SmoothStep(0,1,now)));

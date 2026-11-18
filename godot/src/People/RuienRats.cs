@@ -72,17 +72,25 @@ internal sealed class RuienRats
     private readonly SmallLifeKit.Batch batch;
     private readonly Rat[] rats = Array.ConvertAll(RuienRatSites.All, site => new Rat(site));
 
-    internal RuienRats(Node parent) => batch = SmallLifeKit.Batch.RuienRats(parent, rats.Length);
+    internal Vector3? ColonyCentre => colony.Centre;
+    private readonly DrainRatColony colony;
+    internal RuienRats(Node parent)
+    {
+        batch = SmallLifeKit.Batch.RuienRats(parent, rats.Length + DrainRatColony.Count);
+        colony = new DrainRatColony(batch.Root);
+    }
 
     internal void Draw(Vector3 eye, float dt, double time)
     {
         batch.Begin();
+        if (batch.Root.GetViewport().GetCamera3D() is {} camera) colony.Draw(batch,camera,eye,dt,time);
         foreach (var rat in rats) rat.Draw(batch, eye, dt, time);
         batch.End();
     }
 
     internal void Hide()
     {
+        colony.Hide();
         if (batch.Count == 0) return;
         batch.Begin();
         batch.End();
