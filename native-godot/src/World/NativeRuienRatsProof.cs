@@ -158,7 +158,7 @@ public static class NativeRuienRatsProof
         async Task Frame()=>await game.ToSignal(game.GetTree(),SceneTree.SignalName.ProcessFrame);
         var deadline=Time.GetTicksMsec()+90000;
         while(life.ColonyCentre==null && Time.GetTicksMsec()<deadline)await Frame();
-        var centre=life.ColonyCentre??throw new InvalidOperationException("No colony appeared behind the player");
+        var centre=life.ColonyCentre??throw new InvalidOperationException($"No colony behind player at {camera.GlobalPosition}, expected {eye}, area {Ruien.I?.Near?.Id}, head {h.Id}, batch {game.View.HasNode(DrawPath)}, paused {game.GetNode<Scheldemist.Town.Townspeople>("Townspeople").Paused}");
         var active=RuienDrainNetwork.Active.Heads.Where(x=>x.Crossing).MinBy(x=>
             x.Map(new Vector3(0,x.Template.Walk,-x.Template.HalfWidth+.4f)).DistanceSquaredTo(centre))!;
         var axis=active.Frame(active.U).tan;

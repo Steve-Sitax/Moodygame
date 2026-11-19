@@ -173,6 +173,26 @@ the walk mask cannot approve an entrance site. End faces at the shared passage/r
   river's sheet is skipped: its shader discards it under the cover map). `--ruien-proof-walk` points may be
   `{"ladder": id, "dir": "up"|"down"}` (the E prompts at a street grate's ladder) or `{"shot": name}`.
 
+## Rat colonies and tidal flooding
+
+Five resident rats patrol individual ledges. A separate group of 36 can emerge from a nearby
+collector, gather on the bank, and scatter when the player approaches within seven metres and
+has a clear view. Two thirds take the water route and dive. The others retreat through the
+pipe bend. Only one colony runs at once, using the resident rats' batched renderer.
+
+Every fifth tidal cycle the Noorder gate (O10) jams open. The incoming high water reaches
+each connected area after a delay based on its passage distance from O10, at 420 metres per
+game hour. The same delay applies on the ebb. The event follows the saved game clock.
+The model gives each area one water level. It covers overtopped walkways and uses the
+ordinary 1.2-metre wading limit to switch the player to swimming. Regenerate the passage
+distances after changing connections with `python tools/ruien/plan_water_flow.py --flood-distances`.
+
+The November 19 Forward+ gameplay check counted 37 rats in clear view, including one
+resident. Over 90 frames per condition, median frame time was 28.1 ms with rats drawn and
+29.0 ms with their mesh hidden. Median CPU time for all small wildlife was 0.063 ms.
+At the sampled high tide the water stood at −0.40 m over a −3.60 m ledge. The player swam
+there and the ledge drained on the ebb.
+
 ## Sound
 
 The Ruien are a room of the soundscape ("ruien" in `Soundscape.Halls`, `RuienSound.cs`): a 3.4 s brick echo, the

@@ -83,7 +83,7 @@ internal sealed class RuienRats
     internal void Draw(Vector3 eye, float dt, double time)
     {
         batch.Begin();
-        if (batch.Root.GetViewport().GetCamera3D() is {} camera) colony.Draw(batch,camera,eye,dt,time);
+        if (batch.Root.GetViewport().GetCamera3D() is {} camera) colony.Draw(batch,camera,eye,dt,Time.GetTicksMsec()/1000.0);
         foreach (var rat in rats) rat.Draw(batch, eye, dt, time);
         batch.End();
     }
