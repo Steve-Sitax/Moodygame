@@ -188,10 +188,10 @@ ordinary 1.2-metre wading limit to switch the player to swimming. Regenerate the
 distances after changing connections with `python tools/ruien/plan_water_flow.py --flood-distances`.
 
 The November 19 Forward+ gameplay check counted 37 rats in clear view, including one
-resident. Over 90 frames per condition, median frame time was 28.1 ms with rats drawn and
-29.0 ms with their mesh hidden. Median CPU time for all small wildlife was 0.063 ms.
+resident. Over 90 frames per condition, median frame time was 24.54 ms with rats drawn and
+24.52 ms with their mesh hidden. Median CPU time for all small wildlife was 0.065 ms.
 At the sampled high tide the water stood at −0.40 m over a −3.60 m ledge. The player swam
-there and the ledge drained on the ebb.
+there and the ledge drained on the ebb. The final warm launch reached play in 95.26 s, 35.26 s above target. The uncached, in-order run matched all 68 non-timing world fields and all 7,202 prepared meshes.
 
 ## Sound
 

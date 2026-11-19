@@ -170,7 +170,6 @@ public static class NativeRuienRatsProof
         var mesh=game.View.GetNode<MultiMeshInstance3D>(DrawPath);
         int instances=mesh.Multimesh.VisibleInstanceCount;
         var frames=new List<double>();var logic=new List<double>();
-        for(int i=0;i<90;i++){ulong before=Time.GetTicksUsec();await Frame();frames.Add((Time.GetTicksUsec()-before)/1000.0);logic.Add(life.LogicMs);}
         if(instances<30)throw new InvalidOperationException("Swarm too small: "+instances);
         var space=game.View.FindWorld3D().DirectSpaceState;
         int SeenCount()
@@ -192,6 +191,7 @@ public static class NativeRuienRatsProof
             Place(viewpoint,centre); await Frame(); await Frame();
             seen=SeenCount();
         }
+        for(int i=0;i<90;i++){ulong before=Time.GetTicksUsec();await Frame();frames.Add((Time.GetTicksUsec()-before)/1000.0);logic.Add(life.LogicMs);}
         var withoutRats=new List<double>();
         mesh.Visible=false;
         for(int i=0;i<90;i++){ulong before=Time.GetTicksUsec();await Frame();withoutRats.Add((Time.GetTicksUsec()-before)/1000.0);}
